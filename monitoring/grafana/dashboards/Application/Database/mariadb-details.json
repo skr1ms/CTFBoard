@@ -1,0 +1,105 @@
+{
+  "uid": "mariadb-details",
+  "title": "MariaDB Details",
+  "tags": [
+    "infrastructure",
+    "mariadb"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "QPS (Queries Per Second)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(mysql_global_status_queries[1m])",
+          "refId": "A",
+          "legendFormat": "QPS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "qps"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Slow Queries",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_slow_queries",
+          "refId": "A",
+          "legendFormat": "Slow Queries"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Threads Connected",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "mysql_global_status_threads_connected",
+          "refId": "A",
+          "legendFormat": "Connected"
+        },
+        {
+          "expr": "mysql_global_variables_max_connections",
+          "refId": "B",
+          "legendFormat": "Max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "weekStart": ""
+}

@@ -1,0 +1,478 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "rate(redis_commands_processed_total[1m])",
+                    "legendFormat": "Commands/sec",
+                    "refId": "A"
+                }
+            ],
+            "title": "Commands per Second",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "redis_memory_used_bytes",
+                    "legendFormat": "Used Memory",
+                    "refId": "A"
+                }
+            ],
+            "title": "Memory Usage",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.9
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.95
+                            }
+                        ]
+                    },
+                    "unit": "percentunit"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 8
+            },
+            "id": 3,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)",
+                    "legendFormat": "",
+                    "refId": "A"
+                }
+            ],
+            "title": "Hit Rate",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 8
+            },
+            "id": 4,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "redis_connected_clients",
+                    "legendFormat": "",
+                    "refId": "A"
+                }
+            ],
+            "title": "Connected Clients",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 8
+            },
+            "id": 5,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "redis_db_keys",
+                    "legendFormat": "{{db}}",
+                    "refId": "A"
+                }
+            ],
+            "title": "Total Keys",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "options": {
+                                "0": {
+                                    "color": "red",
+                                    "index": 1,
+                                    "text": "Down"
+                                },
+                                "1": {
+                                    "color": "green",
+                                    "index": 0,
+                                    "text": "Up"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 8
+            },
+            "id": 6,
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "redis_up",
+                    "legendFormat": "",
+                    "refId": "A"
+                }
+            ],
+            "title": "Redis Status",
+            "type": "stat"
+        }
+    ],
+    "schemaVersion": 39,
+    "tags": [
+        "redis",
+        "cache"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Redis Overview",
+    "uid": "redis-overview",
+    "version": 1
+}

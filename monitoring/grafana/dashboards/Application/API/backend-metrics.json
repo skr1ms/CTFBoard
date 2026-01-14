@@ -1,0 +1,172 @@
+{
+  "uid": "go-backend-performance",
+  "title": "Go Backend Performance",
+  "tags": ["backend", "go", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "RPS by Endpoint",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum by (path) (rate(http_requests_total{job=\"backend\"}[1m]))",
+          "refId": "A",
+          "legendFormat": "{{path}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Error Rate by Endpoint",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "sum by (path) (rate(http_requests_total{job=\"backend\",status=~\"5..\"}[1m]))",
+          "refId": "A",
+          "legendFormat": "{{path}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Latency P95",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "refId": "A",
+          "legendFormat": "P95 {{path}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Latency P99",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "refId": "A",
+          "legendFormat": "P99 {{path}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Average Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(http_request_duration_seconds_count{job=\"backend\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "Avg Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Goroutines Count",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+      "targets": [
+        {
+          "expr": "go_goroutines{job=\"backend\"}",
+          "refId": "A",
+          "legendFormat": "Goroutines ({{instance}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Heap Memory",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+      "targets": [
+        {
+          "expr": "go_memstats_heap_alloc_bytes{job=\"backend\"}",
+          "refId": "A",
+          "legendFormat": "Heap Allocated ({{instance}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "GC Duration",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+      "targets": [
+        {
+          "expr": "rate(go_gc_duration_seconds_sum{job=\"backend\"}[1m])",
+          "refId": "A",
+          "legendFormat": "GC Duration ({{instance}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "weekStart": ""
+}

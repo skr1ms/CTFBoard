@@ -1,0 +1,90 @@
+apiVersion: 1
+
+providers:
+  - name: "Overview"
+    orgId: 1
+    folder: "Overview"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Overview
+      foldersFromFilesStructure: false
+
+  - name: "Infrastructure"
+    orgId: 1
+    folder: "Infrastructure"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Infrastructure
+      foldersFromFilesStructure: false
+
+  - name: "Application/Database"
+    orgId: 1
+    folder: "Application/Database"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Application/Database
+      foldersFromFilesStructure: false
+
+  - name: "Application/Cache"
+    orgId: 1
+    folder: "Application/Cache"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Application/Cache
+      foldersFromFilesStructure: false
+
+  - name: "Application/API"
+    orgId: 1
+    folder: "Application/API"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Application/API
+      foldersFromFilesStructure: false
+
+  - name: "Application/Secrets"
+    orgId: 1
+    folder: "Application/Secrets"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Application/Secrets
+      foldersFromFilesStructure: false
+
+  - name: "Monitoring"
+    orgId: 1
+    folder: "Monitoring"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/Monitoring
+      foldersFromFilesStructure: false
+
+  - name: "System"
+    orgId: 1
+    folder: "System"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/System
+      foldersFromFilesStructure: false

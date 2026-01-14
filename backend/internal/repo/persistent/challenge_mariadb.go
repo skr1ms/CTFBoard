@@ -1,0 +1,195 @@
+package persistent
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/entity"
+	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
+)
+
+type ChallengeRepo struct {
+	db *sql.DB
+}
+
+func NewChallengeRepo(db *sql.DB) *ChallengeRepo {
+	return &ChallengeRepo{db: db}
+}
+
+func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
+	id := uuid.New().String()
+	c.Id = id
+
+	query := squirrel.Insert("challenges").
+		Columns("id", "title", "description", "category", "points", "flag_hash", "is_hidden").
+		Values(id, c.Title, c.Description, c.Category, c.Points, c.FlagHash, c.IsHidden)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create - BuildQuery: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create - ExecQuery: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ChallengeRepo) GetByID(ctx context.Context, id string) (*entity.Challenge, error) {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetByID - ParseID: %w", err)
+	}
+
+	query := squirrel.Select("id", "title", "description", "category", "points", "flag_hash", "is_hidden").
+		From("challenges").
+		Where(squirrel.Eq{"id": uuidID})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetByID - BuildQuery: %w", err)
+	}
+
+	var challenge entity.Challenge
+	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+		&challenge.Id,
+		&challenge.Title,
+		&challenge.Description,
+		&challenge.Category,
+		&challenge.Points,
+		&challenge.FlagHash,
+		&challenge.IsHidden,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, entityError.ErrChallengeNotFound
+		}
+		return nil, fmt.Errorf("ChallengeRepo - GetByID - Scan: %w", err)
+	}
+
+	return &challenge, nil
+}
+
+func (r *ChallengeRepo) GetAll(ctx context.Context, teamId *string) ([]*repo.ChallengeWithSolved, error) {
+	var query squirrel.SelectBuilder
+
+	if teamId != nil {
+		teamUUID, err := uuid.Parse(*teamId)
+		if err != nil {
+			return nil, fmt.Errorf("ChallengeRepo - GetAll - Parse TeamID: %w", err)
+		}
+		query = squirrel.Select(
+			"c.id", "c.title", "c.description", "c.category", "c.points", "c.flag_hash", "c.is_hidden",
+			"CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as solved",
+		).
+			From("challenges c").
+			LeftJoin("solves s ON c.id = s.challenge_id AND s.team_id = ?", teamUUID.String()).
+			Where(squirrel.Eq{"c.is_hidden": false})
+	} else {
+		query = squirrel.Select(
+			"c.id", "c.title", "c.description", "c.category", "c.points", "c.flag_hash", "c.is_hidden",
+			"0 as solved",
+		).
+			From("challenges c").
+			Where(squirrel.Eq{"c.is_hidden": false})
+	}
+
+	sqlQuery, args, err := query.PlaceholderFormat(squirrel.Question).ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll - BuildQuery: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll - Query: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	result := make([]*repo.ChallengeWithSolved, 0)
+	for rows.Next() {
+		var challenge entity.Challenge
+		var solved int
+		if err := rows.Scan(
+			&challenge.Id,
+			&challenge.Title,
+			&challenge.Description,
+			&challenge.Category,
+			&challenge.Points,
+			&challenge.FlagHash,
+			&challenge.IsHidden,
+			&solved,
+		); err != nil {
+			return nil, fmt.Errorf("ChallengeRepo - GetAll - Scan: %w", err)
+		}
+		result = append(result, &repo.ChallengeWithSolved{
+			Challenge: &challenge,
+			Solved:    solved == 1,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll - Rows: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
+	uuidID, err := uuid.Parse(c.Id)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update - ParseID: %w", err)
+	}
+
+	query := squirrel.Update("challenges").
+		Set("title", c.Title).
+		Set("description", c.Description).
+		Set("category", c.Category).
+		Set("points", c.Points).
+		Set("flag_hash", c.FlagHash).
+		Set("is_hidden", c.IsHidden).
+		Where(squirrel.Eq{"id": uuidID})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update - BuildQuery: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update - ExecQuery: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ChallengeRepo) Delete(ctx context.Context, id string) error {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Delete - ParseID: %w", err)
+	}
+
+	query := squirrel.Delete("challenges").
+		Where(squirrel.Eq{"id": uuidID})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Delete - BuildQuery: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Delete - ExecQuery: %w", err)
+	}
+
+	return nil
+}

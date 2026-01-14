@@ -1,0 +1,50 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    config:
+      all: true
+      dir: "internal/usecase/mocks"
+      filename: "{{.InterfaceName}}.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+
+  github.com/skr1ms/CTFBoard/pkg/jwt:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "JWTService.go"
+          pkgname: "mocks"
+          structname: "MockJWTService"
+
+  github.com/skr1ms/CTFBoard/pkg/validator:
+    interfaces:
+      Validator:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "Validator.go"
+          pkgname: "mocks"
+          structname: "MockValidator"
+
+  github.com/skr1ms/CTFBoard/pkg/logger:
+    interfaces:
+      Interface:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "Logger.go"
+          pkgname: "mocks"
+          structname: "MockLogger"
+
+  github.com/skr1ms/CTFBoard/pkg/redis:
+    interfaces:
+      Client:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "RedisClient.go"
+          pkgname: "mocks"
+          structname: "MockRedisClient"
