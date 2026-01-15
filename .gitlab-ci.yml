@@ -175,6 +175,21 @@ deploy:
         
         echo "BACKEND_IMAGE=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" >> "\$ENV_FILE"
         
+        # Load environment variables (ignoring errors if format is tricky, but basic vars should work)
+        set -a
+        source "\$ENV_FILE"
+        set +a
+        
+        echo "Generating monitoring/mysqld-exporter/my.cnf..."
+        mkdir -p monitoring/mysqld-exporter
+        cat <<CNF > monitoring/mysqld-exporter/my.cnf
+        [client]
+        user=\${MARIADB_USER:-admin}
+        password=\${MARIADB_PASSWORD:-admin}
+        host=mariadb
+        port=3306
+        CNF
+        
         docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" pull
         
         if [ -n "\$MONITORING_CHANGED" ]; then
@@ -185,6 +200,17 @@ deploy:
         fi
         
         docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" up -d
+        
+        echo "Ensuring DB privileges..."
+        for i in {1..30}; do
+          if docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root -p"\${MARIADB_ROOT_PASSWORD:-root}" --silent; then
+            echo "MariaDB is ready. Granting privileges..."
+            docker exec mariadb mariadb -u root -p"\${MARIADB_ROOT_PASSWORD:-root}" -e "GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '\${MARIADB_USER:-admin}'@'%'; FLUSH PRIVILEGES;"
+            break
+          fi
+          echo "Waiting for MariaDB..."
+          sleep 2
+        done
         
         docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" up -d --force-recreate --no-deps backend
         
