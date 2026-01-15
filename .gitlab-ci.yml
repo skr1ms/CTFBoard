@@ -74,22 +74,22 @@ test:backend:
   image: $GOLANG_IMAGE
   services:
     - name: $MARIADB_IMAGE
-      alias: mariadb
+      alias: mariadb-test
       variables:
         MARIADB_ROOT_PASSWORD: $MARIADB_ROOT_PASSWORD
         MARIADB_DATABASE: $MARIADB_DATABASE
         MARIADB_USER: $MARIADB_USER
         MARIADB_PASSWORD: $MARIADB_PASSWORD
     - name: $REDIS_IMAGE
-      alias: redis
+      alias: redis-test
       variables:
         REDIS_PASSWORD: $REDIS_PASSWORD
 
   variables:
-    MARIADB_HOST: mariadb
+    MARIADB_HOST: mariadb-test
     MARIADB_PORT: "3306"
     MARIADB_DB: $MARIADB_DATABASE
-    REDIS_HOST: redis
+    REDIS_HOST: redis-test
     REDIS_PORT: "6379"
     JWT_ACCESS_SECRET: test-access-secret-key-for-ci
     JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
@@ -106,7 +106,7 @@ test:backend:
     - |
       echo "Waiting for MariaDB..."
       for i in $(seq 1 30); do
-        nc -z mariadb 3306 && echo "MariaDB is ready!" && break
+        nc -z mariadb-test 3306 && echo "MariaDB is ready!" && break
         echo "Waiting..."
         sleep 2
       done
@@ -114,7 +114,7 @@ test:backend:
     - |
       echo "Waiting for Redis..."
       for i in $(seq 1 10); do
-        nc -z redis 6379 && echo "Redis is ready!" && break
+        nc -z redis-test 6379 && echo "Redis is ready!" && break
         echo "Waiting..."
         sleep 1
       done
