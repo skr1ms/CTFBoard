@@ -126,7 +126,7 @@ test:backend:
     - cd backend
     - go mod download
   script:
-    - go test $(go list ./... | grep -v '/e2e-test' | grep -v '/integration-test') -v
+    - go test ./... -v
   rules:
     - changes:
         - backend/**/*
@@ -182,13 +182,7 @@ deploy:
         
         echo "Generating monitoring/mysqld-exporter/my.cnf..."
         mkdir -p monitoring/mysqld-exporter
-        cat <<CNF > monitoring/mysqld-exporter/my.cnf
-        [client]
-        user=\${MARIADB_USER:-admin}
-        password=\${MARIADB_PASSWORD:-admin}
-        host=mariadb
-        port=3306
-        CNF
+        printf "[client]\nuser=\${MARIADB_USER:-admin}\npassword=\${MARIADB_PASSWORD:-admin}\nhost=mariadb\nport=3306\n" > monitoring/mysqld-exporter/my.cnf
         
         docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" pull
         

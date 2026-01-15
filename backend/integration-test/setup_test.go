@@ -25,42 +25,79 @@ type TestDB struct {
 
 func SetupTestDB(t *testing.T) *TestDB {
 	ctx := context.Background()
+	var db *sql.DB
+	var mariadbContainer *mariadb.MariaDBContainer
+	var dsn string
+	var err error
 
-	mariadbContainer, err := mariadb.Run(ctx,
-		"mariadb:latest",
-		mariadb.WithDatabase("test"),
-		mariadb.WithUsername("user"),
-		mariadb.WithPassword("password"),
-		testcontainers.WithWaitStrategy(
-			wait.ForSQL("3306/tcp", "mysql", func(host string, port nat.Port) string {
-				return fmt.Sprintf("user:password@tcp(%s:%s)/test?parseTime=true", host, port.Port())
-			}).
-				WithStartupTimeout(120*time.Second).
-				WithQuery("SELECT 1"),
-		),
-	)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
-	}
+	if os.Getenv("CI") == "true" {
+		host := os.Getenv("MARIADB_HOST")
+		port := os.Getenv("MARIADB_PORT")
+		user := os.Getenv("MARIADB_USER")
+		password := os.Getenv("MARIADB_PASSWORD")
+		dbname := os.Getenv("MARIADB_DB")
 
-	host, err := mariadbContainer.Host(ctx)
-	if err != nil {
-		t.Fatalf("failed to get container host: %s", err)
-	}
+		if host == "" {
+			host = "mariadb"
+		}
+		if port == "" {
+			port = "3306"
+		}
+		if user == "" {
+			user = "test_user"
+		}
+		if password == "" {
+			password = "test_password"
+		}
+		if dbname == "" {
+			dbname = "test_board"
+		}
 
-	port, err := mariadbContainer.MappedPort(ctx, "3306/tcp")
-	if err != nil {
-		t.Fatalf("failed to get container port: %s", err)
-	}
+		dsn = fmt.Sprintf(
+			"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
+			user, password, host, port, dbname,
+		)
+		db, err = sql.Open("mysql", dsn)
+		if err != nil {
+			t.Fatalf("failed to open db connection: %s", err)
+		}
+	} else {
+		mariadbContainer, err = mariadb.Run(ctx,
+			"mariadb:latest",
+			mariadb.WithDatabase("test"),
+			mariadb.WithUsername("user"),
+			mariadb.WithPassword("password"),
+			testcontainers.WithWaitStrategy(
+				wait.ForSQL("3306/tcp", "mysql", func(host string, port nat.Port) string {
+					return fmt.Sprintf("user:password@tcp(%s:%s)/test?parseTime=true", host, port.Port())
+				}).
+					WithStartupTimeout(120*time.Second).
+					WithQuery("SELECT 1"),
+			),
+		)
+		if err != nil {
+			t.Fatalf("failed to start container: %s", err)
+		}
 
-	dsn := fmt.Sprintf(
-		"user:password@tcp(%s:%s)/test?parseTime=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
-		host, port.Port(),
-	)
+		host, err := mariadbContainer.Host(ctx)
+		if err != nil {
+			t.Fatalf("failed to get container host: %s", err)
+		}
 
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		t.Fatalf("failed to open db connection: %s", err)
+		port, err := mariadbContainer.MappedPort(ctx, "3306/tcp")
+		if err != nil {
+			t.Fatalf("failed to get container port: %s", err)
+		}
+
+		dsn = fmt.Sprintf(
+			"user:password@tcp(%s:%s)/test?parseTime=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
+			host, port.Port(),
+		)
+
+		db, err = sql.Open("mysql", dsn)
+		if err != nil {
+			t.Fatalf("failed to open db connection: %s", err)
+		}
 	}
 
 	var pingErr error
@@ -103,8 +140,10 @@ func SetupTestDB(t *testing.T) *TestDB {
 
 	t.Cleanup(func() {
 		_ = db.Close()
-		if err := mariadbContainer.Terminate(ctx); err != nil {
-			t.Errorf("failed to terminate container: %s", err)
+		if mariadbContainer != nil {
+			if err := mariadbContainer.Terminate(ctx); err != nil {
+				t.Errorf("failed to terminate container: %s", err)
+			}
 		}
 	})
 
