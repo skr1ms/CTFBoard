@@ -88,13 +88,9 @@ test:backend:
   variables:
     MARIADB_HOST: mariadb
     MARIADB_PORT: "3306"
-    MARIADB_USER: $MARIADB_USER
-    MARIADB_PASSWORD: $MARIADB_PASSWORD
     MARIADB_DB: $MARIADB_DATABASE
-    MARIADB_ROOT_PASSWORD: $MARIADB_ROOT_PASSWORD
     REDIS_HOST: redis
     REDIS_PORT: "6379"
-    REDIS_PASSWORD: $REDIS_PASSWORD
     JWT_ACCESS_SECRET: test-access-secret-key-for-ci
     JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
     APP_NAME: CTFBoard
