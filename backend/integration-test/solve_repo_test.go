@@ -642,7 +642,7 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	err = solveRepo.Create(ctx, solve1)
 	require.NoError(t, err)
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	solve2 := &entity.Solve{
 		UserId:      user2.Id,
