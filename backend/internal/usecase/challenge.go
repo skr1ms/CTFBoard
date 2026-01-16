@@ -93,7 +93,7 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (uc *ChallengeUseCase) VerifyFlag(ctx context.Context, challengeId, flag, userId string, teamId *string) (bool, error) {
+func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, userId string, teamId *string) (bool, error) {
 	if teamId == nil {
 		return false, entityError.ErrUserMustBeInTeam
 	}
@@ -103,7 +103,7 @@ func (uc *ChallengeUseCase) VerifyFlag(ctx context.Context, challengeId, flag, u
 		if errors.Is(err, entityError.ErrChallengeNotFound) {
 			return false, entityError.ErrChallengeNotFound
 		}
-		return false, fmt.Errorf("ChallengeUseCase - VerifyFlag - GetByID: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByID: %w", err)
 	}
 
 	hash := sha256.Sum256([]byte(flag))
@@ -118,7 +118,7 @@ func (uc *ChallengeUseCase) VerifyFlag(ctx context.Context, challengeId, flag, u
 		return true, entityError.ErrAlreadySolved
 	}
 	if !errors.Is(err, entityError.ErrSolveNotFound) {
-		return false, fmt.Errorf("ChallengeUseCase - VerifyFlag - GetByTeamAndChallenge: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByTeamAndChallenge: %w", err)
 	}
 
 	solve := &entity.Solve{
@@ -129,7 +129,7 @@ func (uc *ChallengeUseCase) VerifyFlag(ctx context.Context, challengeId, flag, u
 
 	err = uc.solveRepo.Create(ctx, solve)
 	if err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - VerifyFlag - Create: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Create: %w", err)
 	}
 
 	uc.redis.Del(ctx, "scoreboard")

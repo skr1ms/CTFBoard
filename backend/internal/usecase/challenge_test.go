@@ -280,7 +280,7 @@ func TestChallengeUseCase_Delete_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestChallengeUseCase_VerifyFlag_Success(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -307,13 +307,13 @@ func TestChallengeUseCase_VerifyFlag_Success(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, flag, userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_InvalidFlag(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_InvalidFlag(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -333,13 +333,13 @@ func TestChallengeUseCase_VerifyFlag_InvalidFlag(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID)
 
 	assert.NoError(t, err)
 	assert.False(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_AlreadySolved(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -368,14 +368,14 @@ func TestChallengeUseCase_VerifyFlag_AlreadySolved(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, flag, userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrAlreadySolved))
 	assert.True(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_NoTeam(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_NoTeam(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -385,14 +385,14 @@ func TestChallengeUseCase_VerifyFlag_NoTeam(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, "flag{test}", userID, nil)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, nil)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrUserMustBeInTeam))
 	assert.False(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_ChallengeNotFound(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -405,14 +405,14 @@ func TestChallengeUseCase_VerifyFlag_ChallengeNotFound(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 	assert.False(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_GetByIDUnexpectedError(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -426,13 +426,13 @@ func TestChallengeUseCase_VerifyFlag_GetByIDUnexpectedError(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
 
 	assert.Error(t, err)
 	assert.False(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_GetByTeamAndChallengeUnexpectedError(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeUnexpectedError(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -456,13 +456,13 @@ func TestChallengeUseCase_VerifyFlag_GetByTeamAndChallengeUnexpectedError(t *tes
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, flag, userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.Error(t, err)
 	assert.False(t, valid)
 }
 
-func TestChallengeUseCase_VerifyFlag_CreateError(t *testing.T) {
+func TestChallengeUseCase_SubmitFlag_CreateError(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
@@ -487,7 +487,7 @@ func TestChallengeUseCase_VerifyFlag_CreateError(t *testing.T) {
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
 
-	valid, err := uc.VerifyFlag(context.Background(), challengeID, flag, userID, &teamID)
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.Error(t, err)
 	assert.False(t, valid)

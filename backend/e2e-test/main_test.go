@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	var redisC *redisContainer.RedisContainer
 	var err error
 
-	if os.Getenv("CI") == "true" {
+	if os.Getenv("USE_EXTERNAL_DB") == "true" {
 		// MariaDB Setup (CI)
 		host := os.Getenv("MARIADB_HOST")
 		port := os.Getenv("MARIADB_PORT")

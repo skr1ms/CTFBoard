@@ -144,9 +144,9 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, err := h.challengeUC.VerifyFlag(r.Context(), challengeId, req.Flag, userId, user.TeamId)
+	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeId, req.Flag, userId, user.TeamId)
 	if err != nil {
-		h.logger.Error("http - v1 - SubmitFlag - VerifyFlag", err)
+		h.logger.Error("http - v1 - SubmitFlag - SubmitFlag", err)
 		handleError(w, r, err)
 		return
 	}

@@ -30,7 +30,7 @@ func SetupTestDB(t *testing.T) *TestDB {
 	var dsn string
 	var err error
 
-	if os.Getenv("CI") == "true" {
+	if os.Getenv("USE_EXTERNAL_DB") == "true" {
 		host := os.Getenv("MARIADB_HOST")
 		port := os.Getenv("MARIADB_PORT")
 		user := os.Getenv("MARIADB_USER")
