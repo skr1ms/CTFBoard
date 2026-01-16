@@ -250,6 +250,8 @@ func TestMain(m *testing.M) {
 		jwtService,
 		validatorService,
 		l,
+		100,
+		1*time.Minute,
 	)
 
 	listener, err := net.Listen("tcp", ":0")

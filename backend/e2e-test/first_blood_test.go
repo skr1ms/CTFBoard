@@ -27,7 +27,7 @@ func TestFirstBlood_Display(t *testing.T) {
 	tokenUser2 := login(e, emailUser2, passUser2)
 
 	submitFlag(e, tokenUser1, challengeId, "FLAG{firstblood}")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	submitFlag(e, tokenUser2, challengeId, "FLAG{firstblood}")
 

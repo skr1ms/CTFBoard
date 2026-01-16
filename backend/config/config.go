@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -13,11 +12,12 @@ import (
 
 type (
 	Config struct {
-		App   `yaml:"app"`
-		HTTP  `yaml:"http"`
-		DB    `yaml:"mariadb"`
-		JWT   `yaml:"jwt"`
-		Redis `yaml:"redis"`
+		App       `yaml:"app"`
+		HTTP      `yaml:"http"`
+		DB        `yaml:"mariadb"`
+		JWT       `yaml:"jwt"`
+		Redis     `yaml:"redis"`
+		RateLimit `yaml:"rate_limit"`
 	}
 
 	App struct {
@@ -48,6 +48,11 @@ type (
 		Host     string
 		Port     string
 		Password string
+	}
+
+	RateLimit struct {
+		SubmitFlag         int
+		SubmitFlagDuration time.Duration
 	}
 )
 
@@ -192,25 +197,11 @@ func New() (*Config, error) {
 			Port:     redisPort,
 			Password: redisPassword,
 		},
+		RateLimit: RateLimit{
+			SubmitFlag:         getEnvInt("RATE_LIMIT_SUBMIT_FLAG", 10),
+			SubmitFlagDuration: time.Duration(getEnvInt("RATE_LIMIT_SUBMIT_FLAG_DURATION", 1)) * time.Minute,
+		},
 	}
 
 	return cfg, nil
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return strings.TrimSpace(value)
-	}
-	return defaultValue
-}
-
-func parseCORSOrigins(s string) []string {
-	if s == "" {
-		return []string{}
-	}
-	origins := strings.Split(s, ",")
-	for i := range origins {
-		origins[i] = strings.TrimSpace(origins[i])
-	}
-	return origins
 }

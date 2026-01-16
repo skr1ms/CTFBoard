@@ -21,7 +21,12 @@ type teamRoutes struct {
 	logger    logger.Interface
 }
 
-func NewTeamRoutes(router chi.Router, teamUC *usecase.TeamUseCase, validator validator.Validator, logger logger.Interface, jwtService *jwt.JWTService) {
+func NewTeamRoutes(router chi.Router,
+	teamUC *usecase.TeamUseCase,
+	validator validator.Validator,
+	logger logger.Interface,
+	jwtService *jwt.JWTService,
+) {
 	routes := teamRoutes{
 		teamUC:    teamUC,
 		validator: validator,

@@ -11,7 +11,9 @@ type solveRoutes struct {
 	solveUC *usecase.SolveUseCase
 }
 
-func NewSolveRoutes(router chi.Router, solveUC *usecase.SolveUseCase) {
+func NewSolveRoutes(router chi.Router,
+	solveUC *usecase.SolveUseCase,
+) {
 	routes := solveRoutes{solveUC: solveUC}
 
 	router.Post("/solve", routes.Create)

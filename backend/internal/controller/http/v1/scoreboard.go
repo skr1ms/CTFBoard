@@ -17,7 +17,10 @@ type scoreboardRoutes struct {
 	logger  logger.Interface
 }
 
-func NewScoreboardRoutes(router chi.Router, solveUC *usecase.SolveUseCase, logger logger.Interface) {
+func NewScoreboardRoutes(router chi.Router,
+	solveUC *usecase.SolveUseCase,
+	logger logger.Interface,
+) {
 	routes := scoreboardRoutes{
 		solveUC: solveUC,
 		logger:  logger,

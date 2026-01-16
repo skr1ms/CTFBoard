@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
@@ -18,6 +20,8 @@ func NewRouter(
 	jwtService *jwt.JWTService,
 	validator validator.Validator,
 	logger logger.Interface,
+	submitLimit int,
+	durationLimit time.Duration,
 ) {
 	router.Get("/swagger/*", httpSwagger.Handler())
 
@@ -25,7 +29,7 @@ func NewRouter(
 		NewUserRoutes(r, userUC, validator, logger, jwtService)
 		NewScoreboardRoutes(r, solveUC, logger)
 		NewEventsRoutes(r, solveUC, logger)
-		NewChallengeRoutes(r, challengeUC, solveUC, userUC, validator, logger, jwtService)
+		NewChallengeRoutes(r, challengeUC, solveUC, userUC, validator, logger, jwtService, submitLimit, durationLimit)
 		NewTeamRoutes(r, teamUC, validator, logger, jwtService)
 	})
 }

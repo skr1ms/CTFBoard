@@ -15,7 +15,10 @@ type eventsRoutes struct {
 	logger  logger.Interface
 }
 
-func NewEventsRoutes(router chi.Router, solveUC *usecase.SolveUseCase, logger logger.Interface) {
+func NewEventsRoutes(router chi.Router,
+	solveUC *usecase.SolveUseCase,
+	logger logger.Interface,
+) {
 	routes := eventsRoutes{
 		solveUC: solveUC,
 		logger:  logger,

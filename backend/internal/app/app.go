@@ -143,6 +143,8 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		jwtService,
 		validator,
 		l,
+		cfg.RateLimit.SubmitFlag,
+		cfg.RateLimit.SubmitFlagDuration,
 	)
 
 	server := &http.Server{

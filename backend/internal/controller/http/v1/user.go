@@ -21,7 +21,12 @@ type userRoutes struct {
 	logger    logger.Interface
 }
 
-func NewUserRoutes(router chi.Router, userUC *usecase.UserUseCase, validator validator.Validator, logger logger.Interface, jwtService *jwt.JWTService) {
+func NewUserRoutes(router chi.Router,
+	userUC *usecase.UserUseCase,
+	validator validator.Validator,
+	logger logger.Interface,
+	jwtService *jwt.JWTService,
+) {
 	routes := userRoutes{
 		userUC:    userUC,
 		validator: validator,
