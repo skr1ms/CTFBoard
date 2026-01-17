@@ -18,17 +18,19 @@ import (
 )
 
 type challengeRoutes struct {
-	challengeUC *usecase.ChallengeUseCase
-	solveUC     *usecase.SolveUseCase
-	userUC      *usecase.UserUseCase
-	validator   validator.Validator
-	logger      logger.Interface
+	challengeUC   *usecase.ChallengeUseCase
+	solveUC       *usecase.SolveUseCase
+	userUC        *usecase.UserUseCase
+	competitionUC *usecase.CompetitionUseCase
+	validator     validator.Validator
+	logger        logger.Interface
 }
 
 func NewChallengeRoutes(router chi.Router,
 	challengeUC *usecase.ChallengeUseCase,
 	solveUC *usecase.SolveUseCase,
 	userUC *usecase.UserUseCase,
+	competitionUC *usecase.CompetitionUseCase,
 	validator validator.Validator,
 	logger logger.Interface,
 	jwtService *jwt.JWTService,
@@ -36,15 +38,16 @@ func NewChallengeRoutes(router chi.Router,
 	durationLimit time.Duration,
 ) {
 	routes := challengeRoutes{
-		challengeUC: challengeUC,
-		solveUC:     solveUC,
-		userUC:      userUC,
-		validator:   validator,
-		logger:      logger,
+		challengeUC:   challengeUC,
+		solveUC:       solveUC,
+		userUC:        userUC,
+		competitionUC: competitionUC,
+		validator:     validator,
+		logger:        logger,
 	}
 
 	router.With(httpMiddleware.Auth(jwtService)).Get("/challenges", routes.GetAll)
-	router.With(httpMiddleware.Auth(jwtService), httprate.LimitByIP(submitLimit, durationLimit)).Post("/challenges/{id}/submit", routes.SubmitFlag)
+	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.CompetitionActive(competitionUC), httprate.LimitByIP(submitLimit, durationLimit)).Post("/challenges/{id}/submit", routes.SubmitFlag)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Post("/admin/challenges", routes.Create)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Put("/admin/challenges/{id}", routes.Update)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Delete("/admin/challenges/{id}", routes.Delete)

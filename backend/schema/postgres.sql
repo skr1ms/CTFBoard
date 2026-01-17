@@ -32,6 +32,17 @@ CREATE TABLE solves (
     solved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_team_solve UNIQUE (team_id, challenge_id)
 );
+CREATE TABLE competition (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    name VARCHAR(100) NOT NULL DEFAULT 'CTF Competition',
+    start_time TIMESTAMP NULL,
+    end_time TIMESTAMP NULL,
+    freeze_time TIMESTAMP NULL,
+    is_paused BOOLEAN DEFAULT FALSE,
+    is_public BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ALTER TABLE teams
 ADD CONSTRAINT fk_teams_captain FOREIGN KEY (captain_id) REFERENCES users (id) ON DELETE CASCADE;
 ALTER TABLE users

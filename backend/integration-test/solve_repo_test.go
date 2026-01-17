@@ -681,3 +681,95 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
+
+func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
+	testDB := SetupTestDB(t)
+	userRepo := persistent.NewUserRepo(testDB.DB)
+	teamRepo := persistent.NewTeamRepo(testDB.DB)
+	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
+	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	ctx := context.Background()
+
+	user1 := &entity.User{
+		Username:     "frozenuser1",
+		Email:        "frozenuser1@example.com",
+		PasswordHash: "hash123",
+	}
+	err := userRepo.Create(ctx, user1)
+	require.NoError(t, err)
+	gotUser1, err := userRepo.GetByEmail(ctx, user1.Email)
+	require.NoError(t, err)
+	user1.Id = gotUser1.Id
+
+	team1 := &entity.Team{
+		Name:        "FrozenTeam1",
+		InviteToken: "token1",
+		CaptainId:   user1.Id,
+	}
+	err = teamRepo.Create(ctx, team1)
+	require.NoError(t, err)
+	gotTeam1, err := teamRepo.GetByName(ctx, team1.Name)
+	require.NoError(t, err)
+	team1.Id = gotTeam1.Id
+
+	challenge1 := &entity.Challenge{
+		Title:       "Frozen Challenge 1",
+		Description: "Description 1",
+		Category:    "Web",
+		Points:      100,
+		FlagHash:    "hash1",
+		IsHidden:    false,
+	}
+	err = challengeRepo.Create(ctx, challenge1)
+	require.NoError(t, err)
+
+	challenge2 := &entity.Challenge{
+		Title:       "Frozen Challenge 2",
+		Description: "Description 2",
+		Category:    "Crypto",
+		Points:      200,
+		FlagHash:    "hash2",
+		IsHidden:    false,
+	}
+	err = challengeRepo.Create(ctx, challenge2)
+	require.NoError(t, err)
+
+	// Solve 1: Before Freeze
+	solve1 := &entity.Solve{
+		UserId:      user1.Id,
+		TeamId:      team1.Id,
+		ChallengeId: challenge1.Id,
+		SolvedAt:    time.Now().Add(-1 * time.Hour),
+	}
+	err = solveRepo.Create(ctx, solve1)
+	require.NoError(t, err)
+
+	freezeTime := time.Now().Add(-30 * time.Minute)
+
+	// Solve 2: After Freeze
+	solve2 := &entity.Solve{
+		UserId:      user1.Id,
+		TeamId:      team1.Id,
+		ChallengeId: challenge2.Id,
+		SolvedAt:    time.Now(),
+	}
+	// Manually insert solve2 to bypass "created_at" usually being "now" in repo if repo sets it.
+	err = solveRepo.Create(ctx, solve2)
+	require.NoError(t, err)
+
+	_, err = testDB.DB.ExecContext(ctx, "UPDATE solves SET solved_at = ? WHERE team_id = ? AND challenge_id = ?", solve1.SolvedAt, solve1.TeamId, solve1.ChallengeId)
+	require.NoError(t, err)
+
+	scoreboard, err := solveRepo.GetScoreboardFrozen(ctx, freezeTime)
+	require.NoError(t, err)
+
+	// Expecting 100 points (from solve1), not 300 (solve1 + solve2)
+	found := false
+	for _, entry := range scoreboard {
+		if entry.TeamId == team1.Id {
+			assert.Equal(t, 100, entry.Points)
+			found = true
+		}
+	}
+	assert.True(t, found)
+}

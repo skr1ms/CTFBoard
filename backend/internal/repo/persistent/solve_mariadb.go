@@ -217,6 +217,52 @@ func (r *SolveRepo) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEntry,
 	return entries, nil
 }
 
+func (r *SolveRepo) GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*repo.ScoreboardEntry, error) {
+	query := squirrel.Select("t.id", "t.name", "COALESCE(SUM(c.points), 0) as points", "MAX(s.solved_at) as solved_at").
+		From("teams t").
+		LeftJoin("solves s ON s.team_id = t.id AND s.solved_at <= ?", freezeTime).
+		LeftJoin("challenges c ON c.id = s.challenge_id").
+		GroupBy("t.id", "t.name").
+		OrderBy("points DESC", "solved_at ASC")
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetScoreboardFrozen - BuildQuery: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetScoreboardFrozen - Query: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	entries := make([]*repo.ScoreboardEntry, 0)
+	for rows.Next() {
+		var entry repo.ScoreboardEntry
+		var solvedAt sql.NullTime
+		if err := rows.Scan(
+			&entry.TeamId,
+			&entry.TeamName,
+			&entry.Points,
+			&solvedAt,
+		); err != nil {
+			return nil, fmt.Errorf("SolveRepo - GetScoreboardFrozen - Scan: %w", err)
+		}
+		if solvedAt.Valid {
+			entry.SolvedAt = solvedAt.Time
+		}
+		entries = append(entries, &entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetScoreboardFrozen - Rows: %w", err)
+	}
+
+	return entries, nil
+}
+
 func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeId string) (*repo.FirstBloodEntry, error) {
 	challengeUUID, err := uuid.Parse(challengeId)
 	if err != nil {

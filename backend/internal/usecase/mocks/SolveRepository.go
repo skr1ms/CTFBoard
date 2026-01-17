@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -432,6 +433,74 @@ func (_c *MockSolveRepository_GetScoreboard_Call) Return(scoreboardEntrys []*rep
 }
 
 func (_c *MockSolveRepository_GetScoreboard_Call) RunAndReturn(run func(ctx context.Context) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboard_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetScoreboardFrozen provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*repo.ScoreboardEntry, error) {
+	ret := _mock.Called(ctx, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetScoreboardFrozen")
+	}
+
+	var r0 []*repo.ScoreboardEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]*repo.ScoreboardEntry, error)); ok {
+		return returnFunc(ctx, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []*repo.ScoreboardEntry); ok {
+		r0 = returnFunc(ctx, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repo.ScoreboardEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetScoreboardFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetScoreboardFrozen'
+type MockSolveRepository_GetScoreboardFrozen_Call struct {
+	*mock.Call
+}
+
+// GetScoreboardFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - freezeTime time.Time
+func (_e *MockSolveRepository_Expecter) GetScoreboardFrozen(ctx interface{}, freezeTime interface{}) *MockSolveRepository_GetScoreboardFrozen_Call {
+	return &MockSolveRepository_GetScoreboardFrozen_Call{Call: _e.mock.On("GetScoreboardFrozen", ctx, freezeTime)}
+}
+
+func (_c *MockSolveRepository_GetScoreboardFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time)) *MockSolveRepository_GetScoreboardFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardFrozen_Call) Return(scoreboardEntrys []*repo.ScoreboardEntry, err error) *MockSolveRepository_GetScoreboardFrozen_Call {
+	_c.Call.Return(scoreboardEntrys, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardFrozen_Call {
 	_c.Call.Return(run)
 	return _c
 }

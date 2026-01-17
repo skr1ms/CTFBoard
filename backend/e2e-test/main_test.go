@@ -181,31 +181,54 @@ func TestMain(m *testing.M) {
 	}
 
 	// Migrations
-	migrationsPath := filepath.Join("..", "migrations", "000001_init.up.sql")
-	migrationSQL, err := os.ReadFile(migrationsPath)
+	migrationsDir := filepath.Join("..", "migrations")
+	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
-		fmt.Printf("failed to read migration file: %s\n", err)
+		fmt.Printf("failed to read migrations dir: %s\n", err)
 		os.Exit(1)
 	}
-	statements := strings.Split(string(migrationSQL), ";")
-	for _, stmt := range statements {
-		stmt = strings.TrimSpace(stmt)
-		if stmt == "" || strings.HasPrefix(stmt, "--") {
-			continue
+
+	var migrationFiles []string
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".up.sql") {
+			migrationFiles = append(migrationFiles, filepath.Join(migrationsDir, f.Name()))
 		}
-		stmt = strings.TrimSuffix(stmt, "\n")
-		if stmt == "" {
-			continue
+	}
+
+	for _, file := range migrationFiles {
+		migrationSQL, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Printf("failed to read migration file %s: %s\n", file, err)
+			os.Exit(1)
 		}
-		if _, err := TestDB.ExecContext(ctx, stmt); err != nil {
-			errStr := err.Error()
-			if !strings.Contains(errStr, "already exists") &&
-				!strings.Contains(errStr, "Duplicate key") &&
-				!strings.Contains(errStr, "Duplicate column") {
-				fmt.Printf("failed to execute migration: %s\n", err)
+		statements := strings.Split(string(migrationSQL), ";")
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" || strings.HasPrefix(stmt, "--") {
+				continue
+			}
+			stmt = strings.TrimSuffix(stmt, "\n")
+			if stmt == "" {
+				continue
+			}
+			if _, err := TestDB.ExecContext(ctx, stmt); err != nil {
+				errStr := err.Error()
+				if !strings.Contains(errStr, "already exists") &&
+					!strings.Contains(errStr, "Duplicate key") &&
+					!strings.Contains(errStr, "Duplicate column") {
+					fmt.Printf("failed to execute migration %s: %s\n", file, err)
+				}
 			}
 		}
 	}
+	// Initial competition setup: Make it active by default
+	_, err = TestDB.ExecContext(ctx, "UPDATE competition SET start_time = ? WHERE id = 1", time.Now().Add(-24*time.Hour))
+	if err != nil {
+		fmt.Printf("failed to set competition active: %s\n", err)
+		os.Exit(1)
+	}
+
+	_, _ = TestDB.ExecContext(ctx, "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'")
 	_, _ = TestDB.ExecContext(ctx, "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'")
 
 	l := logger.New("error", "test")
@@ -214,6 +237,7 @@ func TestMain(m *testing.M) {
 	challengeRepo := persistent.NewChallengeRepo(TestDB)
 	solveRepo := persistent.NewSolveRepo(TestDB)
 	teamRepo := persistent.NewTeamRepo(TestDB)
+	competitionRepo := persistent.NewCompetitionRepo(TestDB)
 
 	validatorService := validator.New()
 
@@ -225,8 +249,9 @@ func TestMain(m *testing.M) {
 	)
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, jwtService)
+	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, TestRedis)
 	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, TestRedis)
-	solveUC := usecase.NewSolveUseCase(solveRepo, TestRedis)
+	solveUC := usecase.NewSolveUseCase(solveRepo, competitionRepo, TestRedis)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
 
 	testRouter = chi.NewRouter()
@@ -247,6 +272,7 @@ func TestMain(m *testing.M) {
 		challengeUC,
 		solveUC,
 		teamUC,
+		competitionUC,
 		jwtService,
 		validatorService,
 		l,

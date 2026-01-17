@@ -83,6 +83,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	challengeRepo := persistent.NewChallengeRepo(db)
 	solveRepo := persistent.NewSolveRepo(db)
 	teamRepo := persistent.NewTeamRepo(db)
+	competitionRepo := persistent.NewCompetitionRepo(db)
 
 	validator := validator.New()
 
@@ -95,8 +96,9 @@ func Run(cfg *config.Config, l *logger.Logger) {
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, jwtService)
 	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
-	solveUC := usecase.NewSolveUseCase(solveRepo, redisClient)
+	solveUC := usecase.NewSolveUseCase(solveRepo, competitionRepo, redisClient)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
+	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
 
 	router := chi.NewRouter()
 
@@ -140,6 +142,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		challengeUC,
 		solveUC,
 		teamUC,
+		competitionUC,
 		jwtService,
 		validator,
 		l,

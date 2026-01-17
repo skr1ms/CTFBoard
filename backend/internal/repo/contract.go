@@ -43,7 +43,13 @@ type (
 		GetByTeamAndChallenge(ctx context.Context, teamId, challengeId string) (*entity.Solve, error)
 		GetByUserId(ctx context.Context, userId string) ([]*entity.Solve, error)
 		GetScoreboard(ctx context.Context) ([]*ScoreboardEntry, error)
+		GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*ScoreboardEntry, error)
 		GetFirstBlood(ctx context.Context, challengeId string) (*FirstBloodEntry, error)
+	}
+
+	CompetitionRepository interface {
+		Get(ctx context.Context) (*entity.Competition, error)
+		Update(ctx context.Context, competition *entity.Competition) error
 	}
 
 	ScoreboardEntry struct {
