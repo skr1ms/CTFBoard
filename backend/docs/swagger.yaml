@@ -16,15 +16,24 @@ definitions:
       category:
         example: Web
         type: string
+      decay:
+        example: 20
+        type: integer
       description:
         example: Challenge description
         type: string
       flag:
         example: CTF{flag_here}
         type: string
+      initial_value:
+        example: 500
+        type: integer
       is_hidden:
         example: false
         type: boolean
+      min_value:
+        example: 100
+        type: integer
       points:
         example: 100
         type: integer
@@ -37,6 +46,21 @@ definitions:
     - flag
     - points
     - title
+    type: object
+  request.CreateHintRequest:
+    properties:
+      content:
+        example: This is a hint
+        type: string
+      cost:
+        example: 50
+        minimum: 0
+        type: integer
+      order_index:
+        example: 0
+        type: integer
+    required:
+    - content
     type: object
   request.CreateTeamRequest:
     properties:
@@ -90,15 +114,24 @@ definitions:
       category:
         example: Web
         type: string
+      decay:
+        example: 20
+        type: integer
       description:
         example: Updated description
         type: string
       flag:
         example: CTF{new_flag}
         type: string
+      initial_value:
+        example: 500
+        type: integer
       is_hidden:
         example: false
         type: boolean
+      min_value:
+        example: 100
+        type: integer
       points:
         example: 150
         type: integer
@@ -111,6 +144,21 @@ definitions:
     - points
     - title
     type: object
+  request.UpdateHintRequest:
+    properties:
+      content:
+        example: Updated hint content
+        type: string
+      cost:
+        example: 100
+        minimum: 0
+        type: integer
+      order_index:
+        example: 1
+        type: integer
+    required:
+    - content
+    type: object
   response.ChallengeResponse:
     properties:
       category:
@@ -122,6 +170,8 @@ definitions:
       is_hidden:
         type: boolean
       points:
+        type: integer
+      solve_count:
         type: integer
       solved:
         type: boolean
@@ -140,6 +190,32 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  response.HintAdminResponse:
+    properties:
+      challenge_id:
+        type: string
+      content:
+        type: string
+      cost:
+        type: integer
+      id:
+        type: string
+      order_index:
+        type: integer
+    type: object
+  response.HintResponse:
+    properties:
+      content:
+        type: string
+      cost:
+        type: integer
+      id:
+        type: string
+      order_index:
+        type: integer
+      unlocked:
+        type: boolean
     type: object
   response.MeResponse:
     properties:
@@ -295,6 +371,47 @@ paths:
       summary: Create challenge
       tags:
       - Admin
+  /admin/challenges/{challengeId}/hints:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new hint for a challenge. Admin only.
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeId
+        required: true
+        type: string
+      - description: Hint data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateHintRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.HintAdminResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create hint
+      tags:
+      - Admin
   /admin/challenges/{id}:
     delete:
       description: Deletes challenge. Admin only
@@ -366,6 +483,79 @@ paths:
       security:
       - BearerAuth: []
       summary: Update challenge
+      tags:
+      - Admin
+  /admin/hints/{id}:
+    delete:
+      description: Deletes hint. Admin only.
+      parameters:
+      - description: Hint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete hint
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Updates hint data. Admin only.
+      parameters:
+      - description: Hint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Hint data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateHintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.HintAdminResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update hint
       tags:
       - Admin
   /auth/login:
@@ -468,6 +658,80 @@ paths:
       summary: Get challenges list
       tags:
       - Challenges
+  /challenges/{challengeId}/hints:
+    get:
+      description: Returns list of hints for a challenge. Content is hidden for non-unlocked
+        hints.
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.HintResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get hints for challenge
+      tags:
+      - Hints
+  /challenges/{challengeId}/hints/{hintId}/unlock:
+    post:
+      description: Unlocks a hint by spending team points
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeId
+        required: true
+        type: string
+      - description: Hint ID
+        in: path
+        name: hintId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.HintResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "402":
+          description: Insufficient points
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Already unlocked
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlock hint
+      tags:
+      - Hints
   /challenges/{id}/first-blood:
     get:
       description: Returns the first solver of a challenge

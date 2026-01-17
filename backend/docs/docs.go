@@ -80,6 +80,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/challenges/{challengeId}/hints": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new hint for a challenge. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID",
+                        "name": "challengeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hint data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreateHintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.HintAdminResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/challenges/{id}": {
             "put": {
                 "security": [
@@ -164,6 +228,120 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Challenge ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/hints/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates hint data. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hint data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateHintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.HintAdminResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes hint. Admin only.",
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hint ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -344,6 +522,120 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/challenges/{challengeId}/hints": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns list of hints for a challenge. Content is hidden for non-unlocked hints.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Get hints for challenge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID",
+                        "name": "challengeId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/response.HintResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/challenges/{challengeId}/hints/{hintId}/unlock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Unlocks a hint by spending team points",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Unlock hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID",
+                        "name": "challengeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Hint ID",
+                        "name": "hintId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.HintResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "402": {
+                        "description": "Insufficient points",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Already unlocked",
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
@@ -782,6 +1074,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Web"
                 },
+                "decay": {
+                    "type": "integer",
+                    "example": 20
+                },
                 "description": {
                     "type": "string",
                     "example": "Challenge description"
@@ -790,9 +1086,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "CTF{flag_here}"
                 },
+                "initial_value": {
+                    "type": "integer",
+                    "example": 500
+                },
                 "is_hidden": {
                     "type": "boolean",
                     "example": false
+                },
+                "min_value": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "points": {
                     "type": "integer",
@@ -801,6 +1105,27 @@ const docTemplate = `{
                 "title": {
                     "type": "string",
                     "example": "Challenge 1"
+                }
+            }
+        },
+        "request.CreateHintRequest": {
+            "type": "object",
+            "required": [
+                "content"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "This is a hint"
+                },
+                "cost": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 50
+                },
+                "order_index": {
+                    "type": "integer",
+                    "example": 0
                 }
             }
         },
@@ -886,6 +1211,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Web"
                 },
+                "decay": {
+                    "type": "integer",
+                    "example": 20
+                },
                 "description": {
                     "type": "string",
                     "example": "Updated description"
@@ -894,9 +1223,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "CTF{new_flag}"
                 },
+                "initial_value": {
+                    "type": "integer",
+                    "example": 500
+                },
                 "is_hidden": {
                     "type": "boolean",
                     "example": false
+                },
+                "min_value": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "points": {
                     "type": "integer",
@@ -905,6 +1242,27 @@ const docTemplate = `{
                 "title": {
                     "type": "string",
                     "example": "Updated title"
+                }
+            }
+        },
+        "request.UpdateHintRequest": {
+            "type": "object",
+            "required": [
+                "content"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Updated hint content"
+                },
+                "cost": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 100
+                },
+                "order_index": {
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -924,6 +1282,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "points": {
+                    "type": "integer"
+                },
+                "solve_count": {
                     "type": "integer"
                 },
                 "solved": {
@@ -951,6 +1312,46 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "response.HintAdminResponse": {
+            "type": "object",
+            "properties": {
+                "challenge_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "cost": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.HintResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "cost": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_index": {
+                    "type": "integer"
+                },
+                "unlocked": {
+                    "type": "boolean"
                 }
             }
         },
