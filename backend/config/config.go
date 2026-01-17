@@ -181,8 +181,6 @@ func New() (*Config, error) {
 		},
 
 		DB: DB{
-			// For PostgreSQL: change URL format to postgres://user:password@host:port/dbname?sslmode=disable
-			// Example: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB)
 			URL:            fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", mariadbUser, mariadbPassword, mariadbHost, mariadbPort, mariadbDB),
 			MigrationsPath: migrationsPath,
 		},

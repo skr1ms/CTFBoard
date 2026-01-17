@@ -6,6 +6,7 @@ type ChallengeResponse struct {
 	Description string `json:"description"`
 	Category    string `json:"category"`
 	Points      int    `json:"points"`
+	SolveCount  int    `json:"solve_count"`
 	IsHidden    bool   `json:"is_hidden"`
 	Solved      bool   `json:"solved"`
 }

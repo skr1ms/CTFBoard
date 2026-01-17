@@ -3,6 +3,7 @@ module github.com/skr1ms/CTFBoard
 go 1.25.3
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/docker/go-connections v0.6.0
 	github.com/gavv/httpexpect/v2 v2.17.0

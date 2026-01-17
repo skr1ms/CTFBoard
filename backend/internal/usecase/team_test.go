@@ -13,7 +13,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestTeamUseCase_Create(t *testing.T) {
+// Create Tests
+
+func TestTeamUseCase_Create_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -49,7 +51,7 @@ func TestTeamUseCase_Create(t *testing.T) {
 	assert.NotEmpty(t, team.InviteToken)
 }
 
-func TestTeamUseCase_Create_TeamNameExists(t *testing.T) {
+func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -69,7 +71,7 @@ func TestTeamUseCase_Create_TeamNameExists(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_UserAlreadyInTeam(t *testing.T) {
+func TestTeamUseCase_Create_UserAlreadyInTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -92,7 +94,7 @@ func TestTeamUseCase_Create_UserAlreadyInTeam(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_GetByNameUnexpectedError(t *testing.T) {
+func TestTeamUseCase_Create_GetByNameUnexpected_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -109,7 +111,7 @@ func TestTeamUseCase_Create_GetByNameUnexpectedError(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_GetByIDError(t *testing.T) {
+func TestTeamUseCase_Create_GetByID_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -127,7 +129,7 @@ func TestTeamUseCase_Create_GetByIDError(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_CreateError(t *testing.T) {
+func TestTeamUseCase_Create_Create_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -150,7 +152,7 @@ func TestTeamUseCase_Create_CreateError(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_UpdateTeamIdError(t *testing.T) {
+func TestTeamUseCase_Create_UpdateTeamId_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -180,7 +182,9 @@ func TestTeamUseCase_Create_UpdateTeamIdError(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Join(t *testing.T) {
+// Join Tests
+
+func TestTeamUseCase_Join_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -213,7 +217,7 @@ func TestTeamUseCase_Join(t *testing.T) {
 	assert.Equal(t, teamID, result.Id)
 }
 
-func TestTeamUseCase_Join_UserAlreadyInTeam(t *testing.T) {
+func TestTeamUseCase_Join_UserAlreadyInTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -233,8 +237,14 @@ func TestTeamUseCase_Join_UserAlreadyInTeam(t *testing.T) {
 		TeamId: &existingTeamID,
 	}
 
+	otherUser := &entity.User{
+		Id:     uuid.New().String(),
+		TeamId: &existingTeamID,
+	}
+
 	teamRepo.On("GetByInviteToken", mock.Anything, inviteToken).Return(team, nil)
 	userRepo.On("GetByID", mock.Anything, userID).Return(user, nil)
+	userRepo.On("GetByTeamId", mock.Anything, existingTeamID).Return([]*entity.User{user, otherUser}, nil)
 
 	uc := NewTeamUseCase(teamRepo, userRepo)
 
@@ -245,7 +255,7 @@ func TestTeamUseCase_Join_UserAlreadyInTeam(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestTeamUseCase_Join_GetByInviteTokenError(t *testing.T) {
+func TestTeamUseCase_Join_GetByInviteToken_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -263,7 +273,7 @@ func TestTeamUseCase_Join_GetByInviteTokenError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestTeamUseCase_Join_GetByIDError(t *testing.T) {
+func TestTeamUseCase_Join_GetByID_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -289,7 +299,7 @@ func TestTeamUseCase_Join_GetByIDError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestTeamUseCase_Join_UpdateTeamIdError(t *testing.T) {
+func TestTeamUseCase_Join_UpdateTeamId_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -322,7 +332,9 @@ func TestTeamUseCase_Join_UpdateTeamIdError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestTeamUseCase_GetByID(t *testing.T) {
+// GetByID Tests
+
+func TestTeamUseCase_GetByID_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -363,7 +375,9 @@ func TestTeamUseCase_GetByID_Error(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_GetMyTeam(t *testing.T) {
+// GetMyTeam Tests
+
+func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -400,7 +414,7 @@ func TestTeamUseCase_GetMyTeam(t *testing.T) {
 	assert.Equal(t, 1, len(gotMembers))
 }
 
-func TestTeamUseCase_GetMyTeam_NoTeam(t *testing.T) {
+func TestTeamUseCase_GetMyTeam_NoTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -423,7 +437,7 @@ func TestTeamUseCase_GetMyTeam_NoTeam(t *testing.T) {
 	assert.Nil(t, members)
 }
 
-func TestTeamUseCase_GetMyTeam_GetByIDUserError(t *testing.T) {
+func TestTeamUseCase_GetMyTeam_GetByIDUser_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -441,7 +455,7 @@ func TestTeamUseCase_GetMyTeam_GetByIDUserError(t *testing.T) {
 	assert.Nil(t, members)
 }
 
-func TestTeamUseCase_GetMyTeam_GetByIDTeamError(t *testing.T) {
+func TestTeamUseCase_GetMyTeam_GetByIDTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
@@ -466,7 +480,9 @@ func TestTeamUseCase_GetMyTeam_GetByIDTeamError(t *testing.T) {
 	assert.Nil(t, members)
 }
 
-func TestTeamUseCase_GetTeamMembers(t *testing.T) {
+// GetTeamMembers Tests
+
+func TestTeamUseCase_GetTeamMembers_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 

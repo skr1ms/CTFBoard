@@ -93,6 +93,7 @@ func (h *challengeRoutes) GetAll(w http.ResponseWriter, r *http.Request) {
 			Description: cws.Challenge.Description,
 			Category:    cws.Challenge.Category,
 			Points:      cws.Challenge.Points,
+			SolveCount:  cws.Challenge.SolveCount,
 			IsHidden:    cws.Challenge.IsHidden,
 			Solved:      cws.Solved,
 		})
@@ -201,7 +202,7 @@ func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := h.challengeUC.Create(r.Context(), req.Title, req.Description, req.Category, req.Points, req.Flag, req.IsHidden)
+	challenge, err := h.challengeUC.Create(r.Context(), req.Title, req.Description, req.Category, req.Points, req.InitialValue, req.MinValue, req.Decay, req.Flag, req.IsHidden)
 	if err != nil {
 		h.logger.Error("http - v1 - Create - Create", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -215,6 +216,7 @@ func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		Description: challenge.Description,
 		Category:    challenge.Category,
 		Points:      challenge.Points,
+		SolveCount:  challenge.SolveCount,
 		IsHidden:    challenge.IsHidden,
 	}
 
@@ -288,7 +290,7 @@ func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := h.challengeUC.Update(r.Context(), challengeId, req.Title, req.Description, req.Category, req.Points, req.Flag, req.IsHidden)
+	challenge, err := h.challengeUC.Update(r.Context(), challengeId, req.Title, req.Description, req.Category, req.Points, req.InitialValue, req.MinValue, req.Decay, req.Flag, req.IsHidden)
 	if err != nil {
 		h.logger.Error("http - v1 - Update - Update", err)
 		handleError(w, r, err)
@@ -301,6 +303,7 @@ func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		Description: challenge.Description,
 		Category:    challenge.Category,
 		Points:      challenge.Points,
+		SolveCount:  challenge.SolveCount,
 		IsHidden:    challenge.IsHidden,
 	}
 

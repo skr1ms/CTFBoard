@@ -39,23 +39,14 @@ func TestUserUseCase_Register(t *testing.T) {
 					return u.Username == "testuser" && u.Email == "test@example.com"
 				})).Return(nil).Run(func(ctx context.Context, u *entity.User) {
 					u.Id = userID
+					u.CreatedAt = time.Now()
 				}).Once()
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(&entity.User{
-					Id:       userID,
-					Username: "testuser",
-					Email:    "test@example.com",
-					Role:     "user",
-				}, nil).Once()
 				teamRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(t *entity.Team) bool {
 					return t.Name == "testuser" && t.CaptainId == userID
 				})).Return(nil).Run(func(ctx context.Context, team *entity.Team) {
 					team.Id = teamID
+					team.CreatedAt = time.Now()
 				}).Once()
-				teamRepo.EXPECT().GetByName(mock.Anything, "testuser").Return(&entity.Team{
-					Id:        teamID,
-					Name:      "testuser",
-					CaptainId: userID,
-				}, nil).Once()
 				userRepo.EXPECT().UpdateTeamId(mock.Anything, userID, mock.MatchedBy(func(teamId *string) bool {
 					return teamId != nil && *teamId == teamID
 				})).Return(nil).Once()
@@ -127,13 +118,8 @@ func TestUserUseCase_Register(t *testing.T) {
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
 				userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, u *entity.User) {
 					u.Id = userID
+					u.CreatedAt = time.Now()
 				}).Once()
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(&entity.User{
-					Id:       userID,
-					Username: "testuser",
-					Email:    "test@example.com",
-					Role:     "user",
-				}, nil).Once()
 				teamRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError).Once()
 			},
 			expectedError: true,
@@ -150,21 +136,12 @@ func TestUserUseCase_Register(t *testing.T) {
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
 				userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, u *entity.User) {
 					u.Id = userID
+					u.CreatedAt = time.Now()
 				}).Once()
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(&entity.User{
-					Id:       userID,
-					Username: "testuser",
-					Email:    "test@example.com",
-					Role:     "user",
-				}, nil).Once()
 				teamRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, team *entity.Team) {
 					team.Id = teamID
+					team.CreatedAt = time.Now()
 				}).Once()
-				teamRepo.EXPECT().GetByName(mock.Anything, "testuser").Return(&entity.Team{
-					Id:        teamID,
-					Name:      "testuser",
-					CaptainId: userID,
-				}, nil).Once()
 				userRepo.EXPECT().UpdateTeamId(mock.Anything, userID, mock.MatchedBy(func(teamId *string) bool {
 					return teamId != nil && *teamId == teamID
 				})).Return(assert.AnError).Once()

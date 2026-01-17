@@ -67,11 +67,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		return nil, fmt.Errorf("UserUseCase - Register - Create: %w", err)
 	}
 
-	createdUser, err := uc.userRepo.GetByEmail(ctx, email)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - GetByEmail: %w", err)
-	}
-
+	// User.Id is now populated by Create method
 	inviteTokenBytes := make([]byte, 16)
 	if _, err := rand.Read(inviteTokenBytes); err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateToken: %w", err)
@@ -81,7 +77,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	team := &entity.Team{
 		Name:        username,
 		InviteToken: inviteToken,
-		CaptainId:   createdUser.Id,
+		CaptainId:   user.Id,
 	}
 
 	err = uc.teamRepo.Create(ctx, team)
@@ -89,19 +85,15 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		return nil, fmt.Errorf("UserUseCase - Register - CreateTeam: %w", err)
 	}
 
-	createdTeam, err := uc.teamRepo.GetByName(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - GetTeamByName: %w", err)
-	}
-
-	err = uc.userRepo.UpdateTeamId(ctx, createdUser.Id, &createdTeam.Id)
+	// Team.Id is now populated by Create method
+	err = uc.userRepo.UpdateTeamId(ctx, user.Id, &team.Id)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - UpdateTeamId: %w", err)
 	}
 
-	createdUser.TeamId = &createdTeam.Id
+	user.TeamId = &team.Id
 
-	return createdUser, nil
+	return user, nil
 }
 
 func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.TokenPair, error) {

@@ -16,8 +16,6 @@ services:
       - ctfboard_network
     restart: unless-stopped
 
-  # For PostgreSQL: comment mariadb service and uncomment postgres service below
-  # Also update backend service depends_on to use postgres instead of mariadb
   mariadb:
     image: mariadb:latest
     container_name: mariadb
@@ -41,27 +39,6 @@ services:
     networks:
       - ctfboard_network
     restart: unless-stopped
-
-  # For PostgreSQL: uncomment this service and comment mariadb above
-  # postgres:
-  #   image: postgres:latest
-  #   container_name: postgres
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER:-admin}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-  #     POSTGRES_DB: ${POSTGRES_DB:-board}
-  #   ports:
-  #     - "127.0.0.1:${POSTGRES_PORT:-5432}:5432" # in prod use expose
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - ctfboard_network
-  #   restart: unless-stopped
 
   redis:
     image: redis:alpine
@@ -260,7 +237,6 @@ volumes:
   loki_data:
   grafana_data:
     name: docker_grafana_data
-  # postgres_data:
 
 networks:
   ctfboard_network:

@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
@@ -93,6 +94,69 @@ func (_c *MockSolveRepository_Create_Call) Return(err error) *MockSolveRepositor
 }
 
 func (_c *MockSolveRepository_Create_Call) RunAndReturn(run func(ctx context.Context, solve *entity.Solve) error) *MockSolveRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateTx provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) CreateTx(ctx context.Context, tx *sql.Tx, solve *entity.Solve) error {
+	ret := _mock.Called(ctx, tx, solve)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, *entity.Solve) error); ok {
+		r0 = returnFunc(ctx, tx, solve)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSolveRepository_CreateTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTx'
+type MockSolveRepository_CreateTx_Call struct {
+	*mock.Call
+}
+
+// CreateTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx *sql.Tx
+//   - solve *entity.Solve
+func (_e *MockSolveRepository_Expecter) CreateTx(ctx interface{}, tx interface{}, solve interface{}) *MockSolveRepository_CreateTx_Call {
+	return &MockSolveRepository_CreateTx_Call{Call: _e.mock.On("CreateTx", ctx, tx, solve)}
+}
+
+func (_c *MockSolveRepository_CreateTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, solve *entity.Solve)) *MockSolveRepository_CreateTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *sql.Tx
+		if args[1] != nil {
+			arg1 = args[1].(*sql.Tx)
+		}
+		var arg2 *entity.Solve
+		if args[2] != nil {
+			arg2 = args[2].(*entity.Solve)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_CreateTx_Call) Return(err error) *MockSolveRepository_CreateTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSolveRepository_CreateTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, solve *entity.Solve) error) *MockSolveRepository_CreateTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -235,6 +299,86 @@ func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) Return(solve *entity.S
 }
 
 func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) RunAndReturn(run func(ctx context.Context, teamId string, challengeId string) (*entity.Solve, error)) *MockSolveRepository_GetByTeamAndChallenge_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByTeamAndChallengeTx provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetByTeamAndChallengeTx(ctx context.Context, tx *sql.Tx, teamId string, challengeId string) (*entity.Solve, error) {
+	ret := _mock.Called(ctx, tx, teamId, challengeId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByTeamAndChallengeTx")
+	}
+
+	var r0 *entity.Solve
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, string) (*entity.Solve, error)); ok {
+		return returnFunc(ctx, tx, teamId, challengeId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, string) *entity.Solve); ok {
+		r0 = returnFunc(ctx, tx, teamId, challengeId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Solve)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *sql.Tx, string, string) error); ok {
+		r1 = returnFunc(ctx, tx, teamId, challengeId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetByTeamAndChallengeTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTeamAndChallengeTx'
+type MockSolveRepository_GetByTeamAndChallengeTx_Call struct {
+	*mock.Call
+}
+
+// GetByTeamAndChallengeTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx *sql.Tx
+//   - teamId string
+//   - challengeId string
+func (_e *MockSolveRepository_Expecter) GetByTeamAndChallengeTx(ctx interface{}, tx interface{}, teamId interface{}, challengeId interface{}) *MockSolveRepository_GetByTeamAndChallengeTx_Call {
+	return &MockSolveRepository_GetByTeamAndChallengeTx_Call{Call: _e.mock.On("GetByTeamAndChallengeTx", ctx, tx, teamId, challengeId)}
+}
+
+func (_c *MockSolveRepository_GetByTeamAndChallengeTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, teamId string, challengeId string)) *MockSolveRepository_GetByTeamAndChallengeTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *sql.Tx
+		if args[1] != nil {
+			arg1 = args[1].(*sql.Tx)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetByTeamAndChallengeTx_Call) Return(solve *entity.Solve, err error) *MockSolveRepository_GetByTeamAndChallengeTx_Call {
+	_c.Call.Return(solve, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetByTeamAndChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, teamId string, challengeId string) (*entity.Solve, error)) *MockSolveRepository_GetByTeamAndChallengeTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -501,6 +645,144 @@ func (_c *MockSolveRepository_GetScoreboardFrozen_Call) Return(scoreboardEntrys 
 }
 
 func (_c *MockSolveRepository_GetScoreboardFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardFrozen_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTeamScore provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetTeamScore(ctx context.Context, teamId string) (int, error) {
+	ret := _mock.Called(ctx, teamId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTeamScore")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
+		return returnFunc(ctx, teamId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+		r0 = returnFunc(ctx, teamId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, teamId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetTeamScore_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTeamScore'
+type MockSolveRepository_GetTeamScore_Call struct {
+	*mock.Call
+}
+
+// GetTeamScore is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamId string
+func (_e *MockSolveRepository_Expecter) GetTeamScore(ctx interface{}, teamId interface{}) *MockSolveRepository_GetTeamScore_Call {
+	return &MockSolveRepository_GetTeamScore_Call{Call: _e.mock.On("GetTeamScore", ctx, teamId)}
+}
+
+func (_c *MockSolveRepository_GetTeamScore_Call) Run(run func(ctx context.Context, teamId string)) *MockSolveRepository_GetTeamScore_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetTeamScore_Call) Return(n int, err error) *MockSolveRepository_GetTeamScore_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetTeamScore_Call) RunAndReturn(run func(ctx context.Context, teamId string) (int, error)) *MockSolveRepository_GetTeamScore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTeamScoreTx provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetTeamScoreTx(ctx context.Context, tx *sql.Tx, teamId string) (int, error) {
+	ret := _mock.Called(ctx, tx, teamId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTeamScoreTx")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) (int, error)); ok {
+		return returnFunc(ctx, tx, teamId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) int); ok {
+		r0 = returnFunc(ctx, tx, teamId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *sql.Tx, string) error); ok {
+		r1 = returnFunc(ctx, tx, teamId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetTeamScoreTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTeamScoreTx'
+type MockSolveRepository_GetTeamScoreTx_Call struct {
+	*mock.Call
+}
+
+// GetTeamScoreTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx *sql.Tx
+//   - teamId string
+func (_e *MockSolveRepository_Expecter) GetTeamScoreTx(ctx interface{}, tx interface{}, teamId interface{}) *MockSolveRepository_GetTeamScoreTx_Call {
+	return &MockSolveRepository_GetTeamScoreTx_Call{Call: _e.mock.On("GetTeamScoreTx", ctx, tx, teamId)}
+}
+
+func (_c *MockSolveRepository_GetTeamScoreTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, teamId string)) *MockSolveRepository_GetTeamScoreTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *sql.Tx
+		if args[1] != nil {
+			arg1 = args[1].(*sql.Tx)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetTeamScoreTx_Call) Return(n int, err error) *MockSolveRepository_GetTeamScoreTx_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetTeamScoreTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, teamId string) (int, error)) *MockSolveRepository_GetTeamScoreTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

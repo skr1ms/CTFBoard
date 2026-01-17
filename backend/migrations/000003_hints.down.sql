@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS hint_unlocks;
+DROP TABLE IF EXISTS hints;
+DROP TABLE IF EXISTS awards;

@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// Create Tests
+
 func TestSolveUseCase_Create(t *testing.T) {
 	solveRepo := mocks.NewMockSolveRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
@@ -122,6 +124,8 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// GetScoreboard Tests
+
 func TestSolveUseCase_GetScoreboard(t *testing.T) {
 	solveRepo := mocks.NewMockSolveRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
@@ -163,6 +167,44 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 	assert.Equal(t, entries[0].Points, result[0].Points)
 }
 
+func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
+	solveRepo := mocks.NewMockSolveRepository(t)
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	freezeTime := time.Now().Add(-1 * time.Hour)
+	comp := &entity.Competition{
+		FreezeTime: &freezeTime,
+	}
+
+	entries := []*repo.ScoreboardEntry{
+		{
+			TeamId:   uuid.New().String(),
+			TeamName: "Team1",
+			Points:   500,
+			SolvedAt: time.Now(),
+		},
+	}
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "scoreboard:frozen").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(comp, nil)
+
+	solveRepo.On("GetScoreboardFrozen", mock.Anything, freezeTime).Return(entries, nil)
+
+	redisClient.On("Set", mock.Anything, "scoreboard:frozen", mock.Anything, 15*time.Second).Return(redis.NewStatusCmd(context.Background()))
+
+	uc := NewSolveUseCase(solveRepo, competitionRepo, redisClient)
+
+	result, err := uc.GetScoreboard(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 1)
+}
+
 func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 	solveRepo := mocks.NewMockSolveRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
@@ -185,6 +227,8 @@ func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
+
+// GetFirstBlood Tests
 
 func TestSolveUseCase_GetFirstBlood(t *testing.T) {
 	solveRepo := mocks.NewMockSolveRepository(t)
@@ -227,42 +271,4 @@ func TestSolveUseCase_GetFirstBlood_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-}
-
-func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
-	solveRepo := mocks.NewMockSolveRepository(t)
-	competitionRepo := mocks.NewMockCompetitionRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
-
-	freezeTime := time.Now().Add(-1 * time.Hour)
-	comp := &entity.Competition{
-		FreezeTime: &freezeTime,
-	}
-
-	entries := []*repo.ScoreboardEntry{
-		{
-			TeamId:   uuid.New().String(),
-			TeamName: "Team1",
-			Points:   500,
-			SolvedAt: time.Now(),
-		},
-	}
-
-	cmd := redis.NewStringCmd(context.Background())
-	cmd.SetErr(redis.Nil)
-	redisClient.On("Get", mock.Anything, "scoreboard:frozen").Return(cmd)
-
-	competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-
-	solveRepo.On("GetScoreboardFrozen", mock.Anything, freezeTime).Return(entries, nil)
-
-	redisClient.On("Set", mock.Anything, "scoreboard:frozen", mock.Anything, 15*time.Second).Return(redis.NewStatusCmd(context.Background()))
-
-	uc := NewSolveUseCase(solveRepo, competitionRepo, redisClient)
-
-	result, err := uc.GetScoreboard(context.Background())
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Len(t, result, 1)
 }

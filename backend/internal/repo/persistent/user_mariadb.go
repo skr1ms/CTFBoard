@@ -22,13 +22,15 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *entity.User) error {
-	role := u.Role
-	if role == "" {
-		role = "user"
+	if u.Role == "" {
+		u.Role = "user"
 	}
+	u.Id = uuid.New().String()
+	u.CreatedAt = time.Now()
+
 	query := squirrel.Insert("users").
 		Columns("id", "username", "email", "password_hash", "role", "created_at").
-		Values(uuid.New().String(), u.Username, u.Email, u.PasswordHash, role, time.Now())
+		Values(u.Id, u.Username, u.Email, u.PasswordHash, u.Role, u.CreatedAt)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestCompetitionUseCase_Get(t *testing.T) {
+// Get Tests
+
+func TestCompetitionUseCase_Get_Success(t *testing.T) {
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -39,7 +42,7 @@ func TestCompetitionUseCase_Get(t *testing.T) {
 	assert.Equal(t, comp.Name, result.Name)
 }
 
-func TestCompetitionUseCase_Get_Cached(t *testing.T) {
+func TestCompetitionUseCase_Get_Cached_Success(t *testing.T) {
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -62,7 +65,7 @@ func TestCompetitionUseCase_Get_Cached(t *testing.T) {
 	competitionRepo.AssertNotCalled(t, "Get", mock.Anything)
 }
 
-func TestCompetitionUseCase_Get_NotFound(t *testing.T) {
+func TestCompetitionUseCase_Get_NotFound_Error(t *testing.T) {
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -81,7 +84,9 @@ func TestCompetitionUseCase_Get_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, entityError.ErrCompetitionNotFound)
 }
 
-func TestCompetitionUseCase_Update(t *testing.T) {
+// Update Tests
+
+func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -100,7 +105,28 @@ func TestCompetitionUseCase_Update(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCompetitionUseCase_GetStatus(t *testing.T) {
+func TestCompetitionUseCase_Update_Error(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	comp := &entity.Competition{
+		Id:   1,
+		Name: "Updated CTF",
+	}
+
+	competitionRepo.On("Update", mock.Anything, comp).Return(errors.New("db error"))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	err := uc.Update(context.Background(), comp)
+
+	assert.Error(t, err)
+	redisClient.AssertNotCalled(t, "Del", mock.Anything, mock.Anything)
+}
+
+// GetStatus Tests
+
+func TestCompetitionUseCase_GetStatus_Success(t *testing.T) {
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -125,4 +151,127 @@ func TestCompetitionUseCase_GetStatus(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, entity.CompetitionStatusActive, status)
+}
+
+func TestCompetitionUseCase_GetStatus_Error(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "competition").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	status, err := uc.GetStatus(context.Background())
+
+	assert.Error(t, err)
+	assert.Empty(t, status)
+}
+
+// IsSubmissionAllowed Tests
+
+func TestCompetitionUseCase_IsSubmissionAllowed_Success(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	startTime := time.Now().Add(-1 * time.Hour)
+	endTime := time.Now().Add(1 * time.Hour)
+	comp := &entity.Competition{
+		Id:        1,
+		Name:      "Test CTF",
+		StartTime: &startTime,
+		EndTime:   &endTime,
+	}
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "competition").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(comp, nil)
+
+	redisClient.On("Set", mock.Anything, "competition", mock.Anything, 5*time.Second).Return(redis.NewStatusCmd(context.Background()))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	allowed, err := uc.IsSubmissionAllowed(context.Background())
+
+	assert.NoError(t, err)
+	assert.True(t, allowed)
+}
+
+func TestCompetitionUseCase_IsSubmissionAllowed_NotStarted_Success(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	startTime := time.Now().Add(1 * time.Hour)
+	comp := &entity.Competition{
+		Id:        1,
+		Name:      "Test CTF",
+		StartTime: &startTime,
+	}
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "competition").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(comp, nil)
+
+	redisClient.On("Set", mock.Anything, "competition", mock.Anything, 5*time.Second).Return(redis.NewStatusCmd(context.Background()))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	allowed, err := uc.IsSubmissionAllowed(context.Background())
+
+	assert.NoError(t, err)
+	assert.False(t, allowed)
+}
+
+func TestCompetitionUseCase_IsSubmissionAllowed_Ended_Success(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	startTime := time.Now().Add(-2 * time.Hour)
+	endTime := time.Now().Add(-1 * time.Hour)
+	comp := &entity.Competition{
+		Id:        1,
+		Name:      "Test CTF",
+		StartTime: &startTime,
+		EndTime:   &endTime,
+	}
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "competition").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(comp, nil)
+
+	redisClient.On("Set", mock.Anything, "competition", mock.Anything, 5*time.Second).Return(redis.NewStatusCmd(context.Background()))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	allowed, err := uc.IsSubmissionAllowed(context.Background())
+
+	assert.NoError(t, err)
+	assert.False(t, allowed)
+}
+
+func TestCompetitionUseCase_IsSubmissionAllowed_Error(t *testing.T) {
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	redisClient := mocks.NewMockRedisClient(t)
+
+	cmd := redis.NewStringCmd(context.Background())
+	cmd.SetErr(redis.Nil)
+	redisClient.On("Get", mock.Anything, "competition").Return(cmd)
+
+	competitionRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
+
+	uc := NewCompetitionUseCase(competitionRepo, redisClient)
+
+	allowed, err := uc.IsSubmissionAllowed(context.Background())
+
+	assert.Error(t, err)
+	assert.False(t, allowed)
 }

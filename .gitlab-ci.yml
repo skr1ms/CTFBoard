@@ -24,8 +24,6 @@ variables:
   DOCKER_CLI_IMAGE: docker:cli
 
   GOLANG_IMAGE: golang:alpine
-  # For PostgreSQL: change to POSTGRES_IMAGE: postgres:latest
-  # and update POSTGRES_* variables below (but tests still use MariaDB)
   MARIADB_IMAGE: mariadb:latest
   REDIS_IMAGE: redis:alpine
 
@@ -39,9 +37,7 @@ variables:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
 
-# ---------------------------------------------------------------------------
 # Build stage
-# ---------------------------------------------------------------------------
 build:backend:
   stage: build
   image: $DOCKER_CLI_IMAGE
@@ -66,9 +62,7 @@ build:backend:
         - deployment/docker/**/*
       when: always
 
-# --- TEST STAGE ---
-# Note: Tests always use MariaDB regardless of production database choice
-# If using PostgreSQL in production, tests still run on MariaDB (SQL logic is the same)
+# Test stage
 test:backend:
   stage: test
   image: $GOLANG_IMAGE
@@ -130,9 +124,7 @@ test:backend:
         - go.sum
       when: always
 
-# ---------------------------------------------------------------------------
 # Deploy stage
-# ---------------------------------------------------------------------------
 deploy:
   stage: deploy
   image: alpine:latest
@@ -219,9 +211,7 @@ deploy:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
-# ---------------------------------------------------------------------------
 # Security stage
-# ---------------------------------------------------------------------------
 security:code:
   stage: test
   image:
@@ -259,9 +249,7 @@ security:container:
       when: always
   allow_failure: true
 
-# ---------------------------------------------------------------------------
 # Cleanup stage
-# ---------------------------------------------------------------------------
 docker:gc:
   stage: cleanup
   image: $DOCKER_CLI_IMAGE

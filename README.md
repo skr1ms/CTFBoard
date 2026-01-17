@@ -1,7 +1,4 @@
-# Техническое задание на разработку платформы GoCTF
-
-**Наименование проекта:** GoCTF Platform (Lite)
-**Тип системы:** Платформа для организации соревнований по информационной безопасности (CTF Jeopardy).
+# Техническое задание на разработку платформы CTFBoard
 
 ## 1. Введение
 
@@ -13,7 +10,7 @@
 
 - **Язык программирования:** Go (версия 1.22 и выше).
 - **HTTP-маршрутизация:** Библиотека `chi` (github.com/go-chi/chi/v5) — выбрана для обеспечения строгой совместимости со стандартной библиотекой `net/http` и реализации модульной архитектуры.
-- **База данных:** PostgreSQL 15+.
+- **База данных:** MariaDB 11+.
 - **Драйвер БД:** `pgx/v5` (обеспечение высокой производительности операций ввода-вывода).
 - **Аутентификация:** JWT (JSON Web Tokens) согласно стандарту RFC 7519.
 
@@ -64,7 +61,7 @@
 
 ## 4. Описание API интерфейса (REST)
 
-Полная документация API доступна в файле [docs/API-SPEC.md](docs/API-SPEC.md) и через интерактивный SwaggerUI по адресу `https://api.ctfleague.ru/swagger/index.html`.
+Полная документация в SwaggerUI по адресу `https://api.ctfleague.ru/swagger/index.html`.
 
 | Метод      | Эндпоинт                           | Описание                                            | Уровень доступа |
 | :--------- | :--------------------------------- | :-------------------------------------------------- | :-------------- |
@@ -84,17 +81,15 @@
 | **POST**   | `/api/v1/admin/challenges`         | Создание новой задачи                               | Admin           |
 | **PUT**    | `/api/v1/admin/challenges/{id}`    | Редактирование задачи                               | Admin           |
 | **DELETE** | `/api/v1/admin/challenges/{id}`    | Удаление задачи                                     | Admin           |
+| **GET**    | `/api/v1/competition/status`       | Статус соревнования                                 | Public          |
+| **GET**    | `/api/v1/admin/competition`        | Настройки соревнования                              | Admin           |
+| **PUT**    | `/api/v1/admin/competition`        | Обновление настроек соревнования                    | Admin           |
+| **GET**    | `/api/v1/challenges/{id}/hints`    | Список подсказок                                    | User            |
+| **POST**   | `/api/v1/challenges/{id}/hints/{hid}/unlock` | Открытие подсказки                                | User            |
+| **POST**   | `/api/v1/admin/challenges/{id}/hints` | Создание подсказки                                  | Admin           |
+| **PUT**    | `/api/v1/admin/hints/{id}`         | Редактирование подсказки                            | Admin           |
+| **DELETE** | `/api/v1/admin/hints/{id}`         | Удаление подсказки                                  | Admin           |
+| **GET**    | `/health`                          | Проверка состояния сервиса                          | Public          |
+| **GET**    | `/metrics`                         | Метрики Prometheus                                  | Public          |
+| **GET**    | `/swagger/*`                       | Swagger документация                                | Public          |
 
-## 5. Схема данных (ER-модель)
-
-Система хранения данных должна быть реализована в реляционной СУБД PostgreSQL и включать следующие сущности:
-
-1.  **users** — Хранение учетных данных участников.
-    - Поля: `id` (PK), `username` (Unique), `email` (Unique), `password_hash`, `team_id` (FK), `created_at`.
-2.  **teams** — Команды участников.
-    - Поля: `id` (PK), `name` (Unique), `invite_token`, `captain_id` (FK -> users), `created_at`.
-3.  **challenges** — Хранение информации о задачах.
-    - Поля: `id` (PK), `title`, `description`, `category`, `points`, `flag_hash`, `is_hidden`.
-4.  **solves** — Журнал успешных решений.
-    - Поля: `id` (PK), `user_id` (FK), `team_id` (FK), `challenge_id` (FK), `solved_at`.
-    - Ограничение уникальности: Пара `(team_id, challenge_id)` должна быть уникальной.

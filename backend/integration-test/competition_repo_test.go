@@ -2,10 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"database/sql"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,25 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func applyCompetitionMigration(t *testing.T, db *sql.DB) {
-	path := filepath.Join("..", "migrations", "000002_competition.up.sql")
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	stmts := strings.Split(string(content), ";")
-	for _, stmt := range stmts {
-		stmt = strings.TrimSpace(stmt)
-		if stmt == "" {
-			continue
-		}
-		_, err = db.Exec(stmt)
-		require.NoError(t, err)
-	}
-}
-
 func TestCompetitionRepo_Get(t *testing.T) {
 	testDB := SetupTestDB(t)
-	applyCompetitionMigration(t, testDB.DB)
 	repo := persistent.NewCompetitionRepo(testDB.DB)
 	ctx := context.Background()
 
@@ -47,7 +26,6 @@ func TestCompetitionRepo_Get(t *testing.T) {
 
 func TestCompetitionRepo_Update(t *testing.T) {
 	testDB := SetupTestDB(t)
-	applyCompetitionMigration(t, testDB.DB)
 	repo := persistent.NewCompetitionRepo(testDB.DB)
 	ctx := context.Background()
 
@@ -75,7 +53,6 @@ func TestCompetitionRepo_Update(t *testing.T) {
 
 func TestCompetitionRepo_Update_Partial(t *testing.T) {
 	testDB := SetupTestDB(t)
-	applyCompetitionMigration(t, testDB.DB)
 	repo := persistent.NewCompetitionRepo(testDB.DB)
 	ctx := context.Background()
 

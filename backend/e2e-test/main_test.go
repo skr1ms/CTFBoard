@@ -238,6 +238,10 @@ func TestMain(m *testing.M) {
 	solveRepo := persistent.NewSolveRepo(TestDB)
 	teamRepo := persistent.NewTeamRepo(TestDB)
 	competitionRepo := persistent.NewCompetitionRepo(TestDB)
+	hintRepo := persistent.NewHintRepo(TestDB)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(TestDB)
+	awardRepo := persistent.NewAwardRepo(TestDB)
+	txRepo := persistent.NewTxRepo(TestDB)
 
 	validatorService := validator.New()
 
@@ -250,9 +254,10 @@ func TestMain(m *testing.M) {
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, jwtService)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, TestRedis)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, TestRedis)
+	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, TestRedis)
 	solveUC := usecase.NewSolveUseCase(solveRepo, competitionRepo, TestRedis)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
+	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
 
 	testRouter = chi.NewRouter()
 	testRouter.Use(middleware.RequestID)
@@ -273,6 +278,7 @@ func TestMain(m *testing.M) {
 		solveUC,
 		teamUC,
 		competitionUC,
+		hintUC,
 		jwtService,
 		validatorService,
 		l,

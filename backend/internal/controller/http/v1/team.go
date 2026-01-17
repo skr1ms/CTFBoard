@@ -220,12 +220,12 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Don't expose invite token when getting team by ID (security)
 	res := response.TeamResponse{
-		Id:          team.Id,
-		Name:        team.Name,
-		InviteToken: team.InviteToken,
-		CaptainId:   team.CaptainId,
-		CreatedAt:   team.CreatedAt,
+		Id:        team.Id,
+		Name:      team.Name,
+		CaptainId: team.CaptainId,
+		CreatedAt: team.CreatedAt,
 	}
 
 	render.Status(r, http.StatusOK)

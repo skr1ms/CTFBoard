@@ -3,12 +3,15 @@ package e2e
 import (
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestScoreboard_Display(t *testing.T) {
 	e := setupE2E(t)
 
-	_, _, tokenAdmin := registerAdmin(e, "admin6")
+	suffix := uuid.New().String()[:8]
+	_, _, tokenAdmin := registerAdmin(e, "admin6_"+suffix)
 
 	challengeId1 := createChallenge(e, tokenAdmin, map[string]interface{}{
 		"title":       "Challenge 1",
@@ -30,10 +33,10 @@ func TestScoreboard_Display(t *testing.T) {
 		"is_hidden":   false,
 	})
 
-	emailUser1, passUser1 := registerUser(e, "user4")
+	emailUser1, passUser1 := registerUser(e, "user4_"+suffix)
 	tokenUser1 := login(e, emailUser1, passUser1)
 
-	emailUser2, passUser2 := registerUser(e, "user5")
+	emailUser2, passUser2 := registerUser(e, "user5_"+suffix)
 	tokenUser2 := login(e, emailUser2, passUser2)
 
 	submitFlag(e, tokenUser1, challengeId1, "FLAG{chall1}")
@@ -57,11 +60,11 @@ func TestScoreboard_Display(t *testing.T) {
 		team := scoreboardResp.Value(i).Object()
 		name := team.Value("team_name").String().Raw()
 
-		if name == "user4" {
+		if name == "user4_"+suffix {
 			team.Value("points").Number().IsEqual(300)
 			user4Found = true
 		}
-		if name == "user5" {
+		if name == "user5_"+suffix {
 			team.Value("points").Number().IsEqual(100)
 			user5Found = true
 		}

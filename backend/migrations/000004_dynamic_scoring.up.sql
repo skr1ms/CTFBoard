@@ -1,0 +1,7 @@
+ALTER TABLE challenges
+ADD COLUMN initial_value INT NOT NULL DEFAULT 500,
+ADD COLUMN min_value INT NOT NULL DEFAULT 100,
+ADD COLUMN decay INT NOT NULL DEFAULT 20,
+ADD COLUMN solve_count INT NOT NULL DEFAULT 0;
+
+UPDATE challenges SET initial_value = points WHERE points > 0;

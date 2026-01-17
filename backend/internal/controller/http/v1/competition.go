@@ -119,6 +119,28 @@ func (h *competitionRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate time constraints
+	if req.EndTime != nil && req.StartTime != nil && req.EndTime.Before(*req.StartTime) {
+		h.logger.Error("http - v1 - Update - TimeValidation", nil)
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{"error": "end_time must be after start_time"})
+		return
+	}
+
+	if req.FreezeTime != nil && req.EndTime != nil && req.FreezeTime.After(*req.EndTime) {
+		h.logger.Error("http - v1 - Update - TimeValidation", nil)
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{"error": "freeze_time must be before end_time"})
+		return
+	}
+
+	if req.FreezeTime != nil && req.StartTime != nil && req.FreezeTime.Before(*req.StartTime) {
+		h.logger.Error("http - v1 - Update - TimeValidation", nil)
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{"error": "freeze_time must be after start_time"})
+		return
+	}
+
 	comp := &entity.Competition{
 		Id:         1,
 		Name:       req.Name,

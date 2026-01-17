@@ -112,28 +112,36 @@ func SetupTestDB(t *testing.T) *TestDB {
 		t.Fatalf("failed to ping db after 20 attempts: %s", pingErr)
 	}
 
-	migrationsPath := filepath.Join("..", "migrations", "000001_init.up.sql")
-	migrationSQL, err := os.ReadFile(migrationsPath)
+	migrationsDir := filepath.Join("..", "migrations")
+	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
-		t.Fatalf("failed to read migration file: %s", err)
+		t.Fatalf("failed to read migrations directory: %s", err)
 	}
 
-	statements := strings.Split(string(migrationSQL), ";")
-	for _, stmt := range statements {
-		stmt = strings.TrimSpace(stmt)
-		if stmt == "" || strings.HasPrefix(stmt, "--") {
-			continue
+	var migrationFiles []string
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".up.sql") {
+			migrationFiles = append(migrationFiles, filepath.Join(migrationsDir, f.Name()))
 		}
-		stmt = strings.TrimSuffix(stmt, "\n")
-		if stmt == "" {
-			continue
+	}
+	for _, file := range migrationFiles {
+		migrationSQL, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("failed to read migration file %s: %s", file, err)
 		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			errStr := err.Error()
-			if !strings.Contains(errStr, "already exists") &&
-				!strings.Contains(errStr, "Duplicate key") &&
-				!strings.Contains(errStr, "Duplicate column") {
-				t.Fatalf("failed to execute migration: %s, error: %s", stmt[:min(100, len(stmt))], err)
+		statements := strings.Split(string(migrationSQL), ";")
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" || strings.HasPrefix(stmt, "--") {
+				continue
+			}
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				errStr := err.Error()
+				if !strings.Contains(errStr, "already exists") &&
+					!strings.Contains(errStr, "Duplicate key") &&
+					!strings.Contains(errStr, "Duplicate column") {
+					t.Fatalf("failed to execute migration %s statement: %s, error: %s", filepath.Base(file), stmt[:min(100, len(stmt))], err)
+				}
 			}
 		}
 	}

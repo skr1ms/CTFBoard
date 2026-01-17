@@ -79,7 +79,25 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userId string) (*e
 	}
 
 	if user.TeamId != nil {
-		return nil, entityError.ErrUserAlreadyInTeam
+		// Smart Join Logic:
+		// If user is already in a team, check if it's a "solo" team (only 1 member).
+		// If so, delete the old team and allow joining the new one.
+		members, err := uc.userRepo.GetByTeamId(ctx, *user.TeamId)
+		if err != nil {
+			return nil, fmt.Errorf("TeamUseCase - Join - GetMembers: %w", err)
+		}
+
+		if len(members) == 1 && members[0].Id == user.Id {
+			// It's a solo team, safe to delete.
+			// Note: user.TeamId will be set to NULL by DB constraint ON DELETE SET NULL,
+			// or we simply overwrite it below.
+			if err := uc.teamRepo.Delete(ctx, *user.TeamId); err != nil {
+				return nil, fmt.Errorf("TeamUseCase - Join - DeleteOldTeam: %w", err)
+			}
+		} else {
+			// Multi-member team, block exit.
+			return nil, entityError.ErrUserAlreadyInTeam
+		}
 	}
 
 	err = uc.userRepo.UpdateTeamId(ctx, userId, &team.Id)

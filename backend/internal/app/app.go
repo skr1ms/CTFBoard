@@ -21,12 +21,9 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/redis"
-
-	// For PostgreSQL: uncomment postgres import and comment mariadb import
-	// "github.com/skr1ms/CTFBoard/pkg/postgres"
 	"github.com/skr1ms/CTFBoard/pkg/mariadb"
 	"github.com/skr1ms/CTFBoard/pkg/migrator"
+	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
@@ -37,8 +34,6 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		"version":   cfg.Version,
 	})
 
-	// For PostgreSQL: comment mariadb.New and uncomment postgres.New
-	// Also update config.go to use PostgreSQL connection string format
 	db, err := mariadb.New(&cfg.DB)
 	if err != nil {
 		l.Error("failed to connect to database", err)
@@ -61,19 +56,6 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		}
 	}()
 
-	// For PostgreSQL: uncomment this block and comment mariadb.New above
-	// Also add postgres service to docker-compose.yml (see comments there)
-	// db, err := postgres.New(&cfg.DB)
-	// if err != nil {
-	// 	l.Error("failed to connect to database", err)
-	// 	return
-	// }
-	// defer func() {
-	// 	if err := db.Close(); err != nil {
-	// 		l.Error("failed to close database connection", err)
-	// 	}
-	// }()
-
 	if err := migrator.Run(&cfg.DB); err != nil {
 		l.Error("failed to run migrations", err)
 		return
@@ -84,6 +66,10 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	solveRepo := persistent.NewSolveRepo(db)
 	teamRepo := persistent.NewTeamRepo(db)
 	competitionRepo := persistent.NewCompetitionRepo(db)
+	hintRepo := persistent.NewHintRepo(db)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(db)
+	awardRepo := persistent.NewAwardRepo(db)
+	txRepo := persistent.NewTxRepo(db)
 
 	validator := validator.New()
 
@@ -95,10 +81,11 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	)
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, jwtService)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, redisClient)
+	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
 	solveUC := usecase.NewSolveUseCase(solveRepo, competitionRepo, redisClient)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
+	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 
 	router := chi.NewRouter()
 
@@ -143,11 +130,12 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		solveUC,
 		teamUC,
 		competitionUC,
+		hintUC,
 		jwtService,
 		validator,
 		l,
-		cfg.RateLimit.SubmitFlag,
-		cfg.RateLimit.SubmitFlagDuration,
+		cfg.SubmitFlag,
+		cfg.SubmitFlagDuration,
 	)
 
 	server := &http.Server{

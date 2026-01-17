@@ -22,9 +22,12 @@ func NewTeamRepo(db *sql.DB) *TeamRepo {
 }
 
 func (r *TeamRepo) Create(ctx context.Context, t *entity.Team) error {
+	t.Id = uuid.New().String()
+	t.CreatedAt = time.Now()
+
 	query := squirrel.Insert("teams").
 		Columns("id", "name", "invite_token", "captain_id", "created_at").
-		Values(uuid.New().String(), t.Name, t.InviteToken, t.CaptainId, time.Now())
+		Values(t.Id, t.Name, t.InviteToken, t.CaptainId, t.CreatedAt)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -129,4 +132,26 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	}
 
 	return &team, nil
+}
+
+func (r *TeamRepo) Delete(ctx context.Context, id string) error {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return fmt.Errorf("TeamRepo - Delete - ParseID: %w", err)
+	}
+
+	query := squirrel.Delete("teams").
+		Where(squirrel.Eq{"id": uuidID})
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TeamRepo - Delete - BuildQuery: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TeamRepo - Delete - ExecQuery: %w", err)
+	}
+
+	return nil
 }

@@ -18,6 +18,7 @@ func NewRouter(
 	solveUC *usecase.SolveUseCase,
 	teamUC *usecase.TeamUseCase,
 	competitionUC *usecase.CompetitionUseCase,
+	hintUC *usecase.HintUseCase,
 	jwtService *jwt.JWTService,
 	validator validator.Validator,
 	logger logger.Interface,
@@ -33,5 +34,6 @@ func NewRouter(
 		NewChallengeRoutes(r, challengeUC, solveUC, userUC, competitionUC, validator, logger, jwtService, submitLimit, durationLimit)
 		NewTeamRoutes(r, teamUC, validator, logger, jwtService)
 		NewCompetitionRoutes(r, competitionUC, validator, logger, jwtService)
+		NewHintRoutes(r, hintUC, userUC, validator, logger, jwtService)
 	})
 }
