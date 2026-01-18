@@ -27,7 +27,7 @@ variables:
   GOLANG_IMAGE: golang:alpine
   MARIADB_IMAGE: mariadb:latest
   REDIS_IMAGE: redis:alpine
-  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v2-alpine
+  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:latest-alpine
   ALPINE_IMAGE: alpine:latest
   GOSEC_IMAGE: securego/gosec:latest
   TRIVY_IMAGE: aquasec/trivy:latest
