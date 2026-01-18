@@ -298,10 +298,14 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 // UnlockHint Tests
 
 func TestHintUseCase_UnlockHint_Success(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
 	awardRepo := mocks.NewMockAwardRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -309,10 +313,6 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	hintID := uuid.New().String()
 
 	hint := &entity.Hint{Id: hintID, Content: "Secret hint", Cost: 50}
-
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
 
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectCommit()
@@ -322,13 +322,13 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
-	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	txRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(100, nil)
-	txRepo.On("CreateAwardTx", mock.Anything, mockTx, mock.MatchedBy(func(a *entity.Award) bool {
+	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("GetTeamScoreTx", mock.Anything, mock.Anything, teamID).Return(100, nil)
+	txRepo.On("CreateAwardTx", mock.Anything, mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
 		return a.Value == -50 && a.TeamId == teamID
 	})).Return(nil)
-	txRepo.On("CreateHintUnlockTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
+	txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
 	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
@@ -339,13 +339,18 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	assert.NotNil(t, unlocked)
 	assert.Equal(t, hintID, unlocked.Id)
 	assert.Equal(t, "Secret hint", unlocked.Content)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
 	awardRepo := mocks.NewMockAwardRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -353,10 +358,6 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	hintID := uuid.New().String()
 
 	hint := &entity.Hint{Id: hintID, Content: "Free hint", Cost: 0}
-
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
 
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectCommit()
@@ -366,9 +367,9 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
-	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	txRepo.On("CreateHintUnlockTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
+	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
 	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
@@ -380,6 +381,7 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	assert.Equal(t, "Free hint", unlocked.Content)
 	txRepo.AssertNotCalled(t, "CreateAwardTx", mock.Anything, mock.Anything, mock.Anything)
 	txRepo.AssertNotCalled(t, "GetTeamScoreTx", mock.Anything, mock.Anything, mock.Anything)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
@@ -429,10 +431,14 @@ func TestHintUseCase_UnlockHint_BeginTxError(t *testing.T) {
 }
 
 func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
 	awardRepo := mocks.NewMockAwardRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -441,10 +447,6 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 
 	hint := &entity.Hint{Id: hintID, Cost: 50}
 
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectRollback()
 
@@ -453,8 +455,8 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
-	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(&entity.HintUnlock{}, nil)
+	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(&entity.HintUnlock{}, nil)
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 
@@ -463,13 +465,18 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrHintAlreadyUnlocked))
 	assert.Nil(t, unlocked)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
 	awardRepo := mocks.NewMockAwardRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	solveRepo := mocks.NewMockSolveRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
@@ -477,10 +484,6 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	hintID := uuid.New().String()
 
 	hint := &entity.Hint{Id: hintID, Cost: 100}
-
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
 
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectRollback()
@@ -490,9 +493,9 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
-	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	txRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(50, nil)
+	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("GetTeamScoreTx", mock.Anything, mock.Anything, teamID).Return(50, nil)
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 
@@ -501,4 +504,5 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrInsufficientPoints))
 	assert.Nil(t, unlocked)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }

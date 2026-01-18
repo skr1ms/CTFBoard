@@ -139,7 +139,8 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 
 	_, err = uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
 	if err == nil {
-		return true, entityError.ErrAlreadySolved
+		err = entityError.ErrAlreadySolved
+		return true, err
 	}
 	if !errors.Is(err, entityError.ErrSolveNotFound) {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByTeamAndChallengeTx: %w", err)

@@ -153,7 +153,8 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamId, hintId string) (*
 
 	_, err = uc.txRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, teamId, hintId)
 	if err == nil {
-		return nil, entityError.ErrHintAlreadyUnlocked
+		err = entityError.ErrHintAlreadyUnlocked
+		return nil, err
 	}
 	if !errors.Is(err, entityError.ErrHintNotFound) {
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - GetByTeamAndHintTx: %w", err)
@@ -166,7 +167,8 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamId, hintId string) (*
 		}
 
 		if teamScore < hint.Cost {
-			return nil, entityError.ErrInsufficientPoints
+			err = entityError.ErrInsufficientPoints
+			return nil, err
 		}
 
 		award := &entity.Award{

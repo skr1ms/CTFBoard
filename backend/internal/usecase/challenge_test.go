@@ -303,9 +303,13 @@ func TestChallengeUseCase_Delete_Error(t *testing.T) {
 // SubmitFlag Tests
 
 func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	redisClient := mocks.NewMockRedisClient(t)
 
 	challengeID := uuid.New().String()
@@ -321,10 +325,6 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		Points:   100,
 	}
 
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectCommit()
 
@@ -333,12 +333,12 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
-	txRepo.On("GetChallengeByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
-	txRepo.On("CreateSolveTx", mock.Anything, mockTx, mock.MatchedBy(func(s *entity.Solve) bool {
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
+	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
+	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.MatchedBy(func(s *entity.Solve) bool {
 		return s.ChallengeId == challengeID && s.TeamId == teamID && s.UserId == userID
 	})).Return(nil)
-	txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mockTx, challengeID).Return(1, nil)
+	txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
@@ -347,6 +347,7 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestChallengeUseCase_SubmitFlag_InvalidFlag(t *testing.T) {
@@ -437,9 +438,13 @@ func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 }
 
 func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	redisClient := mocks.NewMockRedisClient(t)
 
 	challengeID := uuid.New().String()
@@ -461,10 +466,6 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		ChallengeId: challengeID,
 	}
 
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectRollback()
 
@@ -473,7 +474,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(existingSolve, nil)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(existingSolve, nil)
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
@@ -482,6 +483,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrAlreadySolved))
 	assert.True(t, valid)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
@@ -516,9 +518,13 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 }
 
 func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	redisClient := mocks.NewMockRedisClient(t)
 
 	challengeID := uuid.New().String()
@@ -535,10 +541,6 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 	}
 	expectedError := assert.AnError
 
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectRollback()
 
@@ -547,7 +549,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, expectedError)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, expectedError)
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
@@ -555,12 +557,17 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 
 	assert.Error(t, err)
 	assert.False(t, valid)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
 
 func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
+	txRepo := new(mocks.MockTxRepository)
 	redisClient := mocks.NewMockRedisClient(t)
 
 	challengeID := uuid.New().String()
@@ -577,10 +584,6 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 	}
 	expectedError := assert.AnError
 
-	db, sqlMock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
 	sqlMock.ExpectBegin()
 	sqlMock.ExpectRollback()
 
@@ -589,9 +592,9 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
-	txRepo.On("GetChallengeByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
-	txRepo.On("CreateSolveTx", mock.Anything, mockTx, mock.Anything).Return(expectedError)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
+	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
+	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(expectedError)
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
@@ -599,4 +602,5 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.False(t, valid)
+	assert.NoError(t, sqlMock.ExpectationsWereMet())
 }
