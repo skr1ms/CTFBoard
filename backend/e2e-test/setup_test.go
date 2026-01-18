@@ -296,7 +296,9 @@ func startTestServer() (func(), error) {
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	v1.NewRouter(r, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+	r.Route("/api/v1", func(apiRouter chi.Router) {
+		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+	})
 
 	// Listener on random port
 	listener, err := net.Listen("tcp", ":0")
