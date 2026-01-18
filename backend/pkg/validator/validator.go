@@ -105,7 +105,6 @@ func validateEmail(fl validator.FieldLevel) bool {
 	return ValidateEmailField(fl)
 }
 
-
 // Team name validation
 func validateTeamName(fl validator.FieldLevel) bool {
 	name := fl.Field().String()

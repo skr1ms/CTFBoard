@@ -78,6 +78,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	os.Exit(code)
 }
+
 // E2E Setup
 func setupE2E(t *testing.T) *httpexpect.Expect {
 	if err := TestRedis.FlushAll(context.Background()).Err(); err != nil {
@@ -128,7 +129,7 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get db connection string: %w", err)
 	}
-	
+
 	TestDB, err = sql.Open("mysql", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
@@ -144,7 +145,7 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get redis connection string: %w", err)
 	}
-	
+
 	opts, err := redis.ParseURL(redisURI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse redis url: %w", err)
@@ -217,7 +218,7 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 
 func runMigrations(ctx context.Context, db *sql.DB) error {
 	migrationsDir := filepath.Join("..", "migrations")
-	
+
 	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
 		return fmt.Errorf("failed to read migrations dir '%s': %w", migrationsDir, err)
@@ -288,7 +289,7 @@ func startTestServer() (func(), error) {
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
-	r.Use(httpMiddleware.Logger(l)) // Раскомментируйте для отладки HTTP запросов
+	r.Use(httpMiddleware.Logger(l))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

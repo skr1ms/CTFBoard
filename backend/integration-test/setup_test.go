@@ -101,7 +101,7 @@ func getExternalDSN() string {
 
 func pingDB(ctx context.Context, db *sql.DB) error {
 	var err error
-	for i := 0; i < 10; i++ { 
+	for i := 0; i < 10; i++ {
 		if err = db.PingContext(ctx); err == nil {
 			return nil
 		}
@@ -160,7 +160,7 @@ func truncateTables(t *testing.T, db *sql.DB) {
 	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
 	for _, table := range tables {
 		if _, err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s", table)); err != nil {
-			t.Logf("failed to truncate table %s: %v", table, err) 
+			t.Logf("failed to truncate table %s: %v", table, err)
 		}
 	}
 	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")

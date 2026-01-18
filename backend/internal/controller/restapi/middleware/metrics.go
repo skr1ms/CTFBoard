@@ -57,7 +57,7 @@ func Metrics(next http.Handler) http.Handler {
 		if routeContext != nil && routeContext.RoutePattern() != "" {
 			path = routeContext.RoutePattern()
 		} else {
-		if ww.Status() == http.StatusNotFound {
+			if ww.Status() == http.StatusNotFound {
 				path = "/not-found"
 			} else {
 				path = r.URL.Path

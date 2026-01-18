@@ -28,6 +28,7 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func Run(cfg *config.Config, l *logger.Logger) {
@@ -155,26 +156,29 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		},
 	))
 
-	v1.NewRouter(
-		router,
-		userUC,
-		challengeUC,
-		solveUC,
-		teamUC,
-		competitionUC,
-		hintUC,
-		emailUC,
-		jwtService,
-		redisClient,
-		validator,
-		l,
-		cfg.SubmitFlag,
-		cfg.SubmitFlagDuration,
-	)
+	router.Get("/swagger/*", httpSwagger.Handler())
 
 	wsCtrl := wsController.NewController(wsHub, l, cfg.CORSOrigins)
+
 	router.Route("/api/v1", func(r chi.Router) {
 		wsCtrl.RegisterRoutes(r)
+
+		v1.NewRouter(
+			r,
+			userUC,
+			challengeUC,
+			solveUC,
+			teamUC,
+			competitionUC,
+			hintUC,
+			emailUC,
+			jwtService,
+			redisClient,
+			validator,
+			l,
+			cfg.SubmitFlag,
+			cfg.SubmitFlagDuration,
+		)
 	})
 
 	server := &http.Server{
