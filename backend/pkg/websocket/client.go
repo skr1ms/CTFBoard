@@ -25,7 +25,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.Unregister(c)
-		c.conn.Close(websocket.StatusNormalClosure, "")
+		_ = c.conn.Close(websocket.StatusNormalClosure, "")
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
@@ -34,7 +34,7 @@ func (c *Client) ReadPump() {
 		ctx, cancel := context.WithTimeout(context.Background(), pongWait)
 
 		_, _, err := c.conn.Read(ctx)
-		cancel() 
+		cancel()
 
 		if err != nil {
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
@@ -50,7 +50,7 @@ func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close(websocket.StatusNormalClosure, "")
+		_ = c.conn.Close(websocket.StatusNormalClosure, "")
 	}()
 
 	for {
@@ -59,7 +59,7 @@ func (c *Client) WritePump() {
 			ctx, cancel := context.WithTimeout(context.Background(), writeWait)
 
 			if !ok {
-				c.conn.Close(websocket.StatusNormalClosure, "")
+				_ = c.conn.Close(websocket.StatusNormalClosure, "")
 				cancel()
 				return
 			}

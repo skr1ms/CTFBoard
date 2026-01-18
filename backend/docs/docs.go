@@ -372,6 +372,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/forgot-password": {
+            "post": {
+                "description": "Sends password reset email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request password reset",
+                "parameters": [
+                    {
+                        "description": "Email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Authenticates user and returns JWT tokens",
@@ -488,6 +531,124 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/resend-verification": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resends verification email to authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Resend verification email",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/reset-password": {
+            "post": {
+                "description": "Resets password using token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Reset password",
+                "parameters": [
+                    {
+                        "description": "Reset data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verify-email": {
+            "get": {
+                "description": "Verifies user email using token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Verify email",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Verification token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
@@ -763,23 +924,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/events": {
-            "get": {
-                "description": "Establishes SSE connection for receiving scoreboard updates every 5 seconds",
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "Events"
-                ],
-                "summary": "Scoreboard events stream",
-                "responses": {
-                    "200": {
-                        "description": "Server-Sent Events stream"
-                    }
-                }
-            }
-        },
         "/scoreboard": {
             "get": {
                 "description": "Returns current scoreboard state sorted by points descending",
@@ -1040,6 +1184,20 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/ws": {
+            "get": {
+                "description": "Establishes WebSocket connection for real-time scoreboard updates",
+                "tags": [
+                    "Events"
+                ],
+                "summary": "WebSocket connection",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols"
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1076,6 +1234,7 @@ const docTemplate = `{
                 },
                 "decay": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 20
                 },
                 "description": {
@@ -1088,6 +1247,7 @@ const docTemplate = `{
                 },
                 "initial_value": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 500
                 },
                 "is_hidden": {
@@ -1096,10 +1256,12 @@ const docTemplate = `{
                 },
                 "min_value": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 100
                 },
                 "points": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 100
                 },
                 "title": {
@@ -1125,6 +1287,7 @@ const docTemplate = `{
                 },
                 "order_index": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 0
                 }
             }
@@ -1138,6 +1301,15 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Team A"
+                }
+            }
+        },
+        "request.ForgotPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "player1@example.com"
                 }
             }
         },
@@ -1186,6 +1358,21 @@ const docTemplate = `{
                 }
             }
         },
+        "request.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "example": "NewSecurePassword123!"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "request.SubmitFlagRequest": {
             "type": "object",
             "required": [
@@ -1213,6 +1400,7 @@ const docTemplate = `{
                 },
                 "decay": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 20
                 },
                 "description": {
@@ -1225,6 +1413,7 @@ const docTemplate = `{
                 },
                 "initial_value": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 500
                 },
                 "is_hidden": {
@@ -1233,10 +1422,12 @@ const docTemplate = `{
                 },
                 "min_value": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 100
                 },
                 "points": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 150
                 },
                 "title": {
@@ -1262,6 +1453,7 @@ const docTemplate = `{
                 },
                 "order_index": {
                     "type": "integer",
+                    "minimum": 0,
                     "example": 1
                 }
             }
@@ -1395,6 +1587,9 @@ const docTemplate = `{
         "response.ScoreboardEntryResponse": {
             "type": "object",
             "properties": {
+                "last_solved": {
+                    "type": "string"
+                },
                 "points": {
                     "type": "integer"
                 },
