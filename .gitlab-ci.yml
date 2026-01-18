@@ -14,8 +14,8 @@ workflow:
       when: always
 
 stages:
-  - security
   - build
+  - security
   - test
   - deploy
   - cleanup
@@ -41,6 +41,31 @@ variables:
 .docker-login: &docker_login
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+
+# Build stage
+build:backend:
+  stage: build
+  image: $DOCKER_CLI_IMAGE
+  <<: *docker_login
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE/backend:latest" || true
+    - |
+      docker build \
+        --cache-from "$CI_REGISTRY_IMAGE/backend:latest" \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        -t "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" \
+        -t "$CI_REGISTRY_IMAGE/backend:latest" \
+        -f backend/Dockerfile \
+        backend/
+    - docker push "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/backend:latest"
+  rules:
+    - changes:
+        - backend/**/*
+        - go.mod
+        - go.sum
+        - deployment/docker/**/*
+      when: always
 
 # Lint stage
 lint:backend:
@@ -87,31 +112,6 @@ security:container:
     TRIVY_AUTH_URL: "$CI_REGISTRY"
   script:
     - trivy image --exit-code 0 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
-  rules:
-    - changes:
-        - backend/**/*
-        - go.mod
-        - go.sum
-        - deployment/docker/**/*
-      when: always
-
-# Build stage
-build:backend:
-  stage: build
-  image: $DOCKER_CLI_IMAGE
-  <<: *docker_login
-  script:
-    - docker pull "$CI_REGISTRY_IMAGE/backend:latest" || true
-    - |
-      docker build \
-        --cache-from "$CI_REGISTRY_IMAGE/backend:latest" \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        -t "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" \
-        -t "$CI_REGISTRY_IMAGE/backend:latest" \
-        -f backend/Dockerfile \
-        backend/
-    - docker push "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
-    - docker push "$CI_REGISTRY_IMAGE/backend:latest"
   rules:
     - changes:
         - backend/**/*
