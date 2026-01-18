@@ -5,7 +5,7 @@ import "time"
 type TokenType string
 
 const (
-	TokenTypeEmailVerification TokenType = "email_verification"
+	TokenTypeEmailVerification TokenType = "email_verification" // #nosec G101
 	TokenTypePasswordReset     TokenType = "password_reset"
 )
 

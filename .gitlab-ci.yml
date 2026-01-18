@@ -14,6 +14,7 @@ workflow:
       when: always
 
 stages:
+  - security
   - build
   - test
   - deploy
@@ -26,7 +27,7 @@ variables:
   GOLANG_IMAGE: golang:alpine
   MARIADB_IMAGE: mariadb:latest
   REDIS_IMAGE: redis:alpine
-  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:v1.60-alpine
+  GOLANGCI_LINT_IMAGE: golangci/golangci-lint:latest
   ALPINE_IMAGE: alpine:latest
   GOSEC_IMAGE: securego/gosec:latest
   TRIVY_IMAGE: aquasec/trivy:latest
@@ -40,6 +41,59 @@ variables:
 .docker-login: &docker_login
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+
+# Lint stage
+lint:backend:
+  stage: security
+  image: $GOLANGCI_LINT_IMAGE
+  variables:
+    CGO_ENABLED: "0"
+  script:
+    - cd backend
+    - go mod download
+    - golangci-lint run -v --timeout 5m
+  rules:
+    - changes:
+        - backend/**/*
+        - go.mod
+        - go.sum
+      when: always
+
+# Security stage
+security:code:
+  stage: security
+  image:
+    name: $GOSEC_IMAGE
+    entrypoint: [""]
+  script:
+    - cd backend
+    - go mod download
+    - gosec ./...
+  rules:
+    - changes:
+        - backend/**/*
+        - go.mod
+        - go.sum
+      when: always
+
+security:container:
+  stage: security
+  image:
+    name: $TRIVY_IMAGE
+    entrypoint: [""]
+  variables:
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+    TRIVY_AUTH_URL: "$CI_REGISTRY"
+  script:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
+  rules:
+    - changes:
+        - backend/**/*
+        - go.mod
+        - go.sum
+        - deployment/docker/**/*
+      when: always
 
 # Build stage
 build:backend:
@@ -121,23 +175,6 @@ test:backend:
     - go mod download
   script:
     - go test ./... -v -race
-  rules:
-    - changes:
-        - backend/**/*
-        - go.mod
-        - go.sum
-      when: always
-
-# Lint stage
-lint:backend:
-  stage: test
-  image: $GOLANGCI_LINT_IMAGE
-  variables:
-    CGO_ENABLED: "0"
-  script:
-    - cd backend
-    - go mod download
-    - golangci-lint run -v --timeout 5m
   rules:
     - changes:
         - backend/**/*
@@ -231,44 +268,6 @@ deploy:
       EOF
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-
-# Security stage
-security:code:
-  stage: test
-  image:
-    name: $GOSEC_IMAGE
-    entrypoint: [""]
-  script:
-    - cd backend
-    - go mod download
-    - gosec ./...
-  rules:
-    - changes:
-        - backend/**/*
-        - go.mod
-        - go.sum
-      when: always
-  allow_failure: true
-
-security:container:
-  stage: test
-  image:
-    name: $TRIVY_IMAGE
-    entrypoint: [""]
-  variables:
-    TRIVY_USERNAME: "$CI_REGISTRY_USER"
-    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
-    TRIVY_AUTH_URL: "$CI_REGISTRY"
-  script:
-    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
-  rules:
-    - changes:
-        - backend/**/*
-        - go.mod
-        - go.sum
-        - deployment/docker/**/*
-      when: always
-  allow_failure: true
 
 # Cleanup stage
 docker:gc:

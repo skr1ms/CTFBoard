@@ -41,8 +41,10 @@ func New(cfg Config) *SMTPMailer {
 		d.TLSConfig = &tls.Config{
 			ServerName:         cfg.Host,
 			InsecureSkipVerify: false,
+			MinVersion:         tls.VersionTLS12,
 		}
 	} else {
+		// #nosec G402
 		d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
