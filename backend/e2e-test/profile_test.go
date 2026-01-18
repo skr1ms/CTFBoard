@@ -1,58 +1,44 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 )
 
 func TestProfile_GetMe(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	email, password := registerUser(e, "profileuser")
-	token := login(e, email, password)
+	username := "profileuser"
 
-	resp := e.GET("/api/v1/auth/me").
-		WithHeader("Authorization", token).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
+	email, _, token := h.RegisterUserAndLogin(username)
+
+	resp := h.GetMe(token)
 
 	resp.Value("email").String().IsEqual(email)
-	resp.Value("username").String().IsEqual("profileuser")
-
+	resp.Value("username").String().IsEqual(username)
 	resp.Value("team_id").NotNull()
 }
 
 func TestProfile_GetPublicProfile(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	email, password := registerUser(e, "publicuser")
-	token := login(e, email, password)
+	username := "publicuser"
+	_, _, token := h.RegisterUserAndLogin(username)
 
-	meResp := e.GET("/api/v1/auth/me").
-		WithHeader("Authorization", token).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
+	meResp := h.GetMe(token)
+	userID := meResp.Value("id").String().Raw()
 
-	userId := meResp.Value("id").String().Raw()
+	userProfile := h.GetPublicProfile(userID, http.StatusOK)
 
-	userProfile := e.GET("/api/v1/users/{id}", userId).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
-
-	userProfile.Value("username").String().IsEqual("publicuser")
-
+	userProfile.Value("username").String().IsEqual(username)
 	userProfile.NotContainsKey("email")
 }
 
 func TestProfile_GetPublicProfileNotFound(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	e.GET("/api/v1/users/00000000-0000-0000-0000-000000000000").
-		Expect().
-		Status(404)
+	h.GetPublicProfile("00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }

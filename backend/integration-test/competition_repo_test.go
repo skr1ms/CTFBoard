@@ -5,14 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Get Tests
+
 func TestCompetitionRepo_Get(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewCompetitionRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
+	repo := f.CompetitionRepo
 	ctx := context.Background()
 
 	comp, err := repo.Get(ctx)
@@ -24,9 +26,12 @@ func TestCompetitionRepo_Get(t *testing.T) {
 	assert.Nil(t, comp.FreezeTime)
 }
 
+// Update Tests
+
 func TestCompetitionRepo_Update(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewCompetitionRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
+	repo := f.CompetitionRepo
 	ctx := context.Background()
 
 	comp, err := repo.Get(ctx)
@@ -53,28 +58,23 @@ func TestCompetitionRepo_Update(t *testing.T) {
 
 func TestCompetitionRepo_Update_Partial(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewCompetitionRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	comp, err := repo.Get(ctx)
+	comp, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
 
-	// Update only name and freeze time
 	name := "Partial Update"
 	freeze := time.Now().Add(1 * time.Hour).Truncate(time.Second)
 	comp.Name = name
 	comp.FreezeTime = &freeze
 
-	err = repo.Update(ctx, comp)
+	err = f.CompetitionRepo.Update(ctx, comp)
 	require.NoError(t, err)
 
-	updatedComp, err := repo.Get(ctx)
+	updatedComp, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, name, updatedComp.Name)
 	assert.Equal(t, freeze.Unix(), updatedComp.FreezeTime.Unix())
-	// Other fields should remain as they were in the struct passed to Update.
-	// Note: The Update method updates ALL fields based on the struct.
-	// So fields not set in `comp` (if they were nil/zero) will be updated to nil/zero.
-	// In this test, we reused `comp` from `Get`, so other fields like StartTime (nil) remain nil.
 	assert.Nil(t, updatedComp.StartTime)
 }

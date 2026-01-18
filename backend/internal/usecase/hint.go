@@ -136,7 +136,6 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamId, hintId string) (*
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - GetByID: %w", err)
 	}
 
-	// Start transaction before any checks
 	tx, err := uc.txRepo.BeginTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - BeginTx: %w", err)
@@ -148,19 +147,20 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamId, hintId string) (*
 		}
 	}()
 
-	// Check if already unlocked INSIDE transaction
-	_, err = uc.hintUnlockRepo.GetByTeamAndHintTx(ctx, tx, teamId, hintId)
+	if err := uc.txRepo.LockTeamTx(ctx, tx, teamId); err != nil {
+		return nil, fmt.Errorf("HintUseCase - UnlockHint - LockTeamTx: %w", err)
+	}
+
+	_, err = uc.txRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, teamId, hintId)
 	if err == nil {
-		// Found - already unlocked
 		return nil, entityError.ErrHintAlreadyUnlocked
 	}
 	if !errors.Is(err, entityError.ErrHintNotFound) {
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - GetByTeamAndHintTx: %w", err)
 	}
 
-	// Check balance INSIDE transaction with FOR UPDATE
 	if hint.Cost > 0 {
-		teamScore, err := uc.solveRepo.GetTeamScoreTx(ctx, tx, teamId)
+		teamScore, err := uc.txRepo.GetTeamScoreTx(ctx, tx, teamId)
 		if err != nil {
 			return nil, fmt.Errorf("HintUseCase - UnlockHint - GetTeamScoreTx: %w", err)
 		}
@@ -169,29 +169,25 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamId, hintId string) (*
 			return nil, entityError.ErrInsufficientPoints
 		}
 
-		// Create negative award
 		award := &entity.Award{
 			TeamId:      teamId,
 			Value:       -hint.Cost,
 			Description: fmt.Sprintf("Hint unlock: %s", hint.Id),
 		}
 
-		if err = uc.awardRepo.CreateTx(ctx, tx, award); err != nil {
-			return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateAward: %w", err)
+		if err = uc.txRepo.CreateAwardTx(ctx, tx, award); err != nil {
+			return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateAwardTx: %w", err)
 		}
 	}
 
-	// Create unlock record
-	if err = uc.hintUnlockRepo.CreateTx(ctx, tx, teamId, hintId); err != nil {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateUnlock: %w", err)
+	if err = uc.txRepo.CreateHintUnlockTx(ctx, tx, teamId, hintId); err != nil {
+		return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateUnlockTx: %w", err)
 	}
 
-	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - Commit: %w", err)
 	}
 
-	// Invalidate scoreboard caches
 	uc.redis.Del(ctx, "scoreboard")
 	uc.redis.Del(ctx, "scoreboard:frozen")
 

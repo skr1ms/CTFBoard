@@ -1,4 +1,4 @@
-package e2e
+package e2e_test
 
 import (
 	"net/http"
@@ -8,12 +8,9 @@ import (
 
 func TestCompetition_Status(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	e.GET("/api/v1/competition/status").
-		Expect().
-		Status(http.StatusOK).
-		JSON().
-		Object().
+	h.GetCompetitionStatus().
 		ContainsKey("status").
 		ContainsKey("start_time").
 		ContainsKey("end_time")
@@ -21,62 +18,37 @@ func TestCompetition_Status(t *testing.T) {
 
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	_, _, tokenAdmin := registerAdmin(e, "admin_comp")
+	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Comp Challenge",
-		"description": "Desc",
-		"points":      100,
+		"description": "Test competition challenge",
 		"flag":        "FLAG{comp}",
+		"points":      100,
 		"category":    "web",
-		"difficulty":  "easy",
 		"is_hidden":   false,
 	})
 
-	emailUser, passUser := registerUser(e, "comp_user")
-	tokenUser := login(e, emailUser, passUser)
+	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
 
-	e.PUT("/api/v1/admin/competition").
-		WithHeader("Authorization", tokenAdmin).
-		WithJSON(map[string]interface{}{
-			"name":       "Comp Name",
-			"start_time": time.Now().Add(-1 * time.Hour),
-			"is_paused":  true,
-		}).
-		Expect().
-		Status(http.StatusOK)
+	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
+		"name":       "Comp Name",
+		"start_time": time.Now().Add(-1 * time.Hour),
+		"is_paused":  true,
+	})
 
-	e.GET("/api/v1/competition/status").
-		Expect().
-		Status(http.StatusOK).
-		JSON().
-		Object().
+	h.GetCompetitionStatus().
 		Value("status").String().IsEqual("paused")
 
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser).
-		WithJSON(map[string]string{
-			"flag": "FLAG{comp}",
-		}).
-		Expect().
-		Status(http.StatusForbidden)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusForbidden)
 
-	e.PUT("/api/v1/admin/competition").
-		WithHeader("Authorization", tokenAdmin).
-		WithJSON(map[string]interface{}{
-			"name":       "Comp Name",
-			"start_time": time.Now().Add(-1 * time.Hour),
-			"is_paused":  false,
-		}).
-		Expect().
-		Status(http.StatusOK)
+	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
+		"name":       "Comp Name",
+		"start_time": time.Now().Add(-1 * time.Hour),
+		"is_paused":  false,
+	})
 
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser).
-		WithJSON(map[string]string{
-			"flag": "FLAG{comp}",
-		}).
-		Expect().
-		Status(http.StatusOK)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusOK)
 }

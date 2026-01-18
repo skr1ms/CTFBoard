@@ -15,16 +15,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/skr1ms/CTFBoard/config"
-	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/http/middleware"
-	v1 "github.com/skr1ms/CTFBoard/internal/controller/http/v1"
+	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
+	wsController "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
+	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/skr1ms/CTFBoard/pkg/mariadb"
 	"github.com/skr1ms/CTFBoard/pkg/migrator"
 	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
+	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
 func Run(cfg *config.Config, l *logger.Logger) {
@@ -45,7 +48,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		}
 	}()
 
-	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Password)
+	redisClient, err := redis.New(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 	if err != nil {
 		l.Error("failed to connect to redis", err)
 		return
@@ -80,12 +83,41 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		cfg.RefreshTTL,
 	)
 
-	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, jwtService)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
-	solveUC := usecase.NewSolveUseCase(solveRepo, competitionRepo, redisClient)
+	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
+	go wsHub.Run()
+	go wsHub.SubscribeToRedis(context.Background())
+
+	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
+	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, wsHub)
+	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, redisClient, wsHub)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+
+	verificationTokenRepo := persistent.NewVerificationTokenRepo(db)
+	smtpMailer := mailer.New(mailer.Config{
+		Host:      cfg.SMTP.Host,
+		Port:      cfg.SMTP.Port,
+		Username:  cfg.Username,
+		Password:  cfg.SMTP.Password,
+		FromEmail: cfg.FromEmail,
+		FromName:  cfg.FromName,
+		UseTLS:    cfg.UseTLS,
+	})
+
+	asyncMailer := mailer.NewAsyncMailer(smtpMailer, 100, 2)
+	asyncMailer.Start()
+	defer asyncMailer.Stop()
+
+	emailUC := usecase.NewEmailUseCase(
+		userRepo,
+		verificationTokenRepo,
+		asyncMailer,
+		cfg.VerifyTTL,
+		cfg.ResetTTL,
+		cfg.FrontendURL,
+		cfg.Enabled,
+	)
 
 	router := chi.NewRouter()
 
@@ -131,12 +163,19 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		teamUC,
 		competitionUC,
 		hintUC,
+		emailUC,
 		jwtService,
+		redisClient,
 		validator,
 		l,
 		cfg.SubmitFlag,
 		cfg.SubmitFlagDuration,
 	)
+
+	wsCtrl := wsController.NewController(wsHub, l, cfg.CORSOrigins)
+	router.Route("/api/v1", func(r chi.Router) {
+		wsCtrl.RegisterRoutes(r)
+	})
 
 	server := &http.Server{
 		Addr:         ":" + cfg.HTTP.Port,

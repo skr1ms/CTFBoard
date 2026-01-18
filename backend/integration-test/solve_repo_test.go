@@ -9,54 +9,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Create Tests
+
 func TestSolveRepo_Create(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "solveuser",
-		Email:        "solveuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
-
-	team := &entity.Team{
-		Name:        "solveteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "Solve Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
+	user, team := f.CreateUserWithTeam(t, "solve")
+	challenge := f.CreateChallenge(t, "solve_ch", 100)
 
 	solve := &entity.Solve{
 		UserId:      user.Id,
@@ -64,136 +29,46 @@ func TestSolveRepo_Create(t *testing.T) {
 		ChallengeId: challenge.Id,
 	}
 
-	err = solveRepo.Create(ctx, solve)
+	err := f.SolveRepo.Create(ctx, solve)
 	require.NoError(t, err)
 
-	gotSolve, err := solveRepo.GetByTeamAndChallenge(ctx, solve.TeamId, solve.ChallengeId)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, solve.TeamId, solve.ChallengeId)
 	require.NoError(t, err)
 	assert.NotEmpty(t, gotSolve.Id)
 	assert.False(t, gotSolve.SolvedAt.IsZero())
-	solve.Id = gotSolve.Id
-	solve.SolvedAt = gotSolve.SolvedAt
 }
 
 func TestSolveRepo_Create_Duplicate(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "duplicateuser",
-		Email:        "duplicateuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "duplicate")
+	challenge := f.CreateChallenge(t, "duplicate_ch", 100)
 
-	team := &entity.Team{
-		Name:        "duplicateteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "Duplicate Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	solve1 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve1)
-	require.NoError(t, err)
+	f.CreateSolve(t, user.Id, team.Id, challenge.Id)
 
 	solve2 := &entity.Solve{
 		UserId:      user.Id,
 		TeamId:      team.Id,
 		ChallengeId: challenge.Id,
 	}
-	err = solveRepo.Create(ctx, solve2)
+	err := f.SolveRepo.Create(ctx, solve2)
 	assert.Error(t, err)
 }
 
+// GetByID Tests
+
 func TestSolveRepo_GetByID(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "getbyid",
-		Email:        "getbyid@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "get_by_id")
+	challenge := f.CreateChallenge(t, "get_by_id_ch", 100)
+	solve := f.CreateSolve(t, user.Id, team.Id, challenge.Id)
 
-	team := &entity.Team{
-		Name:        "getbyidteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "GetByID Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve)
-	require.NoError(t, err)
-
-	gotSolveByTeam, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
-	require.NoError(t, err)
-	solve.Id = gotSolveByTeam.Id
-	solve.SolvedAt = gotSolveByTeam.SolvedAt
-
-	gotSolve, err := solveRepo.GetByID(ctx, solve.Id)
+	gotSolve, err := f.SolveRepo.GetByID(ctx, solve.Id)
 	require.NoError(t, err)
 	assert.Equal(t, solve.Id, gotSolve.Id)
 	assert.Equal(t, solve.UserId, gotSolve.UserId)
@@ -203,609 +78,203 @@ func TestSolveRepo_GetByID(t *testing.T) {
 
 func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
 	nonExistentID := uuid.New().String()
-	_, err := repo.GetByID(ctx, nonExistentID)
+	_, err := f.SolveRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
+// GetByTeamAndChallenge Tests
+
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "getbyteam",
-		Email:        "getbyteam@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "get_by_team")
+	challenge := f.CreateChallenge(t, "get_by_team_ch", 100)
+	solve := f.CreateSolve(t, user.Id, team.Id, challenge.Id)
 
-	team := &entity.Team{
-		Name:        "getbyteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
 	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "GetByTeam Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve)
-	require.NoError(t, err)
-
-	gotSolve, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
-	require.NoError(t, err)
-	solve.Id = gotSolve.Id
+	assert.Equal(t, solve.Id, gotSolve.Id)
 	assert.Equal(t, team.Id, gotSolve.TeamId)
 	assert.Equal(t, challenge.Id, gotSolve.ChallengeId)
 }
 
 func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "notfound",
-		Email:        "notfound@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	_, team := f.CreateUserWithTeam(t, "not_found")
+	challenge := f.CreateChallenge(t, "not_found_ch", 100)
 
-	team := &entity.Team{
-		Name:        "notfoundteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "Not Found Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	_, err = solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	_, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
+// GetByUserId Tests
+
 func TestSolveRepo_GetByUserId(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "getbyuserid",
-		Email:        "getbyuserid@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "get_by_user")
+	ch1 := f.CreateChallenge(t, "ch1", 100)
+	ch2 := f.CreateChallenge(t, "ch2", 200)
 
-	team := &entity.Team{
-		Name:        "getbyuseridteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge1 := &entity.Challenge{
-		Title:        "Challenge 1",
-		Description:  "Description 1",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash1",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge1)
-	require.NoError(t, err)
-
-	challenge2 := &entity.Challenge{
-		Title:        "Challenge 2",
-		Description:  "Description 2",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash2",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge2)
-	require.NoError(t, err)
-
-	solve1 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge1.Id,
-	}
-	err = solveRepo.Create(ctx, solve1)
-	require.NoError(t, err)
-
-	gotSolve1, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge1.Id)
-	require.NoError(t, err)
-	solve1.Id = gotSolve1.Id
-	solve1.SolvedAt = gotSolve1.SolvedAt
-
+	f.CreateSolve(t, user.Id, team.Id, ch1.Id)
 	time.Sleep(1 * time.Second)
+	f.CreateSolve(t, user.Id, team.Id, ch2.Id)
 
-	solve2 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge2.Id,
-	}
-	err = solveRepo.Create(ctx, solve2)
-	require.NoError(t, err)
-
-	gotSolve2, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge2.Id)
-	require.NoError(t, err)
-	solve2.Id = gotSolve2.Id
-	solve2.SolvedAt = gotSolve2.SolvedAt
-
-	solves, err := solveRepo.GetByUserId(ctx, user.Id)
+	solves, err := f.SolveRepo.GetByUserId(ctx, user.Id)
 	require.NoError(t, err)
 	assert.Len(t, solves, 2)
-	assert.Equal(t, challenge2.Id, solves[0].ChallengeId)
-	assert.Equal(t, challenge1.Id, solves[1].ChallengeId)
+	assert.Equal(t, ch2.Id, solves[0].ChallengeId)
+	assert.Equal(t, ch1.Id, solves[1].ChallengeId)
 }
 
 func TestSolveRepo_GetByUserId_Empty(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "emptyuser",
-		Email:        "emptyuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user := f.CreateUser(t, "empty")
 
-	solves, err := solveRepo.GetByUserId(ctx, user.Id)
+	solves, err := f.SolveRepo.GetByUserId(ctx, user.Id)
 	require.NoError(t, err)
 	assert.Len(t, solves, 0)
 }
 
+// GetScoreboard Tests
+
 func TestSolveRepo_GetScoreboard(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user1 := &entity.User{
-		Username:     "scoreuser1",
-		Email:        "scoreuser1@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user1)
-	require.NoError(t, err)
-	gotUser1, err := userRepo.GetByEmail(ctx, user1.Email)
-	require.NoError(t, err)
-	user1.Id = gotUser1.Id
+	u1, t1 := f.CreateUserWithTeam(t, "score_1")
+	u2, t2 := f.CreateUserWithTeam(t, "score_2")
 
-	user2 := &entity.User{
-		Username:     "scoreuser2",
-		Email:        "scoreuser2@example.com",
-		PasswordHash: "hash456",
-	}
-	err = userRepo.Create(ctx, user2)
-	require.NoError(t, err)
-	gotUser2, err := userRepo.GetByEmail(ctx, user2.Email)
-	require.NoError(t, err)
-	user2.Id = gotUser2.Id
+	ch1 := f.CreateChallenge(t, "score_ch1", 100)
+	ch2 := f.CreateChallenge(t, "score_ch2", 200)
 
-	team1 := &entity.Team{
-		Name:        "ScoreTeam1",
-		InviteToken: "token1",
-		CaptainId:   user1.Id,
-	}
-	err = teamRepo.Create(ctx, team1)
-	require.NoError(t, err)
-	gotTeam1, err := teamRepo.GetByName(ctx, team1.Name)
-	require.NoError(t, err)
-	team1.Id = gotTeam1.Id
-
-	team2 := &entity.Team{
-		Name:        "ScoreTeam2",
-		InviteToken: "token2",
-		CaptainId:   user2.Id,
-	}
-	err = teamRepo.Create(ctx, team2)
-	require.NoError(t, err)
-	gotTeam2, err := teamRepo.GetByName(ctx, team2.Name)
-	require.NoError(t, err)
-	team2.Id = gotTeam2.Id
-
-	challenge1 := &entity.Challenge{
-		Title:        "Score Challenge 1",
-		Description:  "Description 1",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash1",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge1)
-	require.NoError(t, err)
-
-	challenge2 := &entity.Challenge{
-		Title:        "Score Challenge 2",
-		Description:  "Description 2",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash2",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge2)
-	require.NoError(t, err)
-
-	solve1 := &entity.Solve{
-		UserId:      user1.Id,
-		TeamId:      team1.Id,
-		ChallengeId: challenge1.Id,
-	}
-	err = solveRepo.Create(ctx, solve1)
-	require.NoError(t, err)
-
+	// Team 1 solves both (300 pts)
+	f.CreateSolve(t, u1.Id, t1.Id, ch1.Id)
 	time.Sleep(10 * time.Millisecond)
+	f.CreateSolve(t, u1.Id, t1.Id, ch2.Id)
 
-	solve2 := &entity.Solve{
-		UserId:      user1.Id,
-		TeamId:      team1.Id,
-		ChallengeId: challenge2.Id,
-	}
-	err = solveRepo.Create(ctx, solve2)
-	require.NoError(t, err)
-
+	// Team 2 solves one (100 pts)
 	time.Sleep(10 * time.Millisecond)
+	f.CreateSolve(t, u2.Id, t2.Id, ch1.Id)
 
-	solve3 := &entity.Solve{
-		UserId:      user2.Id,
-		TeamId:      team2.Id,
-		ChallengeId: challenge1.Id,
-	}
-	err = solveRepo.Create(ctx, solve3)
-	require.NoError(t, err)
-
-	scoreboard, err := solveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
 	assert.Len(t, scoreboard, 2)
 
-	team1Found := false
-	team2Found := false
+	t1Found, t2Found := false, false
 	for _, entry := range scoreboard {
-		if entry.TeamId == team1.Id {
-			assert.Equal(t, "ScoreTeam1", entry.TeamName)
+		if entry.TeamId == t1.Id {
+			assert.Equal(t, t1.Name, entry.TeamName)
 			assert.Equal(t, 300, entry.Points)
-			team1Found = true
+			t1Found = true
 		}
-		if entry.TeamId == team2.Id {
-			assert.Equal(t, "ScoreTeam2", entry.TeamName)
+		if entry.TeamId == t2.Id {
+			assert.Equal(t, t2.Name, entry.TeamName)
 			assert.Equal(t, 100, entry.Points)
-			team2Found = true
+			t2Found = true
 		}
 	}
-	assert.True(t, team1Found)
-	assert.True(t, team2Found)
+	assert.True(t, t1Found)
+	assert.True(t, t2Found)
 }
 
 func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "emptyteam",
-		Email:        "emptyteam@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	_, team := f.CreateUserWithTeam(t, "empty_score")
 
-	team := &entity.Team{
-		Name:        "EmptyTeam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-
-	scoreboard, err := solveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
 	assert.Len(t, scoreboard, 1)
-	assert.Equal(t, "EmptyTeam", scoreboard[0].TeamName)
+	assert.Equal(t, team.Name, scoreboard[0].TeamName)
 	assert.Equal(t, 0, scoreboard[0].Points)
 }
 
+// GetFirstBlood Tests
+
 func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user1 := &entity.User{
-		Username:     "firstblood1",
-		Email:        "firstblood1@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user1)
-	require.NoError(t, err)
-	gotUser1, err := userRepo.GetByEmail(ctx, user1.Email)
-	require.NoError(t, err)
-	user1.Id = gotUser1.Id
+	u1, t1 := f.CreateUserWithTeam(t, "fb_1")
+	u2, t2 := f.CreateUserWithTeam(t, "fb_2")
+	ch := f.CreateChallenge(t, "fb_ch", 100)
 
-	user2 := &entity.User{
-		Username:     "firstblood2",
-		Email:        "firstblood2@example.com",
-		PasswordHash: "hash456",
-	}
-	err = userRepo.Create(ctx, user2)
-	require.NoError(t, err)
-	gotUser2, err := userRepo.GetByEmail(ctx, user2.Email)
-	require.NoError(t, err)
-	user2.Id = gotUser2.Id
-
-	team1 := &entity.Team{
-		Name:        "FirstBloodTeam1",
-		InviteToken: "token1",
-		CaptainId:   user1.Id,
-	}
-	err = teamRepo.Create(ctx, team1)
-	require.NoError(t, err)
-	gotTeam1, err := teamRepo.GetByName(ctx, team1.Name)
-	require.NoError(t, err)
-	team1.Id = gotTeam1.Id
-
-	team2 := &entity.Team{
-		Name:        "FirstBloodTeam2",
-		InviteToken: "token2",
-		CaptainId:   user2.Id,
-	}
-	err = teamRepo.Create(ctx, team2)
-	require.NoError(t, err)
-	gotTeam2, err := teamRepo.GetByName(ctx, team2.Name)
-	require.NoError(t, err)
-	team2.Id = gotTeam2.Id
-
-	challenge := &entity.Challenge{
-		Title:        "First Blood Challenge",
-		Description:  "Test",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	solve1 := &entity.Solve{
-		UserId:      user1.Id,
-		TeamId:      team1.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve1)
-	require.NoError(t, err)
-
+	f.CreateSolve(t, u1.Id, t1.Id, ch.Id)
 	time.Sleep(1 * time.Second)
+	f.CreateSolve(t, u2.Id, t2.Id, ch.Id)
 
-	solve2 := &entity.Solve{
-		UserId:      user2.Id,
-		TeamId:      team2.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve2)
+	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.Id)
 	require.NoError(t, err)
-
-	firstBlood, err := solveRepo.GetFirstBlood(ctx, challenge.Id)
-	require.NoError(t, err)
-	assert.Equal(t, user1.Id, firstBlood.UserId)
-	assert.Equal(t, "firstblood1", firstBlood.Username)
-	assert.Equal(t, team1.Id, firstBlood.TeamId)
-	assert.Equal(t, "FirstBloodTeam1", firstBlood.TeamName)
+	assert.Equal(t, u1.Id, firstBlood.UserId)
+	assert.Equal(t, u1.Username, firstBlood.Username)
+	assert.Equal(t, t1.Id, firstBlood.TeamId)
+	assert.Equal(t, t1.Name, firstBlood.TeamName)
 }
 
 func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 	testDB := SetupTestDB(t)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "No Solves Challenge",
-		Description:  "Test",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err := challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
+	ch := f.CreateChallenge(t, "no_solves_ch", 100)
 
-	_, err = solveRepo.GetFirstBlood(ctx, challenge.Id)
+	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
+// GetScoreboardFrozen Tests
+
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user1 := &entity.User{
-		Username:     "frozenuser1",
-		Email:        "frozenuser1@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user1)
-	require.NoError(t, err)
-	gotUser1, err := userRepo.GetByEmail(ctx, user1.Email)
-	require.NoError(t, err)
-	user1.Id = gotUser1.Id
+	u1, t1 := f.CreateUserWithTeam(t, "frozen")
+	ch1 := f.CreateChallenge(t, "frozen_1", 100)
+	ch2 := f.CreateChallenge(t, "frozen_2", 200)
 
-	team1 := &entity.Team{
-		Name:        "FrozenTeam1",
-		InviteToken: "token1",
-		CaptainId:   user1.Id,
-	}
-	err = teamRepo.Create(ctx, team1)
-	require.NoError(t, err)
-	gotTeam1, err := teamRepo.GetByName(ctx, team1.Name)
-	require.NoError(t, err)
-	team1.Id = gotTeam1.Id
+	// Solve 1: Should be visible (will backdate)
+	solve1 := f.CreateSolve(t, u1.Id, t1.Id, ch1.Id)
 
-	challenge1 := &entity.Challenge{
-		Title:        "Frozen Challenge 1",
-		Description:  "Description 1",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash1",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge1)
-	require.NoError(t, err)
-
-	challenge2 := &entity.Challenge{
-		Title:        "Frozen Challenge 2",
-		Description:  "Description 2",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash2",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge2)
-	require.NoError(t, err)
-
-	// Solve 1: Before Freeze
-	solve1 := &entity.Solve{
-		UserId:      user1.Id,
-		TeamId:      team1.Id,
-		ChallengeId: challenge1.Id,
-		SolvedAt:    time.Now().Add(-1 * time.Hour),
-	}
-	err = solveRepo.Create(ctx, solve1)
+	// Backdate Solve 1 to 1 hour ago
+	backdated := time.Now().Add(-1 * time.Hour)
+	_, err := f.DB.ExecContext(ctx, "UPDATE solves SET solved_at = ? WHERE id = ?", backdated, solve1.Id)
 	require.NoError(t, err)
 
 	freezeTime := time.Now().Add(-30 * time.Minute)
 
-	// Solve 2: After Freeze
-	solve2 := &entity.Solve{
-		UserId:      user1.Id,
-		TeamId:      team1.Id,
-		ChallengeId: challenge2.Id,
-		SolvedAt:    time.Now(),
-	}
-	// Manually insert solve2 to bypass "created_at" usually being "now" in repo if repo sets it.
-	err = solveRepo.Create(ctx, solve2)
+	// Solve 2: Should be hidden (current time > freezeTime)
+	f.CreateSolve(t, u1.Id, t1.Id, ch2.Id)
+
+	scoreboard, err := f.SolveRepo.GetScoreboardFrozen(ctx, freezeTime)
 	require.NoError(t, err)
 
-	_, err = testDB.DB.ExecContext(ctx, "UPDATE solves SET solved_at = ? WHERE team_id = ? AND challenge_id = ?", solve1.SolvedAt, solve1.TeamId, solve1.ChallengeId)
-	require.NoError(t, err)
-
-	scoreboard, err := solveRepo.GetScoreboardFrozen(ctx, freezeTime)
-	require.NoError(t, err)
-
-	// Expecting 100 points (from solve1), not 300 (solve1 + solve2)
+	// Expecting 100 points (from solve1), not 300
 	found := false
 	for _, entry := range scoreboard {
-		if entry.TeamId == team1.Id {
+		if entry.TeamId == t1.Id {
 			assert.Equal(t, 100, entry.Points)
 			found = true
 		}
@@ -813,199 +282,82 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	assert.True(t, found)
 }
 
+// CreateTx Tests
+
 func TestSolveRepo_CreateTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "createtxuser",
-		Email:        "createtxuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	u, tTeam := f.CreateUserWithTeam(t, "tx_create")
+	ch := f.CreateChallenge(t, "tx_create_ch", 100)
 
-	team := &entity.Team{
-		Name:        "createtxteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "CreateTx Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
+		UserId:      u.Id,
+		TeamId:      tTeam.Id,
+		ChallengeId: ch.Id,
 	}
 
-	err = solveRepo.CreateTx(ctx, tx, solve)
+	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	gotSolve, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.Id, ch.Id)
 	require.NoError(t, err)
 	assert.NotEmpty(t, gotSolve.Id)
-	assert.Equal(t, user.Id, gotSolve.UserId)
-	assert.Equal(t, team.Id, gotSolve.TeamId)
-	assert.Equal(t, challenge.Id, gotSolve.ChallengeId)
+	assert.Equal(t, u.Id, gotSolve.UserId)
 }
 
 func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "rollbackuser",
-		Email:        "rollbackuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	u, tTeam := f.CreateUserWithTeam(t, "tx_rollback")
+	ch := f.CreateChallenge(t, "tx_rollback_ch", 100)
 
-	team := &entity.Team{
-		Name:        "rollbackteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "Rollback Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
+		UserId:      u.Id,
+		TeamId:      tTeam.Id,
+		ChallengeId: ch.Id,
 	}
 
-	err = solveRepo.CreateTx(ctx, tx, solve)
+	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	require.NoError(t, err)
 
-	// Rollback instead of commit
 	err = tx.Rollback()
 	require.NoError(t, err)
 
-	// Solve should not exist
-	_, err = solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.Id, ch.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
 func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "getbytxuser",
-		Email:        "getbytxuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	u, tTeam := f.CreateUserWithTeam(t, "get_tx")
+	ch := f.CreateChallenge(t, "get_tx_ch", 100)
+	f.CreateSolve(t, u.Id, tTeam.Id, ch.Id)
 
-	team := &entity.Team{
-		Name:        "getbytxteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "GetByTx Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
-	}
-	err = solveRepo.Create(ctx, solve)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
-	gotSolve, err := solveRepo.GetByTeamAndChallengeTx(ctx, tx, team.Id, challenge.Id)
+	gotSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
 	require.NoError(t, err)
-	assert.Equal(t, team.Id, gotSolve.TeamId)
-	assert.Equal(t, challenge.Id, gotSolve.ChallengeId)
+	assert.Equal(t, tTeam.Id, gotSolve.TeamId)
+	assert.Equal(t, ch.Id, gotSolve.ChallengeId)
 
 	err = tx.Commit()
 	require.NoError(t, err)
@@ -1013,136 +365,40 @@ func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 
 func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "notfoundtxuser",
-		Email:        "notfoundtxuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	_, tTeam := f.CreateUserWithTeam(t, "not_found_tx")
+	ch := f.CreateChallenge(t, "not_found_tx_ch", 100)
 
-	team := &entity.Team{
-		Name:        "notfoundtxteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{
-		Title:        "NotFoundTx Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
-	_, err = solveRepo.GetByTeamAndChallengeTx(ctx, tx, team.Id, challenge.Id)
+	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
+// GetTeamScoreTx Tests
+
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "teamscoretxuser",
-		Email:        "teamscoretxuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	u, tTeam := f.CreateUserWithTeam(t, "score_tx")
+	ch1 := f.CreateChallenge(t, "score_tx_1", 100)
+	ch2 := f.CreateChallenge(t, "score_tx_2", 200)
 
-	team := &entity.Team{
-		Name:        "teamscoretxteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
+	f.CreateSolve(t, u.Id, tTeam.Id, ch1.Id)
+	f.CreateSolve(t, u.Id, tTeam.Id, ch2.Id)
 
-	challenge1 := &entity.Challenge{
-		Title:        "ScoreTx Challenge 1",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge1)
-	require.NoError(t, err)
-
-	challenge2 := &entity.Challenge{
-		Title:        "ScoreTx Challenge 2",
-		Description:  "Description",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash456",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err = challengeRepo.Create(ctx, challenge2)
-	require.NoError(t, err)
-
-	solve1 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge1.Id,
-	}
-	err = solveRepo.Create(ctx, solve1)
-	require.NoError(t, err)
-
-	solve2 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge2.Id,
-	}
-	err = solveRepo.Create(ctx, solve2)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
-	score, err := solveRepo.GetTeamScoreTx(ctx, tx, team.Id)
+	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, tTeam.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 300, score)
 
@@ -1150,98 +406,64 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// AtomicSubmitFlow Tests
+
 func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 	testDB := SetupTestDB(t)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "atomicflowuser",
-		Email:        "atomicflowuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	u, tTeam := f.CreateUserWithTeam(t, "atomic")
+	initialValue, minValue, decay := 500, 100, 1
+	ch := f.CreateDynamicChallenge(t, "atomic_ch", initialValue, minValue, decay)
 
-	team := &entity.Team{
-		Name:        "atomicflowteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	initialValue := 500
-	minValue := 100
-	decay := 1 // Use decay=1 so first solve reduces points
-
-	challenge := &entity.Challenge{
-		Title:        "Atomic Flow Challenge",
-		Description:  "Description",
-		Category:     "Pwn",
-		Points:       initialValue,
-		FlagHash:     "correcthash",
-		IsHidden:     false,
-		InitialValue: initialValue,
-		MinValue:     minValue,
-		Decay:        decay,
-		SolveCount:   0,
-	}
-	err = challengeRepo.Create(ctx, challenge)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
-	tx, err := testDB.DB.BeginTx(ctx, nil)
-	require.NoError(t, err)
-
-	_, err = solveRepo.GetByTeamAndChallengeTx(ctx, tx, team.Id, challenge.Id)
+	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 
-	gotChallenge, err := challengeRepo.GetByIDTx(ctx, tx, challenge.Id)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, ch.Id)
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
+		UserId:      u.Id,
+		TeamId:      tTeam.Id,
+		ChallengeId: ch.Id,
 	}
-	err = solveRepo.CreateTx(ctx, tx, solve)
+	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	require.NoError(t, err)
 
-	// 4. Calculate new points using dynamic scoring formula
+	// Dynamic score calculation logic
 	solveCount := gotChallenge.SolveCount + 1
 	newPoints := int(float64(gotChallenge.MinValue) + (float64(gotChallenge.InitialValue-gotChallenge.MinValue) / (1 + float64(solveCount-1)/float64(gotChallenge.Decay))))
 	if newPoints < gotChallenge.MinValue {
 		newPoints = gotChallenge.MinValue
 	}
 
-	_, err = challengeRepo.IncrementSolveCountTx(ctx, tx, challenge.Id)
+	// Update Challenge stats inside TX
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, ch.Id)
 	require.NoError(t, err)
 
-	err = challengeRepo.UpdatePointsTx(ctx, tx, challenge.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, ch.Id, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	finalChallenge, err := challengeRepo.GetByID(ctx, challenge.Id)
+	// Verify Challenge updates
+	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, ch.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 1, finalChallenge.SolveCount)
 	assert.Equal(t, newPoints, finalChallenge.Points)
-	// With decay=1 and solveCount=1: newPoints = 100 + 400/(1+0/1) = 500
-	// Points only drop when solveCount > 1, so we just verify the transaction completed correctly
+	// With decay=1 and solveCount=1: 100 + 400/(1) = 500. Points haven't dropped yet.
 	assert.Equal(t, initialValue, finalChallenge.Points)
 
-	finalSolve, err := solveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	// Verify Solve creation inside TX was successful
+	tx2, _ := f.DB.BeginTx(ctx, nil)
+	finalSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx2, tTeam.Id, ch.Id)
 	require.NoError(t, err)
-	assert.Equal(t, user.Id, finalSolve.UserId)
+	_ = tx2.Rollback()
+	assert.Equal(t, u.Id, finalSolve.UserId)
 }

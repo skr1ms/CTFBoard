@@ -1,68 +1,55 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 	"time"
 )
 
 func TestFirstBlood_Display(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	_, _, tokenAdmin := registerAdmin(e, "adminfb")
-
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	_, _, tokenAdmin := h.RegisterAdmin("adminfb")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "First Blood Test",
-		"description": "Test challenge",
-		"points":      100,
+		"description": "Test first blood functionality",
 		"flag":        "FLAG{firstblood}",
+		"points":      100,
 		"category":    "web",
-		"difficulty":  "easy",
 		"is_hidden":   false,
 	})
 
-	emailUser1, passUser1 := registerUser(e, "fbuser1")
-	tokenUser1 := login(e, emailUser1, passUser1)
+	_, _, tokenUser1 := h.RegisterUserAndLogin("fbuser1")
+	_, _, tokenUser2 := h.RegisterUserAndLogin("fbuser2")
 
-	emailUser2, passUser2 := registerUser(e, "fbuser2")
-	tokenUser2 := login(e, emailUser2, passUser2)
+	h.SubmitFlag(tokenUser1, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	submitFlag(e, tokenUser1, challengeId, "FLAG{firstblood}")
+	// Небольшая задержка, чтобы timestamps точно различались
 	time.Sleep(1 * time.Second)
 
-	submitFlag(e, tokenUser2, challengeId, "FLAG{firstblood}")
+	// 4. User2 сдает флаг вторым
+	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	resp := e.GET("/api/v1/challenges/{id}/first-blood", challengeId).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
-
-	resp.Value("username").String().IsEqual("fbuser1")
-	resp.Value("team_name").String().IsEqual("fbuser1")
-	resp.ContainsKey("user_id")
-	resp.ContainsKey("team_id")
-	resp.ContainsKey("solved_at")
+	// 5. Проверяем, что User1 записан как First Blood
+	h.AssertFirstBlood(challengeID, "fbuser1")
 }
 
 func TestFirstBlood_NotFound(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	_, _, tokenAdmin := registerAdmin(e, "adminfb2")
-
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	// 1. Создаем челлендж
+	_, _, tokenAdmin := h.RegisterAdmin("adminfb2")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "No Solves Test",
-		"description": "Test challenge",
-		"points":      100,
+		"description": "Test no solves scenario",
 		"flag":        "FLAG{nosolves}",
-		"category":    "web",
-		"difficulty":  "easy",
-		"is_hidden":   false,
+		"category":    "misc",
+		"points":      100,
 	})
 
-	e.GET("/api/v1/challenges/{id}/first-blood", challengeId).
-		Expect().
-		Status(404).
-		JSON().
-		Object().
+	// 2. Запрашиваем First Blood, когда решений еще нет (ожидаем 404)
+	h.GetFirstBlood(challengeID, http.StatusNotFound).
 		Value("error").String().IsEqual("no solves yet")
 }

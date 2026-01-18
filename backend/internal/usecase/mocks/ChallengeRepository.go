@@ -6,7 +6,6 @@ package mocks
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -290,80 +289,6 @@ func (_c *MockChallengeRepository_GetByID_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
-// GetByIDTx provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetByIDTx(ctx context.Context, tx *sql.Tx, id string) (*entity.Challenge, error) {
-	ret := _mock.Called(ctx, tx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByIDTx")
-	}
-
-	var r0 *entity.Challenge
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) (*entity.Challenge, error)); ok {
-		return returnFunc(ctx, tx, id)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) *entity.Challenge); ok {
-		r0 = returnFunc(ctx, tx, id)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*entity.Challenge)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *sql.Tx, string) error); ok {
-		r1 = returnFunc(ctx, tx, id)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockChallengeRepository_GetByIDTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDTx'
-type MockChallengeRepository_GetByIDTx_Call struct {
-	*mock.Call
-}
-
-// GetByIDTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - id string
-func (_e *MockChallengeRepository_Expecter) GetByIDTx(ctx interface{}, tx interface{}, id interface{}) *MockChallengeRepository_GetByIDTx_Call {
-	return &MockChallengeRepository_GetByIDTx_Call{Call: _e.mock.On("GetByIDTx", ctx, tx, id)}
-}
-
-func (_c *MockChallengeRepository_GetByIDTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, id string)) *MockChallengeRepository_GetByIDTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockChallengeRepository_GetByIDTx_Call) Return(challenge *entity.Challenge, err error) *MockChallengeRepository_GetByIDTx_Call {
-	_c.Call.Return(challenge, err)
-	return _c
-}
-
-func (_c *MockChallengeRepository_GetByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, id string) (*entity.Challenge, error)) *MockChallengeRepository_GetByIDTx_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // IncrementSolveCount provides a mock function for the type MockChallengeRepository
 func (_mock *MockChallengeRepository) IncrementSolveCount(ctx context.Context, id string) (int, error) {
 	ret := _mock.Called(ctx, id)
@@ -426,78 +351,6 @@ func (_c *MockChallengeRepository_IncrementSolveCount_Call) Return(n int, err er
 }
 
 func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, id string) (int, error)) *MockChallengeRepository_IncrementSolveCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IncrementSolveCountTx provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) IncrementSolveCountTx(ctx context.Context, tx *sql.Tx, id string) (int, error) {
-	ret := _mock.Called(ctx, tx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IncrementSolveCountTx")
-	}
-
-	var r0 int
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) (int, error)); ok {
-		return returnFunc(ctx, tx, id)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string) int); ok {
-		r0 = returnFunc(ctx, tx, id)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *sql.Tx, string) error); ok {
-		r1 = returnFunc(ctx, tx, id)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockChallengeRepository_IncrementSolveCountTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementSolveCountTx'
-type MockChallengeRepository_IncrementSolveCountTx_Call struct {
-	*mock.Call
-}
-
-// IncrementSolveCountTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - id string
-func (_e *MockChallengeRepository_Expecter) IncrementSolveCountTx(ctx interface{}, tx interface{}, id interface{}) *MockChallengeRepository_IncrementSolveCountTx_Call {
-	return &MockChallengeRepository_IncrementSolveCountTx_Call{Call: _e.mock.On("IncrementSolveCountTx", ctx, tx, id)}
-}
-
-func (_c *MockChallengeRepository_IncrementSolveCountTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, id string)) *MockChallengeRepository_IncrementSolveCountTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockChallengeRepository_IncrementSolveCountTx_Call) Return(n int, err error) *MockChallengeRepository_IncrementSolveCountTx_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockChallengeRepository_IncrementSolveCountTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, id string) (int, error)) *MockChallengeRepository_IncrementSolveCountTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -618,75 +471,6 @@ func (_c *MockChallengeRepository_UpdatePoints_Call) Return(err error) *MockChal
 }
 
 func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx context.Context, id string, points int) error) *MockChallengeRepository_UpdatePoints_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdatePointsTx provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) UpdatePointsTx(ctx context.Context, tx *sql.Tx, id string, points int) error {
-	ret := _mock.Called(ctx, tx, id, points)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdatePointsTx")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, int) error); ok {
-		r0 = returnFunc(ctx, tx, id, points)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockChallengeRepository_UpdatePointsTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePointsTx'
-type MockChallengeRepository_UpdatePointsTx_Call struct {
-	*mock.Call
-}
-
-// UpdatePointsTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - id string
-//   - points int
-func (_e *MockChallengeRepository_Expecter) UpdatePointsTx(ctx interface{}, tx interface{}, id interface{}, points interface{}) *MockChallengeRepository_UpdatePointsTx_Call {
-	return &MockChallengeRepository_UpdatePointsTx_Call{Call: _e.mock.On("UpdatePointsTx", ctx, tx, id, points)}
-}
-
-func (_c *MockChallengeRepository_UpdatePointsTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, id string, points int)) *MockChallengeRepository_UpdatePointsTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockChallengeRepository_UpdatePointsTx_Call) Return(err error) *MockChallengeRepository_UpdatePointsTx_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockChallengeRepository_UpdatePointsTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, id string, points int) error) *MockChallengeRepository_UpdatePointsTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -182,33 +182,6 @@ func NewHintUnlockRepo(db *sql.DB) *HintUnlockRepo {
 	return &HintUnlockRepo{db: db}
 }
 
-func (r *HintUnlockRepo) CreateTx(ctx context.Context, tx *sql.Tx, teamId, hintId string) error {
-	teamUUID, err := uuid.Parse(teamId)
-	if err != nil {
-		return fmt.Errorf("HintUnlockRepo - CreateTx - Parse TeamID: %w", err)
-	}
-	hintUUID, err := uuid.Parse(hintId)
-	if err != nil {
-		return fmt.Errorf("HintUnlockRepo - CreateTx - Parse HintID: %w", err)
-	}
-
-	query := squirrel.Insert("hint_unlocks").
-		Columns("id", "hint_id", "team_id").
-		Values(uuid.New().String(), hintUUID.String(), teamUUID.String())
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("HintUnlockRepo - CreateTx - BuildQuery: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("HintUnlockRepo - CreateTx - ExecQuery: %w", err)
-	}
-
-	return nil
-}
-
 func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId string) (*entity.HintUnlock, error) {
 	teamUUID, err := uuid.Parse(teamId)
 	if err != nil {
@@ -241,44 +214,6 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId st
 			return nil, entityError.ErrHintNotFound
 		}
 		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Scan: %w", err)
-	}
-
-	return &unlock, nil
-}
-
-func (r *HintUnlockRepo) GetByTeamAndHintTx(ctx context.Context, tx *sql.Tx, teamId, hintId string) (*entity.HintUnlock, error) {
-	teamUUID, err := uuid.Parse(teamId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHintTx - Parse TeamID: %w", err)
-	}
-	hintUUID, err := uuid.Parse(hintId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHintTx - Parse HintID: %w", err)
-	}
-
-	query := squirrel.Select("id", "hint_id", "team_id", "unlocked_at").
-		From("hint_unlocks").
-		Where(squirrel.Eq{"team_id": teamUUID, "hint_id": hintUUID}).
-		Suffix("FOR UPDATE")
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHintTx - BuildQuery: %w", err)
-	}
-
-	var unlock entity.HintUnlock
-	err = tx.QueryRowContext(ctx, sqlQuery, args...).Scan(
-		&unlock.Id,
-		&unlock.HintId,
-		&unlock.TeamId,
-		&unlock.UnlockedAt,
-	)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, entityError.ErrHintNotFound
-		}
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHintTx - Scan: %w", err)
 	}
 
 	return &unlock, nil

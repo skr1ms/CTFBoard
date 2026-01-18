@@ -1,6 +1,7 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -8,94 +9,42 @@ import (
 
 func TestHint_Flow(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	adminName := "admin_" + uuid.New().String()[:8]
-	_, _, adminToken := registerAdmin(e, adminName)
+	suffix := uuid.New().String()[:8]
+	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
 
-	chal := map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Hint Chal",
-		"description": "Desc",
-		"category":    "Web",
+		"description": "Test hint functionality",
 		"points":      100,
 		"flag":        "flag{hint}",
-		"is_hidden":   false,
-	}
-	challengeID := createChallenge(e, adminToken, chal)
+		"category":    "misc",
+	})
 
-	hintReq := map[string]interface{}{
-		"content":     "Secret Hint Content",
-		"cost":        10,
-		"order_index": 1,
-	}
-	hintResp := e.POST("/api/v1/admin/challenges/{id}/hints", challengeID).
-		WithHeader("Authorization", adminToken).
-		WithJSON(hintReq).
-		Expect().
-		Status(201).
-		JSON().Object()
+	hintContent := "Secret Hint Content"
+	hintCost := 10
+	hintID := h.CreateHint(tokenAdmin, challengeID, hintContent, hintCost)
 
-	hintID := hintResp.Value("id").String().Raw()
-	hintResp.Value("content").String().IsEqual("Secret Hint Content")
+	userName := "user_" + suffix
+	_, _, tokenUser := h.RegisterUserAndLogin(userName)
 
-	userName := "user_" + uuid.New().String()[:8]
-	uEmail, uPass := registerUser(e, userName)
-	userToken := login(e, uEmail, uPass)
+	hintObj := h.GetHintFromList(tokenUser, challengeID, hintID)
+	hintObj.Value("unlocked").Boolean().IsFalse()
+	hintObj.NotContainsKey("content")
+	hintObj.Value("cost").Number().IsEqual(hintCost)
 
-	teamName := userName
+	h.UnlockHint(tokenUser, challengeID, hintID, http.StatusPaymentRequired)
 
-	hintsArr := e.GET("/api/v1/challenges/{id}/hints", challengeID).
-		WithHeader("Authorization", userToken).
-		Expect().
-		Status(200).
-		JSON().Array()
+	h.SubmitFlag(tokenUser, challengeID, "flag{hint}", http.StatusOK)
 
-	hintsArr.Length().IsEqual(1)
-	firstHint := hintsArr.Value(0).Object()
-	firstHint.Value("id").String().IsEqual(hintID)
-	firstHint.NotContainsKey("content")
-	firstHint.Value("unlocked").Boolean().IsFalse()
-	firstHint.Value("cost").Number().IsEqual(10)
-
-	e.POST("/api/v1/challenges/{cid}/hints/{hid}/unlock", challengeID, hintID).
-		WithHeader("Authorization", userToken).
-		Expect().
-		Status(402)
-
-	submitFlag(e, userToken, challengeID, "flag{hint}")
-	unlockResp := e.POST("/api/v1/challenges/{cid}/hints/{hid}/unlock", challengeID, hintID).
-		WithHeader("Authorization", userToken).
-		Expect().
-		Status(200).
-		JSON().Object()
-
+	unlockResp := h.UnlockHint(tokenUser, challengeID, hintID, http.StatusOK)
 	unlockResp.Value("unlocked").Boolean().IsTrue()
-	unlockResp.Value("content").String().IsEqual("Secret Hint Content")
+	unlockResp.Value("content").String().IsEqual(hintContent)
 
-	hintsArrUnlocked := e.GET("/api/v1/challenges/{id}/hints", challengeID).
-		WithHeader("Authorization", userToken).
-		Expect().
-		Status(200).
-		JSON().Array()
+	hintObjUnlocked := h.GetHintFromList(tokenUser, challengeID, hintID)
+	hintObjUnlocked.Value("unlocked").Boolean().IsTrue()
+	hintObjUnlocked.Value("content").String().IsEqual(hintContent)
 
-	firstHintUnlocked := hintsArrUnlocked.Value(0).Object()
-	firstHintUnlocked.Value("unlocked").Boolean().IsTrue()
-	firstHintUnlocked.Value("content").String().IsEqual("Secret Hint Content")
-
-	scoreboard := e.GET("/api/v1/scoreboard").
-		Expect().
-		Status(200).
-		JSON().Array()
-
-	found := false
-	for _, val := range scoreboard.Iter() {
-		obj := val.Object()
-		if obj.Value("team_name").String().Raw() == teamName {
-			obj.Value("points").Number().IsEqual(90)
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("team %s not found in scoreboard", teamName)
-	}
+	h.AssertTeamScore(userName, 90)
 }

@@ -6,10 +6,10 @@ CREATE TABLE challenges (
     points INT DEFAULT 0,
     flag_hash VARCHAR(255) NOT NULL,
     is_hidden TINYINT(1) DEFAULT 0,
-    initial_value INT DEFAULT 0,
-    min_value INT DEFAULT 0,
-    decay INT DEFAULT 0,
-    solve_count INT DEFAULT 0
+    initial_value INT NOT NULL DEFAULT 500,
+    min_value INT NOT NULL DEFAULT 100,
+    decay INT NOT NULL DEFAULT 20,
+    solve_count INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE teams (
@@ -27,6 +27,8 @@ CREATE TABLE users (
     email VARCHAR(50) NOT NULL UNIQUE,
     role VARCHAR(20) DEFAULT 'user',
     password_hash VARCHAR(255) NOT NULL,
+    is_verified TINYINT(1) DEFAULT 0,
+    verified_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -37,6 +39,20 @@ CREATE TABLE solves (
     challenge_id CHAR(36) NOT NULL,
     solved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_team_solve (team_id, challenge_id)
+);
+
+CREATE TABLE verification_tokens (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    type ENUM(
+        'email_verification',
+        'password_reset'
+    ) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_verification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE competition (
@@ -102,3 +118,21 @@ ADD CONSTRAINT fk_hint_unlocks_team FOREIGN KEY (team_id) REFERENCES teams (id) 
 
 ALTER TABLE awards
 ADD CONSTRAINT fk_awards_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
+
+CREATE INDEX idx_solves_user ON solves (user_id);
+
+CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
+
+CREATE INDEX idx_users_team ON users (team_id);
+
+CREATE INDEX idx_teams_invite ON teams (invite_token);
+
+CREATE INDEX idx_hints_challenge ON hints (challenge_id);
+
+CREATE INDEX idx_hint_unlocks_hint ON hint_unlocks (hint_id);
+
+CREATE INDEX idx_awards_team ON awards (team_id);
+
+CREATE INDEX idx_verification_token ON verification_tokens (token);
+
+CREATE INDEX idx_verification_user_type ON verification_tokens (user_id, type);

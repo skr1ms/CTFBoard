@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,37 +12,116 @@ import (
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
 type SolveUseCase struct {
 	solveRepo       repo.SolveRepository
+	challengeRepo   repo.ChallengeRepository
 	competitionRepo repo.CompetitionRepository
+	txRepo          repo.TxRepository
 	redis           pkgRedis.Client
+	hub             *websocket.Hub
 }
 
-func NewSolveUseCase(solveRepo repo.SolveRepository, competitionRepo repo.CompetitionRepository, redis pkgRedis.Client) *SolveUseCase {
+func NewSolveUseCase(
+	solveRepo repo.SolveRepository,
+	challengeRepo repo.ChallengeRepository,
+	competitionRepo repo.CompetitionRepository,
+	txRepo repo.TxRepository,
+	redis pkgRedis.Client,
+	hub *websocket.Hub,
+) *SolveUseCase {
 	return &SolveUseCase{
 		solveRepo:       solveRepo,
+		challengeRepo:   challengeRepo,
 		competitionRepo: competitionRepo,
+		txRepo:          txRepo,
 		redis:           redis,
+		hub:             hub,
 	}
 }
 
 func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
-	_, err := uc.solveRepo.GetByTeamAndChallenge(ctx, solve.TeamId, solve.ChallengeId)
-	if err == nil {
-		return entityError.ErrAlreadySolved
-	}
-	if !errors.Is(err, entityError.ErrSolveNotFound) {
-		return fmt.Errorf("SolveUseCase - Create - GetByTeamAndChallenge: %w", err)
-	}
+	var isFirstBlood bool
+	var solvedChallenge *entity.Challenge
 
-	err = uc.solveRepo.Create(ctx, solve)
+	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx *sql.Tx) error {
+		challenge, err := uc.txRepo.GetChallengeByIDTx(ctx, tx, solve.ChallengeId)
+		if err != nil {
+			return fmt.Errorf("GetChallengeByIDTx: %w", err)
+		}
+
+		existing, err := uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, solve.TeamId, solve.ChallengeId)
+		if err == nil && existing != nil {
+			return entityError.ErrAlreadySolved
+		}
+
+		if challenge.SolveCount == 0 {
+			isFirstBlood = true
+		}
+
+		if err := uc.txRepo.CreateSolveTx(ctx, tx, solve); err != nil {
+			return fmt.Errorf("CreateSolveTx: %w", err)
+		}
+
+		newCount, err := uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, solve.ChallengeId)
+		if err != nil {
+			return fmt.Errorf("IncrementChallengeSolveCountTx: %w", err)
+		}
+
+		if challenge.Decay > 0 {
+			newPoints := CalculateDynamicScore(challenge.InitialValue, challenge.MinValue, challenge.Decay, newCount)
+			if newPoints != challenge.Points {
+				if err := uc.txRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, newPoints); err != nil {
+					return fmt.Errorf("UpdateChallengePointsTx: %w", err)
+				}
+				challenge.Points = newPoints
+			}
+		}
+
+		solvedChallenge = challenge
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("SolveUseCase - Create: %w", err)
+		if errors.Is(err, entityError.ErrAlreadySolved) {
+			return err
+		}
+		return fmt.Errorf("SolveUseCase - Create - Transaction: %w", err)
 	}
 
 	uc.redis.Del(ctx, "scoreboard")
+
+	if uc.hub != nil && solvedChallenge != nil {
+		payload := websocket.ScoreboardUpdate{
+			Type:      websocket.EventTypeSolve,
+			TeamID:    solve.TeamId,
+			Challenge: solvedChallenge.Title,
+			Points:    solvedChallenge.Points,
+			Timestamp: time.Now(),
+		}
+		uc.hub.BroadcastEvent(websocket.Event{
+			Type:      "scoreboard_update",
+			Payload:   payload,
+			Timestamp: time.Now(),
+		})
+
+		if isFirstBlood {
+			fbPayload := websocket.ScoreboardUpdate{
+				Type:      websocket.EventTypeFirstBlood,
+				TeamID:    solve.TeamId,
+				Challenge: solvedChallenge.Title,
+				Points:    solvedChallenge.Points,
+				Timestamp: time.Now(),
+			}
+			uc.hub.BroadcastEvent(websocket.Event{
+				Type:      "scoreboard_update",
+				Payload:   fbPayload,
+				Timestamp: time.Now(),
+			})
+		}
+	}
 
 	return nil
 }

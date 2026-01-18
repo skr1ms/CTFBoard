@@ -1,0 +1,1 @@
+DROP INDEX idx_verification_expires ON verification_tokens;

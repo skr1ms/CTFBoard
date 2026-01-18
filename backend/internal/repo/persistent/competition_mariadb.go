@@ -65,9 +65,17 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *entity.Competition) err
 		return fmt.Errorf("CompetitionRepo - Update - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	result, err := r.db.ExecContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("CompetitionRepo - Update - RowsAffected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return entityError.ErrCompetitionNotFound
 	}
 
 	return nil

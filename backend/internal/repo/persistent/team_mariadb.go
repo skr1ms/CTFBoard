@@ -77,6 +77,10 @@ func (r *TeamRepo) GetByID(ctx context.Context, id string) (*entity.Team, error)
 }
 
 func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken string) (*entity.Team, error) {
+	if inviteToken == "" {
+		return nil, entityError.ErrTeamNotFound
+	}
+
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"invite_token": inviteToken})

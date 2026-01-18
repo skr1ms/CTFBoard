@@ -1,6 +1,7 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -9,94 +10,51 @@ import (
 
 func TestScoreboard_Display(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin6_"+suffix)
 
-	challengeId1 := createChallenge(e, tokenAdmin, map[string]interface{}{
+	_, _, tokenAdmin := h.RegisterAdmin("admin6_" + suffix)
+
+	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Challenge 1",
-		"description": "Description 1",
+		"description": "Test challenge 1",
 		"points":      100,
 		"flag":        "FLAG{chall1}",
 		"category":    "web",
-		"difficulty":  "easy",
-		"is_hidden":   false,
 	})
 
-	challengeId2 := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID2 := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Challenge 2",
-		"description": "Description 2",
+		"description": "Test challenge 2",
 		"points":      200,
 		"flag":        "FLAG{chall2}",
 		"category":    "crypto",
-		"difficulty":  "medium",
-		"is_hidden":   false,
 	})
 
-	emailUser1, passUser1 := registerUser(e, "user4_"+suffix)
-	tokenUser1 := login(e, emailUser1, passUser1)
+	nameUser1 := "user4_" + suffix
+	_, _, tokenUser1 := h.RegisterUserAndLogin(nameUser1)
 
-	emailUser2, passUser2 := registerUser(e, "user5_"+suffix)
-	tokenUser2 := login(e, emailUser2, passUser2)
+	nameUser2 := "user5_" + suffix
+	_, _, tokenUser2 := h.RegisterUserAndLogin(nameUser2)
 
-	submitFlag(e, tokenUser1, challengeId1, "FLAG{chall1}")
-	time.Sleep(3 * time.Second)
+	h.SubmitFlag(tokenUser1, challengeID1, "FLAG{chall1}", http.StatusOK)
+	time.Sleep(1 * time.Second) // Небольшая пауза для реалистичности таймстемпов
+	h.SubmitFlag(tokenUser1, challengeID2, "FLAG{chall2}", http.StatusOK)
 
-	submitFlag(e, tokenUser1, challengeId2, "FLAG{chall2}")
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
+	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
-	submitFlag(e, tokenUser2, challengeId1, "FLAG{chall1}")
-
-	scoreboardResp := e.GET("/api/v1/scoreboard").
-		Expect().
-		Status(200).
-		JSON().
-		Array()
-
-	var user4Found, user5Found bool
-	length := int(scoreboardResp.Length().Raw())
-
-	for i := 0; i < length; i++ {
-		team := scoreboardResp.Value(i).Object()
-		name := team.Value("team_name").String().Raw()
-
-		if name == "user4_"+suffix {
-			team.Value("points").Number().IsEqual(300)
-			user4Found = true
-		}
-		if name == "user5_"+suffix {
-			team.Value("points").Number().IsEqual(100)
-			user5Found = true
-		}
-	}
-
-	if !user4Found || !user5Found {
-		t.Fatal("Scoreboard verification failed: users not found")
-	}
+	h.AssertTeamScore(nameUser1, 300)
+	h.AssertTeamScore(nameUser2, 100)
 }
 
 func TestScoreboard_Empty(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	scoreboardResp := e.GET("/api/v1/scoreboard").
-		Expect().
-		Status(200).
+	h.GetScoreboard().
+		Status(http.StatusOK).
 		JSON().
 		Array()
-
-	length := int(scoreboardResp.Length().Raw())
-
-	allZeroPoints := true
-	for i := 0; i < length; i++ {
-		team := scoreboardResp.Value(i).Object()
-		points := int(team.Value("points").Number().Raw())
-		if points > 0 {
-			allZeroPoints = false
-			break
-		}
-	}
-
-	if !allZeroPoints && length > 0 {
-		t.Logf("Scoreboard has %d teams, some have non-zero points (this is expected if previous tests created solves)", length)
-	}
 }

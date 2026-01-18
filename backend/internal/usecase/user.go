@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -20,15 +21,23 @@ type UserUseCase struct {
 	userRepo   repo.UserRepository
 	teamRepo   repo.TeamRepository
 	solveRepo  repo.SolveRepository
+	txRepo     repo.TxRepository
 	jwtService jwt.Service
 	validator  validator.Validator
 }
 
-func NewUserUseCase(userRepo repo.UserRepository, teamRepo repo.TeamRepository, solveRepo repo.SolveRepository, jwtService jwt.Service) *UserUseCase {
+func NewUserUseCase(
+	userRepo repo.UserRepository,
+	teamRepo repo.TeamRepository,
+	solveRepo repo.SolveRepository,
+	txRepo repo.TxRepository,
+	jwtService jwt.Service,
+) *UserUseCase {
 	return &UserUseCase{
 		userRepo:   userRepo,
 		teamRepo:   teamRepo,
 		solveRepo:  solveRepo,
+		txRepo:     txRepo,
 		jwtService: jwtService,
 	}
 }
@@ -55,6 +64,12 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateFromPassword: %w", err)
 	}
 
+	inviteTokenBytes := make([]byte, 16)
+	if _, err := rand.Read(inviteTokenBytes); err != nil {
+		return nil, fmt.Errorf("UserUseCase - Register - GenerateToken: %w", err)
+	}
+	inviteToken := hex.EncodeToString(inviteTokenBytes)
+
 	user := &entity.User{
 		Username:     username,
 		Email:        email,
@@ -62,33 +77,32 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		Role:         "user",
 	}
 
-	err = uc.userRepo.Create(ctx, user)
+	var team *entity.Team
+
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx *sql.Tx) error {
+		if err := uc.txRepo.CreateUserTx(ctx, tx, user); err != nil {
+			return fmt.Errorf("CreateUserTx: %w", err)
+		}
+
+		team = &entity.Team{
+			Name:        username,
+			InviteToken: inviteToken,
+			CaptainId:   user.Id,
+		}
+
+		if err := uc.txRepo.CreateTeamTx(ctx, tx, team); err != nil {
+			return fmt.Errorf("CreateTeamTx: %w", err)
+		}
+
+		if err := uc.txRepo.UpdateUserTeamIDTx(ctx, tx, user.Id, &team.Id); err != nil {
+			return fmt.Errorf("UpdateUserTeamIDTx: %w", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - Create: %w", err)
-	}
-
-	// User.Id is now populated by Create method
-	inviteTokenBytes := make([]byte, 16)
-	if _, err := rand.Read(inviteTokenBytes); err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - GenerateToken: %w", err)
-	}
-	inviteToken := hex.EncodeToString(inviteTokenBytes)
-
-	team := &entity.Team{
-		Name:        username,
-		InviteToken: inviteToken,
-		CaptainId:   user.Id,
-	}
-
-	err = uc.teamRepo.Create(ctx, team)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - CreateTeam: %w", err)
-	}
-
-	// Team.Id is now populated by Create method
-	err = uc.userRepo.UpdateTeamId(ctx, user.Id, &team.Id)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - UpdateTeamId: %w", err)
+		return nil, fmt.Errorf("UserUseCase - Register - Transaction: %w", err)
 	}
 
 	user.TeamId = &team.Id

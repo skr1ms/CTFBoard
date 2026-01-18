@@ -61,6 +61,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name, captainId string) (*ent
 
 	err = uc.userRepo.UpdateTeamId(ctx, captainId, &team.Id)
 	if err != nil {
+		_ = uc.teamRepo.Delete(ctx, team.Id)
 		return nil, fmt.Errorf("TeamUseCase - Create - UpdateTeamId: %w", err)
 	}
 

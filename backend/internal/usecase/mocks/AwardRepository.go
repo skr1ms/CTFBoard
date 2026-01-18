@@ -6,9 +6,7 @@ package mocks
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,69 +35,6 @@ type MockAwardRepository_Expecter struct {
 
 func (_m *MockAwardRepository) EXPECT() *MockAwardRepository_Expecter {
 	return &MockAwardRepository_Expecter{mock: &_m.Mock}
-}
-
-// CreateTx provides a mock function for the type MockAwardRepository
-func (_mock *MockAwardRepository) CreateTx(ctx context.Context, tx *sql.Tx, award *entity.Award) error {
-	ret := _mock.Called(ctx, tx, award)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateTx")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, *entity.Award) error); ok {
-		r0 = returnFunc(ctx, tx, award)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockAwardRepository_CreateTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTx'
-type MockAwardRepository_CreateTx_Call struct {
-	*mock.Call
-}
-
-// CreateTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - award *entity.Award
-func (_e *MockAwardRepository_Expecter) CreateTx(ctx interface{}, tx interface{}, award interface{}) *MockAwardRepository_CreateTx_Call {
-	return &MockAwardRepository_CreateTx_Call{Call: _e.mock.On("CreateTx", ctx, tx, award)}
-}
-
-func (_c *MockAwardRepository_CreateTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, award *entity.Award)) *MockAwardRepository_CreateTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 *entity.Award
-		if args[2] != nil {
-			arg2 = args[2].(*entity.Award)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockAwardRepository_CreateTx_Call) Return(err error) *MockAwardRepository_CreateTx_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockAwardRepository_CreateTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, award *entity.Award) error) *MockAwardRepository_CreateTx_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // GetTeamTotalAwards provides a mock function for the type MockAwardRepository

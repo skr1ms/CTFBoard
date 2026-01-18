@@ -1,6 +1,7 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -8,75 +9,40 @@ import (
 
 func TestTeam_FullFlow(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	emailCap, passCap := registerUser(e, "captain_"+suffix)
-	tokenCap := login(e, emailCap, passCap)
 
-	myTeamRespInitial := e.GET("/api/v1/teams/my").
-		WithHeader("Authorization", tokenCap).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
+	captainName := "captain_" + suffix
+	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 
-	inviteToken := myTeamRespInitial.Value("invite_token").String().Raw()
-	teamId := myTeamRespInitial.Value("id").String().Raw()
+	initialTeam := h.GetMyTeam(tokenCap, http.StatusOK)
+	inviteToken := initialTeam.Value("invite_token").String().Raw()
+	teamID := initialTeam.Value("id").String().Raw()
 
-	myTeamResp := e.GET("/api/v1/teams/my").
-		WithHeader("Authorization", tokenCap).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
+	initialTeam.Value("name").String().IsEqual(captainName)
+	initialTeam.Value("members").Array().Length().IsEqual(1)
 
-	myTeamResp.Value("name").String().IsEqual("captain_" + suffix)
-	myTeamResp.Value("invite_token").String().IsEqual(inviteToken)
-	myTeamResp.Value("members").Array().Length().IsEqual(1)
+	playerName := "player_" + suffix
+	_, _, tokenPlayer := h.RegisterUserAndLogin(playerName)
 
-	emailPlayer, passPlayer := registerUser(e, "player_"+suffix)
-	tokenPlayer := login(e, emailPlayer, passPlayer)
+	h.JoinTeam(tokenPlayer, inviteToken, http.StatusOK)
 
-	meResp := e.GET("/api/v1/auth/me").
-		WithHeader("Authorization", tokenPlayer).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
-
-	meResp.Value("id").String().Raw()
-
-	joinTeam(e, tokenPlayer, inviteToken)
-
-	myTeamResp2 := e.GET("/api/v1/teams/my").
-		WithHeader("Authorization", tokenPlayer).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
-
-	myTeamResp2.Value("id").String().IsEqual(teamId)
-	myTeamResp2.Value("members").Array().Length().IsEqual(2)
+	teamState := h.GetMyTeam(tokenPlayer, http.StatusOK)
+	teamState.Value("id").String().IsEqual(teamID)
+	teamState.Value("members").Array().Length().IsEqual(2)
 }
 
 func TestTeam_CreateDuplicateName(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	email1, pass1 := registerUser(e, "captain1_"+suffix)
-	token1 := login(e, email1, pass1)
 
-	myTeamResp1 := e.GET("/api/v1/teams/my").
-		WithHeader("Authorization", token1).
-		Expect().
-		Status(200).
-		JSON().
-		Object()
+	_, _, token1 := h.RegisterUserAndLogin("captain1_" + suffix)
+	teamName1 := h.GetMyTeam(token1, http.StatusOK).Value("name").String().Raw()
 
-	teamName1 := myTeamResp1.Value("name").String().Raw()
-
-	email2, pass2 := registerUser(e, "captain2_"+suffix)
-	token2 := login(e, email2, pass2)
+	_, _, token2 := h.RegisterUserAndLogin("captain2_" + suffix)
 
 	e.POST("/api/v1/teams").
 		WithHeader("Authorization", token2).
@@ -84,120 +50,86 @@ func TestTeam_CreateDuplicateName(t *testing.T) {
 			"name": teamName1,
 		}).
 		Expect().
-		Status(409)
+		Status(http.StatusConflict)
 }
 
 func TestTeam_JoinInvalidToken(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	suffix := uuid.New().String()[:8]
-	email, pass := registerUser(e, "user_"+suffix)
-	token := login(e, email, pass)
+	_, _, token := h.RegisterUserAndLogin("user_" + uuid.New().String()[:8])
 
-	e.POST("/api/v1/teams/join").
-		WithHeader("Authorization", token).
-		WithJSON(map[string]string{
-			"invite_token": "invalid-token",
-		}).
-		Expect().
-		Status(404)
+	h.JoinTeam(token, "invalid-token", http.StatusNotFound)
 }
 
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	emailCap, passCap := registerUser(e, "captain3_"+suffix)
-	tokenCap := login(e, emailCap, passCap)
-	myTeamRespCap := e.GET("/api/v1/teams/my").WithHeader("Authorization", tokenCap).Expect().Status(200).JSON().Object()
-	inviteTokenA := myTeamRespCap.Value("invite_token").String().Raw()
 
-	emailUser1, passUser1 := registerUser(e, "user1_"+suffix)
-	tokenUser1 := login(e, emailUser1, passUser1)
-	myTeamRespUser1 := e.GET("/api/v1/teams/my").WithHeader("Authorization", tokenUser1).Expect().Status(200).JSON().Object()
-	inviteTokenB := myTeamRespUser1.Value("invite_token").String().Raw()
+	_, _, tokenCap := h.RegisterUserAndLogin("captain3_" + suffix)
+	inviteTokenA := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
 
-	emailUser2, passUser2 := registerUser(e, "user2_"+suffix)
-	tokenUser2 := login(e, emailUser2, passUser2)
-	joinTeam(e, tokenUser2, inviteTokenB)
+	_, _, tokenUser1 := h.RegisterUserAndLogin("user1_" + suffix)
+	inviteTokenB := h.GetMyTeam(tokenUser1, http.StatusOK).Value("invite_token").String().Raw()
 
-	e.POST("/api/v1/teams/join").
-		WithHeader("Authorization", tokenUser1).
-		WithJSON(map[string]string{
-			"invite_token": inviteTokenA,
-		}).
-		Expect().
-		Status(409)
+	_, _, tokenUser2 := h.RegisterUserAndLogin("user2_" + suffix)
+	h.JoinTeam(tokenUser2, inviteTokenB, http.StatusOK)
+
+	h.JoinTeam(tokenUser1, inviteTokenA, http.StatusConflict)
 }
 
 func TestTeam_Join_PointsCheck(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	emailSolo, passSolo := registerUser(e, "solo_player_"+suffix)
-	tokenSolo := login(e, emailSolo, passSolo)
+	soloName := "solo_player_" + suffix
 
-	adminName := "admin_" + uuid.New().String()[:8]
-	_, _, adminToken := registerAdmin(e, adminName)
-	challengeID := createChallenge(e, adminToken, map[string]interface{}{
+	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Solvable",
-		"description": "Solvable Description",
-		"category":    "Web",
+		"description": "Test team points",
 		"points":      100,
 		"flag":        "flag{ez}",
-		"is_hidden":   false,
+		"category":    "misc",
 	})
 
-	submitFlag(e, tokenSolo, challengeID, "flag{ez}")
+	_, _, tokenSolo := h.RegisterUserAndLogin(soloName)
+	h.SubmitFlag(tokenSolo, challengeID, "flag{ez}", http.StatusOK)
 
-	scoreboard := e.GET("/api/v1/scoreboard").Expect().Status(200).JSON().Array()
-	var soloPoints float64
+	h.AssertTeamScore(soloName, 100)
+
+	targetCapName := "target_cap_" + suffix
+	_, _, tokenCap := h.RegisterUserAndLogin(targetCapName)
+	inviteToken := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
+
+	h.JoinTeam(tokenSolo, inviteToken, http.StatusOK)
+
+	scoreboard := h.GetScoreboard().Status(http.StatusOK).JSON().Array()
+
+	var teamPoints float64 = -1
 	for _, val := range scoreboard.Iter() {
 		obj := val.Object()
-		if obj.Value("team_name").String().Raw() == "solo_player_"+suffix {
-			soloPoints = obj.Value("points").Number().Raw()
-			break
-		}
-	}
-	if soloPoints != 100 {
-		t.Fatalf("expected 100 points, got %v", soloPoints)
-	}
-
-	emailCap, passCap := registerUser(e, "target_cap_"+suffix)
-	tokenCap := login(e, emailCap, passCap)
-	myTeamResp := e.GET("/api/v1/teams/my").WithHeader("Authorization", tokenCap).Expect().JSON().Object()
-	inviteToken := myTeamResp.Value("invite_token").String().Raw()
-
-	joinTeam(e, tokenSolo, inviteToken)
-
-	scoreboard2 := e.GET("/api/v1/scoreboard").Expect().Status(200).JSON().Array()
-	var teamPoints float64
-	foundTeam := false
-	for _, val := range scoreboard2.Iter() {
-		obj := val.Object()
-		if obj.Value("team_name").String().Raw() == "target_cap_"+suffix {
+		if obj.Value("team_name").String().Raw() == targetCapName {
 			teamPoints = obj.Value("points").Number().Raw()
-			foundTeam = true
 			break
 		}
 	}
 
-	if !foundTeam {
-		t.Log("target team not found in scoreboard (likely 0 points)")
-		return
-	}
-
-	if teamPoints != 0 {
-		t.Errorf("Points PERSISTED! Unexpected behavior given current schema. Points: %v", teamPoints)
+	if teamPoints == -1 {
+		t.Log("Target team not found in scoreboard (likely 0 points)")
+	} else if teamPoints != 0 {
+		t.Errorf("Points PERSISTED! Unexpected behavior. Points: %v", teamPoints)
 	} else {
-		t.Log("Points were deleted as expected (ON DELETE CASCADE).")
+		t.Log("Points were reset as expected.")
 	}
 }
 
 func TestTeam_GetMyTeamWithoutAuth(t *testing.T) {
 	e := setupE2E(t)
-
 	e.GET("/api/v1/teams/my").
 		Expect().
-		Status(401)
+		Status(http.StatusUnauthorized)
 }

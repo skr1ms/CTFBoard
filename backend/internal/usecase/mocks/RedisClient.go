@@ -151,6 +151,71 @@ func (_c *MockRedisClient_Del_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
+// Expire provides a mock function for the type MockRedisClient
+func (_mock *MockRedisClient) Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd {
+	ret := _mock.Called(ctx, key, expiration)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Expire")
+	}
+
+	var r0 *redis.BoolCmd
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Duration) *redis.BoolCmd); ok {
+		r0 = returnFunc(ctx, key, expiration)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*redis.BoolCmd)
+		}
+	}
+	return r0
+}
+
+// MockRedisClient_Expire_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Expire'
+type MockRedisClient_Expire_Call struct {
+	*mock.Call
+}
+
+// Expire is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - expiration time.Duration
+func (_e *MockRedisClient_Expecter) Expire(ctx interface{}, key interface{}, expiration interface{}) *MockRedisClient_Expire_Call {
+	return &MockRedisClient_Expire_Call{Call: _e.mock.On("Expire", ctx, key, expiration)}
+}
+
+func (_c *MockRedisClient_Expire_Call) Run(run func(ctx context.Context, key string, expiration time.Duration)) *MockRedisClient_Expire_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Duration
+		if args[2] != nil {
+			arg2 = args[2].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRedisClient_Expire_Call) Return(boolCmd *redis.BoolCmd) *MockRedisClient_Expire_Call {
+	_c.Call.Return(boolCmd)
+	return _c
+}
+
+func (_c *MockRedisClient_Expire_Call) RunAndReturn(run func(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd) *MockRedisClient_Expire_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function for the type MockRedisClient
 func (_mock *MockRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
 	ret := _mock.Called(ctx, key)
@@ -210,6 +275,65 @@ func (_c *MockRedisClient_Get_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
+// Incr provides a mock function for the type MockRedisClient
+func (_mock *MockRedisClient) Incr(ctx context.Context, key string) *redis.IntCmd {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Incr")
+	}
+
+	var r0 *redis.IntCmd
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *redis.IntCmd); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*redis.IntCmd)
+		}
+	}
+	return r0
+}
+
+// MockRedisClient_Incr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Incr'
+type MockRedisClient_Incr_Call struct {
+	*mock.Call
+}
+
+// Incr is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockRedisClient_Expecter) Incr(ctx interface{}, key interface{}) *MockRedisClient_Incr_Call {
+	return &MockRedisClient_Incr_Call{Call: _e.mock.On("Incr", ctx, key)}
+}
+
+func (_c *MockRedisClient_Incr_Call) Run(run func(ctx context.Context, key string)) *MockRedisClient_Incr_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRedisClient_Incr_Call) Return(intCmd *redis.IntCmd) *MockRedisClient_Incr_Call {
+	_c.Call.Return(intCmd)
+	return _c
+}
+
+func (_c *MockRedisClient_Incr_Call) RunAndReturn(run func(ctx context.Context, key string) *redis.IntCmd) *MockRedisClient_Incr_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Ping provides a mock function for the type MockRedisClient
 func (_mock *MockRedisClient) Ping(ctx context.Context) *redis.StatusCmd {
 	ret := _mock.Called(ctx)
@@ -259,6 +383,71 @@ func (_c *MockRedisClient_Ping_Call) Return(statusCmd *redis.StatusCmd) *MockRed
 }
 
 func (_c *MockRedisClient_Ping_Call) RunAndReturn(run func(ctx context.Context) *redis.StatusCmd) *MockRedisClient_Ping_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Publish provides a mock function for the type MockRedisClient
+func (_mock *MockRedisClient) Publish(ctx context.Context, channel string, message interface{}) *redis.IntCmd {
+	ret := _mock.Called(ctx, channel, message)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Publish")
+	}
+
+	var r0 *redis.IntCmd
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, interface{}) *redis.IntCmd); ok {
+		r0 = returnFunc(ctx, channel, message)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*redis.IntCmd)
+		}
+	}
+	return r0
+}
+
+// MockRedisClient_Publish_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Publish'
+type MockRedisClient_Publish_Call struct {
+	*mock.Call
+}
+
+// Publish is a helper method to define mock.On call
+//   - ctx context.Context
+//   - channel string
+//   - message interface{}
+func (_e *MockRedisClient_Expecter) Publish(ctx interface{}, channel interface{}, message interface{}) *MockRedisClient_Publish_Call {
+	return &MockRedisClient_Publish_Call{Call: _e.mock.On("Publish", ctx, channel, message)}
+}
+
+func (_c *MockRedisClient_Publish_Call) Run(run func(ctx context.Context, channel string, message interface{})) *MockRedisClient_Publish_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 interface{}
+		if args[2] != nil {
+			arg2 = args[2].(interface{})
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRedisClient_Publish_Call) Return(intCmd *redis.IntCmd) *MockRedisClient_Publish_Call {
+	_c.Call.Return(intCmd)
+	return _c
+}
+
+func (_c *MockRedisClient_Publish_Call) RunAndReturn(run func(ctx context.Context, channel string, message interface{}) *redis.IntCmd) *MockRedisClient_Publish_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -330,6 +519,74 @@ func (_c *MockRedisClient_Set_Call) Return(statusCmd *redis.StatusCmd) *MockRedi
 }
 
 func (_c *MockRedisClient_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd) *MockRedisClient_Set_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Subscribe provides a mock function for the type MockRedisClient
+func (_mock *MockRedisClient) Subscribe(ctx context.Context, channels ...string) *redis.PubSub {
+	var tmpRet mock.Arguments
+	if len(channels) > 0 {
+		tmpRet = _mock.Called(ctx, channels)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Subscribe")
+	}
+
+	var r0 *redis.PubSub
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...string) *redis.PubSub); ok {
+		r0 = returnFunc(ctx, channels...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*redis.PubSub)
+		}
+	}
+	return r0
+}
+
+// MockRedisClient_Subscribe_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Subscribe'
+type MockRedisClient_Subscribe_Call struct {
+	*mock.Call
+}
+
+// Subscribe is a helper method to define mock.On call
+//   - ctx context.Context
+//   - channels ...string
+func (_e *MockRedisClient_Expecter) Subscribe(ctx interface{}, channels ...interface{}) *MockRedisClient_Subscribe_Call {
+	return &MockRedisClient_Subscribe_Call{Call: _e.mock.On("Subscribe",
+		append([]interface{}{ctx}, channels...)...)}
+}
+
+func (_c *MockRedisClient_Subscribe_Call) Run(run func(ctx context.Context, channels ...string)) *MockRedisClient_Subscribe_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		var variadicArgs []string
+		if len(args) > 1 {
+			variadicArgs = args[1].([]string)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRedisClient_Subscribe_Call) Return(pubSub *redis.PubSub) *MockRedisClient_Subscribe_Call {
+	_c.Call.Return(pubSub)
+	return _c
+}
+
+func (_c *MockRedisClient_Subscribe_Call) RunAndReturn(run func(ctx context.Context, channels ...string) *redis.PubSub) *MockRedisClient_Subscribe_Call {
 	_c.Call.Return(run)
 	return _c
 }

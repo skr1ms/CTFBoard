@@ -6,7 +6,6 @@ package mocks
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
@@ -37,75 +36,6 @@ type MockHintUnlockRepository_Expecter struct {
 
 func (_m *MockHintUnlockRepository) EXPECT() *MockHintUnlockRepository_Expecter {
 	return &MockHintUnlockRepository_Expecter{mock: &_m.Mock}
-}
-
-// CreateTx provides a mock function for the type MockHintUnlockRepository
-func (_mock *MockHintUnlockRepository) CreateTx(ctx context.Context, tx *sql.Tx, teamId string, hintId string) error {
-	ret := _mock.Called(ctx, tx, teamId, hintId)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateTx")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, string) error); ok {
-		r0 = returnFunc(ctx, tx, teamId, hintId)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockHintUnlockRepository_CreateTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTx'
-type MockHintUnlockRepository_CreateTx_Call struct {
-	*mock.Call
-}
-
-// CreateTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - teamId string
-//   - hintId string
-func (_e *MockHintUnlockRepository_Expecter) CreateTx(ctx interface{}, tx interface{}, teamId interface{}, hintId interface{}) *MockHintUnlockRepository_CreateTx_Call {
-	return &MockHintUnlockRepository_CreateTx_Call{Call: _e.mock.On("CreateTx", ctx, tx, teamId, hintId)}
-}
-
-func (_c *MockHintUnlockRepository_CreateTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, teamId string, hintId string)) *MockHintUnlockRepository_CreateTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockHintUnlockRepository_CreateTx_Call) Return(err error) *MockHintUnlockRepository_CreateTx_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockHintUnlockRepository_CreateTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, teamId string, hintId string) error) *MockHintUnlockRepository_CreateTx_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // GetByTeamAndHint provides a mock function for the type MockHintUnlockRepository
@@ -178,86 +108,6 @@ func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) Return(hintUnlock *ent
 }
 
 func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) RunAndReturn(run func(ctx context.Context, teamId string, hintId string) (*entity.HintUnlock, error)) *MockHintUnlockRepository_GetByTeamAndHint_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetByTeamAndHintTx provides a mock function for the type MockHintUnlockRepository
-func (_mock *MockHintUnlockRepository) GetByTeamAndHintTx(ctx context.Context, tx *sql.Tx, teamId string, hintId string) (*entity.HintUnlock, error) {
-	ret := _mock.Called(ctx, tx, teamId, hintId)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByTeamAndHintTx")
-	}
-
-	var r0 *entity.HintUnlock
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, string) (*entity.HintUnlock, error)); ok {
-		return returnFunc(ctx, tx, teamId, hintId)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *sql.Tx, string, string) *entity.HintUnlock); ok {
-		r0 = returnFunc(ctx, tx, teamId, hintId)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*entity.HintUnlock)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *sql.Tx, string, string) error); ok {
-		r1 = returnFunc(ctx, tx, teamId, hintId)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockHintUnlockRepository_GetByTeamAndHintTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTeamAndHintTx'
-type MockHintUnlockRepository_GetByTeamAndHintTx_Call struct {
-	*mock.Call
-}
-
-// GetByTeamAndHintTx is a helper method to define mock.On call
-//   - ctx context.Context
-//   - tx *sql.Tx
-//   - teamId string
-//   - hintId string
-func (_e *MockHintUnlockRepository_Expecter) GetByTeamAndHintTx(ctx interface{}, tx interface{}, teamId interface{}, hintId interface{}) *MockHintUnlockRepository_GetByTeamAndHintTx_Call {
-	return &MockHintUnlockRepository_GetByTeamAndHintTx_Call{Call: _e.mock.On("GetByTeamAndHintTx", ctx, tx, teamId, hintId)}
-}
-
-func (_c *MockHintUnlockRepository_GetByTeamAndHintTx_Call) Run(run func(ctx context.Context, tx *sql.Tx, teamId string, hintId string)) *MockHintUnlockRepository_GetByTeamAndHintTx_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sql.Tx
-		if args[1] != nil {
-			arg1 = args[1].(*sql.Tx)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockHintUnlockRepository_GetByTeamAndHintTx_Call) Return(hintUnlock *entity.HintUnlock, err error) *MockHintUnlockRepository_GetByTeamAndHintTx_Call {
-	_c.Call.Return(hintUnlock, err)
-	return _c
-}
-
-func (_c *MockHintUnlockRepository_GetByTeamAndHintTx_Call) RunAndReturn(run func(ctx context.Context, tx *sql.Tx, teamId string, hintId string) (*entity.HintUnlock, error)) *MockHintUnlockRepository_GetByTeamAndHintTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

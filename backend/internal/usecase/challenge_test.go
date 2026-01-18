@@ -47,7 +47,7 @@ func TestChallengeUseCase_GetAll(t *testing.T) {
 
 	challengeRepo.On("GetAll", mock.Anything, &teamID).Return(challenges, nil)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	result, err := uc.GetAll(context.Background(), &teamID)
 
@@ -78,7 +78,7 @@ func TestChallengeUseCase_GetAll_NoTeamId(t *testing.T) {
 
 	challengeRepo.On("GetAll", mock.Anything, (*string)(nil)).Return(challenges, nil)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	result, err := uc.GetAll(context.Background(), nil)
 
@@ -98,7 +98,7 @@ func TestChallengeUseCase_GetAll_Error(t *testing.T) {
 
 	challengeRepo.On("GetAll", mock.Anything, &teamID).Return(nil, expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	result, err := uc.GetAll(context.Background(), &teamID)
 
@@ -121,7 +121,7 @@ func TestChallengeUseCase_Create(t *testing.T) {
 		c.Id = uuid.New().String()
 	})
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false)
 
@@ -141,7 +141,7 @@ func TestChallengeUseCase_Create_Error(t *testing.T) {
 	expectedError := assert.AnError
 	challengeRepo.On("Create", mock.Anything, mock.Anything).Return(expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false)
 
@@ -174,7 +174,7 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	})).Return(nil)
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false)
 
@@ -207,7 +207,7 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	})).Return(nil)
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "new_flag", false)
 
@@ -227,7 +227,7 @@ func TestChallengeUseCase_Update_GetByIDError(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false)
 
@@ -256,7 +256,7 @@ func TestChallengeUseCase_Update_UpdateError(t *testing.T) {
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
 	challengeRepo.On("Update", mock.Anything, mock.Anything).Return(expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false)
 
@@ -276,7 +276,7 @@ func TestChallengeUseCase_Delete(t *testing.T) {
 	challengeRepo.On("Delete", mock.Anything, challengeID).Return(nil)
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	err := uc.Delete(context.Background(), challengeID)
 
@@ -293,7 +293,7 @@ func TestChallengeUseCase_Delete_Error(t *testing.T) {
 	expectedError := assert.AnError
 	challengeRepo.On("Delete", mock.Anything, challengeID).Return(expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	err := uc.Delete(context.Background(), challengeID)
 
@@ -333,15 +333,15 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	solveRepo.On("GetByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
-	challengeRepo.On("GetByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
-	solveRepo.On("CreateTx", mock.Anything, mockTx, mock.MatchedBy(func(s *entity.Solve) bool {
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
+	txRepo.On("GetChallengeByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
+	txRepo.On("CreateSolveTx", mock.Anything, mockTx, mock.MatchedBy(func(s *entity.Solve) bool {
 		return s.ChallengeId == challengeID && s.TeamId == teamID && s.UserId == userID
 	})).Return(nil)
-	challengeRepo.On("IncrementSolveCountTx", mock.Anything, mockTx, challengeID).Return(1, nil)
+	txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mockTx, challengeID).Return(1, nil)
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -368,7 +368,7 @@ func TestChallengeUseCase_SubmitFlag_InvalidFlag(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID)
 
@@ -385,7 +385,7 @@ func TestChallengeUseCase_SubmitFlag_NoTeam(t *testing.T) {
 	challengeID := uuid.New().String()
 	userID := uuid.New().String()
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, nil)
 
@@ -406,7 +406,7 @@ func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, entityError.ErrChallengeNotFound)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
 
@@ -428,7 +428,7 @@ func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
 
@@ -473,9 +473,9 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	solveRepo.On("GetByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(existingSolve, nil)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(existingSolve, nil)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -507,7 +507,7 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(nil, expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -547,9 +547,9 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	solveRepo.On("GetByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, expectedError)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -589,11 +589,11 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	solveRepo.On("GetByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
-	challengeRepo.On("GetByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
-	solveRepo.On("CreateTx", mock.Anything, mockTx, mock.Anything).Return(expectedError)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mockTx, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
+	txRepo.On("GetChallengeByIDTx", mock.Anything, mockTx, challengeID).Return(challenge, nil)
+	txRepo.On("CreateSolveTx", mock.Anything, mockTx, mock.Anything).Return(expectedError)
 
-	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient)
+	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 

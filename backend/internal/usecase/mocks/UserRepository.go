@@ -367,6 +367,126 @@ func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// SetVerified provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SetVerified(ctx context.Context, userId string) error {
+	ret := _mock.Called(ctx, userId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetVerified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, userId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_SetVerified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetVerified'
+type MockUserRepository_SetVerified_Call struct {
+	*mock.Call
+}
+
+// SetVerified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userId string
+func (_e *MockUserRepository_Expecter) SetVerified(ctx interface{}, userId interface{}) *MockUserRepository_SetVerified_Call {
+	return &MockUserRepository_SetVerified_Call{Call: _e.mock.On("SetVerified", ctx, userId)}
+}
+
+func (_c *MockUserRepository_SetVerified_Call) Run(run func(ctx context.Context, userId string)) *MockUserRepository_SetVerified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetVerified_Call) Return(err error) *MockUserRepository_SetVerified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_SetVerified_Call) RunAndReturn(run func(ctx context.Context, userId string) error) *MockUserRepository_SetVerified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatePassword provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UpdatePassword(ctx context.Context, userId string, passwordHash string) error {
+	ret := _mock.Called(ctx, userId, passwordHash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePassword")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, userId, passwordHash)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UpdatePassword_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePassword'
+type MockUserRepository_UpdatePassword_Call struct {
+	*mock.Call
+}
+
+// UpdatePassword is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userId string
+//   - passwordHash string
+func (_e *MockUserRepository_Expecter) UpdatePassword(ctx interface{}, userId interface{}, passwordHash interface{}) *MockUserRepository_UpdatePassword_Call {
+	return &MockUserRepository_UpdatePassword_Call{Call: _e.mock.On("UpdatePassword", ctx, userId, passwordHash)}
+}
+
+func (_c *MockUserRepository_UpdatePassword_Call) Run(run func(ctx context.Context, userId string, passwordHash string)) *MockUserRepository_UpdatePassword_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UpdatePassword_Call) Return(err error) *MockUserRepository_UpdatePassword_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UpdatePassword_Call) RunAndReturn(run func(ctx context.Context, userId string, passwordHash string) error) *MockUserRepository_UpdatePassword_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateTeamId provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) UpdateTeamId(ctx context.Context, userId string, teamId *string) error {
 	ret := _mock.Called(ctx, userId, teamId)

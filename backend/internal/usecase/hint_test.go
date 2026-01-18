@@ -322,12 +322,13 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	hintUnlockRepo.On("GetByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	solveRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(100, nil)
-	awardRepo.On("CreateTx", mock.Anything, mockTx, mock.MatchedBy(func(a *entity.Award) bool {
+	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(100, nil)
+	txRepo.On("CreateAwardTx", mock.Anything, mockTx, mock.MatchedBy(func(a *entity.Award) bool {
 		return a.Value == -50 && a.TeamId == teamID
 	})).Return(nil)
-	hintUnlockRepo.On("CreateTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
+	txRepo.On("CreateHintUnlockTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
 	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
@@ -365,8 +366,9 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	hintUnlockRepo.On("GetByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	hintUnlockRepo.On("CreateTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
+	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("CreateHintUnlockTx", mock.Anything, mockTx, teamID, hintID).Return(nil)
 	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
@@ -376,8 +378,8 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, unlocked)
 	assert.Equal(t, "Free hint", unlocked.Content)
-	awardRepo.AssertNotCalled(t, "CreateTx", mock.Anything, mock.Anything, mock.Anything)
-	solveRepo.AssertNotCalled(t, "GetTeamScoreTx", mock.Anything, mock.Anything, mock.Anything)
+	txRepo.AssertNotCalled(t, "CreateAwardTx", mock.Anything, mock.Anything, mock.Anything)
+	txRepo.AssertNotCalled(t, "GetTeamScoreTx", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
@@ -451,7 +453,8 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	hintUnlockRepo.On("GetByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(&entity.HintUnlock{}, nil)
+	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(&entity.HintUnlock{}, nil)
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 
@@ -487,8 +490,9 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	hintUnlockRepo.On("GetByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
-	solveRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(50, nil)
+	txRepo.On("LockTeamTx", mock.Anything, mockTx, teamID).Return(nil)
+	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mockTx, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
+	txRepo.On("GetTeamScoreTx", mock.Anything, mockTx, teamID).Return(50, nil)
 
 	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 

@@ -24,6 +24,17 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return defaultValue
+		}
+		return boolValue
+	}
+	return defaultValue
+}
+
 func parseCORSOrigins(s string) []string {
 	if s == "" {
 		return []string{}

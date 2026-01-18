@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
 type ChallengeUseCase struct {
@@ -18,14 +20,16 @@ type ChallengeUseCase struct {
 	solveRepo     repo.SolveRepository
 	txRepo        repo.TxRepository
 	redis         pkgRedis.Client
+	hub           *websocket.Hub
 }
 
-func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, txRepo repo.TxRepository, redis pkgRedis.Client) *ChallengeUseCase {
+func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, txRepo repo.TxRepository, redis pkgRedis.Client, hub *websocket.Hub) *ChallengeUseCase {
 	return &ChallengeUseCase{
 		challengeRepo: challengeRepo,
 		solveRepo:     solveRepo,
 		txRepo:        txRepo,
 		redis:         redis,
+		hub:           hub,
 	}
 }
 
@@ -107,7 +111,6 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		return false, entityError.ErrUserMustBeInTeam
 	}
 
-	// Quick check if challenge exists and flag is correct (no transaction needed)
 	challenge, err := uc.challengeRepo.GetByID(ctx, challengeId)
 	if err != nil {
 		if errors.Is(err, entityError.ErrChallengeNotFound) {
@@ -123,7 +126,6 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		return false, nil
 	}
 
-	// Start transaction for atomic solve creation + score update
 	tx, err := uc.txRepo.BeginTx(ctx)
 	if err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - BeginTx: %w", err)
@@ -135,8 +137,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		}
 	}()
 
-	// Check if already solved INSIDE transaction with FOR UPDATE to prevent race
-	_, err = uc.solveRepo.GetByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
+	_, err = uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
 	if err == nil {
 		return true, entityError.ErrAlreadySolved
 	}
@@ -144,44 +145,70 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByTeamAndChallengeTx: %w", err)
 	}
 
-	// Lock challenge row for update
-	challenge, err = uc.challengeRepo.GetByIDTx(ctx, tx, challengeId)
+	challenge, err = uc.txRepo.GetChallengeByIDTx(ctx, tx, challengeId)
 	if err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByIDTx: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetChallengeByIDTx: %w", err)
 	}
 
-	// Create solve record
 	solve := &entity.Solve{
 		UserId:      userId,
 		TeamId:      *teamId,
 		ChallengeId: challengeId,
 	}
 
-	err = uc.solveRepo.CreateTx(ctx, tx, solve)
+	err = uc.txRepo.CreateSolveTx(ctx, tx, solve)
 	if err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - CreateTx: %w", err)
 	}
 
-	// Increment solve count atomically
-	solveCount, err := uc.challengeRepo.IncrementSolveCountTx(ctx, tx, challengeId)
+	solveCount, err := uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, challengeId)
 	if err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - IncrementSolveCountTx: %w", err)
 	}
 
-	// Update points if dynamic scoring is enabled
 	if challenge.InitialValue > 0 && challenge.Decay > 0 {
 		newPoints := CalculateDynamicScore(challenge.InitialValue, challenge.MinValue, challenge.Decay, solveCount)
-		if err = uc.challengeRepo.UpdatePointsTx(ctx, tx, challengeId, newPoints); err != nil {
+		if err = uc.txRepo.UpdateChallengePointsTx(ctx, tx, challengeId, newPoints); err != nil {
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - UpdatePointsTx: %w", err)
 		}
+		challenge.Points = newPoints
 	}
 
-	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Commit: %w", err)
 	}
 
 	uc.redis.Del(ctx, "scoreboard")
+
+	if uc.hub != nil {
+		payload := websocket.ScoreboardUpdate{
+			Type:      websocket.EventTypeSolve,
+			TeamID:    *teamId,
+			Challenge: challenge.Title,
+			Points:    challenge.Points,
+			Timestamp: time.Now(),
+		}
+		uc.hub.BroadcastEvent(websocket.Event{
+			Type:      "scoreboard_update",
+			Payload:   payload,
+			Timestamp: time.Now(),
+		})
+
+		if solveCount == 1 {
+			fbPayload := websocket.ScoreboardUpdate{
+				Type:      websocket.EventTypeFirstBlood,
+				TeamID:    *teamId,
+				Challenge: challenge.Title,
+				Points:    challenge.Points,
+				Timestamp: time.Now(),
+			}
+			uc.hub.BroadcastEvent(websocket.Event{
+				Type:      "scoreboard_update",
+				Payload:   fbPayload,
+				Timestamp: time.Now(),
+			})
+		}
+	}
 
 	return true, nil
 }

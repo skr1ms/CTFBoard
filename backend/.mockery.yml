@@ -48,3 +48,21 @@ packages:
           filename: "RedisClient.go"
           pkgname: "mocks"
           structname: "MockRedisClient"
+
+  github.com/skr1ms/CTFBoard/pkg/websocket:
+    interfaces:
+      Conn:
+        config:
+          dir: "pkg/websocket/mocks"
+          filename: "Conn.go"
+          pkgname: "mocks"
+          structname: "MockConn"
+
+  github.com/skr1ms/CTFBoard/pkg/mailer:
+    interfaces:
+      Mailer:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "Mailer.go"
+          pkgname: "mocks"
+          structname: "MockMailer"

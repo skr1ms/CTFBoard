@@ -1,31 +1,39 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 )
 
 func TestAuth_RegisterAndLogin(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	email, password := registerUser(e, "testuser1")
-	token := login(e, email, password)
+	username := "testuser1"
+	email := "testuser1@example.com"
+	password := "password123"
 
-	obj := e.GET("/api/v1/auth/me").
+	h.Register(username, email, password)
+
+	loginResp := h.Login(email, password, http.StatusOK)
+	token := "Bearer " + loginResp.Value("access_token").String().Raw()
+
+	meResp := e.GET("/api/v1/auth/me").
 		WithHeader("Authorization", token).
 		Expect().
-		Status(200).
-		JSON().
-		Object()
+		Status(http.StatusOK).
+		JSON().Object()
 
-	obj.Value("email").String().IsEqual(email)
-	obj.Value("username").String().IsEqual("testuser1")
-	obj.Value("id").NotNull()
+	meResp.Value("email").String().IsEqual(email)
+	meResp.Value("username").String().IsEqual(username)
+	meResp.Value("id").NotNull()
 }
 
 func TestAuth_RegisterDuplicateUsername(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	registerUser(e, "duplicateuser")
+	h.Register("duplicateuser", "original@example.com", "password123")
 
 	e.POST("/api/v1/auth/register").
 		WithJSON(map[string]string{
@@ -34,18 +42,17 @@ func TestAuth_RegisterDuplicateUsername(t *testing.T) {
 			"password": "password123",
 		}).
 		Expect().
-		Status(409).
-		JSON().
-		Object().
-		Value("error").
-		String().
-		NotEmpty()
+		Status(http.StatusConflict). // 409
+		JSON().Object().
+		Value("error").String().NotEmpty()
 }
 
 func TestAuth_RegisterDuplicateEmail(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	email, _ := registerUser(e, "user1")
+	email := "user1@example.com"
+	h.Register("user1", email, "password123")
 
 	e.POST("/api/v1/auth/register").
 		WithJSON(map[string]string{
@@ -54,59 +61,35 @@ func TestAuth_RegisterDuplicateEmail(t *testing.T) {
 			"password": "password123",
 		}).
 		Expect().
-		Status(409).
-		JSON().
-		Object().
-		Value("error").
-		String().
-		NotEmpty()
+		Status(http.StatusConflict).
+		JSON().Object().
+		Value("error").String().NotEmpty()
 }
 
 func TestAuth_LoginInvalidPassword(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	email, _ := registerUser(e, "testuser2")
+	email := "testuser2@example.com"
+	h.Register("testuser2", email, "password123")
 
-	e.POST("/api/v1/auth/login").
-		WithJSON(map[string]string{
-			"email":    email,
-			"password": "wrongpassword",
-		}).
-		Expect().
-		Status(401).
-		JSON().
-		Object().
-		Value("error").
-		String().
-		NotEmpty()
+	h.Login(email, "wrongpassword", http.StatusUnauthorized).
+		Value("error").String().NotEmpty()
 }
 
 func TestAuth_LoginInvalidEmail(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
-	e.POST("/api/v1/auth/login").
-		WithJSON(map[string]string{
-			"email":    "nonexistent@example.com",
-			"password": "password123",
-		}).
-		Expect().
-		Status(401).
-		JSON().
-		Object().
-		Value("error").
-		String().
-		NotEmpty()
+	h.Login("nonexistent@example.com", "password123", http.StatusUnauthorized).
+		Value("error").String().NotEmpty()
 }
 
 func TestAuth_MeWithoutToken(t *testing.T) {
 	e := setupE2E(t)
-
 	e.GET("/api/v1/auth/me").
 		Expect().
-		Status(401).
-		JSON().
-		Object().
-		Value("error").
-		String().
-		NotEmpty()
+		Status(http.StatusUnauthorized).
+		JSON().Object().
+		Value("error").String().NotEmpty()
 }

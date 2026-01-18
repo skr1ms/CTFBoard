@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,147 +18,164 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+var (
+	globalDBContainer *mariadb.MariaDBContainer
+	globalDSN         string
+	containerOnce     sync.Once
+	containerErr      error
+)
+
 type TestDB struct {
-	DB        *sql.DB
-	Container *mariadb.MariaDBContainer
-	DSN       string
+	DB *sql.DB
 }
 
 func SetupTestDB(t *testing.T) *TestDB {
 	ctx := context.Background()
-	var db *sql.DB
-	var mariadbContainer *mariadb.MariaDBContainer
-	var dsn string
-	var err error
 
-	if os.Getenv("USE_EXTERNAL_DB") == "true" {
-		host := os.Getenv("MARIADB_HOST")
-		port := os.Getenv("MARIADB_PORT")
-		user := os.Getenv("MARIADB_USER")
-		password := os.Getenv("MARIADB_PASSWORD")
-		dbname := os.Getenv("MARIADB_DB")
-
-		if host == "" {
-			host = "mariadb"
-		}
-		if port == "" {
-			port = "3306"
-		}
-		if user == "" {
-			user = "test_user"
-		}
-		if password == "" {
-			password = "test_password"
-		}
-		if dbname == "" {
-			dbname = "test_board"
-		}
-
-		dsn = fmt.Sprintf(
-			"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
-			user, password, host, port, dbname,
-		)
-		db, err = sql.Open("mysql", dsn)
-		if err != nil {
-			t.Fatalf("failed to open db connection: %s", err)
+	if os.Getenv("USE_EXTERNAL_DB") != "true" {
+		containerOnce.Do(func() {
+			globalDBContainer, globalDSN, containerErr = startMariaDBContainer(ctx)
+		})
+		if containerErr != nil {
+			t.Fatalf("failed to start global db container: %s", containerErr)
 		}
 	} else {
-		mariadbContainer, err = mariadb.Run(ctx,
-			"mariadb:latest",
-			mariadb.WithDatabase("test"),
-			mariadb.WithUsername("user"),
-			mariadb.WithPassword("password"),
-			testcontainers.WithWaitStrategy(
-				wait.ForSQL("3306/tcp", "mysql", func(host string, port nat.Port) string {
-					return fmt.Sprintf("user:password@tcp(%s:%s)/test?parseTime=true", host, port.Port())
-				}).
-					WithStartupTimeout(120*time.Second).
-					WithQuery("SELECT 1"),
-			),
-		)
-		if err != nil {
-			t.Fatalf("failed to start container: %s", err)
-		}
-
-		host, err := mariadbContainer.Host(ctx)
-		if err != nil {
-			t.Fatalf("failed to get container host: %s", err)
-		}
-
-		port, err := mariadbContainer.MappedPort(ctx, "3306/tcp")
-		if err != nil {
-			t.Fatalf("failed to get container port: %s", err)
-		}
-
-		dsn = fmt.Sprintf(
-			"user:password@tcp(%s:%s)/test?parseTime=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
-			host, port.Port(),
-		)
-
-		db, err = sql.Open("mysql", dsn)
-		if err != nil {
-			t.Fatalf("failed to open db connection: %s", err)
-		}
+		globalDSN = getExternalDSN()
 	}
 
-	var pingErr error
-	for i := 0; i < 20; i++ {
-		pingErr = db.PingContext(ctx)
-		if pingErr == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if pingErr != nil {
-		t.Fatalf("failed to ping db after 20 attempts: %s", pingErr)
+	db, err := sql.Open("mysql", globalDSN)
+	if err != nil {
+		t.Fatalf("failed to open db connection: %s", err)
 	}
 
+	if err := pingDB(ctx, db); err != nil {
+		t.Fatalf("failed to ping db: %s", err)
+	}
+
+	if err := runMigrations(ctx, db); err != nil {
+		t.Fatalf("failed to run migrations: %s", err)
+	}
+
+	truncateTables(t, db)
+
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	return &TestDB{DB: db}
+}
+
+func startMariaDBContainer(ctx context.Context) (*mariadb.MariaDBContainer, string, error) {
+	container, err := mariadb.Run(ctx,
+		"mariadb:latest",
+		mariadb.WithDatabase("test"),
+		mariadb.WithUsername("user"),
+		mariadb.WithPassword("password"),
+		testcontainers.WithWaitStrategy(
+			wait.ForSQL("3306/tcp", "mysql", func(host string, port nat.Port) string {
+				return fmt.Sprintf("user:password@tcp(%s:%s)/test?parseTime=true", host, port.Port())
+			}).WithStartupTimeout(60*time.Second),
+		),
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	connStr, err := container.ConnectionString(ctx, "parseTime=true&multiStatements=true")
+	if err != nil {
+		return nil, "", err
+	}
+
+	return container, connStr, nil
+}
+
+func getExternalDSN() string {
+	host := getEnv("MARIADB_HOST", "mariadb")
+	port := getEnv("MARIADB_PORT", "3306")
+	user := getEnv("MARIADB_USER", "test_user")
+	password := getEnv("MARIADB_PASSWORD", "test_password")
+	dbname := getEnv("MARIADB_DB", "test_board")
+
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true", user, password, host, port, dbname)
+}
+
+func pingDB(ctx context.Context, db *sql.DB) error {
+	var err error
+	for i := 0; i < 10; i++ { 
+		if err = db.PingContext(ctx); err == nil {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return err
+}
+
+func runMigrations(ctx context.Context, db *sql.DB) error {
 	migrationsDir := filepath.Join("..", "migrations")
 	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
-		t.Fatalf("failed to read migrations directory: %s", err)
+		return err
 	}
 
-	var migrationFiles []string
 	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".up.sql") {
-			migrationFiles = append(migrationFiles, filepath.Join(migrationsDir, f.Name()))
+		if !strings.HasSuffix(f.Name(), ".up.sql") {
+			continue
 		}
-	}
-	for _, file := range migrationFiles {
-		migrationSQL, err := os.ReadFile(file)
+
+		content, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
 		if err != nil {
-			t.Fatalf("failed to read migration file %s: %s", file, err)
+			return err
 		}
-		statements := strings.Split(string(migrationSQL), ";")
+
+		statements := strings.Split(string(content), ";")
 		for _, stmt := range statements {
 			stmt = strings.TrimSpace(stmt)
 			if stmt == "" || strings.HasPrefix(stmt, "--") {
 				continue
 			}
+
 			if _, err := db.ExecContext(ctx, stmt); err != nil {
-				errStr := err.Error()
-				if !strings.Contains(errStr, "already exists") &&
-					!strings.Contains(errStr, "Duplicate key") &&
-					!strings.Contains(errStr, "Duplicate column") {
-					t.Fatalf("failed to execute migration %s statement: %s, error: %s", filepath.Base(file), stmt[:min(100, len(stmt))], err)
+				if !isIgnorableError(err) {
+					return fmt.Errorf("migration error in %s: %w", f.Name(), err)
 				}
 			}
 		}
 	}
+	return nil
+}
 
-	t.Cleanup(func() {
-		_ = db.Close()
-		if mariadbContainer != nil {
-			if err := mariadbContainer.Terminate(ctx); err != nil {
-				t.Errorf("failed to terminate container: %s", err)
-			}
-		}
-	})
-
-	return &TestDB{
-		DB:        db,
-		Container: mariadbContainer,
-		DSN:       dsn,
+func truncateTables(t *testing.T, db *sql.DB) {
+	tables := []string{
+		"hint_unlocks",
+		"awards",
+		"solves",
+		"hints",
+		"challenges",
+		"verification_tokens",
+		"teams",
+		"users",
+		"competition",
 	}
+
+	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+	for _, table := range tables {
+		if _, err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s", table)); err != nil {
+			t.Logf("failed to truncate table %s: %v", table, err) 
+		}
+	}
+	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+
+	_, _ = db.Exec("INSERT INTO competition (id, name) VALUES (1, 'CTF Competition') ON DUPLICATE KEY UPDATE id=id")
+}
+
+func getEnv(key, fallback string) string {
+	if v, exists := os.LookupEnv(key); exists {
+		return v
+	}
+	return fallback
+}
+
+func isIgnorableError(err error) bool {
+	s := err.Error()
+	return strings.Contains(s, "already exists") || strings.Contains(s, "Duplicate")
 }

@@ -10,5 +10,4 @@ CREATE TABLE competition (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT single_row CHECK (id = 1)
 );
-
 INSERT INTO competition (id, name) VALUES (1, 'CTF Competition');

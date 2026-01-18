@@ -1,6 +1,7 @@
-package e2e
+package e2e_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -8,11 +9,13 @@ import (
 
 func TestChallenge_Lifecycle(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin_"+suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
+
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Test Challenge",
 		"description": "Test Description",
 		"points":      100,
@@ -22,82 +25,35 @@ func TestChallenge_Lifecycle(t *testing.T) {
 		"is_hidden":   false,
 	})
 
-	emailUser, passUser := registerUser(e, "chall_usr_"+suffix)
-	tokenUser := login(e, emailUser, passUser)
+	emailUser, passUser := h.RegisterUser("chall_usr_" + suffix)
+	loginResp := h.Login(emailUser, passUser, http.StatusOK)
+	tokenUser := "Bearer " + loginResp.Value("access_token").String().Raw()
 
-	challengesResp := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenUser).
-		Expect().
-		Status(200).
-		JSON()
+	challenge := h.FindChallengeInList(tokenUser, challengeID)
 
-	if challengesResp.Raw() == nil {
-		t.Fatal("challenges response is null")
-	}
+	challenge.Value("title").String().IsEqual("Test Challenge")
+	challenge.Value("solved").Boolean().IsFalse()
+	challenge.Value("solve_count").Number().IsEqual(0)
 
-	challengesArray := challengesResp.Array()
-	challengesArray.Length().Gt(0)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusOK)
 
-	found := false
-	length := int(challengesArray.Length().Raw())
-	for i := 0; i < length; i++ {
-		challenge := challengesArray.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			found = true
-			challenge.Value("title").String().IsEqual("Test Challenge")
-			challenge.Value("solved").Boolean().IsFalse()
-			challenge.Value("solve_count").Number().IsEqual(0)
-			break
-		}
-	}
+	challengeAfterSolve := h.FindChallengeInList(tokenUser, challengeID)
+	challengeAfterSolve.Value("solved").Boolean().IsTrue()
+	challengeAfterSolve.Value("solve_count").Number().IsEqual(1)
 
-	if !found {
-		t.Fatal("Challenge not found in list")
-	}
-
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser).
-		WithJSON(map[string]string{
-			"flag": "FLAG{test}",
-		}).
-		Expect().
-		Status(200)
-
-	challengesResp2 := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenUser).
-		Expect().
-		Status(200).
-		JSON().
-		Array()
-
-	length2 := int(challengesResp2.Length().Raw())
-	for i := 0; i < length2; i++ {
-		challenge := challengesResp2.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			challenge.Value("solved").Boolean().IsTrue()
-			challenge.Value("solve_count").Number().IsEqual(1)
-			break
-		}
-	}
-
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser).
-		WithJSON(map[string]string{
-			"flag": "FLAG{test}",
-		}).
-		Expect().
-		Status(409)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusConflict)
 }
 
 func TestChallenge_DynamicScoring(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "adm_dyn_"+suffix)
+	_, _, tokenAdmin := h.RegisterAdmin("adm_dyn_" + suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":         "Dynamic Challenge",
-		"description":   "Dynamic Description",
+		"description":   "Test dynamic scoring",
 		"points":        500,
 		"initial_value": 500,
 		"min_value":     100,
@@ -108,141 +64,63 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 		"is_hidden":     false,
 	})
 
-	emailUser1, passUser1 := registerUser(e, "solver1_"+suffix)
-	tokenUser1 := login(e, emailUser1, passUser1)
+	// Solver 1
+	_, _, tokenUser1 := h.RegisterUserAndLogin("solver1_" + suffix)
+	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
 
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser1).
-		WithJSON(map[string]string{
-			"flag": "FLAG{dynamic}",
-		}).
-		Expect().
-		Status(200)
+	// Проверка очков: (500 - 100) / 2^(1/1) + 100 = 300
+	challengeState1 := h.FindChallengeInList(tokenUser1, challengeID)
+	challengeState1.Value("points").Number().IsEqual(300)
+	challengeState1.Value("solve_count").Number().IsEqual(1)
 
-	// Check challenge details - points should have decreased
-	// Formula: (500 - 100) / 2^(1/1) + 100 = 200 + 100 = 300
-	challengesResp := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenUser1).
-		Expect().
-		Status(200).
-		JSON().
-		Array()
+	// Solver 2
+	_, _, tokenUser2 := h.RegisterUserAndLogin("solver2_" + suffix)
+	h.SubmitFlag(tokenUser2, challengeID, "FLAG{dynamic}", http.StatusOK)
 
-	var found bool
-	length := int(challengesResp.Length().Raw())
-	for i := 0; i < length; i++ {
-		challenge := challengesResp.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			found = true
-			challenge.Value("points").Number().IsEqual(300)
-			challenge.Value("solve_count").Number().IsEqual(1)
-			break
-		}
-	}
-
-	if !found {
-		t.Fatal("Dynamic challenge not found")
-	}
-
-	emailUser2, passUser2 := registerUser(e, "solver2_"+suffix)
-	tokenUser2 := login(e, emailUser2, passUser2)
-
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser2).
-		WithJSON(map[string]string{
-			"flag": "FLAG{dynamic}",
-		}).
-		Expect().
-		Status(200)
-
-	// Check challenge details - points should decrease further
-	// Formula: (500 - 100) / 2^(2/1) + 100 = 400 / 4 + 100 = 100 + 100 = 200
-	challengesResp2 := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenUser2).
-		Expect().
-		Status(200).
-		JSON().
-		Array()
-
-	found = false
-	length2 := int(challengesResp2.Length().Raw())
-	for i := 0; i < length2; i++ {
-		challenge := challengesResp2.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			found = true
-			challenge.Value("points").Number().IsEqual(200)
-			challenge.Value("solve_count").Number().IsEqual(2)
-			break
-		}
-	}
-
-	if !found {
-		t.Fatal("Dynamic challenge not found in second check")
-	}
+	// Проверка очков: (500 - 100) / 2^(2/1) + 100 = 200
+	challengeState2 := h.FindChallengeInList(tokenUser2, challengeID)
+	challengeState2.Value("points").Number().IsEqual(200)
+	challengeState2.Value("solve_count").Number().IsEqual(2)
 }
 
 func TestChallenge_CreateHidden(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin2_"+suffix)
+	_, _, tokenAdmin := h.RegisterAdmin("admin2_" + suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Hidden Challenge",
-		"description": "Hidden Description",
+		"description": "Test hidden challenge",
 		"points":      200,
 		"flag":        "FLAG{hidden}",
 		"category":    "crypto",
-		"difficulty":  "medium",
 		"is_hidden":   true,
 	})
 
-	emailUser, passUser := registerUser(e, "user2_"+suffix)
-	tokenUser := login(e, emailUser, passUser)
+	_, _, tokenUser := h.RegisterUserAndLogin("user2_" + suffix)
 
-	challengesResp := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenUser).
-		Expect().
-		Status(200).
-		JSON()
-
-	if challengesResp.Raw() == nil {
-		t.Fatal("challenges response is null")
-	}
-
-	challengesArray := challengesResp.Array()
-	found := false
-	length := int(challengesArray.Length().Raw())
-	for i := 0; i < length; i++ {
-		challenge := challengesArray.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			found = true
-			break
-		}
-	}
-
-	if found {
-		t.Fatal("Hidden challenge should not be visible to users")
-	}
+	h.AssertChallengeMissing(tokenUser, challengeID)
 }
 
 func TestChallenge_Update(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin3_"+suffix)
+	_, _, tokenAdmin := h.RegisterAdmin("admin3_" + suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Original Title",
-		"description": "Original Description",
+		"description": "Original description",
 		"points":      100,
 		"flag":        "FLAG{original}",
 		"category":    "web",
-		"difficulty":  "easy",
 		"is_hidden":   false,
 	})
 
-	e.PUT("/api/v1/admin/challenges/{id}", challengeId).
+	e.PUT("/api/v1/admin/challenges/{id}", challengeID).
 		WithHeader("Authorization", tokenAdmin).
 		WithJSON(map[string]interface{}{
 			"title":       "Updated Title",
@@ -254,102 +132,55 @@ func TestChallenge_Update(t *testing.T) {
 			"is_hidden":   false,
 		}).
 		Expect().
-		Status(200)
+		Status(http.StatusOK)
 
-	challengesResp := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenAdmin).
-		Expect().
-		Status(200).
-		JSON().
-		Array()
-
-	var found bool
-	length := int(challengesResp.Length().Raw())
-	for i := 0; i < length; i++ {
-		challenge := challengesResp.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			challenge.Value("title").String().IsEqual("Updated Title")
-			challenge.Value("description").String().IsEqual("Updated Description")
-			challenge.Value("points").Number().IsEqual(150)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Fatal("Updated challenge not found in list")
-	}
+	challenge := h.FindChallengeInList(tokenAdmin, challengeID)
+	challenge.Value("title").String().IsEqual("Updated Title")
+	challenge.Value("description").String().IsEqual("Updated Description")
+	challenge.Value("points").Number().IsEqual(150)
 }
 
 func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin4_"+suffix)
+	_, _, tokenAdmin := h.RegisterAdmin("admin4_" + suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Test Challenge",
-		"description": "Test Description",
-		"points":      100,
+		"description": "Test invalid flag",
 		"flag":        "FLAG{correct}",
-		"category":    "web",
-		"difficulty":  "easy",
-		"is_hidden":   false,
+		"points":      100,
+		"category":    "misc",
 	})
 
-	emailUser, passUser := registerUser(e, "user3_"+suffix)
-	tokenUser := login(e, emailUser, passUser)
+	_, _, tokenUser := h.RegisterUserAndLogin("user3_" + suffix)
 
-	e.POST("/api/v1/challenges/{id}/submit", challengeId).
-		WithHeader("Authorization", tokenUser).
-		WithJSON(map[string]string{
-			"flag": "FLAG{wrong}",
-		}).
-		Expect().
-		Status(400)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusBadRequest)
 }
 
 func TestChallenge_Delete(t *testing.T) {
 	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestDB)
 
 	suffix := uuid.New().String()[:8]
-	_, _, tokenAdmin := registerAdmin(e, "admin5_"+suffix)
+	_, _, tokenAdmin := h.RegisterAdmin("admin5_" + suffix)
 
-	challengeId := createChallenge(e, tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "To Delete",
-		"description": "Will be deleted",
-		"points":      50,
+		"description": "Test delete challenge",
 		"flag":        "FLAG{delete}",
-		"category":    "web",
-		"difficulty":  "easy",
-		"is_hidden":   false,
+		"points":      50,
+		"category":    "misc",
 	})
 
-	e.DELETE("/api/v1/admin/challenges/{id}", challengeId).
+	e.DELETE("/api/v1/admin/challenges/{id}", challengeID).
 		WithHeader("Authorization", tokenAdmin).
 		Expect().
-		Status(200)
+		Status(http.StatusOK)
 
-	challengesResp := e.GET("/api/v1/challenges").
-		WithHeader("Authorization", tokenAdmin).
-		Expect().
-		Status(200).
-		JSON().
-		Array()
-
-	var found bool
-	length := int(challengesResp.Length().Raw())
-	for i := 0; i < length; i++ {
-		challenge := challengesResp.Value(i).Object()
-		if challenge.Value("id").String().Raw() == challengeId {
-			found = true
-			break
-		}
-	}
-
-	if found {
-		t.Fatal("Deleted challenge should not be in list")
-	}
+	h.AssertChallengeMissing(tokenAdmin, challengeID)
 }
 
 func TestChallenge_AccessWithoutAuth(t *testing.T) {
@@ -357,5 +188,5 @@ func TestChallenge_AccessWithoutAuth(t *testing.T) {
 
 	e.GET("/api/v1/challenges").
 		Expect().
-		Status(401)
+		Status(http.StatusUnauthorized)
 }

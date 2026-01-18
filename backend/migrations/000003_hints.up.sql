@@ -7,7 +7,6 @@ CREATE TABLE hints (
     CONSTRAINT fk_hints_challenge FOREIGN KEY (challenge_id) 
         REFERENCES challenges (id) ON DELETE CASCADE
 );
-
 CREATE TABLE hint_unlocks (
     id CHAR(36) PRIMARY KEY,
     hint_id CHAR(36) NOT NULL,
@@ -19,7 +18,6 @@ CREATE TABLE hint_unlocks (
     CONSTRAINT fk_hint_unlocks_team FOREIGN KEY (team_id) 
         REFERENCES teams (id) ON DELETE CASCADE
 );
-
 CREATE TABLE awards (
     id CHAR(36) PRIMARY KEY,
     team_id CHAR(36) NOT NULL,

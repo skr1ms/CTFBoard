@@ -5,30 +5,18 @@ import (
 	"testing"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Hint CRUD Tests
+
 func TestHintRepo_CRUD(t *testing.T) {
 	testDB := SetupTestDB(t)
-	hintRepo := persistent.NewHintRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "Hint Challenge",
-		Description:  "Desc",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     100,
-		Decay:        0,
-	}
-	err := challengeRepo.Create(ctx, challenge)
-	require.NoError(t, err)
+	challenge := f.CreateChallenge(t, "hint_crud", 100)
 
 	hint := &entity.Hint{
 		ChallengeId: challenge.Id,
@@ -36,158 +24,115 @@ func TestHintRepo_CRUD(t *testing.T) {
 		Cost:        50,
 		OrderIndex:  1,
 	}
-	err = hintRepo.Create(ctx, hint)
+	err := f.HintRepo.Create(ctx, hint)
 	require.NoError(t, err)
 	assert.NotEmpty(t, hint.Id)
 
-	gotHint, err := hintRepo.GetByID(ctx, hint.Id)
+	gotHint, err := f.HintRepo.GetByID(ctx, hint.Id)
 	require.NoError(t, err)
 	assert.Equal(t, hint.Content, gotHint.Content)
 	assert.Equal(t, hint.Cost, gotHint.Cost)
 
 	hint.Content = "Updated Hint"
 	hint.Cost = 75
-	err = hintRepo.Update(ctx, hint)
+	err = f.HintRepo.Update(ctx, hint)
 	require.NoError(t, err)
 
-	gotHintUpdated, err := hintRepo.GetByID(ctx, hint.Id)
+	gotHintUpdated, err := f.HintRepo.GetByID(ctx, hint.Id)
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Hint", gotHintUpdated.Content)
 	assert.Equal(t, 75, gotHintUpdated.Cost)
 
-	err = hintRepo.Delete(ctx, hint.Id)
+	err = f.HintRepo.Delete(ctx, hint.Id)
 	require.NoError(t, err)
 
-	_, err = hintRepo.GetByID(ctx, hint.Id)
+	_, err = f.HintRepo.GetByID(ctx, hint.Id)
 	assert.Error(t, err)
 }
 
+// HintUnlock Tests
+
 func TestHintUnlockRepo_Flow(t *testing.T) {
 	testDB := SetupTestDB(t)
-	hintRepo := persistent.NewHintRepo(testDB.DB)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	userRepo := persistent.NewUserRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{Username: "u1", Email: "e1", PasswordHash: "p1"}
-	require.NoError(t, userRepo.Create(ctx, user))
-	gotUser, _ := userRepo.GetByEmail(ctx, user.Email)
-	user.Id = gotUser.Id
+	_, team := f.CreateUserWithTeam(t, "u1")
+	challenge := f.CreateChallenge(t, "C1", 100)
+	hint := f.CreateHint(t, challenge.Id, 10, 1)
 
-	team := &entity.Team{Name: "t1", InviteToken: "tok", CaptainId: user.Id}
-	require.NoError(t, teamRepo.Create(ctx, team))
-	gotTeam, _ := teamRepo.GetByName(ctx, team.Name)
-	team.Id = gotTeam.Id
-
-	challenge := &entity.Challenge{Title: "C1", Description: "D1", Category: "Web", Points: 100, FlagHash: "h", IsHidden: false, InitialValue: 100, MinValue: 100, Decay: 0}
-	require.NoError(t, challengeRepo.Create(ctx, challenge))
-
-	hint := &entity.Hint{ChallengeId: challenge.Id, Content: "H1", Cost: 10, OrderIndex: 1}
-	require.NoError(t, hintRepo.Create(ctx, hint))
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
-	err = hintUnlockRepo.CreateTx(ctx, tx, team.Id, hint.Id)
+	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.Id, hint.Id)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
-	unlock, err := hintUnlockRepo.GetByTeamAndHint(ctx, team.Id, hint.Id)
+	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.Id, hint.Id)
 	require.NoError(t, err)
 	assert.Equal(t, team.Id, unlock.TeamId)
 	assert.Equal(t, hint.Id, unlock.HintId)
 
-	ids, err := hintUnlockRepo.GetUnlockedHintIDs(ctx, team.Id, challenge.Id)
+	ids, err := f.HintUnlockRepo.GetUnlockedHintIDs(ctx, team.Id, challenge.Id)
 	require.NoError(t, err)
 	assert.Contains(t, ids, hint.Id)
 }
 
-func TestAwardRepo_CreateTx_And_Total(t *testing.T) {
+// Award Tests (in HintTest file)
+
+func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	testDB := SetupTestDB(t)
-	awardRepo := persistent.NewAwardRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	userRepo := persistent.NewUserRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{Username: "u2", Email: "e2", PasswordHash: "p2"}
-	require.NoError(t, userRepo.Create(ctx, user))
-	gotUser, _ := userRepo.GetByEmail(ctx, user.Email)
-	user.Id = gotUser.Id
+	_, team := f.CreateUserWithTeam(t, "u2")
 
-	team := &entity.Team{Name: "t2", InviteToken: "tok2", CaptainId: user.Id}
-	require.NoError(t, teamRepo.Create(ctx, team))
-	gotTeam, _ := teamRepo.GetByName(ctx, team.Name)
-	team.Id = gotTeam.Id
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
-	award := &entity.Award{
-		TeamId:      team.Id,
-		Value:       -50,
-		Description: "Hint penalty",
-	}
-	err = awardRepo.CreateTx(ctx, tx, award)
-	require.NoError(t, err)
+	f.CreateAwardTx(t, tx, team.Id, -50, "Hint penalty")
 	require.NoError(t, tx.Commit())
 
-	total, err := awardRepo.GetTeamTotalAwards(ctx, team.Id)
+	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, -50, total)
 
-	tx2, _ := testDB.DB.BeginTx(ctx, nil)
-	award2 := &entity.Award{TeamId: team.Id, Value: 100, Description: "Bonus"}
-	require.NoError(t, awardRepo.CreateTx(ctx, tx2, award2))
+	tx2, _ := f.DB.BeginTx(ctx, nil)
+	f.CreateAwardTx(t, tx2, team.Id, 100, "Bonus")
 	require.NoError(t, tx2.Commit())
 
-	total, err = awardRepo.GetTeamTotalAwards(ctx, team.Id)
+	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 50, total) // -50 + 100 = 50
 }
 
 func TestScoreboardWithAwards(t *testing.T) {
 	testDB := SetupTestDB(t)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
-	awardRepo := persistent.NewAwardRepo(testDB.DB)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	userRepo := persistent.NewUserRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{Username: "u3", Email: "e3", PasswordHash: "p3"}
-	require.NoError(t, userRepo.Create(ctx, user))
-	gotUser, _ := userRepo.GetByEmail(ctx, user.Email)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "u3")
 
-	team := &entity.Team{Name: "t3", InviteToken: "tok3", CaptainId: user.Id}
-	require.NoError(t, teamRepo.Create(ctx, team))
-	gotTeam, _ := teamRepo.GetByName(ctx, team.Name)
-	team.Id = gotTeam.Id
+	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	require.NoError(t, err)
 
-	require.NoError(t, userRepo.UpdateTeamId(ctx, user.Id, &team.Id))
+	challenge := f.CreateChallenge(t, "C3", 100)
 
-	challenge := &entity.Challenge{Title: "C3", Description: "D3", Category: "Web", Points: 100, FlagHash: "h", IsHidden: false, InitialValue: 100, MinValue: 100, Decay: 0}
-	require.NoError(t, challengeRepo.Create(ctx, challenge))
+	f.CreateSolve(t, user.Id, team.Id, challenge.Id)
 
-	solve := &entity.Solve{UserId: user.Id, TeamId: team.Id, ChallengeId: challenge.Id}
-	require.NoError(t, solveRepo.Create(ctx, solve))
-
-	score, err := solveRepo.GetTeamScore(ctx, team.Id)
+	score, err := f.SolveRepo.GetTeamScore(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 100, score)
 
-	tx, _ := testDB.DB.BeginTx(ctx, nil)
-	award := &entity.Award{TeamId: team.Id, Value: -20, Description: "Penalty"}
-	require.NoError(t, awardRepo.CreateTx(ctx, tx, award))
+	tx, _ := f.DB.BeginTx(ctx, nil)
+	f.CreateAwardTx(t, tx, team.Id, -20, "Penalty")
 	require.NoError(t, tx.Commit())
 
-	score, err = solveRepo.GetTeamScore(ctx, team.Id)
+	score, err = f.SolveRepo.GetTeamScore(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 80, score)
 
-	scoreboard, err := solveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
 	found := false
 	for _, entry := range scoreboard {

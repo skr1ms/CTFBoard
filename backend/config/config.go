@@ -18,6 +18,7 @@ type (
 		JWT       `yaml:"jwt"`
 		Redis     `yaml:"redis"`
 		RateLimit `yaml:"rate_limit"`
+		SMTP      `yaml:"smtp"`
 	}
 
 	App struct {
@@ -54,6 +55,20 @@ type (
 		SubmitFlag         int
 		SubmitFlagDuration time.Duration
 	}
+
+	SMTP struct {
+		Host        string
+		Port        int
+		Username    string
+		Password    string
+		FromEmail   string
+		FromName    string
+		UseTLS      bool
+		Enabled     bool
+		VerifyTTL   time.Duration
+		ResetTTL    time.Duration
+		FrontendURL string
+	}
 )
 
 func New() (*Config, error) {
@@ -88,6 +103,7 @@ func New() (*Config, error) {
 	var mariadbUser, mariadbPassword, mariadbDB string
 	var jwtAccessSecret, jwtRefreshSecret string
 	var redisPassword string
+	var smtpUsername, smtpPassword string
 
 	if vaultClient != nil {
 		log.Println("Config: attempting to fetch secrets from Vault")
@@ -148,6 +164,22 @@ func New() (*Config, error) {
 		} else {
 			return nil, fmt.Errorf("jwt refresh secret not found in vault secret")
 		}
+
+		// SMTP secrets from Vault
+		smtpSecrets, err := vaultClient.GetSecret("ctfboard/smtp")
+		if err == nil {
+			log.Println("Config: SMTP secrets loaded from Vault")
+			if u, ok := smtpSecrets["username"].(string); ok {
+				smtpUsername = u
+			}
+			if p, ok := smtpSecrets["password"].(string); ok {
+				smtpPassword = p
+			}
+		} else {
+			log.Println("Config: SMTP secrets not found in Vault, using environment variables")
+			smtpUsername = getEnv("SMTP_USERNAME", "")
+			smtpPassword = getEnv("SMTP_PASSWORD", "")
+		}
 	} else {
 		// Fallback to environment variables if Vault is not available
 		mariadbUser = getEnv("MARIADB_USER", "")
@@ -166,6 +198,9 @@ func New() (*Config, error) {
 		if redisPassword == "" {
 			return nil, fmt.Errorf("vault not available and required redis environment variables are missing")
 		}
+
+		smtpUsername = getEnv("SMTP_USERNAME", "")
+		smtpPassword = getEnv("SMTP_PASSWORD", "")
 	}
 
 	cfg := &Config{
@@ -198,6 +233,19 @@ func New() (*Config, error) {
 		RateLimit: RateLimit{
 			SubmitFlag:         getEnvInt("RATE_LIMIT_SUBMIT_FLAG", 10),
 			SubmitFlagDuration: time.Duration(getEnvInt("RATE_LIMIT_SUBMIT_FLAG_DURATION", 1)) * time.Minute,
+		},
+		SMTP: SMTP{
+			Host:        getEnv("SMTP_HOST", "localhost"),
+			Port:        getEnvInt("SMTP_PORT", 587),
+			Username:    smtpUsername,
+			Password:    smtpPassword,
+			FromEmail:   getEnv("SMTP_FROM_EMAIL", "noreply@ctfboard.local"),
+			FromName:    getEnv("SMTP_FROM_NAME", "CTFBoard"),
+			UseTLS:      getEnvBool("SMTP_USE_TLS", true),
+			Enabled:     getEnvBool("SMTP_ENABLED", false),
+			VerifyTTL:   time.Duration(getEnvInt("SMTP_VERIFY_TTL_HOURS", 24)) * time.Hour,
+			ResetTTL:    time.Duration(getEnvInt("SMTP_RESET_TTL_HOURS", 1)) * time.Hour,
+			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		},
 	}
 

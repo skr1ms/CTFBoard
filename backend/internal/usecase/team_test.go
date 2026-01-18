@@ -163,16 +163,11 @@ func TestTeamUseCase_Create_UpdateTeamId_Error(t *testing.T) {
 	}
 	expectedError := assert.AnError
 
-	var teamID string
 	teamRepo.On("GetByName", mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound)
 	userRepo.On("GetByID", mock.Anything, captainID).Return(user, nil)
-	teamRepo.On("Create", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		team := args.Get(1).(*entity.Team)
-		teamID = uuid.New().String()
-		team.Id = teamID
-	})
-	teamIDPtr := &teamID
-	userRepo.On("UpdateTeamId", mock.Anything, captainID, teamIDPtr).Return(expectedError)
+	teamRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+	userRepo.On("UpdateTeamId", mock.Anything, captainID, mock.Anything).Return(expectedError)
+	teamRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 
 	uc := NewTeamUseCase(teamRepo, userRepo)
 

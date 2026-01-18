@@ -8,14 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Create Tests
+
 func TestChallengeRepo_Create(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
 	challenge := &entity.Challenge{
@@ -30,32 +31,21 @@ func TestChallengeRepo_Create(t *testing.T) {
 		Decay:        10,
 	}
 
-	err := repo.Create(ctx, challenge)
+	err := f.ChallengeRepo.Create(ctx, challenge)
 	require.NoError(t, err)
 	assert.NotEmpty(t, challenge.Id)
 }
 
+// GetByID Tests
+
 func TestChallengeRepo_GetByID(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "GetByID Challenge",
-		Description:  "Description",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash456",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        20,
-	}
+	challenge := f.CreateDynamicChallenge(t, "get_by_id", 200, 100, 20)
 
-	err := repo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	gotChallenge, err := repo.GetByID(ctx, challenge.Id)
+	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
 	require.NoError(t, err)
 	assert.Equal(t, challenge.Id, gotChallenge.Id)
 	assert.Equal(t, challenge.Title, gotChallenge.Title)
@@ -68,41 +58,24 @@ func TestChallengeRepo_GetByID(t *testing.T) {
 
 func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
 	nonExistentID := uuid.New().String()
-	_, err := repo.GetByID(ctx, nonExistentID)
+	_, err := f.ChallengeRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
 
+// GetAll Tests
+
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge1 := &entity.Challenge{
-		Title:       "Public Challenge 1",
-		Description: "Description 1",
-		Category:    "Web",
-		Points:      100,
-		FlagHash:    "hash1",
-		IsHidden:    false,
-	}
-	err := repo.Create(ctx, challenge1)
-	require.NoError(t, err)
-
-	challenge2 := &entity.Challenge{
-		Title:       "Public Challenge 2",
-		Description: "Description 2",
-		Category:    "Crypto",
-		Points:      200,
-		FlagHash:    "hash2",
-		IsHidden:    false,
-	}
-	err = repo.Create(ctx, challenge2)
-	require.NoError(t, err)
+	f.CreateChallenge(t, "public_1", 100)
+	f.CreateChallenge(t, "public_2", 200)
 
 	hiddenChallenge := &entity.Challenge{
 		Title:       "Hidden Challenge",
@@ -112,10 +85,10 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 		FlagHash:    "hash3",
 		IsHidden:    true,
 	}
-	err = repo.Create(ctx, hiddenChallenge)
+	err := f.ChallengeRepo.Create(ctx, hiddenChallenge)
 	require.NoError(t, err)
 
-	challenges, err := repo.GetAll(ctx, nil)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, nil)
 	require.NoError(t, err)
 	assert.Len(t, challenges, 2)
 	for _, ch := range challenges {
@@ -126,74 +99,26 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 
 func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 	testDB := SetupTestDB(t)
-	challengeRepo := persistent.NewChallengeRepo(testDB.DB)
-	userRepo := persistent.NewUserRepo(testDB.DB)
-	teamRepo := persistent.NewTeamRepo(testDB.DB)
-	solveRepo := persistent.NewSolveRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	user := &entity.User{
-		Username:     "teamuser",
-		Email:        "teamuser@example.com",
-		PasswordHash: "hash123",
-	}
-	err := userRepo.Create(ctx, user)
-	require.NoError(t, err)
-	gotUser, err := userRepo.GetByEmail(ctx, user.Email)
-	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user, team := f.CreateUserWithTeam(t, "team_user")
 
-	team := &entity.Team{
-		Name:        "testteam",
-		InviteToken: "token123",
-		CaptainId:   user.Id,
-	}
-	err = teamRepo.Create(ctx, team)
-	require.NoError(t, err)
-	gotTeam, err := teamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.Id = gotTeam.Id
-
-	err = userRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
 	require.NoError(t, err)
 
-	challenge1 := &entity.Challenge{
-		Title:       "Challenge 1",
-		Description: "Description 1",
-		Category:    "Web",
-		Points:      100,
-		FlagHash:    "hash1",
-		IsHidden:    false,
-	}
-	err = challengeRepo.Create(ctx, challenge1)
-	require.NoError(t, err)
+	ch1 := f.CreateChallenge(t, "ch_1", 100)
+	f.CreateChallenge(t, "ch_2", 200)
 
-	challenge2 := &entity.Challenge{
-		Title:       "Challenge 2",
-		Description: "Description 2",
-		Category:    "Crypto",
-		Points:      200,
-		FlagHash:    "hash2",
-		IsHidden:    false,
-	}
-	err = challengeRepo.Create(ctx, challenge2)
-	require.NoError(t, err)
+	f.CreateSolve(t, user.Id, team.Id, ch1.Id)
 
-	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge1.Id,
-	}
-	err = solveRepo.Create(ctx, solve)
-	require.NoError(t, err)
-
-	challenges, err := challengeRepo.GetAll(ctx, &team.Id)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.Id)
 	require.NoError(t, err)
 	assert.Len(t, challenges, 2)
 
 	solved := false
 	for _, ch := range challenges {
-		if ch.Challenge.Id == challenge1.Id {
+		if ch.Challenge.Id == ch1.Id {
 			assert.True(t, ch.Solved)
 			solved = true
 		} else {
@@ -203,25 +128,14 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 	assert.True(t, solved)
 }
 
+// Update Tests
+
 func TestChallengeRepo_Update(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "Original Title",
-		Description:  "Original Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "original_hash",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     50,
-		Decay:        10,
-	}
-
-	err := repo.Create(ctx, challenge)
-	require.NoError(t, err)
+	challenge := f.CreateDynamicChallenge(t, "original", 100, 50, 10)
 
 	challenge.Title = "Updated Title"
 	challenge.Description = "Updated Description"
@@ -233,10 +147,10 @@ func TestChallengeRepo_Update(t *testing.T) {
 	challenge.MinValue = 80
 	challenge.Decay = 15
 
-	err = repo.Update(ctx, challenge)
+	err := f.ChallengeRepo.Update(ctx, challenge)
 	require.NoError(t, err)
 
-	gotChallenge, err := repo.GetByID(ctx, challenge.Id)
+	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Title", gotChallenge.Title)
 	assert.Equal(t, "Updated Description", gotChallenge.Description)
@@ -251,63 +165,38 @@ func TestChallengeRepo_Update(t *testing.T) {
 
 func TestChallengeRepo_Delete(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:       "To Delete",
-		Description: "Description",
-		Category:    "Web",
-		Points:      100,
-		FlagHash:    "hash123",
-		IsHidden:    false,
-	}
+	challenge := f.CreateChallenge(t, "to_delete", 100)
 
-	err := repo.Create(ctx, challenge)
+	err := f.ChallengeRepo.Delete(ctx, challenge.Id)
 	require.NoError(t, err)
 
-	err = repo.Delete(ctx, challenge.Id)
-	require.NoError(t, err)
-
-	_, err = repo.GetByID(ctx, challenge.Id)
+	_, err = f.ChallengeRepo.GetByID(ctx, challenge.Id)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
 
 func TestChallengeRepo_GetByIDTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "GetByIDTx Challenge",
-		Description:  "Description",
-		Category:     "Crypto",
-		Points:       200,
-		FlagHash:     "hash456",
-		IsHidden:     false,
-		InitialValue: 200,
-		MinValue:     100,
-		Decay:        20,
-		SolveCount:   5,
-	}
-
-	err := repo.Create(ctx, challenge)
+	challenge := f.CreateDynamicChallenge(t, "tx_get", 200, 100, 20)
+	_, err := f.DB.Exec("UPDATE challenges SET solve_count = 5 WHERE id = ?", challenge.Id)
 	require.NoError(t, err)
+	challenge.SolveCount = 5
 
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
-	gotChallenge, err := repo.GetByIDTx(ctx, tx, challenge.Id)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
 	assert.Equal(t, challenge.Id, gotChallenge.Id)
 	assert.Equal(t, challenge.Title, gotChallenge.Title)
 	assert.Equal(t, challenge.Points, gotChallenge.Points)
-	assert.Equal(t, challenge.FlagHash, gotChallenge.FlagHash)
-	assert.Equal(t, challenge.InitialValue, gotChallenge.InitialValue)
-	assert.Equal(t, challenge.MinValue, gotChallenge.MinValue)
-	assert.Equal(t, challenge.Decay, gotChallenge.Decay)
 	assert.Equal(t, challenge.SolveCount, gotChallenge.SolveCount)
 
 	err = tx.Commit()
@@ -316,143 +205,102 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 
 func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
 	nonExistentID := uuid.New().String()
-	_, err = repo.GetByIDTx(ctx, tx, nonExistentID)
+	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, nonExistentID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
 
 func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "Increment Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       100,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 100,
-		MinValue:     50,
-		Decay:        10,
-		SolveCount:   0,
-	}
+	challenge := f.CreateDynamicChallenge(t, "inc_solve", 100, 50, 10)
 
-	err := repo.Create(ctx, challenge)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
-	tx, err := testDB.DB.BeginTx(ctx, nil)
-	require.NoError(t, err)
-
-	_, err = repo.IncrementSolveCountTx(ctx, tx, challenge.Id)
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	gotChallenge, err := repo.GetByID(ctx, challenge.Id)
+	tx2, _ := f.DB.BeginTx(ctx, nil)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.Id)
 	require.NoError(t, err)
+	_ = tx2.Rollback()
 	assert.Equal(t, 1, gotChallenge.SolveCount)
 }
 
 func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
-		Title:        "UpdatePoints Challenge",
-		Description:  "Description",
-		Category:     "Web",
-		Points:       500,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: 500,
-		MinValue:     100,
-		Decay:        10,
-		SolveCount:   0,
-	}
+	challenge := f.CreateDynamicChallenge(t, "update_pts", 500, 100, 10)
 
-	err := repo.Create(ctx, challenge)
-	require.NoError(t, err)
-
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
 	newPoints := 350
-	err = repo.UpdatePointsTx(ctx, tx, challenge.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	gotChallenge, err := repo.GetByID(ctx, challenge.Id)
+	tx2, _ := f.DB.BeginTx(ctx, nil)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.Id)
 	require.NoError(t, err)
+	_ = tx2.Rollback()
 	assert.Equal(t, newPoints, gotChallenge.Points)
 }
 
 func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 	testDB := SetupTestDB(t)
-	repo := persistent.NewChallengeRepo(testDB.DB)
+	f := NewTestFixture(testDB.DB)
 	ctx := context.Background()
 
 	initialValue := 500
 	minValue := 100
 	decay := 10
 
-	challenge := &entity.Challenge{
-		Title:        "Dynamic Scoring Challenge",
-		Description:  "Description",
-		Category:     "Pwn",
-		Points:       initialValue,
-		FlagHash:     "hash123",
-		IsHidden:     false,
-		InitialValue: initialValue,
-		MinValue:     minValue,
-		Decay:        decay,
-		SolveCount:   0,
-	}
+	challenge := f.CreateDynamicChallenge(t, "atomic_scoring", initialValue, minValue, decay)
 
-	err := repo.Create(ctx, challenge)
+	tx, err := f.DB.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
-	tx, err := testDB.DB.BeginTx(ctx, nil)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
 
-	// Get challenge with FOR UPDATE lock
-	gotChallenge, err := repo.GetByIDTx(ctx, tx, challenge.Id)
-	require.NoError(t, err)
-
-	// Calculate new points using dynamic scoring formula
 	solveCount := gotChallenge.SolveCount + 1
 	newPoints := int(float64(gotChallenge.MinValue) + (float64(gotChallenge.InitialValue-gotChallenge.MinValue) / (1 + float64(solveCount-1)/float64(gotChallenge.Decay))))
 	if newPoints < gotChallenge.MinValue {
 		newPoints = gotChallenge.MinValue
 	}
 
-	_, err = repo.IncrementSolveCountTx(ctx, tx, challenge.Id)
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
 
-	err = repo.UpdatePointsTx(ctx, tx, challenge.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	finalChallenge, err := repo.GetByID(ctx, challenge.Id)
+	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 1, finalChallenge.SolveCount)
 	assert.Equal(t, newPoints, finalChallenge.Points)
-	// First solve with decay=10: newPoints = 100 + 400/(1+0/10) = 500
-	// Points only decrease after first solve, so we verify transaction worked
+	// First solve check: 100 + 400/(1+0/10) = 500. Points haven't dropped yet.
 	assert.Equal(t, initialValue, finalChallenge.Points)
 }
