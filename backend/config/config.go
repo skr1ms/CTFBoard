@@ -251,10 +251,10 @@ func New() (*Config, error) {
 	}
 
 	if resendFromEmail != "" {
-		cfg.Resend.FromEmail = resendFromEmail
+		cfg.FromEmail = resendFromEmail
 	}
 	if resendFromName != "" {
-		cfg.Resend.FromName = resendFromName
+		cfg.FromName = resendFromName
 	}
 
 	return cfg, nil
