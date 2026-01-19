@@ -1,6 +1,6 @@
 module github.com/skr1ms/CTFBoard
 
-go 1.24.0
+go 1.25.5
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
