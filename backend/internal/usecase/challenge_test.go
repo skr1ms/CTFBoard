@@ -305,7 +305,7 @@ func TestChallengeUseCase_Delete_Error(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
@@ -440,7 +440,7 @@ func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
@@ -520,7 +520,7 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
@@ -563,7 +563,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)

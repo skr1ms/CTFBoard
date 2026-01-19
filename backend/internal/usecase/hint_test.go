@@ -300,7 +300,7 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
@@ -345,7 +345,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
@@ -433,7 +433,7 @@ func TestHintUseCase_UnlockHint_BeginTxError(t *testing.T) {
 func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)
@@ -471,7 +471,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	db, sqlMock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	hintRepo := mocks.NewMockHintRepository(t)
 	hintUnlockRepo := mocks.NewMockHintUnlockRepository(t)

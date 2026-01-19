@@ -268,13 +268,3 @@ deploy:
       EOF
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-
-# Cleanup stage
-docker:gc:
-  stage: cleanup
-  image: $DOCKER_CLI_IMAGE
-  script:
-    - docker image prune -f || true
-  rules:
-    - when: always
-  allow_failure: true
