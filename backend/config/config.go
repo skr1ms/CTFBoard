@@ -82,19 +82,7 @@ func New() (*Config, error) {
 		fmt.Println("Config: .env file not loaded (checked: .env, ../.env, ../../.env, /app/.env)")
 	}
 
-	var vaultClient *vault.Client
-	vaultAddr := os.Getenv("VAULT_ADDR")
-	vaultToken := os.Getenv("VAULT_TOKEN")
-
-	if vaultAddr != "" && vaultToken != "" {
-		var err error
-		vaultClient, err = vault.New(vaultAddr, vaultToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize vault client: %w", err)
-		}
-	}
-
-	// Non-sensitive configuration from environment variables
+	// Initialize ALL variables from Environment first
 	appName := getEnv("APP_NAME", "CTFBoard")
 	appVersion := getEnv("APP_VERSION", "1.0.0")
 	chiMode := getEnv("CHI_MODE", "release")
@@ -107,105 +95,90 @@ func New() (*Config, error) {
 	redisPort := getEnv("REDIS_PORT", "6379")
 	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
 
+	mariadbUser := getEnv("MARIADB_USER", "")
+	mariadbPassword := getEnv("MARIADB_PASSWORD", "")
+	mariadbDB := getEnv("MARIADB_DB", "")
+	jwtAccessSecret := getEnv("JWT_ACCESS_SECRET", "")
+	jwtRefreshSecret := getEnv("JWT_REFRESH_SECRET", "")
+	redisPassword := getEnv("REDIS_PASSWORD", "")
+	resendAPIKey := getEnv("RESEND_API_KEY", "")
+
 	l := logger.New(logLevel, chiMode)
 
-	// Sensitive secrets: try Vault first, fallback to environment variables
-	var mariadbUser, mariadbPassword, mariadbDB string
-	var jwtAccessSecret, jwtRefreshSecret string
-	var redisPassword string
-	var resendAPIKey string
+	// Try to fetch secrets from Vault and OVERRIDE if successful
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	vaultToken := os.Getenv("VAULT_TOKEN")
 
-	if vaultClient != nil {
+	if vaultAddr != "" && vaultToken != "" {
 		l.Info("Config: attempting to fetch secrets from Vault", nil)
-
-		// Database secrets from Vault
-		dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
-		if err != nil {
-			return nil, fmt.Errorf("failed to load database secrets from vault: %w", err)
-		}
-
-		l.Info("Config: database secrets loaded from Vault", nil)
-
-		if u, ok := dbSecrets["user"].(string); ok && u != "" {
-			mariadbUser = u
-		} else {
-			return nil, fmt.Errorf("database user not found in vault secret")
-		}
-		if p, ok := dbSecrets["password"].(string); ok && p != "" {
-			mariadbPassword = p
-		} else {
-			return nil, fmt.Errorf("database password not found in vault secret")
-		}
-		if db, ok := dbSecrets["dbname"].(string); ok && db != "" {
-			mariadbDB = db
-		} else {
-			return nil, fmt.Errorf("database name not found in vault secret")
-		}
-
-		// Redis secrets from Vault
-		redisSecrets, err := vaultClient.GetSecret("ctfboard/redis")
-		if err != nil {
-			return nil, fmt.Errorf("failed to load redis secrets from vault: %w", err)
-		}
-
-		l.Info("Config: redis secrets loaded from Vault", nil)
-
-		if p, ok := redisSecrets["password"].(string); ok && p != "" {
-			redisPassword = p
-		} else {
-			return nil, fmt.Errorf("redis password not found in vault secret")
-		}
-
-		// JWT secrets from Vault
-		jwtSecrets, err := vaultClient.GetSecret("ctfboard/jwt")
-		if err != nil {
-			return nil, fmt.Errorf("failed to load jwt secrets from vault: %w", err)
-		}
-
-		l.Info("Config: JWT secrets loaded from Vault", nil)
-
-		if access, ok := jwtSecrets["access_secret"].(string); ok && access != "" {
-			jwtAccessSecret = access
-		} else {
-			return nil, fmt.Errorf("jwt access secret not found in vault secret")
-		}
-		if refresh, ok := jwtSecrets["refresh_secret"].(string); ok && refresh != "" {
-			jwtRefreshSecret = refresh
-		} else {
-			return nil, fmt.Errorf("jwt refresh secret not found in vault secret")
-		}
-
-		// Resend secrets from Vault
-		resendSecrets, err := vaultClient.GetSecret("ctfboard/resend")
+		vaultClient, err := vault.New(vaultAddr, vaultToken)
 		if err == nil {
-			l.Info("Config: Resend secrets loaded from Vault", nil)
-			if k, ok := resendSecrets["api_key"].(string); ok {
-				resendAPIKey = k
+			// Database secrets
+			dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
+			if err == nil {
+				l.Info("Config: database secrets loaded from Vault", nil)
+				if u, ok := dbSecrets["user"].(string); ok && u != "" {
+					mariadbUser = u
+				}
+				if p, ok := dbSecrets["password"].(string); ok && p != "" {
+					mariadbPassword = p
+				}
+				if db, ok := dbSecrets["dbname"].(string); ok && db != "" {
+					mariadbDB = db
+				}
+			} else {
+				l.Warn("Config: failed to load database secrets from Vault, using env", err)
+			}
+
+			// Redis secrets
+			redisSecrets, err := vaultClient.GetSecret("ctfboard/redis")
+			if err == nil {
+				l.Info("Config: redis secrets loaded from Vault", nil)
+				if p, ok := redisSecrets["password"].(string); ok && p != "" {
+					redisPassword = p
+				}
+			} else {
+				l.Warn("Config: failed to load redis secrets from Vault, using env", err)
+			}
+
+			// JWT secrets
+			jwtSecrets, err := vaultClient.GetSecret("ctfboard/jwt")
+			if err == nil {
+				l.Info("Config: JWT secrets loaded from Vault", nil)
+				if access, ok := jwtSecrets["access_secret"].(string); ok && access != "" {
+					jwtAccessSecret = access
+				}
+				if refresh, ok := jwtSecrets["refresh_secret"].(string); ok && refresh != "" {
+					jwtRefreshSecret = refresh
+				}
+			} else {
+				l.Warn("Config: failed to load jwt secrets from Vault, using env", err)
+			}
+
+			// Resend secrets
+			resendSecrets, err := vaultClient.GetSecret("ctfboard/resend")
+			if err == nil {
+				l.Info("Config: Resend secrets loaded from Vault", nil)
+				if k, ok := resendSecrets["api_key"].(string); ok && k != "" {
+					resendAPIKey = k
+				}
+			} else {
+				l.Warn("Config: failed to load resend secrets from Vault, using env (or not configured)", err)
 			}
 		} else {
-			l.Info("Config: Resend secrets not found in Vault, using environment variables", nil)
-			resendAPIKey = getEnv("RESEND_API_KEY", "")
+			l.Error("Config: failed to initialize vault client", err)
 		}
-	} else {
-		// Fallback to environment variables if Vault is not available
-		mariadbUser = getEnv("MARIADB_USER", "")
-		mariadbPassword = getEnv("MARIADB_PASSWORD", "")
-		mariadbDB = getEnv("MARIADB_DB", "")
-		jwtAccessSecret = getEnv("JWT_ACCESS_SECRET", "")
-		jwtRefreshSecret = getEnv("JWT_REFRESH_SECRET", "")
-		redisPassword = getEnv("REDIS_PASSWORD", "")
+	}
 
-		if mariadbUser == "" || mariadbPassword == "" || mariadbDB == "" {
-			return nil, fmt.Errorf("vault not available and required database environment variables are missing")
-		}
-		if jwtAccessSecret == "" || jwtRefreshSecret == "" {
-			return nil, fmt.Errorf("vault not available and required jwt environment variables are missing")
-		}
-		if redisPassword == "" {
-			return nil, fmt.Errorf("vault not available and required redis environment variables are missing")
-		}
-
-		resendAPIKey = getEnv("RESEND_API_KEY", "")
+	// Final Validation
+	if mariadbUser == "" || mariadbPassword == "" || mariadbDB == "" {
+		return nil, fmt.Errorf("required database configuration is missing (env or vault)")
+	}
+	if jwtAccessSecret == "" || jwtRefreshSecret == "" {
+		return nil, fmt.Errorf("required jwt configuration is missing (env or vault)")
+	}
+	if redisPassword == "" {
+		return nil, fmt.Errorf("required redis configuration is missing (env or vault)")
 	}
 
 	cfg := &Config{
@@ -219,7 +192,6 @@ func New() (*Config, error) {
 			Port:        backendPort,
 			CORSOrigins: corsOrigins,
 		},
-
 		DB: DB{
 			URL:            fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", mariadbUser, mariadbPassword, mariadbHost, mariadbPort, mariadbDB),
 			MigrationsPath: migrationsPath,
