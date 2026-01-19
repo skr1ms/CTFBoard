@@ -132,10 +132,10 @@ func (h *emailRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 // @Failure      429  {object}  ErrorResponse
 // @Router       /auth/forgot-password [post]
 func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	// Rate Limit: 3 requests per hour per IP
+	// Rate Limit: 10 requests per day per user (forgot password)
 	ip := getRealIP(r)
 	key := "ratelimit:forgot:" + ip
-	if !h.checkRateLimit(r.Context(), key, 3, time.Hour) {
+	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
 		render.Status(r, http.StatusTooManyRequests)
 		render.JSON(w, r, ErrorResponse{Error: "too many requests"})
 		return

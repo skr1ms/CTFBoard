@@ -231,7 +231,7 @@ func New() (*Config, error) {
 			APIKey:      resendAPIKey,
 			FromEmail:   getEnv("RESEND_FROM_EMAIL", "noreply@ctfboard.local"),
 			FromName:    getEnv("RESEND_FROM_NAME", "CTFBoard"),
-			Enabled:     getEnvBool("RESEND_ENABLED", false),
+			Enabled:     getEnvBool("RESEND_ENABLED", true),
 			VerifyTTL:   time.Duration(getEnvInt("RESEND_VERIFY_TTL_HOURS", 24)) * time.Hour,
 			ResetTTL:    time.Duration(getEnvInt("RESEND_RESET_TTL_HOURS", 1)) * time.Hour,
 			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
