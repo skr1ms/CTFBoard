@@ -69,17 +69,11 @@ type (
 
 func New() (*Config, error) {
 	envPaths := []string{".env", "../.env", "../../.env", "/app/.env"}
-	envLoaded := false
 	for _, path := range envPaths {
 		if err := godotenv.Load(path); err == nil {
 			fmt.Printf("Config: .env file loaded successfully from %s\n", path)
-			envLoaded = true
 			break
 		}
-	}
-
-	if !envLoaded {
-		fmt.Println("Config: .env file not loaded (checked: .env, ../.env, ../../.env, /app/.env)")
 	}
 
 	// Initialize ALL variables from Environment first
