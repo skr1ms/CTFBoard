@@ -68,7 +68,11 @@ type (
 )
 
 func New() (*Config, error) {
-	_ = godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("Config: .env file not loaded: %v\n", err)
+	} else {
+		fmt.Println("Config: .env file loaded successfully")
+	}
 
 	var vaultClient *vault.Client
 	vaultAddr := os.Getenv("VAULT_ADDR")
@@ -102,6 +106,8 @@ func New() (*Config, error) {
 	var jwtAccessSecret, jwtRefreshSecret string
 	var redisPassword string
 	var resendAPIKey string
+	var resendFromEmail string
+	var resendFromName string
 
 	if vaultClient != nil {
 		l.Info("Config: attempting to fetch secrets from Vault", nil)
@@ -170,6 +176,12 @@ func New() (*Config, error) {
 			if k, ok := resendSecrets["api_key"].(string); ok {
 				resendAPIKey = k
 			}
+			if e, ok := resendSecrets["from_email"].(string); ok {
+				resendFromEmail = e
+			}
+			if n, ok := resendSecrets["from_name"].(string); ok {
+				resendFromName = n
+			}
 		} else {
 			l.Info("Config: Resend secrets not found in Vault, using environment variables", nil)
 			resendAPIKey = getEnv("RESEND_API_KEY", "")
@@ -236,6 +248,13 @@ func New() (*Config, error) {
 			ResetTTL:    time.Duration(getEnvInt("RESEND_RESET_TTL_HOURS", 1)) * time.Hour,
 			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		},
+	}
+
+	if resendFromEmail != "" {
+		cfg.Resend.FromEmail = resendFromEmail
+	}
+	if resendFromName != "" {
+		cfg.Resend.FromName = resendFromName
 	}
 
 	return cfg, nil
