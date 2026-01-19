@@ -20,3 +20,4 @@ jobs:
         with:
           version: v2.1.0
           working-directory: backend
+          install-mode: goinstall
