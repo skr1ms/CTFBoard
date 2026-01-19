@@ -49,7 +49,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		}
 	}()
 
-	redisClient, err := redis.New(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
+	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Password)
 	if err != nil {
 		l.Error("failed to connect to redis", err)
 		return
@@ -96,17 +96,13 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 
 	verificationTokenRepo := persistent.NewVerificationTokenRepo(db)
-	smtpMailer := mailer.New(mailer.Config{
-		Host:      cfg.SMTP.Host,
-		Port:      cfg.SMTP.Port,
-		Username:  cfg.Username,
-		Password:  cfg.SMTP.Password,
+	resendMailer := mailer.New(mailer.Config{
+		APIKey:    cfg.APIKey,
 		FromEmail: cfg.FromEmail,
 		FromName:  cfg.FromName,
-		UseTLS:    cfg.UseTLS,
 	})
 
-	asyncMailer := mailer.NewAsyncMailer(smtpMailer, 100, 2)
+	asyncMailer := mailer.NewAsyncMailer(resendMailer, 100, 2, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 

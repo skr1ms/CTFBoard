@@ -22,6 +22,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/resend/resend-go/v3 v3.0.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger v1.3.4
@@ -30,7 +31,6 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/mariadb v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0
 	golang.org/x/crypto v0.47.0
-	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 
 require (
@@ -159,7 +159,6 @@ require (
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	moul.io/http2curl/v2 v2.3.0 // indirect
 )

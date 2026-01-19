@@ -67,7 +67,9 @@ build:backend:
         - deployment/docker/**/*
       when: always
 
-# Lint stage
+# Security stage
+
+# Lint job
 lint:backend:
   stage: security
   image: $GOLANGCI_LINT_IMAGE
@@ -84,7 +86,7 @@ lint:backend:
         - go.sum
       when: always
 
-# Security stage
+# Security code job
 security:code:
   stage: security
   image:
@@ -101,6 +103,7 @@ security:code:
         - go.sum
       when: always
 
+# Security container job
 security:container:
   stage: security
   image:

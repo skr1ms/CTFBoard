@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"os"
 
 	"github.com/skr1ms/CTFBoard/config"
 	"github.com/skr1ms/CTFBoard/internal/app"
@@ -33,7 +33,8 @@ import (
 func main() {
 	cfg, err := config.New()
 	if err != nil {
-		log.Fatalf("Config initialization failed: %v", err)
+		println("Config initialization failed: " + err.Error())
+		os.Exit(1)
 	}
 
 	l := logger.New(cfg.LogLevel, cfg.ChiMode)

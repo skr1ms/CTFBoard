@@ -3,8 +3,9 @@ package mailer
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
+
+	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
 
 type AsyncMailer struct {
@@ -13,14 +14,16 @@ type AsyncMailer struct {
 	wg       sync.WaitGroup
 	quit     chan struct{}
 	workers  int
+	l        *logger.Logger
 }
 
-func NewAsyncMailer(delegate Mailer, bufferSize, workers int) *AsyncMailer {
+func NewAsyncMailer(delegate Mailer, bufferSize, workers int, l *logger.Logger) *AsyncMailer {
 	return &AsyncMailer{
 		delegate: delegate,
 		msgChan:  make(chan Message, bufferSize),
 		quit:     make(chan struct{}),
 		workers:  workers,
+		l:        l,
 	}
 }
 
@@ -68,6 +71,6 @@ func (m *AsyncMailer) worker() {
 func (m *AsyncMailer) send(msg Message) {
 	// Create a background context for sending, as the original request context might be canceled
 	if err := m.delegate.Send(context.Background(), msg); err != nil {
-		log.Printf("AsyncMailer: failed to send email to %s: %v", msg.To, err)
+		m.l.Error(fmt.Sprintf("AsyncMailer: failed to send email to %s", msg.To), err)
 	}
 }

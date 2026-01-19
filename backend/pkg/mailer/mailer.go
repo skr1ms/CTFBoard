@@ -2,10 +2,9 @@ package mailer
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 
-	"gopkg.in/gomail.v2"
+	"github.com/resend/resend-go/v3"
 )
 
 type Message struct {
@@ -20,59 +19,46 @@ type Mailer interface {
 }
 
 type Config struct {
-	Host      string
-	Port      int
-	Username  string
-	Password  string
+	APIKey    string
 	FromEmail string
 	FromName  string
-	UseTLS    bool
 }
 
-type SMTPMailer struct {
+type ResendMailer struct {
+	client *resend.Client
 	cfg    Config
-	dialer *gomail.Dialer
 }
 
-func New(cfg Config) *SMTPMailer {
-	d := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
+func New(cfg Config) *ResendMailer {
+	client := resend.NewClient(cfg.APIKey)
 
-	if cfg.UseTLS {
-		d.TLSConfig = &tls.Config{
-			ServerName:         cfg.Host,
-			InsecureSkipVerify: false,
-			MinVersion:         tls.VersionTLS12,
-		}
-	} else {
-		// #nosec G402
-		d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	return &SMTPMailer{
+	return &ResendMailer{
+		client: client,
 		cfg:    cfg,
-		dialer: d,
 	}
 }
 
-func (m *SMTPMailer) Send(ctx context.Context, msg Message) error {
+func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 	from := m.cfg.FromEmail
 	if m.cfg.FromName != "" {
 		from = fmt.Sprintf("%s <%s>", m.cfg.FromName, m.cfg.FromEmail)
 	}
 
-	gm := gomail.NewMessage()
-	gm.SetHeader("From", from)
-	gm.SetHeader("To", msg.To)
-	gm.SetHeader("Subject", msg.Subject)
-
-	contentType := "text/plain"
-	if msg.IsHTML {
-		contentType = "text/html"
+	params := &resend.SendEmailRequest{
+		From:    from,
+		To:      []string{msg.To},
+		Subject: msg.Subject,
 	}
-	gm.SetBody(contentType, msg.Body)
 
-	if err := m.dialer.DialAndSend(gm); err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+	if msg.IsHTML {
+		params.Html = msg.Body
+	} else {
+		params.Text = msg.Body
+	}
+
+	_, err := m.client.Emails.SendWithContext(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to send email via Resend: %w", err)
 	}
 
 	return nil

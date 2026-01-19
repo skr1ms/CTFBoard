@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +27,8 @@ func (m *mockMailer) Send(ctx context.Context, msg mailer.Message) error {
 
 func TestAsyncMailer(t *testing.T) {
 	mock := &mockMailer{}
-	asyncMailer := mailer.NewAsyncMailer(mock, 10, 1)
+	l := logger.New("error", "test")
+	asyncMailer := mailer.NewAsyncMailer(mock, 10, 1, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
