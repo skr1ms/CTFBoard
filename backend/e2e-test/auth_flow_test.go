@@ -60,7 +60,7 @@ func TestAuth_RateLimiting_Exists(t *testing.T) {
 
 	email := "spam@example.com"
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 10; i++ {
 		h.ForgotPassword(email, http.StatusOK)
 	}
 
