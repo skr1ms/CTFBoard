@@ -67,7 +67,11 @@
 | :--------- | :--------------------------------- | :-------------------------------------------------- | :-------------- |
 | **POST**   | `/api/v1/auth/register`            | Регистрация нового участника                        | Public          |
 | **POST**   | `/api/v1/auth/login`               | Аутентификация и выдача JWT                         | Public          |
+| **POST**   | `/api/v1/auth/forgot-password` | Отправка письма для сброса пароля                   | Public          |
+| **POST**   | `/api/v1/auth/reset-password`  | Сброс пароля по токену                              | Public          |
 | **GET**    | `/api/v1/auth/me`                  | Получение информации о текущем пользователе         | User            |
+| **POST**   | `/api/v1/auth/resend-verification` | Повторная отправка письма подтверждения             | User            |
+| **GET**    | `/api/v1/ws`                       | WebSocket соединение для лайв-апдейтов скорборда    | Public          |
 | **GET**    | `/api/v1/events`                   | Поток событий SSE (обновление скорборда)            | Public          |
 | **GET**    | `/api/v1/scoreboard`               | Получение текущего состояния рейтинга               | Public          |
 | **GET**    | `/api/v1/challenges`               | Получение списка задач со статусами решений         | User            |
@@ -84,9 +88,9 @@
 | **GET**    | `/api/v1/competition/status`       | Статус соревнования                                 | Public          |
 | **GET**    | `/api/v1/admin/competition`        | Настройки соревнования                              | Admin           |
 | **PUT**    | `/api/v1/admin/competition`        | Обновление настроек соревнования                    | Admin           |
-| **GET**    | `/api/v1/challenges/{id}/hints`    | Список подсказок                                    | User            |
-| **POST**   | `/api/v1/challenges/{id}/hints/{hid}/unlock` | Открытие подсказки                                | User            |
-| **POST**   | `/api/v1/admin/challenges/{id}/hints` | Создание подсказки                                  | Admin           |
+| **GET**    | `/api/v1/challenges/{challengeId}/hints`    | Список подсказок                                    | User            |
+| **POST**   | `/api/v1/challenges/{challengeId}/hints/{hintId}/unlock` | Открытие подсказки                                | User            |
+| **POST**   | `/api/v1/admin/challenges/{challengeId}/hints` | Создание подсказки                                  | Admin           |
 | **PUT**    | `/api/v1/admin/hints/{id}`         | Редактирование подсказки                            | Admin           |
 | **DELETE** | `/api/v1/admin/hints/{id}`         | Удаление подсказки                                  | Admin           |
 | **GET**    | `/health`                          | Проверка состояния сервиса                          | Public          |
