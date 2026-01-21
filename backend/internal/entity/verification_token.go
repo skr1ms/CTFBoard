@@ -9,7 +9,7 @@ import (
 type TokenType string
 
 const (
-	TokenTypeEmailVerification TokenType = "email_verification"
+	TokenTypeEmailVerification TokenType = "email_verification" //nolint:gosec // G101: This is an enum value, not a credential
 	TokenTypePasswordReset     TokenType = "password_reset"
 )
 

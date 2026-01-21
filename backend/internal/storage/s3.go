@@ -18,6 +18,10 @@ type S3Provider struct {
 }
 
 func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket string, useSSL bool) (*S3Provider, error) {
+	if accessKey == "" || secretKey == "" {
+		return nil, fmt.Errorf("S3 credentials (accessKey, secretKey) are required")
+	}
+
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:        credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure:       useSSL,
@@ -66,6 +70,11 @@ func (p *S3Provider) Download(ctx context.Context, path string) (io.ReadCloser, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get object from S3: %w", err)
 	}
+
+	if _, err := obj.Stat(); err != nil {
+		return nil, fmt.Errorf("file not found in S3: %w", err)
+	}
+
 	return obj, nil
 }
 

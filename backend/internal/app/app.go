@@ -117,6 +117,13 @@ func Run(cfg *config.Config, l *logger.Logger) {
 			l.Error("failed to create filesystem storage provider", err)
 			return
 		}
+
+		defer func() {
+			if err := fsProvider.Close(); err != nil {
+				l.Error("failed to close filesystem provider", err)
+			}
+		}()
+
 		storageProvider = fsProvider
 		l.Info("Using filesystem storage provider", nil, map[string]interface{}{"path": cfg.LocalPath})
 	}
