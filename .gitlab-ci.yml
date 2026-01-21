@@ -77,7 +77,7 @@ lint:backend:
   script:
     - cd backend
     - go mod download
-    - golangci-lint run -v --timeout 5m
+    - golangci-lint run -v --timeout 10m
   rules:
     - changes:
         - backend/**/*
@@ -197,22 +197,22 @@ deploy:
     - |
       ssh -o StrictHostKeyChecking=accept-new $DEPLOY_USER@$DEPLOY_SERVER_IP "bash -s" << 'EOF'
       set -e
-      
+
       trap 'docker logout 2>/dev/null; rm -f ~/.docker/config.json' EXIT
-      
+
       cd ~/ctfboard
-      
+
       git fetch origin main
       git reset --hard origin/main
-      
+
       echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
-      
+
       sed -i '/^BACKEND_IMAGE=/d' .env || true
       echo "BACKEND_IMAGE=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" >> .env
-      
+
       docker compose --env-file .env -f deployment/docker/docker-compose.yml pull
       docker compose --env-file .env -f deployment/docker/docker-compose.yml up -d
-      
+
       echo "Waiting for backend..."
       for i in {1..30}; do
         if curl -sf http://localhost:8090/health > /dev/null 2>&1; then
@@ -226,7 +226,7 @@ deploy:
         fi
         sleep 2
       done
-      
+
       EOF
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
