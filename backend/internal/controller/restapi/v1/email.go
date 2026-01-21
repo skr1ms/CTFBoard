@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -231,6 +232,12 @@ func (h *emailRoutes) ResendVerification(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
 	// Rate Limit: 10 requests per day per user (resend)
 	key := "ratelimit:resend:" + userId
 	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
@@ -239,7 +246,7 @@ func (h *emailRoutes) ResendVerification(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.emailUC.ResendVerification(r.Context(), userId); err != nil {
+	if err := h.emailUC.ResendVerification(r.Context(), userUUID); err != nil {
 		h.logger.Error("restapi - v1 - ResendVerification", err)
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, ErrorResponse{Error: "failed to resend verification email"})

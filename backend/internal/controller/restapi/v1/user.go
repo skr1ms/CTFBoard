@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
@@ -86,7 +87,7 @@ func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.RegisterResponse{
-		Id:       user.Id,
+		Id:       user.Id.String(),
 		Username: user.Username,
 		Email:    user.Email,
 		CreateAt: user.CreatedAt,
@@ -150,18 +151,30 @@ func (h *userRoutes) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userUC.GetByID(r.Context(), userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - Me - GetByID", err)
 		handleError(w, r, err)
 		return
 	}
 
+	var teamIdStr *string
+	if user.TeamId != nil {
+		s := user.TeamId.String()
+		teamIdStr = &s
+	}
+
 	res := response.MeResponse{
-		Id:       user.Id,
+		Id:       user.Id.String(),
 		Username: user.Username,
 		Email:    user.Email,
-		TeamId:   user.TeamId,
+		TeamId:   teamIdStr,
 		CreateAt: user.CreatedAt,
 	}
 
@@ -185,7 +198,13 @@ func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.userUC.GetProfile(r.Context(), userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	profile, err := h.userUC.GetProfile(r.Context(), userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - GetProfile - GetProfile", err)
 		handleError(w, r, err)
@@ -195,16 +214,22 @@ func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
 	var solves []response.SolveResponse
 	for _, solve := range profile.Solves {
 		solves = append(solves, response.SolveResponse{
-			Id:          solve.Id,
-			ChallengeId: solve.ChallengeId,
+			Id:          solve.Id.String(),
+			ChallengeId: solve.ChallengeId.String(),
 			SolvedAt:    solve.SolvedAt,
 		})
 	}
 
+	var teamIdStr *string
+	if profile.User.TeamId != nil {
+		s := profile.User.TeamId.String()
+		teamIdStr = &s
+	}
+
 	res := response.UserProfileResponse{
-		Id:       profile.User.Id,
+		Id:       profile.User.Id.String(),
 		Username: profile.User.Username,
-		TeamId:   profile.User.TeamId,
+		TeamId:   teamIdStr,
 		CreateAt: profile.User.CreatedAt,
 		Solves:   solves,
 	}

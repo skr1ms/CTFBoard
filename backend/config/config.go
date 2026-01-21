@@ -14,11 +14,12 @@ type (
 	Config struct {
 		App       `yaml:"app"`
 		HTTP      `yaml:"http"`
-		DB        `yaml:"mariadb"`
+		DB        `yaml:"postgres"`
 		JWT       `yaml:"jwt"`
 		Redis     `yaml:"redis"`
 		RateLimit `yaml:"rate_limit"`
 		Resend    `yaml:"resend"`
+		Storage   `yaml:"storage"`
 	}
 
 	App struct {
@@ -65,15 +66,33 @@ type (
 		ResetTTL    time.Duration
 		FrontendURL string
 	}
+
+	Storage struct {
+		Provider         string
+		LocalPath        string
+		S3Endpoint       string
+		S3PublicEndpoint string
+		S3AccessKey      string
+		S3SecretKey      string
+		S3Bucket         string
+		S3UseSSL         bool
+		PresignedExpiry  time.Duration
+	}
 )
 
 func New() (*Config, error) {
 	envPaths := []string{".env", "../.env", "../../.env", "/app/.env"}
+	envLoaded := false
 	for _, path := range envPaths {
 		if err := godotenv.Load(path); err == nil {
-			fmt.Printf("Config: .env file loaded successfully from %s\n", path)
+			fmt.Printf("Config: .env file loaded from %s\n", path)
+			envLoaded = true
 			break
 		}
+	}
+
+	if !envLoaded {
+		fmt.Println("Config: .env file not found, using environment variables (production mode)")
 	}
 
 	// Initialize ALL variables from Environment first
@@ -83,19 +102,21 @@ func New() (*Config, error) {
 	logLevel := getEnv("LOG_LEVEL", "info")
 	backendPort := getEnv("BACKEND_PORT", "8080")
 	migrationsPath := getEnv("MIGRATIONS_PATH", "migrations")
-	mariadbHost := getEnv("MARIADB_HOST", "mariadb")
-	mariadbPort := getEnv("MARIADB_PORT", "3306")
+	postgresHost := getEnv("POSTGRES_HOST", "postgres")
+	postgresPort := getEnv("POSTGRES_PORT", "5432")
 	redisHost := getEnv("REDIS_HOST", "redis")
 	redisPort := getEnv("REDIS_PORT", "6379")
 	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
 
-	mariadbUser := getEnv("MARIADB_USER", "")
-	mariadbPassword := getEnv("MARIADB_PASSWORD", "")
-	mariadbDB := getEnv("MARIADB_DB", "")
+	postgresUser := getEnv("POSTGRES_USER", "")
+	postgresPassword := getEnv("POSTGRES_PASSWORD", "")
+	postgresDB := getEnv("POSTGRES_DB", "")
 	jwtAccessSecret := getEnv("JWT_ACCESS_SECRET", "")
 	jwtRefreshSecret := getEnv("JWT_REFRESH_SECRET", "")
 	redisPassword := getEnv("REDIS_PASSWORD", "")
 	resendAPIKey := getEnv("RESEND_API_KEY", "")
+	s3AccessKey := getEnv("STORAGE_S3_ACCESS_KEY", "")
+	s3SecretKey := getEnv("STORAGE_S3_SECRET_KEY", "")
 
 	l := logger.New(logLevel, chiMode)
 
@@ -112,13 +133,13 @@ func New() (*Config, error) {
 			if err == nil {
 				l.Info("Config: database secrets loaded from Vault", nil)
 				if u, ok := dbSecrets["user"].(string); ok && u != "" {
-					mariadbUser = u
+					postgresUser = u
 				}
 				if p, ok := dbSecrets["password"].(string); ok && p != "" {
-					mariadbPassword = p
+					postgresPassword = p
 				}
 				if db, ok := dbSecrets["dbname"].(string); ok && db != "" {
-					mariadbDB = db
+					postgresDB = db
 				}
 			} else {
 				l.Warn("Config: failed to load database secrets from Vault, using env", err)
@@ -159,13 +180,27 @@ func New() (*Config, error) {
 			} else {
 				l.Warn("Config: failed to load resend secrets from Vault, using env (or not configured)", err)
 			}
+
+			// Storage secrets
+			storageSecrets, err := vaultClient.GetSecret("ctfboard/storage")
+			if err == nil {
+				l.Info("Config: Storage secrets loaded from Vault", nil)
+				if k, ok := storageSecrets["access_key"].(string); ok && k != "" {
+					s3AccessKey = k
+				}
+				if s, ok := storageSecrets["secret_key"].(string); ok && s != "" {
+					s3SecretKey = s
+				}
+			} else {
+				l.Warn("Config: failed to load storage secrets from Vault (optional)", err)
+			}
 		} else {
 			l.Error("Config: failed to initialize vault client", err)
 		}
 	}
 
 	// Final Validation
-	if mariadbUser == "" || mariadbPassword == "" || mariadbDB == "" {
+	if postgresUser == "" || postgresPassword == "" || postgresDB == "" {
 		return nil, fmt.Errorf("required database configuration is missing (env or vault)")
 	}
 	if jwtAccessSecret == "" || jwtRefreshSecret == "" {
@@ -187,7 +222,7 @@ func New() (*Config, error) {
 			CORSOrigins: corsOrigins,
 		},
 		DB: DB{
-			URL:            fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", mariadbUser, mariadbPassword, mariadbHost, mariadbPort, mariadbDB),
+			URL:            fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB),
 			MigrationsPath: migrationsPath,
 		},
 		JWT: JWT{
@@ -213,6 +248,17 @@ func New() (*Config, error) {
 			VerifyTTL:   time.Duration(getEnvInt("RESEND_VERIFY_TTL_HOURS", 24)) * time.Hour,
 			ResetTTL:    time.Duration(getEnvInt("RESEND_RESET_TTL_HOURS", 1)) * time.Hour,
 			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+		},
+		Storage: Storage{
+			Provider:         getEnv("STORAGE_PROVIDER", "filesystem"),
+			LocalPath:        getEnv("STORAGE_LOCAL_PATH", "./uploads"),
+			S3Endpoint:       getEnv("STORAGE_S3_ENDPOINT", "urchin:9000"),
+			S3PublicEndpoint: getEnv("STORAGE_S3_PUBLIC_ENDPOINT", ""),
+			S3AccessKey:      s3AccessKey,
+			S3SecretKey:      s3SecretKey,
+			S3Bucket:         getEnv("STORAGE_S3_BUCKET", "tasks"),
+			S3UseSSL:         getEnvBool("STORAGE_S3_USE_SSL", false),
+			PresignedExpiry:  time.Duration(getEnvInt("STORAGE_PRESIGNED_EXPIRY_MINUTES", 60)) * time.Minute,
 		},
 	}
 

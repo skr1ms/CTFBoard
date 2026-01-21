@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	mock "github.com/stretchr/testify/mock"
@@ -97,7 +98,7 @@ func (_c *MockChallengeRepository_Create_Call) RunAndReturn(run func(ctx context
 }
 
 // Delete provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) Delete(ctx context.Context, id string) error {
+func (_mock *MockChallengeRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -105,7 +106,7 @@ func (_mock *MockChallengeRepository) Delete(ctx context.Context, id string) err
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		r0 = ret.Error(0)
@@ -120,20 +121,20 @@ type MockChallengeRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockChallengeRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockChallengeRepository_Delete_Call {
 	return &MockChallengeRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
-func (_c *MockChallengeRepository_Delete_Call) Run(run func(ctx context.Context, id string)) *MockChallengeRepository_Delete_Call {
+func (_c *MockChallengeRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockChallengeRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -148,13 +149,13 @@ func (_c *MockChallengeRepository_Delete_Call) Return(err error) *MockChallengeR
 	return _c
 }
 
-func (_c *MockChallengeRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id string) error) *MockChallengeRepository_Delete_Call {
+func (_c *MockChallengeRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockChallengeRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetAll provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetAll(ctx context.Context, teamId *string) ([]*repo.ChallengeWithSolved, error) {
+func (_mock *MockChallengeRepository) GetAll(ctx context.Context, teamId *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
 	ret := _mock.Called(ctx, teamId)
 
 	if len(ret) == 0 {
@@ -163,17 +164,17 @@ func (_mock *MockChallengeRepository) GetAll(ctx context.Context, teamId *string
 
 	var r0 []*repo.ChallengeWithSolved
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) ([]*repo.ChallengeWithSolved, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID) ([]*repo.ChallengeWithSolved, error)); ok {
 		return returnFunc(ctx, teamId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) []*repo.ChallengeWithSolved); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID) []*repo.ChallengeWithSolved); ok {
 		r0 = returnFunc(ctx, teamId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*repo.ChallengeWithSolved)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId)
 	} else {
 		r1 = ret.Error(1)
@@ -188,20 +189,20 @@ type MockChallengeRepository_GetAll_Call struct {
 
 // GetAll is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId *string
+//   - teamId *uuid.UUID
 func (_e *MockChallengeRepository_Expecter) GetAll(ctx interface{}, teamId interface{}) *MockChallengeRepository_GetAll_Call {
 	return &MockChallengeRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx, teamId)}
 }
 
-func (_c *MockChallengeRepository_GetAll_Call) Run(run func(ctx context.Context, teamId *string)) *MockChallengeRepository_GetAll_Call {
+func (_c *MockChallengeRepository_GetAll_Call) Run(run func(ctx context.Context, teamId *uuid.UUID)) *MockChallengeRepository_GetAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *string
+		var arg1 *uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(*string)
+			arg1 = args[1].(*uuid.UUID)
 		}
 		run(
 			arg0,
@@ -216,13 +217,13 @@ func (_c *MockChallengeRepository_GetAll_Call) Return(challengeWithSolveds []*re
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamId *string) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
+func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamId *uuid.UUID) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetByID(ctx context.Context, id string) (*entity.Challenge, error) {
+func (_mock *MockChallengeRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Challenge, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -231,17 +232,17 @@ func (_mock *MockChallengeRepository) GetByID(ctx context.Context, id string) (*
 
 	var r0 *entity.Challenge
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.Challenge, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Challenge, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.Challenge); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Challenge); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Challenge)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -256,20 +257,20 @@ type MockChallengeRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockChallengeRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockChallengeRepository_GetByID_Call {
 	return &MockChallengeRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockChallengeRepository_GetByID_Call) Run(run func(ctx context.Context, id string)) *MockChallengeRepository_GetByID_Call {
+func (_c *MockChallengeRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockChallengeRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -284,13 +285,13 @@ func (_c *MockChallengeRepository_GetByID_Call) Return(challenge *entity.Challen
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string) (*entity.Challenge, error)) *MockChallengeRepository_GetByID_Call {
+func (_c *MockChallengeRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Challenge, error)) *MockChallengeRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IncrementSolveCount provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) IncrementSolveCount(ctx context.Context, id string) (int, error) {
+func (_mock *MockChallengeRepository) IncrementSolveCount(ctx context.Context, id uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -299,15 +300,15 @@ func (_mock *MockChallengeRepository) IncrementSolveCount(ctx context.Context, i
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -322,20 +323,20 @@ type MockChallengeRepository_IncrementSolveCount_Call struct {
 
 // IncrementSolveCount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockChallengeRepository_Expecter) IncrementSolveCount(ctx interface{}, id interface{}) *MockChallengeRepository_IncrementSolveCount_Call {
 	return &MockChallengeRepository_IncrementSolveCount_Call{Call: _e.mock.On("IncrementSolveCount", ctx, id)}
 }
 
-func (_c *MockChallengeRepository_IncrementSolveCount_Call) Run(run func(ctx context.Context, id string)) *MockChallengeRepository_IncrementSolveCount_Call {
+func (_c *MockChallengeRepository_IncrementSolveCount_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockChallengeRepository_IncrementSolveCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -350,7 +351,7 @@ func (_c *MockChallengeRepository_IncrementSolveCount_Call) Return(n int, err er
 	return _c
 }
 
-func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, id string) (int, error)) *MockChallengeRepository_IncrementSolveCount_Call {
+func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (int, error)) *MockChallengeRepository_IncrementSolveCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -413,7 +414,7 @@ func (_c *MockChallengeRepository_Update_Call) RunAndReturn(run func(ctx context
 }
 
 // UpdatePoints provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) UpdatePoints(ctx context.Context, id string, points int) error {
+func (_mock *MockChallengeRepository) UpdatePoints(ctx context.Context, id uuid.UUID, points int) error {
 	ret := _mock.Called(ctx, id, points)
 
 	if len(ret) == 0 {
@@ -421,7 +422,7 @@ func (_mock *MockChallengeRepository) UpdatePoints(ctx context.Context, id strin
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
 		r0 = returnFunc(ctx, id, points)
 	} else {
 		r0 = ret.Error(0)
@@ -436,21 +437,21 @@ type MockChallengeRepository_UpdatePoints_Call struct {
 
 // UpdatePoints is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 //   - points int
 func (_e *MockChallengeRepository_Expecter) UpdatePoints(ctx interface{}, id interface{}, points interface{}) *MockChallengeRepository_UpdatePoints_Call {
 	return &MockChallengeRepository_UpdatePoints_Call{Call: _e.mock.On("UpdatePoints", ctx, id, points)}
 }
 
-func (_c *MockChallengeRepository_UpdatePoints_Call) Run(run func(ctx context.Context, id string, points int)) *MockChallengeRepository_UpdatePoints_Call {
+func (_c *MockChallengeRepository_UpdatePoints_Call) Run(run func(ctx context.Context, id uuid.UUID, points int)) *MockChallengeRepository_UpdatePoints_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		var arg2 int
 		if args[2] != nil {
@@ -470,7 +471,7 @@ func (_c *MockChallengeRepository_UpdatePoints_Call) Return(err error) *MockChal
 	return _c
 }
 
-func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx context.Context, id string, points int) error) *MockChallengeRepository_UpdatePoints_Call {
+func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, points int) error) *MockChallengeRepository_UpdatePoints_Call {
 	_c.Call.Return(run)
 	return _c
 }

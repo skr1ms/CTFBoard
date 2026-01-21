@@ -1,17 +1,21 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type TokenType string
 
 const (
-	TokenTypeEmailVerification TokenType = "email_verification" // #nosec G101
+	TokenTypeEmailVerification TokenType = "email_verification"
 	TokenTypePasswordReset     TokenType = "password_reset"
 )
 
 type VerificationToken struct {
-	Id        string
-	UserId    string
+	Id        uuid.UUID
+	UserId    uuid.UUID
 	Token     string
 	Type      TokenType
 	ExpiresAt time.Time

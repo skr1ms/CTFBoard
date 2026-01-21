@@ -399,6 +399,52 @@ paths:
       summary: Create challenge
       tags:
       - Admin
+  /admin/challenges/{challengeId}/files:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads file attachment to a challenge. Admin only
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeId
+        required: true
+        type: string
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - default: challenge
+        description: 'File type: challenge or writeup'
+        in: formData
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload file to challenge
+      tags:
+      - Admin
   /admin/challenges/{challengeId}/hints:
     post:
       consumes:
@@ -511,6 +557,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Update challenge
+      tags:
+      - Admin
+  /admin/files/{id}:
+    delete:
+      description: Deletes file from storage. Admin only
+      parameters:
+      - description: File ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete file
       tags:
       - Admin
   /admin/hints/{id}:
@@ -790,6 +865,39 @@ paths:
       summary: Get challenges list
       tags:
       - Challenges
+  /challenges/{challengeId}/files:
+    get:
+      description: Returns list of files attached to a challenge
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeId
+        required: true
+        type: string
+      - default: challenge
+        description: 'File type: challenge or writeup'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get challenge files
+      tags:
+      - Challenges
   /challenges/{challengeId}/hints:
     get:
       description: Returns list of hints for a challenge. Content is hidden for non-unlocked
@@ -940,6 +1048,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Submit flag
+      tags:
+      - Challenges
+  /files/{id}/download:
+    get:
+      description: Returns presigned URL for file download
+      parameters:
+      - description: File ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get download URL
       tags:
       - Challenges
   /scoreboard:

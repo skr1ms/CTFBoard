@@ -10,11 +10,13 @@ import (
 
 func TestScoreboard_Display(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin6_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Challenge 1",
@@ -39,7 +41,7 @@ func TestScoreboard_Display(t *testing.T) {
 	_, _, tokenUser2 := h.RegisterUserAndLogin(nameUser2)
 
 	h.SubmitFlag(tokenUser1, challengeID1, "FLAG{chall1}", http.StatusOK)
-	time.Sleep(1 * time.Second) // Небольшая пауза для реалистичности таймстемпов
+	time.Sleep(1 * time.Second)
 	h.SubmitFlag(tokenUser1, challengeID2, "FLAG{chall2}", http.StatusOK)
 
 	time.Sleep(1 * time.Second)
@@ -51,7 +53,7 @@ func TestScoreboard_Display(t *testing.T) {
 
 func TestScoreboard_Empty(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	h.GetScoreboard().
 		Status(http.StatusOK).

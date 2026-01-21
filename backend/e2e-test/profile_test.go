@@ -7,7 +7,7 @@ import (
 
 func TestProfile_GetMe(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	username := "profileuser"
 
@@ -22,7 +22,7 @@ func TestProfile_GetMe(t *testing.T) {
 
 func TestProfile_GetPublicProfile(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	username := "publicuser"
 	_, _, token := h.RegisterUserAndLogin(username)
@@ -38,7 +38,7 @@ func TestProfile_GetPublicProfile(t *testing.T) {
 
 func TestProfile_GetPublicProfileNotFound(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	h.GetPublicProfile("00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }

@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,7 +40,7 @@ func (_m *MockHintUnlockRepository) EXPECT() *MockHintUnlockRepository_Expecter 
 }
 
 // GetByTeamAndHint provides a mock function for the type MockHintUnlockRepository
-func (_mock *MockHintUnlockRepository) GetByTeamAndHint(ctx context.Context, teamId string, hintId string) (*entity.HintUnlock, error) {
+func (_mock *MockHintUnlockRepository) GetByTeamAndHint(ctx context.Context, teamId uuid.UUID, hintId uuid.UUID) (*entity.HintUnlock, error) {
 	ret := _mock.Called(ctx, teamId, hintId)
 
 	if len(ret) == 0 {
@@ -48,17 +49,17 @@ func (_mock *MockHintUnlockRepository) GetByTeamAndHint(ctx context.Context, tea
 
 	var r0 *entity.HintUnlock
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*entity.HintUnlock, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*entity.HintUnlock, error)); ok {
 		return returnFunc(ctx, teamId, hintId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *entity.HintUnlock); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *entity.HintUnlock); ok {
 		r0 = returnFunc(ctx, teamId, hintId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.HintUnlock)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId, hintId)
 	} else {
 		r1 = ret.Error(1)
@@ -73,25 +74,25 @@ type MockHintUnlockRepository_GetByTeamAndHint_Call struct {
 
 // GetByTeamAndHint is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
-//   - hintId string
+//   - teamId uuid.UUID
+//   - hintId uuid.UUID
 func (_e *MockHintUnlockRepository_Expecter) GetByTeamAndHint(ctx interface{}, teamId interface{}, hintId interface{}) *MockHintUnlockRepository_GetByTeamAndHint_Call {
 	return &MockHintUnlockRepository_GetByTeamAndHint_Call{Call: _e.mock.On("GetByTeamAndHint", ctx, teamId, hintId)}
 }
 
-func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) Run(run func(ctx context.Context, teamId string, hintId string)) *MockHintUnlockRepository_GetByTeamAndHint_Call {
+func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) Run(run func(ctx context.Context, teamId uuid.UUID, hintId uuid.UUID)) *MockHintUnlockRepository_GetByTeamAndHint_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -107,32 +108,32 @@ func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) Return(hintUnlock *ent
 	return _c
 }
 
-func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) RunAndReturn(run func(ctx context.Context, teamId string, hintId string) (*entity.HintUnlock, error)) *MockHintUnlockRepository_GetByTeamAndHint_Call {
+func (_c *MockHintUnlockRepository_GetByTeamAndHint_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID, hintId uuid.UUID) (*entity.HintUnlock, error)) *MockHintUnlockRepository_GetByTeamAndHint_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUnlockedHintIDs provides a mock function for the type MockHintUnlockRepository
-func (_mock *MockHintUnlockRepository) GetUnlockedHintIDs(ctx context.Context, teamId string, challengeId string) ([]string, error) {
+func (_mock *MockHintUnlockRepository) GetUnlockedHintIDs(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID) ([]uuid.UUID, error) {
 	ret := _mock.Called(ctx, teamId, challengeId)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUnlockedHintIDs")
 	}
 
-	var r0 []string
+	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]uuid.UUID, error)); ok {
 		return returnFunc(ctx, teamId, challengeId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []uuid.UUID); ok {
 		r0 = returnFunc(ctx, teamId, challengeId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
+			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId, challengeId)
 	} else {
 		r1 = ret.Error(1)
@@ -147,25 +148,25 @@ type MockHintUnlockRepository_GetUnlockedHintIDs_Call struct {
 
 // GetUnlockedHintIDs is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
-//   - challengeId string
+//   - teamId uuid.UUID
+//   - challengeId uuid.UUID
 func (_e *MockHintUnlockRepository_Expecter) GetUnlockedHintIDs(ctx interface{}, teamId interface{}, challengeId interface{}) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
 	return &MockHintUnlockRepository_GetUnlockedHintIDs_Call{Call: _e.mock.On("GetUnlockedHintIDs", ctx, teamId, challengeId)}
 }
 
-func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) Run(run func(ctx context.Context, teamId string, challengeId string)) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
+func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) Run(run func(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID)) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -176,12 +177,12 @@ func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) Run(run func(ctx con
 	return _c
 }
 
-func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) Return(strings []string, err error) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
-	_c.Call.Return(strings, err)
+func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
+	_c.Call.Return(uUIDs, err)
 	return _c
 }
 
-func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) RunAndReturn(run func(ctx context.Context, teamId string, challengeId string) ([]string, error)) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
+func (_c *MockHintUnlockRepository_GetUnlockedHintIDs_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID) ([]uuid.UUID, error)) *MockHintUnlockRepository_GetUnlockedHintIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

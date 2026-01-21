@@ -9,11 +9,13 @@ import (
 
 func TestChallenge_Lifecycle(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Test Challenge",
@@ -46,10 +48,12 @@ func TestChallenge_Lifecycle(t *testing.T) {
 
 func TestChallenge_DynamicScoring(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("adm_dyn_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":         "Dynamic Challenge",
@@ -64,20 +68,16 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 		"is_hidden":     false,
 	})
 
-	// Solver 1
 	_, _, tokenUser1 := h.RegisterUserAndLogin("solver1_" + suffix)
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
 
-	// Проверка очков: (500 - 100) / 2^(1/1) + 100 = 300
 	challengeState1 := h.FindChallengeInList(tokenUser1, challengeID)
 	challengeState1.Value("points").Number().IsEqual(300)
 	challengeState1.Value("solve_count").Number().IsEqual(1)
 
-	// Solver 2
 	_, _, tokenUser2 := h.RegisterUserAndLogin("solver2_" + suffix)
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{dynamic}", http.StatusOK)
 
-	// Проверка очков: (500 - 100) / 2^(2/1) + 100 = 200
 	challengeState2 := h.FindChallengeInList(tokenUser2, challengeID)
 	challengeState2.Value("points").Number().IsEqual(200)
 	challengeState2.Value("solve_count").Number().IsEqual(2)
@@ -85,10 +85,12 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 
 func TestChallenge_CreateHidden(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("admin2_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Hidden Challenge",
@@ -106,10 +108,12 @@ func TestChallenge_CreateHidden(t *testing.T) {
 
 func TestChallenge_Update(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("admin3_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Original Title",
@@ -142,10 +146,12 @@ func TestChallenge_Update(t *testing.T) {
 
 func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("admin4_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Test Challenge",
@@ -162,10 +168,12 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 
 func TestChallenge_Delete(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("admin5_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "To Delete",

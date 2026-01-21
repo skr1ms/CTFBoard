@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -33,7 +34,7 @@ func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.
 	}
 }
 
-func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamId *string) ([]*repo.ChallengeWithSolved, error) {
+func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamId *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
 	challenges, err := uc.challengeRepo.GetAll(ctx, teamId)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - GetAll: %w", err)
@@ -65,7 +66,7 @@ func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, cate
 	return challenge, nil
 }
 
-func (uc *ChallengeUseCase) Update(ctx context.Context, id string, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden bool) (*entity.Challenge, error) {
+func (uc *ChallengeUseCase) Update(ctx context.Context, id uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden bool) (*entity.Challenge, error) {
 	challenge, err := uc.challengeRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Update - GetByID: %w", err)
@@ -95,7 +96,7 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, id string, title, descri
 	return challenge, nil
 }
 
-func (uc *ChallengeUseCase) Delete(ctx context.Context, id string) error {
+func (uc *ChallengeUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 	err := uc.challengeRepo.Delete(ctx, id)
 	if err != nil {
 		return fmt.Errorf("ChallengeUseCase - Delete: %w", err)
@@ -106,7 +107,7 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, userId string, teamId *string) (bool, error) {
+func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUID, flag string, userId uuid.UUID, teamId *uuid.UUID) (bool, error) {
 	if teamId == nil {
 		return false, entityError.ErrUserMustBeInTeam
 	}
@@ -133,7 +134,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback()
+			_ = tx.Rollback(ctx)
 		}
 	}()
 
@@ -175,7 +176,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		challenge.Points = newPoints
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Commit: %w", err)
 	}
 
@@ -184,7 +185,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 	if uc.hub != nil {
 		payload := websocket.ScoreboardUpdate{
 			Type:      websocket.EventTypeSolve,
-			TeamID:    *teamId,
+			TeamID:    teamId.String(),
 			Challenge: challenge.Title,
 			Points:    challenge.Points,
 			Timestamp: time.Now(),
@@ -198,7 +199,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId, flag, u
 		if solveCount == 1 {
 			fbPayload := websocket.ScoreboardUpdate{
 				Type:      websocket.EventTypeFirstBlood,
-				TeamID:    *teamId,
+				TeamID:    teamId.String(),
 				Challenge: challenge.Title,
 				Points:    challenge.Points,
 				Timestamp: time.Now(),

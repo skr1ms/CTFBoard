@@ -16,23 +16,19 @@ services:
       - ctfboard_network
     restart: unless-stopped
 
-  mariadb:
-    image: mariadb:latest
-    container_name: mariadb
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
-      MARIADB_DATABASE: ${MARIADB_DB:-board}
-      MARIADB_USER: ${MARIADB_USER:-admin}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-admin}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-board}
     expose:
-      - "3306"
+      - "5432"
     volumes:
-      - mariadb_data:/var/lib/mysql
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$MARIADB_ROOT_PASSWORD || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-board}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,49 +53,94 @@ services:
       timeout: 5s
       retries: 5
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs
+    command: >
+      server
+      -s3
+      -s3.port=8333
+      -s3.config=/etc/seaweedfs/s3.json
+      -master.volumePreallocate
+      -master.volumeSizeLimitMB=4096
+      -volume.max=100
+    ports:
+      - "127.0.0.1:${SEAWEED_S3_PORT:-8333}:8333"
+      - "127.0.0.1:9333:9333"
+    volumes:
+      - ../seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - seaweed_data:/data
+    networks:
+      - ctfboard_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9333/cluster/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
   backend:
     build:
       context: ../../backend
       dockerfile: Dockerfile
-    image: ${BACKEND_IMAGE:-backend}
+    image: ${BACKEND_IMAGE:-ctfboard-backend}
     container_name: backend
-    env_file:
-      - ../../.env
     environment:
+      # Application
       APP_NAME: ${APP_NAME:-CTFBoard}
       APP_VERSION: ${APP_VERSION:-1.0.0}
       CHI_MODE: ${CHI_MODE:-release}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       BACKEND_PORT: 8080
       MIGRATIONS_PATH: ${MIGRATIONS_PATH:-migrations}
-      MARIADB_HOST: ${MARIADB_HOST:-mariadb}
-      MARIADB_PORT: 3306
-      MARIADB_DB: ${MARIADB_DB:-board}
-      MARIADB_USER: ${MARIADB_USER:-admin}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-admin}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+
+      # Database connection
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+
+      # Redis connection
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # Vault Connection
       VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN:-root}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+
+      # Email (Resend)
       RESEND_ENABLED: ${RESEND_ENABLED:-false}
-      RESEND_API_KEY: ${RESEND_API_KEY}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
-      RESEND_FROM_NAME: ${RESEND_FROM_NAME}
-      RESEND_VERIFY_TTL_HOURS: ${RESEND_VERIFY_TTL_HOURS}
-      RESEND_RESET_TTL_HOURS: ${RESEND_RESET_TTL_HOURS}
-      FRONTEND_URL: ${FRONTEND_URL}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@ctfleague.ru}
+      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-CTFBoard}
+      RESEND_VERIFY_TTL_HOURS: ${RESEND_VERIFY_TTL_HOURS:-24}
+      RESEND_RESET_TTL_HOURS: ${RESEND_RESET_TTL_HOURS:-1}
+
+      # Storage
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
+      STORAGE_LOCAL_PATH: /app/uploads
+      STORAGE_S3_ENDPOINT: seaweedfs:8333
+      STORAGE_S3_PUBLIC_ENDPOINT: ${STORAGE_S3_PUBLIC_ENDPOINT:-https://s3.ctfleague.ru}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-ctfboard}
+      STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-false}
+      STORAGE_PRESIGNED_EXPIRY_MINUTES: ${STORAGE_PRESIGNED_EXPIRY_MINUTES:-60}
+
+      # Frontend 
+      FRONTEND_URL: ${FRONTEND_URL:-https://ctfleague.ru}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://ctfleague.ru}
+
+      # Rate Limiting
+      RATE_LIMIT_SUBMIT_FLAG: ${RATE_LIMIT_SUBMIT_FLAG:-10}
+      RATE_LIMIT_SUBMIT_FLAG_DURATION: ${RATE_LIMIT_SUBMIT_FLAG_DURATION:-1}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8090}:8080"
     depends_on:
-      mariadb:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       vault:
         condition: service_started
+      seaweedfs:
+        condition: service_healthy
     networks:
       - ctfboard_network
     restart: unless-stopped
@@ -121,8 +162,7 @@ services:
       - ../../monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     healthcheck:
-      test:
-        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy",]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -149,7 +189,7 @@ services:
     volumes:
       - ../../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
     expose:
       - "9093"
     networks:
@@ -177,7 +217,7 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://grafana.ctfleague.ru
+      - GF_SERVER_ROOT_URL=https://grafana.ctfleague.ru
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
@@ -191,18 +231,19 @@ services:
       prometheus:
         condition: service_healthy
 
-  mysqld-exporter:
-    image: prom/mysqld-exporter:latest
-    container_name: mysqld-exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-board}?sslmode=disable"
     expose:
-      - "9104"
-    command:
-      - '--no-collect.slave_status'
-    volumes:
-      - ../../monitoring/mysqld-exporter/my.cnf:/.my.cnf:ro
+      - "9187"
     networks:
       - ctfboard_network
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis-exporter:
     image: oliver006/redis_exporter:latest
@@ -247,13 +288,14 @@ services:
       retries: 3
 
 volumes:
-  mariadb_data:
+  postgres_data:
   redis_data:
   vault_data:
   prometheus_data:
   loki_data:
   grafana_data:
     name: docker_grafana_data
+  seaweed_data:
 
 networks:
   ctfboard_network:

@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -96,7 +97,7 @@ func (_c *MockTeamRepository_Create_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // Delete provides a mock function for the type MockTeamRepository
-func (_mock *MockTeamRepository) Delete(ctx context.Context, id string) error {
+func (_mock *MockTeamRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -104,7 +105,7 @@ func (_mock *MockTeamRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		r0 = ret.Error(0)
@@ -119,20 +120,20 @@ type MockTeamRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockTeamRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockTeamRepository_Delete_Call {
 	return &MockTeamRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
-func (_c *MockTeamRepository_Delete_Call) Run(run func(ctx context.Context, id string)) *MockTeamRepository_Delete_Call {
+func (_c *MockTeamRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTeamRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -147,13 +148,13 @@ func (_c *MockTeamRepository_Delete_Call) Return(err error) *MockTeamRepository_
 	return _c
 }
 
-func (_c *MockTeamRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id string) error) *MockTeamRepository_Delete_Call {
+func (_c *MockTeamRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockTeamRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockTeamRepository
-func (_mock *MockTeamRepository) GetByID(ctx context.Context, id string) (*entity.Team, error) {
+func (_mock *MockTeamRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -162,17 +163,17 @@ func (_mock *MockTeamRepository) GetByID(ctx context.Context, id string) (*entit
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Team, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Team); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -187,20 +188,20 @@ type MockTeamRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockTeamRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockTeamRepository_GetByID_Call {
 	return &MockTeamRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockTeamRepository_GetByID_Call) Run(run func(ctx context.Context, id string)) *MockTeamRepository_GetByID_Call {
+func (_c *MockTeamRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTeamRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -215,13 +216,13 @@ func (_c *MockTeamRepository_GetByID_Call) Return(team *entity.Team, err error) 
 	return _c
 }
 
-func (_c *MockTeamRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string) (*entity.Team, error)) *MockTeamRepository_GetByID_Call {
+func (_c *MockTeamRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Team, error)) *MockTeamRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByInviteToken provides a mock function for the type MockTeamRepository
-func (_mock *MockTeamRepository) GetByInviteToken(ctx context.Context, inviteToken string) (*entity.Team, error) {
+func (_mock *MockTeamRepository) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error) {
 	ret := _mock.Called(ctx, inviteToken)
 
 	if len(ret) == 0 {
@@ -230,17 +231,17 @@ func (_mock *MockTeamRepository) GetByInviteToken(ctx context.Context, inviteTok
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Team, error)); ok {
 		return returnFunc(ctx, inviteToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Team); ok {
 		r0 = returnFunc(ctx, inviteToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, inviteToken)
 	} else {
 		r1 = ret.Error(1)
@@ -255,20 +256,20 @@ type MockTeamRepository_GetByInviteToken_Call struct {
 
 // GetByInviteToken is a helper method to define mock.On call
 //   - ctx context.Context
-//   - inviteToken string
+//   - inviteToken uuid.UUID
 func (_e *MockTeamRepository_Expecter) GetByInviteToken(ctx interface{}, inviteToken interface{}) *MockTeamRepository_GetByInviteToken_Call {
 	return &MockTeamRepository_GetByInviteToken_Call{Call: _e.mock.On("GetByInviteToken", ctx, inviteToken)}
 }
 
-func (_c *MockTeamRepository_GetByInviteToken_Call) Run(run func(ctx context.Context, inviteToken string)) *MockTeamRepository_GetByInviteToken_Call {
+func (_c *MockTeamRepository_GetByInviteToken_Call) Run(run func(ctx context.Context, inviteToken uuid.UUID)) *MockTeamRepository_GetByInviteToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -283,7 +284,7 @@ func (_c *MockTeamRepository_GetByInviteToken_Call) Return(team *entity.Team, er
 	return _c
 }
 
-func (_c *MockTeamRepository_GetByInviteToken_Call) RunAndReturn(run func(ctx context.Context, inviteToken string) (*entity.Team, error)) *MockTeamRepository_GetByInviteToken_Call {
+func (_c *MockTeamRepository_GetByInviteToken_Call) RunAndReturn(run func(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error)) *MockTeamRepository_GetByInviteToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1,29 +1,32 @@
 package e2e_test
 
 import (
+	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gavv/httpexpect/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type E2EHelper struct {
-	t  *testing.T
-	e  *httpexpect.Expect
-	db *sql.DB
+	t    *testing.T
+	e    *httpexpect.Expect
+	pool *pgxpool.Pool
 }
 
-func NewE2EHelper(t *testing.T, e *httpexpect.Expect, db *sql.DB) *E2EHelper {
+func NewE2EHelper(t *testing.T, e *httpexpect.Expect, pool *pgxpool.Pool) *E2EHelper {
 	return &E2EHelper{
-		t:  t,
-		e:  e,
-		db: db,
+		t:    t,
+		e:    e,
+		pool: pool,
 	}
 }
 
@@ -81,28 +84,31 @@ func (h *E2EHelper) VerifyEmail(token string) {
 // DB Helpers
 
 func (h *E2EHelper) GetUserIDByEmail(email string) string {
+	ctx := context.Background()
 	var id string
-	err := h.db.QueryRow("SELECT id FROM users WHERE email = ?", email).Scan(&id)
+	err := h.pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", email).Scan(&id)
 	require.NoError(h.t, err, "failed to find user by email")
 	return id
 }
 
 func (h *E2EHelper) AssertUserVerified(email string, expected bool) {
+	ctx := context.Background()
 	var isVerified bool
-	err := h.db.QueryRow("SELECT is_verified FROM users WHERE email = ?", email).Scan(&isVerified)
+	err := h.pool.QueryRow(ctx, "SELECT is_verified FROM users WHERE email = $1", email).Scan(&isVerified)
 	require.NoError(h.t, err)
 	assert.Equal(h.t, expected, isVerified, "user verification status mismatch")
 }
 
 func (h *E2EHelper) InjectToken(userID string, tokenType entity.TokenType, knownToken string) {
+	ctx := context.Background()
 	hashedToken := h.hashToken(knownToken)
 
 	var count int
-	err := h.db.QueryRow("SELECT count(*) FROM verification_tokens WHERE user_id = ? AND type = ?", userID, tokenType).Scan(&count)
+	err := h.pool.QueryRow(ctx, "SELECT count(*) FROM verification_tokens WHERE user_id = $1 AND type = $2", userID, tokenType).Scan(&count)
 	require.NoError(h.t, err)
 	require.Equal(h.t, 1, count, "token row should exist before injection")
 
-	_, err = h.db.Exec("UPDATE verification_tokens SET token = ? WHERE user_id = ? AND type = ?", hashedToken, userID, tokenType)
+	_, err = h.pool.Exec(ctx, "UPDATE verification_tokens SET token = $1 WHERE user_id = $2 AND type = $3", hashedToken, userID, tokenType)
 	require.NoError(h.t, err, "failed to inject token")
 }
 
@@ -131,6 +137,7 @@ func (h *E2EHelper) RegisterUser(username string) (email, password string) {
 }
 
 func (h *E2EHelper) RegisterAdmin(username string) (email, password, token string) {
+	ctx := context.Background()
 	email, password, token = h.RegisterUserAndLogin(username)
 
 	meResp := h.e.GET("/api/v1/auth/me").
@@ -138,7 +145,7 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 		Expect().Status(200).JSON().Object()
 	userId := meResp.Value("id").String().Raw()
 
-	_, err := h.db.Exec("UPDATE users SET role = 'admin' WHERE id = ?", userId)
+	_, err := h.pool.Exec(ctx, "UPDATE users SET role = 'admin' WHERE id = $1", userId)
 	require.NoError(h.t, err)
 
 	resp := h.Login(email, password, http.StatusOK)
@@ -211,6 +218,21 @@ func (h *E2EHelper) UpdateCompetition(token string, data map[string]interface{})
 		WithJSON(data).
 		Expect().
 		Status(http.StatusOK)
+}
+
+func (h *E2EHelper) StartCompetition(adminToken string) {
+	now := time.Now().UTC()
+	resp := h.e.PUT("/api/v1/admin/competition").
+		WithHeader("Authorization", adminToken).
+		WithJSON(map[string]interface{}{
+			"name":       "Test CTF",
+			"start_time": now.Add(-1 * time.Hour),
+			"end_time":   now.Add(24 * time.Hour),
+			"is_paused":  false,
+		}).
+		Expect()
+
+	resp.Status(http.StatusOK)
 }
 
 // First Blood Helpers
@@ -348,4 +370,42 @@ func (h *E2EHelper) JoinTeam(token, inviteToken string, expectStatus int) {
 		}).
 		Expect().
 		Status(expectStatus)
+}
+
+// File Helpers
+
+func (h *E2EHelper) UploadChallengeFile(token, challengeID, fileName, content string) *httpexpect.Object {
+	return h.e.POST("/api/v1/admin/challenges/{id}/files", challengeID).
+		WithHeader("Authorization", token).
+		WithMultipart().
+		WithFile("file", fileName, strings.NewReader(content)).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object()
+}
+
+func (h *E2EHelper) GetChallengeFiles(token, challengeID string) *httpexpect.Array {
+	return h.e.GET("/api/v1/challenges/{id}/files", challengeID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Array()
+}
+
+func (h *E2EHelper) GetFileDownloadURL(token, fileID string) string {
+	resp := h.e.GET("/api/v1/files/{id}/download", fileID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+
+	return resp.Value("url").String().Raw()
+}
+
+func (h *E2EHelper) DownloadFileContent(token, url string) string {
+	return h.e.GET(url).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK).
+		Body().Raw()
 }

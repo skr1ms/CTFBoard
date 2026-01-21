@@ -25,17 +25,16 @@ variables:
   DOCKER_CLI_IMAGE: docker:cli
 
   GOLANG_IMAGE: golang:alpine
-  MARIADB_IMAGE: mariadb:latest
+  POSTGRES_IMAGE: postgres:17-alpine
   REDIS_IMAGE: redis:alpine
   GOLANGCI_LINT_IMAGE: golangci/golangci-lint:latest-alpine
   ALPINE_IMAGE: alpine:latest
   GOSEC_IMAGE: securego/gosec:latest
   TRIVY_IMAGE: aquasec/trivy:latest
 
-  MARIADB_ROOT_PASSWORD: root
-  MARIADB_DATABASE: test_board
-  MARIADB_USER: test_user
-  MARIADB_PASSWORD: test_password
+  POSTGRES_DB: test_board
+  POSTGRES_USER: test_user
+  POSTGRES_PASSWORD: test_password
   REDIS_PASSWORD: "test_password"
 
 .docker-login: &docker_login
@@ -128,22 +127,20 @@ test:backend:
   stage: test
   image: $GOLANG_IMAGE
   services:
-    - name: $MARIADB_IMAGE
-      alias: mariadb-test
+    - name: $POSTGRES_IMAGE
+      alias: postgres-test
       variables:
-        MARIADB_ROOT_PASSWORD: $MARIADB_ROOT_PASSWORD
-        MARIADB_DATABASE: $MARIADB_DATABASE
-        MARIADB_USER: $MARIADB_USER
-        MARIADB_PASSWORD: $MARIADB_PASSWORD
+        POSTGRES_DB: $POSTGRES_DB
+        POSTGRES_USER: $POSTGRES_USER
+        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
     - name: $REDIS_IMAGE
       alias: redis-test
       variables:
         REDIS_PASSWORD: $REDIS_PASSWORD
 
   variables:
-    MARIADB_HOST: mariadb-test
-    MARIADB_PORT: "3306"
-    MARIADB_DB: $MARIADB_DATABASE
+    POSTGRES_HOST: postgres-test
+    POSTGRES_PORT: "5432"
     REDIS_HOST: redis-test
     REDIS_PORT: "6379"
     JWT_ACCESS_SECRET: test-access-secret-key-for-ci
@@ -156,12 +153,12 @@ test:backend:
     MIGRATIONS_PATH: migrations
     CGO_ENABLED: "1"
   before_script:
-    - apk add --no-cache build-base git netcat-openbsd
+    - apk add --no-cache build-base git netcat-openbsd postgresql-client
 
     - |
-      echo "Waiting for MariaDB..."
+      echo "Waiting for PostgreSQL..."
       for i in $(seq 1 30); do
-        nc -z mariadb-test 3306 && echo "MariaDB is ready!" && break
+        pg_isready -h postgres-test -p 5432 -U $POSTGRES_USER && echo "PostgreSQL is ready!" && break
         echo "Waiting..."
         sleep 2
       done
@@ -190,84 +187,49 @@ deploy:
   stage: deploy
   image: $ALPINE_IMAGE
   before_script:
-    - apk add --no-cache openssh-client
+    - apk add --no-cache openssh-client curl
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - ssh-keyscan -H "$DEPLOY_SERVER_IP" >> ~/.ssh/known_hosts || true
-    - ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $DEPLOY_USER@$DEPLOY_SERVER_IP "echo 'SSH connection test'" || true
+    - ssh-keyscan -H "$DEPLOY_SERVER_IP" >> ~/.ssh/known_hosts
   script:
     - |
-      ssh -o StrictHostKeyChecking=accept-new $DEPLOY_USER@$DEPLOY_SERVER_IP "bash -s" << EOF
-        set -e
-        cd ~/ctfboard
-        
-        PREV_HEAD=\$(git rev-parse HEAD)
-        git fetch origin main
-        git reset --hard origin/main
-        
-        MONITORING_CHANGED=\$(git diff --name-only \$PREV_HEAD HEAD | grep "^monitoring/" || true)
-        
-        echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
-        
-        COMPOSE_FILE="deployment/docker/docker-compose.yml"
-        ENV_FILE=".env"
-        
-        if [ -z "\$ENV_FILE" ]; then
-          ENV_FILE=".env"
+      ssh -o StrictHostKeyChecking=accept-new $DEPLOY_USER@$DEPLOY_SERVER_IP "bash -s" << 'EOF'
+      set -e
+      
+      trap 'docker logout 2>/dev/null; rm -f ~/.docker/config.json' EXIT
+      
+      cd ~/ctfboard
+      
+      git fetch origin main
+      git reset --hard origin/main
+      
+      echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+      
+      sed -i '/^BACKEND_IMAGE=/d' .env || true
+      echo "BACKEND_IMAGE=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" >> .env
+      
+      docker compose --env-file .env -f deployment/docker/docker-compose.yml pull
+      docker compose --env-file .env -f deployment/docker/docker-compose.yml up -d
+      
+      echo "Waiting for backend..."
+      for i in {1..30}; do
+        if curl -sf http://localhost:8090/health > /dev/null 2>&1; then
+          echo "Backend is healthy!"
+          break
         fi
-        
-        touch "\$ENV_FILE"
-        
-        sed -i '/^BACKEND_IMAGE=/d' "\$ENV_FILE" || true
-        
-        echo "BACKEND_IMAGE=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" >> "\$ENV_FILE"
-        
-        # Load environment variables (ignoring errors if format is tricky, but basic vars should work)
-        set -a
-        source "\$ENV_FILE"
-        set +a
-        
-        echo "Generating monitoring/mysqld-exporter/my.cnf..."
-        mkdir -p monitoring/mysqld-exporter
-        printf "[client]\nuser=\${MARIADB_USER:-admin}\npassword=\${MARIADB_PASSWORD:-admin}\nhost=mariadb\nport=3306\n" > monitoring/mysqld-exporter/my.cnf
-        
-        docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" pull
-        
-        if [ -n "\$MONITORING_CHANGED" ]; then
-          echo "Monitoring configuration changed. Recreating Grafana volume..."
-          docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" stop grafana || true
-          docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" rm -f grafana || true
-          docker volume rm docker_grafana_data || true
+        if [ $i -eq 30 ]; then
+          echo "Backend failed health check!"
+          docker logs backend --tail 50
+          exit 1
         fi
-        
-        docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" up -d
-        
-        echo "Ensuring DB privileges..."
-        for i in {1..30}; do
-          if docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root -p"\${MARIADB_ROOT_PASSWORD:-root}" --silent; then
-            echo "MariaDB is ready. Granting privileges..."
-            docker exec mariadb mariadb -u root -p"\${MARIADB_ROOT_PASSWORD:-root}" -e "GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '\${MARIADB_USER:-admin}'@'%'; FLUSH PRIVILEGES;"
-            break
-          fi
-          echo "Waiting for MariaDB..."
-          sleep 2
-        done
-        
-        docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" up -d --force-recreate --no-deps backend
-        
-        docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" restart promtail || true
-        
-        if [ -n "\$MONITORING_CHANGED" ]; then
-          echo "Restarting specific monitoring services..."
-          docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" restart grafana prometheus || true
-        fi
-        
-        docker logout || true
-        rm -f ~/.docker/config.json || true
-        
-        docker image prune -f
+        sleep 2
+      done
+      
       EOF
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
+  environment:
+    name: production
+    url: https://ctfleague.ru

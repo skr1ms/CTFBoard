@@ -12,8 +12,8 @@ import (
 // Get Tests
 
 func TestCompetitionRepo_Get(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
 	ctx := context.Background()
 
@@ -29,15 +29,15 @@ func TestCompetitionRepo_Get(t *testing.T) {
 // Update Tests
 
 func TestCompetitionRepo_Update(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
 	ctx := context.Background()
 
 	comp, err := repo.Get(ctx)
 	require.NoError(t, err)
 
-	now := time.Now().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
 	name := "Updated Name"
 	comp.Name = name
 	comp.StartTime = &now
@@ -57,15 +57,15 @@ func TestCompetitionRepo_Update(t *testing.T) {
 }
 
 func TestCompetitionRepo_Update_Partial(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	comp, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
 
 	name := "Partial Update"
-	freeze := time.Now().Add(1 * time.Hour).Truncate(time.Second)
+	freeze := time.Now().UTC().Add(1 * time.Hour).Truncate(time.Second)
 	comp.Name = name
 	comp.FreezeTime = &freeze
 

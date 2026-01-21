@@ -1,11 +1,15 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Team struct {
-	Id          string    `json:"id"`
+	Id          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
-	InviteToken string    `json:"invite_token"`
-	CaptainId   string    `json:"captain_id"`
+	InviteToken uuid.UUID `json:"invite_token"`
+	CaptainId   uuid.UUID `json:"captain_id"`
 	CreatedAt   time.Time `json:"created_at"`
 }

@@ -2,44 +2,40 @@ package persistent
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
 type HintRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewHintRepo(db *sql.DB) *HintRepo {
-	return &HintRepo{db: db}
+func NewHintRepo(pool *pgxpool.Pool) *HintRepo {
+	return &HintRepo{pool: pool}
 }
 
 func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
-	id := uuid.New().String()
-	h.Id = id
-
-	challengeUUID, err := uuid.Parse(h.ChallengeId)
-	if err != nil {
-		return fmt.Errorf("HintRepo - Create - Parse ChallengeID: %w", err)
-	}
+	h.Id = uuid.New()
 
 	query := squirrel.Insert("hints").
 		Columns("id", "challenge_id", "content", "cost", "order_index").
-		Values(id, challengeUUID.String(), h.Content, h.Cost, h.OrderIndex)
+		Values(h.Id, h.ChallengeId, h.Content, h.Cost, h.OrderIndex).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("HintRepo - Create - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("HintRepo - Create - ExecQuery: %w", err)
 	}
@@ -47,15 +43,11 @@ func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
 	return nil
 }
 
-func (r *HintRepo) GetByID(ctx context.Context, id string) (*entity.Hint, error) {
-	uuidID, err := uuid.Parse(id)
-	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByID - ParseID: %w", err)
-	}
-
+func (r *HintRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, error) {
 	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
 		From("hints").
-		Where(squirrel.Eq{"id": uuidID})
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -63,7 +55,7 @@ func (r *HintRepo) GetByID(ctx context.Context, id string) (*entity.Hint, error)
 	}
 
 	var hint entity.Hint
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&hint.Id,
 		&hint.ChallengeId,
 		&hint.Content,
@@ -72,7 +64,7 @@ func (r *HintRepo) GetByID(ctx context.Context, id string) (*entity.Hint, error)
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
 		}
 		return nil, fmt.Errorf("HintRepo - GetByID - Scan: %w", err)
@@ -81,29 +73,23 @@ func (r *HintRepo) GetByID(ctx context.Context, id string) (*entity.Hint, error)
 	return &hint, nil
 }
 
-func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeId string) ([]*entity.Hint, error) {
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByChallengeID - Parse ChallengeID: %w", err)
-	}
-
+func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeId uuid.UUID) ([]*entity.Hint, error) {
 	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
 		From("hints").
-		Where(squirrel.Eq{"challenge_id": challengeUUID}).
-		OrderBy("order_index ASC")
+		Where(squirrel.Eq{"challenge_id": challengeId}).
+		OrderBy("order_index ASC").
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("HintRepo - GetByChallengeID - BuildQuery: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("HintRepo - GetByChallengeID - Query: %w", err)
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	hints := make([]*entity.Hint, 0)
 	for rows.Next() {
@@ -128,23 +114,19 @@ func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeId string) ([]
 }
 
 func (r *HintRepo) Update(ctx context.Context, h *entity.Hint) error {
-	uuidID, err := uuid.Parse(h.Id)
-	if err != nil {
-		return fmt.Errorf("HintRepo - Update - ParseID: %w", err)
-	}
-
 	query := squirrel.Update("hints").
 		Set("content", h.Content).
 		Set("cost", h.Cost).
 		Set("order_index", h.OrderIndex).
-		Where(squirrel.Eq{"id": uuidID})
+		Where(squirrel.Eq{"id": h.Id}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("HintRepo - Update - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("HintRepo - Update - ExecQuery: %w", err)
 	}
@@ -152,21 +134,17 @@ func (r *HintRepo) Update(ctx context.Context, h *entity.Hint) error {
 	return nil
 }
 
-func (r *HintRepo) Delete(ctx context.Context, id string) error {
-	uuidID, err := uuid.Parse(id)
-	if err != nil {
-		return fmt.Errorf("HintRepo - Delete - ParseID: %w", err)
-	}
-
+func (r *HintRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	query := squirrel.Delete("hints").
-		Where(squirrel.Eq{"id": uuidID})
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("HintRepo - Delete - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("HintRepo - Delete - ExecQuery: %w", err)
 	}
@@ -175,26 +153,18 @@ func (r *HintRepo) Delete(ctx context.Context, id string) error {
 }
 
 type HintUnlockRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewHintUnlockRepo(db *sql.DB) *HintUnlockRepo {
-	return &HintUnlockRepo{db: db}
+func NewHintUnlockRepo(pool *pgxpool.Pool) *HintUnlockRepo {
+	return &HintUnlockRepo{pool: pool}
 }
 
-func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId string) (*entity.HintUnlock, error) {
-	teamUUID, err := uuid.Parse(teamId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Parse TeamID: %w", err)
-	}
-	hintUUID, err := uuid.Parse(hintId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Parse HintID: %w", err)
-	}
-
+func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId uuid.UUID) (*entity.HintUnlock, error) {
 	query := squirrel.Select("id", "hint_id", "team_id", "unlocked_at").
 		From("hint_unlocks").
-		Where(squirrel.Eq{"team_id": teamUUID, "hint_id": hintUUID})
+		Where(squirrel.Eq{"team_id": teamId, "hint_id": hintId}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -202,7 +172,7 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId st
 	}
 
 	var unlock entity.HintUnlock
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&unlock.Id,
 		&unlock.HintId,
 		&unlock.TeamId,
@@ -210,7 +180,7 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId st
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
 		}
 		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Scan: %w", err)
@@ -219,37 +189,27 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId st
 	return &unlock, nil
 }
 
-func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamId, challengeId string) ([]string, error) {
-	teamUUID, err := uuid.Parse(teamId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Parse TeamID: %w", err)
-	}
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Parse ChallengeID: %w", err)
-	}
-
+func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamId, challengeId uuid.UUID) ([]uuid.UUID, error) {
 	query := squirrel.Select("hu.hint_id").
 		From("hint_unlocks hu").
 		Join("hints h ON h.id = hu.hint_id").
-		Where(squirrel.Eq{"hu.team_id": teamUUID, "h.challenge_id": challengeUUID})
+		Where(squirrel.Eq{"hu.team_id": teamId, "h.challenge_id": challengeId}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - BuildQuery: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Query: %w", err)
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
-	hintIDs := make([]string, 0)
+	hintIDs := make([]uuid.UUID, 0)
 	for rows.Next() {
-		var hintId string
+		var hintId uuid.UUID
 		if err := rows.Scan(&hintId); err != nil {
 			return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Scan: %w", err)
 		}

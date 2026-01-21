@@ -9,10 +9,12 @@ import (
 
 func TestHint_Flow(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Hint Chal",

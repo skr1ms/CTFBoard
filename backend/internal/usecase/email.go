@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -232,7 +233,7 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 	return nil
 }
 
-func (uc *EmailUseCase) ResendVerification(ctx context.Context, userId string) error {
+func (uc *EmailUseCase) ResendVerification(ctx context.Context, userId uuid.UUID) error {
 	user, err := uc.userRepo.GetByID(ctx, userId)
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - ResendVerification - GetByID: %w", err)

@@ -15,8 +15,8 @@ import (
 // Create Tests
 
 func TestTeamRepo_Create(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "captain")
@@ -28,8 +28,8 @@ func TestTeamRepo_Create(t *testing.T) {
 }
 
 func TestTeamRepo_Create_DuplicateName(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team1 := f.CreateUserWithTeam(t, "duplicate_1")
@@ -38,7 +38,7 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 
 	team2 := &entity.Team{
 		Name:        team1.Name,
-		InviteToken: "token2",
+		InviteToken: uuid.New(),
 		CaptainId:   user2.Id,
 	}
 	err := f.TeamRepo.Create(ctx, team2)
@@ -52,8 +52,8 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 // GetByID Tests
 
 func TestTeamRepo_GetByID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "get_by_id")
@@ -67,11 +67,11 @@ func TestTeamRepo_GetByID(t *testing.T) {
 }
 
 func TestTeamRepo_GetByID_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	nonExistentID := uuid.New().String()
+	nonExistentID := uuid.New()
 	_, err := f.TeamRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
@@ -80,8 +80,8 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 // GetByInviteToken Tests
 
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "invite_token")
@@ -93,11 +93,11 @@ func TestTeamRepo_GetByInviteToken(t *testing.T) {
 }
 
 func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	_, err := f.TeamRepo.GetByInviteToken(ctx, "nonexistent_token")
+	_, err := f.TeamRepo.GetByInviteToken(ctx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
@@ -105,8 +105,8 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 // GetByName Tests
 
 func TestTeamRepo_GetByName(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "get_by_name")
@@ -118,8 +118,8 @@ func TestTeamRepo_GetByName(t *testing.T) {
 }
 
 func TestTeamRepo_GetByName_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, err := f.TeamRepo.GetByName(ctx, "nonexistent_team")

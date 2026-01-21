@@ -2,11 +2,10 @@ package usecase
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -24,7 +23,7 @@ func NewTeamUseCase(teamRepo repo.TeamRepository, userRepo repo.UserRepository) 
 	}
 }
 
-func (uc *TeamUseCase) Create(ctx context.Context, name, captainId string) (*entity.Team, error) {
+func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.UUID) (*entity.Team, error) {
 	_, err := uc.teamRepo.GetByName(ctx, name)
 	if err == nil {
 		return nil, fmt.Errorf("%w: name", entityError.ErrTeamAlreadyExists)
@@ -42,11 +41,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name, captainId string) (*ent
 		return nil, entityError.ErrUserAlreadyInTeam
 	}
 
-	inviteTokenBytes := make([]byte, 16)
-	if _, err := rand.Read(inviteTokenBytes); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - Create - GenerateToken: %w", err)
-	}
-	inviteToken := hex.EncodeToString(inviteTokenBytes)
+	inviteToken := uuid.New()
 
 	team := &entity.Team{
 		Name:        name,
@@ -68,7 +63,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name, captainId string) (*ent
 	return team, nil
 }
 
-func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userId string) (*entity.Team, error) {
+func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId uuid.UUID) (*entity.Team, error) {
 	team, err := uc.teamRepo.GetByInviteToken(ctx, inviteToken)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - Join - GetByInviteToken: %w", err)
@@ -109,7 +104,7 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userId string) (*e
 	return team, nil
 }
 
-func (uc *TeamUseCase) GetByID(ctx context.Context, id string) (*entity.Team, error) {
+func (uc *TeamUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error) {
 	team, err := uc.teamRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetByID: %w", err)
@@ -117,7 +112,7 @@ func (uc *TeamUseCase) GetByID(ctx context.Context, id string) (*entity.Team, er
 	return team, nil
 }
 
-func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userId string) (*entity.Team, []*entity.User, error) {
+func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userId uuid.UUID) (*entity.Team, []*entity.User, error) {
 	user, err := uc.userRepo.GetByID(ctx, userId)
 	if err != nil {
 		return nil, nil, fmt.Errorf("TeamUseCase - GetMyTeam - GetByID: %w", err)
@@ -140,7 +135,7 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userId string) (*entity.Te
 	return team, members, nil
 }
 
-func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamId string) ([]*entity.User, error) {
+func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamId uuid.UUID) ([]*entity.User, error) {
 	users, err := uc.userRepo.GetByTeamId(ctx, teamId)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetTeamMembers: %w", err)

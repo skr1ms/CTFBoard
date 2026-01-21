@@ -2,13 +2,11 @@ package usecase
 
 import (
 	"context"
-	"crypto/rand"
-	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -64,11 +62,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateFromPassword: %w", err)
 	}
 
-	inviteTokenBytes := make([]byte, 16)
-	if _, err := rand.Read(inviteTokenBytes); err != nil {
-		return nil, fmt.Errorf("UserUseCase - Register - GenerateToken: %w", err)
-	}
-	inviteToken := hex.EncodeToString(inviteTokenBytes)
+	inviteToken := uuid.New()
 
 	user := &entity.User{
 		Username:     username,
@@ -79,7 +73,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 
 	var team *entity.Team
 
-	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx *sql.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.CreateUserTx(ctx, tx, user); err != nil {
 			return fmt.Errorf("CreateUserTx: %w", err)
 		}
@@ -124,12 +118,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.
 		return nil, entityError.ErrInvalidCredentials
 	}
 
-	userID, err := uuid.Parse(user.Id)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Login - ParseUUID: %w", err)
-	}
-
-	tokenPair, err := uc.jwtService.GenerateTokenPair(userID, user.Email, user.Username, user.Role)
+	tokenPair, err := uc.jwtService.GenerateTokenPair(user.Id, user.Email, user.Username, user.Role)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Login - GenerateTokenPair: %w", err)
 	}
@@ -137,7 +126,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.
 	return tokenPair, nil
 }
 
-func (uc *UserUseCase) GetByID(ctx context.Context, id string) (*entity.User, error) {
+func (uc *UserUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	user, err := uc.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetByID: %w", err)
@@ -150,7 +139,7 @@ type UserProfile struct {
 	Solves []*entity.Solve
 }
 
-func (uc *UserUseCase) GetProfile(ctx context.Context, userId string) (*UserProfile, error) {
+func (uc *UserUseCase) GetProfile(ctx context.Context, userId uuid.UUID) (*UserProfile, error) {
 	user, err := uc.userRepo.GetByID(ctx, userId)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetProfile - GetByID: %w", err)

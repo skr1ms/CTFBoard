@@ -1,4 +1,4 @@
-DROP INDEX idx_verification_user_type ON verification_tokens;
-DROP INDEX idx_verification_token ON verification_tokens;
-DROP TABLE verification_tokens;
-ALTER TABLE users DROP COLUMN verified_at, DROP COLUMN is_verified;
+DROP INDEX IF EXISTS idx_verification_user_type;
+DROP INDEX IF EXISTS idx_verification_token;
+DROP TABLE IF EXISTS verification_tokens;
+ALTER TABLE users DROP COLUMN IF EXISTS verified_at, DROP COLUMN IF EXISTS is_verified;

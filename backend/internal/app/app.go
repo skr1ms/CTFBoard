@@ -19,12 +19,13 @@ import (
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
 	wsController "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
+	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	"github.com/skr1ms/CTFBoard/pkg/mariadb"
 	"github.com/skr1ms/CTFBoard/pkg/migrator"
+	"github.com/skr1ms/CTFBoard/pkg/postgres"
 	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
@@ -38,16 +39,12 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		"version":   cfg.Version,
 	})
 
-	db, err := mariadb.New(&cfg.DB)
+	pool, err := postgres.New(&cfg.DB)
 	if err != nil {
 		l.Error("failed to connect to database", err)
 		return
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			l.Error("failed to close database connection", err)
-		}
-	}()
+	defer pool.Close()
 
 	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Password)
 	if err != nil {
@@ -65,15 +62,15 @@ func Run(cfg *config.Config, l *logger.Logger) {
 		return
 	}
 
-	userRepo := persistent.NewUserRepo(db)
-	challengeRepo := persistent.NewChallengeRepo(db)
-	solveRepo := persistent.NewSolveRepo(db)
-	teamRepo := persistent.NewTeamRepo(db)
-	competitionRepo := persistent.NewCompetitionRepo(db)
-	hintRepo := persistent.NewHintRepo(db)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(db)
-	awardRepo := persistent.NewAwardRepo(db)
-	txRepo := persistent.NewTxRepo(db)
+	userRepo := persistent.NewUserRepo(pool)
+	challengeRepo := persistent.NewChallengeRepo(pool)
+	solveRepo := persistent.NewSolveRepo(pool)
+	teamRepo := persistent.NewTeamRepo(pool)
+	competitionRepo := persistent.NewCompetitionRepo(pool)
+	hintRepo := persistent.NewHintRepo(pool)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(pool)
+	awardRepo := persistent.NewAwardRepo(pool)
+	txRepo := persistent.NewTxRepo(pool)
 
 	validator := validator.New()
 
@@ -94,8 +91,40 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	var storageProvider storage.Provider
+	if cfg.Provider == "s3" {
+		s3Provider, err := storage.NewS3Provider(
+			cfg.S3Endpoint,
+			cfg.S3PublicEndpoint,
+			cfg.S3AccessKey,
+			cfg.S3SecretKey,
+			cfg.S3Bucket,
+			cfg.S3UseSSL,
+		)
+		if err != nil {
+			l.Error("failed to create S3 storage provider", err)
+			return
+		}
+		if err := s3Provider.EnsureBucket(context.Background()); err != nil {
+			l.Error("failed to ensure S3 bucket exists", err)
+			return
+		}
+		storageProvider = s3Provider
+		l.Info("Using S3 storage provider", nil, map[string]interface{}{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
+	} else {
+		fsProvider, err := storage.NewFilesystemProvider(cfg.LocalPath)
+		if err != nil {
+			l.Error("failed to create filesystem storage provider", err)
+			return
+		}
+		storageProvider = fsProvider
+		l.Info("Using filesystem storage provider", nil, map[string]interface{}{"path": cfg.LocalPath})
+	}
 
-	verificationTokenRepo := persistent.NewVerificationTokenRepo(db)
+	fileRepo := persistent.NewFileRepository(pool)
+	fileUC := usecase.NewFileUseCase(fileRepo, storageProvider, cfg.PresignedExpiry)
+
+	verificationTokenRepo := persistent.NewVerificationTokenRepo(pool)
 	resendMailer := mailer.New(mailer.Config{
 		APIKey:    cfg.APIKey,
 		FromEmail: cfg.FromEmail,
@@ -168,6 +197,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 			competitionUC,
 			hintUC,
 			emailUC,
+			fileUC,
 			jwtService,
 			redisClient,
 			validator,

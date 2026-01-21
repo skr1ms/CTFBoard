@@ -9,7 +9,7 @@ import (
 
 func TestAuth_EmailVerification_Flow(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	username := "verify_user"
 	email := "verify@example.com"
@@ -31,7 +31,7 @@ func TestAuth_EmailVerification_Flow(t *testing.T) {
 
 func TestAuth_PasswordReset_Flow(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	username := "reset_user"
 	email := "reset@example.com"
@@ -56,7 +56,7 @@ func TestAuth_PasswordReset_Flow(t *testing.T) {
 
 func TestAuth_RateLimiting_Exists(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	email := "spam@example.com"
 

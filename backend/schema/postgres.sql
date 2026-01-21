@@ -95,6 +95,17 @@ CREATE TABLE awards (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE files (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('challenge', 'writeup')),
+    challenge_id UUID NOT NULL,
+    location VARCHAR(512) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    size BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE teams
 ADD CONSTRAINT fk_teams_captain FOREIGN KEY (captain_id) REFERENCES users (id) ON DELETE CASCADE;
 
@@ -122,6 +133,9 @@ ADD CONSTRAINT fk_hint_unlocks_team FOREIGN KEY (team_id) REFERENCES teams (id) 
 ALTER TABLE awards
 ADD CONSTRAINT fk_awards_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
 
+ALTER TABLE files
+ADD CONSTRAINT fk_files_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
+
 CREATE INDEX idx_solves_user ON solves (user_id);
 
 CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
@@ -139,3 +153,9 @@ CREATE INDEX idx_awards_team ON awards (team_id);
 CREATE INDEX idx_verification_token ON verification_tokens (token);
 
 CREATE INDEX idx_verification_user_type ON verification_tokens (user_id, type);
+
+CREATE INDEX idx_verification_expires ON verification_tokens (expires_at);
+
+CREATE INDEX idx_files_challenge_id ON files (challenge_id);
+
+CREATE INDEX idx_files_type ON files (type);

@@ -2,10 +2,11 @@ package integration_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
@@ -15,25 +16,24 @@ import (
 // BeginTx Tests
 
 func TestTxRepo_BeginTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, tx)
 
-	err = tx.Rollback()
+	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_BeginTx_Error(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 
-	// Close DB to force error
-	err := testDB.DB.Close()
-	require.NoError(t, err)
+	// Close Pool to force error
+	testPool.Pool.Close()
 
 	ctx := context.Background()
 	tx, err := f.TxRepo.BeginTx(ctx)
@@ -44,14 +44,14 @@ func TestTxRepo_BeginTx_Error(t *testing.T) {
 // RunTransaction Tests
 
 func TestTxRepo_RunTransaction_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "tx_run_user")
 	executed := false
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
 		err := f.TxRepo.UpdateUserTeamIDTx(txCtx, tx, user.Id, nil)
 		executed = true
 		return err
@@ -62,13 +62,13 @@ func TestTxRepo_RunTransaction_Success(t *testing.T) {
 }
 
 func TestTxRepo_RunTransaction_Error(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "tx_run_err_user")
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
 		err := f.TxRepo.UpdateUserTeamIDTx(txCtx, tx, user.Id, nil)
 		require.NoError(t, err)
 		return errors.New("forced error")
@@ -81,13 +81,13 @@ func TestTxRepo_RunTransaction_Error(t *testing.T) {
 // CreateUserTx Tests
 
 func TestTxRepo_CreateUserTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	user := &entity.User{
 		Username:     "tx_user",
@@ -100,7 +100,7 @@ func TestTxRepo_CreateUserTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, user.Id)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	gotUser, err := f.UserRepo.GetByEmail(ctx, user.Email)
@@ -109,15 +109,15 @@ func TestTxRepo_CreateUserTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_CreateUserTx_Error_DuplicateEmail(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	existingUser := f.CreateUser(t, "existing")
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	user := &entity.User{
 		Username:     "different_username",
@@ -133,53 +133,53 @@ func TestTxRepo_CreateUserTx_Error_DuplicateEmail(t *testing.T) {
 // UpdateUserTeamIDTx Tests
 
 func TestTxRepo_UpdateUserTeamIDTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "update_team")
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, user.Id, &team.Id)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_UpdateUserTeamIDTx_Error_InvalidUserID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, "invalid-uuid", nil)
+	nonExistentUserID := uuid.New()
+	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, nonExistentUserID, nil)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse UserID")
 }
 
 // CreateTeamTx Tests
 
 func TestTxRepo_CreateTeamTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "team_captain")
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	team := &entity.Team{
 		Name:        "TxTeam",
-		InviteToken: "tx_token",
+		InviteToken: uuid.New(),
 		CaptainId:   user.Id,
 	}
 
@@ -187,7 +187,7 @@ func TestTxRepo_CreateTeamTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, team.Id)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	gotTeam, err := f.TeamRepo.GetByName(ctx, team.Name)
@@ -196,37 +196,37 @@ func TestTxRepo_CreateTeamTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_CreateTeamTx_Error_InvalidCaptainID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
+	nonExistentCaptainID := uuid.New()
 	team := &entity.Team{
 		Name:        "ErrorTeam",
-		InviteToken: "error_token",
-		CaptainId:   "invalid-uuid",
+		InviteToken: uuid.New(),
+		CaptainId:   nonExistentCaptainID,
 	}
 
 	err = f.TxRepo.CreateTeamTx(ctx, tx, team)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse CaptainID")
 }
 
 // GetChallengeByIDTx Tests
 
 func TestTxRepo_GetChallengeByIDTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "TxChallenge", 100)
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
@@ -234,20 +234,20 @@ func TestTxRepo_GetChallengeByIDTx_Success(t *testing.T) {
 	assert.Equal(t, challenge.Title, gotChallenge.Title)
 	assert.Equal(t, challenge.Points, gotChallenge.Points)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_GetChallengeByIDTx_Error_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, "00000000-0000-0000-0000-000000000000")
+	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, uuid.Nil)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
@@ -255,15 +255,15 @@ func TestTxRepo_GetChallengeByIDTx_Error_NotFound(t *testing.T) {
 // IncrementChallengeSolveCountTx Tests
 
 func TestTxRepo_IncrementChallengeSolveCountTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "IncrementChallenge", 100)
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	newCount, err := f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.Id)
 	require.NoError(t, err)
@@ -273,41 +273,40 @@ func TestTxRepo_IncrementChallengeSolveCountTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, newCount)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_IncrementChallengeSolveCountTx_Error_InvalidID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, "invalid-uuid")
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ParseID")
 }
 
 // UpdateChallengePointsTx Tests
 
 func TestTxRepo_UpdateChallengePointsTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "UpdatePoints", 100)
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, 200)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	updated, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
@@ -316,24 +315,23 @@ func TestTxRepo_UpdateChallengePointsTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_UpdateChallengePointsTx_Error_InvalidID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, "invalid-uuid", 200)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, uuid.New(), 200)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ParseID")
 }
 
 // CreateSolveTx Tests
 
 func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "solve_tx_user")
@@ -341,7 +339,7 @@ func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	solve := &entity.Solve{
 		UserId:      user.Id,
@@ -352,7 +350,7 @@ func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
@@ -361,8 +359,8 @@ func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_CreateSolveTx_Error_InvalidUserID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "solve_err_user")
@@ -370,24 +368,23 @@ func TestTxRepo_CreateSolveTx_Error_InvalidUserID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	solve := &entity.Solve{
-		UserId:      "invalid-uuid",
+		UserId:      uuid.New(),
 		TeamId:      team.Id,
 		ChallengeId: challenge.Id,
 	}
 
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse UserID")
 }
 
 // GetSolveByTeamAndChallengeTx Tests
 
 func TestTxRepo_GetSolveByTeamAndChallengeTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "get_solve_tx")
@@ -396,20 +393,20 @@ func TestTxRepo_GetSolveByTeamAndChallengeTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	solve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, team.Id, challenge.Id)
 	require.NoError(t, err)
 	assert.Equal(t, team.Id, solve.TeamId)
 	assert.Equal(t, challenge.Id, solve.ChallengeId)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_GetSolveByTeamAndChallengeTx_Error_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "no_solve_tx")
@@ -417,7 +414,7 @@ func TestTxRepo_GetSolveByTeamAndChallengeTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, team.Id, challenge.Id)
 	assert.Error(t, err)
@@ -427,8 +424,8 @@ func TestTxRepo_GetSolveByTeamAndChallengeTx_Error_NotFound(t *testing.T) {
 // GetTeamScoreTx Tests
 
 func TestTxRepo_GetTeamScoreTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "score_tx_user")
@@ -440,35 +437,36 @@ func TestTxRepo_GetTeamScoreTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 300, score)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
-func TestTxRepo_GetTeamScoreTx_Error_InvalidTeamID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+func TestTxRepo_GetTeamScoreTx_NonExistentTeam(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	_, err = f.TxRepo.GetTeamScoreTx(ctx, tx, "invalid-uuid")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse TeamID")
+	// Non-existent team should return 0 score
+	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, uuid.New())
+	assert.NoError(t, err)
+	assert.Equal(t, 0, score)
 }
 
 // CreateHintUnlockTx Tests
 
 func TestTxRepo_CreateHintUnlockTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "hint_unlock_tx")
@@ -477,12 +475,12 @@ func TestTxRepo_CreateHintUnlockTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.Id, hint.Id)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.Id, hint.Id)
@@ -492,8 +490,8 @@ func TestTxRepo_CreateHintUnlockTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_CreateHintUnlockTx_Error_InvalidTeamID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "HintErrTx", 100)
@@ -501,18 +499,17 @@ func TestTxRepo_CreateHintUnlockTx_Error_InvalidTeamID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, "invalid-uuid", hint.Id)
+	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, uuid.New(), hint.Id)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse TeamID")
 }
 
 // GetHintUnlockByTeamAndHintTx Tests
 
 func TestTxRepo_GetHintUnlockByTeamAndHintTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "get_hint_unlock_tx")
@@ -523,25 +520,25 @@ func TestTxRepo_GetHintUnlockByTeamAndHintTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	err = f.TxRepo.CreateHintUnlockTx(ctx, tx1, team.Id, hint.Id)
 	require.NoError(t, err)
-	err = tx1.Commit()
+	err = tx1.Commit(ctx)
 	require.NoError(t, err)
 
 	tx2, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx2.Rollback() }()
+	defer func() { _ = tx2.Rollback(ctx) }()
 
 	unlock, err := f.TxRepo.GetHintUnlockByTeamAndHintTx(ctx, tx2, team.Id, hint.Id)
 	require.NoError(t, err)
 	assert.Equal(t, team.Id, unlock.TeamId)
 	assert.Equal(t, hint.Id, unlock.HintId)
 
-	err = tx2.Commit()
+	err = tx2.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_GetHintUnlockByTeamAndHintTx_Error_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "no_hint_unlock_tx")
@@ -550,7 +547,7 @@ func TestTxRepo_GetHintUnlockByTeamAndHintTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = f.TxRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, team.Id, hint.Id)
 	assert.Error(t, err)
@@ -560,15 +557,15 @@ func TestTxRepo_GetHintUnlockByTeamAndHintTx_Error_NotFound(t *testing.T) {
 // CreateAwardTx Tests
 
 func TestTxRepo_CreateAwardTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "award_tx_user")
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	award := &entity.Award{
 		TeamId:      team.Id,
@@ -580,7 +577,7 @@ func TestTxRepo_CreateAwardTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, award.Id)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
@@ -589,55 +586,54 @@ func TestTxRepo_CreateAwardTx_Success(t *testing.T) {
 }
 
 func TestTxRepo_CreateAwardTx_Error_InvalidTeamID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	award := &entity.Award{
-		TeamId:      "invalid-uuid",
+		TeamId:      uuid.New(),
 		Value:       50,
 		Description: "Error Award",
 	}
 
 	err = f.TxRepo.CreateAwardTx(ctx, tx, award)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Parse TeamID")
 }
 
 // LockTeamTx Tests
 
 func TestTxRepo_LockTeamTx_Success(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "lock_team_tx")
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	err = f.TxRepo.LockTeamTx(ctx, tx, team.Id)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestTxRepo_LockTeamTx_Error_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	err = f.TxRepo.LockTeamTx(ctx, tx, "00000000-0000-0000-0000-000000000000")
+	err = f.TxRepo.LockTeamTx(ctx, tx, uuid.Nil)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }

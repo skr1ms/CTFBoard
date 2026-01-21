@@ -1,0 +1,257 @@
+{
+  "uid": "postgresql-details",
+  "title": "PostgreSQL Details",
+  "tags": [
+    "infrastructure",
+    "postgresql"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Transactions Per Second",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{datname=\"board\"}[1m])",
+          "refId": "A",
+          "legendFormat": "Commits/s"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{datname=\"board\"}[1m])",
+          "refId": "B",
+          "legendFormat": "Rollbacks/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Database Size",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "pg_database_size_bytes{datname=\"board\"}",
+          "refId": "A",
+          "legendFormat": "Size"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Connections",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count",
+          "refId": "A",
+          "legendFormat": "Active"
+        },
+        {
+          "expr": "pg_settings_max_connections",
+          "refId": "B",
+          "legendFormat": "Max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Cache Hit Ratio",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_database_blks_hit{datname=\"board\"} / (pg_stat_database_blks_hit{datname=\"board\"} + pg_stat_database_blks_read{datname=\"board\"})",
+          "refId": "A",
+          "legendFormat": "Cache Hit Ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tuple Operations",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_tup_fetched{datname=\"board\"}[1m])",
+          "refId": "A",
+          "legendFormat": "Fetched"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_inserted{datname=\"board\"}[1m])",
+          "refId": "B",
+          "legendFormat": "Inserted"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_updated{datname=\"board\"}[1m])",
+          "refId": "C",
+          "legendFormat": "Updated"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_deleted{datname=\"board\"}[1m])",
+          "refId": "D",
+          "legendFormat": "Deleted"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Deadlocks & Conflicts",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_database_deadlocks{datname=\"board\"}",
+          "refId": "A",
+          "legendFormat": "Deadlocks"
+        },
+        {
+          "expr": "pg_stat_database_conflicts{datname=\"board\"}",
+          "refId": "B",
+          "legendFormat": "Conflicts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Temp Files",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_database_temp_files{datname=\"board\"}",
+          "refId": "A",
+          "legendFormat": "Temp Files"
+        },
+        {
+          "expr": "pg_stat_database_temp_bytes{datname=\"board\"}",
+          "refId": "B",
+          "legendFormat": "Temp Bytes"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Blocks I/O",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_blks_read{datname=\"board\"}[1m])",
+          "refId": "A",
+          "legendFormat": "Blocks Read"
+        },
+        {
+          "expr": "rate(pg_stat_database_blks_hit{datname=\"board\"}[1m])",
+          "refId": "B",
+          "legendFormat": "Blocks Hit (Cache)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "weekStart": ""
+}

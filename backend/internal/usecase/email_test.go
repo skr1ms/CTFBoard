@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -33,8 +34,9 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 		true,
 	)
 
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	user := &entity.User{
-		Id:       "user-123",
+		Id:       userID,
 		Username: "testuser",
 		Email:    "test@example.com",
 	}
@@ -82,21 +84,21 @@ func TestEmailUseCase_VerifyEmail_Hashing(t *testing.T) {
 		true,
 	)
 
-	rawToken := "1111111111111111111111111111111111111111111111111111111111111111" // 64 chars
+	rawToken := "1111111111111111111111111111111111111111111111111111111111111111"
 	hash := sha256.Sum256([]byte(rawToken))
 	hashedToken := hex.EncodeToString(hash[:])
 
 	tokenEntity := &entity.VerificationToken{
-		Id:        "token-123",
-		UserId:    "user-123",
+		Id:        uuid.New(),
+		UserId:    uuid.New(),
 		Token:     hashedToken,
 		Type:      entity.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 
 	tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
-	userRepo.On("SetVerified", mock.Anything, "user-123").Return(nil)
-	tokenRepo.On("DeleteByUserAndType", mock.Anything, "user-123", entity.TokenTypeEmailVerification).Return(nil)
+	userRepo.On("SetVerified", mock.Anything, tokenEntity.UserId).Return(nil)
+	tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenEntity.UserId, entity.TokenTypeEmailVerification).Return(nil)
 	err := uc.VerifyEmail(context.Background(), rawToken)
 	assert.NoError(t, err)
 }
@@ -113,7 +115,7 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 	)
 
 	user := &entity.User{
-		Id:       "user-123",
+		Id:       uuid.New(),
 		Username: "testuser",
 		Email:    "test@example.com",
 	}
@@ -136,9 +138,7 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 	err := uc.SendPasswordResetEmail(context.Background(), user.Email)
 	assert.NoError(t, err)
 
-	// Verify token hashing
 	start := strings.Index(sentBody, "token=") + 6
-	// Token is 64 hex chars (32 bytes)
 	rawToken := sentBody[start : start+64]
 
 	hash := sha256.Sum256([]byte(rawToken))
@@ -180,18 +180,18 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 	hashedToken := hex.EncodeToString(hash[:])
 
 	tokenEntity := &entity.VerificationToken{
-		Id:        "token-123",
-		UserId:    "user-123",
+		Id:        uuid.New(),
+		UserId:    uuid.New(),
 		Token:     hashedToken,
 		Type:      entity.TokenTypePasswordReset,
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 
 	tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
-	userRepo.On("UpdatePassword", mock.Anything, "user-123", mock.MatchedBy(func(pwd string) bool {
-		return len(pwd) > 0 // Bcrypt hash check? Assuming internal hashing
+	userRepo.On("UpdatePassword", mock.Anything, tokenEntity.UserId, mock.MatchedBy(func(pwd string) bool {
+		return len(pwd) > 0
 	})).Return(nil)
-	tokenRepo.On("DeleteByUserAndType", mock.Anything, "user-123", entity.TokenTypePasswordReset).Return(nil)
+	tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenEntity.UserId, entity.TokenTypePasswordReset).Return(nil)
 
 	err := uc.ResetPassword(context.Background(), rawToken, "new-password")
 	assert.NoError(t, err)
@@ -226,7 +226,7 @@ func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
 	)
 
 	user := &entity.User{
-		Id:         "user-123",
+		Id:         uuid.New(),
 		IsVerified: false,
 		Email:      "test@example.com",
 	}
@@ -252,8 +252,8 @@ func TestEmailUseCase_ResendVerification_AlreadyVerified(t *testing.T) {
 	)
 
 	user := &entity.User{
-		Id:         "user-123",
-		IsVerified: true, // Configured as verified
+		Id:         uuid.New(),
+		IsVerified: true,
 	}
 
 	userRepo.On("GetByID", mock.Anything, user.Id).Return(user, nil)
@@ -274,7 +274,7 @@ func TestEmailUseCase_SendPasswordResetEmail_MailerError(t *testing.T) {
 	)
 
 	user := &entity.User{
-		Id:       "user-123",
+		Id:       uuid.New(),
 		Username: "testuser",
 		Email:    "test@example.com",
 	}
@@ -300,8 +300,8 @@ func TestEmailUseCase_ResendVerification_UserNotFound(t *testing.T) {
 		"http://localhost:3000", true,
 	)
 
-	userRepo.On("GetByID", mock.Anything, "unknown").Return(nil, entityError.ErrUserNotFound)
+	userRepo.On("GetByID", mock.Anything, uuid.Nil).Return(nil, entityError.ErrUserNotFound)
 
-	err := uc.ResendVerification(context.Background(), "unknown")
+	err := uc.ResendVerification(context.Background(), uuid.Nil)
 	assert.ErrorIs(t, err, entityError.ErrUserNotFound)
 }

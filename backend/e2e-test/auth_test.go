@@ -7,7 +7,7 @@ import (
 
 func TestAuth_RegisterAndLogin(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	username := "testuser1"
 	email := "testuser1@example.com"
@@ -31,7 +31,7 @@ func TestAuth_RegisterAndLogin(t *testing.T) {
 
 func TestAuth_RegisterDuplicateUsername(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	h.Register("duplicateuser", "original@example.com", "password123")
 
@@ -42,14 +42,14 @@ func TestAuth_RegisterDuplicateUsername(t *testing.T) {
 			"password": "password123",
 		}).
 		Expect().
-		Status(http.StatusConflict). // 409
+		Status(http.StatusConflict).
 		JSON().Object().
 		Value("error").String().NotEmpty()
 }
 
 func TestAuth_RegisterDuplicateEmail(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	email := "user1@example.com"
 	h.Register("user1", email, "password123")
@@ -68,7 +68,7 @@ func TestAuth_RegisterDuplicateEmail(t *testing.T) {
 
 func TestAuth_LoginInvalidPassword(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	email := "testuser2@example.com"
 	h.Register("testuser2", email, "password123")
@@ -79,7 +79,7 @@ func TestAuth_LoginInvalidPassword(t *testing.T) {
 
 func TestAuth_LoginInvalidEmail(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	h.Login("nonexistent@example.com", "password123", http.StatusUnauthorized).
 		Value("error").String().NotEmpty()

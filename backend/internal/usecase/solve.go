@@ -2,12 +2,13 @@ package usecase
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -46,7 +47,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	var isFirstBlood bool
 	var solvedChallenge *entity.Challenge
 
-	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx *sql.Tx) error {
+	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		challenge, err := uc.txRepo.GetChallengeByIDTx(ctx, tx, solve.ChallengeId)
 		if err != nil {
 			return fmt.Errorf("GetChallengeByIDTx: %w", err)
@@ -96,7 +97,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	if uc.hub != nil && solvedChallenge != nil {
 		payload := websocket.ScoreboardUpdate{
 			Type:      websocket.EventTypeSolve,
-			TeamID:    solve.TeamId,
+			TeamID:    solve.TeamId.String(),
 			Challenge: solvedChallenge.Title,
 			Points:    solvedChallenge.Points,
 			Timestamp: time.Now(),
@@ -110,7 +111,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		if isFirstBlood {
 			fbPayload := websocket.ScoreboardUpdate{
 				Type:      websocket.EventTypeFirstBlood,
-				TeamID:    solve.TeamId,
+				TeamID:    solve.TeamId.String(),
 				Challenge: solvedChallenge.Title,
 				Points:    solvedChallenge.Points,
 				Timestamp: time.Now(),
@@ -167,7 +168,7 @@ func (uc *SolveUseCase) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEn
 	return entries, nil
 }
 
-func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeId string) (*repo.FirstBloodEntry, error) {
+func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeId uuid.UUID) (*repo.FirstBloodEntry, error) {
 	entry, err := uc.solveRepo.GetFirstBlood(ctx, challengeId)
 	if err != nil {
 		return nil, fmt.Errorf("SolveUseCase - GetFirstBlood: %w", err)

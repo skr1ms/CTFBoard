@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,19 +12,19 @@ import (
 // CreateTx Tests
 
 func TestAwardRepo_CreateTx(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "award")
 
-	tx, err := f.DB.BeginTx(ctx, nil)
+	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
 	award := f.CreateAwardTx(t, tx, team.Id, 100, "Test award")
 	assert.NotEmpty(t, award.Id)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
@@ -32,18 +33,18 @@ func TestAwardRepo_CreateTx(t *testing.T) {
 }
 
 func TestAwardRepo_CreateTx_Rollback(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "rollback_award")
 
-	tx, err := f.DB.BeginTx(ctx, nil)
+	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
 	f.CreateAwardTx(t, tx, team.Id, 200, "Rollback award")
 
-	err = tx.Rollback()
+	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
@@ -54,8 +55,8 @@ func TestAwardRepo_CreateTx_Rollback(t *testing.T) {
 // GetTeamTotalAwards Tests
 
 func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "total_award")
@@ -63,12 +64,12 @@ func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
 	awards := []int{100, 50, -25, 75}
 	expectedTotal := 0
 	for i, value := range awards {
-		tx, err := f.DB.BeginTx(ctx, nil)
+		tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 		require.NoError(t, err)
 
 		f.CreateAwardTx(t, tx, team.Id, value, "Award "+string(rune('A'+i)))
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		require.NoError(t, err)
 
 		expectedTotal += value
@@ -80,8 +81,8 @@ func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
 }
 
 func TestAwardRepo_GetTeamTotalAwards_NoAwards(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "no_award")
@@ -92,22 +93,22 @@ func TestAwardRepo_GetTeamTotalAwards_NoAwards(t *testing.T) {
 }
 
 func TestAwardRepo_NegativeAward(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "neg_award")
 
-	tx1, err := f.DB.BeginTx(ctx, nil)
+	tx1, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 	f.CreateAwardTx(t, tx1, team.Id, 100, "Bonus")
-	err = tx1.Commit()
+	err = tx1.Commit(ctx)
 	require.NoError(t, err)
 
-	tx2, err := f.DB.BeginTx(ctx, nil)
+	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 	f.CreateAwardTx(t, tx2, team.Id, -30, "Penalty for hint")
-	err = tx2.Commit()
+	err = tx2.Commit(ctx)
 	require.NoError(t, err)
 
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)

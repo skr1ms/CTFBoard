@@ -66,3 +66,12 @@ packages:
           filename: "Mailer.go"
           pkgname: "mocks"
           structname: "MockMailer"
+  
+  github.com/skr1ms/CTFBoard/internal/storage:
+    interfaces:
+      Provider:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "S3Provider.go"
+          pkgname: "mocks"
+          structname: "MockS3Provider"

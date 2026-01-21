@@ -8,9 +8,11 @@ import (
 
 func TestFirstBlood_Display(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	_, _, tokenAdmin := h.RegisterAdmin("adminfb")
+	h.StartCompetition(tokenAdmin)
+
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "First Blood Test",
 		"description": "Test first blood functionality",
@@ -25,22 +27,20 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	// Небольшая задержка, чтобы timestamps точно различались
 	time.Sleep(1 * time.Second)
 
-	// 4. User2 сдает флаг вторым
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	// 5. Проверяем, что User1 записан как First Blood
 	h.AssertFirstBlood(challengeID, "fbuser1")
 }
 
 func TestFirstBlood_NotFound(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Создаем челлендж
 	_, _, tokenAdmin := h.RegisterAdmin("adminfb2")
+	h.StartCompetition(tokenAdmin)
+
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "No Solves Test",
 		"description": "Test no solves scenario",
@@ -49,7 +49,6 @@ func TestFirstBlood_NotFound(t *testing.T) {
 		"points":      100,
 	})
 
-	// 2. Запрашиваем First Blood, когда решений еще нет (ожидаем 404)
 	h.GetFirstBlood(challengeID, http.StatusNotFound).
 		Value("error").String().IsEqual("no solves yet")
 }

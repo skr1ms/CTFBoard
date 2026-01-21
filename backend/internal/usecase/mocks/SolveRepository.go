@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	mock "github.com/stretchr/testify/mock"
@@ -98,7 +99,7 @@ func (_c *MockSolveRepository_Create_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // GetByID provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetByID(ctx context.Context, id string) (*entity.Solve, error) {
+func (_mock *MockSolveRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Solve, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -107,17 +108,17 @@ func (_mock *MockSolveRepository) GetByID(ctx context.Context, id string) (*enti
 
 	var r0 *entity.Solve
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.Solve, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Solve, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.Solve); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Solve); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Solve)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -132,20 +133,20 @@ type MockSolveRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockSolveRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockSolveRepository_GetByID_Call {
 	return &MockSolveRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockSolveRepository_GetByID_Call) Run(run func(ctx context.Context, id string)) *MockSolveRepository_GetByID_Call {
+func (_c *MockSolveRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockSolveRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -160,13 +161,13 @@ func (_c *MockSolveRepository_GetByID_Call) Return(solve *entity.Solve, err erro
 	return _c
 }
 
-func (_c *MockSolveRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string) (*entity.Solve, error)) *MockSolveRepository_GetByID_Call {
+func (_c *MockSolveRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Solve, error)) *MockSolveRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByTeamAndChallenge provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetByTeamAndChallenge(ctx context.Context, teamId string, challengeId string) (*entity.Solve, error) {
+func (_mock *MockSolveRepository) GetByTeamAndChallenge(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID) (*entity.Solve, error) {
 	ret := _mock.Called(ctx, teamId, challengeId)
 
 	if len(ret) == 0 {
@@ -175,17 +176,17 @@ func (_mock *MockSolveRepository) GetByTeamAndChallenge(ctx context.Context, tea
 
 	var r0 *entity.Solve
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*entity.Solve, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*entity.Solve, error)); ok {
 		return returnFunc(ctx, teamId, challengeId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *entity.Solve); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *entity.Solve); ok {
 		r0 = returnFunc(ctx, teamId, challengeId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Solve)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId, challengeId)
 	} else {
 		r1 = ret.Error(1)
@@ -200,25 +201,25 @@ type MockSolveRepository_GetByTeamAndChallenge_Call struct {
 
 // GetByTeamAndChallenge is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
-//   - challengeId string
+//   - teamId uuid.UUID
+//   - challengeId uuid.UUID
 func (_e *MockSolveRepository_Expecter) GetByTeamAndChallenge(ctx interface{}, teamId interface{}, challengeId interface{}) *MockSolveRepository_GetByTeamAndChallenge_Call {
 	return &MockSolveRepository_GetByTeamAndChallenge_Call{Call: _e.mock.On("GetByTeamAndChallenge", ctx, teamId, challengeId)}
 }
 
-func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) Run(run func(ctx context.Context, teamId string, challengeId string)) *MockSolveRepository_GetByTeamAndChallenge_Call {
+func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) Run(run func(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID)) *MockSolveRepository_GetByTeamAndChallenge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -234,13 +235,13 @@ func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) Return(solve *entity.S
 	return _c
 }
 
-func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) RunAndReturn(run func(ctx context.Context, teamId string, challengeId string) (*entity.Solve, error)) *MockSolveRepository_GetByTeamAndChallenge_Call {
+func (_c *MockSolveRepository_GetByTeamAndChallenge_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID, challengeId uuid.UUID) (*entity.Solve, error)) *MockSolveRepository_GetByTeamAndChallenge_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByUserId provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetByUserId(ctx context.Context, userId string) ([]*entity.Solve, error) {
+func (_mock *MockSolveRepository) GetByUserId(ctx context.Context, userId uuid.UUID) ([]*entity.Solve, error) {
 	ret := _mock.Called(ctx, userId)
 
 	if len(ret) == 0 {
@@ -249,17 +250,17 @@ func (_mock *MockSolveRepository) GetByUserId(ctx context.Context, userId string
 
 	var r0 []*entity.Solve
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]*entity.Solve, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.Solve, error)); ok {
 		return returnFunc(ctx, userId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []*entity.Solve); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.Solve); ok {
 		r0 = returnFunc(ctx, userId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*entity.Solve)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, userId)
 	} else {
 		r1 = ret.Error(1)
@@ -274,20 +275,20 @@ type MockSolveRepository_GetByUserId_Call struct {
 
 // GetByUserId is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userId string
+//   - userId uuid.UUID
 func (_e *MockSolveRepository_Expecter) GetByUserId(ctx interface{}, userId interface{}) *MockSolveRepository_GetByUserId_Call {
 	return &MockSolveRepository_GetByUserId_Call{Call: _e.mock.On("GetByUserId", ctx, userId)}
 }
 
-func (_c *MockSolveRepository_GetByUserId_Call) Run(run func(ctx context.Context, userId string)) *MockSolveRepository_GetByUserId_Call {
+func (_c *MockSolveRepository_GetByUserId_Call) Run(run func(ctx context.Context, userId uuid.UUID)) *MockSolveRepository_GetByUserId_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -302,13 +303,13 @@ func (_c *MockSolveRepository_GetByUserId_Call) Return(solves []*entity.Solve, e
 	return _c
 }
 
-func (_c *MockSolveRepository_GetByUserId_Call) RunAndReturn(run func(ctx context.Context, userId string) ([]*entity.Solve, error)) *MockSolveRepository_GetByUserId_Call {
+func (_c *MockSolveRepository_GetByUserId_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID) ([]*entity.Solve, error)) *MockSolveRepository_GetByUserId_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFirstBlood provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetFirstBlood(ctx context.Context, challengeId string) (*repo.FirstBloodEntry, error) {
+func (_mock *MockSolveRepository) GetFirstBlood(ctx context.Context, challengeId uuid.UUID) (*repo.FirstBloodEntry, error) {
 	ret := _mock.Called(ctx, challengeId)
 
 	if len(ret) == 0 {
@@ -317,17 +318,17 @@ func (_mock *MockSolveRepository) GetFirstBlood(ctx context.Context, challengeId
 
 	var r0 *repo.FirstBloodEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*repo.FirstBloodEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*repo.FirstBloodEntry, error)); ok {
 		return returnFunc(ctx, challengeId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *repo.FirstBloodEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *repo.FirstBloodEntry); ok {
 		r0 = returnFunc(ctx, challengeId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*repo.FirstBloodEntry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, challengeId)
 	} else {
 		r1 = ret.Error(1)
@@ -342,20 +343,20 @@ type MockSolveRepository_GetFirstBlood_Call struct {
 
 // GetFirstBlood is a helper method to define mock.On call
 //   - ctx context.Context
-//   - challengeId string
+//   - challengeId uuid.UUID
 func (_e *MockSolveRepository_Expecter) GetFirstBlood(ctx interface{}, challengeId interface{}) *MockSolveRepository_GetFirstBlood_Call {
 	return &MockSolveRepository_GetFirstBlood_Call{Call: _e.mock.On("GetFirstBlood", ctx, challengeId)}
 }
 
-func (_c *MockSolveRepository_GetFirstBlood_Call) Run(run func(ctx context.Context, challengeId string)) *MockSolveRepository_GetFirstBlood_Call {
+func (_c *MockSolveRepository_GetFirstBlood_Call) Run(run func(ctx context.Context, challengeId uuid.UUID)) *MockSolveRepository_GetFirstBlood_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -370,7 +371,7 @@ func (_c *MockSolveRepository_GetFirstBlood_Call) Return(firstBloodEntry *repo.F
 	return _c
 }
 
-func (_c *MockSolveRepository_GetFirstBlood_Call) RunAndReturn(run func(ctx context.Context, challengeId string) (*repo.FirstBloodEntry, error)) *MockSolveRepository_GetFirstBlood_Call {
+func (_c *MockSolveRepository_GetFirstBlood_Call) RunAndReturn(run func(ctx context.Context, challengeId uuid.UUID) (*repo.FirstBloodEntry, error)) *MockSolveRepository_GetFirstBlood_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -506,7 +507,7 @@ func (_c *MockSolveRepository_GetScoreboardFrozen_Call) RunAndReturn(run func(ct
 }
 
 // GetTeamScore provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetTeamScore(ctx context.Context, teamId string) (int, error) {
+func (_mock *MockSolveRepository) GetTeamScore(ctx context.Context, teamId uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, teamId)
 
 	if len(ret) == 0 {
@@ -515,15 +516,15 @@ func (_mock *MockSolveRepository) GetTeamScore(ctx context.Context, teamId strin
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
 		return returnFunc(ctx, teamId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
 		r0 = returnFunc(ctx, teamId)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId)
 	} else {
 		r1 = ret.Error(1)
@@ -538,20 +539,20 @@ type MockSolveRepository_GetTeamScore_Call struct {
 
 // GetTeamScore is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
+//   - teamId uuid.UUID
 func (_e *MockSolveRepository_Expecter) GetTeamScore(ctx interface{}, teamId interface{}) *MockSolveRepository_GetTeamScore_Call {
 	return &MockSolveRepository_GetTeamScore_Call{Call: _e.mock.On("GetTeamScore", ctx, teamId)}
 }
 
-func (_c *MockSolveRepository_GetTeamScore_Call) Run(run func(ctx context.Context, teamId string)) *MockSolveRepository_GetTeamScore_Call {
+func (_c *MockSolveRepository_GetTeamScore_Call) Run(run func(ctx context.Context, teamId uuid.UUID)) *MockSolveRepository_GetTeamScore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -566,7 +567,7 @@ func (_c *MockSolveRepository_GetTeamScore_Call) Return(n int, err error) *MockS
 	return _c
 }
 
-func (_c *MockSolveRepository_GetTeamScore_Call) RunAndReturn(run func(ctx context.Context, teamId string) (int, error)) *MockSolveRepository_GetTeamScore_Call {
+func (_c *MockSolveRepository_GetTeamScore_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID) (int, error)) *MockSolveRepository_GetTeamScore_Call {
 	_c.Call.Return(run)
 	return _c
 }

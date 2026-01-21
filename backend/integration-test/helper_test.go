@@ -2,16 +2,18 @@ package integration_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/require"
 )
 
 type TestFixture struct {
-	DB                    *sql.DB
+	Pool                  *pgxpool.Pool
 	UserRepo              *persistent.UserRepo
 	TeamRepo              *persistent.TeamRepo
 	ChallengeRepo         *persistent.ChallengeRepo
@@ -22,21 +24,23 @@ type TestFixture struct {
 	TxRepo                *persistent.TxRepo
 	CompetitionRepo       *persistent.CompetitionRepo
 	VerificationTokenRepo *persistent.VerificationTokenRepo
+	FileRepo              *persistent.FileRepository
 }
 
-func NewTestFixture(db *sql.DB) *TestFixture {
+func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 	return &TestFixture{
-		DB:                    db,
-		UserRepo:              persistent.NewUserRepo(db),
-		TeamRepo:              persistent.NewTeamRepo(db),
-		ChallengeRepo:         persistent.NewChallengeRepo(db),
-		SolveRepo:             persistent.NewSolveRepo(db),
-		HintRepo:              persistent.NewHintRepo(db),
-		HintUnlockRepo:        persistent.NewHintUnlockRepo(db),
-		AwardRepo:             persistent.NewAwardRepo(db),
-		TxRepo:                persistent.NewTxRepo(db),
-		CompetitionRepo:       persistent.NewCompetitionRepo(db),
-		VerificationTokenRepo: persistent.NewVerificationTokenRepo(db),
+		Pool:                  Pool,
+		UserRepo:              persistent.NewUserRepo(Pool),
+		TeamRepo:              persistent.NewTeamRepo(Pool),
+		ChallengeRepo:         persistent.NewChallengeRepo(Pool),
+		SolveRepo:             persistent.NewSolveRepo(Pool),
+		HintRepo:              persistent.NewHintRepo(Pool),
+		HintUnlockRepo:        persistent.NewHintUnlockRepo(Pool),
+		AwardRepo:             persistent.NewAwardRepo(Pool),
+		TxRepo:                persistent.NewTxRepo(Pool),
+		CompetitionRepo:       persistent.NewCompetitionRepo(Pool),
+		VerificationTokenRepo: persistent.NewVerificationTokenRepo(Pool),
+		FileRepo:              persistent.NewFileRepository(Pool),
 	}
 }
 
@@ -56,11 +60,11 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 	return user
 }
 
-func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainId string) *entity.Team {
+func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainId uuid.UUID) *entity.Team {
 	ctx := context.Background()
 	team := &entity.Team{
 		Name:        "team_" + suffix,
-		InviteToken: "token_" + suffix,
+		InviteToken: uuid.New(),
 		CaptainId:   captainId,
 	}
 	err := f.TeamRepo.Create(ctx, team)
@@ -114,7 +118,7 @@ func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initia
 	return challenge
 }
 
-func (f *TestFixture) CreateHint(t *testing.T, challengeId string, cost int, order int) *entity.Hint {
+func (f *TestFixture) CreateHint(t *testing.T, challengeId uuid.UUID, cost int, order int) *entity.Hint {
 	ctx := context.Background()
 	hint := &entity.Hint{
 		ChallengeId: challengeId,
@@ -127,7 +131,7 @@ func (f *TestFixture) CreateHint(t *testing.T, challengeId string, cost int, ord
 	return hint
 }
 
-func (f *TestFixture) CreateSolve(t *testing.T, userId, teamId, challengeId string) *entity.Solve {
+func (f *TestFixture) CreateSolve(t *testing.T, userId, teamId, challengeId uuid.UUID) *entity.Solve {
 	ctx := context.Background()
 	solve := &entity.Solve{
 		UserId:      userId,
@@ -144,7 +148,7 @@ func (f *TestFixture) CreateSolve(t *testing.T, userId, teamId, challengeId stri
 	return solve
 }
 
-func (f *TestFixture) CreateAwardTx(t *testing.T, tx *sql.Tx, teamId string, value int, desc string) *entity.Award {
+func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamId uuid.UUID, value int, desc string) *entity.Award {
 	ctx := context.Background()
 	award := &entity.Award{
 		TeamId:      teamId,

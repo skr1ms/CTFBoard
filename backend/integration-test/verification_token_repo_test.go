@@ -15,8 +15,8 @@ import (
 // CreateAndGet Tests
 
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "vt_user")
@@ -41,8 +41,8 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 // GetByToken Tests
 
 func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
 	ctx := context.Background()
 
@@ -54,8 +54,8 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 // DeleteByUserAndType Tests
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
 	ctx := context.Background()
 
@@ -80,8 +80,8 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 // MarkUsed Tests
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
 	ctx := context.Background()
 

@@ -1,4 +1,5 @@
-DROP TABLE solves;
-DROP TABLE challenges;
-DROP TABLE users;
-DROP TABLE teams;
+DROP TABLE IF EXISTS solves;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS challenges;
+DROP EXTENSION IF EXISTS "uuid-ossp";

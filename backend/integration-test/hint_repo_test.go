@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,8 +13,8 @@ import (
 // Hint CRUD Tests
 
 func TestHintRepo_CRUD(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "hint_crud", 100)
@@ -53,20 +54,20 @@ func TestHintRepo_CRUD(t *testing.T) {
 // HintUnlock Tests
 
 func TestHintUnlockRepo_Flow(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "u1")
 	challenge := f.CreateChallenge(t, "C1", 100)
 	hint := f.CreateHint(t, challenge.Id, 10, 1)
 
-	tx, err := f.DB.BeginTx(ctx, nil)
+	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
 	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.Id, hint.Id)
 	require.NoError(t, err)
-	require.NoError(t, tx.Commit())
+	require.NoError(t, tx.Commit(ctx))
 
 	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.Id, hint.Id)
 	require.NoError(t, err)
@@ -81,25 +82,24 @@ func TestHintUnlockRepo_Flow(t *testing.T) {
 // Award Tests (in HintTest file)
 
 func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "u2")
 
-	tx, err := f.DB.BeginTx(ctx, nil)
+	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
 	f.CreateAwardTx(t, tx, team.Id, -50, "Hint penalty")
-	require.NoError(t, tx.Commit())
-
+	require.NoError(t, tx.Commit(ctx))
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, -50, total)
 
-	tx2, _ := f.DB.BeginTx(ctx, nil)
+	tx2, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	f.CreateAwardTx(t, tx2, team.Id, 100, "Bonus")
-	require.NoError(t, tx2.Commit())
+	require.NoError(t, tx2.Commit(ctx))
 
 	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
@@ -107,8 +107,8 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 }
 
 func TestScoreboardWithAwards(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "u3")
@@ -124,9 +124,9 @@ func TestScoreboardWithAwards(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 100, score)
 
-	tx, _ := f.DB.BeginTx(ctx, nil)
+	tx, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	f.CreateAwardTx(t, tx, team.Id, -20, "Penalty")
-	require.NoError(t, tx.Commit())
+	require.NoError(t, tx.Commit(ctx))
 
 	score, err = f.SolveRepo.GetTeamScore(ctx, team.Id)
 	require.NoError(t, err)

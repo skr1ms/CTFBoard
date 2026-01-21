@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -96,7 +97,7 @@ func (_c *MockHintRepository_Create_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // Delete provides a mock function for the type MockHintRepository
-func (_mock *MockHintRepository) Delete(ctx context.Context, id string) error {
+func (_mock *MockHintRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -104,7 +105,7 @@ func (_mock *MockHintRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		r0 = ret.Error(0)
@@ -119,20 +120,20 @@ type MockHintRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockHintRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockHintRepository_Delete_Call {
 	return &MockHintRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
-func (_c *MockHintRepository_Delete_Call) Run(run func(ctx context.Context, id string)) *MockHintRepository_Delete_Call {
+func (_c *MockHintRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockHintRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -147,13 +148,13 @@ func (_c *MockHintRepository_Delete_Call) Return(err error) *MockHintRepository_
 	return _c
 }
 
-func (_c *MockHintRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id string) error) *MockHintRepository_Delete_Call {
+func (_c *MockHintRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockHintRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByChallengeID provides a mock function for the type MockHintRepository
-func (_mock *MockHintRepository) GetByChallengeID(ctx context.Context, challengeId string) ([]*entity.Hint, error) {
+func (_mock *MockHintRepository) GetByChallengeID(ctx context.Context, challengeId uuid.UUID) ([]*entity.Hint, error) {
 	ret := _mock.Called(ctx, challengeId)
 
 	if len(ret) == 0 {
@@ -162,17 +163,17 @@ func (_mock *MockHintRepository) GetByChallengeID(ctx context.Context, challenge
 
 	var r0 []*entity.Hint
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]*entity.Hint, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.Hint, error)); ok {
 		return returnFunc(ctx, challengeId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []*entity.Hint); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.Hint); ok {
 		r0 = returnFunc(ctx, challengeId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*entity.Hint)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, challengeId)
 	} else {
 		r1 = ret.Error(1)
@@ -187,20 +188,20 @@ type MockHintRepository_GetByChallengeID_Call struct {
 
 // GetByChallengeID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - challengeId string
+//   - challengeId uuid.UUID
 func (_e *MockHintRepository_Expecter) GetByChallengeID(ctx interface{}, challengeId interface{}) *MockHintRepository_GetByChallengeID_Call {
 	return &MockHintRepository_GetByChallengeID_Call{Call: _e.mock.On("GetByChallengeID", ctx, challengeId)}
 }
 
-func (_c *MockHintRepository_GetByChallengeID_Call) Run(run func(ctx context.Context, challengeId string)) *MockHintRepository_GetByChallengeID_Call {
+func (_c *MockHintRepository_GetByChallengeID_Call) Run(run func(ctx context.Context, challengeId uuid.UUID)) *MockHintRepository_GetByChallengeID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -215,13 +216,13 @@ func (_c *MockHintRepository_GetByChallengeID_Call) Return(hints []*entity.Hint,
 	return _c
 }
 
-func (_c *MockHintRepository_GetByChallengeID_Call) RunAndReturn(run func(ctx context.Context, challengeId string) ([]*entity.Hint, error)) *MockHintRepository_GetByChallengeID_Call {
+func (_c *MockHintRepository_GetByChallengeID_Call) RunAndReturn(run func(ctx context.Context, challengeId uuid.UUID) ([]*entity.Hint, error)) *MockHintRepository_GetByChallengeID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockHintRepository
-func (_mock *MockHintRepository) GetByID(ctx context.Context, id string) (*entity.Hint, error) {
+func (_mock *MockHintRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -230,17 +231,17 @@ func (_mock *MockHintRepository) GetByID(ctx context.Context, id string) (*entit
 
 	var r0 *entity.Hint
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.Hint, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Hint, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.Hint); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Hint); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Hint)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -255,20 +256,20 @@ type MockHintRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockHintRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockHintRepository_GetByID_Call {
 	return &MockHintRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockHintRepository_GetByID_Call) Run(run func(ctx context.Context, id string)) *MockHintRepository_GetByID_Call {
+func (_c *MockHintRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockHintRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -283,7 +284,7 @@ func (_c *MockHintRepository_GetByID_Call) Return(hint *entity.Hint, err error) 
 	return _c
 }
 
-func (_c *MockHintRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string) (*entity.Hint, error)) *MockHintRepository_GetByID_Call {
+func (_c *MockHintRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Hint, error)) *MockHintRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

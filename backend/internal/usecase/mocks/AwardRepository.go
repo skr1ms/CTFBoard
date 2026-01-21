@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,7 +39,7 @@ func (_m *MockAwardRepository) EXPECT() *MockAwardRepository_Expecter {
 }
 
 // GetTeamTotalAwards provides a mock function for the type MockAwardRepository
-func (_mock *MockAwardRepository) GetTeamTotalAwards(ctx context.Context, teamId string) (int, error) {
+func (_mock *MockAwardRepository) GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, teamId)
 
 	if len(ret) == 0 {
@@ -47,15 +48,15 @@ func (_mock *MockAwardRepository) GetTeamTotalAwards(ctx context.Context, teamId
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
 		return returnFunc(ctx, teamId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
 		r0 = returnFunc(ctx, teamId)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId)
 	} else {
 		r1 = ret.Error(1)
@@ -70,20 +71,20 @@ type MockAwardRepository_GetTeamTotalAwards_Call struct {
 
 // GetTeamTotalAwards is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
+//   - teamId uuid.UUID
 func (_e *MockAwardRepository_Expecter) GetTeamTotalAwards(ctx interface{}, teamId interface{}) *MockAwardRepository_GetTeamTotalAwards_Call {
 	return &MockAwardRepository_GetTeamTotalAwards_Call{Call: _e.mock.On("GetTeamTotalAwards", ctx, teamId)}
 }
 
-func (_c *MockAwardRepository_GetTeamTotalAwards_Call) Run(run func(ctx context.Context, teamId string)) *MockAwardRepository_GetTeamTotalAwards_Call {
+func (_c *MockAwardRepository_GetTeamTotalAwards_Call) Run(run func(ctx context.Context, teamId uuid.UUID)) *MockAwardRepository_GetTeamTotalAwards_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -98,7 +99,7 @@ func (_c *MockAwardRepository_GetTeamTotalAwards_Call) Return(n int, err error) 
 	return _c
 }
 
-func (_c *MockAwardRepository_GetTeamTotalAwards_Call) RunAndReturn(run func(ctx context.Context, teamId string) (int, error)) *MockAwardRepository_GetTeamTotalAwards_Call {
+func (_c *MockAwardRepository_GetTeamTotalAwards_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID) (int, error)) *MockAwardRepository_GetTeamTotalAwards_Call {
 	_c.Call.Return(run)
 	return _c
 }

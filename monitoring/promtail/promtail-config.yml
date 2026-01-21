@@ -58,5 +58,24 @@ scrape_configs:
                 component:
             - output:
                 source: msg
+      - match:
+          selector: '{compose_service="postgres"}'
+          stages:
+            - regex:
+                expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ \w+) \[(?P<pid>\d+)\] (?P<level>\w+):  (?P<message>.*)$'
+            - labels:
+                level:
+                pid:
+            - output:
+                source: message
+      - match:
+          selector: '{compose_service="postgres-exporter"}'
+          stages:
+            - regex:
+                expression: '^.*level=(?P<level>\w+).*msg="(?P<message>[^"]*)".*$'
+            - labels:
+                level:
+            - output:
+                source: message
       - output:
           source: output

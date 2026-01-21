@@ -9,7 +9,7 @@ import (
 
 func TestTeam_FullFlow(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
@@ -35,7 +35,7 @@ func TestTeam_FullFlow(t *testing.T) {
 
 func TestTeam_CreateDuplicateName(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
@@ -55,16 +55,17 @@ func TestTeam_CreateDuplicateName(t *testing.T) {
 
 func TestTeam_JoinInvalidToken(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	_, _, token := h.RegisterUserAndLogin("user_" + uuid.New().String()[:8])
 
-	h.JoinTeam(token, "invalid-token", http.StatusNotFound)
+	nonExistentToken := uuid.New().String()
+	h.JoinTeam(token, nonExistentToken, http.StatusNotFound)
 }
 
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
@@ -82,12 +83,15 @@ func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 
 func TestTeam_Join_PointsCheck(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	soloName := "solo_player_" + suffix
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_" + suffix)
+
+	h.StartCompetition(tokenAdmin)
+
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
 		"title":       "Solvable",
 		"description": "Test team points",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -48,7 +49,7 @@ func (h *scoreboardRoutes) GetScoreboard(w http.ResponseWriter, r *http.Request)
 	res := make([]response.ScoreboardEntryResponse, 0, len(entries))
 	for _, entry := range entries {
 		item := response.ScoreboardEntryResponse{
-			TeamId:   entry.TeamId,
+			TeamId:   entry.TeamId.String(),
 			TeamName: entry.TeamName,
 			Points:   entry.Points,
 		}
@@ -79,7 +80,13 @@ func (h *scoreboardRoutes) GetFirstBlood(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	entry, err := h.solveUC.GetFirstBlood(r.Context(), challengeId)
+	challengeUUID, err := uuid.Parse(challengeId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	entry, err := h.solveUC.GetFirstBlood(r.Context(), challengeUUID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrSolveNotFound) {
 			render.Status(r, http.StatusNotFound)
@@ -93,9 +100,9 @@ func (h *scoreboardRoutes) GetFirstBlood(w http.ResponseWriter, r *http.Request)
 	}
 
 	res := response.FirstBloodResponse{
-		UserId:   entry.UserId,
+		UserId:   entry.UserId.String(),
 		Username: entry.Username,
-		TeamId:   entry.TeamId,
+		TeamId:   entry.TeamId.String(),
 		TeamName: entry.TeamName,
 		SolvedAt: entry.SolvedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

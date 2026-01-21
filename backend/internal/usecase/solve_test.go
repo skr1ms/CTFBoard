@@ -2,12 +2,12 @@ package usecase
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -26,10 +26,10 @@ func TestSolveUseCase_Create(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
-	teamID := uuid.New().String()
-	challengeID := uuid.New().String()
+	teamID := uuid.New()
+	challengeID := uuid.New()
 	solve := &entity.Solve{
-		UserId:      uuid.New().String(),
+		UserId:      uuid.New(),
 		TeamId:      teamID,
 		ChallengeId: challengeID,
 	}
@@ -37,7 +37,7 @@ func TestSolveUseCase_Create(t *testing.T) {
 	redisClient.On("Del", mock.Anything, []string{"scoreboard"}).Return(redis.NewIntCmd(context.Background()))
 
 	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		fn := args.Get(1).(func(context.Context, *sql.Tx) error)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
 		_ = fn(context.Background(), nil)
 	})
 
@@ -67,16 +67,16 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
-	teamID := uuid.New().String()
-	challengeID := uuid.New().String()
+	teamID := uuid.New()
+	challengeID := uuid.New()
 	solve := &entity.Solve{
-		UserId:      uuid.New().String(),
+		UserId:      uuid.New(),
 		TeamId:      teamID,
 		ChallengeId: challengeID,
 	}
 
 	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(entityError.ErrAlreadySolved).Run(func(args mock.Arguments) {
-		fn := args.Get(1).(func(context.Context, *sql.Tx) error)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
 		_ = fn(context.Background(), nil)
 	})
 
@@ -86,7 +86,7 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 		Points: 100,
 	}
 	existingSolve := &entity.Solve{
-		Id:          uuid.New().String(),
+		Id:          uuid.New(),
 		TeamId:      teamID,
 		ChallengeId: challengeID,
 		SolvedAt:    time.Now(),
@@ -110,17 +110,17 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
-	teamID := uuid.New().String()
-	challengeID := uuid.New().String()
+	teamID := uuid.New()
+	challengeID := uuid.New()
 	solve := &entity.Solve{
-		UserId:      uuid.New().String(),
+		UserId:      uuid.New(),
 		TeamId:      teamID,
 		ChallengeId: challengeID,
 	}
 	expectedError := assert.AnError
 
 	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError).Run(func(args mock.Arguments) {
-		fn := args.Get(1).(func(context.Context, *sql.Tx) error)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
 		_ = fn(context.Background(), nil)
 	})
 
@@ -151,13 +151,13 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 
 	entries := []*repo.ScoreboardEntry{
 		{
-			TeamId:   uuid.New().String(),
+			TeamId:   uuid.New(),
 			TeamName: "Team1",
 			Points:   500,
 			SolvedAt: time.Now(),
 		},
 		{
-			TeamId:   uuid.New().String(),
+			TeamId:   uuid.New(),
 			TeamName: "Team2",
 			Points:   300,
 			SolvedAt: time.Now(),
@@ -199,7 +199,7 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 
 	entries := []*repo.ScoreboardEntry{
 		{
-			TeamId:   uuid.New().String(),
+			TeamId:   uuid.New(),
 			TeamName: "Team1",
 			Points:   500,
 			SolvedAt: time.Now(),
@@ -259,11 +259,11 @@ func TestSolveUseCase_GetFirstBlood(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
-	challengeID := uuid.New().String()
+	challengeID := uuid.New()
 	entry := &repo.FirstBloodEntry{
-		UserId:   uuid.New().String(),
+		UserId:   uuid.New(),
 		Username: "firstsolver",
-		TeamId:   uuid.New().String(),
+		TeamId:   uuid.New(),
 		TeamName: "FirstTeam",
 		SolvedAt: time.Now(),
 	}
@@ -287,7 +287,7 @@ func TestSolveUseCase_GetFirstBlood_NotFound(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	redisClient := mocks.NewMockRedisClient(t)
 
-	challengeID := uuid.New().String()
+	challengeID := uuid.New()
 
 	solveRepo.On("GetFirstBlood", mock.Anything, challengeID).Return(nil, entityError.ErrSolveNotFound)
 

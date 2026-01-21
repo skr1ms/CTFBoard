@@ -2,26 +2,29 @@ package persistent
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 )
 
 type CompetitionRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewCompetitionRepo(db *sql.DB) *CompetitionRepo {
-	return &CompetitionRepo{db: db}
+func NewCompetitionRepo(pool *pgxpool.Pool) *CompetitionRepo {
+	return &CompetitionRepo{pool: pool}
 }
 
 func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) {
 	query := squirrel.Select("id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public", "created_at", "updated_at").
 		From("competition").
-		Where(squirrel.Eq{"id": 1})
+		Where(squirrel.Eq{"id": 1}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -29,7 +32,7 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) 
 	}
 
 	var c entity.Competition
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&c.Id,
 		&c.Name,
 		&c.StartTime,
@@ -41,7 +44,7 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) 
 		&c.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrCompetitionNotFound
 		}
 		return nil, fmt.Errorf("CompetitionRepo - Get: %w", err)
@@ -58,23 +61,20 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *entity.Competition) err
 		Set("freeze_time", c.FreezeTime).
 		Set("is_paused", c.IsPaused).
 		Set("is_public", c.IsPublic).
-		Where(squirrel.Eq{"id": 1})
+		Where(squirrel.Eq{"id": 1}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update - BuildQuery: %w", err)
 	}
 
-	result, err := r.db.ExecContext(ctx, sqlQuery, args...)
+	result, err := r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("CompetitionRepo - Update - RowsAffected: %w", err)
-	}
-	if rowsAffected == 0 {
+	if result.RowsAffected() == 0 {
 		return entityError.ErrCompetitionNotFound
 	}
 

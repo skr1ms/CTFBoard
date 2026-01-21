@@ -2,30 +2,26 @@ package persistent
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AwardRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewAwardRepo(db *sql.DB) *AwardRepo {
-	return &AwardRepo{db: db}
+func NewAwardRepo(pool *pgxpool.Pool) *AwardRepo {
+	return &AwardRepo{pool: pool}
 }
 
-func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId string) (int, error) {
-	teamUUID, err := uuid.Parse(teamId)
-	if err != nil {
-		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards - Parse TeamID: %w", err)
-	}
-
+func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (int, error) {
 	query := squirrel.Select("COALESCE(SUM(value), 0)").
 		From("awards").
-		Where(squirrel.Eq{"team_id": teamUUID})
+		Where(squirrel.Eq{"team_id": teamId}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -33,7 +29,7 @@ func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId string) (int,
 	}
 
 	var total int
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(&total)
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(&total)
 	if err != nil {
 		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards - Scan: %w", err)
 	}

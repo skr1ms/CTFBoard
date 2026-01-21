@@ -13,6 +13,17 @@ type ErrorResponse struct {
 	Code  string `json:"code,omitempty"`
 }
 
+var ErrInvalidID = &ErrorResponse{Error: "invalid id format", Code: "INVALID_ID"}
+
+func (e *ErrorResponse) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
+func RenderInvalidID(w http.ResponseWriter, r *http.Request) {
+	render.Status(r, http.StatusBadRequest)
+	render.JSON(w, r, ErrInvalidID)
+}
+
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, entityError.ErrUserAlreadyExists):

@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -164,7 +165,7 @@ func (_c *MockUserRepository_GetByEmail_Call) RunAndReturn(run func(ctx context.
 }
 
 // GetByID provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+func (_mock *MockUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -173,17 +174,17 @@ func (_mock *MockUserRepository) GetByID(ctx context.Context, id string) (*entit
 
 	var r0 *entity.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*entity.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.User, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *entity.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.User); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -198,20 +199,20 @@ type MockUserRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockUserRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockUserRepository_GetByID_Call {
 	return &MockUserRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockUserRepository_GetByID_Call) Run(run func(ctx context.Context, id string)) *MockUserRepository_GetByID_Call {
+func (_c *MockUserRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -226,13 +227,13 @@ func (_c *MockUserRepository_GetByID_Call) Return(user *entity.User, err error) 
 	return _c
 }
 
-func (_c *MockUserRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string) (*entity.User, error)) *MockUserRepository_GetByID_Call {
+func (_c *MockUserRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.User, error)) *MockUserRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByTeamId provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByTeamId(ctx context.Context, teamId string) ([]*entity.User, error) {
+func (_mock *MockUserRepository) GetByTeamId(ctx context.Context, teamId uuid.UUID) ([]*entity.User, error) {
 	ret := _mock.Called(ctx, teamId)
 
 	if len(ret) == 0 {
@@ -241,17 +242,17 @@ func (_mock *MockUserRepository) GetByTeamId(ctx context.Context, teamId string)
 
 	var r0 []*entity.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]*entity.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.User, error)); ok {
 		return returnFunc(ctx, teamId)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []*entity.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.User); ok {
 		r0 = returnFunc(ctx, teamId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*entity.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, teamId)
 	} else {
 		r1 = ret.Error(1)
@@ -266,20 +267,20 @@ type MockUserRepository_GetByTeamId_Call struct {
 
 // GetByTeamId is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamId string
+//   - teamId uuid.UUID
 func (_e *MockUserRepository_Expecter) GetByTeamId(ctx interface{}, teamId interface{}) *MockUserRepository_GetByTeamId_Call {
 	return &MockUserRepository_GetByTeamId_Call{Call: _e.mock.On("GetByTeamId", ctx, teamId)}
 }
 
-func (_c *MockUserRepository_GetByTeamId_Call) Run(run func(ctx context.Context, teamId string)) *MockUserRepository_GetByTeamId_Call {
+func (_c *MockUserRepository_GetByTeamId_Call) Run(run func(ctx context.Context, teamId uuid.UUID)) *MockUserRepository_GetByTeamId_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -294,7 +295,7 @@ func (_c *MockUserRepository_GetByTeamId_Call) Return(users []*entity.User, err 
 	return _c
 }
 
-func (_c *MockUserRepository_GetByTeamId_Call) RunAndReturn(run func(ctx context.Context, teamId string) ([]*entity.User, error)) *MockUserRepository_GetByTeamId_Call {
+func (_c *MockUserRepository_GetByTeamId_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID) ([]*entity.User, error)) *MockUserRepository_GetByTeamId_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -368,7 +369,7 @@ func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(ctx conte
 }
 
 // SetVerified provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetVerified(ctx context.Context, userId string) error {
+func (_mock *MockUserRepository) SetVerified(ctx context.Context, userId uuid.UUID) error {
 	ret := _mock.Called(ctx, userId)
 
 	if len(ret) == 0 {
@@ -376,7 +377,7 @@ func (_mock *MockUserRepository) SetVerified(ctx context.Context, userId string)
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, userId)
 	} else {
 		r0 = ret.Error(0)
@@ -391,20 +392,20 @@ type MockUserRepository_SetVerified_Call struct {
 
 // SetVerified is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userId string
+//   - userId uuid.UUID
 func (_e *MockUserRepository_Expecter) SetVerified(ctx interface{}, userId interface{}) *MockUserRepository_SetVerified_Call {
 	return &MockUserRepository_SetVerified_Call{Call: _e.mock.On("SetVerified", ctx, userId)}
 }
 
-func (_c *MockUserRepository_SetVerified_Call) Run(run func(ctx context.Context, userId string)) *MockUserRepository_SetVerified_Call {
+func (_c *MockUserRepository_SetVerified_Call) Run(run func(ctx context.Context, userId uuid.UUID)) *MockUserRepository_SetVerified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -419,13 +420,13 @@ func (_c *MockUserRepository_SetVerified_Call) Return(err error) *MockUserReposi
 	return _c
 }
 
-func (_c *MockUserRepository_SetVerified_Call) RunAndReturn(run func(ctx context.Context, userId string) error) *MockUserRepository_SetVerified_Call {
+func (_c *MockUserRepository_SetVerified_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID) error) *MockUserRepository_SetVerified_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdatePassword provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdatePassword(ctx context.Context, userId string, passwordHash string) error {
+func (_mock *MockUserRepository) UpdatePassword(ctx context.Context, userId uuid.UUID, passwordHash string) error {
 	ret := _mock.Called(ctx, userId, passwordHash)
 
 	if len(ret) == 0 {
@@ -433,7 +434,7 @@ func (_mock *MockUserRepository) UpdatePassword(ctx context.Context, userId stri
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
 		r0 = returnFunc(ctx, userId, passwordHash)
 	} else {
 		r0 = ret.Error(0)
@@ -448,21 +449,21 @@ type MockUserRepository_UpdatePassword_Call struct {
 
 // UpdatePassword is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userId string
+//   - userId uuid.UUID
 //   - passwordHash string
 func (_e *MockUserRepository_Expecter) UpdatePassword(ctx interface{}, userId interface{}, passwordHash interface{}) *MockUserRepository_UpdatePassword_Call {
 	return &MockUserRepository_UpdatePassword_Call{Call: _e.mock.On("UpdatePassword", ctx, userId, passwordHash)}
 }
 
-func (_c *MockUserRepository_UpdatePassword_Call) Run(run func(ctx context.Context, userId string, passwordHash string)) *MockUserRepository_UpdatePassword_Call {
+func (_c *MockUserRepository_UpdatePassword_Call) Run(run func(ctx context.Context, userId uuid.UUID, passwordHash string)) *MockUserRepository_UpdatePassword_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -482,13 +483,13 @@ func (_c *MockUserRepository_UpdatePassword_Call) Return(err error) *MockUserRep
 	return _c
 }
 
-func (_c *MockUserRepository_UpdatePassword_Call) RunAndReturn(run func(ctx context.Context, userId string, passwordHash string) error) *MockUserRepository_UpdatePassword_Call {
+func (_c *MockUserRepository_UpdatePassword_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID, passwordHash string) error) *MockUserRepository_UpdatePassword_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateTeamId provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateTeamId(ctx context.Context, userId string, teamId *string) error {
+func (_mock *MockUserRepository) UpdateTeamId(ctx context.Context, userId uuid.UUID, teamId *uuid.UUID) error {
 	ret := _mock.Called(ctx, userId, teamId)
 
 	if len(ret) == 0 {
@@ -496,7 +497,7 @@ func (_mock *MockUserRepository) UpdateTeamId(ctx context.Context, userId string
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, userId, teamId)
 	} else {
 		r0 = ret.Error(0)
@@ -511,25 +512,25 @@ type MockUserRepository_UpdateTeamId_Call struct {
 
 // UpdateTeamId is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userId string
-//   - teamId *string
+//   - userId uuid.UUID
+//   - teamId *uuid.UUID
 func (_e *MockUserRepository_Expecter) UpdateTeamId(ctx interface{}, userId interface{}, teamId interface{}) *MockUserRepository_UpdateTeamId_Call {
 	return &MockUserRepository_UpdateTeamId_Call{Call: _e.mock.On("UpdateTeamId", ctx, userId, teamId)}
 }
 
-func (_c *MockUserRepository_UpdateTeamId_Call) Run(run func(ctx context.Context, userId string, teamId *string)) *MockUserRepository_UpdateTeamId_Call {
+func (_c *MockUserRepository_UpdateTeamId_Call) Run(run func(ctx context.Context, userId uuid.UUID, teamId *uuid.UUID)) *MockUserRepository_UpdateTeamId_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 *string
+		var arg2 *uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(*string)
+			arg2 = args[2].(*uuid.UUID)
 		}
 		run(
 			arg0,
@@ -545,7 +546,7 @@ func (_c *MockUserRepository_UpdateTeamId_Call) Return(err error) *MockUserRepos
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateTeamId_Call) RunAndReturn(run func(ctx context.Context, userId string, teamId *string) error) *MockUserRepository_UpdateTeamId_Call {
+func (_c *MockUserRepository_UpdateTeamId_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID, teamId *uuid.UUID) error) *MockUserRepository_UpdateTeamId_Call {
 	_c.Call.Return(run)
 	return _c
 }

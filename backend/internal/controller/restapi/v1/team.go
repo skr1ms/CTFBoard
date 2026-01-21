@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
@@ -74,7 +75,13 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamUC.Create(r.Context(), req.Name, userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	team, err := h.teamUC.Create(r.Context(), req.Name, userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - Create - Create", err)
 		handleError(w, r, err)
@@ -82,10 +89,10 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.TeamResponse{
-		Id:          team.Id,
+		Id:          team.Id.String(),
 		Name:        team.Name,
-		InviteToken: team.InviteToken,
-		CaptainId:   team.CaptainId,
+		InviteToken: team.InviteToken.String(),
+		CaptainId:   team.CaptainId.String(),
 		CreatedAt:   team.CreatedAt,
 	}
 
@@ -129,7 +136,20 @@ func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamUC.Join(r.Context(), req.InviteToken, userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	inviteTokenUUID, err := uuid.Parse(req.InviteToken)
+	if err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, ErrorResponse{Error: "invalid invite token format"})
+		return
+	}
+
+	team, err := h.teamUC.Join(r.Context(), inviteTokenUUID, userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - Join - Join", err)
 		handleError(w, r, err)
@@ -137,10 +157,10 @@ func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.TeamResponse{
-		Id:          team.Id,
+		Id:          team.Id.String(),
 		Name:        team.Name,
-		InviteToken: team.InviteToken,
-		CaptainId:   team.CaptainId,
+		InviteToken: team.InviteToken.String(),
+		CaptainId:   team.CaptainId.String(),
 		CreatedAt:   team.CreatedAt,
 	}
 
@@ -165,7 +185,13 @@ func (h *teamRoutes) GetMyTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, members, err := h.teamUC.GetMyTeam(r.Context(), userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	team, members, err := h.teamUC.GetMyTeam(r.Context(), userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - GetMyTeam - GetMyTeam", err)
 		handleError(w, r, err)
@@ -174,19 +200,24 @@ func (h *teamRoutes) GetMyTeam(w http.ResponseWriter, r *http.Request) {
 
 	var memberResponses []response.UserResponse
 	for _, member := range members {
+		var teamIdStr *string
+		if member.TeamId != nil {
+			s := member.TeamId.String()
+			teamIdStr = &s
+		}
 		memberResponses = append(memberResponses, response.UserResponse{
-			Id:       member.Id,
+			Id:       member.Id.String(),
 			Username: member.Username,
-			TeamId:   member.TeamId,
+			TeamId:   teamIdStr,
 			Role:     member.Role,
 		})
 	}
 
 	res := response.TeamWithMembersResponse{
-		Id:          team.Id,
+		Id:          team.Id.String(),
 		Name:        team.Name,
-		InviteToken: team.InviteToken,
-		CaptainId:   team.CaptainId,
+		InviteToken: team.InviteToken.String(),
+		CaptainId:   team.CaptainId.String(),
 		CreatedAt:   team.CreatedAt,
 		Members:     memberResponses,
 	}
@@ -213,7 +244,13 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamUC.GetByID(r.Context(), teamId)
+	teamUUID, err := uuid.Parse(teamId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	team, err := h.teamUC.GetByID(r.Context(), teamUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - GetByID - GetByID", err)
 		handleError(w, r, err)
@@ -222,9 +259,9 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	// Don't expose invite token when getting team by ID (security)
 	res := response.TeamResponse{
-		Id:        team.Id,
+		Id:        team.Id.String(),
 		Name:      team.Name,
-		CaptainId: team.CaptainId,
+		CaptainId: team.CaptainId.String(),
 		CreatedAt: team.CreatedAt,
 	}
 

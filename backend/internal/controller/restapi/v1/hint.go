@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
@@ -76,8 +77,20 @@ func (h *hintRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	challengeUUID, err := uuid.Parse(challengeId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
 	userId := r.Context().Value(restapiMiddleware.UserIDKey).(string)
-	user, err := h.userUC.GetByID(r.Context(), userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - GetByChallengeID - GetByID", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -85,7 +98,7 @@ func (h *hintRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hints, err := h.hintUC.GetByChallengeID(r.Context(), challengeId, user.TeamId)
+	hints, err := h.hintUC.GetByChallengeID(r.Context(), challengeUUID, user.TeamId)
 	if err != nil {
 		h.logger.Error("restapi - v1 - GetByChallengeID - GetByChallengeID", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -96,7 +109,7 @@ func (h *hintRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 	res := make([]response.HintResponse, 0, len(hints))
 	for _, hint := range hints {
 		hr := response.HintResponse{
-			Id:         hint.Hint.Id,
+			Id:         hint.Hint.Id.String(),
 			Cost:       hint.Hint.Cost,
 			OrderIndex: hint.Hint.OrderIndex,
 			Unlocked:   hint.Unlocked,
@@ -133,8 +146,20 @@ func (h *hintRoutes) UnlockHint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hintUUID, err := uuid.Parse(hintId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
 	userId := restapiMiddleware.GetUserID(r.Context())
-	user, err := h.userUC.GetByID(r.Context(), userId)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
 		h.logger.Error("restapi - v1 - UnlockHint - GetByID", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -148,7 +173,7 @@ func (h *hintRoutes) UnlockHint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hint, err := h.hintUC.UnlockHint(r.Context(), *user.TeamId, hintId)
+	hint, err := h.hintUC.UnlockHint(r.Context(), *user.TeamId, hintUUID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrHintNotFound) {
 			render.Status(r, http.StatusNotFound)
@@ -172,7 +197,7 @@ func (h *hintRoutes) UnlockHint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.HintResponse{
-		Id:         hint.Id,
+		Id:         hint.Id.String(),
 		Cost:       hint.Cost,
 		OrderIndex: hint.OrderIndex,
 		Content:    &hint.Content,
@@ -204,6 +229,12 @@ func (h *hintRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	challengeUUID, err := uuid.Parse(challengeId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
 	var req request.CreateHintRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -217,7 +248,7 @@ func (h *hintRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hint, err := h.hintUC.Create(r.Context(), challengeId, req.Content, req.Cost, req.OrderIndex)
+	hint, err := h.hintUC.Create(r.Context(), challengeUUID, req.Content, req.Cost, req.OrderIndex)
 	if err != nil {
 		h.logger.Error("restapi - v1 - Create - Create", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -226,8 +257,8 @@ func (h *hintRoutes) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.HintAdminResponse{
-		Id:          hint.Id,
-		ChallengeId: hint.ChallengeId,
+		Id:          hint.Id.String(),
+		ChallengeId: hint.ChallengeId.String(),
 		Content:     hint.Content,
 		Cost:        hint.Cost,
 		OrderIndex:  hint.OrderIndex,
@@ -259,6 +290,12 @@ func (h *hintRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hintUUID, err := uuid.Parse(id)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
 	var req request.UpdateHintRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -272,7 +309,7 @@ func (h *hintRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hint, err := h.hintUC.Update(r.Context(), id, req.Content, req.Cost, req.OrderIndex)
+	hint, err := h.hintUC.Update(r.Context(), hintUUID, req.Content, req.Cost, req.OrderIndex)
 	if err != nil {
 		if errors.Is(err, entityError.ErrHintNotFound) {
 			render.Status(r, http.StatusNotFound)
@@ -286,8 +323,8 @@ func (h *hintRoutes) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := response.HintAdminResponse{
-		Id:          hint.Id,
-		ChallengeId: hint.ChallengeId,
+		Id:          hint.Id.String(),
+		ChallengeId: hint.ChallengeId.String(),
 		Content:     hint.Content,
 		Cost:        hint.Cost,
 		OrderIndex:  hint.OrderIndex,
@@ -315,7 +352,13 @@ func (h *hintRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.hintUC.Delete(r.Context(), id); err != nil {
+	hintUUID, err := uuid.Parse(id)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	if err := h.hintUC.Delete(r.Context(), hintUUID); err != nil {
 		if errors.Is(err, entityError.ErrHintNotFound) {
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, map[string]string{"error": "hint not found"})

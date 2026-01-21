@@ -19,7 +19,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	user := &entity.User{
 		Id:       captainID,
 		Username: "captain",
@@ -29,16 +29,13 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 
 	teamRepo.On("GetByName", mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound)
 	userRepo.On("GetByID", mock.Anything, captainID).Return(user, nil)
-	var teamID string
 	teamRepo.On("Create", mock.Anything, mock.MatchedBy(func(t *entity.Team) bool {
 		return t.Name == "TestTeam" && t.CaptainId == captainID
 	})).Return(nil).Run(func(args mock.Arguments) {
 		team := args.Get(1).(*entity.Team)
-		teamID = uuid.New().String()
-		team.Id = teamID
+		team.Id = uuid.New()
 	})
-	teamIDPtr := &teamID
-	userRepo.On("UpdateTeamId", mock.Anything, captainID, teamIDPtr).Return(nil)
+	userRepo.On("UpdateTeamId", mock.Anything, captainID, mock.Anything).Return(nil)
 
 	uc := NewTeamUseCase(teamRepo, userRepo)
 
@@ -55,9 +52,9 @@ func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	existingTeam := &entity.Team{
-		Id:   uuid.New().String(),
+		Id:   uuid.New(),
 		Name: "TestTeam",
 	}
 
@@ -75,8 +72,8 @@ func TestTeamUseCase_Create_UserAlreadyInTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
-	teamID := uuid.New().String()
+	captainID := uuid.New()
+	teamID := uuid.New()
 	user := &entity.User{
 		Id:     captainID,
 		TeamId: &teamID,
@@ -98,7 +95,7 @@ func TestTeamUseCase_Create_GetByNameUnexpected_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	expectedError := assert.AnError
 
 	teamRepo.On("GetByName", mock.Anything, "TestTeam").Return(nil, expectedError)
@@ -115,7 +112,7 @@ func TestTeamUseCase_Create_GetByID_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	expectedError := assert.AnError
 
 	teamRepo.On("GetByName", mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound)
@@ -133,7 +130,7 @@ func TestTeamUseCase_Create_Create_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	user := &entity.User{
 		Id:     captainID,
 		TeamId: nil,
@@ -156,7 +153,7 @@ func TestTeamUseCase_Create_UpdateTeamId_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	captainID := uuid.New().String()
+	captainID := uuid.New()
 	user := &entity.User{
 		Id:     captainID,
 		TeamId: nil,
@@ -183,9 +180,9 @@ func TestTeamUseCase_Join_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	inviteToken := "test_token_12345"
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
+	inviteToken := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
 
 	team := &entity.Team{
 		Id:          teamID,
@@ -216,10 +213,10 @@ func TestTeamUseCase_Join_UserAlreadyInTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	inviteToken := "test_token_12345"
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
-	existingTeamID := uuid.New().String()
+	inviteToken := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
+	existingTeamID := uuid.New()
 
 	team := &entity.Team{
 		Id:          teamID,
@@ -233,7 +230,7 @@ func TestTeamUseCase_Join_UserAlreadyInTeam_Error(t *testing.T) {
 	}
 
 	otherUser := &entity.User{
-		Id:     uuid.New().String(),
+		Id:     uuid.New(),
 		TeamId: &existingTeamID,
 	}
 
@@ -254,8 +251,8 @@ func TestTeamUseCase_Join_GetByInviteToken_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	inviteToken := "test_token_12345"
-	userID := uuid.New().String()
+	inviteToken := uuid.New()
+	userID := uuid.New()
 	expectedError := assert.AnError
 
 	teamRepo.On("GetByInviteToken", mock.Anything, inviteToken).Return(nil, expectedError)
@@ -272,9 +269,9 @@ func TestTeamUseCase_Join_GetByID_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	inviteToken := "test_token_12345"
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
+	inviteToken := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
 
 	team := &entity.Team{
 		Id:          teamID,
@@ -298,9 +295,9 @@ func TestTeamUseCase_Join_UpdateTeamId_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	inviteToken := "test_token_12345"
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
+	inviteToken := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
 
 	team := &entity.Team{
 		Id:          teamID,
@@ -333,12 +330,12 @@ func TestTeamUseCase_GetByID_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	teamID := uuid.New().String()
+	teamID := uuid.New()
 	expectedTeam := &entity.Team{
 		Id:          teamID,
 		Name:        "TestTeam",
-		InviteToken: "token123",
-		CaptainId:   uuid.New().String(),
+		InviteToken: uuid.New(),
+		CaptainId:   uuid.New(),
 	}
 
 	teamRepo.On("GetByID", mock.Anything, teamID).Return(expectedTeam, nil)
@@ -357,7 +354,7 @@ func TestTeamUseCase_GetByID_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	teamID := uuid.New().String()
+	teamID := uuid.New()
 	expectedError := assert.AnError
 
 	teamRepo.On("GetByID", mock.Anything, teamID).Return(nil, expectedError)
@@ -376,8 +373,8 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
+	userID := uuid.New()
+	teamID := uuid.New()
 
 	user := &entity.User{
 		Id:     userID,
@@ -387,7 +384,7 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	team := &entity.Team{
 		Id:          teamID,
 		Name:        "MyTeam",
-		InviteToken: "token123",
+		InviteToken: uuid.New(),
 		CaptainId:   userID,
 	}
 
@@ -413,7 +410,7 @@ func TestTeamUseCase_GetMyTeam_NoTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 
 	user := &entity.User{
 		Id:     userID,
@@ -436,7 +433,7 @@ func TestTeamUseCase_GetMyTeam_GetByIDUser_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	expectedError := assert.AnError
 
 	userRepo.On("GetByID", mock.Anything, userID).Return(nil, expectedError)
@@ -454,8 +451,8 @@ func TestTeamUseCase_GetMyTeam_GetByIDTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	userID := uuid.New().String()
-	teamID := uuid.New().String()
+	userID := uuid.New()
+	teamID := uuid.New()
 
 	user := &entity.User{
 		Id:     userID,
@@ -481,15 +478,15 @@ func TestTeamUseCase_GetTeamMembers_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	teamID := uuid.New().String()
+	teamID := uuid.New()
 	members := []*entity.User{
 		{
-			Id:       uuid.New().String(),
+			Id:       uuid.New(),
 			Username: "member1",
 			TeamId:   &teamID,
 		},
 		{
-			Id:       uuid.New().String(),
+			Id:       uuid.New(),
 			Username: "member2",
 			TeamId:   &teamID,
 		},
@@ -510,7 +507,7 @@ func TestTeamUseCase_GetTeamMembers_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
 
-	teamID := uuid.New().String()
+	teamID := uuid.New()
 	expectedError := assert.AnError
 
 	userRepo.On("GetByTeamId", mock.Anything, teamID).Return(nil, expectedError)

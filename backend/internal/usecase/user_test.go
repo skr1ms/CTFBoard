@@ -2,11 +2,11 @@ package usecase
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
@@ -33,14 +33,14 @@ func TestUserUseCase_Register(t *testing.T) {
 			setupMocks: func(userRepo *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
 				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, *sql.Tx) error) error {
+				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 					return fn(ctx, nil)
 				}).Once()
-				txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx *sql.Tx, u *entity.User) {
-					u.Id = uuid.New().String()
+				txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, u *entity.User) {
+					u.Id = uuid.New()
 				}).Once()
-				txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx *sql.Tx, t *entity.Team) {
-					t.Id = uuid.New().String()
+				txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, t *entity.Team) {
+					t.Id = uuid.New()
 				}).Once()
 				txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 			},
@@ -161,7 +161,7 @@ func TestUserUseCase_Login(t *testing.T) {
 			setupMocks: func(userRepo *mocks.MockUserRepository, jwtService *mocks.MockJWTService) {
 				hashedPassword, _ := hashPassword("password123")
 				user := &entity.User{
-					Id:           uuid.New().String(),
+					Id:           uuid.New(),
 					Username:     "testuser",
 					Email:        "test@example.com",
 					PasswordHash: hashedPassword,
@@ -180,20 +180,21 @@ func TestUserUseCase_Login(t *testing.T) {
 			expectedError: true,
 		},
 		{
-			name:     "invalid UUID",
+			name:     "user with valid UUID",
 			email:    "test@example.com",
 			password: "password123",
 			setupMocks: func(userRepo *mocks.MockUserRepository, jwtService *mocks.MockJWTService) {
 				hashedPassword, _ := hashPassword("password123")
 				user := &entity.User{
-					Id:           "invalid-uuid",
+					Id:           uuid.New(),
 					Username:     "testuser",
 					Email:        "test@example.com",
 					PasswordHash: hashedPassword,
 				}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
+				jwtService.EXPECT().GenerateTokenPair(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&jwt.TokenPair{AccessToken: "token", RefreshToken: "refresh"}, nil)
 			},
-			expectedError: true,
+			expectedError: false,
 		},
 		{
 			name:     "GenerateTokenPair returns error",
@@ -202,7 +203,7 @@ func TestUserUseCase_Login(t *testing.T) {
 			setupMocks: func(userRepo *mocks.MockUserRepository, jwtService *mocks.MockJWTService) {
 				hashedPassword, _ := hashPassword("password123")
 				user := &entity.User{
-					Id:           uuid.New().String(),
+					Id:           uuid.New(),
 					Username:     "testuser",
 					Email:        "test@example.com",
 					PasswordHash: hashedPassword,
@@ -231,7 +232,7 @@ func TestUserUseCase_Login(t *testing.T) {
 			if tt.name == "successful login" {
 				hashedPassword, _ := hashPassword("password123")
 				user := &entity.User{
-					Id:           uuid.New().String(),
+					Id:           uuid.New(),
 					Username:     "testuser",
 					Email:        "test@example.com",
 					PasswordHash: hashedPassword,
@@ -267,7 +268,7 @@ func TestUserUseCase_GetByID(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	jwtService := mocks.NewMockJWTService(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	expectedUser := &entity.User{
 		Id:       userID,
 		Username: "testuser",
@@ -293,7 +294,7 @@ func TestUserUseCase_GetByID_Error(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	jwtService := mocks.NewMockJWTService(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	expectedError := assert.AnError
 
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, expectedError)
@@ -313,7 +314,7 @@ func TestUserUseCase_GetProfile(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	jwtService := mocks.NewMockJWTService(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	user := &entity.User{
 		Id:       userID,
 		Username: "testuser",
@@ -322,9 +323,9 @@ func TestUserUseCase_GetProfile(t *testing.T) {
 
 	solves := []*entity.Solve{
 		{
-			Id:          uuid.New().String(),
+			Id:          uuid.New(),
 			UserId:      userID,
-			ChallengeId: uuid.New().String(),
+			ChallengeId: uuid.New(),
 			SolvedAt:    time.Now(),
 		},
 	}
@@ -350,7 +351,7 @@ func TestUserUseCase_GetProfile_GetByIDError(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	jwtService := mocks.NewMockJWTService(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	expectedError := assert.AnError
 
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, expectedError)
@@ -370,7 +371,7 @@ func TestUserUseCase_GetProfile_GetByUserIdError(t *testing.T) {
 	txRepo := mocks.NewMockTxRepository(t)
 	jwtService := mocks.NewMockJWTService(t)
 
-	userID := uuid.New().String()
+	userID := uuid.New()
 	user := &entity.User{
 		Id:       userID,
 		Username: "testuser",

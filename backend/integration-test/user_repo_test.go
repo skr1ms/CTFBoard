@@ -16,8 +16,8 @@ import (
 // Create Tests
 
 func TestUserRepo_Create(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := &entity.User{
@@ -36,8 +36,8 @@ func TestUserRepo_Create(t *testing.T) {
 }
 
 func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	f.CreateUser(t, "duplicate")
@@ -53,8 +53,8 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 }
 
 func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	f.CreateUser(t, "user1")
@@ -72,8 +72,8 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 // GetByID Tests
 
 func TestUserRepo_GetByID(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "get_by_id")
@@ -87,11 +87,11 @@ func TestUserRepo_GetByID(t *testing.T) {
 }
 
 func TestUserRepo_GetByID_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	nonExistentID := uuid.New().String()
+	nonExistentID := uuid.New()
 	_, err := f.UserRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
@@ -100,8 +100,8 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 // GetByEmail Tests
 
 func TestUserRepo_GetByEmail(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "get_by_email")
@@ -114,8 +114,8 @@ func TestUserRepo_GetByEmail(t *testing.T) {
 }
 
 func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, err := f.UserRepo.GetByEmail(ctx, "nonexistent@example.com")
@@ -126,8 +126,8 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 // GetByUsername Tests
 
 func TestUserRepo_GetByUsername(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "get_by_username")
@@ -139,8 +139,8 @@ func TestUserRepo_GetByUsername(t *testing.T) {
 }
 
 func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, err := f.UserRepo.GetByUsername(ctx, "nonexistent")
@@ -151,8 +151,8 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 // GetByTeamId Tests
 
 func TestUserRepo_GetByTeamId(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	captain, team := f.CreateUserWithTeam(t, "team_u1")
@@ -171,8 +171,8 @@ func TestUserRepo_GetByTeamId(t *testing.T) {
 }
 
 func TestUserRepo_GetByTeamId_Empty(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "empty_team")
@@ -184,8 +184,8 @@ func TestUserRepo_GetByTeamId_Empty(t *testing.T) {
 
 // UpdateTeamId Tests
 func TestUserRepo_UpdateTeamId(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "update_team")
@@ -200,8 +200,8 @@ func TestUserRepo_UpdateTeamId(t *testing.T) {
 }
 
 func TestUserRepo_UpdateTeamId_Remove(t *testing.T) {
-	testDB := SetupTestDB(t)
-	f := NewTestFixture(testDB.DB)
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "remove_team")
@@ -220,8 +220,8 @@ func TestUserRepo_UpdateTeamId_Remove(t *testing.T) {
 // Role Persistence Tests
 
 func TestUserRepo_Role_Persistence(t *testing.T) {
-	testDB := SetupTestDB(t)
-	repo := persistent.NewUserRepo(testDB.DB)
+	testPool := SetupTestPool(t)
+	repo := persistent.NewUserRepo(testPool.Pool)
 	ctx := context.Background()
 
 	user := &entity.User{

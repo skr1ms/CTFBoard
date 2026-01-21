@@ -1,0 +1,151 @@
+package persistent
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/skr1ms/CTFBoard/internal/entity"
+	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+)
+
+var fileColumns = []string{"id", "type", "challenge_id", "location", "filename", "size", "sha256", "created_at"}
+
+type FileRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewFileRepository(pool *pgxpool.Pool) *FileRepository {
+	return &FileRepository{pool: pool}
+}
+
+func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
+	if file.Id == uuid.Nil {
+		file.Id = uuid.New()
+	}
+	if file.CreatedAt.IsZero() {
+		file.CreatedAt = time.Now()
+	}
+
+	query := squirrel.Insert("files").
+		Columns(fileColumns...).
+		Values(
+			file.Id,
+			file.Type,
+			file.ChallengeId,
+			file.Location,
+			file.Filename,
+			file.Size,
+			file.SHA256,
+			file.CreatedAt,
+		).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("FileRepository - Create - BuildQuery: %w", err)
+	}
+
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("FileRepository - Create: %w", err)
+	}
+	return nil
+}
+
+func (r *FileRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.File, error) {
+	query := squirrel.Select(fileColumns...).
+		From("files").
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("FileRepository - GetByID - BuildQuery: %w", err)
+	}
+
+	row := r.pool.QueryRow(ctx, sqlQuery, args...)
+
+	var file entity.File
+	err = row.Scan(
+		&file.Id,
+		&file.Type,
+		&file.ChallengeId,
+		&file.Location,
+		&file.Filename,
+		&file.Size,
+		&file.SHA256,
+		&file.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, entityError.ErrFileNotFound
+		}
+		return nil, fmt.Errorf("FileRepository - GetByID: %w", err)
+	}
+	return &file, nil
+}
+
+func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeId uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
+	query := squirrel.Select(fileColumns...).
+		From("files").
+		Where(squirrel.Eq{"challenge_id": challengeId, "type": fileType}).
+		OrderBy("created_at DESC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("FileRepository - GetByChallengeID - BuildQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepository - GetByChallengeID: %w", err)
+	}
+	defer rows.Close()
+
+	var files []*entity.File
+	for rows.Next() {
+		var file entity.File
+		err := rows.Scan(
+			&file.Id,
+			&file.Type,
+			&file.ChallengeId,
+			&file.Location,
+			&file.Filename,
+			&file.Size,
+			&file.SHA256,
+			&file.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("FileRepository - GetByChallengeID - Scan: %w", err)
+		}
+		files = append(files, &file)
+	}
+	return files, nil
+}
+
+func (r *FileRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := squirrel.Delete("files").
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("FileRepository - Delete - BuildQuery: %w", err)
+	}
+
+	result, err := r.pool.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("FileRepository - Delete: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return entityError.ErrFileNotFound
+	}
+	return nil
+}

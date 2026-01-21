@@ -1,18 +1,19 @@
 ALTER TABLE users
-ADD COLUMN is_verified TINYINT(1) DEFAULT 0,
+ADD COLUMN is_verified BOOLEAN DEFAULT FALSE,
 ADD COLUMN verified_at TIMESTAMP NULL;
+
 CREATE TABLE verification_tokens (
-    id CHAR(36) PRIMARY KEY,
-    user_id CHAR(36) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
     token VARCHAR(64) NOT NULL UNIQUE,
-    type ENUM(
-        'email_verification',
-        'password_reset'
-    ) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (
+        type IN ('email_verification', 'password_reset')
+    ),
     expires_at TIMESTAMP NOT NULL,
     used_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_verification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
 CREATE INDEX idx_verification_token ON verification_tokens (token);
 CREATE INDEX idx_verification_user_type ON verification_tokens (user_id, type);

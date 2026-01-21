@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -96,7 +97,7 @@ func (_c *MockVerificationTokenRepository_Create_Call) RunAndReturn(run func(ctx
 }
 
 // DeleteByUserAndType provides a mock function for the type MockVerificationTokenRepository
-func (_mock *MockVerificationTokenRepository) DeleteByUserAndType(ctx context.Context, userId string, tokenType entity.TokenType) error {
+func (_mock *MockVerificationTokenRepository) DeleteByUserAndType(ctx context.Context, userId uuid.UUID, tokenType entity.TokenType) error {
 	ret := _mock.Called(ctx, userId, tokenType)
 
 	if len(ret) == 0 {
@@ -104,7 +105,7 @@ func (_mock *MockVerificationTokenRepository) DeleteByUserAndType(ctx context.Co
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, entity.TokenType) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, entity.TokenType) error); ok {
 		r0 = returnFunc(ctx, userId, tokenType)
 	} else {
 		r0 = ret.Error(0)
@@ -119,21 +120,21 @@ type MockVerificationTokenRepository_DeleteByUserAndType_Call struct {
 
 // DeleteByUserAndType is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userId string
+//   - userId uuid.UUID
 //   - tokenType entity.TokenType
 func (_e *MockVerificationTokenRepository_Expecter) DeleteByUserAndType(ctx interface{}, userId interface{}, tokenType interface{}) *MockVerificationTokenRepository_DeleteByUserAndType_Call {
 	return &MockVerificationTokenRepository_DeleteByUserAndType_Call{Call: _e.mock.On("DeleteByUserAndType", ctx, userId, tokenType)}
 }
 
-func (_c *MockVerificationTokenRepository_DeleteByUserAndType_Call) Run(run func(ctx context.Context, userId string, tokenType entity.TokenType)) *MockVerificationTokenRepository_DeleteByUserAndType_Call {
+func (_c *MockVerificationTokenRepository_DeleteByUserAndType_Call) Run(run func(ctx context.Context, userId uuid.UUID, tokenType entity.TokenType)) *MockVerificationTokenRepository_DeleteByUserAndType_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		var arg2 entity.TokenType
 		if args[2] != nil {
@@ -153,7 +154,7 @@ func (_c *MockVerificationTokenRepository_DeleteByUserAndType_Call) Return(err e
 	return _c
 }
 
-func (_c *MockVerificationTokenRepository_DeleteByUserAndType_Call) RunAndReturn(run func(ctx context.Context, userId string, tokenType entity.TokenType) error) *MockVerificationTokenRepository_DeleteByUserAndType_Call {
+func (_c *MockVerificationTokenRepository_DeleteByUserAndType_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID, tokenType entity.TokenType) error) *MockVerificationTokenRepository_DeleteByUserAndType_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -278,7 +279,7 @@ func (_c *MockVerificationTokenRepository_GetByToken_Call) RunAndReturn(run func
 }
 
 // MarkUsed provides a mock function for the type MockVerificationTokenRepository
-func (_mock *MockVerificationTokenRepository) MarkUsed(ctx context.Context, id string) error {
+func (_mock *MockVerificationTokenRepository) MarkUsed(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -286,7 +287,7 @@ func (_mock *MockVerificationTokenRepository) MarkUsed(ctx context.Context, id s
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		r0 = ret.Error(0)
@@ -301,20 +302,20 @@ type MockVerificationTokenRepository_MarkUsed_Call struct {
 
 // MarkUsed is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
+//   - id uuid.UUID
 func (_e *MockVerificationTokenRepository_Expecter) MarkUsed(ctx interface{}, id interface{}) *MockVerificationTokenRepository_MarkUsed_Call {
 	return &MockVerificationTokenRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, id)}
 }
 
-func (_c *MockVerificationTokenRepository_MarkUsed_Call) Run(run func(ctx context.Context, id string)) *MockVerificationTokenRepository_MarkUsed_Call {
+func (_c *MockVerificationTokenRepository_MarkUsed_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockVerificationTokenRepository_MarkUsed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
 		}
 		run(
 			arg0,
@@ -329,7 +330,7 @@ func (_c *MockVerificationTokenRepository_MarkUsed_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockVerificationTokenRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, id string) error) *MockVerificationTokenRepository_MarkUsed_Call {
+func (_c *MockVerificationTokenRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockVerificationTokenRepository_MarkUsed_Call {
 	_c.Call.Return(run)
 	return _c
 }

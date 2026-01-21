@@ -1,1 +1,1 @@
-DROP INDEX idx_verification_expires ON verification_tokens;
+DROP INDEX IF EXISTS idx_verification_expires;

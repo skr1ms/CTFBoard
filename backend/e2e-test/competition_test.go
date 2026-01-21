@@ -8,7 +8,7 @@ import (
 
 func TestCompetition_Status(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	h.GetCompetitionStatus().
 		ContainsKey("status").
@@ -18,7 +18,7 @@ func TestCompetition_Status(t *testing.T) {
 
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestDB)
+	h := NewE2EHelper(t, e, TestPool)
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
@@ -33,9 +33,11 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
 
+	now := time.Now().UTC()
 	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
 		"name":       "Comp Name",
-		"start_time": time.Now().Add(-1 * time.Hour),
+		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),
 		"is_paused":  true,
 	})
 
@@ -46,7 +48,8 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
 		"name":       "Comp Name",
-		"start_time": time.Now().Add(-1 * time.Hour),
+		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),
 		"is_paused":  false,
 	})
 

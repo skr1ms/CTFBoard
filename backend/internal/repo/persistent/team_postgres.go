@@ -2,39 +2,41 @@ package persistent
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 )
 
 type TeamRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewTeamRepo(db *sql.DB) *TeamRepo {
-	return &TeamRepo{db: db}
+func NewTeamRepo(pool *pgxpool.Pool) *TeamRepo {
+	return &TeamRepo{pool: pool}
 }
 
 func (r *TeamRepo) Create(ctx context.Context, t *entity.Team) error {
-	t.Id = uuid.New().String()
+	t.Id = uuid.New()
 	t.CreatedAt = time.Now()
 
 	query := squirrel.Insert("teams").
 		Columns("id", "name", "invite_token", "captain_id", "created_at").
-		Values(t.Id, t.Name, t.InviteToken, t.CaptainId, t.CreatedAt)
+		Values(t.Id, t.Name, t.InviteToken, t.CaptainId, t.CreatedAt).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("TeamRepo - Create - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TeamRepo - Create - ExecQuery: %w", err)
 	}
@@ -42,15 +44,11 @@ func (r *TeamRepo) Create(ctx context.Context, t *entity.Team) error {
 	return nil
 }
 
-func (r *TeamRepo) GetByID(ctx context.Context, id string) (*entity.Team, error) {
-	uuidID, err := uuid.Parse(id)
-	if err != nil {
-		return nil, fmt.Errorf("TeamRepo - GetByID - ParseID: %w", err)
-	}
-
+func (r *TeamRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error) {
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
-		Where(squirrel.Eq{"id": uuidID})
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -58,7 +56,7 @@ func (r *TeamRepo) GetByID(ctx context.Context, id string) (*entity.Team, error)
 	}
 
 	var team entity.Team
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&team.Id,
 		&team.Name,
 		&team.InviteToken,
@@ -67,7 +65,7 @@ func (r *TeamRepo) GetByID(ctx context.Context, id string) (*entity.Team, error)
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrTeamNotFound
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByID - Scan: %w", err)
@@ -76,14 +74,15 @@ func (r *TeamRepo) GetByID(ctx context.Context, id string) (*entity.Team, error)
 	return &team, nil
 }
 
-func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken string) (*entity.Team, error) {
-	if inviteToken == "" {
+func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error) {
+	if inviteToken == uuid.Nil {
 		return nil, entityError.ErrTeamNotFound
 	}
 
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
-		Where(squirrel.Eq{"invite_token": inviteToken})
+		Where(squirrel.Eq{"invite_token": inviteToken}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -91,7 +90,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken string) (*e
 	}
 
 	var team entity.Team
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&team.Id,
 		&team.Name,
 		&team.InviteToken,
@@ -100,7 +99,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken string) (*e
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrTeamNotFound
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByInviteToken - Scan: %w", err)
@@ -112,7 +111,8 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken string) (*e
 func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, error) {
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
-		Where(squirrel.Eq{"name": name})
+		Where(squirrel.Eq{"name": name}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
@@ -120,7 +120,7 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	}
 
 	var team entity.Team
-	err = r.db.QueryRowContext(ctx, sqlQuery, args...).Scan(
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
 		&team.Id,
 		&team.Name,
 		&team.InviteToken,
@@ -129,7 +129,7 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrTeamNotFound
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByName - Scan: %w", err)
@@ -138,21 +138,17 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	return &team, nil
 }
 
-func (r *TeamRepo) Delete(ctx context.Context, id string) error {
-	uuidID, err := uuid.Parse(id)
-	if err != nil {
-		return fmt.Errorf("TeamRepo - Delete - ParseID: %w", err)
-	}
-
+func (r *TeamRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	query := squirrel.Delete("teams").
-		Where(squirrel.Eq{"id": uuidID})
+		Where(squirrel.Eq{"id": id}).
+		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("TeamRepo - Delete - BuildQuery: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, sqlQuery, args...)
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TeamRepo - Delete - ExecQuery: %w", err)
 	}

@@ -37,14 +37,32 @@ groups:
           summary: "Redis instance down"
           description: "Redis exporter reports redis_up = 0 for 1 minute."
 
-      - alert: MariaDBDown
-        expr: mysql_up == 0
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "MariaDB instance down"
-          description: "MySQL/MariaDB exporter reports mysql_up = 0 for 1 minute."
+          summary: "PostgreSQL instance down"
+          description: "PostgreSQL exporter reports pg_up = 0 for 1 minute."
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL high connection count"
+          description: "PostgreSQL has more than 80 active connections for 2 minutes."
+
+      - alert: PostgreSQLDeadLocks
+        expr: increase(pg_stat_database_deadlocks[1m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL deadlocks detected"
+          description: "PostgreSQL has detected deadlocks in the last minute."
 
       - alert: APIDown
         expr: up{job="backend"} == 0

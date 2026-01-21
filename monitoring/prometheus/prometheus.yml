@@ -23,9 +23,9 @@ scrape_configs:
       - targets: ["backend:8080"]
     metrics_path: "/metrics"
 
-  - job_name: "mysqld-exporter"
+  - job_name: "postgres-exporter"
     static_configs:
-      - targets: ["mysqld-exporter:9104"]
+      - targets: ["postgres-exporter:9187"]
 
   - job_name: "cadvisor"
     static_configs:

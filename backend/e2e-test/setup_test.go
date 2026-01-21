@@ -2,7 +2,6 @@ package e2e_test
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,20 +11,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/mariadb"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
+	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
@@ -34,7 +33,7 @@ import (
 )
 
 var (
-	TestDB    *sql.DB
+	TestPool  *pgxpool.Pool
 	TestRedis *redis.Client
 	testPort  string
 )
@@ -59,7 +58,7 @@ func TestMain(m *testing.M) {
 	defer cleanup()
 
 	// Run Migrations
-	if err := runMigrations(ctx, TestDB); err != nil {
+	if err := runMigrations(ctx, TestPool); err != nil {
 		fmt.Printf("Migrations failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -102,20 +101,20 @@ func setupInfrastructure(ctx context.Context) (func(), error) {
 }
 
 func setupTestContainers(ctx context.Context) (func(), error) {
-	// MariaDB
-	mariadbC, err := mariadb.Run(ctx,
-		"mariadb:latest",
-		mariadb.WithDatabase("test"),
-		mariadb.WithUsername("user"),
-		mariadb.WithPassword("password"),
+	// PostgreSQL
+	postgresC, err := postgres.Run(ctx,
+		"postgres:17-alpine",
+		postgres.WithDatabase("test"),
+		postgres.WithUsername("user"),
+		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
-			wait.ForSQL("3306/tcp", "mysql", func(host string, port nat.Port) string {
-				return fmt.Sprintf("user:password@tcp(%s:%s)/test?parseTime=true", host, port.Port())
-			}).WithStartupTimeout(120*time.Second).WithQuery("SELECT 1"),
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(120*time.Second),
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start mariadb container: %w", err)
+		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
 
 	// Redis
@@ -124,19 +123,19 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 		return nil, fmt.Errorf("failed to start redis container: %w", err)
 	}
 
-	// MariaDB Connection
-	connStr, err := mariadbC.ConnectionString(ctx, "parseTime=true&multiStatements=true&timeout=30s")
+	// PostgreSQL Connection
+	connStr, err := postgresC.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get db connection string: %w", err)
 	}
 
-	TestDB, err = sql.Open("mysql", connStr)
+	TestPool, err = pgxpool.New(ctx, connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db connection: %w", err)
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
 	// Verify DB Connection
-	if err := TestDB.PingContext(ctx); err != nil {
+	if err := TestPool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping db: %w", err)
 	}
 
@@ -160,37 +159,37 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	// Cleanup func
 	cleanup := func() {
 		fmt.Println("Cleaning up containers...")
-		_ = TestDB.Close()
+		TestPool.Close()
 		_ = TestRedis.Close()
-		_ = mariadbC.Terminate(ctx)
+		_ = postgresC.Terminate(ctx)
 		_ = redisC.Terminate(ctx)
 	}
 	return cleanup, nil
 }
 
 func setupExternalInfra(ctx context.Context) (func(), error) {
-	// MariaDB Setup
-	dbUser := getEnv("MARIADB_USER", "test_user")
-	dbPass := getEnv("MARIADB_PASSWORD", "test_password")
-	dbHost := getEnv("MARIADB_HOST", "mariadb")
-	dbPort := getEnv("MARIADB_PORT", "3306")
-	dbName := getEnv("MARIADB_DB", "test_board")
+	// PostgreSQL Setup
+	dbUser := getEnv("POSTGRES_USER", "test_user")
+	dbPass := getEnv("POSTGRES_PASSWORD", "test_password")
+	dbHost := getEnv("POSTGRES_HOST", "postgres")
+	dbPort := getEnv("POSTGRES_PORT", "5432")
+	dbName := getEnv("POSTGRES_DB", "test_board")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true&timeout=30s", dbUser, dbPass, dbHost, dbPort, dbName)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
 	var err error
-	TestDB, err = sql.Open("mysql", dsn)
+	TestPool, err = pgxpool.New(ctx, connStr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Retry Ping DB
 	for i := 0; i < 20; i++ {
-		if err := TestDB.PingContext(ctx); err == nil {
+		if err := TestPool.Ping(ctx); err == nil {
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	if err := TestDB.PingContext(ctx); err != nil {
+	if err := TestPool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("external db ping failed: %w", err)
 	}
 
@@ -209,14 +208,14 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 	}
 
 	return func() {
-		_ = TestDB.Close()
+		TestPool.Close()
 		_ = TestRedis.Close()
 	}, nil
 }
 
 // Migrations
 
-func runMigrations(ctx context.Context, db *sql.DB) error {
+func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migrationsDir := filepath.Join("..", "migrations")
 
 	files, err := os.ReadDir(migrationsDir)
@@ -237,22 +236,14 @@ func runMigrations(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 
-		statements := strings.Split(string(content), ";")
-		for _, stmt := range statements {
-			stmt = strings.TrimSpace(stmt)
-			if stmt == "" || strings.HasPrefix(stmt, "--") || strings.HasPrefix(stmt, "#") {
-				continue
-			}
-
-			if _, err := db.ExecContext(ctx, stmt); err != nil {
-				if !isIgnorableDBError(err) {
-					fmt.Printf("Warn: migration error in %s: %v\n", f.Name(), err)
-				}
+		if _, err := pool.Exec(ctx, string(content)); err != nil {
+			if !isIgnorableDBError(err) {
+				fmt.Printf("Warn: migration error in %s: %v\n", f.Name(), err)
 			}
 		}
 	}
 
-	_, _ = db.ExecContext(ctx, "UPDATE competition SET start_time = ? WHERE id = 1", time.Now().Add(-24*time.Hour))
+	_, _ = pool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour))
 
 	return nil
 }
@@ -266,16 +257,16 @@ func startTestServer() (func(), error) {
 	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour)
 
 	// Repositories
-	userRepo := persistent.NewUserRepo(TestDB)
-	challengeRepo := persistent.NewChallengeRepo(TestDB)
-	solveRepo := persistent.NewSolveRepo(TestDB)
-	teamRepo := persistent.NewTeamRepo(TestDB)
-	compRepo := persistent.NewCompetitionRepo(TestDB)
-	hintRepo := persistent.NewHintRepo(TestDB)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(TestDB)
-	awardRepo := persistent.NewAwardRepo(TestDB)
-	txRepo := persistent.NewTxRepo(TestDB)
-	tokenRepo := persistent.NewVerificationTokenRepo(TestDB)
+	userRepo := persistent.NewUserRepo(TestPool)
+	challengeRepo := persistent.NewChallengeRepo(TestPool)
+	solveRepo := persistent.NewSolveRepo(TestPool)
+	teamRepo := persistent.NewTeamRepo(TestPool)
+	compRepo := persistent.NewCompetitionRepo(TestPool)
+	hintRepo := persistent.NewHintRepo(TestPool)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(TestPool)
+	awardRepo := persistent.NewAwardRepo(TestPool)
+	txRepo := persistent.NewTxRepo(TestPool)
+	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
 
 	// UseCases
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
@@ -285,6 +276,18 @@ func startTestServer() (func(), error) {
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
 	emailUC := usecase.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+
+	// File Storage (E2E uses local temp dir)
+	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp storage dir: %w", err)
+	}
+	fileStorage, err := storage.NewFilesystemProvider(tempStorageDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage provider: %w", err)
+	}
+	fileRepo := persistent.NewFileRepository(TestPool)
+	fileUC := usecase.NewFileUseCase(fileRepo, fileStorage, 1*time.Hour)
 
 	// Router
 	r := chi.NewRouter()
@@ -297,7 +300,13 @@ func startTestServer() (func(), error) {
 	})
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+
+		// Static routes for E2E Filesystem
+		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
+			fs := http.StripPrefix("/api/v1/files/download/", http.FileServer(http.Dir(tempStorageDir)))
+			fs.ServeHTTP(w, r)
+		})
 	})
 
 	// Listener on random port
@@ -326,6 +335,7 @@ func startTestServer() (func(), error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
+		_ = os.RemoveAll(tempStorageDir)
 	}, nil
 }
 
@@ -341,6 +351,5 @@ func getEnv(key, fallback string) string {
 func isIgnorableDBError(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "already exists") ||
-		strings.Contains(msg, "Duplicate key") ||
-		strings.Contains(msg, "Duplicate column")
+		strings.Contains(msg, "duplicate key")
 }
