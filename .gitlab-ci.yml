@@ -255,7 +255,9 @@ deploy:
 deploy:cron:
   stage: deploy
   image: $ALPINE_IMAGE
-  needs: ["build:cleanup"]
+  needs: 
+    - job: build:cleanup
+      artifacts: true
   before_script:
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
@@ -265,7 +267,6 @@ deploy:cron:
     - ssh-keyscan -H "$DEPLOY_SERVER_IP" >> ~/.ssh/known_hosts
   script:
     - |
-      # Variables
       BIN_SRC="backend/bin/ctfboard-cleanup"
       CRON_SRC="deployment/cron-jobs/cleanup-cron"
       BIN_DEST="/usr/local/bin/ctfboard-cleanup"
@@ -273,27 +274,32 @@ deploy:cron:
 
       echo "Deploying cleanup tool to $DEPLOY_USER@$DEPLOY_SERVER_IP..."
 
-      scp "$BIN_SRC" "$DEPLOY_USER@$DEPLOY_SERVER_IP:/tmp/ctfboard-cleanup.bin"
-      scp "$CRON_SRC" "$DEPLOY_USER@$DEPLOY_SERVER_IP:/tmp/ctfboard-cleanup.cron"
+      scp -p "$BIN_SRC" "$DEPLOY_USER@$DEPLOY_SERVER_IP:/tmp/ctfboard-cleanup.bin"
+      scp -p "$CRON_SRC" "$DEPLOY_USER@$DEPLOY_SERVER_IP:/tmp/ctfboard-cleanup.cron"
 
-      ssh "$DEPLOY_USER@$DEPLOY_SERVER_IP" "bash -s" << EOF
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER_IP" "bash -s" << 'EOF'
         set -e
-        mv /tmp/ctfboard-cleanup.bin $BIN_DEST
-        chmod +x $BIN_DEST
         
-        mv /tmp/ctfboard-cleanup.cron $CRON_DEST
-        chown root:root $CRON_DEST
-        chmod 644 $CRON_DEST
+        sudo mv /tmp/ctfboard-cleanup.bin /usr/local/bin/ctfboard-cleanup
+        sudo chmod +x /usr/local/bin/ctfboard-cleanup
+        sudo chown root:root /usr/local/bin/ctfboard-cleanup
         
-        # Ensure newline
-        sed -i -e '\$a\' $CRON_DEST
+        sudo mv /tmp/ctfboard-cleanup.cron /etc/cron.d/ctfboard-cleanup
+        sudo chown root:root /etc/cron.d/ctfboard-cleanup
+        sudo chmod 644 /etc/cron.d/ctfboard-cleanup
         
-        # Reload Cron
-        systemctl reload cron
+        sudo sed -i -e '$a\' /etc/cron.d/ctfboard-cleanup
+
+        sudo systemctl reload cron 2>/dev/null || sudo systemctl restart cron
+        
         echo "Cron deployment complete."
       EOF
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
         - backend/cmd/cleanup/**/*
+        - backend/internal/**/*
         - deployment/cron-jobs/**/*
+        - .gitlab-ci.yml
+  environment:
+    name: production
