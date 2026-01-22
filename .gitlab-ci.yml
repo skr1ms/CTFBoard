@@ -66,6 +66,24 @@ build:backend:
         - deployment/docker/**/*
       when: always
 
+build:cleanup:
+  stage: build
+  image: $GOLANG_IMAGE
+  script:
+    - cd backend
+    - GOOS=linux GOARCH=amd64 go build -o bin/ctfboard-cleanup ./cmd/cleanup
+  artifacts:
+    paths:
+      - backend/bin/ctfboard-cleanup
+    expire_in: 1 hour
+  rules:
+    - changes:
+        - backend/cmd/cleanup/**/*
+        - backend/internal/**/*
+        - deployment/cron-jobs/**/*
+        - .gitlab-ci.yml
+      when: always
+
 # Security stage
 
 # Lint job
