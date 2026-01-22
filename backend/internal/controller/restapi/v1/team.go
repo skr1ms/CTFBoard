@@ -3,8 +3,10 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
@@ -35,7 +37,9 @@ func NewTeamRoutes(router chi.Router,
 	}
 
 	router.With(restapiMiddleware.Auth(jwtService)).Post("/teams", routes.Create)
-	router.With(restapiMiddleware.Auth(jwtService)).Post("/teams/join", routes.Join)
+	router.With(restapiMiddleware.Auth(jwtService), httprate.LimitByIP(10, 1*time.Minute)).Post("/teams/join", routes.Join)
+	router.With(restapiMiddleware.Auth(jwtService)).Post("/teams/leave", routes.Leave)
+	router.With(restapiMiddleware.Auth(jwtService), httprate.LimitByIP(10, 1*time.Hour)).Post("/teams/transfer-captain", routes.TransferCaptain)
 	router.With(restapiMiddleware.Auth(jwtService)).Get("/teams/my", routes.GetMyTeam)
 	router.With(restapiMiddleware.Auth(jwtService)).Get("/teams/{id}", routes.GetByID)
 }
@@ -267,4 +271,97 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, res)
+}
+
+// @Summary      Leave team
+// @Description  Leave current team. Captain cannot leave, must transfer captainship first
+// @Tags         Teams
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse
+// @Router       /teams/leave [post]
+func (h *teamRoutes) Leave(w http.ResponseWriter, r *http.Request) {
+	userId := restapiMiddleware.GetUserID(r.Context())
+	if userId == "" {
+		render.Status(r, http.StatusUnauthorized)
+		handleError(w, r, nil)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	if err := h.teamUC.Leave(r.Context(), userUUID); err != nil {
+		h.logger.Error("restapi - v1 - Leave - Leave", err)
+		handleError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, map[string]string{"message": "Successfully left the team"})
+}
+
+// @Summary      Transfer captainship
+// @Description  Transfer team captain role to another team member
+// @Tags         Teams
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body      request.TransferCaptainRequest true "New captain ID"
+// @Success      200     {object}  map[string]string
+// @Failure      400     {object}  ErrorResponse
+// @Failure      401     {object}  ErrorResponse
+// @Failure      403     {object}  ErrorResponse
+// @Failure      404     {object}  ErrorResponse
+// @Router       /teams/transfer-captain [post]
+func (h *teamRoutes) TransferCaptain(w http.ResponseWriter, r *http.Request) {
+	var req request.TransferCaptainRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("restapi - v1 - TransferCaptain - Decode", err)
+		render.Status(r, http.StatusBadRequest)
+		handleError(w, r, err)
+		return
+	}
+
+	if err := h.validator.Validate(req); err != nil {
+		h.logger.Error("restapi - v1 - TransferCaptain - Validate", err)
+		render.Status(r, http.StatusBadRequest)
+		handleError(w, r, err)
+		return
+	}
+
+	userId := restapiMiddleware.GetUserID(r.Context())
+	if userId == "" {
+		render.Status(r, http.StatusUnauthorized)
+		handleError(w, r, nil)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return
+	}
+
+	newCaptainUUID, err := uuid.Parse(req.NewCaptainId)
+	if err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, ErrorResponse{Error: "invalid new captain ID format"})
+		return
+	}
+
+	if err := h.teamUC.TransferCaptain(r.Context(), userUUID, newCaptainUUID); err != nil {
+		h.logger.Error("restapi - v1 - TransferCaptain - TransferCaptain", err)
+		handleError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, map[string]string{"message": "Captainship transferred successfully"})
 }

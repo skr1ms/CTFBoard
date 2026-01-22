@@ -130,6 +130,14 @@ definitions:
     required:
     - flag
     type: object
+  request.TransferCaptainRequest:
+    properties:
+      new_captain_id:
+        example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        type: string
+    required:
+    - new_captain_id
+    type: object
   request.UpdateChallengeRequest:
     properties:
       category:
@@ -665,9 +673,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends password reset email
+      description: Sends password reset email to specified address
       parameters:
-      - description: Email
+      - description: Email address
         in: body
         name: request
         required: true
@@ -684,6 +692,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
       summary: Request password reset
@@ -795,7 +807,7 @@ paths:
       - application/json
       description: Resets password using token
       parameters:
-      - description: Reset data
+      - description: Token and new password
         in: body
         name: request
         required: true
@@ -814,14 +826,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Reset password
       tags:
       - Authentication
   /auth/verify-email:
     get:
-      consumes:
-      - application/json
-      description: Verifies user email using token
+      description: Verifies user email using token from query parameter
       parameters:
       - description: Verification token
         in: query
@@ -839,6 +853,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "410":
+          description: Gone
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
       summary: Verify email
@@ -1201,6 +1219,36 @@ paths:
       summary: Join team
       tags:
       - Teams
+  /teams/leave:
+    post:
+      description: Leave current team. Captain cannot leave, must transfer captainship
+        first
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Leave team
+      tags:
+      - Teams
   /teams/my:
     get:
       description: Returns information about current user's team with members list
@@ -1222,6 +1270,48 @@ paths:
       security:
       - BearerAuth: []
       summary: Get my team
+      tags:
+      - Teams
+  /teams/transfer-captain:
+    post:
+      consumes:
+      - application/json
+      description: Transfer team captain role to another team member
+      parameters:
+      - description: New captain ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.TransferCaptainRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Transfer captainship
       tags:
       - Teams
   /users/{id}:

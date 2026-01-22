@@ -637,3 +637,337 @@ func TestTxRepo_LockTeamTx_Error_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
+
+// BeginSerializableTx Tests
+
+func TestTxRepo_BeginSerializableTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginSerializableTx(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, tx)
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_BeginSerializableTx_Error(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	testPool.Pool.Close()
+
+	ctx := context.Background()
+	tx, err := f.TxRepo.BeginSerializableTx(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, tx)
+}
+
+// LockUserTx Tests
+
+func TestTxRepo_LockUserTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "lock_user_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.LockUserTx(ctx, tx, user.Id)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_LockUserTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.LockUserTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
+}
+
+// GetTeamByNameTx Tests
+
+func TestTxRepo_GetTeamByNameTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "get_team_name_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	gotTeam, err := f.TxRepo.GetTeamByNameTx(ctx, tx, team.Name)
+	require.NoError(t, err)
+	assert.Equal(t, team.Id, gotTeam.Id)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_GetTeamByNameTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	_, err = f.TxRepo.GetTeamByNameTx(ctx, tx, "NonExistentTeam")
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// GetTeamByInviteTokenTx Tests
+
+func TestTxRepo_GetTeamByInviteTokenTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "get_team_token_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	gotTeam, err := f.TxRepo.GetTeamByInviteTokenTx(ctx, tx, team.InviteToken)
+	require.NoError(t, err)
+	assert.Equal(t, team.Id, gotTeam.Id)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_GetTeamByInviteTokenTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	_, err = f.TxRepo.GetTeamByInviteTokenTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// GetUsersByTeamIDTx Tests
+
+func TestTxRepo_GetUsersByTeamIDTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "get_users_team_tx")
+
+	f.AddUserToTeam(t, user.Id, team.Id)
+
+	user2 := f.CreateUser(t, "member2_tx")
+	f.AddUserToTeam(t, user2.Id, team.Id)
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	users, err := f.TxRepo.GetUsersByTeamIDTx(ctx, tx, team.Id)
+	require.NoError(t, err)
+	assert.Len(t, users, 2)
+
+	ids := []uuid.UUID{users[0].Id, users[1].Id}
+	assert.Contains(t, ids, user.Id)
+	assert.Contains(t, ids, user2.Id)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_GetUsersByTeamIDTx_Error_Query(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	tx, err := f.TxRepo.BeginTx(context.Background())
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
+	_, err = f.TxRepo.GetUsersByTeamIDTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+}
+
+// DeleteTeamTx Tests
+
+func TestTxRepo_DeleteTeamTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "del_team_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.DeleteTeamTx(ctx, tx, team.Id)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	_, err = f.TeamRepo.GetByID(ctx, team.Id)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+func TestTxRepo_DeleteTeamTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.DeleteTeamTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// UpdateTeamCaptainTx Tests
+
+func TestTxRepo_UpdateTeamCaptainTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	captain, team := f.CreateUserWithTeam(t, "cap_transfer_tx")
+	newCap := f.CreateUser(t, "new_cap_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.UpdateTeamCaptainTx(ctx, tx, team.Id, newCap.Id)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	updatedTeam, err := f.TeamRepo.GetByID(ctx, team.Id)
+	require.NoError(t, err)
+	assert.Equal(t, newCap.Id, updatedTeam.CaptainId)
+	assert.NotEqual(t, captain.Id, updatedTeam.CaptainId)
+}
+
+func TestTxRepo_UpdateTeamCaptainTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.UpdateTeamCaptainTx(ctx, tx, uuid.New(), uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// SoftDeleteTeamTx Tests
+
+func TestTxRepo_SoftDeleteTeamTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "soft_del_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.SoftDeleteTeamTx(ctx, tx, team.Id)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_SoftDeleteTeamTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.SoftDeleteTeamTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// CreateTeamAuditLogTx Tests
+
+func TestTxRepo_CreateTeamAuditLogTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	captain, team := f.CreateUserWithTeam(t, "audit_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	log := &entity.TeamAuditLog{
+		TeamId:  team.Id,
+		UserId:  captain.Id,
+		Action:  "TEST_ACTION",
+		Details: map[string]interface{}{"foo": "bar"},
+	}
+
+	err = f.TxRepo.CreateTeamAuditLogTx(ctx, tx, log)
+	require.NoError(t, err)
+	assert.NotEmpty(t, log.Id)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_CreateTeamAuditLogTx_Error_InvalidReference(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	log := &entity.TeamAuditLog{
+		TeamId: uuid.New(),
+		UserId: uuid.New(),
+		Action: "TEST",
+	}
+
+	err = f.TxRepo.CreateTeamAuditLogTx(ctx, tx, log)
+	assert.Error(t, err)
+}

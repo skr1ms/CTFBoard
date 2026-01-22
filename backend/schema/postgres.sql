@@ -19,7 +19,8 @@ CREATE TABLE teams (
     name VARCHAR(50) NOT NULL UNIQUE,
     invite_token UUID DEFAULT uuid_generate_v4 () NOT NULL,
     captain_id UUID NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP DEFAULT NULL
 );
 
 CREATE TABLE users (
@@ -39,8 +40,7 @@ CREATE TABLE solves (
     user_id UUID NOT NULL,
     team_id UUID NOT NULL,
     challenge_id UUID NOT NULL,
-    solved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_team_solve UNIQUE (team_id, challenge_id)
+    solved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE verification_tokens (
@@ -55,8 +55,7 @@ CREATE TABLE verification_tokens (
     ),
     expires_at TIMESTAMP NOT NULL,
     used_at TIMESTAMP NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_verification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE competition (
@@ -83,8 +82,7 @@ CREATE TABLE hint_unlocks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     hint_id UUID NOT NULL,
     team_id UUID NOT NULL,
-    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_team_hint UNIQUE (team_id, hint_id)
+    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE awards (
@@ -97,7 +95,9 @@ CREATE TABLE awards (
 
 CREATE TABLE files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    type VARCHAR(20) NOT NULL CHECK (type IN ('challenge', 'writeup')),
+    type VARCHAR(20) NOT NULL CHECK (
+        type IN ('challenge', 'writeup')
+    ),
     challenge_id UUID NOT NULL,
     location VARCHAR(512) NOT NULL,
     filename VARCHAR(255) NOT NULL,
@@ -106,43 +106,31 @@ CREATE TABLE files (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE teams
-ADD CONSTRAINT fk_teams_captain FOREIGN KEY (captain_id) REFERENCES users (id) ON DELETE CASCADE;
+CREATE TABLE team_audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    team_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-ALTER TABLE users
-ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL;
-
-ALTER TABLE solves
-ADD CONSTRAINT fk_solves_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
-
-ALTER TABLE solves
-ADD CONSTRAINT fk_solves_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
-
-ALTER TABLE solves
-ADD CONSTRAINT fk_solves_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
-
-ALTER TABLE hints
-ADD CONSTRAINT fk_hints_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
-
-ALTER TABLE hint_unlocks
-ADD CONSTRAINT fk_hint_unlocks_hint FOREIGN KEY (hint_id) REFERENCES hints (id) ON DELETE CASCADE;
-
-ALTER TABLE hint_unlocks
-ADD CONSTRAINT fk_hint_unlocks_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
-
-ALTER TABLE awards
-ADD CONSTRAINT fk_awards_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
-
-ALTER TABLE files
-ADD CONSTRAINT fk_files_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
-
+-- Indices
 CREATE INDEX idx_solves_user ON solves (user_id);
 
 CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
 
 CREATE INDEX idx_users_team ON users (team_id);
 
+CREATE INDEX idx_team_audit_log_team_id ON team_audit_log (team_id);
+
+CREATE INDEX idx_team_audit_log_user_id ON team_audit_log (user_id);
+
+CREATE INDEX idx_team_audit_log_action ON team_audit_log (action);
+
 CREATE INDEX idx_teams_invite ON teams (invite_token);
+
+CREATE INDEX idx_teams_active ON teams (id) WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_hints_challenge ON hints (challenge_id);
 
@@ -159,3 +147,59 @@ CREATE INDEX idx_verification_expires ON verification_tokens (expires_at);
 CREATE INDEX idx_files_challenge_id ON files (challenge_id);
 
 CREATE INDEX idx_files_type ON files (type);
+
+-- Constraint
+
+-- Teams
+ALTER TABLE teams
+ADD CONSTRAINT fk_teams_captain FOREIGN KEY (captain_id) REFERENCES users (id) ON DELETE CASCADE;
+
+-- Users
+ALTER TABLE users
+ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL;
+
+-- Solves
+ALTER TABLE solves
+ADD CONSTRAINT unique_team_solve UNIQUE (team_id, challenge_id);
+
+ALTER TABLE solves
+ADD CONSTRAINT fk_solves_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+
+ALTER TABLE solves
+ADD CONSTRAINT fk_solves_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
+
+ALTER TABLE solves
+ADD CONSTRAINT fk_solves_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
+
+-- Verification Tokens
+ALTER TABLE verification_tokens
+ADD CONSTRAINT fk_verification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+
+-- Hints
+ALTER TABLE hints
+ADD CONSTRAINT fk_hints_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
+
+-- Hint Unlocks
+ALTER TABLE hint_unlocks
+ADD CONSTRAINT unique_team_hint UNIQUE (team_id, hint_id);
+
+ALTER TABLE hint_unlocks
+ADD CONSTRAINT fk_hint_unlocks_hint FOREIGN KEY (hint_id) REFERENCES hints (id) ON DELETE CASCADE;
+
+ALTER TABLE hint_unlocks
+ADD CONSTRAINT fk_hint_unlocks_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
+
+-- Awards
+ALTER TABLE awards
+ADD CONSTRAINT fk_awards_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
+
+-- Files
+ALTER TABLE files
+ADD CONSTRAINT fk_files_challenge FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE;
+
+-- Team Audit Log
+ALTER TABLE team_audit_log
+ADD CONSTRAINT fk_team_audit_log_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE;
+
+ALTER TABLE team_audit_log
+ADD CONSTRAINT fk_team_audit_log_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;

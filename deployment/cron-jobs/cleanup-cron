@@ -1,0 +1,12 @@
+# /etc/cron.d/ctfboard-cleanup
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# NOTE: Replace with actual connection string on deployment
+DATABASE_URL=postgres://user:password@localhost:5432/ctfboard
+
+# Run cleanup every day at 02:00 AM
+0 2 * * * root /usr/local/bin/ctfboard-cleanup >> /var/log/ctfboard-cleanup.log 2>&1
+
+# Run docker system prune every day at 03:00 AM
+0 3 * * * root docker system prune -f --volumes >> /var/log/docker-prune.log 2>&1
+

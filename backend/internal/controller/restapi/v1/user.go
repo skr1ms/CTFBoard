@@ -40,9 +40,6 @@ func NewUserRoutes(router chi.Router,
 
 	authRouter.Post("/register", routes.Register)
 	authRouter.Post("/login", routes.Login)
-	authRouter.Get("/verify-email", routes.VerifyEmail)
-	authRouter.Post("/forgot-password", routes.ForgotPassword)
-	authRouter.Post("/reset-password", routes.ResetPassword)
 	authRouter.With(restapiMiddleware.Auth(jwtService)).Get("/me", routes.Me)
 
 	router.Get("/users/{id}", routes.GetProfile)
@@ -236,102 +233,4 @@ func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, res)
-}
-
-// @Summary      Verify email
-// @Description  Verifies user email using token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        token query string true "Verification token"
-// @Success      200  {object}  map[string]string
-// @Failure      400  {object}  ErrorResponse
-// @Router       /auth/verify-email [get]
-func (h *userRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, ErrorResponse{Error: "Token is required"})
-		return
-	}
-
-	if err := h.emailUC.VerifyEmail(r.Context(), token); err != nil {
-		h.logger.Error("restapi - v1 - VerifyEmail - VerifyEmail", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Email verified successfully"})
-}
-
-// @Summary      Request password reset
-// @Description  Sends password reset email
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body request.ForgotPasswordRequest true "Email"
-// @Success      200  {object}  map[string]string
-// @Failure      400  {object}  ErrorResponse
-// @Router       /auth/forgot-password [post]
-func (h *userRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	var req request.ForgotPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - Decode", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - Validate", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.emailUC.SendPasswordResetEmail(r.Context(), req.Email); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - SendPasswordResetEmail", err)
-		// We return OK even if email failed or user not found to prevent user enumeration
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "If the email exists, a password reset link has been sent"})
-}
-
-// @Summary      Reset password
-// @Description  Resets password using token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body request.ResetPasswordRequest true "Reset data"
-// @Success      200  {object}  map[string]string
-// @Failure      400  {object}  ErrorResponse
-// @Router       /auth/reset-password [post]
-func (h *userRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	var req request.ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword - Decode", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword - Validate", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.emailUC.ResetPassword(r.Context(), req.Token, req.NewPassword); err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword - ResetPassword", err)
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Password reset successfully"})
 }

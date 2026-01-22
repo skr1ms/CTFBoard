@@ -88,7 +88,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
 	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, wsHub)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, redisClient, wsHub)
-	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
+	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 	var storageProvider storage.Provider

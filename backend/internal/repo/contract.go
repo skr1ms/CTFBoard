@@ -57,6 +57,7 @@ type (
 		GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error)
 		GetByName(ctx context.Context, name string) (*entity.Team, error)
 		Delete(ctx context.Context, id uuid.UUID) error
+		HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error
 	}
 
 	SolveRepository interface {
@@ -123,6 +124,15 @@ type (
 		CreateAwardTx(ctx context.Context, tx pgx.Tx, award *entity.Award) error
 
 		LockTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
+		LockUserTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error
+
+		GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error)
+		GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error)
+		GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) ([]*entity.User, error)
+		DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
+		SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
+		UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID, newCaptainId uuid.UUID) error
+		CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error
 	}
 
 	VerificationTokenRepository interface {

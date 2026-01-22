@@ -164,6 +164,17 @@ func (h *E2EHelper) CreateChallenge(token string, data map[string]interface{}) s
 	return resp.Value("id").String().Raw()
 }
 
+func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) string {
+	return h.CreateChallenge(token, map[string]interface{}{
+		"title":       title,
+		"description": "Standard basic challenge",
+		"flag":        flag,
+		"points":      points,
+		"category":    "misc",
+		"is_hidden":   false,
+	})
+}
+
 func (h *E2EHelper) SubmitFlag(token, challengeId, flag string, expectStatus int) {
 	h.e.POST("/api/v1/challenges/{id}/submit", challengeId).
 		WithHeader("Authorization", token).
@@ -367,6 +378,16 @@ func (h *E2EHelper) JoinTeam(token, inviteToken string, expectStatus int) {
 		WithHeader("Authorization", token).
 		WithJSON(map[string]string{
 			"invite_token": inviteToken,
+		}).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) CreateTeam(token, name string, expectStatus int) {
+	h.e.POST("/api/v1/teams").
+		WithHeader("Authorization", token).
+		WithJSON(map[string]string{
+			"name": name,
 		}).
 		Expect().
 		Status(expectStatus)

@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
@@ -353,6 +354,63 @@ func (_c *MockTeamRepository_GetByName_Call) Return(team *entity.Team, err error
 }
 
 func (_c *MockTeamRepository_GetByName_Call) RunAndReturn(run func(ctx context.Context, name string) (*entity.Team, error)) *MockTeamRepository_GetByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HardDeleteTeams provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error {
+	ret := _mock.Called(ctx, cutoffDate)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HardDeleteTeams")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) error); ok {
+		r0 = returnFunc(ctx, cutoffDate)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_HardDeleteTeams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HardDeleteTeams'
+type MockTeamRepository_HardDeleteTeams_Call struct {
+	*mock.Call
+}
+
+// HardDeleteTeams is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cutoffDate time.Time
+func (_e *MockTeamRepository_Expecter) HardDeleteTeams(ctx interface{}, cutoffDate interface{}) *MockTeamRepository_HardDeleteTeams_Call {
+	return &MockTeamRepository_HardDeleteTeams_Call{Call: _e.mock.On("HardDeleteTeams", ctx, cutoffDate)}
+}
+
+func (_c *MockTeamRepository_HardDeleteTeams_Call) Run(run func(ctx context.Context, cutoffDate time.Time)) *MockTeamRepository_HardDeleteTeams_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_HardDeleteTeams_Call) Return(err error) *MockTeamRepository_HardDeleteTeams_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_HardDeleteTeams_Call) RunAndReturn(run func(ctx context.Context, cutoffDate time.Time) error) *MockTeamRepository_HardDeleteTeams_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -490,7 +490,7 @@ const docTemplate = `{
         },
         "/auth/forgot-password": {
             "post": {
-                "description": "Sends password reset email",
+                "description": "Sends password reset email to specified address",
                 "consumes": [
                     "application/json"
                 ],
@@ -503,7 +503,7 @@ const docTemplate = `{
                 "summary": "Request password reset",
                 "parameters": [
                     {
-                        "description": "Email",
+                        "description": "Email address",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -524,6 +524,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
@@ -703,7 +709,7 @@ const docTemplate = `{
                 "summary": "Reset password",
                 "parameters": [
                     {
-                        "description": "Reset data",
+                        "description": "Token and new password",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -727,16 +733,19 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
+                    },
+                    "410": {
+                        "description": "Gone",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
                     }
                 }
             }
         },
         "/auth/verify-email": {
             "get": {
-                "description": "Verifies user email using token",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Verifies user email using token from query parameter",
                 "produces": [
                     "application/json"
                 ],
@@ -765,6 +774,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "410": {
+                        "description": "Gone",
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
@@ -1283,6 +1298,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/teams/leave": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Leave current team. Captain cannot leave, must transfer captainship first",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Leave team",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/teams/my": {
             "get": {
                 "security": [
@@ -1307,6 +1368,72 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/transfer-captain": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Transfer team captain role to another team member",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Transfer captainship",
+                "parameters": [
+                    {
+                        "description": "New captain ID",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.TransferCaptainRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/v1.ErrorResponse"
                         }
@@ -1598,6 +1725,18 @@ const docTemplate = `{
                 "flag": {
                     "type": "string",
                     "example": "CTF{flag_here}"
+                }
+            }
+        },
+        "request.TransferCaptainRequest": {
+            "type": "object",
+            "required": [
+                "new_captain_id"
+            ],
+            "properties": {
+                "new_captain_id": {
+                    "type": "string",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
                 }
             }
         },

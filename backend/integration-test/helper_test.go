@@ -159,3 +159,9 @@ func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamId uuid.UUID, v
 	require.NoError(t, err)
 	return award
 }
+
+func (f *TestFixture) AddUserToTeam(t *testing.T, userID, teamID uuid.UUID) {
+	ctx := context.Background()
+	_, err := f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", teamID, userID)
+	require.NoError(t, err)
+}

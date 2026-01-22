@@ -273,7 +273,7 @@ func startTestServer() (func(), error) {
 	compUC := usecase.NewCompetitionUseCase(compRepo, TestRedis)
 	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, TestRedis, nil)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, compRepo, txRepo, TestRedis, nil)
-	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo)
+	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
 	emailUC := usecase.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
 

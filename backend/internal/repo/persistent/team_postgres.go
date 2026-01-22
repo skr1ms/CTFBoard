@@ -48,6 +48,7 @@ func (r *TeamRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, err
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"deleted_at": nil}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -82,6 +83,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"invite_token": inviteToken}).
+		Where(squirrel.Eq{"deleted_at": nil}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -112,6 +114,7 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"name": name}).
+		Where(squirrel.Eq{"deleted_at": nil}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -139,8 +142,10 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 }
 
 func (r *TeamRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	query := squirrel.Delete("teams").
+	query := squirrel.Update("teams").
+		Set("deleted_at", time.Now()).
 		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"deleted_at": nil}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -151,6 +156,25 @@ func (r *TeamRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err = r.pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TeamRepo - Delete - ExecQuery: %w", err)
+	}
+
+	return nil
+}
+
+func (r *TeamRepo) HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error {
+	query := squirrel.Delete("teams").
+		Where(squirrel.NotEq{"deleted_at": nil}).
+		Where(squirrel.Lt{"deleted_at": cutoffDate}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TeamRepo - HardDeleteTeams - BuildQuery: %w", err)
+	}
+
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TeamRepo - HardDeleteTeams - ExecQuery: %w", err)
 	}
 
 	return nil
