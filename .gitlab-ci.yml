@@ -195,7 +195,7 @@ deploy:
     - ssh-keyscan -H "$DEPLOY_SERVER_IP" >> ~/.ssh/known_hosts
   script:
     - |
-      ssh -o StrictHostKeyChecking=accept-new $DEPLOY_USER@$DEPLOY_SERVER_IP "bash -s" << 'EOF'
+      ssh -o StrictHostKeyChecking=accept-new $DEPLOY_USER@$DEPLOY_SERVER_IP "bash -s" << EOF
       set -e
 
       trap 'docker logout 2>/dev/null; rm -f ~/.docker/config.json' EXIT
@@ -219,7 +219,7 @@ deploy:
           echo "Backend is healthy!"
           break
         fi
-        if [ $i -eq 30 ]; then
+        if [ \$i -eq 30 ]; then
           echo "Backend failed health check!"
           docker logs backend --tail 50
           exit 1
