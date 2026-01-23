@@ -68,7 +68,6 @@ services:
     ports:
       - "127.0.0.1:${SEAWEED_S3_PORT:-8333}:8333"
       - "127.0.0.1:9333:9333"
-      - "127.0.0.1:9324:9324"
     volumes:
       - ../seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
       - seaweed_data:/data
