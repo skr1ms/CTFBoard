@@ -1,4 +1,7 @@
 {
+    "uid": "vault-health",
+    "title": "Vault Health",
+    "tags": ["vault", "secrets", "infrastructure"],
     "annotations": {
         "list": []
     },

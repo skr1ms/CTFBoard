@@ -20,7 +20,7 @@ services:
     image: hashicorp/vault:latest
     container_name: vault-init
     env_file:
-      - ../../.env
+      - ../../.env.local
     volumes:
       - ./init-vault.sh:/init-vault.sh
     entrypoint: /bin/sh
@@ -83,9 +83,11 @@ services:
       -master.volumePreallocate
       -master.volumeSizeLimitMB=4096
       -volume.max=100
+      -metricsPort=9324
     ports:
       - "8333:8333"
       - "9333:9333"
+      - "9324:9324"
     volumes:
       - ../seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
       - seaweed_data:/data

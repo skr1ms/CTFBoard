@@ -77,5 +77,14 @@ scrape_configs:
                 level:
             - output:
                 source: message
+      - match:
+          selector: '{compose_service=~"seaweedfs.*"}'
+          stages:
+            - regex:
+                expression: '^(?P<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) (?P<level>[A-Z]+) (?P<message>.*)$'
+            - labels:
+                level:
+            - output:
+                source: message
       - output:
           source: output

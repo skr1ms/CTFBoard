@@ -11,10 +11,10 @@
       "id": 1,
       "title": "Error Logs",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12},
       "targets": [
         {
-          "datasource": {"type": "loki", "name": "Loki"},
+          "datasource": {"type": "loki", "uid": "loki"},
           "queryType": "",
           "refId": "A",
           "expr": "{container=\"backend\"} |~ \"level=error\""
@@ -35,10 +35,10 @@
       "id": 2,
       "title": "Slow Requests (>500ms)",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 24},
       "targets": [
         {
-          "datasource": {"type": "loki", "name": "Loki"},
+          "datasource": {"type": "loki", "uid": "loki"},
           "queryType": "",
           "refId": "A",
           "expr": "{container=\"backend\"} |~ \"latency_ms.*[5-9][0-9][0-9]|latency_ms.*[0-9]{4,}\""
@@ -59,10 +59,10 @@
       "id": 3,
       "title": "All Backend Logs",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 24},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
       "targets": [
         {
-          "datasource": {"type": "loki", "name": "Loki"},
+          "datasource": {"type": "loki", "uid": "loki"},
           "queryType": "",
           "refId": "A",
           "expr": "{container=\"backend\"}"

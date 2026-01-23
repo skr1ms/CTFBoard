@@ -1,18 +1,29 @@
 apiVersion: 1
 
 providers:
-  - name: "Overview"
+  - name: "System"
     orgId: 1
-    folder: "Overview"
+    folder: ""
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/Overview
+      path: /var/lib/grafana/dashboards
       foldersFromFilesStructure: false
 
-  - name: "Infrastructure"
+  - name: "Backend"
+    orgId: 1
+    folder: "Application"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/backend
+      foldersFromFilesStructure: false
+
+  - name: "PostgreSQL"
     orgId: 1
     folder: "Infrastructure"
     type: file
@@ -20,71 +31,38 @@ providers:
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/Infrastructure
+      path: /var/lib/grafana/dashboards/postgres
       foldersFromFilesStructure: false
 
-  - name: "Application/Database"
+  - name: "Redis"
     orgId: 1
-    folder: "Application/Database"
+    folder: "Infrastructure"
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/Application/Database
+      path: /var/lib/grafana/dashboards/redis
       foldersFromFilesStructure: false
 
-  - name: "Application/Cache"
+  - name: "Vault"
     orgId: 1
-    folder: "Application/Cache"
+    folder: "Infrastructure"
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/Application/Cache
+      path: /var/lib/grafana/dashboards/vault
       foldersFromFilesStructure: false
 
-  - name: "Application/API"
+  - name: "SeaweedFS"
     orgId: 1
-    folder: "Application/API"
+    folder: "Infrastructure"
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/Application/API
-      foldersFromFilesStructure: false
-
-  - name: "Application/Secrets"
-    orgId: 1
-    folder: "Application/Secrets"
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 10
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards/Application/Secrets
-      foldersFromFilesStructure: false
-
-  - name: "Monitoring"
-    orgId: 1
-    folder: "Monitoring"
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 10
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards/Monitoring
-      foldersFromFilesStructure: false
-
-  - name: "System"
-    orgId: 1
-    folder: "System"
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 10
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards/System
+      path: /var/lib/grafana/dashboards/seaweedfs
       foldersFromFilesStructure: false

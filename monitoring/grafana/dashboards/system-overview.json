@@ -1,0 +1,492 @@
+{
+  "uid": "system-overview",
+  "title": "System Overview",
+  "tags": ["system", "containers", "resources"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backend Service",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "up{job=\"backend\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "PostgreSQL",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "targets": [
+        {
+          "expr": "up{job=\"postgres-exporter\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Redis",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "targets": [
+        {
+          "expr": "up{job=\"redis-exporter\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Vault",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "up{job=\"vault\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "SeaweedFS",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+      "targets": [
+        {
+          "expr": "SeaweedFS_master_is_leader",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "DOWN",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "UP (Follower)",
+                  "color": "yellow"
+                },
+                "1": {
+                  "text": "UP (Leader)",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0, "color": "yellow"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Prometheus",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "targets": [
+        {
+          "expr": "up{job=\"prometheus\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "System CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{id=\"/\"}[1m])) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 60, "color": "yellow"},
+              {"value": 80, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "System Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 4},
+      "targets": [
+        {
+          "expr": "(container_memory_usage_bytes{id=\"/\"} / container_spec_memory_limit_bytes{id=\"/\"}) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 85, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Filesystem Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 4},
+      "targets": [
+        {
+          "expr": "(sum(container_fs_usage_bytes{id=\"/\"}) / sum(container_fs_limit_bytes{id=\"/\"})) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 75, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Backend RPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 10},
+      "targets": [
+        {
+          "expr": "sum(rate(restapi_requests_total{job=\"backend\"}[1m]))",
+          "refId": "A",
+          "legendFormat": "Requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "PostgreSQL Connections",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 10},
+      "targets": [
+        {
+          "expr": "sum(pg_stat_activity_count{datname=\"board\"})",
+          "refId": "A",
+          "legendFormat": "Active Connections"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Redis Memory",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 10},
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes",
+          "refId": "A",
+          "legendFormat": "Used Memory"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "weekStart": ""
+}

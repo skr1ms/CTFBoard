@@ -14,7 +14,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
       "targets": [
         {
-          "expr": "sum by (path) (rate(http_requests_total{job=\"backend\"}[1m]))",
+          "expr": "sum by (path) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
           "refId": "A",
           "legendFormat": "{{path}}"
         }
@@ -27,14 +27,14 @@
     },
     {
       "id": 2,
-      "title": "Error Rate by Endpoint",
+      "title": "Requests by Status Code",
       "type": "timeseries",
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
       "targets": [
         {
-          "expr": "sum by (path) (rate(http_requests_total{job=\"backend\",status=~\"5..\"}[1m]))",
+          "expr": "sum by (status) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
           "refId": "A",
-          "legendFormat": "{{path}}"
+          "legendFormat": "{{status}}"
         }
       ],
       "fieldConfig": {
@@ -50,7 +50,7 @@
       "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.95, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
           "refId": "A",
           "legendFormat": "P95 {{path}}"
         }
@@ -68,7 +68,7 @@
       "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.99, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
           "refId": "A",
           "legendFormat": "P99 {{path}}"
         }
@@ -86,7 +86,7 @@
       "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
       "targets": [
         {
-          "expr": "sum(rate(http_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(http_request_duration_seconds_count{job=\"backend\"}[5m]))",
+          "expr": "sum(rate(restapi_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(restapi_request_duration_seconds_count{job=\"backend\"}[5m]))",
           "refId": "A",
           "legendFormat": "Avg Latency"
         }
