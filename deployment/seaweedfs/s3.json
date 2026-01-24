@@ -1,4 +1,5 @@
 {
+  "_comment": "DONT FORGET CHANGE CREDENTIALS!",
   "identities": [
     {
       "name": "admin",

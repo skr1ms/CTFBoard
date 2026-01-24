@@ -17,7 +17,7 @@
           "datasource": {"type": "loki", "uid": "loki"},
           "queryType": "",
           "refId": "A",
-          "expr": "{container=\"backend\"} |~ \"level=error\""
+          "expr": "{container=\"backend\"} |~ \"(?i)(error|err)\""
         }
       ],
       "options": {
