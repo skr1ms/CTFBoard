@@ -1,7 +1,11 @@
 {
     "uid": "vault-health",
     "title": "Vault Health",
-    "tags": ["vault", "secrets", "infrastructure"],
+    "tags": [
+        "vault",
+        "secrets",
+        "infrastructure"
+    ],
     "annotations": {
         "list": []
     },
@@ -57,7 +61,7 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 8,
+                "w": 12,
                 "x": 0,
                 "y": 0
             },
@@ -84,7 +88,7 @@
                         "type": "prometheus",
                         "uid": "prometheus"
                     },
-                    "expr": "vault_core_unsealed",
+                    "expr": "vault_core_unsealed{cluster=~\".+\"}",
                     "legendFormat": "",
                     "refId": "A"
                 }
@@ -138,8 +142,8 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 8,
-                "x": 8,
+                "w": 12,
+                "x": 12,
                 "y": 0
             },
             "id": 2,
@@ -171,67 +175,6 @@
                 }
             ],
             "title": "Vault Health",
-            "type": "stat"
-        },
-        {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": null
-                            }
-                        ]
-                    },
-                    "unit": "s"
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 4,
-                "w": 8,
-                "x": 16,
-                "y": 0
-            },
-            "id": 3,
-            "options": {
-                "colorMode": "value",
-                "graphMode": "area",
-                "justifyMode": "auto",
-                "orientation": "auto",
-                "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
-                },
-                "showPercentChange": false,
-                "textMode": "auto",
-                "wideLayout": true
-            },
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "prometheus"
-                    },
-                    "expr": "vault_core_unseal_time_seconds",
-                    "legendFormat": "",
-                    "refId": "A"
-                }
-            ],
-            "title": "Unseal Time",
             "type": "stat"
         },
         {
@@ -605,10 +548,6 @@
         }
     ],
     "schemaVersion": 39,
-    "tags": [
-        "vault",
-        "secrets"
-    ],
     "templating": {
         "list": []
     },
@@ -618,7 +557,5 @@
     },
     "timepicker": {},
     "timezone": "browser",
-    "title": "Vault Health",
-    "uid": "vault-health",
     "version": 1
 }
