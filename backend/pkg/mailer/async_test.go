@@ -27,7 +27,10 @@ func (m *mockMailer) Send(ctx context.Context, msg mailer.Message) error {
 
 func TestAsyncMailer(t *testing.T) {
 	mock := &mockMailer{}
-	l := logger.New("error", "test")
+	l := logger.New(&logger.Options{
+		Level:  logger.InfoLevel,
+		Output: logger.ConsoleOutput,
+	})
 	asyncMailer := mailer.NewAsyncMailer(mock, 10, 1, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()

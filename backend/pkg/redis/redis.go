@@ -10,11 +10,11 @@ import (
 
 type Client interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 	Close() error
-	Publish(ctx context.Context, channel string, message interface{}) *redis.IntCmd
+	Publish(ctx context.Context, channel string, message any) *redis.IntCmd
 	Subscribe(ctx context.Context, channels ...string) *redis.PubSub
 	Incr(ctx context.Context, key string) *redis.IntCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd

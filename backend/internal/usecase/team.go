@@ -75,7 +75,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.U
 					TeamId: oldTeamId,
 					UserId: captainId,
 					Action: entity.TeamActionDeleted,
-					Details: map[string]interface{}{
+					Details: map[string]any{
 						"reason": "solo_team_replaced",
 					},
 				}
@@ -169,7 +169,7 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId u
 					TeamId: oldTeamId,
 					UserId: userId,
 					Action: entity.TeamActionDeleted,
-					Details: map[string]interface{}{
+					Details: map[string]any{
 						"reason": "solo_team_replaced",
 					},
 				}
@@ -307,7 +307,7 @@ func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainId uuid.UUID,
 			TeamId: team.Id,
 			UserId: captainId,
 			Action: entity.TeamActionCaptainTransfer,
-			Details: map[string]interface{}{
+			Details: map[string]any{
 				"from": captainId.String(),
 				"to":   newCaptainId.String(),
 			},

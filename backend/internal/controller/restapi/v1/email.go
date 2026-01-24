@@ -24,7 +24,7 @@ import (
 type emailRoutes struct {
 	emailUC   *usecase.EmailUseCase
 	validator validator.Validator
-	logger    logger.Interface
+	logger    logger.Logger
 	redis     redis.Client
 }
 
@@ -32,7 +32,7 @@ func NewEmailRoutes(
 	authRouter chi.Router,
 	emailUC *usecase.EmailUseCase,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	jwtService *jwt.JWTService,
 	redisClient redis.Client,
 ) {
@@ -53,7 +53,7 @@ func NewEmailRoutes(
 func (h *emailRoutes) checkRateLimit(ctx context.Context, key string, limit int, duration time.Duration) bool {
 	count, err := h.redis.Incr(ctx, key).Result()
 	if err != nil {
-		h.logger.Error("emailRoutes - checkRateLimit - Incr", err)
+		h.logger.WithError(err).Error("emailRoutes - checkRateLimit - Incr")
 		return true // Fail open to avoid blocking users on redis error
 	}
 
@@ -99,7 +99,7 @@ func (h *emailRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	err := h.emailUC.VerifyEmail(r.Context(), token)
 	if err != nil {
-		h.logger.Error("restapi - v1 - VerifyEmail", err)
+		h.logger.WithError(err).Error("restapi - v1 - VerifyEmail")
 
 		switch err {
 		case entityError.ErrTokenNotFound:
@@ -144,21 +144,21 @@ func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	var req request.ForgotPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - Decode")
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.emailUC.SendPasswordResetEmail(r.Context(), req.Email); err != nil {
-		h.logger.Error("restapi - v1 - ForgotPassword - SendPasswordResetEmail", err)
+		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - SendPasswordResetEmail")
 	}
 
 	render.Status(r, http.StatusOK)
@@ -178,14 +178,14 @@ func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 func (h *emailRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req request.ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - ResetPassword - Decode")
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - ResetPassword - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -193,7 +193,7 @@ func (h *emailRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	err := h.emailUC.ResetPassword(r.Context(), req.Token, req.NewPassword)
 	if err != nil {
-		h.logger.Error("restapi - v1 - ResetPassword", err)
+		h.logger.WithError(err).Error("restapi - v1 - ResetPassword")
 
 		switch err {
 		case entityError.ErrTokenNotFound:
@@ -247,7 +247,7 @@ func (h *emailRoutes) ResendVerification(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.emailUC.ResendVerification(r.Context(), userUUID); err != nil {
-		h.logger.Error("restapi - v1 - ResendVerification", err)
+		h.logger.WithError(err).Error("restapi - v1 - ResendVerification")
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, ErrorResponse{Error: "failed to resend verification email"})
 		return

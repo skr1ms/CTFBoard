@@ -3,111 +3,101 @@ package logger
 import (
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-type Interface interface {
-	Debug(msg string, err error, fields ...map[string]interface{})
-	Info(msg string, err error, fields ...map[string]interface{})
-	Warn(msg string, err error, fields ...map[string]interface{})
-	Error(msg string, err error, fields ...map[string]interface{})
-	Fatal(msg string, err error, fields ...map[string]interface{})
+type zerologLogger struct {
+	zl zerolog.Logger
 }
 
-type Logger struct {
-	logger *zerolog.Logger
-}
+func New(opts *Options) Logger {
+	var output io.Writer
 
-func New(level string, mode string) *Logger {
-	var l zerolog.Level
-
-	switch strings.ToLower(level) {
-	case "debug":
-		l = zerolog.DebugLevel
-	case "info":
-		l = zerolog.InfoLevel
-	case "warn":
-		l = zerolog.WarnLevel
-	case "error":
-		l = zerolog.ErrorLevel
-	default:
-		l = zerolog.InfoLevel
-	}
-
-	zerolog.SetGlobalLevel(l)
-
-	var output io.Writer = os.Stdout
-
-	if mode != "prod" && mode != "production" {
-		output = zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
+	switch opts.Output {
+	case ConsoleOutput:
+		output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	case FileOutput:
+		output = &lumberjack.Logger{
+			Filename:   opts.FileOptions.Filename,
+			MaxSize:    opts.FileOptions.MaxSize,
+			MaxBackups: opts.FileOptions.MaxBackups,
+			MaxAge:     opts.FileOptions.MaxAge,
+			Compress:   opts.FileOptions.Compress,
 		}
+	case BothOutput:
+		consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+		fileWriter := &lumberjack.Logger{
+			Filename:   opts.FileOptions.Filename,
+			MaxSize:    opts.FileOptions.MaxSize,
+			MaxBackups: opts.FileOptions.MaxBackups,
+			MaxAge:     opts.FileOptions.MaxAge,
+			Compress:   opts.FileOptions.Compress,
+		}
+		output = zerolog.MultiLevelWriter(consoleWriter, fileWriter)
+	default:
+		output = os.Stdout
 	}
 
-	logger := zerolog.New(output).
-		With().
-		Timestamp().
-		Caller().
-		Logger()
+	zerolog.TimeFieldFormat = time.RFC3339
 
-	return &Logger{logger: &logger}
+	zl := zerolog.New(output).With().Timestamp().Caller().Logger()
+
+	zl = zl.Level(convertLogLevel(opts.Level))
+
+	return &zerologLogger{zl: zl}
 }
 
-func (l *Logger) Info(msg string, err error, fields ...map[string]interface{}) {
-	event := l.logger.Info()
+func (l *zerologLogger) Debug(msg string, fields ...Fields) {
+	l.log(l.zl.Debug(), msg, fields...)
+}
+
+func (l *zerologLogger) Info(msg string, fields ...Fields) {
+	l.log(l.zl.Info(), msg, fields...)
+}
+
+func (l *zerologLogger) Warn(msg string, fields ...Fields) {
+	l.log(l.zl.Warn(), msg, fields...)
+}
+
+func (l *zerologLogger) Error(msg string, fields ...Fields) {
+	l.log(l.zl.Error(), msg, fields...)
+}
+
+func (l *zerologLogger) Fatal(msg string, fields ...Fields) {
+	l.log(l.zl.Fatal(), msg, fields...)
+}
+
+func (l *zerologLogger) WithFields(fields Fields) Logger {
+	return &zerologLogger{zl: l.zl.With().Fields(fields).Logger()}
+}
+
+func (l *zerologLogger) WithError(err error) Logger {
+	return &zerologLogger{zl: l.zl.With().Err(err).Logger()}
+}
+
+func (l *zerologLogger) log(event *zerolog.Event, msg string, fields ...Fields) {
 	if len(fields) > 0 {
-		event = event.Fields(fields[0])
-	}
-	if err != nil {
-		event = event.Err(err)
+		event.Fields(fields[0])
 	}
 	event.Msg(msg)
 }
 
-func (l *Logger) Error(msg string, err error, fields ...map[string]interface{}) {
-	event := l.logger.Error()
-	if len(fields) > 0 {
-		event = event.Fields(fields[0])
+func convertLogLevel(level Level) zerolog.Level {
+	switch level {
+	case DebugLevel:
+		return zerolog.DebugLevel
+	case InfoLevel:
+		return zerolog.InfoLevel
+	case WarnLevel:
+		return zerolog.WarnLevel
+	case ErrorLevel:
+		return zerolog.ErrorLevel
+	case FatalLevel:
+		return zerolog.FatalLevel
+	default:
+		return zerolog.InfoLevel
 	}
-	if err != nil {
-		event = event.Err(err)
-	}
-	event.Msg(msg)
-}
-
-func (l *Logger) Debug(msg string, err error, fields ...map[string]interface{}) {
-	event := l.logger.Debug()
-	if len(fields) > 0 {
-		event = event.Fields(fields[0])
-	}
-	if err != nil {
-		event = event.Err(err)
-	}
-	event.Msg(msg)
-}
-
-func (l *Logger) Warn(msg string, err error, fields ...map[string]interface{}) {
-	event := l.logger.Warn()
-	if len(fields) > 0 {
-		event = event.Fields(fields[0])
-	}
-	if err != nil {
-		event = event.Err(err)
-	}
-	event.Msg(msg)
-}
-
-func (l *Logger) Fatal(msg string, err error, fields ...map[string]interface{}) {
-	event := l.logger.Fatal()
-	if len(fields) > 0 {
-		event = event.Fields(fields[0])
-	}
-	if err != nil {
-		event = event.Err(err)
-	}
-	event.Msg(msg)
 }

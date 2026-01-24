@@ -76,7 +76,7 @@ func (h *Hub) Broadcast(data []byte) {
 	h.broadcast <- data
 }
 
-func (h *Hub) BroadcastEvent(event interface{}) {
+func (h *Hub) BroadcastEvent(event any) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return

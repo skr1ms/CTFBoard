@@ -17,7 +17,7 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 	h.StartCompetition(tokenAdmin)
 
 	challengePoints := 500
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Team Work Challenge",
 		"description": "Solve this as a team",
 		"points":      challengePoints,

@@ -1,20 +1,20 @@
 {
-    "identities": [
+  "identities": [
+    {
+      "name": "admin",
+      "credentials": [
         {
-            "name": "admin",
-            "credentials": [
-                {
-                    "accessKey": "your_access_key_here",
-                    "secretKey": "your_secret_key_here"
-                }
-            ],
-            "actions": [
-                "Admin",
-                "Read",
-                "Write",
-                "List",
-                "Tagging"
-            ]
+          "accessKey": "admin",
+          "secretKey": "admin"
         }
-    ]
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Write",
+        "List",
+        "Tagging"
+      ]
+    }
+  ]
 }

@@ -20,7 +20,7 @@ type userRoutes struct {
 	userUC    *usecase.UserUseCase
 	emailUC   *usecase.EmailUseCase
 	validator validator.Validator
-	logger    logger.Interface
+	logger    logger.Logger
 }
 
 func NewUserRoutes(router chi.Router,
@@ -28,7 +28,7 @@ func NewUserRoutes(router chi.Router,
 	userUC *usecase.UserUseCase,
 	emailUC *usecase.EmailUseCase,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	jwtService *jwt.JWTService,
 ) {
 	routes := userRoutes{
@@ -58,14 +58,14 @@ func NewUserRoutes(router chi.Router,
 func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 	var req request.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - Register - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - Register - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - Register - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - Register - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -73,14 +73,14 @@ func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.Register(r.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Register - Register", err)
+		h.logger.WithError(err).Error("restapi - v1 - Register - Register")
 		render.Status(r, http.StatusConflict)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.emailUC.SendVerificationEmail(r.Context(), user); err != nil {
-		h.logger.Error("restapi - v1 - Register - SendVerificationEmail", err)
+		h.logger.WithError(err).Error("restapi - v1 - Register - SendVerificationEmail")
 	}
 
 	res := response.RegisterResponse{
@@ -107,14 +107,14 @@ func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 func (h *userRoutes) Login(w http.ResponseWriter, r *http.Request) {
 	var req request.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - Login - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - Login - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - Login - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - Login - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -122,7 +122,7 @@ func (h *userRoutes) Login(w http.ResponseWriter, r *http.Request) {
 
 	tokenPair, err := h.userUC.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Login - Login", err)
+		h.logger.WithError(err).Error("restapi - v1 - Login - Login")
 		render.Status(r, http.StatusUnauthorized)
 		handleError(w, r, err)
 		return
@@ -156,7 +156,7 @@ func (h *userRoutes) Me(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Me - GetByID", err)
+		h.logger.WithError(err).Error("restapi - v1 - Me - GetByID")
 		handleError(w, r, err)
 		return
 	}
@@ -203,7 +203,7 @@ func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.userUC.GetProfile(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetProfile - GetProfile", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetProfile - GetProfile")
 		handleError(w, r, err)
 		return
 	}

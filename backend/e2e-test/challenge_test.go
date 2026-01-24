@@ -17,7 +17,7 @@ func TestChallenge_Lifecycle(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Test Challenge",
 		"description": "Test Description",
 		"points":      100,
@@ -55,7 +55,7 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":         "Dynamic Challenge",
 		"description":   "Test dynamic scoring",
 		"points":        500,
@@ -92,7 +92,7 @@ func TestChallenge_CreateHidden(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Hidden Challenge",
 		"description": "Test hidden challenge",
 		"points":      200,
@@ -115,7 +115,7 @@ func TestChallenge_Update(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Original Title",
 		"description": "Original description",
 		"points":      100,
@@ -126,7 +126,7 @@ func TestChallenge_Update(t *testing.T) {
 
 	e.PUT("/api/v1/admin/challenges/{id}", challengeID).
 		WithHeader("Authorization", tokenAdmin).
-		WithJSON(map[string]interface{}{
+		WithJSON(map[string]any{
 			"title":       "Updated Title",
 			"description": "Updated Description",
 			"points":      150,
@@ -153,7 +153,7 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Test Challenge",
 		"description": "Test invalid flag",
 		"flag":        "FLAG{correct}",
@@ -175,7 +175,7 @@ func TestChallenge_Delete(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "To Delete",
 		"description": "Test delete challenge",
 		"flag":        "FLAG{delete}",

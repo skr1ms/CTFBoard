@@ -942,7 +942,7 @@ func TestTxRepo_CreateTeamAuditLogTx_Success(t *testing.T) {
 		TeamId:  team.Id,
 		UserId:  captain.Id,
 		Action:  "TEST_ACTION",
-		Details: map[string]interface{}{"foo": "bar"},
+		Details: map[string]any{"foo": "bar"},
 	}
 
 	err = f.TxRepo.CreateTeamAuditLogTx(ctx, tx, log)

@@ -18,10 +18,10 @@ import (
 
 type fileRoutes struct {
 	fileUC *usecase.FileUseCase
-	logger logger.Interface
+	logger logger.Logger
 }
 
-func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger.Interface, jwtService *jwt.JWTService) {
+func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger.Logger, jwtService *jwt.JWTService) {
 	routes := fileRoutes{
 		fileUC: fileUC,
 		logger: logger,
@@ -45,7 +45,7 @@ func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
 
 	rc, err := h.fileUC.Download(r.Context(), path)
 	if err != nil {
-		h.logger.Error("http - v1 - file - Download", err)
+		h.logger.WithError(err).Error("http - v1 - file - Download")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -53,7 +53,7 @@ func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = rc.Close() }()
 
 	if _, err := io.Copy(w, rc); err != nil {
-		h.logger.Error("http - v1 - file - Download - Copy", err)
+		h.logger.WithError(err).Error("http - v1 - file - Download - Copy")
 	}
 }
 
@@ -66,7 +66,7 @@ func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
 // @Param        challengeId path     string true  "Challenge ID"
 // @Param        file        formData file   true  "File to upload"
 // @Param        type        formData string false "File type: challenge or writeup" default(challenge)
-// @Success      201 {object} map[string]interface{}
+// @Success      201 {object} map[string]any
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
@@ -86,7 +86,7 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
-		h.logger.Error("http - v1 - file - Upload - ParseMultipartForm", err)
+		h.logger.WithError(err).Error("http - v1 - file - Upload - ParseMultipartForm")
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "failed to parse form"})
 		return
@@ -94,7 +94,7 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		h.logger.Error("http - v1 - file - Upload - FormFile", err)
+		h.logger.WithError(err).Error("http - v1 - file - Upload - FormFile")
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "file is required"})
 		return
@@ -114,14 +114,14 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 
 	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeUUID, fileType, handler.Filename, file, handler.Size, contentType)
 	if err != nil {
-		h.logger.Error("http - v1 - file - Upload - Upload", err)
+		h.logger.WithError(err).Error("http - v1 - file - Upload - Upload")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, map[string]interface{}{
+	render.JSON(w, r, map[string]any{
 		"id":       uploadedFile.Id.String(),
 		"filename": uploadedFile.Filename,
 		"size":     uploadedFile.Size,
@@ -160,7 +160,7 @@ func (h *fileRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, map[string]string{"error": "file not found"})
 			return
 		}
-		h.logger.Error("http - v1 - file - Delete - Delete", err)
+		h.logger.WithError(err).Error("http - v1 - file - Delete - Delete")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -200,7 +200,7 @@ func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, map[string]string{"error": "file not found"})
 			return
 		}
-		h.logger.Error("http - v1 - file - GetDownloadURL", err)
+		h.logger.WithError(err).Error("http - v1 - file - GetDownloadURL")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -217,7 +217,7 @@ func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 // @Security     BearerAuth
 // @Param        challengeId path string true "Challenge ID"
 // @Param        type query string false "File type: challenge or writeup" default(challenge)
-// @Success      200 {array} map[string]interface{}
+// @Success      200 {array} map[string]any
 // @Failure      401 {object} ErrorResponse
 // @Router       /challenges/{challengeId}/files [get]
 func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
@@ -242,15 +242,15 @@ func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 
 	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeUUID, fileType)
 	if err != nil {
-		h.logger.Error("http - v1 - file - GetByChallengeID", err)
+		h.logger.WithError(err).Error("http - v1 - file - GetByChallengeID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	result := make([]map[string]interface{}, 0, len(files))
+	result := make([]map[string]any, 0, len(files))
 	for _, f := range files {
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"id":         f.Id.String(),
 			"filename":   f.Filename,
 			"size":       f.Size,

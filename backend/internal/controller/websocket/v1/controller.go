@@ -12,11 +12,11 @@ import (
 
 type Controller struct {
 	hub            *pkgWS.Hub
-	logger         logger.Interface
+	logger         logger.Logger
 	allowedOrigins []string
 }
 
-func NewController(hub *pkgWS.Hub, logger logger.Interface, allowedOrigins []string) *Controller {
+func NewController(hub *pkgWS.Hub, logger logger.Logger, allowedOrigins []string) *Controller {
 	return &Controller{
 		hub:            hub,
 		logger:         logger,
@@ -44,7 +44,7 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := websocket.Accept(w, r, opts)
 	if err != nil {
-		c.logger.Error("ws - HandleWS - Accept", err)
+		c.logger.WithError(err).Error("ws - HandleWS - Accept")
 		return
 	}
 

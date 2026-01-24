@@ -24,7 +24,7 @@ type challengeRoutes struct {
 	userUC        *usecase.UserUseCase
 	competitionUC *usecase.CompetitionUseCase
 	validator     validator.Validator
-	logger        logger.Interface
+	logger        logger.Logger
 }
 
 func NewChallengeRoutes(router chi.Router,
@@ -33,7 +33,7 @@ func NewChallengeRoutes(router chi.Router,
 	userUC *usecase.UserUseCase,
 	competitionUC *usecase.CompetitionUseCase,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	jwtService *jwt.JWTService,
 	submitLimit int,
 	durationLimit time.Duration,
@@ -78,7 +78,7 @@ func (h *challengeRoutes) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("http - v1 - GetAll - GetByID", err)
+		h.logger.WithError(err).Error("http - v1 - GetAll - GetByID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -86,7 +86,7 @@ func (h *challengeRoutes) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	challenges, err := h.challengeUC.GetAll(r.Context(), user.TeamId)
 	if err != nil {
-		h.logger.Error("http - v1 - GetAll - GetAll", err)
+		h.logger.WithError(err).Error("http - v1 - GetAll - GetAll")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -142,14 +142,14 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	var req request.SubmitFlagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("http - v1 - SubmitFlag - Decode", err)
+		h.logger.WithError(err).Error("http - v1 - SubmitFlag - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("http - v1 - SubmitFlag - Validate", err)
+		h.logger.WithError(err).Error("http - v1 - SubmitFlag - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -170,7 +170,7 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("http - v1 - SubmitFlag - GetByID", err)
+		h.logger.WithError(err).Error("http - v1 - SubmitFlag - GetByID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -178,7 +178,7 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 
 	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeUUID, req.Flag, userUUID, user.TeamId)
 	if err != nil {
-		h.logger.Error("http - v1 - SubmitFlag - SubmitFlag", err)
+		h.logger.WithError(err).Error("http - v1 - SubmitFlag - SubmitFlag")
 		handleError(w, r, err)
 		return
 	}
@@ -208,14 +208,14 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
 	var req request.CreateChallengeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("http - v1 - Create - Decode", err)
+		h.logger.WithError(err).Error("http - v1 - Create - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("http - v1 - Create - Validate", err)
+		h.logger.WithError(err).Error("http - v1 - Create - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -223,7 +223,7 @@ func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
 
 	challenge, err := h.challengeUC.Create(r.Context(), req.Title, req.Description, req.Category, req.Points, req.InitialValue, req.MinValue, req.Decay, req.Flag, req.IsHidden)
 	if err != nil {
-		h.logger.Error("http - v1 - Create - Create", err)
+		h.logger.WithError(err).Error("http - v1 - Create - Create")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -269,7 +269,7 @@ func (h *challengeRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err = h.challengeUC.Delete(r.Context(), challengeUUID)
 	if err != nil {
-		h.logger.Error("http - v1 - Delete - Delete", err)
+		h.logger.WithError(err).Error("http - v1 - Delete - Delete")
 		render.Status(r, http.StatusNotFound)
 		handleError(w, r, err)
 		return
@@ -308,14 +308,14 @@ func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req request.UpdateChallengeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("http - v1 - Update - Decode", err)
+		h.logger.WithError(err).Error("http - v1 - Update - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("http - v1 - Update - Validate", err)
+		h.logger.WithError(err).Error("http - v1 - Update - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -323,7 +323,7 @@ func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
 
 	challenge, err := h.challengeUC.Update(r.Context(), challengeUUID, req.Title, req.Description, req.Category, req.Points, req.InitialValue, req.MinValue, req.Decay, req.Flag, req.IsHidden)
 	if err != nil {
-		h.logger.Error("http - v1 - Update - Update", err)
+		h.logger.WithError(err).Error("http - v1 - Update - Update")
 		handleError(w, r, err)
 		return
 	}

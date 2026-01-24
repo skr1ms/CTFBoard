@@ -14,10 +14,10 @@ type AsyncMailer struct {
 	wg       sync.WaitGroup
 	quit     chan struct{}
 	workers  int
-	l        *logger.Logger
+	l        logger.Logger
 }
 
-func NewAsyncMailer(delegate Mailer, bufferSize, workers int, l *logger.Logger) *AsyncMailer {
+func NewAsyncMailer(delegate Mailer, bufferSize, workers int, l logger.Logger) *AsyncMailer {
 	return &AsyncMailer{
 		delegate: delegate,
 		msgChan:  make(chan Message, bufferSize),
@@ -69,8 +69,7 @@ func (m *AsyncMailer) worker() {
 }
 
 func (m *AsyncMailer) send(msg Message) {
-	// Create a background context for sending, as the original request context might be canceled
 	if err := m.delegate.Send(context.Background(), msg); err != nil {
-		m.l.Error(fmt.Sprintf("AsyncMailer: failed to send email to %s", msg.To), err)
+		m.l.WithError(err).Error(fmt.Sprintf("AsyncMailer: failed to send email to %s", msg.To))
 	}
 }

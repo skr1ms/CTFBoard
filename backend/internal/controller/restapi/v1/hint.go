@@ -22,7 +22,7 @@ type hintRoutes struct {
 	hintUC    *usecase.HintUseCase
 	userUC    *usecase.UserUseCase
 	validator validator.Validator
-	logger    logger.Interface
+	logger    logger.Logger
 }
 
 func NewHintRoutes(
@@ -30,7 +30,7 @@ func NewHintRoutes(
 	hintUC *usecase.HintUseCase,
 	userUC *usecase.UserUseCase,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	jwtService *jwt.JWTService,
 ) {
 	routes := hintRoutes{
@@ -92,7 +92,7 @@ func (h *hintRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetByChallengeID - GetByID", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetByChallengeID - GetByID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -100,7 +100,7 @@ func (h *hintRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 
 	hints, err := h.hintUC.GetByChallengeID(r.Context(), challengeUUID, user.TeamId)
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetByChallengeID - GetByChallengeID", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetByChallengeID - GetByChallengeID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -161,7 +161,7 @@ func (h *hintRoutes) UnlockHint(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userUC.GetByID(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - UnlockHint - GetByID", err)
+		h.logger.WithError(err).Error("restapi - v1 - UnlockHint - GetByID")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -190,7 +190,7 @@ func (h *hintRoutes) UnlockHint(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, map[string]string{"error": "insufficient points"})
 			return
 		}
-		h.logger.Error("restapi - v1 - UnlockHint - UnlockHint", err)
+		h.logger.WithError(err).Error("restapi - v1 - UnlockHint - UnlockHint")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -250,7 +250,7 @@ func (h *hintRoutes) Create(w http.ResponseWriter, r *http.Request) {
 
 	hint, err := h.hintUC.Create(r.Context(), challengeUUID, req.Content, req.Cost, req.OrderIndex)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Create - Create", err)
+		h.logger.WithError(err).Error("restapi - v1 - Create - Create")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -316,7 +316,7 @@ func (h *hintRoutes) Update(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, map[string]string{"error": "hint not found"})
 			return
 		}
-		h.logger.Error("restapi - v1 - Update - Update", err)
+		h.logger.WithError(err).Error("restapi - v1 - Update - Update")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -364,7 +364,7 @@ func (h *hintRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, map[string]string{"error": "hint not found"})
 			return
 		}
-		h.logger.Error("restapi - v1 - Delete - Delete", err)
+		h.logger.WithError(err).Error("restapi - v1 - Delete - Delete")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return

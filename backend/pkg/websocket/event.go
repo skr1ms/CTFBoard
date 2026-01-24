@@ -9,12 +9,12 @@ const (
 )
 
 type ScoreboardUpdate struct {
-	Type      string      `json:"type"`
-	TeamID    string      `json:"team_id,omitempty"`
-	Challenge string      `json:"challenge,omitempty"`
-	Points    int         `json:"points,omitempty"`
-	Payload   interface{} `json:"payload,omitempty"`
-	Timestamp time.Time   `json:"timestamp"`
+	Type      string    `json:"type"`
+	TeamID    string    `json:"team_id,omitempty"`
+	Challenge string    `json:"challenge,omitempty"`
+	Points    int       `json:"points,omitempty"`
+	Payload   any       `json:"payload,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type Notification struct {
@@ -25,7 +25,7 @@ type Notification struct {
 }
 
 type Event struct {
-	Type      string      `json:"type"`
-	Payload   interface{} `json:"payload"`
-	Timestamp time.Time   `json:"timestamp"`
+	Type      string    `json:"type"`
+	Payload   any       `json:"payload"`
+	Timestamp time.Time `json:"timestamp"`
 }

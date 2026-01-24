@@ -13,7 +13,7 @@ func TestFirstBlood_Display(t *testing.T) {
 	_, _, tokenAdmin := h.RegisterAdmin("adminfb")
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "First Blood Test",
 		"description": "Test first blood functionality",
 		"flag":        "FLAG{firstblood}",
@@ -41,7 +41,7 @@ func TestFirstBlood_NotFound(t *testing.T) {
 	_, _, tokenAdmin := h.RegisterAdmin("adminfb2")
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "No Solves Test",
 		"description": "Test no solves scenario",
 		"flag":        "FLAG{nosolves}",

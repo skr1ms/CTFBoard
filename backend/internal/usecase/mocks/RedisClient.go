@@ -388,7 +388,7 @@ func (_c *MockRedisClient_Ping_Call) RunAndReturn(run func(ctx context.Context) 
 }
 
 // Publish provides a mock function for the type MockRedisClient
-func (_mock *MockRedisClient) Publish(ctx context.Context, channel string, message interface{}) *redis.IntCmd {
+func (_mock *MockRedisClient) Publish(ctx context.Context, channel string, message any) *redis.IntCmd {
 	ret := _mock.Called(ctx, channel, message)
 
 	if len(ret) == 0 {
@@ -396,7 +396,7 @@ func (_mock *MockRedisClient) Publish(ctx context.Context, channel string, messa
 	}
 
 	var r0 *redis.IntCmd
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, interface{}) *redis.IntCmd); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, any) *redis.IntCmd); ok {
 		r0 = returnFunc(ctx, channel, message)
 	} else {
 		if ret.Get(0) != nil {
@@ -414,12 +414,12 @@ type MockRedisClient_Publish_Call struct {
 // Publish is a helper method to define mock.On call
 //   - ctx context.Context
 //   - channel string
-//   - message interface{}
+//   - message any
 func (_e *MockRedisClient_Expecter) Publish(ctx interface{}, channel interface{}, message interface{}) *MockRedisClient_Publish_Call {
 	return &MockRedisClient_Publish_Call{Call: _e.mock.On("Publish", ctx, channel, message)}
 }
 
-func (_c *MockRedisClient_Publish_Call) Run(run func(ctx context.Context, channel string, message interface{})) *MockRedisClient_Publish_Call {
+func (_c *MockRedisClient_Publish_Call) Run(run func(ctx context.Context, channel string, message any)) *MockRedisClient_Publish_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -429,9 +429,9 @@ func (_c *MockRedisClient_Publish_Call) Run(run func(ctx context.Context, channe
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 interface{}
+		var arg2 any
 		if args[2] != nil {
-			arg2 = args[2].(interface{})
+			arg2 = args[2].(any)
 		}
 		run(
 			arg0,
@@ -447,13 +447,13 @@ func (_c *MockRedisClient_Publish_Call) Return(intCmd *redis.IntCmd) *MockRedisC
 	return _c
 }
 
-func (_c *MockRedisClient_Publish_Call) RunAndReturn(run func(ctx context.Context, channel string, message interface{}) *redis.IntCmd) *MockRedisClient_Publish_Call {
+func (_c *MockRedisClient_Publish_Call) RunAndReturn(run func(ctx context.Context, channel string, message any) *redis.IntCmd) *MockRedisClient_Publish_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Set provides a mock function for the type MockRedisClient
-func (_mock *MockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (_mock *MockRedisClient) Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd {
 	ret := _mock.Called(ctx, key, value, expiration)
 
 	if len(ret) == 0 {
@@ -461,7 +461,7 @@ func (_mock *MockRedisClient) Set(ctx context.Context, key string, value interfa
 	}
 
 	var r0 *redis.StatusCmd
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, interface{}, time.Duration) *redis.StatusCmd); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, any, time.Duration) *redis.StatusCmd); ok {
 		r0 = returnFunc(ctx, key, value, expiration)
 	} else {
 		if ret.Get(0) != nil {
@@ -479,13 +479,13 @@ type MockRedisClient_Set_Call struct {
 // Set is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-//   - value interface{}
+//   - value any
 //   - expiration time.Duration
 func (_e *MockRedisClient_Expecter) Set(ctx interface{}, key interface{}, value interface{}, expiration interface{}) *MockRedisClient_Set_Call {
 	return &MockRedisClient_Set_Call{Call: _e.mock.On("Set", ctx, key, value, expiration)}
 }
 
-func (_c *MockRedisClient_Set_Call) Run(run func(ctx context.Context, key string, value interface{}, expiration time.Duration)) *MockRedisClient_Set_Call {
+func (_c *MockRedisClient_Set_Call) Run(run func(ctx context.Context, key string, value any, expiration time.Duration)) *MockRedisClient_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -495,9 +495,9 @@ func (_c *MockRedisClient_Set_Call) Run(run func(ctx context.Context, key string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 interface{}
+		var arg2 any
 		if args[2] != nil {
-			arg2 = args[2].(interface{})
+			arg2 = args[2].(any)
 		}
 		var arg3 time.Duration
 		if args[3] != nil {
@@ -518,7 +518,7 @@ func (_c *MockRedisClient_Set_Call) Return(statusCmd *redis.StatusCmd) *MockRedi
 	return _c
 }
 
-func (_c *MockRedisClient_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd) *MockRedisClient_Set_Call {
+func (_c *MockRedisClient_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd) *MockRedisClient_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }

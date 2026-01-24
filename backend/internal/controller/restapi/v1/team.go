@@ -21,13 +21,13 @@ import (
 type teamRoutes struct {
 	teamUC    *usecase.TeamUseCase
 	validator validator.Validator
-	logger    logger.Interface
+	logger    logger.Logger
 }
 
 func NewTeamRoutes(router chi.Router,
 	teamUC *usecase.TeamUseCase,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	jwtService *jwt.JWTService,
 ) {
 	routes := teamRoutes{
@@ -59,14 +59,14 @@ func NewTeamRoutes(router chi.Router,
 func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 	var req request.CreateTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - Create - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - Create - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - Create - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - Create - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -87,7 +87,7 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 
 	team, err := h.teamUC.Create(r.Context(), req.Name, userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Create - Create", err)
+		h.logger.WithError(err).Error("restapi - v1 - Create - Create")
 		handleError(w, r, err)
 		return
 	}
@@ -120,14 +120,14 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 	var req request.JoinTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - Join - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - Join - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - Join - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - Join - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -155,7 +155,7 @@ func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 
 	team, err := h.teamUC.Join(r.Context(), inviteTokenUUID, userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - Join - Join", err)
+		h.logger.WithError(err).Error("restapi - v1 - Join - Join")
 		handleError(w, r, err)
 		return
 	}
@@ -197,7 +197,7 @@ func (h *teamRoutes) GetMyTeam(w http.ResponseWriter, r *http.Request) {
 
 	team, members, err := h.teamUC.GetMyTeam(r.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetMyTeam - GetMyTeam", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetMyTeam - GetMyTeam")
 		handleError(w, r, err)
 		return
 	}
@@ -256,7 +256,7 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	team, err := h.teamUC.GetByID(r.Context(), teamUUID)
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetByID - GetByID", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetByID - GetByID")
 		handleError(w, r, err)
 		return
 	}
@@ -298,7 +298,7 @@ func (h *teamRoutes) Leave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.teamUC.Leave(r.Context(), userUUID); err != nil {
-		h.logger.Error("restapi - v1 - Leave - Leave", err)
+		h.logger.WithError(err).Error("restapi - v1 - Leave - Leave")
 		handleError(w, r, err)
 		return
 	}
@@ -323,14 +323,14 @@ func (h *teamRoutes) Leave(w http.ResponseWriter, r *http.Request) {
 func (h *teamRoutes) TransferCaptain(w http.ResponseWriter, r *http.Request) {
 	var req request.TransferCaptainRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - TransferCaptain - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - TransferCaptain - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - TransferCaptain - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - TransferCaptain - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -357,7 +357,7 @@ func (h *teamRoutes) TransferCaptain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.teamUC.TransferCaptain(r.Context(), userUUID, newCaptainUUID); err != nil {
-		h.logger.Error("restapi - v1 - TransferCaptain - TransferCaptain", err)
+		h.logger.WithError(err).Error("restapi - v1 - TransferCaptain - TransferCaptain")
 		handleError(w, r, err)
 		return
 	}

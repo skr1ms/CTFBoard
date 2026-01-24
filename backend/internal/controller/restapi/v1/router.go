@@ -24,7 +24,7 @@ func NewRouter(
 	jwtService *jwt.JWTService,
 	redisClient redis.Client,
 	validator validator.Validator,
-	logger logger.Interface,
+	logger logger.Logger,
 	submitLimit int,
 	durationLimit time.Duration,
 ) {

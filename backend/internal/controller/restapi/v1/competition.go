@@ -19,10 +19,10 @@ import (
 type competitionRoutes struct {
 	competitionUC *usecase.CompetitionUseCase
 	validator     validator.Validator
-	logger        logger.Interface
+	logger        logger.Logger
 }
 
-func NewCompetitionRoutes(router chi.Router, competitionUC *usecase.CompetitionUseCase, validator validator.Validator, logger logger.Interface, jwtService *jwt.JWTService) {
+func NewCompetitionRoutes(router chi.Router, competitionUC *usecase.CompetitionUseCase, validator validator.Validator, logger logger.Logger, jwtService *jwt.JWTService) {
 	routes := competitionRoutes{
 		competitionUC: competitionUC,
 		validator:     validator,
@@ -37,7 +37,7 @@ func NewCompetitionRoutes(router chi.Router, competitionUC *usecase.CompetitionU
 func (h *competitionRoutes) GetStatus(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetStatus - Get", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetStatus - Get")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -68,7 +68,7 @@ func (h *competitionRoutes) GetStatus(w http.ResponseWriter, r *http.Request) {
 func (h *competitionRoutes) Get(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
 	if err != nil {
-		h.logger.Error("restapi - v1 - Get - Get", err)
+		h.logger.WithError(err).Error("restapi - v1 - Get - Get")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -106,14 +106,14 @@ func (h *competitionRoutes) Get(w http.ResponseWriter, r *http.Request) {
 func (h *competitionRoutes) Update(w http.ResponseWriter, r *http.Request) {
 	var req request.UpdateCompetitionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("restapi - v1 - Update - Decode", err)
+		h.logger.WithError(err).Error("restapi - v1 - Update - Decode")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		h.logger.Error("restapi - v1 - Update - Validate", err)
+		h.logger.WithError(err).Error("restapi - v1 - Update - Validate")
 		render.Status(r, http.StatusBadRequest)
 		handleError(w, r, err)
 		return
@@ -152,7 +152,7 @@ func (h *competitionRoutes) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.competitionUC.Update(r.Context(), comp); err != nil {
-		h.logger.Error("restapi - v1 - Update - Update", err)
+		h.logger.WithError(err).Error("restapi - v1 - Update - Update")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return

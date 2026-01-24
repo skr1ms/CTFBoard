@@ -37,8 +37,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	l := logger.New(cfg.LogLevel, cfg.ChiMode)
-	l.Info("Configuration loaded successfully", nil)
+	l := logger.New(&logger.Options{
+		Level:  logger.InfoLevel,
+		Output: logger.ConsoleOutput,
+	})
+	l.Info("Configuration loaded successfully")
 
 	app.Run(cfg, l)
 }

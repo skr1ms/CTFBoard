@@ -94,7 +94,7 @@ func (cb *CircuitBreaker) Get(ctx context.Context, key string) *redis.StringCmd 
 	return result
 }
 
-func (cb *CircuitBreaker) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (cb *CircuitBreaker) Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd {
 	if !cb.allowRequest() {
 		cmd := redis.NewStatusCmd(ctx)
 		cmd.SetErr(ErrCircuitOpen)
@@ -147,7 +147,7 @@ func (cb *CircuitBreaker) Close() error {
 	return cb.client.Close()
 }
 
-func (cb *CircuitBreaker) Publish(ctx context.Context, channel string, message interface{}) *redis.IntCmd {
+func (cb *CircuitBreaker) Publish(ctx context.Context, channel string, message any) *redis.IntCmd {
 	if !cb.allowRequest() {
 		cmd := redis.NewIntCmd(ctx)
 		cmd.SetErr(ErrCircuitOpen)

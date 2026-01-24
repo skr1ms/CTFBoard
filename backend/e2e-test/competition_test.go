@@ -22,7 +22,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Comp Challenge",
 		"description": "Test competition challenge",
 		"flag":        "FLAG{comp}",
@@ -34,7 +34,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
 
 	now := time.Now().UTC()
-	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
+	h.UpdateCompetition(tokenAdmin, map[string]any{
 		"name":       "Comp Name",
 		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
 		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),
@@ -46,7 +46,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusForbidden)
 
-	h.UpdateCompetition(tokenAdmin, map[string]interface{}{
+	h.UpdateCompetition(tokenAdmin, map[string]any{
 		"name":       "Comp Name",
 		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
 		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),

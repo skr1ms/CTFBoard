@@ -33,7 +33,7 @@ packages:
 
   github.com/skr1ms/CTFBoard/pkg/logger:
     interfaces:
-      Interface:
+      Logger:
         config:
           dir: "internal/usecase/mocks"
           filename: "Logger.go"

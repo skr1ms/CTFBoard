@@ -53,7 +53,7 @@ func NewFromEnv() (*Client, error) {
 	return NewWithMount(addr, token, mountPath)
 }
 
-func (c *Client) GetSecret(secretPath string) (map[string]interface{}, error) {
+func (c *Client) GetSecret(secretPath string) (map[string]any, error) {
 	kv := c.client.KVv2(c.mountPath)
 	secret, err := kv.Get(context.Background(), secretPath)
 	if err != nil {

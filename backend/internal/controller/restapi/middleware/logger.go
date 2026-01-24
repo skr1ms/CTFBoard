@@ -8,7 +8,7 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
 
-func Logger(log logger.Interface) func(next http.Handler) http.Handler {
+func Logger(log logger.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -18,7 +18,7 @@ func Logger(log logger.Interface) func(next http.Handler) http.Handler {
 
 			latency := time.Since(start)
 
-			fields := map[string]interface{}{
+			fields := map[string]any{
 				"status":     ww.Status(),
 				"method":     r.Method,
 				"path":       r.URL.Path,
@@ -33,12 +33,14 @@ func Logger(log logger.Interface) func(next http.Handler) http.Handler {
 				fields["request_id"] = reqID
 			}
 
+			reqLogger := log.WithFields(fields)
+
 			if ww.Status() >= 500 {
-				log.Error("http request failed", nil, fields)
+				reqLogger.Error("http request failed")
 			} else if ww.Status() >= 400 {
-				log.Warn("http request error", nil, fields)
+				reqLogger.Warn("http request error")
 			} else {
-				log.Info("http request", nil, fields)
+				reqLogger.Info("http request")
 			}
 		})
 	}

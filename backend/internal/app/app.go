@@ -32,8 +32,8 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func Run(cfg *config.Config, l *logger.Logger) {
-	l.Info("Application initialized", nil, map[string]interface{}{
+func Run(cfg *config.Config, l logger.Logger) {
+	l.Info("Application initialized", map[string]any{
 		"mode":      cfg.ChiMode,
 		"log_level": cfg.LogLevel,
 		"version":   cfg.Version,
@@ -41,24 +41,24 @@ func Run(cfg *config.Config, l *logger.Logger) {
 
 	pool, err := postgres.New(&cfg.DB)
 	if err != nil {
-		l.Error("failed to connect to database", err)
+		l.WithError(err).Error("failed to connect to database")
 		return
 	}
 	defer pool.Close()
 
 	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Password)
 	if err != nil {
-		l.Error("failed to connect to redis", err)
+		l.WithError(err).Error("failed to connect to redis")
 		return
 	}
 	defer func() {
 		if err := redisClient.Close(); err != nil {
-			l.Error("failed to close redis connection", err)
+			l.WithError(err).Error("failed to close redis connection")
 		}
 	}()
 
 	if err := migrator.Run(&cfg.DB); err != nil {
-		l.Error("failed to run migrations", err)
+		l.WithError(err).Error("failed to run migrations")
 		return
 	}
 
@@ -102,30 +102,30 @@ func Run(cfg *config.Config, l *logger.Logger) {
 			cfg.S3UseSSL,
 		)
 		if err != nil {
-			l.Error("failed to create S3 storage provider", err)
+			l.WithError(err).Error("failed to create S3 storage provider")
 			return
 		}
 		if err := s3Provider.EnsureBucket(context.Background()); err != nil {
-			l.Error("failed to ensure S3 bucket exists", err)
+			l.WithError(err).Error("failed to ensure S3 bucket exists")
 			return
 		}
 		storageProvider = s3Provider
-		l.Info("Using S3 storage provider", nil, map[string]interface{}{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
+		l.Info("Using S3 storage provider", map[string]any{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
 	} else {
 		fsProvider, err := storage.NewFilesystemProvider(cfg.LocalPath)
 		if err != nil {
-			l.Error("failed to create filesystem storage provider", err)
+			l.WithError(err).Error("failed to create filesystem storage provider")
 			return
 		}
 
 		defer func() {
 			if err := fsProvider.Close(); err != nil {
-				l.Error("failed to close filesystem provider", err)
+				l.WithError(err).Error("failed to close filesystem provider")
 			}
 		}()
 
 		storageProvider = fsProvider
-		l.Info("Using filesystem storage provider", nil, map[string]interface{}{"path": cfg.LocalPath})
+		l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})
 	}
 
 	fileRepo := persistent.NewFileRepository(pool)
@@ -177,7 +177,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("OK")); err != nil {
-			l.Error("failed to write health check response", err)
+			l.WithError(err).Error("failed to write health check response")
 		}
 	})
 
@@ -225,7 +225,7 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		l.Info("Starting HTTP server", nil, map[string]interface{}{"port": cfg.HTTP.Port})
+		l.Info("Starting HTTP server", map[string]any{"port": cfg.HTTP.Port})
 		serverErrors <- server.ListenAndServe()
 	}()
 
@@ -235,16 +235,16 @@ func Run(cfg *config.Config, l *logger.Logger) {
 	select {
 	case err := <-serverErrors:
 		if err != nil && err != http.ErrServerClosed {
-			l.Error("HTTP server error", err)
+			l.WithError(err).Error("HTTP server error")
 		}
 	case <-shutdown:
-		l.Info("Shutting down server", nil)
+		l.Info("Shutting down server")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		if err := server.Shutdown(ctx); err != nil {
-			l.Error("Server forced to shutdown", err)
+			l.WithError(err).Error("Server forced to shutdown")
 			if err := server.Close(); err != nil {
-				l.Error("failed to close server", err)
+				l.WithError(err).Error("failed to close server")
 			}
 		}
 		cancel()

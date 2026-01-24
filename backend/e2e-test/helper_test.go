@@ -153,7 +153,7 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 	return
 }
 
-func (h *E2EHelper) CreateChallenge(token string, data map[string]interface{}) string {
+func (h *E2EHelper) CreateChallenge(token string, data map[string]any) string {
 	resp := h.e.POST("/api/v1/admin/challenges").
 		WithHeader("Authorization", token).
 		WithJSON(data).
@@ -165,7 +165,7 @@ func (h *E2EHelper) CreateChallenge(token string, data map[string]interface{}) s
 }
 
 func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) string {
-	return h.CreateChallenge(token, map[string]interface{}{
+	return h.CreateChallenge(token, map[string]any{
 		"title":       title,
 		"description": "Standard basic challenge",
 		"flag":        flag,
@@ -223,7 +223,7 @@ func (h *E2EHelper) GetCompetitionStatus() *httpexpect.Object {
 		JSON().Object()
 }
 
-func (h *E2EHelper) UpdateCompetition(token string, data map[string]interface{}) {
+func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 	h.e.PUT("/api/v1/admin/competition").
 		WithHeader("Authorization", token).
 		WithJSON(data).
@@ -235,7 +235,7 @@ func (h *E2EHelper) StartCompetition(adminToken string) {
 	now := time.Now().UTC()
 	resp := h.e.PUT("/api/v1/admin/competition").
 		WithHeader("Authorization", adminToken).
-		WithJSON(map[string]interface{}{
+		WithJSON(map[string]any{
 			"name":       "Test CTF",
 			"start_time": now.Add(-1 * time.Hour),
 			"end_time":   now.Add(24 * time.Hour),
@@ -272,7 +272,7 @@ func (h *E2EHelper) AssertFirstBlood(challengeId, expectedUsername string) {
 func (h *E2EHelper) CreateHint(token, challengeID, content string, cost int) string {
 	resp := h.e.POST("/api/v1/admin/challenges/{id}/hints", challengeID).
 		WithHeader("Authorization", token).
-		WithJSON(map[string]interface{}{
+		WithJSON(map[string]any{
 			"content":     content,
 			"cost":        cost,
 			"order_index": 1,

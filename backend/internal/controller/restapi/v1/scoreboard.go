@@ -15,12 +15,12 @@ import (
 
 type scoreboardRoutes struct {
 	solveUC *usecase.SolveUseCase
-	logger  logger.Interface
+	logger  logger.Logger
 }
 
 func NewScoreboardRoutes(router chi.Router,
 	solveUC *usecase.SolveUseCase,
-	logger logger.Interface,
+	logger logger.Logger,
 ) {
 	routes := scoreboardRoutes{
 		solveUC: solveUC,
@@ -40,7 +40,7 @@ func NewScoreboardRoutes(router chi.Router,
 func (h *scoreboardRoutes) GetScoreboard(w http.ResponseWriter, r *http.Request) {
 	entries, err := h.solveUC.GetScoreboard(r.Context())
 	if err != nil {
-		h.logger.Error("restapi - v1 - GetScoreboard - GetScoreboard", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetScoreboard - GetScoreboard")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
@@ -93,7 +93,7 @@ func (h *scoreboardRoutes) GetFirstBlood(w http.ResponseWriter, r *http.Request)
 			render.JSON(w, r, map[string]string{"error": "no solves yet"})
 			return
 		}
-		h.logger.Error("restapi - v1 - GetFirstBlood - GetFirstBlood", err)
+		h.logger.WithError(err).Error("restapi - v1 - GetFirstBlood - GetFirstBlood")
 		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return

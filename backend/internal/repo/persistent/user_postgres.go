@@ -25,7 +25,7 @@ func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
 }
 
 type rowScanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 func scanUser(row rowScanner) (*entity.User, error) {

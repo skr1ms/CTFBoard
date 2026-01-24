@@ -20,7 +20,7 @@ func TestChallenge_DataUploadFlow(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Upload Test Challenge",
 		"description": "Challenge with file",
 		"points":      100,

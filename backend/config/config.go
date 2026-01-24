@@ -118,20 +118,35 @@ func New() (*Config, error) {
 	s3AccessKey := getEnv("STORAGE_S3_ACCESS_KEY", "")
 	s3SecretKey := getEnv("STORAGE_S3_SECRET_KEY", "")
 
-	l := logger.New(logLevel, chiMode)
+	var lvl logger.Level
+	switch logLevel {
+	case "debug":
+		lvl = logger.DebugLevel
+	case "warn":
+		lvl = logger.WarnLevel
+	case "error":
+		lvl = logger.ErrorLevel
+	default:
+		lvl = logger.InfoLevel
+	}
+
+	l := logger.New(&logger.Options{
+		Level:  lvl,
+		Output: logger.ConsoleOutput,
+	})
 
 	// Try to fetch secrets from Vault and OVERRIDE if successful
 	vaultAddr := os.Getenv("VAULT_ADDR")
 	vaultToken := os.Getenv("VAULT_TOKEN")
 
 	if vaultAddr != "" && vaultToken != "" {
-		l.Info("Config: attempting to fetch secrets from Vault", nil)
+		l.Info("Config: attempting to fetch secrets from Vault")
 		vaultClient, err := vault.New(vaultAddr, vaultToken)
 		if err == nil {
 			// Database secrets
 			dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
 			if err == nil {
-				l.Info("Config: database secrets loaded from Vault", nil)
+				l.Info("Config: database secrets loaded from Vault")
 				if u, ok := dbSecrets["user"].(string); ok && u != "" {
 					postgresUser = u
 				}
@@ -142,24 +157,24 @@ func New() (*Config, error) {
 					postgresDB = db
 				}
 			} else {
-				l.Warn("Config: failed to load database secrets from Vault, using env", err)
+				l.WithError(err).Warn("Config: failed to load database secrets from Vault, using env")
 			}
 
 			// Redis secrets
 			redisSecrets, err := vaultClient.GetSecret("ctfboard/redis")
 			if err == nil {
-				l.Info("Config: redis secrets loaded from Vault", nil)
+				l.Info("Config: redis secrets loaded from Vault")
 				if p, ok := redisSecrets["password"].(string); ok && p != "" {
 					redisPassword = p
 				}
 			} else {
-				l.Warn("Config: failed to load redis secrets from Vault, using env", err)
+				l.WithError(err).Warn("Config: failed to load redis secrets from Vault, using env")
 			}
 
 			// JWT secrets
 			jwtSecrets, err := vaultClient.GetSecret("ctfboard/jwt")
 			if err == nil {
-				l.Info("Config: JWT secrets loaded from Vault", nil)
+				l.Info("Config: JWT secrets loaded from Vault")
 				if access, ok := jwtSecrets["access_secret"].(string); ok && access != "" {
 					jwtAccessSecret = access
 				}
@@ -167,24 +182,24 @@ func New() (*Config, error) {
 					jwtRefreshSecret = refresh
 				}
 			} else {
-				l.Warn("Config: failed to load jwt secrets from Vault, using env", err)
+				l.WithError(err).Warn("Config: failed to load jwt secrets from Vault, using env")
 			}
 
 			// Resend secrets
 			resendSecrets, err := vaultClient.GetSecret("ctfboard/resend")
 			if err == nil {
-				l.Info("Config: Resend secrets loaded from Vault", nil)
+				l.Info("Config: Resend secrets loaded from Vault")
 				if k, ok := resendSecrets["api_key"].(string); ok && k != "" {
 					resendAPIKey = k
 				}
 			} else {
-				l.Warn("Config: failed to load resend secrets from Vault, using env (or not configured)", err)
+				l.WithError(err).Warn("Config: failed to load resend secrets from Vault, using env (or not configured)")
 			}
 
 			// Storage secrets
 			storageSecrets, err := vaultClient.GetSecret("ctfboard/storage")
 			if err == nil {
-				l.Info("Config: Storage secrets loaded from Vault", nil)
+				l.Info("Config: Storage secrets loaded from Vault")
 				if k, ok := storageSecrets["access_key"].(string); ok && k != "" {
 					s3AccessKey = k
 				}
@@ -192,10 +207,10 @@ func New() (*Config, error) {
 					s3SecretKey = s
 				}
 			} else {
-				l.Warn("Config: failed to load storage secrets from Vault (optional)", err)
+				l.WithError(err).Warn("Config: failed to load storage secrets from Vault (optional)")
 			}
 		} else {
-			l.Error("Config: failed to initialize vault client", err)
+			l.WithError(err).Error("Config: failed to initialize vault client")
 		}
 	}
 

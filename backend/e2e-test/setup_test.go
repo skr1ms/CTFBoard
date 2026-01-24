@@ -252,7 +252,10 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 
 func startTestServer() (func(), error) {
 	// Dependencies
-	l := logger.New("error", "test")
+	l := logger.New(&logger.Options{
+		Level:  logger.ErrorLevel,
+		Output: logger.ConsoleOutput,
+	})
 	validatorService := validator.New()
 	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour)
 

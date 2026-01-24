@@ -29,6 +29,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0
 	golang.org/x/crypto v0.47.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (

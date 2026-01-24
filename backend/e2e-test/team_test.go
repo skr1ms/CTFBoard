@@ -92,7 +92,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Solvable",
 		"description": "Test team points",
 		"points":      100,

@@ -18,7 +18,7 @@ func TestScoreboard_Display(t *testing.T) {
 
 	h.StartCompetition(tokenAdmin)
 
-	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Challenge 1",
 		"description": "Test challenge 1",
 		"points":      100,
@@ -26,7 +26,7 @@ func TestScoreboard_Display(t *testing.T) {
 		"category":    "web",
 	})
 
-	challengeID2 := h.CreateChallenge(tokenAdmin, map[string]interface{}{
+	challengeID2 := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Challenge 2",
 		"description": "Test challenge 2",
 		"points":      200,
