@@ -90,6 +90,8 @@ type (
 	}
 
 	AwardRepository interface {
+		Create(ctx context.Context, award *entity.Award) error
+		GetByTeamID(ctx context.Context, teamId uuid.UUID) ([]*entity.Award, error)
 		GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (int, error)
 	}
 

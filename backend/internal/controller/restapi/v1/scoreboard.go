@@ -6,10 +6,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
-	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
 
@@ -41,27 +41,13 @@ func (h *scoreboardRoutes) GetScoreboard(w http.ResponseWriter, r *http.Request)
 	entries, err := h.solveUC.GetScoreboard(r.Context())
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - GetScoreboard - GetScoreboard")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	res := make([]response.ScoreboardEntryResponse, 0, len(entries))
-	for _, entry := range entries {
-		item := response.ScoreboardEntryResponse{
-			TeamId:   entry.TeamId.String(),
-			TeamName: entry.TeamName,
-			Points:   entry.Points,
-		}
-		if !entry.SolvedAt.IsZero() {
-			ts := entry.SolvedAt.Format("2006-01-02T15:04:05Z07:00")
-			item.LastSolved = &ts
-		}
-		res = append(res, item)
-	}
+	res := response.FromScoreboardList(entries)
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }
 
 // @Summary      Get first blood
@@ -73,16 +59,8 @@ func (h *scoreboardRoutes) GetScoreboard(w http.ResponseWriter, r *http.Request)
 // @Failure      404  {object}  ErrorResponse
 // @Router       /challenges/{id}/first-blood [get]
 func (h *scoreboardRoutes) GetFirstBlood(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "id")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, nil)
-		return
-	}
-
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
@@ -94,19 +72,11 @@ func (h *scoreboardRoutes) GetFirstBlood(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		h.logger.WithError(err).Error("restapi - v1 - GetFirstBlood - GetFirstBlood")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	res := response.FirstBloodResponse{
-		UserId:   entry.UserId.String(),
-		Username: entry.Username,
-		TeamId:   entry.TeamId.String(),
-		TeamName: entry.TeamName,
-		SolvedAt: entry.SolvedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
+	res := response.FromFirstBlood(entry)
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }

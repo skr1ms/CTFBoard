@@ -1,8 +1,19 @@
 package entityError
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var (
-	ErrSolveNotFound = errors.New("solve not found")
-	ErrAlreadySolved = errors.New("already solved")
+	ErrSolveNotFound = &HTTPError{
+		Err:        errors.New("solve not found"),
+		StatusCode: http.StatusNotFound,
+		Code:       "SOLVE_NOT_FOUND",
+	}
+	ErrAlreadySolved = &HTTPError{
+		Err:        errors.New("already solved"),
+		StatusCode: http.StatusConflict,
+		Code:       "ALREADY_SOLVED",
+	}
 )

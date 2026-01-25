@@ -6,12 +6,11 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
-	"github.com/google/uuid"
 	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
@@ -38,15 +37,13 @@ func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger
 func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "path is required"})
+		httputil.RenderError(w, r, http.StatusBadRequest, "path is required")
 		return
 	}
 
 	rc, err := h.fileUC.Download(r.Context(), path)
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - file - Download")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
@@ -72,31 +69,21 @@ func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
 // @Failure      403 {object} ErrorResponse
 // @Router       /admin/challenges/{challengeId}/files [post]
 func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "challengeId")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "challenge_id is required"})
-		return
-	}
-
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "challengeId")
+	if !ok {
 		return
 	}
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
 		h.logger.WithError(err).Error("http - v1 - file - Upload - ParseMultipartForm")
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "failed to parse form"})
+		httputil.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - file - Upload - FormFile")
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "file is required"})
+		httputil.RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
 	defer func() { _ = file.Close() }()
@@ -115,13 +102,11 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeUUID, fileType, handler.Filename, file, handler.Size, contentType)
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - file - Upload - Upload")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, map[string]any{
+	httputil.RenderCreated(w, r, map[string]any{
 		"id":       uploadedFile.Id.String(),
 		"filename": uploadedFile.Filename,
 		"size":     uploadedFile.Size,
@@ -140,33 +125,23 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 // @Failure      404 {object} ErrorResponse
 // @Router       /admin/files/{id} [delete]
 func (h *fileRoutes) Delete(w http.ResponseWriter, r *http.Request) {
-	fileId := chi.URLParam(r, "id")
-	if fileId == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "file_id is required"})
+	fileUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
-	fileUUID, err := uuid.Parse(fileId)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	err = h.fileUC.Delete(r.Context(), fileUUID)
+	err := h.fileUC.Delete(r.Context(), fileUUID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, map[string]string{"error": "file not found"})
+			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
 		h.logger.WithError(err).Error("http - v1 - file - Delete - Delete")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	render.Status(r, http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
 // @Summary      Get download URL
@@ -180,34 +155,23 @@ func (h *fileRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure      404 {object} ErrorResponse
 // @Router       /files/{id}/download [get]
 func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
-	fileId := chi.URLParam(r, "id")
-	if fileId == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "file_id is required"})
-		return
-	}
-
-	fileUUID, err := uuid.Parse(fileId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	fileUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
 	url, err := h.fileUC.GetDownloadURL(r.Context(), fileUUID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, map[string]string{"error": "file not found"})
+			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
 		h.logger.WithError(err).Error("http - v1 - file - GetDownloadURL")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"url": url})
+	httputil.RenderOK(w, r, map[string]string{"url": url})
 }
 
 // @Summary      Get challenge files
@@ -221,16 +185,8 @@ func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 // @Failure      401 {object} ErrorResponse
 // @Router       /challenges/{challengeId}/files [get]
 func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "challengeId")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "challenge_id is required"})
-		return
-	}
-
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "challengeId")
+	if !ok {
 		return
 	}
 
@@ -243,7 +199,6 @@ func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeUUID, fileType)
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - file - GetByChallengeID")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
@@ -258,6 +213,5 @@ func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, result)
+	httputil.RenderOK(w, r, result)
 }

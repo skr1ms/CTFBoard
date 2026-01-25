@@ -10,6 +10,7 @@ type Competition struct {
 	FreezeTime *time.Time `json:"freeze_time"`
 	IsPaused   bool       `json:"is_paused"`
 	IsPublic   bool       `json:"is_public"`
+	FlagRegex  *string    `json:"flag_regex,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 }

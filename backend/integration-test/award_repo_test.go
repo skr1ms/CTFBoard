@@ -3,115 +3,84 @@ package integration_test
 import (
 	"context"
 	"testing"
+	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// CreateTx Tests
-
-func TestAwardRepo_CreateTx(t *testing.T) {
-	testPool := SetupTestPool(t)
-	f := NewTestFixture(testPool.Pool)
+func TestAwardRepo_Create(t *testing.T) {
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	_, team := f.CreateUserWithTeam(t, "award")
+	admin := f.CreateUser(t, "admin_c")
+	_, team := f.CreateUserWithTeam(t, "team_create")
 
-	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	require.NoError(t, err)
-
-	award := f.CreateAwardTx(t, tx, team.Id, 100, "Test award")
-	assert.NotEmpty(t, award.Id)
-
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
-
-	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
-	require.NoError(t, err)
-	assert.Equal(t, 100, total)
-}
-
-func TestAwardRepo_CreateTx_Rollback(t *testing.T) {
-	testPool := SetupTestPool(t)
-	f := NewTestFixture(testPool.Pool)
-	ctx := context.Background()
-
-	_, team := f.CreateUserWithTeam(t, "rollback_award")
-
-	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	require.NoError(t, err)
-
-	f.CreateAwardTx(t, tx, team.Id, 200, "Rollback award")
-
-	err = tx.Rollback(ctx)
-	require.NoError(t, err)
-
-	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
-	require.NoError(t, err)
-	assert.Equal(t, 0, total)
-}
-
-// GetTeamTotalAwards Tests
-
-func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
-	testPool := SetupTestPool(t)
-	f := NewTestFixture(testPool.Pool)
-	ctx := context.Background()
-
-	_, team := f.CreateUserWithTeam(t, "total_award")
-
-	awards := []int{100, 50, -25, 75}
-	expectedTotal := 0
-	for i, value := range awards {
-		tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-		require.NoError(t, err)
-
-		f.CreateAwardTx(t, tx, team.Id, value, "Award "+string(rune('A'+i)))
-
-		err = tx.Commit(ctx)
-		require.NoError(t, err)
-
-		expectedTotal += value
+	award := &entity.Award{
+		TeamId:      team.Id,
+		Value:       100,
+		Description: "Test Bonus",
+		CreatedBy:   &admin.Id,
 	}
 
-	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
+	err := f.AwardRepo.Create(ctx, award)
 	require.NoError(t, err)
-	assert.Equal(t, expectedTotal, total)
+	assert.NotZero(t, award.Id)
+	assert.NotZero(t, award.CreatedAt)
 }
 
-func TestAwardRepo_GetTeamTotalAwards_NoAwards(t *testing.T) {
-	testPool := SetupTestPool(t)
-	f := NewTestFixture(testPool.Pool)
+func TestAwardRepo_GetByTeamID(t *testing.T) {
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	_, team := f.CreateUserWithTeam(t, "no_award")
+	admin := f.CreateUser(t, "admin_g")
+	_, team := f.CreateUserWithTeam(t, "team_get")
+
+	award1 := &entity.Award{TeamId: team.Id, Value: 10, Description: "First", CreatedBy: &admin.Id}
+	err := f.AwardRepo.Create(ctx, award1)
+	require.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
+
+	award2 := &entity.Award{TeamId: team.Id, Value: 20, Description: "Second", CreatedBy: &admin.Id}
+	err = f.AwardRepo.Create(ctx, award2)
+	require.NoError(t, err)
+
+	awards, err := f.AwardRepo.GetByTeamID(ctx, team.Id)
+	require.NoError(t, err)
+	require.Len(t, awards, 2)
+
+	assert.Equal(t, award2.Id, awards[0].Id)
+	assert.Equal(t, award1.Id, awards[1].Id)
+	assert.Equal(t, "Second", awards[0].Description)
+	assert.NotNil(t, awards[0].CreatedBy)
+	assert.Equal(t, admin.Id, *awards[0].CreatedBy)
+}
+
+func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	admin := f.CreateUser(t, "admin_t")
+	_, team := f.CreateUserWithTeam(t, "team_total")
 
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-}
 
-func TestAwardRepo_NegativeAward(t *testing.T) {
-	testPool := SetupTestPool(t)
-	f := NewTestFixture(testPool.Pool)
-	ctx := context.Background()
-
-	_, team := f.CreateUserWithTeam(t, "neg_award")
-
-	tx1, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	require.NoError(t, err)
-	f.CreateAwardTx(t, tx1, team.Id, 100, "Bonus")
-	err = tx1.Commit(ctx)
+	award1 := &entity.Award{TeamId: team.Id, Value: 100, Description: "Win", CreatedBy: &admin.Id}
+	err = f.AwardRepo.Create(ctx, award1)
 	require.NoError(t, err)
 
-	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	require.NoError(t, err)
-	f.CreateAwardTx(t, tx2, team.Id, -30, "Penalty for hint")
-	err = tx2.Commit(ctx)
+	award2 := &entity.Award{TeamId: team.Id, Value: -30, Description: "Penalty", CreatedBy: &admin.Id}
+	err = f.AwardRepo.Create(ctx, award2)
 	require.NoError(t, err)
 
-	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
+	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
 	require.NoError(t, err)
 	assert.Equal(t, 70, total)
 }

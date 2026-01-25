@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,6 +37,131 @@ type MockAwardRepository_Expecter struct {
 
 func (_m *MockAwardRepository) EXPECT() *MockAwardRepository_Expecter {
 	return &MockAwardRepository_Expecter{mock: &_m.Mock}
+}
+
+// Create provides a mock function for the type MockAwardRepository
+func (_mock *MockAwardRepository) Create(ctx context.Context, award *entity.Award) error {
+	ret := _mock.Called(ctx, award)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Create")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.Award) error); ok {
+		r0 = returnFunc(ctx, award)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockAwardRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
+type MockAwardRepository_Create_Call struct {
+	*mock.Call
+}
+
+// Create is a helper method to define mock.On call
+//   - ctx context.Context
+//   - award *entity.Award
+func (_e *MockAwardRepository_Expecter) Create(ctx interface{}, award interface{}) *MockAwardRepository_Create_Call {
+	return &MockAwardRepository_Create_Call{Call: _e.mock.On("Create", ctx, award)}
+}
+
+func (_c *MockAwardRepository_Create_Call) Run(run func(ctx context.Context, award *entity.Award)) *MockAwardRepository_Create_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.Award
+		if args[1] != nil {
+			arg1 = args[1].(*entity.Award)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockAwardRepository_Create_Call) Return(err error) *MockAwardRepository_Create_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockAwardRepository_Create_Call) RunAndReturn(run func(ctx context.Context, award *entity.Award) error) *MockAwardRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByTeamID provides a mock function for the type MockAwardRepository
+func (_mock *MockAwardRepository) GetByTeamID(ctx context.Context, teamId uuid.UUID) ([]*entity.Award, error) {
+	ret := _mock.Called(ctx, teamId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByTeamID")
+	}
+
+	var r0 []*entity.Award
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.Award, error)); ok {
+		return returnFunc(ctx, teamId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.Award); ok {
+		r0 = returnFunc(ctx, teamId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Award)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockAwardRepository_GetByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTeamID'
+type MockAwardRepository_GetByTeamID_Call struct {
+	*mock.Call
+}
+
+// GetByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamId uuid.UUID
+func (_e *MockAwardRepository_Expecter) GetByTeamID(ctx interface{}, teamId interface{}) *MockAwardRepository_GetByTeamID_Call {
+	return &MockAwardRepository_GetByTeamID_Call{Call: _e.mock.On("GetByTeamID", ctx, teamId)}
+}
+
+func (_c *MockAwardRepository_GetByTeamID_Call) Run(run func(ctx context.Context, teamId uuid.UUID)) *MockAwardRepository_GetByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockAwardRepository_GetByTeamID_Call) Return(awards []*entity.Award, err error) *MockAwardRepository_GetByTeamID_Call {
+	_c.Call.Return(awards, err)
+	return _c
+}
+
+func (_c *MockAwardRepository_GetByTeamID_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID) ([]*entity.Award, error)) *MockAwardRepository_GetByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetTeamTotalAwards provides a mock function for the type MockAwardRepository

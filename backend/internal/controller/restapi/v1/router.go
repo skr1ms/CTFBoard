@@ -21,6 +21,7 @@ func NewRouter(
 	hintUC *usecase.HintUseCase,
 	emailUC *usecase.EmailUseCase,
 	fileUC *usecase.FileUseCase,
+	awardUC *usecase.AwardUseCase,
 	jwtService *jwt.JWTService,
 	redisClient redis.Client,
 	validator validator.Validator,
@@ -34,9 +35,10 @@ func NewRouter(
 	NewUserRoutes(router, authRouter, userUC, emailUC, validator, logger, jwtService)
 	NewScoreboardRoutes(router, solveUC, logger)
 	NewChallengeRoutes(router, challengeUC, solveUC, userUC, competitionUC, validator, logger, jwtService, submitLimit, durationLimit)
-	NewTeamRoutes(router, teamUC, validator, logger, jwtService)
+	NewTeamRoutes(router, teamUC, userUC, validator, logger, jwtService)
 	NewCompetitionRoutes(router, competitionUC, validator, logger, jwtService)
 	NewHintRoutes(router, hintUC, userUC, validator, logger, jwtService)
 	NewEmailRoutes(authRouter, emailUC, validator, logger, jwtService, redisClient)
 	NewFileRoutes(router, fileUC, logger, jwtService)
+	NewAwardRoutes(router, awardUC, validator, logger, jwtService)
 }

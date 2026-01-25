@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 )
 
 type contextKey string
 
-const UserIDKey contextKey = "user_id"
 const UserRoleKey contextKey = "role"
 
 func Auth(jwtService *jwt.JWTService) func(http.Handler) http.Handler {
@@ -38,7 +38,7 @@ func Auth(jwtService *jwt.JWTService) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+			ctx := context.WithValue(r.Context(), httputil.UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -58,10 +58,7 @@ func Admin(next http.Handler) http.Handler {
 }
 
 func GetUserID(ctx context.Context) string {
-	if userID, ok := ctx.Value(UserIDKey).(string); ok {
-		return userID
-	}
-	return ""
+	return httputil.GetUserID(ctx)
 }
 
 func GetUserRole(ctx context.Context) string {

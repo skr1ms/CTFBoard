@@ -587,8 +587,8 @@ func (r *TxRepo) CreateAwardTx(ctx context.Context, tx pgx.Tx, a *entity.Award) 
 	a.CreatedAt = time.Now()
 
 	query := squirrel.Insert("awards").
-		Columns("id", "team_id", "value", "description", "created_at").
-		Values(a.Id, a.TeamId, a.Value, a.Description, a.CreatedAt).
+		Columns("id", "team_id", "value", "description", "created_by", "created_at").
+		Values(a.Id, a.TeamId, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()

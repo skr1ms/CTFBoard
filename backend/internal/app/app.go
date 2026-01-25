@@ -86,11 +86,12 @@ func Run(cfg *config.Config, l logger.Logger) {
 	go wsHub.SubscribeToRedis(context.Background())
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, redisClient, wsHub)
+	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, redisClient, wsHub)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	awardUC := usecase.NewAwardUseCase(awardRepo, redisClient)
 	var storageProvider storage.Provider
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
@@ -205,6 +206,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 			hintUC,
 			emailUC,
 			fileUC,
+			awardUC,
 			jwtService,
 			redisClient,
 			validator,

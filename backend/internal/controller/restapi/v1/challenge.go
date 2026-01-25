@@ -1,18 +1,16 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
-	"github.com/go-chi/render"
-	"github.com/google/uuid"
 	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
@@ -47,8 +45,8 @@ func NewChallengeRoutes(router chi.Router,
 		logger:        logger,
 	}
 
-	router.With(httpMiddleware.Auth(jwtService)).Get("/challenges", routes.GetAll)
-	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.CompetitionActive(competitionUC), httprate.LimitByIP(submitLimit, durationLimit)).Post("/challenges/{id}/submit", routes.SubmitFlag)
+	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.InjectUser(userUC)).Get("/challenges", routes.GetAll)
+	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.InjectUser(userUC), httpMiddleware.CompetitionActive(competitionUC), httprate.LimitByIP(submitLimit, durationLimit)).Post("/challenges/{id}/submit", routes.SubmitFlag)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Post("/admin/challenges", routes.Create)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Put("/admin/challenges/{id}", routes.Update)
 	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Delete("/admin/challenges/{id}", routes.Delete)
@@ -63,51 +61,22 @@ func NewChallengeRoutes(router chi.Router,
 // @Failure      401  {object}  ErrorResponse
 // @Router       /challenges [get]
 func (h *challengeRoutes) GetAll(w http.ResponseWriter, r *http.Request) {
-	userId := httpMiddleware.GetUserID(r.Context())
-	if userId == "" {
-		render.Status(r, http.StatusUnauthorized)
-		handleError(w, r, nil)
-		return
-	}
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	user, err := h.userUC.GetByID(r.Context(), userUUID)
-	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - GetAll - GetByID")
-		render.Status(r, http.StatusInternalServerError)
-		handleError(w, r, err)
+	user, ok := httpMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	challenges, err := h.challengeUC.GetAll(r.Context(), user.TeamId)
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - GetAll - GetAll")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	res := make([]response.ChallengeResponse, 0)
-	for _, cws := range challenges {
-		res = append(res, response.ChallengeResponse{
-			Id:          cws.Challenge.Id.String(),
-			Title:       cws.Challenge.Title,
-			Description: cws.Challenge.Description,
-			Category:    cws.Challenge.Category,
-			Points:      cws.Challenge.Points,
-			SolveCount:  cws.Challenge.SolveCount,
-			IsHidden:    cws.Challenge.IsHidden,
-			Solved:      cws.Solved,
-		})
-	}
+	res := response.FromChallengeList(challenges)
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }
 
 // @Summary      Submit flag
@@ -127,70 +96,37 @@ func (h *challengeRoutes) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Failure      429     {object}  ErrorResponse
 // @Router       /challenges/{id}/submit [post]
 func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "id")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, nil)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
-	challengeUUID, err := uuid.Parse(challengeId)
+	req, ok := httputil.DecodeAndValidate[request.SubmitFlagRequest](
+		w, r, h.validator, h.logger, "SubmitFlag",
+	)
+	if !ok {
+		return
+	}
+
+	user, ok := httpMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeUUID, req.Flag, user.Id, user.TeamId)
 	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	var req request.SubmitFlagRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - SubmitFlag - Decode")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - SubmitFlag - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	userId := httpMiddleware.GetUserID(r.Context())
-	if userId == "" {
-		render.Status(r, http.StatusUnauthorized)
-		handleError(w, r, nil)
-		return
-	}
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	user, err := h.userUC.GetByID(r.Context(), userUUID)
-	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - SubmitFlag - GetByID")
-		render.Status(r, http.StatusInternalServerError)
-		handleError(w, r, err)
-		return
-	}
-
-	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeUUID, req.Flag, userUUID, user.TeamId)
-	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - SubmitFlag - SubmitFlag")
+		h.logger.WithError(err).Error("http - v1 - SubmitFlag")
 		handleError(w, r, err)
 		return
 	}
 
 	if !valid {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]string{"error": "invalid flag"})
+		httputil.RenderError(w, r, http.StatusBadRequest, "invalid flag")
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "flag accepted"})
+	httputil.RenderOK(w, r, map[string]string{"message": "flag accepted"})
 }
 
 // @Summary      Create challenge
@@ -206,41 +142,23 @@ func (h *challengeRoutes) SubmitFlag(w http.ResponseWriter, r *http.Request) {
 // @Failure      403     {object}  ErrorResponse
 // @Router       /admin/challenges [post]
 func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
-	var req request.CreateChallengeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - Create - Decode")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - Create - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.CreateChallengeRequest](
+		w, r, h.validator, h.logger, "Create",
+	)
+	if !ok {
 		return
 	}
 
 	challenge, err := h.challengeUC.Create(r.Context(), req.Title, req.Description, req.Category, req.Points, req.InitialValue, req.MinValue, req.Decay, req.Flag, req.IsHidden)
 	if err != nil {
 		h.logger.WithError(err).Error("http - v1 - Create - Create")
-		render.Status(r, http.StatusInternalServerError)
 		handleError(w, r, err)
 		return
 	}
 
-	res := response.ChallengeResponse{
-		Id:          challenge.Id.String(),
-		Title:       challenge.Title,
-		Description: challenge.Description,
-		Category:    challenge.Category,
-		Points:      challenge.Points,
-		SolveCount:  challenge.SolveCount,
-		IsHidden:    challenge.IsHidden,
-	}
+	res := response.FromChallenge(challenge)
 
-	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, res)
+	httputil.RenderCreated(w, r, res)
 }
 
 // @Summary      Delete challenge
@@ -254,28 +172,19 @@ func (h *challengeRoutes) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure      404  {object}  ErrorResponse
 // @Router       /admin/challenges/{id} [delete]
 func (h *challengeRoutes) Delete(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "id")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, nil)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
-	challengeUUID, err := uuid.Parse(challengeId)
+	err := h.challengeUC.Delete(r.Context(), challengeUUID)
 	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	err = h.challengeUC.Delete(r.Context(), challengeUUID)
-	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - Delete - Delete")
-		render.Status(r, http.StatusNotFound)
+		h.logger.WithError(err).Error("http - v1 - Delete")
 		handleError(w, r, err)
 		return
 	}
 
-	render.Status(r, http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
 // @Summary      Update challenge
@@ -293,31 +202,15 @@ func (h *challengeRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure      404     {object}  ErrorResponse
 // @Router       /admin/challenges/{id} [put]
 func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
-	challengeId := chi.URLParam(r, "id")
-	if challengeId == "" {
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, nil)
+	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
-	challengeUUID, err := uuid.Parse(challengeId)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
-
-	var req request.UpdateChallengeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - Update - Decode")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("http - v1 - Update - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.UpdateChallengeRequest](
+		w, r, h.validator, h.logger, "Update",
+	)
+	if !ok {
 		return
 	}
 
@@ -328,16 +221,7 @@ func (h *challengeRoutes) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.ChallengeResponse{
-		Id:          challenge.Id.String(),
-		Title:       challenge.Title,
-		Description: challenge.Description,
-		Category:    challenge.Category,
-		Points:      challenge.Points,
-		SolveCount:  challenge.SolveCount,
-		IsHidden:    challenge.IsHidden,
-	}
+	res := response.FromChallenge(challenge)
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }

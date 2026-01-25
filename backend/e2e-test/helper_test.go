@@ -175,12 +175,13 @@ func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) 
 	})
 }
 
-func (h *E2EHelper) SubmitFlag(token, challengeId, flag string, expectStatus int) {
-	h.e.POST("/api/v1/challenges/{id}/submit", challengeId).
+func (h *E2EHelper) SubmitFlag(token, challengeId, flag string, expectStatus int) *httpexpect.Object {
+	return h.e.POST("/api/v1/challenges/{id}/submit", challengeId).
 		WithHeader("Authorization", token).
 		WithJSON(map[string]string{"flag": flag}).
 		Expect().
-		Status(expectStatus)
+		Status(expectStatus).
+		JSON().Object()
 }
 
 func (h *E2EHelper) FindChallengeInList(token, challengeId string) *httpexpect.Object {
@@ -231,6 +232,18 @@ func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 		Status(http.StatusOK)
 }
 
+func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
+	now := time.Now().UTC()
+	h.UpdateCompetition(token, map[string]any{
+		"name":       "Test CTF",
+		"is_public":  true,
+		"flag_regex": regex,
+		"start_time": now.Add(-1 * time.Hour),
+		"end_time":   now.Add(24 * time.Hour),
+		"is_paused":  false,
+	})
+}
+
 func (h *E2EHelper) StartCompetition(adminToken string) {
 	now := time.Now().UTC()
 	resp := h.e.PUT("/api/v1/admin/competition").
@@ -244,6 +257,29 @@ func (h *E2EHelper) StartCompetition(adminToken string) {
 		Expect()
 
 	resp.Status(http.StatusOK)
+}
+
+func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
+	suffix := time.Now().Format("150405")
+	username := adminNamePrefix + "_" + suffix
+	_, _, token := h.RegisterAdmin(username)
+	h.StartCompetition(token)
+	return username, token
+}
+
+func (h *E2EHelper) UpdateChallenge(token, challengeID string, data map[string]any) {
+	h.e.PUT("/api/v1/admin/challenges/{id}", challengeID).
+		WithHeader("Authorization", token).
+		WithJSON(data).
+		Expect().
+		Status(http.StatusOK)
+}
+
+func (h *E2EHelper) DeleteChallenge(token, challengeID string) {
+	h.e.DELETE("/api/v1/admin/challenges/{id}", challengeID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusNoContent)
 }
 
 // First Blood Helpers

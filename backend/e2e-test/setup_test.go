@@ -274,10 +274,11 @@ func startTestServer() (func(), error) {
 	// UseCases
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
 	compUC := usecase.NewCompetitionUseCase(compRepo, TestRedis)
-	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, TestRedis, nil)
+	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, compRepo, txRepo, TestRedis, nil)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
+	awardUC := usecase.NewAwardUseCase(awardRepo, TestRedis)
 	emailUC := usecase.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
 
 	// File Storage (E2E uses local temp dir)
@@ -303,7 +304,7 @@ func startTestServer() (func(), error) {
 	})
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, awardUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

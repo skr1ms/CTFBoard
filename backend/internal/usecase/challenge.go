@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,15 +21,17 @@ type ChallengeUseCase struct {
 	challengeRepo repo.ChallengeRepository
 	solveRepo     repo.SolveRepository
 	txRepo        repo.TxRepository
+	compRepo      repo.CompetitionRepository
 	redis         pkgRedis.Client
 	hub           *websocket.Hub
 }
 
-func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, txRepo repo.TxRepository, redis pkgRedis.Client, hub *websocket.Hub) *ChallengeUseCase {
+func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, txRepo repo.TxRepository, compRepo repo.CompetitionRepository, redis pkgRedis.Client, hub *websocket.Hub) *ChallengeUseCase {
 	return &ChallengeUseCase{
 		challengeRepo: challengeRepo,
 		solveRepo:     solveRepo,
 		txRepo:        txRepo,
+		compRepo:      compRepo,
 		redis:         redis,
 		hub:           hub,
 	}
@@ -110,6 +113,16 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUID, flag string, userId uuid.UUID, teamId *uuid.UUID) (bool, error) {
 	if teamId == nil {
 		return false, entityError.ErrUserMustBeInTeam
+	}
+
+	if uc.compRepo != nil {
+		comp, err := uc.compRepo.Get(ctx)
+		if err == nil && comp.FlagRegex != nil && *comp.FlagRegex != "" {
+			matched, _ := regexp.MatchString(*comp.FlagRegex, flag)
+			if !matched {
+				return false, entityError.ErrInvalidFlagFormat
+			}
+		}
 	}
 
 	challenge, err := uc.challengeRepo.GetByID(ctx, challengeId)

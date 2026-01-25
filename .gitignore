@@ -44,5 +44,6 @@ out/
 .sass-cache/
 backend/cmd/app/app
 backend/app
-backend/FUTURES.md
+FUTURES.md
+backend.resolved
 CTFd/

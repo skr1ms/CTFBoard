@@ -1,16 +1,14 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
-	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
@@ -40,7 +38,7 @@ func NewUserRoutes(router chi.Router,
 
 	authRouter.Post("/register", routes.Register)
 	authRouter.Post("/login", routes.Login)
-	authRouter.With(restapiMiddleware.Auth(jwtService)).Get("/me", routes.Me)
+	authRouter.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Get("/me", routes.Me)
 
 	router.Get("/users/{id}", routes.GetProfile)
 }
@@ -56,25 +54,16 @@ func NewUserRoutes(router chi.Router,
 // @Failure      409  {object}  ErrorResponse
 // @Router       /auth/register [post]
 func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
-	var req request.RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Register - Decode")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Register - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.RegisterRequest](
+		w, r, h.validator, h.logger, "Register",
+	)
+	if !ok {
 		return
 	}
 
 	user, err := h.userUC.Register(r.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - Register - Register")
-		render.Status(r, http.StatusConflict)
 		handleError(w, r, err)
 		return
 	}
@@ -83,15 +72,9 @@ func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 		h.logger.WithError(err).Error("restapi - v1 - Register - SendVerificationEmail")
 	}
 
-	res := response.RegisterResponse{
-		Id:       user.Id.String(),
-		Username: user.Username,
-		Email:    user.Email,
-		CreateAt: user.CreatedAt,
-	}
+	res := response.FromUserForRegister(user)
 
-	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, res)
+	httputil.RenderCreated(w, r, res)
 }
 
 // @Summary      User login
@@ -105,31 +88,21 @@ func (h *userRoutes) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  ErrorResponse
 // @Router       /auth/login [post]
 func (h *userRoutes) Login(w http.ResponseWriter, r *http.Request) {
-	var req request.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Login - Decode")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Login - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.LoginRequest](
+		w, r, h.validator, h.logger, "Login",
+	)
+	if !ok {
 		return
 	}
 
 	tokenPair, err := h.userUC.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - Login - Login")
-		render.Status(r, http.StatusUnauthorized)
 		handleError(w, r, err)
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, tokenPair)
+	httputil.RenderOK(w, r, tokenPair)
 }
 
 // @Summary      Get current user info
@@ -141,42 +114,15 @@ func (h *userRoutes) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  ErrorResponse
 // @Router       /auth/me [get]
 func (h *userRoutes) Me(w http.ResponseWriter, r *http.Request) {
-	userId := restapiMiddleware.GetUserID(r.Context())
-	if userId == "" {
-		render.Status(r, http.StatusUnauthorized)
-		handleError(w, r, nil)
+	user, ok := restapiMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "user not found in context")
 		return
 	}
 
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return
-	}
+	res := response.FromUserForMe(user)
 
-	user, err := h.userUC.GetByID(r.Context(), userUUID)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Me - GetByID")
-		handleError(w, r, err)
-		return
-	}
-
-	var teamIdStr *string
-	if user.TeamId != nil {
-		s := user.TeamId.String()
-		teamIdStr = &s
-	}
-
-	res := response.MeResponse{
-		Id:       user.Id.String(),
-		Username: user.Username,
-		Email:    user.Email,
-		TeamId:   teamIdStr,
-		CreateAt: user.CreatedAt,
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }
 
 // @Summary      Get user profile
@@ -188,16 +134,8 @@ func (h *userRoutes) Me(w http.ResponseWriter, r *http.Request) {
 // @Failure      404  {object}  ErrorResponse
 // @Router       /users/{id} [get]
 func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userId := chi.URLParam(r, "id")
-	if userId == "" {
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, nil)
-		return
-	}
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	userUUID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
 		return
 	}
 
@@ -208,29 +146,7 @@ func (h *userRoutes) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var solves []response.SolveResponse
-	for _, solve := range profile.Solves {
-		solves = append(solves, response.SolveResponse{
-			Id:          solve.Id.String(),
-			ChallengeId: solve.ChallengeId.String(),
-			SolvedAt:    solve.SolvedAt,
-		})
-	}
+	res := response.FromUserProfile(profile)
 
-	var teamIdStr *string
-	if profile.User.TeamId != nil {
-		s := profile.User.TeamId.String()
-		teamIdStr = &s
-	}
-
-	res := response.UserProfileResponse{
-		Id:       profile.User.Id.String(),
-		Username: profile.User.Username,
-		TeamId:   teamIdStr,
-		CreateAt: profile.User.CreatedAt,
-		Solves:   solves,
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, res)
 }

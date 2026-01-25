@@ -22,9 +22,10 @@ type HintUnlock struct {
 }
 
 type Award struct {
-	Id          uuid.UUID `json:"id"`
-	TeamId      uuid.UUID `json:"team_id"`
-	Value       int       `json:"value"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
+	Id          uuid.UUID  `json:"id"`
+	TeamId      uuid.UUID  `json:"team_id"`
+	Value       int        `json:"value"`
+	Description string     `json:"description"`
+	CreatedBy   *uuid.UUID `json:"created_by,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
 }

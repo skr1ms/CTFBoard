@@ -3,10 +3,12 @@ package persistent
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 type AwardRepo struct {
@@ -35,4 +37,64 @@ func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (i
 	}
 
 	return total, nil
+}
+
+func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
+	a.Id = uuid.New()
+	a.CreatedAt = time.Now()
+
+	query := squirrel.Insert("awards").
+		Columns("id", "team_id", "value", "description", "created_by", "created_at").
+		Values(a.Id, a.TeamId, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("AwardRepo - Create - BuildQuery: %w", err)
+	}
+
+	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("AwardRepo - Create - Exec: %w", err)
+	}
+
+	return nil
+}
+
+func (r *AwardRepo) GetByTeamID(ctx context.Context, teamId uuid.UUID) ([]*entity.Award, error) {
+	query := squirrel.Select("id", "team_id", "value", "description", "created_by", "created_at").
+		From("awards").
+		Where(squirrel.Eq{"team_id": teamId}).
+		OrderBy("created_at DESC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetByTeamID - BuildQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetByTeamID - Query: %w", err)
+	}
+	defer rows.Close()
+
+	var awards []*entity.Award
+	for rows.Next() {
+		var a entity.Award
+		err := rows.Scan(
+			&a.Id,
+			&a.TeamId,
+			&a.Value,
+			&a.Description,
+			&a.CreatedBy,
+			&a.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("AwardRepo - GetByTeamID - Scan: %w", err)
+		}
+		awards = append(awards, &a)
+	}
+
+	return awards, nil
 }

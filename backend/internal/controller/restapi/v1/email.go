@@ -2,19 +2,17 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
-	"github.com/google/uuid"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/redis"
@@ -92,8 +90,7 @@ func getRealIP(r *http.Request) string {
 func (h *emailRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, ErrorResponse{Error: "token is required"})
+		httputil.RenderError(w, r, http.StatusBadRequest, "token is required")
 		return
 	}
 
@@ -103,23 +100,18 @@ func (h *emailRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 		switch err {
 		case entityError.ErrTokenNotFound:
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, ErrorResponse{Error: "invalid token"})
+			httputil.RenderError(w, r, http.StatusNotFound, "invalid token")
 		case entityError.ErrTokenExpired:
-			render.Status(r, http.StatusGone)
-			render.JSON(w, r, ErrorResponse{Error: "token expired"})
+			httputil.RenderError(w, r, http.StatusGone, "token expired")
 		case entityError.ErrTokenAlreadyUsed:
-			render.Status(r, http.StatusConflict)
-			render.JSON(w, r, ErrorResponse{Error: "token already used"})
+			httputil.RenderError(w, r, http.StatusConflict, "token already used")
 		default:
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, ErrorResponse{Error: "internal server error"})
+			httputil.RenderError(w, r, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "email verified successfully"})
+	httputil.RenderOK(w, r, map[string]string{"message": "email verified successfully"})
 }
 
 // @Summary      Request password reset
@@ -137,23 +129,14 @@ func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	ip := getRealIP(r)
 	key := "ratelimit:forgot:" + ip
 	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
-		render.Status(r, http.StatusTooManyRequests)
-		render.JSON(w, r, ErrorResponse{Error: "too many requests"})
+		httputil.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
 		return
 	}
 
-	var req request.ForgotPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - Decode")
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, ErrorResponse{Error: "invalid request body"})
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.ForgotPasswordRequest](
+		w, r, h.validator, h.logger, "ForgotPassword",
+	)
+	if !ok {
 		return
 	}
 
@@ -161,8 +144,7 @@ func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - SendPasswordResetEmail")
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "if an account exists with this email, a password reset link has been sent"})
+	httputil.RenderOK(w, r, map[string]string{"message": "if an account exists with this email, a password reset link has been sent"})
 }
 
 // @Summary      Reset password
@@ -176,18 +158,10 @@ func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 // @Failure      410  {object}  ErrorResponse
 // @Router       /auth/reset-password [post]
 func (h *emailRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	var req request.ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - ResetPassword - Decode")
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, ErrorResponse{Error: "invalid request body"})
-		return
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - ResetPassword - Validate")
-		render.Status(r, http.StatusBadRequest)
-		handleError(w, r, err)
+	req, ok := httputil.DecodeAndValidate[request.ResetPasswordRequest](
+		w, r, h.validator, h.logger, "ResetPassword",
+	)
+	if !ok {
 		return
 	}
 
@@ -197,23 +171,18 @@ func (h *emailRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 		switch err {
 		case entityError.ErrTokenNotFound:
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, ErrorResponse{Error: "invalid token"})
+			httputil.RenderError(w, r, http.StatusNotFound, "invalid token")
 		case entityError.ErrTokenExpired:
-			render.Status(r, http.StatusGone)
-			render.JSON(w, r, ErrorResponse{Error: "token expired"})
+			httputil.RenderError(w, r, http.StatusGone, "token expired")
 		case entityError.ErrTokenAlreadyUsed:
-			render.Status(r, http.StatusConflict)
-			render.JSON(w, r, ErrorResponse{Error: "token already used"})
+			httputil.RenderError(w, r, http.StatusConflict, "token already used")
 		default:
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, ErrorResponse{Error: "internal server error"})
+			httputil.RenderError(w, r, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "password reset successfully"})
+	httputil.RenderOK(w, r, map[string]string{"message": "password reset successfully"})
 }
 
 // @Summary      Resend verification email
@@ -225,34 +194,23 @@ func (h *emailRoutes) ResetPassword(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  ErrorResponse
 // @Router       /auth/resend-verification [post]
 func (h *emailRoutes) ResendVerification(w http.ResponseWriter, r *http.Request) {
-	userId := restapiMiddleware.GetUserID(r.Context())
-	if userId == "" {
-		render.Status(r, http.StatusUnauthorized)
-		render.JSON(w, r, ErrorResponse{Error: "unauthorized"})
-		return
-	}
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		RenderInvalidID(w, r)
+	userUUID, ok := httputil.ParseAuthUserID(w, r)
+	if !ok {
 		return
 	}
 
 	// Rate Limit: 10 requests per day per user (resend)
-	key := "ratelimit:resend:" + userId
+	key := "ratelimit:resend:" + userUUID.String()
 	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
-		render.Status(r, http.StatusTooManyRequests)
-		render.JSON(w, r, ErrorResponse{Error: "too many requests"})
+		httputil.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
 		return
 	}
 
 	if err := h.emailUC.ResendVerification(r.Context(), userUUID); err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - ResendVerification")
-		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, ErrorResponse{Error: "failed to resend verification email"})
+		httputil.RenderError(w, r, http.StatusInternalServerError, "failed to resend verification email")
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "verification email sent"})
+	httputil.RenderOK(w, r, map[string]string{"message": "verification email sent"})
 }

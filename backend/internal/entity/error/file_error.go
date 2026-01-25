@@ -1,7 +1,14 @@
 package entityError
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var (
-	ErrFileNotFound = errors.New("file not found")
+	ErrFileNotFound = &HTTPError{
+		Err:        errors.New("file not found"),
+		StatusCode: http.StatusNotFound,
+		Code:       "FILE_NOT_FOUND",
+	}
 )

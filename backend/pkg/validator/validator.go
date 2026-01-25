@@ -74,7 +74,7 @@ func validateStrongPassword(fl validator.FieldLevel) bool {
 // Username validation
 func ValidateUsernameField(fl validator.FieldLevel) bool {
 	username := fl.Field().String()
-	if username == "" || len(username) > 20 {
+	if username == "" || len(username) > 32 {
 		return false
 	}
 	return usernameRegex.MatchString(username)

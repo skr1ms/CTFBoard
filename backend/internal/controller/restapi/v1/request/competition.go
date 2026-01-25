@@ -1,6 +1,10 @@
 package request
 
-import "time"
+import (
+	"time"
+
+	"github.com/skr1ms/CTFBoard/internal/entity"
+)
 
 type UpdateCompetitionRequest struct {
 	Name       string     `json:"name" validate:"required,min=1,max=100"`
@@ -9,4 +13,18 @@ type UpdateCompetitionRequest struct {
 	FreezeTime *time.Time `json:"freeze_time"`
 	IsPaused   bool       `json:"is_paused"`
 	IsPublic   bool       `json:"is_public"`
+	FlagRegex  *string    `json:"flag_regex"`
+}
+
+func (r *UpdateCompetitionRequest) ToCompetition(id int) *entity.Competition {
+	return &entity.Competition{
+		Id:         id,
+		Name:       r.Name,
+		StartTime:  r.StartTime,
+		EndTime:    r.EndTime,
+		FreezeTime: r.FreezeTime,
+		IsPaused:   r.IsPaused,
+		IsPublic:   r.IsPublic,
+		FlagRegex:  r.FlagRegex,
+	}
 }
