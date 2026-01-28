@@ -40,15 +40,6 @@ packages:
           pkgname: "mocks"
           structname: "MockLogger"
 
-  github.com/skr1ms/CTFBoard/pkg/redis:
-    interfaces:
-      Client:
-        config:
-          dir: "internal/usecase/mocks"
-          filename: "RedisClient.go"
-          pkgname: "mocks"
-          structname: "MockRedisClient"
-
   github.com/skr1ms/CTFBoard/pkg/websocket:
     interfaces:
       Conn:
@@ -66,6 +57,15 @@ packages:
           filename: "Mailer.go"
           pkgname: "mocks"
           structname: "MockMailer"
+  
+  github.com/skr1ms/CTFBoard/pkg/crypto:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/usecase/mocks"
+          filename: "CryptoService.go"
+          pkgname: "mocks"
+          structname: "MockCryptoService"
   
   github.com/skr1ms/CTFBoard/internal/storage:
     interfaces:

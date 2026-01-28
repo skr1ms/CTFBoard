@@ -11,7 +11,10 @@ CREATE TABLE challenges (
     initial_value INT NOT NULL DEFAULT 500,
     min_value INT NOT NULL DEFAULT 100,
     decay INT NOT NULL DEFAULT 20,
-    solve_count INT NOT NULL DEFAULT 0
+    solve_count INT NOT NULL DEFAULT 0,
+    is_regex BOOLEAN DEFAULT FALSE,
+    is_case_insensitive BOOLEAN DEFAULT FALSE,
+    flag_regex TEXT
 );
 
 CREATE TABLE teams (
@@ -66,6 +69,7 @@ CREATE TABLE competition (
     freeze_time TIMESTAMP NULL,
     is_paused BOOLEAN DEFAULT FALSE,
     is_public BOOLEAN DEFAULT TRUE,
+    flag_regex TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -90,6 +94,7 @@ CREATE TABLE awards (
     team_id UUID NOT NULL,
     value INT NOT NULL,
     description VARCHAR(255) NOT NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -111,6 +116,17 @@ CREATE TABLE team_audit_log (
     team_id UUID NOT NULL,
     user_id UUID NOT NULL,
     action VARCHAR(50) NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(50),
+    ip VARCHAR(45),
     details JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -147,6 +163,12 @@ CREATE INDEX idx_verification_expires ON verification_tokens (expires_at);
 CREATE INDEX idx_files_challenge_id ON files (challenge_id);
 
 CREATE INDEX idx_files_type ON files (type);
+
+CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
+
+CREATE INDEX idx_audit_logs_entity_type ON audit_logs (entity_type);
+
+CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 
 -- Constraint
 
@@ -203,3 +225,7 @@ ADD CONSTRAINT fk_team_audit_log_team FOREIGN KEY (team_id) REFERENCES teams (id
 
 ALTER TABLE team_audit_log
 ADD CONSTRAINT fk_team_audit_log_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+
+-- Audit Logs
+ALTER TABLE audit_logs
+ADD CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL;

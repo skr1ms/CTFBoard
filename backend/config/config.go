@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/vault"
 )
@@ -13,6 +14,7 @@ import (
 type (
 	Config struct {
 		App       `yaml:"app"`
+		Admin     `yaml:"admin"`
 		HTTP      `yaml:"http"`
 		DB        `yaml:"postgres"`
 		JWT       `yaml:"jwt"`
@@ -23,10 +25,17 @@ type (
 	}
 
 	App struct {
-		Name     string
-		Version  string
-		ChiMode  string
-		LogLevel string
+		Name              string
+		Version           string
+		ChiMode           string
+		LogLevel          string
+		FlagEncryptionKey string
+	}
+
+	Admin struct {
+		Username string
+		Email    string
+		Password string
 	}
 
 	HTTP struct {
@@ -100,6 +109,7 @@ func New() (*Config, error) {
 	appVersion := getEnv("APP_VERSION", "1.0.0")
 	chiMode := getEnv("CHI_MODE", "release")
 	logLevel := getEnv("LOG_LEVEL", "info")
+	flagEncryptionKey := getEnv("FLAG_ENCRYPTION_KEY", "")
 	backendPort := getEnv("BACKEND_PORT", "8080")
 	migrationsPath := getEnv("MIGRATIONS_PATH", "migrations")
 	postgresHost := getEnv("POSTGRES_HOST", "postgres")
@@ -107,7 +117,6 @@ func New() (*Config, error) {
 	redisHost := getEnv("REDIS_HOST", "redis")
 	redisPort := getEnv("REDIS_PORT", "6379")
 	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
-
 	postgresUser := getEnv("POSTGRES_USER", "")
 	postgresPassword := getEnv("POSTGRES_PASSWORD", "")
 	postgresDB := getEnv("POSTGRES_DB", "")
@@ -117,6 +126,9 @@ func New() (*Config, error) {
 	resendAPIKey := getEnv("RESEND_API_KEY", "")
 	s3AccessKey := getEnv("STORAGE_S3_ACCESS_KEY", "")
 	s3SecretKey := getEnv("STORAGE_S3_SECRET_KEY", "")
+	adminUsername := getEnv("ADMIN_USERNAME", "")
+	adminEmail := getEnv("ADMIN_EMAIL", "")
+	adminPassword := getEnv("ADMIN_PASSWORD", "")
 
 	var lvl logger.Level
 	switch logLevel {
@@ -147,7 +159,7 @@ func New() (*Config, error) {
 			dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
 			if err == nil {
 				l.Info("Config: database secrets loaded from Vault")
-				if u, ok := dbSecrets["user"].(string); ok && u != "" {
+				if u, ok := dbSecrets[entity.RoleUser].(string); ok && u != "" {
 					postgresUser = u
 				}
 				if p, ok := dbSecrets["password"].(string); ok && p != "" {
@@ -209,6 +221,34 @@ func New() (*Config, error) {
 			} else {
 				l.WithError(err).Warn("Config: failed to load storage secrets from Vault (optional)")
 			}
+
+			// App secrets (encryption keys)
+			appSecrets, err := vaultClient.GetSecret("ctfboard/app")
+			if err == nil {
+				l.Info("Config: app secrets loaded from Vault")
+				if key, ok := appSecrets["flag_encryption_key"].(string); ok && key != "" {
+					flagEncryptionKey = key
+				}
+			} else {
+				l.WithError(err).Warn("Config: failed to load app secrets from Vault, using env")
+			}
+
+			// Admin secrets (default admin credentials)
+			adminSecrets, err := vaultClient.GetSecret("ctfboard/admin")
+			if err == nil {
+				l.Info("Config: admin secrets loaded from Vault")
+				if u, ok := adminSecrets["username"].(string); ok && u != "" {
+					adminUsername = u
+				}
+				if e, ok := adminSecrets["email"].(string); ok && e != "" {
+					adminEmail = e
+				}
+				if p, ok := adminSecrets["password"].(string); ok && p != "" {
+					adminPassword = p
+				}
+			} else {
+				l.WithError(err).Warn("Config: failed to load admin secrets from Vault, using env (optional)")
+			}
 		} else {
 			l.WithError(err).Error("Config: failed to initialize vault client")
 		}
@@ -224,13 +264,22 @@ func New() (*Config, error) {
 	if redisPassword == "" {
 		return nil, fmt.Errorf("required redis configuration is missing (env or vault)")
 	}
+	if flagEncryptionKey == "" {
+		return nil, fmt.Errorf("required flag encryption key is missing (env or vault) - needed for regex challenges")
+	}
 
 	cfg := &Config{
 		App: App{
-			Name:     appName,
-			Version:  appVersion,
-			ChiMode:  chiMode,
-			LogLevel: logLevel,
+			Name:              appName,
+			Version:           appVersion,
+			ChiMode:           chiMode,
+			LogLevel:          logLevel,
+			FlagEncryptionKey: flagEncryptionKey,
+		},
+		Admin: Admin{
+			Username: adminUsername,
+			Email:    adminEmail,
+			Password: adminPassword,
 		},
 		HTTP: HTTP{
 			Port:        backendPort,

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +14,7 @@ func TestJWTService_GenerateTokenPair_Success(t *testing.T) {
 	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", "admin")
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pair.AccessToken)
 	assert.NotEmpty(t, pair.RefreshToken)
@@ -24,7 +25,7 @@ func TestJWTService_ValidateAccessToken_Success(t *testing.T) {
 	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
 	userID := uuid.New()
 
-	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", "admin")
+	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 
 	claims, err := service.ValidateAccessToken(pair.AccessToken)
 	assert.NoError(t, err)
@@ -38,7 +39,7 @@ func TestJWTService_ValidateAccessToken_InvalidSignature(t *testing.T) {
 	service2 := jwt.NewJWTService("secret-2", "refresh-2", time.Hour, time.Hour)
 	userID := uuid.New()
 
-	pair, _ := service1.GenerateTokenPair(userID, "test@example.com", "Test User", "admin")
+	pair, _ := service1.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 
 	// Validate with wrong secret
 	claims, err := service2.ValidateAccessToken(pair.AccessToken)
@@ -50,7 +51,7 @@ func TestJWTService_ValidateRefreshToken_Success(t *testing.T) {
 	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
 	userID := uuid.New()
 
-	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", "admin")
+	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 
 	claims, err := service.ValidateRefreshToken(pair.RefreshToken)
 	assert.NoError(t, err)
@@ -62,7 +63,7 @@ func TestJWTService_RefreshTokens_Success(t *testing.T) {
 	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
 	userID := uuid.New()
 
-	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", "admin")
+	pair, _ := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 
 	time.Sleep(1 * time.Second)
 

@@ -1,13 +1,11 @@
 package v1
 
 import (
-	"context"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/redis/go-redis/v9"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -15,7 +13,6 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
@@ -23,7 +20,7 @@ type emailRoutes struct {
 	emailUC   *usecase.EmailUseCase
 	validator validator.Validator
 	logger    logger.Logger
-	redis     redis.Client
+	redis     *redis.Client
 }
 
 func NewEmailRoutes(
@@ -32,7 +29,7 @@ func NewEmailRoutes(
 	validator validator.Validator,
 	logger logger.Logger,
 	jwtService *jwt.JWTService,
-	redisClient redis.Client,
+	redisClient *redis.Client,
 ) {
 	routes := emailRoutes{
 		emailUC:   emailUC,
@@ -45,37 +42,6 @@ func NewEmailRoutes(
 	authRouter.Post("/forgot-password", routes.ForgotPassword)
 	authRouter.Post("/reset-password", routes.ResetPassword)
 	authRouter.With(restapiMiddleware.Auth(jwtService)).Post("/resend-verification", routes.ResendVerification)
-}
-
-// Helper function for rate limiting
-func (h *emailRoutes) checkRateLimit(ctx context.Context, key string, limit int, duration time.Duration) bool {
-	count, err := h.redis.Incr(ctx, key).Result()
-	if err != nil {
-		h.logger.WithError(err).Error("emailRoutes - checkRateLimit - Incr")
-		return true // Fail open to avoid blocking users on redis error
-	}
-
-	h.redis.Expire(ctx, key, duration)
-
-	return count <= int64(limit)
-}
-
-func getRealIP(r *http.Request) string {
-	ip := r.Header.Get("X-Real-IP")
-	if ip == "" {
-		ip = r.Header.Get("X-Forwarded-For")
-		if ip != "" {
-			parts := strings.Split(ip, ",")
-			ip = strings.TrimSpace(parts[0])
-		}
-	}
-	if ip == "" {
-		ip, _, _ = net.SplitHostPort(r.RemoteAddr)
-		if ip == "" {
-			ip = r.RemoteAddr
-		}
-	}
-	return ip
 }
 
 // @Summary      Verify email
@@ -125,10 +91,15 @@ func (h *emailRoutes) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 // @Failure      429  {object}  ErrorResponse
 // @Router       /auth/forgot-password [post]
 func (h *emailRoutes) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	// Rate Limit: 10 requests per day per user (forgot password)
-	ip := getRealIP(r)
-	key := "ratelimit:forgot:" + ip
-	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
+	// Rate Limit: 10 requests per day per IP (forgot password)
+	ip := httputil.GetClientIP(r)
+	allowed, err := restapiMiddleware.CheckRateLimit(r.Context(), h.redis, "forgot", ip, 10, 24*time.Hour)
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - ForgotPassword - CheckRateLimit")
+		httputil.RenderError(w, r, http.StatusInternalServerError, "rate limit check failed")
+		return
+	}
+	if !allowed {
 		httputil.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
 		return
 	}
@@ -200,8 +171,13 @@ func (h *emailRoutes) ResendVerification(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Rate Limit: 10 requests per day per user (resend)
-	key := "ratelimit:resend:" + userUUID.String()
-	if !h.checkRateLimit(r.Context(), key, 10, 24*time.Hour) {
+	allowed, err := restapiMiddleware.CheckRateLimit(r.Context(), h.redis, "resend", userUUID.String(), 10, 24*time.Hour)
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - ResendVerification - CheckRateLimit")
+		httputil.RenderError(w, r, http.StatusInternalServerError, "rate limit check failed")
+		return
+	}
+	if !allowed {
 		httputil.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
 		return
 	}

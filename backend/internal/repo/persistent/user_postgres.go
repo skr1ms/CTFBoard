@@ -49,7 +49,7 @@ func scanUser(row rowScanner) (*entity.User, error) {
 
 func (r *UserRepo) Create(ctx context.Context, u *entity.User) error {
 	if u.Role == "" {
-		u.Role = "user"
+		u.Role = entity.RoleUser
 	}
 	u.Id = uuid.New()
 	u.CreatedAt = time.Now()

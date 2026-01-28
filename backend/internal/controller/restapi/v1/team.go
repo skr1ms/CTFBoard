@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/httprate"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
@@ -31,6 +31,7 @@ func NewTeamRoutes(router chi.Router,
 	validator validator.Validator,
 	logger logger.Logger,
 	jwtService *jwt.JWTService,
+	redisClient *redis.Client,
 ) {
 	routes := teamRoutes{
 		teamUC:    teamUC,
@@ -39,10 +40,18 @@ func NewTeamRoutes(router chi.Router,
 		logger:    logger,
 	}
 
+	joinLimit := restapiMiddleware.RateLimit(redisClient, "team:join", 10, 1*time.Minute, func(r *http.Request) (string, error) {
+		return httputil.GetClientIP(r), nil
+	})
+
+	transferLimit := restapiMiddleware.RateLimit(redisClient, "team:transfer", 10, 1*time.Hour, func(r *http.Request) (string, error) {
+		return httputil.GetClientIP(r), nil
+	})
+
 	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Post("/teams", routes.Create)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), httprate.LimitByIP(10, 1*time.Minute)).Post("/teams/join", routes.Join)
+	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), joinLimit).Post("/teams/join", routes.Join)
 	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Post("/teams/leave", routes.Leave)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), httprate.LimitByIP(10, 1*time.Hour)).Post("/teams/transfer-captain", routes.TransferCaptain)
+	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), transferLimit).Post("/teams/transfer-captain", routes.TransferCaptain)
 	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Get("/teams/my", routes.GetMyTeam)
 	router.With(restapiMiddleware.Auth(jwtService)).Get("/teams/{id}", routes.GetByID)
 }

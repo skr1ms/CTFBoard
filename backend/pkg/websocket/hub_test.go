@@ -1,15 +1,12 @@
 package websocket
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
+	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestHub_Run_RegisterUnregister(t *testing.T) {
@@ -58,8 +55,8 @@ func TestHub_Broadcast(t *testing.T) {
 }
 
 func TestHub_BroadcastEvent_Redis(t *testing.T) {
-	mockRedis := mocks.NewMockRedisClient(t)
-	hub := NewHub(mockRedis, "test-channel")
+	db, redisClient := redismock.NewClientMock()
+	hub := NewHub(db, "test-channel")
 
 	event := Event{
 		Type:      "test",
@@ -69,12 +66,11 @@ func TestHub_BroadcastEvent_Redis(t *testing.T) {
 
 	data, _ := json.Marshal(event)
 
-	cmd := redis.NewIntCmd(context.Background())
-	mockRedis.On("Publish", mock.Anything, "test-channel", data).Return(cmd)
+	redisClient.ExpectPublish("test-channel", data).SetVal(1)
 
 	hub.BroadcastEvent(event)
 
-	mockRedis.AssertExpectations(t)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHub_BroadcastEvent_LocalFallback(t *testing.T) {

@@ -135,6 +135,7 @@ type (
 		SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
 		UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID, newCaptainId uuid.UUID) error
 		CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error
+		CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error
 	}
 
 	VerificationTokenRepository interface {
@@ -143,6 +144,10 @@ type (
 		MarkUsed(ctx context.Context, id uuid.UUID) error
 		DeleteExpired(ctx context.Context) error
 		DeleteByUserAndType(ctx context.Context, userId uuid.UUID, tokenType entity.TokenType) error
+	}
+
+	AuditLogRepository interface {
+		Create(ctx context.Context, log *entity.AuditLog) error
 	}
 
 	ScoreboardEntry struct {
@@ -158,5 +163,10 @@ type (
 		TeamId   uuid.UUID
 		TeamName string
 		SolvedAt time.Time
+	}
+	StatisticsRepository interface {
+		GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error)
+		GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error)
+		GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error)
 	}
 )

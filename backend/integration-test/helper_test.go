@@ -25,6 +25,8 @@ type TestFixture struct {
 	CompetitionRepo       *persistent.CompetitionRepo
 	VerificationTokenRepo *persistent.VerificationTokenRepo
 	FileRepo              *persistent.FileRepository
+	AuditLogRepo          *persistent.AuditLogRepo
+	StatisticsRepo        *persistent.StatisticsRepository
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -41,6 +43,8 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		CompetitionRepo:       persistent.NewCompetitionRepo(Pool),
 		VerificationTokenRepo: persistent.NewVerificationTokenRepo(Pool),
 		FileRepo:              persistent.NewFileRepository(Pool),
+		AuditLogRepo:          persistent.NewAuditLogRepo(Pool),
+		StatisticsRepo:        persistent.NewStatisticsRepository(Pool),
 	}
 }
 
@@ -48,7 +52,7 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 	ctx := context.Background()
 	user := &entity.User{
 		Username:     "user_" + suffix,
-		Email:        "user_" + suffix + "@example.com",
+		Email:        "user_" + suffix + "@x.com",
 		PasswordHash: "hash123",
 	}
 	err := f.UserRepo.Create(ctx, user)

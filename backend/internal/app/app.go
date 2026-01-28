@@ -15,18 +15,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/skr1ms/CTFBoard/config"
-	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
 	wsController "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/skr1ms/CTFBoard/pkg/migrator"
 	"github.com/skr1ms/CTFBoard/pkg/postgres"
 	"github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/seed"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -46,7 +48,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 	defer pool.Close()
 
-	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Password)
+	redisClient, err := redis.New(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 	if err != nil {
 		l.WithError(err).Error("failed to connect to redis")
 		return
@@ -70,7 +72,22 @@ func Run(cfg *config.Config, l logger.Logger) {
 	hintRepo := persistent.NewHintRepo(pool)
 	hintUnlockRepo := persistent.NewHintUnlockRepo(pool)
 	awardRepo := persistent.NewAwardRepo(pool)
+	auditLogRepo := persistent.NewAuditLogRepo(pool)
+	statsRepo := persistent.NewStatisticsRepository(pool)
 	txRepo := persistent.NewTxRepo(pool)
+
+	// Seed default admin if configured
+	adminUsername := cfg.Admin.Username
+	adminEmail := cfg.Admin.Email
+	adminPassword := cfg.Admin.Password
+
+	if adminUsername != "" && adminEmail != "" && adminPassword != "" {
+		if err := seed.CreateDefaultAdmin(context.Background(), *userRepo, adminUsername, adminEmail, adminPassword, l); err != nil {
+			l.WithError(err).Error("Failed to seed default admin")
+		}
+	} else {
+		l.Info("Admin credentials not provided, skipping default admin creation")
+	}
 
 	validator := validator.New()
 
@@ -85,13 +102,26 @@ func Run(cfg *config.Config, l logger.Logger) {
 	go wsHub.Run()
 	go wsHub.SubscribeToRedis(context.Background())
 
+	var cryptoService *crypto.CryptoService
+	if cfg.FlagEncryptionKey != "" {
+		c, err := crypto.NewCryptoService(cfg.FlagEncryptionKey)
+		if err != nil {
+			l.WithError(err).Error("failed to initialize crypto service")
+			return
+		}
+		cryptoService = c
+	} else {
+		l.Warn("FlagEncryptionKey not provided, regex challenges will fail")
+	}
+
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub)
+	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, redisClient, wsHub)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
-	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, redisClient)
+	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 	awardUC := usecase.NewAwardUseCase(awardRepo, redisClient)
+	statsUC := usecase.NewStatisticsUseCase(statsRepo, redisClient)
 	var storageProvider storage.Provider
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
@@ -158,11 +188,11 @@ func Run(cfg *config.Config, l logger.Logger) {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	if cfg.ChiMode == "production" {
-		router.Use(httpMiddleware.Logger(l))
+		router.Use(restapiMiddleware.Logger(l))
 	} else {
 		router.Use(middleware.Logger)
 	}
-	router.Use(httpMiddleware.Metrics)
+	router.Use(restapiMiddleware.Metrics)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Timeout(60 * time.Second))
 	router.Use(httprate.LimitByIP(100, 1*time.Minute))
@@ -207,6 +237,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 			emailUC,
 			fileUC,
 			awardUC,
+			statsUC,
 			jwtService,
 			redisClient,
 			validator,

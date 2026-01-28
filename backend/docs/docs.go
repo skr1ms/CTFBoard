@@ -38,7 +38,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Create challenge",
                 "parameters": [
@@ -95,7 +95,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Upload file to challenge",
                 "parameters": [
@@ -165,7 +165,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Create hint",
                 "parameters": [
@@ -229,7 +229,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Update challenge",
                 "parameters": [
@@ -291,7 +291,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes challenge. Admin only",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete challenge",
                 "parameters": [
@@ -337,7 +337,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes file from storage. Admin only",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete file",
                 "parameters": [
@@ -389,7 +389,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Update hint",
                 "parameters": [
@@ -451,7 +451,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes hint. Admin only.",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete hint",
                 "parameters": [

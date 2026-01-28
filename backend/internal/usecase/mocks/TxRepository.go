@@ -164,6 +164,69 @@ func (_c *MockTxRepository_BeginTx_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// CreateAuditLogTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error {
+	ret := _mock.Called(ctx, tx, log)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAuditLogTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.AuditLog) error); ok {
+		r0 = returnFunc(ctx, tx, log)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxRepository_CreateAuditLogTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAuditLogTx'
+type MockTxRepository_CreateAuditLogTx_Call struct {
+	*mock.Call
+}
+
+// CreateAuditLogTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx pgx.Tx
+//   - log *entity.AuditLog
+func (_e *MockTxRepository_Expecter) CreateAuditLogTx(ctx interface{}, tx interface{}, log interface{}) *MockTxRepository_CreateAuditLogTx_Call {
+	return &MockTxRepository_CreateAuditLogTx_Call{Call: _e.mock.On("CreateAuditLogTx", ctx, tx, log)}
+}
+
+func (_c *MockTxRepository_CreateAuditLogTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, log *entity.AuditLog)) *MockTxRepository_CreateAuditLogTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 pgx.Tx
+		if args[1] != nil {
+			arg1 = args[1].(pgx.Tx)
+		}
+		var arg2 *entity.AuditLog
+		if args[2] != nil {
+			arg2 = args[2].(*entity.AuditLog)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_CreateAuditLogTx_Call) Return(err error) *MockTxRepository_CreateAuditLogTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxRepository_CreateAuditLogTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error) *MockTxRepository_CreateAuditLogTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAwardTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) CreateAwardTx(ctx context.Context, tx pgx.Tx, award *entity.Award) error {
 	ret := _mock.Called(ctx, tx, award)

@@ -68,7 +68,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(passwordHash),
-		Role:         "user",
+		Role:         entity.RoleUser,
 	}
 
 	var team *entity.Team

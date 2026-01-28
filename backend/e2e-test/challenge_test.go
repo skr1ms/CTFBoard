@@ -75,9 +75,9 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	// 4. Check Score Decay (1 solve)
-	// (Calculation depends on decay formula, assuming 300 here based on previous test)
+	// CTFd Logic: First blood gets Max Points (500)
 	challengeState1 := h.FindChallengeInList(tokenUser1, challengeID)
-	challengeState1.Value("points").Number().IsEqual(300)
+	challengeState1.Value("points").Number().IsEqual(500)
 	challengeState1.Value("solve_count").Number().IsEqual(1)
 
 	// 5. Second Solver
@@ -85,8 +85,10 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	// 6. Check Score Decay (2 solves)
+	// count = 2-1 = 1. Decay = 1.
+	// 1 >= Min Value (100).
 	challengeState2 := h.FindChallengeInList(tokenUser2, challengeID)
-	challengeState2.Value("points").Number().IsEqual(200)
+	challengeState2.Value("points").Number().IsEqual(100)
 	challengeState2.Value("solve_count").Number().IsEqual(2)
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/vault"
@@ -39,7 +40,7 @@ func main() {
 			dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
 			if err == nil {
 				log.Println("Database secrets loaded from Vault")
-				if u, ok := dbSecrets["user"].(string); ok && u != "" {
+				if u, ok := dbSecrets[entity.RoleUser].(string); ok && u != "" {
 					user = u
 				}
 				if p, ok := dbSecrets["password"].(string); ok && p != "" {

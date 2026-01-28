@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/coder/websocket"
-	"github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/redis/go-redis/v9"
 )
 
 type Client struct {
@@ -21,11 +21,11 @@ type Hub struct {
 	register     chan *Client
 	unregister   chan *Client
 	clientCount  int64
-	redisClient  redis.Client
+	redisClient  *redis.Client
 	redisChannel string
 }
 
-func NewHub(redisClient redis.Client, redisChannel string) *Hub {
+func NewHub(redisClient *redis.Client, redisChannel string) *Hub {
 	return &Hub{
 		clients:      make(map[*Client]bool),
 		broadcast:    make(chan []byte, 256),

@@ -5,17 +5,17 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 type AwardUseCase struct {
 	repo  repo.AwardRepository
-	redis pkgRedis.Client
+	redis *redis.Client
 }
 
-func NewAwardUseCase(repo repo.AwardRepository, redis pkgRedis.Client) *AwardUseCase {
+func NewAwardUseCase(repo repo.AwardRepository, redis *redis.Client) *AwardUseCase {
 	return &AwardUseCase{
 		repo:  repo,
 		redis: redis,

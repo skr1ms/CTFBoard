@@ -16,20 +16,31 @@ import (
 
 type competitionRoutes struct {
 	competitionUC *usecase.CompetitionUseCase
+	userUC        *usecase.UserUseCase
 	validator     validator.Validator
 	logger        logger.Logger
 }
 
-func NewCompetitionRoutes(router chi.Router, competitionUC *usecase.CompetitionUseCase, validator validator.Validator, logger logger.Logger, jwtService *jwt.JWTService) {
+func NewCompetitionRoutes(
+	publicRouter chi.Router,
+	protectedRouter chi.Router,
+	competitionUC *usecase.CompetitionUseCase,
+	userUC *usecase.UserUseCase,
+	validator validator.Validator,
+	logger logger.Logger,
+	jwtService *jwt.JWTService,
+) {
 	routes := competitionRoutes{
 		competitionUC: competitionUC,
+		userUC:        userUC,
 		validator:     validator,
 		logger:        logger,
 	}
 
-	router.Get("/competition/status", routes.GetStatus)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Get("/admin/competition", routes.Get)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Put("/admin/competition", routes.Update)
+	publicRouter.Get("/competition/status", routes.GetStatus)
+
+	protectedRouter.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), restapiMiddleware.Admin).Get("/admin/competition", routes.Get)
+	protectedRouter.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), restapiMiddleware.Admin).Put("/admin/competition", routes.Update)
 }
 
 func (h *competitionRoutes) GetStatus(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +97,15 @@ func (h *competitionRoutes) Update(w http.ResponseWriter, r *http.Request) {
 
 	comp := req.ToCompetition(1)
 
-	if err := h.competitionUC.Update(r.Context(), comp); err != nil {
+	user, ok := restapiMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	clientIP := httputil.GetClientIP(r)
+
+	if err := h.competitionUC.Update(r.Context(), comp, user.Id, clientIP); err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - Update - Update")
 		handleError(w, r, err)
 		return

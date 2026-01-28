@@ -12,7 +12,7 @@ import (
 
 type userContextKeyType string
 
-const userContextKey userContextKeyType = "user"
+const userContextKey userContextKeyType = entity.RoleUser
 
 func InjectUser(userUC *usecase.UserUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

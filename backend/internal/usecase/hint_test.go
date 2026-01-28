@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
@@ -22,7 +22,7 @@ func TestHintUseCase_Create(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintRepo.On("Create", mock.Anything, mock.MatchedBy(func(h *entity.Hint) bool {
 		return h.Content == "test hint" && h.Cost == 50
@@ -31,7 +31,7 @@ func TestHintUseCase_Create(t *testing.T) {
 		h.Id = uuid.New()
 	})
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	hint, err := uc.Create(context.Background(), uuid.New(), "test hint", 50, 0)
 
@@ -47,11 +47,11 @@ func TestHintUseCase_Create_Error(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	hint, err := uc.Create(context.Background(), uuid.New(), "test hint", 50, 0)
 
@@ -67,14 +67,14 @@ func TestHintUseCase_GetByID(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{Id: hintID, Content: "Secret hint", Cost: 50}
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.GetByID(context.Background(), hintID)
 
@@ -89,13 +89,13 @@ func TestHintUseCase_GetByID_NotFound(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, entityError.ErrHintNotFound)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.GetByID(context.Background(), hintID)
 
@@ -112,7 +112,7 @@ func TestHintUseCase_GetByChallengeID(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -124,7 +124,7 @@ func TestHintUseCase_GetByChallengeID(t *testing.T) {
 	hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
 	hintUnlockRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{hint1ID}, nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -144,14 +144,14 @@ func TestHintUseCase_GetByChallengeID_RepoError(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
 
 	hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(nil, errors.New("db error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -165,7 +165,7 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -175,7 +175,7 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
 	hintUnlockRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return(nil, errors.New("db error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -191,7 +191,7 @@ func TestHintUseCase_Update(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{Id: hintID, Content: "Old content", Cost: 50, OrderIndex: 0}
@@ -201,7 +201,7 @@ func TestHintUseCase_Update(t *testing.T) {
 		return h.Content == "New content" && h.Cost == 100 && h.OrderIndex == 1
 	})).Return(nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.Update(context.Background(), hintID, "New content", 100, 1)
 
@@ -217,13 +217,13 @@ func TestHintUseCase_Update_NotFound(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, entityError.ErrHintNotFound)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.Update(context.Background(), hintID, "New content", 100, 1)
 
@@ -238,7 +238,7 @@ func TestHintUseCase_Update_RepoError(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{Id: hintID, Content: "Old content", Cost: 50}
@@ -246,7 +246,7 @@ func TestHintUseCase_Update_RepoError(t *testing.T) {
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	hintRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	result, err := uc.Update(context.Background(), hintID, "New content", 100, 1)
 
@@ -262,13 +262,13 @@ func TestHintUseCase_Delete(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 
 	hintRepo.On("Delete", mock.Anything, hintID).Return(nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	err := uc.Delete(context.Background(), hintID)
 
@@ -281,13 +281,13 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 
 	hintRepo.On("Delete", mock.Anything, hintID).Return(errors.New("db error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	err := uc.Delete(context.Background(), hintID)
 
@@ -302,7 +302,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, redisClient := redismock.NewClientMock()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
@@ -321,9 +321,10 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 		return a.Value == -50 && a.TeamId == teamID
 	})).Return(nil)
 	txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
+	redisClient.ExpectDel("scoreboard").SetVal(0)
+	redisClient.ExpectDel("scoreboard:frozen").SetVal(0)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -331,6 +332,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	assert.NotNil(t, unlocked)
 	assert.Equal(t, hintID, unlocked.Id)
 	assert.Equal(t, "Secret hint", unlocked.Content)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
@@ -339,7 +341,7 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, redisClient := redismock.NewClientMock()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
@@ -354,9 +356,10 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
 	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
 	txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntCmd(context.Background())).Maybe()
+	redisClient.ExpectDel("scoreboard").SetVal(0)
+	redisClient.ExpectDel("scoreboard:frozen").SetVal(0)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -365,6 +368,7 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	assert.Equal(t, "Free hint", unlocked.Content)
 	txRepo.AssertNotCalled(t, "CreateAwardTx", mock.Anything, mock.Anything, mock.Anything)
 	txRepo.AssertNotCalled(t, "GetTeamScoreTx", mock.Anything, mock.Anything, mock.Anything)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
@@ -373,13 +377,13 @@ func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	hintID := uuid.New()
 
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, entityError.ErrHintNotFound)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), hintID)
 
@@ -394,7 +398,7 @@ func TestHintUseCase_UnlockHint_BeginTxError(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
@@ -404,7 +408,7 @@ func TestHintUseCase_UnlockHint_BeginTxError(t *testing.T) {
 	hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 	txRepo.On("BeginTx", mock.Anything).Return(nil, errors.New("tx error"))
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -419,7 +423,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
@@ -434,7 +438,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
 	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(&entity.HintUnlock{}, nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -449,7 +453,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	awardRepo := mocks.NewMockAwardRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 	solveRepo := mocks.NewMockSolveRepository(t)
-	redisClient := mocks.NewMockRedisClient(t)
+	db, _ := redismock.NewClientMock()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
@@ -465,7 +469,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
 	txRepo.On("GetTeamScoreTx", mock.Anything, mock.Anything, teamID).Return(50, nil)
 
-	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	uc := NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, db)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 

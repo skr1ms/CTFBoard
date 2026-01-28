@@ -36,7 +36,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Create challenge",
                 "parameters": [
@@ -93,7 +93,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Upload file to challenge",
                 "parameters": [
@@ -163,7 +163,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Create hint",
                 "parameters": [
@@ -227,7 +227,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Update challenge",
                 "parameters": [
@@ -289,7 +289,7 @@
                 ],
                 "description": "Deletes challenge. Admin only",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete challenge",
                 "parameters": [
@@ -335,7 +335,7 @@
                 ],
                 "description": "Deletes file from storage. Admin only",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete file",
                 "parameters": [
@@ -387,7 +387,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Update hint",
                 "parameters": [
@@ -449,7 +449,7 @@
                 ],
                 "description": "Deletes hint. Admin only.",
                 "tags": [
-                    "Admin"
+                    entity.RoleAdmin
                 ],
                 "summary": "Delete hint",
                 "parameters": [

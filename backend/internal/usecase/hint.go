@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 type HintUseCase struct {
@@ -18,7 +18,7 @@ type HintUseCase struct {
 	awardRepo      repo.AwardRepository
 	txRepo         repo.TxRepository
 	solveRepo      repo.SolveRepository
-	redis          pkgRedis.Client
+	redis          *redis.Client
 }
 
 func NewHintUseCase(
@@ -27,7 +27,7 @@ func NewHintUseCase(
 	awardRepo repo.AwardRepository,
 	txRepo repo.TxRepository,
 	solveRepo repo.SolveRepository,
-	redis pkgRedis.Client,
+	redis *redis.Client,
 ) *HintUseCase {
 	return &HintUseCase{
 		hintRepo:       hintRepo,

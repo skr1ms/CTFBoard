@@ -6,21 +6,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 const competitionCacheKey = "competition"
 
 type CompetitionUseCase struct {
 	competitionRepo repo.CompetitionRepository
-	redis           pkgRedis.Client
+	auditLogRepo    repo.AuditLogRepository
+	redis           *redis.Client
 }
 
-func NewCompetitionUseCase(competitionRepo repo.CompetitionRepository, redis pkgRedis.Client) *CompetitionUseCase {
+func NewCompetitionUseCase(competitionRepo repo.CompetitionRepository, auditLogRepo repo.AuditLogRepository, redis *redis.Client) *CompetitionUseCase {
 	return &CompetitionUseCase{
 		competitionRepo: competitionRepo,
+		auditLogRepo:    auditLogRepo,
 		redis:           redis,
 	}
 }
@@ -46,13 +49,25 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 	return comp, nil
 }
 
-func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition) error {
+func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition, actorId uuid.UUID, clientIP string) error {
 	err := uc.competitionRepo.Update(ctx, comp)
 	if err != nil {
 		return fmt.Errorf("CompetitionUseCase - Update: %w", err)
 	}
 
 	uc.redis.Del(ctx, competitionCacheKey)
+
+	auditLog := &entity.AuditLog{
+		UserId:     &actorId,
+		Action:     entity.AuditActionUpdate,
+		EntityType: entity.AuditEntityCompetition,
+		EntityId:   "settings",
+		IP:         clientIP,
+		Details: map[string]any{
+			"message": "competition settings updated",
+		},
+	}
+	_ = uc.auditLogRepo.Create(ctx, auditLog)
 
 	return nil
 }

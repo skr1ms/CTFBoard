@@ -5,12 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redismock/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
-	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,9 +17,9 @@ func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	mockRedis := mocks.NewMockRedisClient(t)
-	mockRedis.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntResult(0, nil)).Maybe()
-	uc := usecase.NewHintUseCase(f.HintRepo, f.HintUnlockRepo, f.AwardRepo, f.TxRepo, f.SolveRepo, mockRedis)
+	db, redisClient := redismock.NewClientMock()
+	redisClient.ExpectDel("hint:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
+	uc := usecase.NewHintUseCase(f.HintRepo, f.HintUnlockRepo, f.AwardRepo, f.TxRepo, f.SolveRepo, db)
 
 	_, team := f.CreateUserWithTeam(t, "hint_racer")
 	award := &entity.Award{

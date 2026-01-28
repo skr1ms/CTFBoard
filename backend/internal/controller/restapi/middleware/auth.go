@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 )
@@ -48,7 +49,7 @@ func Auth(jwtService *jwt.JWTService) func(http.Handler) http.Handler {
 func Admin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		role, ok := r.Context().Value(UserRoleKey).(string)
-		if !ok || role != "admin" {
+		if !ok || role != entity.RoleAdmin {
 			render.Status(r, http.StatusForbidden)
 			render.JSON(w, r, map[string]string{"error": "admin access required"})
 			return

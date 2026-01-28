@@ -3,17 +3,23 @@ package usecase
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
@@ -22,11 +28,23 @@ type ChallengeUseCase struct {
 	solveRepo     repo.SolveRepository
 	txRepo        repo.TxRepository
 	compRepo      repo.CompetitionRepository
-	redis         pkgRedis.Client
+	redis         *redis.Client
 	hub           *websocket.Hub
+	auditLogRepo  repo.AuditLogRepository
+	crypto        crypto.Service
+	regexCache    sync.Map
 }
 
-func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, txRepo repo.TxRepository, compRepo repo.CompetitionRepository, redis pkgRedis.Client, hub *websocket.Hub) *ChallengeUseCase {
+func NewChallengeUseCase(
+	challengeRepo repo.ChallengeRepository,
+	solveRepo repo.SolveRepository,
+	txRepo repo.TxRepository,
+	compRepo repo.CompetitionRepository,
+	redis *redis.Client,
+	hub *websocket.Hub,
+	auditLogRepo repo.AuditLogRepository,
+	crypto crypto.Service,
+) *ChallengeUseCase {
 	return &ChallengeUseCase{
 		challengeRepo: challengeRepo,
 		solveRepo:     solveRepo,
@@ -34,6 +52,8 @@ func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.
 		compRepo:      compRepo,
 		redis:         redis,
 		hub:           hub,
+		auditLogRepo:  auditLogRepo,
+		crypto:        crypto,
 	}
 }
 
@@ -45,21 +65,43 @@ func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamId *uuid.UUID) ([]*r
 	return challenges, nil
 }
 
-func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden bool) (*entity.Challenge, error) {
-	hash := sha256.Sum256([]byte(flag))
-	flagHash := hex.EncodeToString(hash[:])
+func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool) (*entity.Challenge, error) {
+	var flagHash string
+	var flagRegex string
+
+	if isRegex {
+		if uc.crypto == nil {
+			return nil, errors.New("encryption service not configured")
+		}
+		encrypted, err := uc.crypto.Encrypt(flag)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt regex flag: %w", err)
+		}
+		flagRegex = encrypted
+		flagHash = "REGEX_CHALLENGE"
+	} else {
+		userInput := flag
+		if isCaseInsensitive {
+			userInput = strings.ToLower(strings.TrimSpace(flag))
+		}
+		hash := sha256.Sum256([]byte(userInput))
+		flagHash = hex.EncodeToString(hash[:])
+	}
 
 	challenge := &entity.Challenge{
-		Title:        title,
-		Description:  description,
-		Category:     category,
-		Points:       points,
-		InitialValue: initialValue,
-		MinValue:     minValue,
-		Decay:        decay,
-		SolveCount:   0,
-		FlagHash:     flagHash,
-		IsHidden:     isHidden,
+		Title:             title,
+		Description:       description,
+		Category:          category,
+		Points:            points,
+		InitialValue:      initialValue,
+		MinValue:          minValue,
+		Decay:             decay,
+		SolveCount:        0,
+		FlagHash:          flagHash,
+		IsHidden:          isHidden,
+		IsRegex:           isRegex,
+		IsCaseInsensitive: isCaseInsensitive,
+		FlagRegex:         flagRegex,
 	}
 
 	err := uc.challengeRepo.Create(ctx, challenge)
@@ -69,7 +111,7 @@ func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, cate
 	return challenge, nil
 }
 
-func (uc *ChallengeUseCase) Update(ctx context.Context, id uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden bool) (*entity.Challenge, error) {
+func (uc *ChallengeUseCase) Update(ctx context.Context, id uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool) (*entity.Challenge, error) {
 	challenge, err := uc.challengeRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Update - GetByID: %w", err)
@@ -83,10 +125,29 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, id uuid.UUID, title, des
 	challenge.MinValue = minValue
 	challenge.Decay = decay
 	challenge.IsHidden = isHidden
+	challenge.IsRegex = isRegex
+	challenge.IsCaseInsensitive = isCaseInsensitive
 
 	if flag != "" {
-		hash := sha256.Sum256([]byte(flag))
-		challenge.FlagHash = hex.EncodeToString(hash[:])
+		if isRegex {
+			if uc.crypto == nil {
+				return nil, errors.New("encryption service not configured")
+			}
+			encrypted, err := uc.crypto.Encrypt(flag)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encrypt regex flag: %w", err)
+			}
+			challenge.FlagRegex = encrypted
+			challenge.FlagHash = "REGEX_CHALLENGE"
+		} else {
+			userInput := flag
+			if isCaseInsensitive {
+				userInput = strings.ToLower(strings.TrimSpace(flag))
+			}
+			hash := sha256.Sum256([]byte(userInput))
+			challenge.FlagHash = hex.EncodeToString(hash[:])
+			challenge.FlagRegex = ""
+		}
 	}
 
 	err = uc.challengeRepo.Update(ctx, challenge)
@@ -99,10 +160,31 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, id uuid.UUID, title, des
 	return challenge, nil
 }
 
-func (uc *ChallengeUseCase) Delete(ctx context.Context, id uuid.UUID) error {
-	err := uc.challengeRepo.Delete(ctx, id)
+func (uc *ChallengeUseCase) Delete(ctx context.Context, id uuid.UUID, actorId uuid.UUID, clientIP string) error {
+	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := uc.challengeRepo.GetByID(ctx, id); err != nil {
+			return err
+		}
+
+		if err := uc.challengeRepo.Delete(ctx, id); err != nil {
+			return fmt.Errorf("Delete: %w", err)
+		}
+
+		auditLog := &entity.AuditLog{
+			UserId:     &actorId,
+			Action:     entity.AuditActionDelete,
+			EntityType: entity.AuditEntityChallenge,
+			EntityId:   id.String(),
+			IP:         clientIP,
+		}
+		if err := uc.txRepo.CreateAuditLogTx(ctx, tx, auditLog); err != nil {
+			return fmt.Errorf("CreateAuditLogTx: %w", err)
+		}
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("ChallengeUseCase - Delete: %w", err)
+		return fmt.Errorf("ChallengeUseCase - Delete - Transaction: %w", err)
 	}
 
 	uc.redis.Del(ctx, "scoreboard")
@@ -133,10 +215,52 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByID: %w", err)
 	}
 
-	hash := sha256.Sum256([]byte(flag))
-	flagHash := hex.EncodeToString(hash[:])
+	var isValid bool
 
-	if flagHash != challenge.FlagHash {
+	flag = strings.TrimSpace(flag)
+
+	if challenge.IsRegex {
+		if uc.crypto == nil {
+			return false, errors.New("encryption service not configured")
+		}
+		pattern, err := uc.crypto.Decrypt(challenge.FlagRegex)
+		if err != nil {
+			return false, nil
+		}
+
+		if challenge.IsCaseInsensitive {
+			pattern = "(?i)" + pattern
+		}
+
+		var compiledRegex *regexp.Regexp
+		if v, ok := uc.regexCache.Load(pattern); ok {
+			compiledRegex = v.(*regexp.Regexp)
+		} else {
+			compiled, err := regexp.Compile(pattern)
+			if err != nil {
+				return false, fmt.Errorf("failed to compile regex: %w", err)
+			}
+			uc.regexCache.Store(pattern, compiled)
+			compiledRegex = compiled
+		}
+
+		if compiledRegex.MatchString(flag) {
+			isValid = true
+		}
+	} else {
+		userInput := flag
+		if challenge.IsCaseInsensitive {
+			userInput = strings.ToLower(userInput)
+		}
+
+		hash := sha256.Sum256([]byte(userInput))
+		hashStr := hex.EncodeToString(hash[:])
+		if subtle.ConstantTimeCompare([]byte(hashStr), []byte(challenge.FlagHash)) == 1 {
+			isValid = true
+		}
+	}
+
+	if !isValid {
 		return false, nil
 	}
 
@@ -145,11 +269,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - BeginTx: %w", err)
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
-	}()
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
 	if err == nil {
@@ -173,6 +293,10 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 
 	err = uc.txRepo.CreateSolveTx(ctx, tx, solve)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return true, entityError.ErrAlreadySolved
+		}
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - CreateTx: %w", err)
 	}
 

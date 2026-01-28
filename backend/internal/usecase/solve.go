@@ -9,10 +9,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	pkgRedis "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
@@ -21,7 +21,7 @@ type SolveUseCase struct {
 	challengeRepo   repo.ChallengeRepository
 	competitionRepo repo.CompetitionRepository
 	txRepo          repo.TxRepository
-	redis           pkgRedis.Client
+	redis           *redis.Client
 	hub             *websocket.Hub
 }
 
@@ -30,7 +30,7 @@ func NewSolveUseCase(
 	challengeRepo repo.ChallengeRepository,
 	competitionRepo repo.CompetitionRepository,
 	txRepo repo.TxRepository,
-	redis pkgRedis.Client,
+	redis *redis.Client,
 	hub *websocket.Hub,
 ) *SolveUseCase {
 	return &SolveUseCase{

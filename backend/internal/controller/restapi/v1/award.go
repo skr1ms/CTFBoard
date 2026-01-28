@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -35,8 +35,8 @@ func NewAwardRoutes(
 	}
 
 	router.Route("/admin/awards", func(r chi.Router) {
-		r.Use(httpMiddleware.Auth(jwtService))
-		r.Use(httpMiddleware.Admin)
+		r.Use(restapiMiddleware.Auth(jwtService))
+		r.Use(restapiMiddleware.Admin)
 		r.Post("/", routes.Create)
 		r.Get("/team/{teamId}", routes.GetByTeamID)
 	})
@@ -62,7 +62,7 @@ func (h *awardRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, ok := httpMiddleware.GetUser(r.Context())
+	user, ok := restapiMiddleware.GetUser(r.Context())
 	if !ok {
 		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return

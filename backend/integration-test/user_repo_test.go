@@ -61,7 +61,7 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 
 	user2 := &entity.User{
 		Username:     "user2",
-		Email:        "user_user1@example.com",
+		Email:        "user_user1@x.com",
 		PasswordHash: "hash456",
 	}
 
@@ -228,7 +228,7 @@ func TestUserRepo_Role_Persistence(t *testing.T) {
 		Username:     "roleuser",
 		Email:        "roleuser@example.com",
 		PasswordHash: "hash123",
-		Role:         "admin",
+		Role:         entity.RoleAdmin,
 	}
 
 	err := repo.Create(ctx, user)
@@ -236,5 +236,5 @@ func TestUserRepo_Role_Persistence(t *testing.T) {
 
 	gotUser, err := repo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
-	assert.Equal(t, "admin", gotUser.Role)
+	assert.Equal(t, entity.RoleAdmin, gotUser.Role)
 }

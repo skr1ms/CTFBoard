@@ -1,0 +1,3 @@
+ALTER TABLE challenges ADD COLUMN is_regex BOOLEAN DEFAULT FALSE;
+ALTER TABLE challenges ADD COLUMN is_case_insensitive BOOLEAN DEFAULT FALSE;
+ALTER TABLE challenges ADD COLUMN flag_regex TEXT;

@@ -116,9 +116,9 @@ type MockRedisClient_Del_Call struct {
 // Del is a helper method to define mock.On call
 //   - ctx context.Context
 //   - keys ...string
-func (_e *MockRedisClient_Expecter) Del(ctx interface{}, keys ...interface{}) *MockRedisClient_Del_Call {
+func (_e *MockRedisClient_Expecter) Del(ctx any, keys ...any) *MockRedisClient_Del_Call {
 	return &MockRedisClient_Del_Call{Call: _e.mock.On("Del",
-		append([]interface{}{ctx}, keys...)...)}
+		append([]any{ctx}, keys...)...)}
 }
 
 func (_c *MockRedisClient_Del_Call) Run(run func(ctx context.Context, keys ...string)) *MockRedisClient_Del_Call {
@@ -151,6 +151,86 @@ func (_c *MockRedisClient_Del_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
+// Eval provides a mock function for the type MockRedisClient
+func (_mock *MockRedisClient) Eval(ctx context.Context, script string, keys []string, args ...any) *redis.Cmd {
+	var tmpRet mock.Arguments
+	if len(args) > 0 {
+		tmpRet = _mock.Called(ctx, script, keys, args)
+	} else {
+		tmpRet = _mock.Called(ctx, script, keys)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Eval")
+	}
+
+	var r0 *redis.Cmd
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string, ...any) *redis.Cmd); ok {
+		r0 = returnFunc(ctx, script, keys, args...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*redis.Cmd)
+		}
+	}
+	return r0
+}
+
+// MockRedisClient_Eval_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Eval'
+type MockRedisClient_Eval_Call struct {
+	*mock.Call
+}
+
+// Eval is a helper method to define mock.On call
+//   - ctx context.Context
+//   - script string
+//   - keys []string
+//   - args ...any
+func (_e *MockRedisClient_Expecter) Eval(ctx any, script any, keys any, args ...any) *MockRedisClient_Eval_Call {
+	return &MockRedisClient_Eval_Call{Call: _e.mock.On("Eval",
+		append([]any{ctx, script, keys}, args...)...)}
+}
+
+func (_c *MockRedisClient_Eval_Call) Run(run func(ctx context.Context, script string, keys []string, args ...any)) *MockRedisClient_Eval_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []string
+		if args[2] != nil {
+			arg2 = args[2].([]string)
+		}
+		var arg3 []any
+		var variadicArgs []any
+		if len(args) > 3 {
+			variadicArgs = args[3].([]any)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRedisClient_Eval_Call) Return(cmd *redis.Cmd) *MockRedisClient_Eval_Call {
+	_c.Call.Return(cmd)
+	return _c
+}
+
+func (_c *MockRedisClient_Eval_Call) RunAndReturn(run func(ctx context.Context, script string, keys []string, args ...any) *redis.Cmd) *MockRedisClient_Eval_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Expire provides a mock function for the type MockRedisClient
 func (_mock *MockRedisClient) Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd {
 	ret := _mock.Called(ctx, key, expiration)
@@ -179,7 +259,7 @@ type MockRedisClient_Expire_Call struct {
 //   - ctx context.Context
 //   - key string
 //   - expiration time.Duration
-func (_e *MockRedisClient_Expecter) Expire(ctx interface{}, key interface{}, expiration interface{}) *MockRedisClient_Expire_Call {
+func (_e *MockRedisClient_Expecter) Expire(ctx any, key any, expiration any) *MockRedisClient_Expire_Call {
 	return &MockRedisClient_Expire_Call{Call: _e.mock.On("Expire", ctx, key, expiration)}
 }
 
@@ -243,7 +323,7 @@ type MockRedisClient_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockRedisClient_Expecter) Get(ctx interface{}, key interface{}) *MockRedisClient_Get_Call {
+func (_e *MockRedisClient_Expecter) Get(ctx any, key any) *MockRedisClient_Get_Call {
 	return &MockRedisClient_Get_Call{Call: _e.mock.On("Get", ctx, key)}
 }
 
@@ -302,7 +382,7 @@ type MockRedisClient_Incr_Call struct {
 // Incr is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockRedisClient_Expecter) Incr(ctx interface{}, key interface{}) *MockRedisClient_Incr_Call {
+func (_e *MockRedisClient_Expecter) Incr(ctx any, key any) *MockRedisClient_Incr_Call {
 	return &MockRedisClient_Incr_Call{Call: _e.mock.On("Incr", ctx, key)}
 }
 
@@ -360,7 +440,7 @@ type MockRedisClient_Ping_Call struct {
 
 // Ping is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockRedisClient_Expecter) Ping(ctx interface{}) *MockRedisClient_Ping_Call {
+func (_e *MockRedisClient_Expecter) Ping(ctx any) *MockRedisClient_Ping_Call {
 	return &MockRedisClient_Ping_Call{Call: _e.mock.On("Ping", ctx)}
 }
 
@@ -415,7 +495,7 @@ type MockRedisClient_Publish_Call struct {
 //   - ctx context.Context
 //   - channel string
 //   - message any
-func (_e *MockRedisClient_Expecter) Publish(ctx interface{}, channel interface{}, message interface{}) *MockRedisClient_Publish_Call {
+func (_e *MockRedisClient_Expecter) Publish(ctx any, channel any, message any) *MockRedisClient_Publish_Call {
 	return &MockRedisClient_Publish_Call{Call: _e.mock.On("Publish", ctx, channel, message)}
 }
 
@@ -481,7 +561,7 @@ type MockRedisClient_Set_Call struct {
 //   - key string
 //   - value any
 //   - expiration time.Duration
-func (_e *MockRedisClient_Expecter) Set(ctx interface{}, key interface{}, value interface{}, expiration interface{}) *MockRedisClient_Set_Call {
+func (_e *MockRedisClient_Expecter) Set(ctx any, key any, value any, expiration any) *MockRedisClient_Set_Call {
 	return &MockRedisClient_Set_Call{Call: _e.mock.On("Set", ctx, key, value, expiration)}
 }
 
@@ -556,9 +636,9 @@ type MockRedisClient_Subscribe_Call struct {
 // Subscribe is a helper method to define mock.On call
 //   - ctx context.Context
 //   - channels ...string
-func (_e *MockRedisClient_Expecter) Subscribe(ctx interface{}, channels ...interface{}) *MockRedisClient_Subscribe_Call {
+func (_e *MockRedisClient_Expecter) Subscribe(ctx any, channels ...any) *MockRedisClient_Subscribe_Call {
 	return &MockRedisClient_Subscribe_Call{Call: _e.mock.On("Subscribe",
-		append([]interface{}{ctx}, channels...)...)}
+		append([]any{ctx}, channels...)...)}
 }
 
 func (_c *MockRedisClient_Subscribe_Call) Run(run func(ctx context.Context, channels ...string)) *MockRedisClient_Subscribe_Call {

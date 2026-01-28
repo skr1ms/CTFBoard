@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -67,7 +68,7 @@ func startPostgresContainer(ctx context.Context) (*postgres.PostgresContainer, s
 	container, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("test"),
-		postgres.WithUsername("user"),
+		postgres.WithUsername(entity.RoleUser),
 		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").

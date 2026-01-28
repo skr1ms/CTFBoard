@@ -21,11 +21,13 @@ import (
 	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
@@ -105,7 +107,7 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	postgresC, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("test"),
-		postgres.WithUsername("user"),
+		postgres.WithUsername(entity.RoleUser),
 		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
@@ -270,16 +272,20 @@ func startTestServer() (func(), error) {
 	awardRepo := persistent.NewAwardRepo(TestPool)
 	txRepo := persistent.NewTxRepo(TestPool)
 	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
+	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
+	dummyCrypto, _ := crypto.NewCryptoService("12345678901234567890123456789012")
 
 	// UseCases
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	compUC := usecase.NewCompetitionUseCase(compRepo, TestRedis)
-	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil)
+	compUC := usecase.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
+	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil, auditLogRepo, dummyCrypto)
 	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, compRepo, txRepo, TestRedis, nil)
 	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
 	awardUC := usecase.NewAwardUseCase(awardRepo, TestRedis)
 	emailUC := usecase.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+	statsRepo := persistent.NewStatisticsRepository(TestPool)
+	statsUC := usecase.NewStatisticsUseCase(statsRepo, TestRedis)
 
 	// File Storage (E2E uses local temp dir)
 	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
@@ -296,7 +302,7 @@ func startTestServer() (func(), error) {
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
-	r.Use(httpMiddleware.Logger(l))
+	r.Use(restapiMiddleware.Logger(l))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -304,7 +310,7 @@ func startTestServer() (func(), error) {
 	})
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, awardUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
+		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, awardUC, statsUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute)
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

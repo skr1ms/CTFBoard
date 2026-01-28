@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
@@ -17,8 +17,8 @@ import (
 
 func TestAwardUseCase_Create(t *testing.T) {
 	mockRepo := mocks.NewMockAwardRepository(t)
-	mockRedis := mocks.NewMockRedisClient(t)
-	uc := usecase.NewAwardUseCase(mockRepo, mockRedis)
+	db, mockRedis := redismock.NewClientMock()
+	uc := usecase.NewAwardUseCase(mockRepo, db)
 
 	ctx := context.Background()
 	teamID := uuid.New()
@@ -29,8 +29,8 @@ func TestAwardUseCase_Create(t *testing.T) {
 			return a.TeamId == teamID && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == adminID
 		})).Return(nil).Once()
 
-		mockRedis.On("Del", ctx, []string{"scoreboard"}).Return(redis.NewIntCmd(ctx)).Once()
-		mockRedis.On("Del", ctx, []string{"scoreboard:frozen"}).Return(redis.NewIntCmd(ctx)).Once()
+		mockRedis.ExpectDel("scoreboard").SetVal(0)
+		mockRedis.ExpectDel("scoreboard:frozen").SetVal(0)
 
 		award, err := uc.Create(ctx, teamID, 100, "Bonus", adminID)
 
@@ -38,6 +38,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 		assert.NotNil(t, award)
 		assert.Equal(t, 100, award.Value)
 		assert.Equal(t, adminID, *award.CreatedBy)
+		assert.NoError(t, mockRedis.ExpectationsWereMet())
 	})
 
 	t.Run("ZeroValue", func(t *testing.T) {
@@ -61,8 +62,8 @@ func TestAwardUseCase_Create(t *testing.T) {
 
 func TestAwardUseCase_GetByTeamID(t *testing.T) {
 	mockRepo := mocks.NewMockAwardRepository(t)
-	mockRedis := mocks.NewMockRedisClient(t)
-	uc := usecase.NewAwardUseCase(mockRepo, mockRedis)
+	db, _ := redismock.NewClientMock() // Redis not used here but needed for constructor
+	uc := usecase.NewAwardUseCase(mockRepo, db)
 
 	ctx := context.Background()
 	teamID := uuid.New()

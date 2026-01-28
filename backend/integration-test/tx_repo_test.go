@@ -93,7 +93,7 @@ func TestTxRepo_CreateUserTx_Success(t *testing.T) {
 		Username:     "tx_user",
 		Email:        "tx_user@example.com",
 		PasswordHash: "hash",
-		Role:         "user",
+		Role:         entity.RoleUser,
 	}
 
 	err = f.TxRepo.CreateUserTx(ctx, tx, user)
@@ -123,7 +123,7 @@ func TestTxRepo_CreateUserTx_Error_DuplicateEmail(t *testing.T) {
 		Username:     "different_username",
 		Email:        existingUser.Email,
 		PasswordHash: "hash",
-		Role:         "user",
+		Role:         entity.RoleUser,
 	}
 
 	err = f.TxRepo.CreateUserTx(ctx, tx, user)

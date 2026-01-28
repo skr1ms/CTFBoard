@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	httpMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -26,10 +26,10 @@ func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger
 		logger: logger,
 	}
 
-	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Post("/admin/challenges/{challengeId}/files", routes.Upload)
-	router.With(httpMiddleware.Auth(jwtService), httpMiddleware.Admin).Delete("/admin/files/{id}", routes.Delete)
-	router.With(httpMiddleware.Auth(jwtService)).Get("/files/{id}/download", routes.GetDownloadURL)
-	router.With(httpMiddleware.Auth(jwtService)).Get("/challenges/{challengeId}/files", routes.GetByChallengeID)
+	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Post("/admin/challenges/{challengeId}/files", routes.Upload)
+	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Delete("/admin/files/{id}", routes.Delete)
+	router.With(restapiMiddleware.Auth(jwtService)).Get("/files/{id}/download", routes.GetDownloadURL)
+	router.With(restapiMiddleware.Auth(jwtService)).Get("/challenges/{challengeId}/files", routes.GetByChallengeID)
 
 	router.Get("/files/download/*", routes.Download)
 }

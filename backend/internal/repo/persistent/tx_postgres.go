@@ -370,7 +370,7 @@ func (r *TxRepo) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entit
 // ChallengeRepo Tx Methods
 
 func (r *TxRepo) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Challenge, error) {
-	query := squirrel.Select("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden").
+	query := squirrel.Select("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex").
 		From("challenges").
 		Where(squirrel.Eq{"id": id}).
 		Suffix("FOR UPDATE").
@@ -394,6 +394,9 @@ func (r *TxRepo) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID
 		&challenge.SolveCount,
 		&challenge.FlagHash,
 		&challenge.IsHidden,
+		&challenge.IsRegex,
+		&challenge.IsCaseInsensitive,
+		&challenge.FlagRegex,
 	)
 
 	if err != nil {
@@ -623,6 +626,37 @@ func (r *TxRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) er
 			return entityError.ErrTeamNotFound
 		}
 		return fmt.Errorf("TxRepo - LockTeamTx - Scan: %w", err)
+	}
+
+	return nil
+}
+
+func (r *TxRepo) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error {
+	if log.Id == uuid.Nil {
+		log.Id = uuid.New()
+	}
+	if log.CreatedAt.IsZero() {
+		log.CreatedAt = time.Now()
+	}
+
+	var details = log.Details
+	if details == nil {
+		details = map[string]any{}
+	}
+
+	query := squirrel.Insert("audit_logs").
+		Columns("id", "user_id", "action", "entity_type", "entity_id", "ip", "details", "created_at").
+		Values(log.Id, log.UserId, log.Action, log.EntityType, log.EntityId, log.IP, details, log.CreatedAt).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxRepo - CreateAuditLogTx - BuildQuery: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TxRepo - CreateAuditLogTx - Exec: %w", err)
 	}
 
 	return nil

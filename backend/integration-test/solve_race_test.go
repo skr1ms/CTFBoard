@@ -6,13 +6,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
-	"github.com/skr1ms/CTFBoard/internal/usecase/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,9 +19,9 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	mockRedis := mocks.NewMockRedisClient(t)
-	mockRedis.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntResult(0, nil)).Maybe()
-	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.TxRepo, mockRedis, nil)
+	db, redisClient := redismock.NewClientMock()
+	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
+	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.TxRepo, db, nil)
 
 	captain, team := f.CreateUserWithTeam(t, "solve_racer")
 	u2 := f.CreateUser(t, "solve_racer_2")
@@ -72,9 +70,9 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	mockRedis := mocks.NewMockRedisClient(t)
-	mockRedis.On("Del", mock.Anything, mock.Anything).Return(redis.NewIntResult(0, nil)).Maybe()
-	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.TxRepo, mockRedis, nil)
+	db, redisClient := redismock.NewClientMock()
+	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
+	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.TxRepo, db, nil)
 
 	challenge := f.CreateDynamicChallenge(t, "DecayRace", 1000, 100, 10)
 
