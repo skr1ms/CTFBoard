@@ -22,7 +22,8 @@ func CalculateDynamicScore(initial, min, decay, solves int) int {
 		return min
 	}
 
-	value := float64(initial) + ((float64(min)-float64(initial))/(math.Pow(float64(decay), 2)))*math.Pow(solveCount, 2)
+	decayFloat := float64(decay)
+	value := float64(initial) + ((float64(min)-float64(initial))/(decayFloat*decayFloat))*(solveCount*solveCount)
 
 	score := int(math.Ceil(value))
 	if score < min {

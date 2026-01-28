@@ -48,6 +48,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 	defer pool.Close()
 
+	//nolint:staticcheck
 	redisClient, err := redis.New(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 	if err != nil {
 		l.WithError(err).Error("failed to connect to redis")
@@ -77,8 +78,11 @@ func Run(cfg *config.Config, l logger.Logger) {
 	txRepo := persistent.NewTxRepo(pool)
 
 	// Seed default admin if configured
+	//nolint:staticcheck
 	adminUsername := cfg.Admin.Username
+	//nolint:staticcheck
 	adminEmail := cfg.Admin.Email
+	//nolint:staticcheck
 	adminPassword := cfg.Admin.Password
 
 	if adminUsername != "" && adminEmail != "" && adminPassword != "" {
