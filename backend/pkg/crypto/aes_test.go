@@ -10,7 +10,8 @@ import (
 
 func TestNewCryptoService(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		key := "12345678901234567890123456789012"
+		// 32 bytes hex encoded = 64 chars
+		key := "1234567890123456789012345678901212345678901234567890123456789012"
 		svc, err := NewCryptoService(key)
 		require.NoError(t, err)
 		assert.NotNil(t, svc)
@@ -21,12 +22,12 @@ func TestNewCryptoService(t *testing.T) {
 		svc, err := NewCryptoService(key)
 		assert.Error(t, err)
 		assert.Nil(t, svc)
-		assert.Equal(t, "key must be 32 bytes (256 bits) for AES-256", err.Error())
+		assert.Equal(t, "key must be 64 characters (hex encoded 32 bytes) for AES-256", err.Error())
 	})
 }
 
 func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
-	key := "12345678901234567890123456789012"
+	key := "1234567890123456789012345678901212345678901234567890123456789012"
 	svc, _ := NewCryptoService(key)
 
 	plaintext := "CTF{this_is_a_secret_flag}"
@@ -42,7 +43,7 @@ func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
 }
 
 func TestCryptoService_Decrypt_Error(t *testing.T) {
-	key := "12345678901234567890123456789012"
+	key := "1234567890123456789012345678901212345678901234567890123456789012"
 	svc, _ := NewCryptoService(key)
 
 	t.Run("InvalidBase64", func(t *testing.T) {

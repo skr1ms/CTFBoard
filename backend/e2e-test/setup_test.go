@@ -273,7 +273,10 @@ func startTestServer() (func(), error) {
 	txRepo := persistent.NewTxRepo(TestPool)
 	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
 	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
-	dummyCrypto, _ := crypto.NewCryptoService("12345678901234567890123456789012")
+	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
+	if err != nil {
+		return nil, fmt.Errorf("failed to init crypto service: %w", err)
+	}
 
 	// UseCases
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)

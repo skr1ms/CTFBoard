@@ -5,7 +5,9 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -19,10 +21,16 @@ type CryptoService struct {
 }
 
 func NewCryptoService(key string) (*CryptoService, error) {
-	if len(key) != 32 {
-		return nil, errors.New("key must be 32 bytes (256 bits) for AES-256")
+	if len(key) != 64 {
+		return nil, errors.New("key must be 64 characters (hex encoded 32 bytes) for AES-256")
 	}
-	return &CryptoService{key: []byte(key)}, nil
+
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex key: %w", err)
+	}
+
+	return &CryptoService{key: keyBytes}, nil
 }
 
 func (s *CryptoService) Encrypt(plaintext string) (string, error) {
