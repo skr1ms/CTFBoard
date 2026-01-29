@@ -23,6 +23,118 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/awards": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new award (bonus or penalty) for a team. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create award",
+                "parameters": [
+                    {
+                        "description": "Award data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreateAwardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.AwardResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/awards/team/{teamId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns list of awards for a team. Admin only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get awards by team",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/response.AwardResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/challenges": {
             "post": {
                 "security": [
@@ -38,7 +150,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Create challenge",
                 "parameters": [
@@ -95,7 +207,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Upload file to challenge",
                 "parameters": [
@@ -165,7 +277,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Create hint",
                 "parameters": [
@@ -229,7 +341,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Update challenge",
                 "parameters": [
@@ -291,7 +403,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes challenge. Admin only",
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Delete challenge",
                 "parameters": [
@@ -337,7 +449,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes file from storage. Admin only",
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Delete file",
                 "parameters": [
@@ -389,7 +501,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Update hint",
                 "parameters": [
@@ -451,7 +563,7 @@ const docTemplate = `{
                 ],
                 "description": "Deletes hint. Admin only.",
                 "tags": [
-                    entity.RoleAdmin
+                    "Admin"
                 ],
                 "summary": "Delete hint",
                 "parameters": [
@@ -1561,6 +1673,25 @@ const docTemplate = `{
                 }
             }
         },
+        "request.CreateAwardRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "team_id",
+                "value"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "team_id": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
         "request.CreateChallengeRequest": {
             "type": "object",
             "required": [
@@ -1593,7 +1724,15 @@ const docTemplate = `{
                     "minimum": 0,
                     "example": 500
                 },
+                "is_case_insensitive": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "is_hidden": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_regex": {
                     "type": "boolean",
                     "example": false
                 },
@@ -1771,7 +1910,15 @@ const docTemplate = `{
                     "minimum": 0,
                     "example": 500
                 },
+                "is_case_insensitive": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "is_hidden": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_regex": {
                     "type": "boolean",
                     "example": false
                 },
@@ -1810,6 +1957,29 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 0,
                     "example": 1
+                }
+            }
+        },
+        "response.AwardResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "team_id": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
                 }
             }
         },

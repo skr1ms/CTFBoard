@@ -11,6 +11,19 @@ definitions:
       refresh_token:
         type: string
     type: object
+  request.CreateAwardRequest:
+    properties:
+      description:
+        type: string
+      team_id:
+        type: string
+      value:
+        type: integer
+    required:
+    - description
+    - team_id
+    - value
+    type: object
   request.CreateChallengeRequest:
     properties:
       category:
@@ -30,7 +43,13 @@ definitions:
         example: 500
         minimum: 0
         type: integer
+      is_case_insensitive:
+        example: false
+        type: boolean
       is_hidden:
+        example: false
+        type: boolean
+      is_regex:
         example: false
         type: boolean
       min_value:
@@ -157,7 +176,13 @@ definitions:
         example: 500
         minimum: 0
         type: integer
+      is_case_insensitive:
+        example: false
+        type: boolean
       is_hidden:
+        example: false
+        type: boolean
+      is_regex:
         example: false
         type: boolean
       min_value:
@@ -192,6 +217,21 @@ definitions:
         type: integer
     required:
     - content
+    type: object
+  response.AwardResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      team_id:
+        type: string
+      value:
+        type: integer
     type: object
   response.ChallengeResponse:
     properties:
@@ -371,6 +411,77 @@ info:
   title: CTFBoard API
   version: 1.0.0
 paths:
+  /admin/awards:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new award (bonus or penalty) for a team. Admin only.
+      parameters:
+      - description: Award data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAwardRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.AwardResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create award
+      tags:
+      - Admin
+  /admin/awards/team/{teamId}:
+    get:
+      description: Returns list of awards for a team. Admin only.
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.AwardResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get awards by team
+      tags:
+      - Admin
   /admin/challenges:
     post:
       consumes:
