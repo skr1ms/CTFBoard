@@ -1,5 +1,40 @@
 basePath: /api/v1
 definitions:
+  entity.ChallengeStats:
+    properties:
+      category:
+        type: string
+      id:
+        type: string
+      points:
+        type: integer
+      solve_count:
+        type: integer
+      title:
+        type: string
+    type: object
+  entity.GeneralStats:
+    properties:
+      challenge_count:
+        type: integer
+      solve_count:
+        type: integer
+      team_count:
+        type: integer
+      user_count:
+        type: integer
+    type: object
+  entity.ScoreboardHistoryEntry:
+    properties:
+      points:
+        type: integer
+      team_id:
+        type: string
+      team_name:
+        type: string
+      timestamp:
+        type: string
+    type: object
   jwt.TokenPair:
     properties:
       access_expires_at:
@@ -1225,6 +1260,69 @@ paths:
       summary: Get scoreboard
       tags:
       - Scoreboard
+  /statistics/challenges:
+    get:
+      description: Returns statistics for all challenges including solve counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/entity.ChallengeStats'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get challenge statistics
+      tags:
+      - Statistics
+  /statistics/general:
+    get:
+      description: Returns general platform statistics (counts of users, teams, challenges,
+        solves)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.GeneralStats'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get general statistics
+      tags:
+      - Statistics
+  /statistics/scoreboard:
+    get:
+      description: Returns scoreboard history for graph visualization. Default limit
+        10 (max 50)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/entity.ScoreboardHistoryEntry'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get scoreboard history
+      tags:
+      - Statistics
   /teams:
     post:
       consumes:

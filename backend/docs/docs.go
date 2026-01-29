@@ -1290,6 +1290,105 @@ const docTemplate = `{
                 }
             }
         },
+        "/statistics/challenges": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns statistics for all challenges including solve counts",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Statistics"
+                ],
+                "summary": "Get challenge statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entity.ChallengeStats"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/statistics/general": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns general platform statistics (counts of users, teams, challenges, solves)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Statistics"
+                ],
+                "summary": "Get general statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.GeneralStats"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/statistics/scoreboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns scoreboard history for graph visualization. Default limit 10 (max 50)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Statistics"
+                ],
+                "summary": "Get scoreboard history",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entity.ScoreboardHistoryEntry"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/teams": {
             "post": {
                 "security": [
@@ -1656,6 +1755,60 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "entity.ChallengeStats": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "solve_count": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "entity.GeneralStats": {
+            "type": "object",
+            "properties": {
+                "challenge_count": {
+                    "type": "integer"
+                },
+                "solve_count": {
+                    "type": "integer"
+                },
+                "team_count": {
+                    "type": "integer"
+                },
+                "user_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "entity.ScoreboardHistoryEntry": {
+            "type": "object",
+            "properties": {
+                "points": {
+                    "type": "integer"
+                },
+                "team_id": {
+                    "type": "string"
+                },
+                "team_name": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
         "jwt.TokenPair": {
             "type": "object",
             "properties": {
