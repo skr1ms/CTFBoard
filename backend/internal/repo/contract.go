@@ -56,6 +56,8 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error)
 		GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error)
 		GetByName(ctx context.Context, name string) (*entity.Team, error)
+		GetSoloTeamByUserID(ctx context.Context, userId uuid.UUID) (*entity.Team, error)
+		CountTeamMembers(ctx context.Context, teamId uuid.UUID) (int, error)
 		Delete(ctx context.Context, id uuid.UUID) error
 		HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error
 	}
@@ -115,6 +117,8 @@ type (
 		UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID, teamId *uuid.UUID) error
 
 		CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error
+		GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error)
+		GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID) (*entity.Team, error)
 
 		CreateSolveTx(ctx context.Context, tx pgx.Tx, solve *entity.Solve) error
 		GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamId, challengeId uuid.UUID) (*entity.Solve, error)
@@ -127,6 +131,8 @@ type (
 
 		LockTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
 		LockUserTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID) error
+
+		DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error
 
 		GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error)
 		GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error)

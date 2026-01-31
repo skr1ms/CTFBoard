@@ -42,7 +42,7 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 	memberName := "member_" + suffix
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
 
-	h.JoinTeam(tokenMember, inviteToken, http.StatusOK)
+	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
 
 	// 6. Verify Team State for the New Member
 	memberTeam := h.GetMyTeam(tokenMember, http.StatusOK)

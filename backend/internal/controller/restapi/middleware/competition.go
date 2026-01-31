@@ -3,9 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/go-chi/render"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
 func CompetitionActive(competitionUC *usecase.CompetitionUseCase) func(http.Handler) http.Handler {
@@ -13,8 +13,7 @@ func CompetitionActive(competitionUC *usecase.CompetitionUseCase) func(http.Hand
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				render.Status(r, http.StatusInternalServerError)
-				render.JSON(w, r, map[string]string{"error": "failed to get competition status"})
+				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get competition status")
 				return
 			}
 
@@ -31,8 +30,7 @@ func CompetitionActive(competitionUC *usecase.CompetitionUseCase) func(http.Hand
 				default:
 					msg = "submissions are not allowed at this time"
 				}
-				render.Status(r, http.StatusForbidden)
-				render.JSON(w, r, map[string]string{"error": msg})
+				httputil.RenderError(w, r, http.StatusForbidden, msg)
 				return
 			}
 

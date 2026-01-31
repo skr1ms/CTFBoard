@@ -17,32 +17,48 @@ const DefaultMaxTeamSize = 10
 type TeamUseCase struct {
 	teamRepo    repo.TeamRepository
 	userRepo    repo.UserRepository
+	compRepo    repo.CompetitionRepository
 	txRepo      repo.TxRepository
 	maxTeamSize int
 }
 
-func NewTeamUseCase(teamRepo repo.TeamRepository, userRepo repo.UserRepository, txRepo repo.TxRepository) *TeamUseCase {
+func NewTeamUseCase(teamRepo repo.TeamRepository, userRepo repo.UserRepository, compRepo repo.CompetitionRepository, txRepo repo.TxRepository) *TeamUseCase {
 	return &TeamUseCase{
 		teamRepo:    teamRepo,
 		userRepo:    userRepo,
+		compRepo:    compRepo,
 		txRepo:      txRepo,
 		maxTeamSize: DefaultMaxTeamSize,
 	}
 }
 
-func NewTeamUseCaseWithSize(teamRepo repo.TeamRepository, userRepo repo.UserRepository, txRepo repo.TxRepository, maxTeamSize int) *TeamUseCase {
+func NewTeamUseCaseWithSize(teamRepo repo.TeamRepository, userRepo repo.UserRepository, compRepo repo.CompetitionRepository, txRepo repo.TxRepository, maxTeamSize int) *TeamUseCase {
 	return &TeamUseCase{
 		teamRepo:    teamRepo,
 		userRepo:    userRepo,
+		compRepo:    compRepo,
 		txRepo:      txRepo,
 		maxTeamSize: maxTeamSize,
 	}
 }
 
-func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.UUID) (*entity.Team, error) {
+func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.UUID, isSolo bool, confirmReset bool) (*entity.Team, error) {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetCompetition: %w", err)
+	}
+
+	mode := entity.CompetitionMode(comp.Mode)
+	if !comp.AllowTeamSwitch {
+		return nil, entityError.ErrRosterFrozen
+	}
+	if !mode.AllowsTeams() {
+		return nil, entityError.ErrSoloModeNotAllowed
+	}
+
 	var team *entity.Team
 
-	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, captainId); err != nil {
 			return fmt.Errorf("LockUserTx: %w", err)
 		}
@@ -61,29 +77,8 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.U
 		}
 
 		if user.TeamId != nil {
-			members, err := uc.txRepo.GetUsersByTeamIDTx(ctx, tx, *user.TeamId)
-			if err != nil {
-				return fmt.Errorf("GetUsersByTeamIDTx: %w", err)
-			}
-
-			if len(members) == 1 && members[0].Id == user.Id {
-				oldTeamId := *user.TeamId
-				if err := uc.txRepo.SoftDeleteTeamTx(ctx, tx, oldTeamId); err != nil {
-					return fmt.Errorf("SoftDeleteTeamTx: %w", err)
-				}
-				auditLog := &entity.TeamAuditLog{
-					TeamId: oldTeamId,
-					UserId: captainId,
-					Action: entity.TeamActionDeleted,
-					Details: map[string]any{
-						"reason": "solo_team_replaced",
-					},
-				}
-				if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
-					return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
-				}
-			} else {
-				return entityError.ErrUserAlreadyInTeam
+			if err := uc.handleSoloTeamCleanup(ctx, tx, user, captainId, confirmReset); err != nil {
+				return err
 			}
 		}
 
@@ -93,6 +88,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.U
 			Name:        name,
 			InviteToken: inviteToken,
 			CaptainId:   captainId,
+			IsSolo:      isSolo,
 		}
 
 		if err := uc.txRepo.CreateTeamTx(ctx, tx, team); err != nil {
@@ -122,10 +118,18 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainId uuid.U
 	return team, nil
 }
 
-func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId uuid.UUID) (*entity.Team, error) {
+func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId uuid.UUID, confirmReset bool) (*entity.Team, error) {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetCompetition: %w", err)
+	}
+	if !comp.AllowTeamSwitch {
+		return nil, entityError.ErrRosterFrozen
+	}
+
 	var team *entity.Team
 
-	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, userId); err != nil {
 			return fmt.Errorf("LockUserTx: %w", err)
 		}
@@ -155,29 +159,8 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId u
 		}
 
 		if user.TeamId != nil {
-			members, err := uc.txRepo.GetUsersByTeamIDTx(ctx, tx, *user.TeamId)
-			if err != nil {
-				return fmt.Errorf("GetUsersByTeamIDTx: %w", err)
-			}
-
-			if len(members) == 1 && members[0].Id == user.Id {
-				oldTeamId := *user.TeamId
-				if err := uc.txRepo.SoftDeleteTeamTx(ctx, tx, oldTeamId); err != nil {
-					return fmt.Errorf("SoftDeleteTeamTx: %w", err)
-				}
-				auditLog := &entity.TeamAuditLog{
-					TeamId: oldTeamId,
-					UserId: userId,
-					Action: entity.TeamActionDeleted,
-					Details: map[string]any{
-						"reason": "solo_team_replaced",
-					},
-				}
-				if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
-					return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
-				}
-			} else {
-				return entityError.ErrUserAlreadyInTeam
+			if err := uc.handleSoloTeamCleanup(ctx, tx, user, userId, confirmReset); err != nil {
+				return err
 			}
 		}
 
@@ -205,6 +188,14 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken uuid.UUID, userId u
 }
 
 func (uc *TeamUseCase) Leave(ctx context.Context, userId uuid.UUID) error {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("GetCompetition: %w", err)
+	}
+	if !comp.AllowTeamSwitch {
+		return entityError.ErrRosterFrozen
+	}
+
 	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, userId); err != nil {
 			return fmt.Errorf("LockUserTx: %w", err)
@@ -259,6 +250,14 @@ func (uc *TeamUseCase) Leave(ctx context.Context, userId uuid.UUID) error {
 }
 
 func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainId uuid.UUID, newCaptainId uuid.UUID) error {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("GetCompetition: %w", err)
+	}
+	if !comp.AllowTeamSwitch {
+		return entityError.ErrRosterFrozen
+	}
+
 	if captainId == newCaptainId {
 		return entityError.ErrCannotTransferToSelf
 	}
@@ -357,4 +356,259 @@ func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamId uuid.UUID) ([]
 		return nil, fmt.Errorf("TeamUseCase - GetTeamMembers: %w", err)
 	}
 	return users, nil
+}
+
+func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userId uuid.UUID, confirmReset bool) (*entity.Team, error) {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetCompetition: %w", err)
+	}
+
+	mode := entity.CompetitionMode(comp.Mode)
+	if !comp.AllowTeamSwitch {
+		return nil, entityError.ErrRosterFrozen
+	}
+	if !mode.AllowsSolo() {
+		return nil, entityError.ErrSoloModeNotAllowed
+	}
+
+	var team *entity.Team
+
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := uc.txRepo.LockUserTx(ctx, tx, userId); err != nil {
+			return fmt.Errorf("LockUserTx: %w", err)
+		}
+
+		user, err := uc.userRepo.GetByID(ctx, userId)
+		if err != nil {
+			return fmt.Errorf("GetByID: %w", err)
+		}
+
+		if user.TeamId != nil {
+			if err := uc.handleSoloTeamCleanup(ctx, tx, user, userId, confirmReset); err != nil {
+				return err
+			}
+		}
+
+		inviteToken := uuid.New()
+
+		team = &entity.Team{
+			Name:          user.Username,
+			InviteToken:   inviteToken,
+			CaptainId:     userId,
+			IsSolo:        true,
+			IsAutoCreated: false,
+		}
+
+		existingTeam, err := uc.txRepo.GetTeamByNameTx(ctx, tx, team.Name)
+		if err == nil && existingTeam != nil {
+			team.Name = fmt.Sprintf("%s (Solo)", user.Username)
+		}
+
+		if err := uc.txRepo.CreateTeamTx(ctx, tx, team); err != nil {
+			return fmt.Errorf("CreateTeamTx: %w", err)
+		}
+
+		if err := uc.txRepo.UpdateUserTeamIDTx(ctx, tx, userId, &team.Id); err != nil {
+			return fmt.Errorf("UpdateUserTeamIDTx: %w", err)
+		}
+
+		auditLog := &entity.TeamAuditLog{
+			TeamId: team.Id,
+			UserId: userId,
+			Action: entity.TeamActionCreated,
+			Details: map[string]any{
+				"mode": "solo",
+			},
+		}
+		if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
+			return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeam - Transaction: %w", err)
+	}
+
+	return team, nil
+}
+
+func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, tx pgx.Tx, user *entity.User, actorId uuid.UUID, confirmReset bool) error {
+	oldTeam, err := uc.txRepo.GetTeamByIDTx(ctx, tx, *user.TeamId)
+	if err != nil {
+		return fmt.Errorf("GetTeamByIDTx: %w", err)
+	}
+
+	members, err := uc.txRepo.GetUsersByTeamIDTx(ctx, tx, *user.TeamId)
+	if err != nil {
+		return fmt.Errorf("GetUsersByTeamIDTx: %w", err)
+	}
+
+	if len(members) == 1 && members[0].Id == user.Id && (oldTeam.IsSolo || oldTeam.IsAutoCreated) {
+		if !confirmReset {
+			return entityError.ErrConfirmationRequired
+		}
+
+		oldTeamId := *user.TeamId
+		if err := uc.txRepo.SoftDeleteTeamTx(ctx, tx, oldTeamId); err != nil {
+			return fmt.Errorf("SoftDeleteTeamTx: %w", err)
+		}
+
+		if err := uc.txRepo.DeleteSolvesByTeamIDTx(ctx, tx, oldTeamId); err != nil {
+			return fmt.Errorf("DeleteSolvesByTeamIDTx: %w", err)
+		}
+
+		auditLog := &entity.TeamAuditLog{
+			TeamId: oldTeamId,
+			UserId: actorId,
+			Action: entity.TeamActionDeleted,
+			Details: map[string]any{
+				"reason": "solo_team_cleanup",
+			},
+		}
+		if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
+			return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
+		}
+		return nil
+	}
+
+	return entityError.ErrUserAlreadyInTeam
+}
+
+func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainId uuid.UUID) error {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("GetCompetition: %w", err)
+	}
+	if !comp.AllowTeamSwitch {
+		return entityError.ErrRosterFrozen
+	}
+
+	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := uc.txRepo.LockUserTx(ctx, tx, captainId); err != nil {
+			return fmt.Errorf("LockUserTx: %w", err)
+		}
+
+		user, err := uc.userRepo.GetByID(ctx, captainId)
+		if err != nil {
+			return fmt.Errorf("GetByID: %w", err)
+		}
+
+		if user.TeamId == nil {
+			return entityError.ErrTeamNotFound
+		}
+
+		if err := uc.txRepo.LockTeamTx(ctx, tx, *user.TeamId); err != nil {
+			return fmt.Errorf("LockTeamTx: %w", err)
+		}
+
+		team, err := uc.teamRepo.GetByID(ctx, *user.TeamId)
+		if err != nil {
+			return fmt.Errorf("GetByID team: %w", err)
+		}
+
+		if team.CaptainId != captainId {
+			return entityError.ErrNotCaptain
+		}
+
+		if err := uc.txRepo.SoftDeleteTeamTx(ctx, tx, team.Id); err != nil {
+			return fmt.Errorf("SoftDeleteTeamTx: %w", err)
+		}
+
+		members, err := uc.txRepo.GetUsersByTeamIDTx(ctx, tx, team.Id)
+		if err != nil {
+			return fmt.Errorf("GetUsersByTeamIDTx: %w", err)
+		}
+
+		for _, member := range members {
+			if err := uc.txRepo.UpdateUserTeamIDTx(ctx, tx, member.Id, nil); err != nil {
+				return fmt.Errorf("UpdateUserTeamIDTx member %s: %w", member.Id, err)
+			}
+		}
+
+		auditLog := &entity.TeamAuditLog{
+			TeamId: team.Id,
+			UserId: captainId,
+			Action: entity.TeamActionDeleted,
+			Details: map[string]any{
+				"reason": "disbanded_by_captain",
+			},
+		}
+		if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
+			return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
+		}
+
+		return nil
+	})
+}
+
+func (uc *TeamUseCase) KickMember(ctx context.Context, captainId uuid.UUID, targetUserId uuid.UUID) error {
+	comp, err := uc.compRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("GetCompetition: %w", err)
+	}
+	if !comp.AllowTeamSwitch {
+		return entityError.ErrRosterFrozen
+	}
+
+	if captainId == targetUserId {
+		return entityError.ErrCannotLeaveAsOnlyMember
+	}
+
+	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := uc.txRepo.LockUserTx(ctx, tx, captainId); err != nil {
+			return fmt.Errorf("LockUserTx captain: %w", err)
+		}
+
+		captain, err := uc.userRepo.GetByID(ctx, captainId)
+		if err != nil {
+			return fmt.Errorf("GetByID captain: %w", err)
+		}
+
+		if captain.TeamId == nil {
+			return entityError.ErrTeamNotFound
+		}
+
+		if err := uc.txRepo.LockTeamTx(ctx, tx, *captain.TeamId); err != nil {
+			return fmt.Errorf("LockTeamTx: %w", err)
+		}
+
+		team, err := uc.teamRepo.GetByID(ctx, *captain.TeamId)
+		if err != nil {
+			return fmt.Errorf("GetByID team: %w", err)
+		}
+
+		if team.CaptainId != captainId {
+			return entityError.ErrNotCaptain
+		}
+
+		targetUser, err := uc.userRepo.GetByID(ctx, targetUserId)
+		if err != nil {
+			return fmt.Errorf("GetByID target: %w", err)
+		}
+
+		if targetUser.TeamId == nil || *targetUser.TeamId != team.Id {
+			return entityError.ErrUserNotFound
+		}
+
+		if err := uc.txRepo.UpdateUserTeamIDTx(ctx, tx, targetUserId, nil); err != nil {
+			return fmt.Errorf("UpdateUserTeamIDTx: %w", err)
+		}
+
+		auditLog := &entity.TeamAuditLog{
+			TeamId: team.Id,
+			UserId: captainId,
+			Action: entity.TeamActionMemberKicked,
+			Details: map[string]any{
+				"target_user_id": targetUserId.String(),
+			},
+		}
+		if err := uc.txRepo.CreateTeamAuditLogTx(ctx, tx, auditLog); err != nil {
+			return fmt.Errorf("CreateTeamAuditLogTx: %w", err)
+		}
+
+		return nil
+	})
 }

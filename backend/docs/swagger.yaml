@@ -123,6 +123,8 @@ definitions:
     type: object
   request.CreateTeamRequest:
     properties:
+      confirm_reset:
+        type: boolean
       name:
         example: Team A
         type: string
@@ -137,6 +139,8 @@ definitions:
     type: object
   request.JoinTeamRequest:
     properties:
+      confirm_reset:
+        type: boolean
       invite_token:
         example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         type: string
@@ -1430,8 +1434,7 @@ paths:
       - Teams
   /teams/leave:
     post:
-      description: Leave current team. Captain cannot leave, must transfer captainship
-        first
+      description: Leave current team
       produces:
       - application/json
       responses:
@@ -1458,9 +1461,70 @@ paths:
       summary: Leave team
       tags:
       - Teams
+  /teams/me:
+    delete:
+      description: Disbands the current team (Captain only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Disband team
+      tags:
+      - Teams
+  /teams/members/{id}:
+    delete:
+      description: Kicks a member from the team (Captain only)
+      parameters:
+      - description: Member User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Kick member
+      tags:
+      - Teams
   /teams/my:
     get:
-      description: Returns information about current user's team with members list
+      description: Returns information about current user's team. If no team, returns
+        404.
       produces:
       - application/json
       responses:
@@ -1473,7 +1537,7 @@ paths:
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
         "404":
-          description: Not Found
+          description: User is not in a team
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
       security:
@@ -1481,11 +1545,36 @@ paths:
       summary: Get my team
       tags:
       - Teams
+  /teams/solo:
+    post:
+      description: Creates a solo team for the user (Select Solo Mode)
+      parameters:
+      - description: Confirm reset
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/request.CreateTeamRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.TeamResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create solo team
+      tags:
+      - Teams
   /teams/transfer-captain:
     post:
       consumes:
       - application/json
-      description: Transfer team captain role to another team member
+      description: Transfer team captain role
       parameters:
       - description: New captain ID
         in: body

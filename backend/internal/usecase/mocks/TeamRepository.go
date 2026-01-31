@@ -40,6 +40,72 @@ func (_m *MockTeamRepository) EXPECT() *MockTeamRepository_Expecter {
 	return &MockTeamRepository_Expecter{mock: &_m.Mock}
 }
 
+// CountTeamMembers provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) CountTeamMembers(ctx context.Context, teamId uuid.UUID) (int, error) {
+	ret := _mock.Called(ctx, teamId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountTeamMembers")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+		return returnFunc(ctx, teamId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, teamId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_CountTeamMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountTeamMembers'
+type MockTeamRepository_CountTeamMembers_Call struct {
+	*mock.Call
+}
+
+// CountTeamMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamId uuid.UUID
+func (_e *MockTeamRepository_Expecter) CountTeamMembers(ctx interface{}, teamId interface{}) *MockTeamRepository_CountTeamMembers_Call {
+	return &MockTeamRepository_CountTeamMembers_Call{Call: _e.mock.On("CountTeamMembers", ctx, teamId)}
+}
+
+func (_c *MockTeamRepository_CountTeamMembers_Call) Run(run func(ctx context.Context, teamId uuid.UUID)) *MockTeamRepository_CountTeamMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_CountTeamMembers_Call) Return(n int, err error) *MockTeamRepository_CountTeamMembers_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_CountTeamMembers_Call) RunAndReturn(run func(ctx context.Context, teamId uuid.UUID) (int, error)) *MockTeamRepository_CountTeamMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type MockTeamRepository
 func (_mock *MockTeamRepository) Create(ctx context.Context, team *entity.Team) error {
 	ret := _mock.Called(ctx, team)
@@ -354,6 +420,74 @@ func (_c *MockTeamRepository_GetByName_Call) Return(team *entity.Team, err error
 }
 
 func (_c *MockTeamRepository_GetByName_Call) RunAndReturn(run func(ctx context.Context, name string) (*entity.Team, error)) *MockTeamRepository_GetByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSoloTeamByUserID provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) GetSoloTeamByUserID(ctx context.Context, userId uuid.UUID) (*entity.Team, error) {
+	ret := _mock.Called(ctx, userId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSoloTeamByUserID")
+	}
+
+	var r0 *entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Team, error)); ok {
+		return returnFunc(ctx, userId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Team); ok {
+		r0 = returnFunc(ctx, userId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_GetSoloTeamByUserID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSoloTeamByUserID'
+type MockTeamRepository_GetSoloTeamByUserID_Call struct {
+	*mock.Call
+}
+
+// GetSoloTeamByUserID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userId uuid.UUID
+func (_e *MockTeamRepository_Expecter) GetSoloTeamByUserID(ctx interface{}, userId interface{}) *MockTeamRepository_GetSoloTeamByUserID_Call {
+	return &MockTeamRepository_GetSoloTeamByUserID_Call{Call: _e.mock.On("GetSoloTeamByUserID", ctx, userId)}
+}
+
+func (_c *MockTeamRepository_GetSoloTeamByUserID_Call) Run(run func(ctx context.Context, userId uuid.UUID)) *MockTeamRepository_GetSoloTeamByUserID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_GetSoloTeamByUserID_Call) Return(team *entity.Team, err error) *MockTeamRepository_GetSoloTeamByUserID_Call {
+	_c.Call.Return(team, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_GetSoloTeamByUserID_Call) RunAndReturn(run func(ctx context.Context, userId uuid.UUID) (*entity.Team, error)) *MockTeamRepository_GetSoloTeamByUserID_Call {
 	_c.Call.Return(run)
 	return _c
 }

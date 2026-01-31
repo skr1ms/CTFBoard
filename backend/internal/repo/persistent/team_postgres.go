@@ -27,8 +27,8 @@ func (r *TeamRepo) Create(ctx context.Context, t *entity.Team) error {
 	t.CreatedAt = time.Now()
 
 	query := squirrel.Insert("teams").
-		Columns("id", "name", "invite_token", "captain_id", "created_at").
-		Values(t.Id, t.Name, t.InviteToken, t.CaptainId, t.CreatedAt).
+		Columns("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
+		Values(t.Id, t.Name, t.InviteToken, t.CaptainId, t.IsSolo, t.IsAutoCreated, t.CreatedAt).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -45,7 +45,7 @@ func (r *TeamRepo) Create(ctx context.Context, t *entity.Team) error {
 }
 
 func (r *TeamRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error) {
-	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"id": id}).
 		Where(squirrel.Eq{"deleted_at": nil}).
@@ -62,6 +62,8 @@ func (r *TeamRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, err
 		&team.Name,
 		&team.InviteToken,
 		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
 		&team.CreatedAt,
 	)
 
@@ -80,7 +82,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 		return nil, entityError.ErrTeamNotFound
 	}
 
-	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"invite_token": inviteToken}).
 		Where(squirrel.Eq{"deleted_at": nil}).
@@ -97,6 +99,8 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 		&team.Name,
 		&team.InviteToken,
 		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
 		&team.CreatedAt,
 	)
 
@@ -111,7 +115,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 }
 
 func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, error) {
-	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"name": name}).
 		Where(squirrel.Eq{"deleted_at": nil}).
@@ -128,6 +132,8 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 		&team.Name,
 		&team.InviteToken,
 		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
 		&team.CreatedAt,
 	)
 
@@ -178,4 +184,59 @@ func (r *TeamRepo) HardDeleteTeams(ctx context.Context, cutoffDate time.Time) er
 	}
 
 	return nil
+}
+
+func (r *TeamRepo) GetSoloTeamByUserID(ctx context.Context, userId uuid.UUID) (*entity.Team, error) {
+	query := squirrel.Select("t.id", "t.name", "t.invite_token", "t.captain_id", "t.is_solo", "t.is_auto_created", "t.created_at").
+		From("teams t").
+		Join("users u ON u.team_id = t.id").
+		Where(squirrel.Eq{"u.id": userId}).
+		Where(squirrel.Eq{"t.is_solo": true}).
+		Where(squirrel.Eq{"t.deleted_at": nil}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("TeamRepo - GetSoloTeamByUserID - BuildQuery: %w", err)
+	}
+
+	var team entity.Team
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
+		&team.Id,
+		&team.Name,
+		&team.InviteToken,
+		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
+		&team.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TeamRepo - GetSoloTeamByUserID - Scan: %w", err)
+	}
+
+	return &team, nil
+}
+
+func (r *TeamRepo) CountTeamMembers(ctx context.Context, teamId uuid.UUID) (int, error) {
+	query := squirrel.Select("COUNT(*)").
+		From("users").
+		Where(squirrel.Eq{"team_id": teamId}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("TeamRepo - CountTeamMembers - BuildQuery: %w", err)
+	}
+
+	var count int
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("TeamRepo - CountTeamMembers - Scan: %w", err)
+	}
+
+	return count, nil
 }

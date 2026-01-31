@@ -39,10 +39,6 @@ func TestUserUseCase_Register(t *testing.T) {
 				txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, u *entity.User) {
 					u.Id = uuid.New()
 				}).Once()
-				txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, t *entity.Team) {
-					t.Id = uuid.New()
-				}).Once()
-				txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 			},
 			expectedError: false,
 		},

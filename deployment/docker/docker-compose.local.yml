@@ -117,6 +117,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       BACKEND_PORT: 8080
       MIGRATIONS_PATH: ${MIGRATIONS_PATH:-migrations}
+      VERIFY_EMAILS: ${VERIFY_EMAILS:-false}
       
       # Database connection
       POSTGRES_HOST: postgres

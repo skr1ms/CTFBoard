@@ -12,6 +12,7 @@ func TestProfile_GetMe(t *testing.T) {
 	// 1. Setup User
 	username := "profileuser"
 	email, _, token := h.RegisterUserAndLogin(username)
+	h.CreateSoloTeam(token, http.StatusCreated)
 
 	// 2. Fetch Own Profile
 	resp := h.GetMe(token)

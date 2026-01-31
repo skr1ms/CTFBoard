@@ -25,15 +25,18 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 	// 3. User 1
 	_, _, user1 := h.RegisterUserAndLogin("user_freeze_1")
+	h.CreateSoloTeam(user1, http.StatusCreated)
 
 	// 4. Set Freeze Time to NOW + 2 sec
 	now := time.Now().UTC()
 	freezeTime := now.Add(2 * time.Second)
 	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":        "Freeze CTF",
-		"start_time":  now.Add(-1 * time.Hour),
-		"end_time":    now.Add(24 * time.Hour),
-		"freeze_time": freezeTime,
+		"name":              "Freeze CTF",
+		"start_time":        now.Add(-1 * time.Hour),
+		"end_time":          now.Add(24 * time.Hour),
+		"freeze_time":       freezeTime,
+		"allow_team_switch": true,
+		"mode":              "flexible",
 	})
 
 	// 5. User 1 Solves BEFORE freeze
@@ -41,6 +44,7 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 	// 6. User 2
 	_, _, user2 := h.RegisterUserAndLogin("user_freeze_2")
+	h.CreateSoloTeam(user2, http.StatusCreated)
 
 	// 7. Wait for freeze time to pass
 	time.Sleep(3 * time.Second)

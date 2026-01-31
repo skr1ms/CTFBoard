@@ -25,7 +25,9 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	// 3. Register Two Potential Solvers
 	_, _, tokenUser1 := h.RegisterUserAndLogin("fbuser1")
+	h.CreateSoloTeam(tokenUser1, http.StatusCreated)
 	_, _, tokenUser2 := h.RegisterUserAndLogin("fbuser2")
+	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 
 	// 4. User 1 Submits Flag First
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{firstblood}", http.StatusOK)

@@ -17,7 +17,7 @@ const userContextKey userContextKeyType = entity.RoleUser
 func InjectUser(userUC *usecase.UserUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userId := GetUserID(r.Context())
+			userId := httputil.GetUserID(r.Context())
 			if userId == "" {
 				next.ServeHTTP(w, r)
 				return

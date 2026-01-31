@@ -36,9 +36,11 @@ func TestScoreboard_Display(t *testing.T) {
 	suffix := uuid.New().String()[:8]
 	nameUser1 := "user4_" + suffix
 	_, _, tokenUser1 := h.RegisterUserAndLogin(nameUser1)
+	h.CreateSoloTeam(tokenUser1, http.StatusCreated)
 
 	nameUser2 := "user5_" + suffix
 	_, _, tokenUser2 := h.RegisterUserAndLogin(nameUser2)
+	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 
 	// 4. Team 1 Solves Both Challenges
 	h.SubmitFlag(tokenUser1, challengeID1, "FLAG{chall1}", http.StatusOK)

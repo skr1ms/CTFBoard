@@ -330,12 +330,14 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		Points:   100,
 	}
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Commit", mock.Anything).Return(nil)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
+
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.MatchedBy(func(s *entity.Solve) bool {
@@ -468,12 +470,13 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		ChallengeId: challengeID,
 	}
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
-	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(existingSolve, nil)
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(entityError.ErrAlreadySolved).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
 
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(existingSolve, nil)
 
@@ -507,7 +510,7 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 	expectedError := assert.AnError
 
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	txRepo.On("BeginTx", mock.Anything).Return(nil, expectedError)
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError)
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, nil, db, nil, nil, nil)
 
@@ -537,11 +540,14 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 	}
 	expectedError := assert.AnError
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
+
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, expectedError)
 
 	uc := NewChallengeUseCase(challengeRepo, solveRepo, txRepo, nil, db, nil, nil, nil)
@@ -572,11 +578,14 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 	}
 	expectedError := assert.AnError
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
+
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(expectedError)
@@ -746,14 +755,15 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		Points:    100,
 	}
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Commit", mock.Anything).Return(nil)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	cryptoService.On("Decrypt", encryptedRegex).Return(regexPattern, nil)
 
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
+
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -818,13 +828,14 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		Points:            100,
 	}
 
-	mockTx := mocks.NewMockPgxTx(t)
-	mockTx.On("Commit", mock.Anything).Return(nil)
-	mockTx.On("Rollback", mock.Anything).Return(nil)
-
 	challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
-	txRepo.On("BeginTx", mock.Anything).Return(mockTx, nil)
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(ctx, nil)
+	})
+
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)

@@ -29,6 +29,7 @@ func TestChallenge_Lifecycle(t *testing.T) {
 	suffix := uuid.New().String()[:8]
 	userName := "chall_usr_" + suffix
 	_, _, tokenUser := h.RegisterUserAndLogin(userName)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 4. Verify Challenge Initial State
 	challenge := h.FindChallengeInList(tokenUser, challengeID)
@@ -72,6 +73,7 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	// 3. First Solver
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser1 := h.RegisterUserAndLogin("solver1_" + suffix)
+	h.CreateSoloTeam(tokenUser1, http.StatusCreated)
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	// 4. Check Score Decay (1 solve)
@@ -82,6 +84,7 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 
 	// 5. Second Solver
 	_, _, tokenUser2 := h.RegisterUserAndLogin("solver2_" + suffix)
+	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	// 6. Check Score Decay (2 solves)
@@ -112,6 +115,7 @@ func TestChallenge_CreateHidden(t *testing.T) {
 	// 3. Register User
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("user2_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 4. Verify Challenge is Not Visible
 	h.AssertChallengeMissing(tokenUser, challengeID)
@@ -171,6 +175,7 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 	// 3. Register User
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("user3_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 4. Submit Wrong Flag (Expect 400)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusBadRequest)

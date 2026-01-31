@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
+	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
@@ -48,12 +50,16 @@ func NewTeamRoutes(router chi.Router,
 		return httputil.GetClientIP(r), nil
 	})
 
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Post("/teams", routes.Create)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), joinLimit).Post("/teams/join", routes.Join)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Post("/teams/leave", routes.Leave)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), transferLimit).Post("/teams/transfer-captain", routes.TransferCaptain)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Get("/teams/my", routes.GetMyTeam)
-	router.With(restapiMiddleware.Auth(jwtService)).Get("/teams/{id}", routes.GetByID)
+	router.Post("/teams", routes.Create)
+	router.Post("/teams/solo", routes.CreateSolo)
+	router.With(joinLimit).Post("/teams/join", routes.Join)
+	router.Post("/teams/leave", routes.Leave)
+	router.With(transferLimit).Post("/teams/transfer-captain", routes.TransferCaptain)
+	router.Delete("/teams/me", routes.Disband)
+	router.Delete("/teams/members/{id}", routes.Kick)
+
+	router.Get("/teams/my", routes.GetMyTeam)
+	router.Get("/teams/{id}", routes.GetByID)
 }
 
 // @Summary      Create team
@@ -82,7 +88,7 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamUC.Create(r.Context(), req.Name, user.Id)
+	team, err := h.teamUC.Create(r.Context(), req.Name, user.Id, false, req.ConfirmReset)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - Create - Create")
 		handleError(w, r, err)
@@ -91,6 +97,38 @@ func (h *teamRoutes) Create(w http.ResponseWriter, r *http.Request) {
 
 	res := response.FromTeam(team)
 
+	httputil.RenderCreated(w, r, res)
+}
+
+// @Summary      Create solo team
+// @Description  Creates a solo team for the user (Select Solo Mode)
+// @Tags         Teams
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body      request.CreateTeamRequest false "Confirm reset"
+// @Success      200     {object}  response.TeamResponse
+// @Failure      400     {object}  ErrorResponse
+// @Router       /teams/solo [post]
+func (h *teamRoutes) CreateSolo(w http.ResponseWriter, r *http.Request) {
+	user, ok := restapiMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	// Optional body for confirmation
+	var req request.CreateTeamRequest
+	// We don't strictly validate here because name is not required for solo
+	_ = httputil.DecodeJSON(r, &req)
+
+	team, err := h.teamUC.CreateSoloTeam(r.Context(), user.Id, req.ConfirmReset)
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - CreateSolo")
+		handleError(w, r, err)
+		return
+	}
+
+	res := response.FromTeam(team)
 	httputil.RenderCreated(w, r, res)
 }
 
@@ -124,11 +162,11 @@ func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 	inviteTokenUUID, err := uuid.Parse(req.InviteToken)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, ErrorResponse{Error: "invalid invite token format"})
+		render.JSON(w, r, map[string]string{"error": "invalid invite token format"})
 		return
 	}
 
-	team, err := h.teamUC.Join(r.Context(), inviteTokenUUID, user.Id)
+	team, err := h.teamUC.Join(r.Context(), inviteTokenUUID, user.Id, req.ConfirmReset)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - Join - Join")
 		handleError(w, r, err)
@@ -141,13 +179,13 @@ func (h *teamRoutes) Join(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Get my team
-// @Description  Returns information about current user's team with members list
+// @Description  Returns information about current user's team. If no team, returns 404.
 // @Tags         Teams
 // @Produce      json
 // @Security     BearerAuth
 // @Success      200  {object}  response.TeamWithMembersResponse
 // @Failure      401  {object}  ErrorResponse
-// @Failure      404  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse "User is not in a team"
 // @Router       /teams/my [get]
 func (h *teamRoutes) GetMyTeam(w http.ResponseWriter, r *http.Request) {
 	user, ok := restapiMiddleware.GetUser(r.Context())
@@ -158,6 +196,10 @@ func (h *teamRoutes) GetMyTeam(w http.ResponseWriter, r *http.Request) {
 
 	team, members, err := h.teamUC.GetMyTeam(r.Context(), user.Id)
 	if err != nil {
+		if errors.Is(err, entityError.ErrTeamNotFound) {
+			httputil.RenderError(w, r, http.StatusNotFound, "user is not in a team")
+			return
+		}
 		h.logger.WithError(err).Error("restapi - v1 - GetMyTeam - GetMyTeam")
 		handleError(w, r, err)
 		return
@@ -197,7 +239,7 @@ func (h *teamRoutes) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Leave team
-// @Description  Leave current team. Captain cannot leave, must transfer captainship first
+// @Description  Leave current team
 // @Tags         Teams
 // @Produce      json
 // @Security     BearerAuth
@@ -223,7 +265,7 @@ func (h *teamRoutes) Leave(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Transfer captainship
-// @Description  Transfer team captain role to another team member
+// @Description  Transfer team captain role
 // @Tags         Teams
 // @Accept       json
 // @Produce      json
@@ -262,4 +304,61 @@ func (h *teamRoutes) TransferCaptain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RenderOK(w, r, map[string]string{"message": "Captainship transferred successfully"})
+}
+
+// @Summary      Disband team
+// @Description  Disbands the current team (Captain only)
+// @Tags         Teams
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]string
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Router       /teams/me [delete]
+func (h *teamRoutes) Disband(w http.ResponseWriter, r *http.Request) {
+	user, ok := restapiMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	if err := h.teamUC.DisbandTeam(r.Context(), user.Id); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - Disband")
+		handleError(w, r, err)
+		return
+	}
+
+	httputil.RenderOK(w, r, map[string]string{"message": "Team disbanded successfully"})
+}
+
+// @Summary      Kick member
+// @Description  Kicks a member from the team (Captain only)
+// @Tags         Teams
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Member User ID"
+// @Success      200  {object}  map[string]string
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /teams/members/{id} [delete]
+func (h *teamRoutes) Kick(w http.ResponseWriter, r *http.Request) {
+	user, ok := restapiMiddleware.GetUser(r.Context())
+	if !ok {
+		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	targetUserID, ok := httputil.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.teamUC.KickMember(r.Context(), user.Id, targetUserID); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - Kick")
+		handleError(w, r, err)
+		return
+	}
+
+	httputil.RenderOK(w, r, map[string]string{"message": "Member kicked successfully"})
 }

@@ -17,7 +17,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := usecase.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.TxRepo)
+	uc := usecase.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo)
 
 	u1 := f.CreateUser(t, "racer_1")
 	u2 := f.CreateUser(t, "racer_2")
@@ -31,7 +31,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		team, err := uc.Create(ctx, teamName, u1.Id)
+		team, err := uc.Create(ctx, teamName, u1.Id, false, false)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -41,7 +41,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		team, err := uc.Create(ctx, teamName, u2.Id)
+		team, err := uc.Create(ctx, teamName, u2.Id, false, false)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -76,10 +76,10 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := usecase.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.TxRepo, 2)
+	uc := usecase.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, 2)
 
 	captain := f.CreateUser(t, "captain")
-	team, err := uc.Create(ctx, "MaxCapTeam", captain.Id)
+	team, err := uc.Create(ctx, "MaxCapTeam", captain.Id, false, false)
 	require.NoError(t, err)
 
 	u1 := f.CreateUser(t, "joiner_1")
@@ -93,7 +93,7 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 
 	opts := func(uID uuid.UUID, name string) {
 		defer wg.Done()
-		_, err := uc.Join(ctx, team.InviteToken, uID)
+		_, err := uc.Join(ctx, team.InviteToken, uID, false)
 		if err != nil {
 			errCh <- err
 		} else {

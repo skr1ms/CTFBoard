@@ -35,14 +35,17 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	// 2. Register Regular User
 	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 3. Admin Pauses Competition
 	now := time.Now().UTC()
 	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":       "Comp Name",
-		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),
-		"is_paused":  true,
+		"name":              "Comp Name",
+		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"end_time":          now.Add(24 * time.Hour).Format(time.RFC3339),
+		"is_paused":         true,
+		"allow_team_switch": true,
+		"mode":              "flexible",
 	})
 
 	h.GetCompetitionStatus().
@@ -53,10 +56,12 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	// 5. Admin Resumes Competition
 	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":       "Comp Name",
-		"start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"end_time":   now.Add(24 * time.Hour).Format(time.RFC3339),
-		"is_paused":  false,
+		"name":              "Comp Name",
+		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"end_time":          now.Add(24 * time.Hour).Format(time.RFC3339),
+		"is_paused":         false,
+		"allow_team_switch": true,
+		"mode":              "flexible",
 	})
 
 	// 6. User Successfully Submits Flag

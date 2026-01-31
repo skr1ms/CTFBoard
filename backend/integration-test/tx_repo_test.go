@@ -971,3 +971,182 @@ func TestTxRepo_CreateTeamAuditLogTx_Error_InvalidReference(t *testing.T) {
 	err = f.TxRepo.CreateTeamAuditLogTx(ctx, tx, log)
 	assert.Error(t, err)
 }
+
+// DeleteSolvesByTeamIDTx Tests
+
+func TestTxRepo_DeleteSolvesByTeamIDTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "del_solves_tx")
+	challenge := f.CreateChallenge(t, "DelSolvesTx", 100)
+	f.CreateSolve(t, user.Id, team.Id, challenge.Id)
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = f.TxRepo.DeleteSolvesByTeamIDTx(ctx, tx, team.Id)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
+}
+
+func TestTxRepo_DeleteSolvesByTeamIDTx_Error_TxClosed(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "del_solves_err")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	_ = tx.Rollback(ctx)
+
+	err = f.TxRepo.DeleteSolvesByTeamIDTx(ctx, tx, team.Id)
+	assert.Error(t, err)
+}
+
+// GetTeamByIDTx Tests
+
+func TestTxRepo_GetTeamByIDTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "get_team_id_tx")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	gotTeam, err := f.TxRepo.GetTeamByIDTx(ctx, tx, team.Id)
+	require.NoError(t, err)
+	assert.Equal(t, team.Id, gotTeam.Id)
+	assert.Equal(t, team.Name, gotTeam.Name)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_GetTeamByIDTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	_, err = f.TxRepo.GetTeamByIDTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// GetSoloTeamByUserIDTx Tests
+
+func TestTxRepo_GetSoloTeamByUserIDTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	user := f.CreateUser(t, "solo_getter")
+
+	team := &entity.Team{
+		Name:        "SoloGetterTeam",
+		CaptainId:   user.Id,
+		IsSolo:      true,
+		InviteToken: uuid.New(),
+	}
+	err = f.TxRepo.CreateTeamTx(ctx, tx, team)
+	require.NoError(t, err)
+
+	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, user.Id, &team.Id)
+	require.NoError(t, err)
+
+	gotTeam, err := f.TxRepo.GetSoloTeamByUserIDTx(ctx, tx, user.Id)
+	require.NoError(t, err)
+	assert.Equal(t, team.Id, gotTeam.Id)
+	assert.True(t, gotTeam.IsSolo)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_GetSoloTeamByUserIDTx_Error_NotFound(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	user := f.CreateUser(t, "no_solo_team")
+
+	_, err = f.TxRepo.GetSoloTeamByUserIDTx(ctx, tx, user.Id)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+// CreateAuditLogTx Tests
+
+func TestTxRepo_CreateAuditLogTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "audit_logger")
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	log := &entity.AuditLog{
+		UserId:     &user.Id,
+		Action:     "TEST_ACTION",
+		EntityType: "user",
+		EntityId:   user.Id.String(),
+		IP:         "127.0.0.1",
+		Details:    map[string]any{"foo": "bar"},
+	}
+
+	err = f.TxRepo.CreateAuditLogTx(ctx, tx, log)
+	require.NoError(t, err)
+	assert.NotEmpty(t, log.Id)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestTxRepo_CreateAuditLogTx_Error_InvalidUser(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	invalidID := uuid.New()
+	log := &entity.AuditLog{
+		UserId:     &invalidID,
+		Action:     "TEST",
+		EntityType: "test",
+		EntityId:   "123",
+	}
+	_ = tx.Rollback(ctx)
+
+	err = f.TxRepo.CreateAuditLogTx(ctx, tx, log)
+	assert.Error(t, err)
+}

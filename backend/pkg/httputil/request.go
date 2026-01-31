@@ -40,3 +40,7 @@ func DecodeAndValidate[T any](
 
 	return req, true
 }
+
+func DecodeJSON[T any](r *http.Request, v *T) error {
+	return json.NewDecoder(r.Body).Decode(v)
+}

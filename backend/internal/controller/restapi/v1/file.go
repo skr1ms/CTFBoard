@@ -26,10 +26,10 @@ func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger
 		logger: logger,
 	}
 
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Post("/admin/challenges/{challengeId}/files", routes.Upload)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Delete("/admin/files/{id}", routes.Delete)
-	router.With(restapiMiddleware.Auth(jwtService)).Get("/files/{id}/download", routes.GetDownloadURL)
-	router.With(restapiMiddleware.Auth(jwtService)).Get("/challenges/{challengeId}/files", routes.GetByChallengeID)
+	router.With(restapiMiddleware.Admin).Post("/admin/challenges/{challengeId}/files", routes.Upload)
+	router.With(restapiMiddleware.Admin).Delete("/admin/files/{id}", routes.Delete)
+	router.Get("/files/{id}/download", routes.GetDownloadURL)
+	router.Get("/challenges/{challengeId}/files", routes.GetByChallengeID)
 
 	router.Get("/files/download/*", routes.Download)
 }

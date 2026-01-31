@@ -35,7 +35,6 @@ func NewAwardRoutes(
 	}
 
 	router.Route("/admin/awards", func(r chi.Router) {
-		r.Use(restapiMiddleware.Auth(jwtService))
 		r.Use(restapiMiddleware.Admin)
 		r.Post("/", routes.Create)
 		r.Get("/team/{teamId}", routes.GetByTeamID)

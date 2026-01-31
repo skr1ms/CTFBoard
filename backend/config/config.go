@@ -13,15 +13,16 @@ import (
 
 type (
 	Config struct {
-		App       `yaml:"app"`
-		Admin     `yaml:"admin"`
-		HTTP      `yaml:"http"`
-		DB        `yaml:"postgres"`
-		JWT       `yaml:"jwt"`
-		Redis     `yaml:"redis"`
-		RateLimit `yaml:"rate_limit"`
-		Resend    `yaml:"resend"`
-		Storage   `yaml:"storage"`
+		App         `yaml:"app"`
+		Admin       `yaml:"admin"`
+		HTTP        `yaml:"http"`
+		DB          `yaml:"postgres"`
+		JWT         `yaml:"jwt"`
+		Redis       `yaml:"redis"`
+		RateLimit   `yaml:"rate_limit"`
+		Resend      `yaml:"resend"`
+		Storage     `yaml:"storage"`
+		Competition `yaml:"competition"`
 	}
 
 	App struct {
@@ -30,6 +31,7 @@ type (
 		ChiMode           string
 		LogLevel          string
 		FlagEncryptionKey string
+		VerifyEmails      bool
 	}
 
 	Admin struct {
@@ -86,6 +88,13 @@ type (
 		S3Bucket         string
 		S3UseSSL         bool
 		PresignedExpiry  time.Duration
+	}
+
+	Competition struct {
+		Mode            string
+		AllowTeamSwitch bool
+		MinTeamSize     int
+		MaxTeamSize     int
 	}
 )
 
@@ -275,6 +284,7 @@ func New() (*Config, error) {
 			ChiMode:           chiMode,
 			LogLevel:          logLevel,
 			FlagEncryptionKey: flagEncryptionKey,
+			VerifyEmails:      getEnvBool("VERIFY_EMAILS", false),
 		},
 		Admin: Admin{
 			Username: adminUsername,
@@ -323,6 +333,12 @@ func New() (*Config, error) {
 			S3Bucket:         getEnv("STORAGE_S3_BUCKET", "tasks"),
 			S3UseSSL:         getEnvBool("STORAGE_S3_USE_SSL", false),
 			PresignedExpiry:  time.Duration(getEnvInt("STORAGE_PRESIGNED_EXPIRY_MINUTES", 60)) * time.Minute,
+		},
+		Competition: Competition{
+			Mode:            getEnv("COMPETITION_MODE", "flexible"),
+			AllowTeamSwitch: getEnvBool("ALLOW_TEAM_SWITCH", true),
+			MinTeamSize:     getEnvInt("MIN_TEAM_SIZE", 1),
+			MaxTeamSize:     getEnvInt("MAX_TEAM_SIZE", 10),
 		},
 	}
 

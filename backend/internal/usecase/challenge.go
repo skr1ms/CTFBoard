@@ -216,7 +216,6 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 	}
 
 	var isValid bool
-
 	flag = strings.TrimSpace(flag)
 
 	if challenge.IsRegex {
@@ -264,67 +263,69 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 		return false, nil
 	}
 
-	tx, err := uc.txRepo.BeginTx(ctx)
+	var solveCount int
+	var solvedChallenge *entity.Challenge
+
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
+		if err == nil {
+			return entityError.ErrAlreadySolved
+		}
+		if !errors.Is(err, entityError.ErrSolveNotFound) {
+			return fmt.Errorf("GetByTeamAndChallengeTx: %w", err)
+		}
+
+		solvedChallenge, err = uc.txRepo.GetChallengeByIDTx(ctx, tx, challengeId)
+		if err != nil {
+			return fmt.Errorf("GetChallengeByIDTx: %w", err)
+		}
+
+		solve := &entity.Solve{
+			UserId:      userId,
+			TeamId:      *teamId,
+			ChallengeId: challengeId,
+		}
+
+		if err := uc.txRepo.CreateSolveTx(ctx, tx, solve); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return entityError.ErrAlreadySolved
+			}
+			return fmt.Errorf("CreateSolveTx: %w", err)
+		}
+
+		solveCount, err = uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, challengeId)
+		if err != nil {
+			return fmt.Errorf("IncrementSolveCountTx: %w", err)
+		}
+
+		if solvedChallenge.InitialValue > 0 && solvedChallenge.Decay > 0 {
+			newPoints := CalculateDynamicScore(solvedChallenge.InitialValue, solvedChallenge.MinValue, solvedChallenge.Decay, solveCount)
+			if newPoints != solvedChallenge.Points {
+				if err = uc.txRepo.UpdateChallengePointsTx(ctx, tx, challengeId, newPoints); err != nil {
+					return fmt.Errorf("UpdatePointsTx: %w", err)
+				}
+				solvedChallenge.Points = newPoints
+			}
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - BeginTx: %w", err)
-	}
-
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	_, err = uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamId, challengeId)
-	if err == nil {
-		err = entityError.ErrAlreadySolved
-		return true, err
-	}
-	if !errors.Is(err, entityError.ErrSolveNotFound) {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByTeamAndChallengeTx: %w", err)
-	}
-
-	challenge, err = uc.txRepo.GetChallengeByIDTx(ctx, tx, challengeId)
-	if err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetChallengeByIDTx: %w", err)
-	}
-
-	solve := &entity.Solve{
-		UserId:      userId,
-		TeamId:      *teamId,
-		ChallengeId: challengeId,
-	}
-
-	err = uc.txRepo.CreateSolveTx(ctx, tx, solve)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.Is(err, entityError.ErrAlreadySolved) {
 			return true, entityError.ErrAlreadySolved
 		}
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - CreateTx: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Transaction: %w", err)
 	}
-
-	solveCount, err := uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, challengeId)
-	if err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - IncrementSolveCountTx: %w", err)
-	}
-
-	if challenge.InitialValue > 0 && challenge.Decay > 0 {
-		newPoints := CalculateDynamicScore(challenge.InitialValue, challenge.MinValue, challenge.Decay, solveCount)
-		if err = uc.txRepo.UpdateChallengePointsTx(ctx, tx, challengeId, newPoints); err != nil {
-			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - UpdatePointsTx: %w", err)
-		}
-		challenge.Points = newPoints
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Commit: %w", err)
-	}
-
 	uc.redis.Del(ctx, "scoreboard")
 
-	if uc.hub != nil {
+	if uc.hub != nil && solvedChallenge != nil {
 		payload := websocket.ScoreboardUpdate{
 			Type:      websocket.EventTypeSolve,
 			TeamID:    teamId.String(),
-			Challenge: challenge.Title,
-			Points:    challenge.Points,
+			Challenge: solvedChallenge.Title,
+			Points:    solvedChallenge.Points,
 			Timestamp: time.Now(),
 		}
 		uc.hub.BroadcastEvent(websocket.Event{
@@ -337,8 +338,8 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeId uuid.UUI
 			fbPayload := websocket.ScoreboardUpdate{
 				Type:      websocket.EventTypeFirstBlood,
 				TeamID:    teamId.String(),
-				Challenge: challenge.Title,
-				Points:    challenge.Points,
+				Challenge: solvedChallenge.Title,
+				Points:    solvedChallenge.Points,
 				Timestamp: time.Now(),
 			}
 			uc.hub.BroadcastEvent(websocket.Event{

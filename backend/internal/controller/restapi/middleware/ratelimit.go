@@ -13,7 +13,6 @@ import (
 )
 
 func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.Duration, keyFunc func(r *http.Request) (string, error)) func(next http.Handler) http.Handler {
-
 	store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
 		Prefix:   "limiter:" + keyPrefix,
 		MaxRetry: 3,

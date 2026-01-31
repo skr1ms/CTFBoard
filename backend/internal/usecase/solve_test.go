@@ -25,6 +25,7 @@ func TestSolveUseCase_Create(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, redisClient := redismock.NewClientMock()
 
 	teamID := uuid.New()
@@ -54,7 +55,7 @@ func TestSolveUseCase_Create(t *testing.T) {
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, solve).Return(nil)
 	txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	err := uc.Create(context.Background(), solve)
 
@@ -67,6 +68,7 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, _ := redismock.NewClientMock()
 
 	teamID := uuid.New()
@@ -97,7 +99,7 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(existingSolve, nil)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	err := uc.Create(context.Background(), solve)
 
@@ -110,6 +112,7 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, _ := redismock.NewClientMock()
 
 	teamID := uuid.New()
@@ -135,11 +138,100 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, nil)
 	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, solve).Return(expectedError)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	err := uc.Create(context.Background(), solve)
 
 	assert.Error(t, err)
+}
+
+func TestSolveUseCase_Create_AutoDetectTeam(t *testing.T) {
+	solveRepo := mocks.NewMockSolveRepository(t)
+	challengeRepo := mocks.NewMockChallengeRepository(t)
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	db, redisClient := redismock.NewClientMock()
+
+	teamID := uuid.New()
+	userID := uuid.New()
+	challengeID := uuid.New()
+	solve := &entity.Solve{
+		UserId:      userID,
+		TeamId:      uuid.Nil,
+		ChallengeId: challengeID,
+	}
+
+	redisClient.ExpectDel("scoreboard").SetVal(1)
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(context.Background(), nil)
+	})
+
+	user := &entity.User{
+		Id:     userID,
+		TeamId: &teamID,
+	}
+	txRepo.On("LockUserTx", mock.Anything, mock.Anything, userID).Return(nil)
+	userRepo.On("GetByID", mock.Anything, userID).Return(user, nil)
+
+	challenge := &entity.Challenge{
+		Id:         challengeID,
+		Title:      "Challenge",
+		Points:     100,
+		SolveCount: 0,
+	}
+
+	txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
+	txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, nil)
+	txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.MatchedBy(func(s *entity.Solve) bool {
+		return s.TeamId == teamID
+	})).Return(nil)
+	txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
+
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
+
+	err := uc.Create(context.Background(), solve)
+
+	assert.NoError(t, err)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestSolveUseCase_Create_NoTeamError(t *testing.T) {
+	solveRepo := mocks.NewMockSolveRepository(t)
+	challengeRepo := mocks.NewMockChallengeRepository(t)
+	competitionRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	db, _ := redismock.NewClientMock()
+
+	userID := uuid.New()
+	challengeID := uuid.New()
+	solve := &entity.Solve{
+		UserId:      userID,
+		TeamId:      uuid.Nil,
+		ChallengeId: challengeID,
+	}
+
+	txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(entityError.ErrNoTeamSelected).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(context.Context, pgx.Tx) error)
+		_ = fn(context.Background(), nil)
+	})
+
+	user := &entity.User{
+		Id:     userID,
+		TeamId: nil,
+	}
+	txRepo.On("LockUserTx", mock.Anything, mock.Anything, userID).Return(nil)
+	userRepo.On("GetByID", mock.Anything, userID).Return(user, nil)
+
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
+
+	err := uc.Create(context.Background(), solve)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrNoTeamSelected))
 }
 
 // GetScoreboard Tests
@@ -149,6 +241,7 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, redisClient := redismock.NewClientMock()
 
 	entries := []*repo.ScoreboardEntry{
@@ -174,7 +267,7 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 
 	redisClient.Regexp().ExpectSet("scoreboard", `.*`, 15*time.Second).SetVal("OK")
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	result, err := uc.GetScoreboard(context.Background())
 
@@ -191,6 +284,7 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, redisClient := redismock.NewClientMock()
 
 	freezeTime := time.Now().Add(-1 * time.Hour)
@@ -215,7 +309,7 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 
 	redisClient.Regexp().ExpectSet("scoreboard:frozen", `.*`, 15*time.Second).SetVal("OK")
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	result, err := uc.GetScoreboard(context.Background())
 
@@ -230,6 +324,7 @@ func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, redisClient := redismock.NewClientMock()
 
 	expectedError := assert.AnError
@@ -240,7 +335,7 @@ func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 
 	solveRepo.On("GetScoreboard", mock.Anything).Return(nil, expectedError)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	result, err := uc.GetScoreboard(context.Background())
 
@@ -256,6 +351,7 @@ func TestSolveUseCase_GetFirstBlood(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, _ := redismock.NewClientMock()
 
 	challengeID := uuid.New()
@@ -269,7 +365,7 @@ func TestSolveUseCase_GetFirstBlood(t *testing.T) {
 
 	solveRepo.On("GetFirstBlood", mock.Anything, challengeID).Return(entry, nil)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	result, err := uc.GetFirstBlood(context.Background(), challengeID)
 
@@ -284,13 +380,14 @@ func TestSolveUseCase_GetFirstBlood_NotFound(t *testing.T) {
 	challengeRepo := mocks.NewMockChallengeRepository(t)
 	competitionRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	db, _ := redismock.NewClientMock()
 
 	challengeID := uuid.New()
 
 	solveRepo.On("GetFirstBlood", mock.Anything, challengeID).Return(nil, entityError.ErrSolveNotFound)
 
-	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, db, nil)
+	uc := NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, db, nil)
 
 	result, err := uc.GetFirstBlood(context.Background(), challengeID)
 

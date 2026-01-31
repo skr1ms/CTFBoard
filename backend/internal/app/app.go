@@ -120,8 +120,8 @@ func Run(cfg *config.Config, l logger.Logger) {
 
 	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
 	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
-	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, txRepo, redisClient, wsHub)
-	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, txRepo)
+	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
+	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo)
 	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
 	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
 	awardUC := usecase.NewAwardUseCase(awardRepo, redisClient)
@@ -248,6 +248,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 			l,
 			cfg.SubmitFlag,
 			cfg.SubmitFlagDuration,
+			cfg.VerifyEmails,
 		)
 	})
 

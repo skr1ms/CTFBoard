@@ -46,4 +46,44 @@ var (
 		StatusCode: http.StatusBadRequest,
 		Code:       "CANNOT_TRANSFER_TO_SELF",
 	}
+	ErrNoTeamSelected = &HTTPError{
+		Err:        errors.New("user has not selected a participation mode"),
+		StatusCode: http.StatusBadRequest,
+		Code:       "NO_TEAM_SELECTED",
+	}
+	ErrCannotSwitchTeams = &HTTPError{
+		Err:        errors.New("team switching is disabled for this competition"),
+		StatusCode: http.StatusForbidden,
+		Code:       "CANNOT_SWITCH_TEAMS",
+	}
+	ErrInvalidTransition = &HTTPError{
+		Err:        errors.New("invalid participation state transition"),
+		StatusCode: http.StatusBadRequest,
+		Code:       "INVALID_TRANSITION",
+	}
+	ErrSoloModeNotAllowed = &HTTPError{
+		Err:        errors.New("solo mode is not allowed for this competition"),
+		StatusCode: http.StatusForbidden,
+		Code:       "SOLO_MODE_NOT_ALLOWED",
+	}
+	ErrTeamModeRequired = &HTTPError{
+		Err:        errors.New("this competition requires team participation"),
+		StatusCode: http.StatusForbidden,
+		Code:       "TEAM_MODE_REQUIRED",
+	}
+	ErrConfirmationRequired = &HTTPError{
+		Err:        errors.New("confirmation required for this action"),
+		StatusCode: http.StatusBadRequest,
+		Code:       "CONFIRMATION_REQUIRED",
+	}
+	ErrRosterFrozen = &HTTPError{
+		Err:        errors.New("team roster is frozen"),
+		StatusCode: http.StatusForbidden,
+		Code:       "ROSTER_FROZEN",
+	}
+	ErrEmailNotVerified = &HTTPError{
+		Err:        errors.New("email verification required"),
+		StatusCode: http.StatusForbidden,
+		Code:       "EMAIL_NOT_VERIFIED",
+	}
 )

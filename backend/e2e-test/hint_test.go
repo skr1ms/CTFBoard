@@ -29,6 +29,7 @@ func TestHint_Flow(t *testing.T) {
 	// 4. Register User
 	userName := "user_hint"
 	_, _, tokenUser := h.RegisterUserAndLogin(userName)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 5. Verify Hint is Locked
 	hintObj := h.GetHintFromList(tokenUser, challengeID, hintID)

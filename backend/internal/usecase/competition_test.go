@@ -25,8 +25,10 @@ func TestCompetitionUseCase_Get_Success(t *testing.T) {
 	auditLogRepo := mocks.NewMockAuditLogRepository(t)
 
 	comp := &entity.Competition{
-		Id:   1,
-		Name: "Test CTF",
+		Id:              1,
+		Name:            "Test CTF",
+		Mode:            "flexible",
+		AllowTeamSwitch: true,
 	}
 
 	redisClient.ExpectGet("competition").SetErr(redis.Nil)
@@ -39,6 +41,8 @@ func TestCompetitionUseCase_Get_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, comp.Name, result.Name)
+	assert.Equal(t, comp.Mode, result.Mode)
+	assert.Equal(t, comp.AllowTeamSwitch, result.AllowTeamSwitch)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
@@ -90,11 +94,22 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	db, redisClient := redismock.NewClientMock()
 
 	comp := &entity.Competition{
-		Id:   1,
-		Name: "Updated CTF",
+		Id:              1,
+		Name:            "Updated CTF",
+		Mode:            "flexible",
+		AllowTeamSwitch: true,
+		MinTeamSize:     1,
+		MaxTeamSize:     5,
 	}
 
-	competitionRepo.On("Update", mock.Anything, comp).Return(nil)
+	competitionRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+		return c.Id == comp.Id &&
+			c.Name == comp.Name &&
+			c.Mode == comp.Mode &&
+			c.AllowTeamSwitch == comp.AllowTeamSwitch &&
+			c.MinTeamSize == comp.MinTeamSize &&
+			c.MaxTeamSize == comp.MaxTeamSize
+	})).Return(nil)
 	redisClient.ExpectDel("competition").SetVal(1)
 
 	auditLogRepo := mocks.NewMockAuditLogRepository(t)

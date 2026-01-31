@@ -21,7 +21,7 @@ func NewCompetitionRepo(pool *pgxpool.Pool) *CompetitionRepo {
 }
 
 func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) {
-	query := squirrel.Select("id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public", "flag_regex", "created_at", "updated_at").
+	query := squirrel.Select("id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public", "flag_regex", "mode", "allow_team_switch", "min_team_size", "max_team_size", "created_at", "updated_at").
 		From("competition").
 		Where(squirrel.Eq{"id": 1}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -41,6 +41,10 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) 
 		&c.IsPaused,
 		&c.IsPublic,
 		&c.FlagRegex,
+		&c.Mode,
+		&c.AllowTeamSwitch,
+		&c.MinTeamSize,
+		&c.MaxTeamSize,
 		&c.CreatedAt,
 		&c.UpdatedAt,
 	)
@@ -63,6 +67,10 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *entity.Competition) err
 		Set("is_paused", c.IsPaused).
 		Set("is_public", c.IsPublic).
 		Set("flag_regex", c.FlagRegex).
+		Set("mode", c.Mode).
+		Set("allow_team_switch", c.AllowTeamSwitch).
+		Set("min_team_size", c.MinTeamSize).
+		Set("max_team_size", c.MaxTeamSize).
 		Where(squirrel.Eq{"id": 1}).
 		PlaceholderFormat(squirrel.Dollar)
 

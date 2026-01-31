@@ -147,8 +147,8 @@ func (r *TxRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team)
 	team.CreatedAt = time.Now()
 
 	query := squirrel.Insert("teams").
-		Columns("name", "invite_token", "captain_id", "created_at").
-		Values(team.Name, team.InviteToken, team.CaptainId, team.CreatedAt).
+		Columns("name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
+		Values(team.Name, team.InviteToken, team.CaptainId, team.IsSolo, team.IsAutoCreated, team.CreatedAt).
 		Suffix("RETURNING id").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -166,7 +166,7 @@ func (r *TxRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team)
 }
 
 func (r *TxRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error) {
-	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"name": name}).
 		Where(squirrel.Eq{"deleted_at": nil}).
@@ -183,6 +183,8 @@ func (r *TxRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*
 		&team.Name,
 		&team.InviteToken,
 		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
 		&team.CreatedAt,
 	)
 	if err != nil {
@@ -196,7 +198,7 @@ func (r *TxRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*
 }
 
 func (r *TxRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
-	query := squirrel.Select("id", "name", "invite_token", "captain_id", "created_at").
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
 		From("teams").
 		Where(squirrel.Eq{"invite_token": inviteToken}).
 		Where(squirrel.Eq{"deleted_at": nil}).
@@ -213,6 +215,8 @@ func (r *TxRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteTo
 		&team.Name,
 		&team.InviteToken,
 		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
 		&team.CreatedAt,
 	)
 	if err != nil {
@@ -477,6 +481,23 @@ func (r *TxRepo) CreateSolveTx(ctx context.Context, tx pgx.Tx, s *entity.Solve) 
 	return nil
 }
 
+func (r *TxRepo) DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error {
+	query := squirrel.Delete("solves").
+		Where(squirrel.Eq{"team_id": teamId}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxRepo - DeleteSolvesByTeamIDTx - BuildQuery: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, sqlQuery, args...); err != nil {
+		return fmt.Errorf("TxRepo - DeleteSolvesByTeamIDTx - Exec: %w", err)
+	}
+
+	return nil
+}
+
 func (r *TxRepo) GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamId, challengeId uuid.UUID) (*entity.Solve, error) {
 	query := squirrel.Select("id", "user_id", "team_id", "challenge_id", "solved_at").
 		From("solves").
@@ -660,6 +681,74 @@ func (r *TxRepo) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.Au
 	}
 
 	return nil
+}
+
+func (r *TxRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error) {
+	query := squirrel.Select("id", "name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at").
+		From("teams").
+		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"deleted_at": nil}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx - BuildQuery: %w", err)
+	}
+
+	var team entity.Team
+	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(
+		&team.Id,
+		&team.Name,
+		&team.InviteToken,
+		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
+		&team.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx - Scan: %w", err)
+	}
+
+	return &team, nil
+}
+
+func (r *TxRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID) (*entity.Team, error) {
+	query := squirrel.Select("t.id", "t.name", "t.invite_token", "t.captain_id", "t.is_solo", "t.is_auto_created", "t.created_at").
+		From("teams t").
+		Join("users u ON u.team_id = t.id").
+		Where(squirrel.Eq{"u.id": userId}).
+		Where(squirrel.Eq{"t.is_solo": true}).
+		Where(squirrel.Eq{"t.deleted_at": nil}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx - BuildQuery: %w", err)
+	}
+
+	var team entity.Team
+	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(
+		&team.Id,
+		&team.Name,
+		&team.InviteToken,
+		&team.CaptainId,
+		&team.IsSolo,
+		&team.IsAutoCreated,
+		&team.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx - Scan: %w", err)
+	}
+
+	return &team, nil
 }
 
 var _ repo.TxRepository = (*TxRepo)(nil)

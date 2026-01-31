@@ -62,8 +62,6 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateFromPassword: %w", err)
 	}
 
-	inviteToken := uuid.New()
-
 	user := &entity.User{
 		Username:     username,
 		Email:        email,
@@ -71,35 +69,16 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		Role:         entity.RoleUser,
 	}
 
-	var team *entity.Team
-
 	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.CreateUserTx(ctx, tx, user); err != nil {
 			return fmt.Errorf("CreateUserTx: %w", err)
 		}
-
-		team = &entity.Team{
-			Name:        username,
-			InviteToken: inviteToken,
-			CaptainId:   user.Id,
-		}
-
-		if err := uc.txRepo.CreateTeamTx(ctx, tx, team); err != nil {
-			return fmt.Errorf("CreateTeamTx: %w", err)
-		}
-
-		if err := uc.txRepo.UpdateUserTeamIDTx(ctx, tx, user.Id, &team.Id); err != nil {
-			return fmt.Errorf("UpdateUserTeamIDTx: %w", err)
-		}
-
 		return nil
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - Transaction: %w", err)
 	}
-
-	user.TeamId = &team.Id
 
 	return user, nil
 }

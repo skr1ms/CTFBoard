@@ -235,12 +235,14 @@ func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
 	now := time.Now().UTC()
 	h.UpdateCompetition(token, map[string]any{
-		"name":       "Test CTF",
-		"is_public":  true,
-		"flag_regex": regex,
-		"start_time": now.Add(-1 * time.Hour),
-		"end_time":   now.Add(24 * time.Hour),
-		"is_paused":  false,
+		"name":              "Test CTF",
+		"is_public":         true,
+		"flag_regex":        regex,
+		"start_time":        now.Add(-1 * time.Hour),
+		"end_time":          now.Add(24 * time.Hour),
+		"is_paused":         false,
+		"allow_team_switch": true,
+		"mode":              "flexible",
 	})
 }
 
@@ -249,10 +251,12 @@ func (h *E2EHelper) StartCompetition(adminToken string) {
 	resp := h.e.PUT("/api/v1/admin/competition").
 		WithHeader("Authorization", adminToken).
 		WithJSON(map[string]any{
-			"name":       "Test CTF",
-			"start_time": now.Add(-1 * time.Hour),
-			"end_time":   now.Add(24 * time.Hour),
-			"is_paused":  false,
+			"name":              "Test CTF",
+			"start_time":        now.Add(-1 * time.Hour),
+			"end_time":          now.Add(24 * time.Hour),
+			"is_paused":         false,
+			"allow_team_switch": true,
+			"mode":              "flexible",
 		}).
 		Expect()
 
@@ -409,11 +413,12 @@ func (h *E2EHelper) GetMyTeam(token string, expectStatus int) *httpexpect.Object
 		Object()
 }
 
-func (h *E2EHelper) JoinTeam(token, inviteToken string, expectStatus int) {
+func (h *E2EHelper) JoinTeam(token, inviteToken string, confirmReset bool, expectStatus int) {
 	h.e.POST("/api/v1/teams/join").
 		WithHeader("Authorization", token).
-		WithJSON(map[string]string{
-			"invite_token": inviteToken,
+		WithJSON(map[string]any{
+			"invite_token":  inviteToken,
+			"confirm_reset": confirmReset,
 		}).
 		Expect().
 		Status(expectStatus)
@@ -425,6 +430,13 @@ func (h *E2EHelper) CreateTeam(token, name string, expectStatus int) {
 		WithJSON(map[string]string{
 			"name": name,
 		}).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) CreateSoloTeam(token string, expectStatus int) {
+	h.e.POST("/api/v1/teams/solo").
+		WithHeader("Authorization", token).
 		Expect().
 		Status(expectStatus)
 }

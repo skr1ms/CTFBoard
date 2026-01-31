@@ -28,6 +28,7 @@ func NewHintRoutes(
 	validator validator.Validator,
 	logger logger.Logger,
 	jwtService *jwt.JWTService,
+	verifyEmails bool,
 ) {
 	routes := hintRoutes{
 		hintUC:    hintUC,
@@ -37,20 +38,16 @@ func NewHintRoutes(
 	}
 
 	router.Route("/challenges/{challengeId}/hints", func(r chi.Router) {
-		r.Use(restapiMiddleware.Auth(jwtService))
-		r.Use(restapiMiddleware.InjectUser(userUC))
 		r.Get("/", routes.GetByChallengeID)
-		r.Post("/{hintId}/unlock", routes.UnlockHint)
+		r.With(restapiMiddleware.RequireVerified(verifyEmails), restapiMiddleware.RequireTeam("")).Post("/{hintId}/unlock", routes.UnlockHint)
 	})
 
 	router.Route("/admin/challenges/{challengeId}/hints", func(r chi.Router) {
-		r.Use(restapiMiddleware.Auth(jwtService))
 		r.Use(restapiMiddleware.Admin)
 		r.Post("/", routes.Create)
 	})
 
 	router.Route("/admin/hints", func(r chi.Router) {
-		r.Use(restapiMiddleware.Auth(jwtService))
 		r.Use(restapiMiddleware.Admin)
 		r.Put("/{id}", routes.Update)
 		r.Delete("/{id}", routes.Delete)

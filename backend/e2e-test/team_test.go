@@ -16,6 +16,7 @@ func TestTeam_FullFlow(t *testing.T) {
 	// 1. Captain registers
 	captainName := "captain_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
+	h.CreateSoloTeam(tokenCap, http.StatusCreated)
 
 	// 2. Verify Initial Team (Solo)
 	initialTeam := h.GetMyTeam(tokenCap, http.StatusOK)
@@ -30,7 +31,7 @@ func TestTeam_FullFlow(t *testing.T) {
 	_, _, tokenPlayer := h.RegisterUserAndLogin(playerName)
 
 	// 4. Player Joins Team
-	h.JoinTeam(tokenPlayer, inviteToken, http.StatusOK)
+	h.JoinTeam(tokenPlayer, inviteToken, false, http.StatusOK)
 
 	// 5. Verify Team State for Player
 	teamState := h.GetMyTeam(tokenPlayer, http.StatusOK)
@@ -46,6 +47,7 @@ func TestTeam_CreateDuplicateName(t *testing.T) {
 
 	// 1. User 1 registers (gets team name = username)
 	_, _, token1 := h.RegisterUserAndLogin("captain1_" + suffix)
+	h.CreateSoloTeam(token1, http.StatusCreated)
 	teamName1 := h.GetMyTeam(token1, http.StatusOK).Value("name").String().Raw()
 
 	// 2. User 2 registers
@@ -70,7 +72,7 @@ func TestTeam_JoinInvalidToken(t *testing.T) {
 
 	// 2. Join with fake token (Expect NotFound)
 	nonExistentToken := uuid.New().String()
-	h.JoinTeam(token, nonExistentToken, http.StatusNotFound)
+	h.JoinTeam(token, nonExistentToken, false, http.StatusNotFound)
 }
 
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
@@ -81,21 +83,23 @@ func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 
 	// 1. Captain (Team A)
 	_, _, tokenCap := h.RegisterUserAndLogin("captain3_" + suffix)
+	h.CreateTeam(tokenCap, "TeamA_"+suffix, http.StatusCreated)
 	inviteTokenA := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
 
 	// 2. User 1 (Team B)
 	_, _, tokenUser1 := h.RegisterUserAndLogin("user1_" + suffix)
+	h.CreateTeam(tokenUser1, "TeamB_"+suffix, http.StatusCreated)
 	inviteTokenB := h.GetMyTeam(tokenUser1, http.StatusOK).Value("invite_token").String().Raw()
 
 	// 3. User 2 (Team C)
 	_, _, tokenUser2 := h.RegisterUserAndLogin("user2_" + suffix)
 
 	// 4. User 2 joins Team B (Success)
-	h.JoinTeam(tokenUser2, inviteTokenB, http.StatusOK)
+	h.JoinTeam(tokenUser2, inviteTokenB, false, http.StatusOK)
 
 	// 5. User 1 (Team B Leader) tries to join Team A (Expect Conflict)
 	// (Logic: User is already in a team they can't leave implicitly?)
-	h.JoinTeam(tokenUser1, inviteTokenA, http.StatusConflict)
+	h.JoinTeam(tokenUser1, inviteTokenA, false, http.StatusConflict)
 }
 
 func TestTeam_Join_PointsCheck(t *testing.T) {
@@ -118,6 +122,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 	suffix := uuid.New().String()[:8]
 	soloName := "solo_player_" + suffix
 	_, _, tokenSolo := h.RegisterUserAndLogin(soloName)
+	h.CreateSoloTeam(tokenSolo, http.StatusCreated)
 	h.SubmitFlag(tokenSolo, challengeID, "flag{ez}", http.StatusOK)
 
 	// 4. Verify Score (100)
@@ -126,11 +131,14 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 	// 5. Target Team Captain Registers
 	targetCapName := "target_cap_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(targetCapName)
+	h.CreateTeam(tokenCap, targetCapName, http.StatusCreated)
 	inviteToken := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
 
 	// 6. Solo Player Joins Target Team
 	// (Points should be reset/merged? logic says reset for safety usually)
-	h.JoinTeam(tokenSolo, inviteToken, http.StatusOK)
+	// 6. Solo Player Joins Target Team
+	// (Points should be reset/merged? logic says reset for safety usually)
+	h.JoinTeam(tokenSolo, inviteToken, true, http.StatusOK)
 
 	// 7. Verify Scoreboard (Points should be gone or 0)
 	scoreboard := h.GetScoreboard().Status(http.StatusOK).JSON().Array()

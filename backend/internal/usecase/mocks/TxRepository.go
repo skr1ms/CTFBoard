@@ -611,6 +611,69 @@ func (_c *MockTxRepository_CreateUserTx_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// DeleteSolvesByTeamIDTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error {
+	ret := _mock.Called(ctx, tx, teamId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSolvesByTeamIDTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, tx, teamId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxRepository_DeleteSolvesByTeamIDTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSolvesByTeamIDTx'
+type MockTxRepository_DeleteSolvesByTeamIDTx_Call struct {
+	*mock.Call
+}
+
+// DeleteSolvesByTeamIDTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx pgx.Tx
+//   - teamId uuid.UUID
+func (_e *MockTxRepository_Expecter) DeleteSolvesByTeamIDTx(ctx interface{}, tx interface{}, teamId interface{}) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+	return &MockTxRepository_DeleteSolvesByTeamIDTx_Call{Call: _e.mock.On("DeleteSolvesByTeamIDTx", ctx, tx, teamId)}
+}
+
+func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamId uuid.UUID)) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 pgx.Tx
+		if args[1] != nil {
+			arg1 = args[1].(pgx.Tx)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) Return(err error) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteTeamTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamId)
@@ -828,6 +891,80 @@ func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) RunAndReturn(run f
 	return _c
 }
 
+// GetSoloTeamByUserIDTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userId uuid.UUID) (*entity.Team, error) {
+	ret := _mock.Called(ctx, tx, userId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSoloTeamByUserIDTx")
+	}
+
+	var r0 *entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Team, error)); ok {
+		return returnFunc(ctx, tx, userId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Team); ok {
+		r0 = returnFunc(ctx, tx, userId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, tx, userId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTxRepository_GetSoloTeamByUserIDTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSoloTeamByUserIDTx'
+type MockTxRepository_GetSoloTeamByUserIDTx_Call struct {
+	*mock.Call
+}
+
+// GetSoloTeamByUserIDTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx pgx.Tx
+//   - userId uuid.UUID
+func (_e *MockTxRepository_Expecter) GetSoloTeamByUserIDTx(ctx interface{}, tx interface{}, userId interface{}) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+	return &MockTxRepository_GetSoloTeamByUserIDTx_Call{Call: _e.mock.On("GetSoloTeamByUserIDTx", ctx, tx, userId)}
+}
+
+func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userId uuid.UUID)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 pgx.Tx
+		if args[1] != nil {
+			arg1 = args[1].(pgx.Tx)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) Return(team *entity.Team, err error) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+	_c.Call.Return(team, err)
+	return _c
+}
+
+func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userId uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSolveByTeamAndChallengeTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamId uuid.UUID, challengeId uuid.UUID) (*entity.Solve, error) {
 	ret := _mock.Called(ctx, tx, teamId, challengeId)
@@ -904,6 +1041,80 @@ func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) Return(solve *enti
 }
 
 func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamId uuid.UUID, challengeId uuid.UUID) (*entity.Solve, error)) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTeamByIDTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error) {
+	ret := _mock.Called(ctx, tx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTeamByIDTx")
+	}
+
+	var r0 *entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Team, error)); ok {
+		return returnFunc(ctx, tx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Team); ok {
+		r0 = returnFunc(ctx, tx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, tx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTxRepository_GetTeamByIDTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTeamByIDTx'
+type MockTxRepository_GetTeamByIDTx_Call struct {
+	*mock.Call
+}
+
+// GetTeamByIDTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx pgx.Tx
+//   - id uuid.UUID
+func (_e *MockTxRepository_Expecter) GetTeamByIDTx(ctx interface{}, tx interface{}, id interface{}) *MockTxRepository_GetTeamByIDTx_Call {
+	return &MockTxRepository_GetTeamByIDTx_Call{Call: _e.mock.On("GetTeamByIDTx", ctx, tx, id)}
+}
+
+func (_c *MockTxRepository_GetTeamByIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, id uuid.UUID)) *MockTxRepository_GetTeamByIDTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 pgx.Tx
+		if args[1] != nil {
+			arg1 = args[1].(pgx.Tx)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_GetTeamByIDTx_Call) Return(team *entity.Team, err error) *MockTxRepository_GetTeamByIDTx_Call {
+	_c.Call.Return(team, err)
+	return _c
+}
+
+func (_c *MockTxRepository_GetTeamByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetTeamByIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

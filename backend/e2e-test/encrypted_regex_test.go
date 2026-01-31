@@ -27,6 +27,7 @@ func TestEncryptedRegex_Challenge(t *testing.T) {
 
 	// 3. Register User
 	_, _, tokenUser := h.RegisterUserAndLogin("user_enc_regex")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	// 4. Try SUBMIT with invalid pattern
 	h.SubmitFlag(tokenUser, challID, "CTF{abcd}", http.StatusBadRequest).

@@ -17,6 +17,7 @@ import (
 func TestTeamUseCase_Create_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -30,6 +31,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
 	txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound).Once()
 	userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
@@ -41,9 +43,9 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, captainID, mock.Anything).Return(nil).Once()
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	team, err := uc.Create(context.Background(), "TestTeam", captainID)
+	team, err := uc.Create(context.Background(), "TestTeam", captainID, false, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, team)
@@ -55,6 +57,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -69,11 +72,14 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
 	txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "NewTeam").Return(nil, entityError.ErrTeamNotFound).Once()
 	userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
+	txRepo.EXPECT().GetTeamByIDTx(mock.Anything, mock.Anything, oldTeamID).Return(&entity.Team{Id: oldTeamID, IsSolo: true}, nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, oldTeamID).Return([]*entity.User{user}, nil).Once()
 	txRepo.EXPECT().SoftDeleteTeamTx(mock.Anything, mock.Anything, oldTeamID).Return(nil).Once()
+	txRepo.EXPECT().DeleteSolvesByTeamIDTx(mock.Anything, mock.Anything, oldTeamID).Return(nil).Once()
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionDeleted
 	})).Return(nil).Once()
@@ -85,9 +91,9 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 		return log.Action == entity.TeamActionCreated
 	})).Return(nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	team, err := uc.Create(context.Background(), "NewTeam", captainID)
+	team, err := uc.Create(context.Background(), "NewTeam", captainID, false, true)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, team)
@@ -97,6 +103,7 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -108,12 +115,13 @@ func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
 	txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "TestTeam").Return(existingTeam, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	team, err := uc.Create(context.Background(), "TestTeam", captainID)
+	team, err := uc.Create(context.Background(), "TestTeam", captainID, false, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, team)
@@ -122,6 +130,7 @@ func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -139,14 +148,16 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once() // Add compRepo expectation
 	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
 	txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound).Once()
 	userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
+	txRepo.EXPECT().GetTeamByIDTx(mock.Anything, mock.Anything, teamID).Return(&entity.Team{Id: teamID, IsSolo: false}, nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, teamID).Return([]*entity.User{user, otherUser}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	team, err := uc.Create(context.Background(), "TestTeam", captainID)
+	team, err := uc.Create(context.Background(), "TestTeam", captainID, false, false)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrUserAlreadyInTeam))
@@ -156,6 +167,7 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 func TestTeamUseCase_Join_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	inviteToken := uuid.New()
@@ -186,9 +198,11 @@ func TestTeamUseCase_Join_Success(t *testing.T) {
 		return log.Action == entity.TeamActionJoined
 	})).Return(nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	result, err := uc.Join(context.Background(), inviteToken, userID)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+
+	result, err := uc.Join(context.Background(), inviteToken, userID, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -198,6 +212,7 @@ func TestTeamUseCase_Join_Success(t *testing.T) {
 func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	inviteToken := uuid.New()
@@ -222,10 +237,11 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 	txRepo.EXPECT().GetTeamByInviteTokenTx(mock.Anything, mock.Anything, inviteToken).Return(team, nil).Once()
 	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, teamID).Return(existingMembers, nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	result, err := uc.Join(context.Background(), inviteToken, userID)
+	result, err := uc.Join(context.Background(), inviteToken, userID, false)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamFull))
@@ -235,6 +251,7 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	inviteToken := uuid.New()
@@ -261,8 +278,10 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, newTeamID).Return(nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, newTeamID).Return([]*entity.User{}, nil).Once()
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	txRepo.EXPECT().GetTeamByIDTx(mock.Anything, mock.Anything, oldTeamID).Return(&entity.Team{Id: oldTeamID, IsSolo: true}, nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, oldTeamID).Return([]*entity.User{user}, nil).Once()
 	txRepo.EXPECT().SoftDeleteTeamTx(mock.Anything, mock.Anything, oldTeamID).Return(nil).Once()
+	txRepo.EXPECT().DeleteSolvesByTeamIDTx(mock.Anything, mock.Anything, oldTeamID).Return(nil).Once()
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionDeleted
 	})).Return(nil).Once()
@@ -270,10 +289,11 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionJoined
 	})).Return(nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
-	result, err := uc.Join(context.Background(), inviteToken, userID)
+	result, err := uc.Join(context.Background(), inviteToken, userID, true)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -283,6 +303,7 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 func TestTeamUseCase_Leave_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	userID := uuid.New()
@@ -313,8 +334,9 @@ func TestTeamUseCase_Leave_Success(t *testing.T) {
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionLeft
 	})).Return(nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	err := uc.Leave(context.Background(), userID)
 
@@ -324,6 +346,7 @@ func TestTeamUseCase_Leave_Success(t *testing.T) {
 func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -349,8 +372,9 @@ func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
 	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, teamID).Return(members, nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	err := uc.Leave(context.Background(), captainID)
 
@@ -361,6 +385,7 @@ func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	captainID := uuid.New()
@@ -394,8 +419,9 @@ func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
 	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionCaptainTransfer
 	})).Return(nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	err := uc.TransferCaptain(context.Background(), captainID, newCaptainID)
 
@@ -405,6 +431,7 @@ func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
 func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	userID := uuid.New()
@@ -429,8 +456,9 @@ func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
 	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	err := uc.TransferCaptain(context.Background(), userID, newCaptainID)
 
@@ -441,6 +469,7 @@ func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 func TestTeamUseCase_GetByID_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	teamID := uuid.New()
@@ -453,7 +482,7 @@ func TestTeamUseCase_GetByID_Success(t *testing.T) {
 
 	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(expectedTeam, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	team, err := uc.GetByID(context.Background(), teamID)
 
@@ -466,6 +495,7 @@ func TestTeamUseCase_GetByID_Success(t *testing.T) {
 func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	userID := uuid.New()
@@ -489,7 +519,7 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	userRepo.EXPECT().GetByTeamId(mock.Anything, teamID).Return(members, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	result, gotMembers, err := uc.GetMyTeam(context.Background(), userID)
 
@@ -504,6 +534,7 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 func TestTeamUseCase_GetTeamMembers_Success(t *testing.T) {
 	teamRepo := mocks.NewMockTeamRepository(t)
 	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
 	txRepo := mocks.NewMockTxRepository(t)
 
 	teamID := uuid.New()
@@ -522,11 +553,258 @@ func TestTeamUseCase_GetTeamMembers_Success(t *testing.T) {
 
 	userRepo.EXPECT().GetByTeamId(mock.Anything, teamID).Return(members, nil).Once()
 
-	uc := NewTeamUseCase(teamRepo, userRepo, txRepo)
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
 
 	result, err := uc.GetTeamMembers(context.Background(), teamID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result, 2)
+}
+
+func TestTeamUseCase_CreateSoloTeam_Success(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	userID := uuid.New()
+	user := &entity.User{Id: userID, Username: "solo_user"}
+
+	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+		return fn(ctx, nil)
+	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once() // Add compRepo expectation
+	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+
+	txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "solo_user").Return(nil, entityError.ErrTeamNotFound).Once()
+
+	txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.MatchedBy(func(tm *entity.Team) bool {
+		return tm.IsSolo == true && tm.CaptainId == userID && tm.Name == "solo_user"
+	})).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, tm *entity.Team) {
+		tm.Id = uuid.New()
+	}).Once()
+
+	txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil).Once()
+	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
+		return log.Action == entity.TeamActionCreated
+	})).Return(nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	team, err := uc.CreateSoloTeam(context.Background(), userID, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, team)
+	assert.True(t, team.IsSolo)
+	assert.Equal(t, "solo_user", team.Name)
+}
+
+func TestTeamUseCase_CreateSoloTeam_Error_AlreadyInTeam(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	userID := uuid.New()
+	teamID := uuid.New()
+	user := &entity.User{Id: userID, TeamId: &teamID}
+
+	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+		return fn(ctx, nil)
+	}).Once()
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
+	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	txRepo.EXPECT().GetTeamByIDTx(mock.Anything, mock.Anything, teamID).Return(&entity.Team{Id: teamID, IsSolo: false, IsAutoCreated: false}, nil).Once()
+	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, teamID).Return([]*entity.User{user}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	team, err := uc.CreateSoloTeam(context.Background(), userID, false)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrUserAlreadyInTeam))
+	assert.Nil(t, team)
+}
+
+func TestTeamUseCase_Create_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	team, err := uc.Create(context.Background(), "test_team", uuid.New(), false, false)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+	assert.Nil(t, team)
+}
+
+func TestTeamUseCase_Join_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	team, err := uc.Join(context.Background(), uuid.New(), uuid.New(), false)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+	assert.Nil(t, team)
+}
+
+func TestTeamUseCase_CreateSoloTeam_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	team, err := uc.CreateSoloTeam(context.Background(), uuid.New(), false)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+	assert.Nil(t, team)
+}
+
+func TestTeamUseCase_Leave_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.Leave(context.Background(), uuid.New())
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+}
+
+func TestTeamUseCase_TransferCaptain_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.TransferCaptain(context.Background(), uuid.New(), uuid.New())
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+}
+
+func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	captainID := uuid.New()
+	teamID := uuid.New()
+	captain := &entity.User{Id: captainID, TeamId: &teamID}
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: true}, nil).Once()
+	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+		return fn(ctx, nil)
+	}).Once()
+
+	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
+	userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(captain, nil).Once()
+	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
+	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&entity.Team{Id: teamID, CaptainId: captainID, Name: "test_team"}, nil).Once()
+
+	txRepo.EXPECT().SoftDeleteTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
+	txRepo.EXPECT().GetUsersByTeamIDTx(mock.Anything, mock.Anything, teamID).Return([]*entity.User{captain}, nil).Once()
+	txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, captainID, (*uuid.UUID)(nil)).Return(nil).Once()
+	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(l *entity.TeamAuditLog) bool {
+		return l.Action == entity.TeamActionDeleted && l.TeamId == teamID && l.UserId == captainID
+	})).Return(nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.DisbandTeam(context.Background(), captainID)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_DisbandTeam_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.DisbandTeam(context.Background(), uuid.New())
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+}
+
+func TestTeamUseCase_KickMember_Success(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	captainID := uuid.New()
+	targetID := uuid.New()
+	teamID := uuid.New()
+	captain := &entity.User{Id: captainID, TeamId: &teamID}
+	target := &entity.User{Id: targetID, TeamId: &teamID}
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: true}, nil).Once()
+	txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+		return fn(ctx, nil)
+	}).Once()
+
+	txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
+	userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(captain, nil).Once()
+
+	txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
+	teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&entity.Team{Id: teamID, CaptainId: captainID, Name: "test_team"}, nil).Once()
+
+	userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(target, nil).Once()
+
+	txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, targetID, (*uuid.UUID)(nil)).Return(nil).Once()
+	txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(l *entity.TeamAuditLog) bool {
+		targetIDStr := targetID.String()
+		detailsTargetID, ok := l.Details["target_user_id"].(string)
+		return l.Action == entity.TeamActionMemberKicked &&
+			l.TeamId == teamID &&
+			l.UserId == captainID &&
+			ok && detailsTargetID == targetIDStr
+	})).Return(nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.KickMember(context.Background(), captainID, targetID)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_KickMember_Error_RosterFrozen(t *testing.T) {
+	teamRepo := mocks.NewMockTeamRepository(t)
+	userRepo := mocks.NewMockUserRepository(t)
+	compRepo := mocks.NewMockCompetitionRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
+
+	compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+
+	uc := NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	err := uc.KickMember(context.Background(), uuid.New(), uuid.New())
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
 }

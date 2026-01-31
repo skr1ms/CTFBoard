@@ -30,7 +30,9 @@ func TestDynamicScoring_Flow(t *testing.T) {
 
 	// 3. Register 2 Users
 	_, _, user1 := h.RegisterUserAndLogin("user_dyn_1")
+	h.CreateSoloTeam(user1, http.StatusCreated)
 	_, _, user2 := h.RegisterUserAndLogin("user_dyn_2")
+	h.CreateSoloTeam(user2, http.StatusCreated)
 
 	// 4. First Solve (First Blood) - Should get 500 (Initial)
 	// CTFd Logic: solves=1, solve_count=0. Score = Initial.

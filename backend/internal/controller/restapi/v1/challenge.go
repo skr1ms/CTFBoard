@@ -36,6 +36,7 @@ func NewChallengeRoutes(router chi.Router,
 	redisClient *redis.Client,
 	submitLimit int,
 	durationLimit time.Duration,
+	verifyEmails bool,
 ) {
 	routes := challengeRoutes{
 		challengeUC:   challengeUC,
@@ -46,7 +47,7 @@ func NewChallengeRoutes(router chi.Router,
 		logger:        logger,
 	}
 
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC)).Get("/challenges", routes.GetAll)
+	router.Get("/challenges", routes.GetAll)
 
 	ipLimit := restapiMiddleware.RateLimit(redisClient, "submit:ip", int64(submitLimit*3), durationLimit, func(r *http.Request) (string, error) {
 		return httputil.GetClientIP(r), nil
@@ -60,10 +61,10 @@ func NewChallengeRoutes(router chi.Router,
 		return user.Id.String(), nil
 	})
 
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.InjectUser(userUC), restapiMiddleware.CompetitionActive(competitionUC), ipLimit, userLimit).Post("/challenges/{id}/submit", routes.SubmitFlag)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Post("/admin/challenges", routes.Create)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin).Put("/admin/challenges/{id}", routes.Update)
-	router.With(restapiMiddleware.Auth(jwtService), restapiMiddleware.Admin, restapiMiddleware.InjectUser(userUC)).Delete("/admin/challenges/{id}", routes.Delete)
+	router.With(restapiMiddleware.CompetitionActive(competitionUC), restapiMiddleware.RequireVerified(verifyEmails), restapiMiddleware.RequireTeam(""), ipLimit, userLimit).Post("/challenges/{id}/submit", routes.SubmitFlag)
+	router.With(restapiMiddleware.Admin).Post("/admin/challenges", routes.Create)
+	router.With(restapiMiddleware.Admin).Put("/admin/challenges/{id}", routes.Update)
+	router.With(restapiMiddleware.Admin).Delete("/admin/challenges/{id}", routes.Delete)
 }
 
 // @Summary      Get challenges list

@@ -30,6 +30,7 @@ func NewRouter(
 	logger logger.Logger,
 	submitLimit int,
 	durationLimit time.Duration,
+	verifyEmails bool,
 ) {
 	authRouter := chi.NewRouter()
 	router.Mount("/auth", authRouter)
@@ -44,10 +45,10 @@ func NewRouter(
 		r.Use(restapiMiddleware.Auth(jwtService))
 		r.Use(restapiMiddleware.InjectUser(userUC))
 
-		NewChallengeRoutes(r, challengeUC, solveUC, userUC, competitionUC, validator, logger, jwtService, redisClient, submitLimit, durationLimit)
+		NewChallengeRoutes(r, challengeUC, solveUC, userUC, competitionUC, validator, logger, jwtService, redisClient, submitLimit, durationLimit, verifyEmails)
 		NewTeamRoutes(r, teamUC, userUC, validator, logger, jwtService, redisClient)
 		NewCompetitionRoutes(router, r, competitionUC, userUC, validator, logger, jwtService)
-		NewHintRoutes(r, hintUC, userUC, validator, logger, jwtService)
+		NewHintRoutes(r, hintUC, userUC, validator, logger, jwtService, verifyEmails)
 		NewFileRoutes(r, fileUC, logger, jwtService)
 		NewAwardRoutes(r, awardUC, validator, logger, jwtService)
 		NewStatisticsRoutes(r, statsUC, logger, jwtService)

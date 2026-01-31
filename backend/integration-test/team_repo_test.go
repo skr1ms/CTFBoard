@@ -126,3 +126,26 @@ func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
+func TestTeamRepo_Create_Solo(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "solo_repo")
+
+	team := &entity.Team{
+		Name:          "SoloRepo",
+		InviteToken:   uuid.New(),
+		CaptainId:     user.Id,
+		IsSolo:        true,
+		IsAutoCreated: false,
+	}
+
+	err := f.TeamRepo.Create(ctx, team)
+	require.NoError(t, err)
+
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.Id)
+	require.NoError(t, err)
+	assert.True(t, gotTeam.IsSolo)
+	assert.False(t, gotTeam.IsAutoCreated)
+}

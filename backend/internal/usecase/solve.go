@@ -20,6 +20,7 @@ type SolveUseCase struct {
 	solveRepo       repo.SolveRepository
 	challengeRepo   repo.ChallengeRepository
 	competitionRepo repo.CompetitionRepository
+	userRepo        repo.UserRepository
 	txRepo          repo.TxRepository
 	redis           *redis.Client
 	hub             *websocket.Hub
@@ -29,6 +30,7 @@ func NewSolveUseCase(
 	solveRepo repo.SolveRepository,
 	challengeRepo repo.ChallengeRepository,
 	competitionRepo repo.CompetitionRepository,
+	userRepo repo.UserRepository,
 	txRepo repo.TxRepository,
 	redis *redis.Client,
 	hub *websocket.Hub,
@@ -37,6 +39,7 @@ func NewSolveUseCase(
 		solveRepo:       solveRepo,
 		challengeRepo:   challengeRepo,
 		competitionRepo: competitionRepo,
+		userRepo:        userRepo,
 		txRepo:          txRepo,
 		redis:           redis,
 		hub:             hub,
@@ -48,6 +51,21 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	var solvedChallenge *entity.Challenge
 
 	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if solve.TeamId == uuid.Nil {
+			if err := uc.txRepo.LockUserTx(ctx, tx, solve.UserId); err != nil {
+				return fmt.Errorf("LockUserTx: %w", err)
+			}
+			user, err := uc.userRepo.GetByID(ctx, solve.UserId)
+			if err != nil {
+				return fmt.Errorf("GetByID: %w", err)
+			}
+
+			if user.TeamId == nil {
+				return entityError.ErrNoTeamSelected
+			}
+			solve.TeamId = *user.TeamId
+		}
+
 		challenge, err := uc.txRepo.GetChallengeByIDTx(ctx, tx, solve.ChallengeId)
 		if err != nil {
 			return fmt.Errorf("GetChallengeByIDTx: %w", err)
@@ -86,7 +104,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	})
 
 	if err != nil {
-		if errors.Is(err, entityError.ErrAlreadySolved) {
+		if errors.Is(err, entityError.ErrAlreadySolved) || errors.Is(err, entityError.ErrTeamModeRequired) {
 			return err
 		}
 		return fmt.Errorf("SolveUseCase - Create - Transaction: %w", err)
