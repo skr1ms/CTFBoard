@@ -1,7 +1,7 @@
 CREATE TABLE team_audit_log (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    team_id UUID NOT NULL,
-    user_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    team_id uuid NOT NULL,
+    user_id uuid NOT NULL,
     action VARCHAR(50) NOT NULL,
     details JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -1,0 +1,52 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      UserRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
+      TeamRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "TeamRepository.go"
+          pkgname: "mocks"
+          structname: "MockTeamRepository"
+
+      SolveRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "SolveRepository.go"
+          pkgname: "mocks"
+          structname: "MockSolveRepository"
+
+      TxRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "TxRepository.go"
+          pkgname: "mocks"
+          structname: "MockTxRepository"
+
+      VerificationTokenRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "VerificationTokenRepository.go"
+          pkgname: "mocks"
+          structname: "MockVerificationTokenRepository"
+
+  github.com/skr1ms/CTFBoard/pkg/jwt:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "JWTService.go"
+          pkgname: "mocks"
+          structname: "MockJWTService"

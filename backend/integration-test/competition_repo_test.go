@@ -12,6 +12,7 @@ import (
 // Get Tests
 
 func TestCompetitionRepo_Get(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
@@ -19,7 +20,7 @@ func TestCompetitionRepo_Get(t *testing.T) {
 
 	comp, err := repo.Get(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, comp.Id)
+	assert.Equal(t, 1, comp.ID)
 	assert.Equal(t, "CTF Competition", comp.Name)
 	assert.Nil(t, comp.StartTime)
 	assert.Nil(t, comp.EndTime)
@@ -29,6 +30,7 @@ func TestCompetitionRepo_Get(t *testing.T) {
 // Update Tests
 
 func TestCompetitionRepo_Update(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
@@ -57,6 +59,7 @@ func TestCompetitionRepo_Update(t *testing.T) {
 }
 
 func TestCompetitionRepo_Update_Partial(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

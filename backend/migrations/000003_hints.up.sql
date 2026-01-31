@@ -1,6 +1,6 @@
 CREATE TABLE hints (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    challenge_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    challenge_id uuid NOT NULL,
     content TEXT NOT NULL,
     cost INT NOT NULL DEFAULT 0,
     order_index INT NOT NULL DEFAULT 0,
@@ -9,9 +9,9 @@ CREATE TABLE hints (
 );
 
 CREATE TABLE hint_unlocks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    hint_id UUID NOT NULL,
-    team_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hint_id uuid NOT NULL,
+    team_id uuid NOT NULL,
     unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_team_hint UNIQUE (team_id, hint_id),
     CONSTRAINT fk_hint_unlocks_hint FOREIGN KEY (hint_id) 
@@ -21,8 +21,8 @@ CREATE TABLE hint_unlocks (
 );
 
 CREATE TABLE awards (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    team_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id uuid NOT NULL,
     value INT NOT NULL,
     description VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

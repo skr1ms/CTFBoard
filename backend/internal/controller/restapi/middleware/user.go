@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
@@ -14,22 +14,22 @@ type userContextKeyType string
 
 const userContextKey userContextKeyType = entity.RoleUser
 
-func InjectUser(userUC *usecase.UserUseCase) func(http.Handler) http.Handler {
+func InjectUser(userUC *user.UserUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userId := httputil.GetUserID(r.Context())
-			if userId == "" {
+			userID := httputil.GetUserID(r.Context())
+			if userID == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			userUUID, err := uuid.Parse(userId)
+			useruuid, err := uuid.Parse(userID)
 			if err != nil {
 				httputil.RenderError(w, r, http.StatusBadRequest, "invalid user ID")
 				return
 			}
 
-			user, err := userUC.GetByID(r.Context(), userUUID)
+			user, err := userUC.GetByID(r.Context(), useruuid)
 			if err != nil {
 				httputil.RenderError(w, r, http.StatusUnauthorized, "user not found")
 				return

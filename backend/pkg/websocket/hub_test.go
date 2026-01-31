@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHub_Run_RegisterUnregister(t *testing.T) {
@@ -64,7 +65,8 @@ func TestHub_BroadcastEvent_Redis(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	data, _ := json.Marshal(event)
+	data, err := json.Marshal(event)
+	require.NoError(t, err)
 
 	redisClient.ExpectPublish("test-channel", data).SetVal(1)
 

@@ -15,6 +15,7 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/vault"
 )
 
+//nolint:gocognit,gocyclo
 func main() {
 	envPaths := []string{".env", "../.env", "/app/.env", "/etc/ctfboard/.env"}
 	for _, path := range envPaths {

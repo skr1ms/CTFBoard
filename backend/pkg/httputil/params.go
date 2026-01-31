@@ -20,7 +20,7 @@ func GetUserID(ctx context.Context) string {
 	return ""
 }
 
-func ParseUUIDParam(w http.ResponseWriter, r *http.Request, paramName string) (uuid.UUID, bool) {
+func ParseuuidParam(w http.ResponseWriter, r *http.Request, paramName string) (uuid.UUID, bool) {
 	paramValue := chi.URLParam(r, paramName)
 	if paramValue == "" {
 		render.Status(r, http.StatusBadRequest)
@@ -32,7 +32,7 @@ func ParseUUIDParam(w http.ResponseWriter, r *http.Request, paramName string) (u
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{
-			"error": "invalid UUID format for parameter: " + paramName,
+			"error": "invalid uuid format for parameter: " + paramName,
 			"code":  "INVALID_UUID",
 		})
 		return uuid.Nil, false
@@ -42,8 +42,8 @@ func ParseUUIDParam(w http.ResponseWriter, r *http.Request, paramName string) (u
 }
 
 func ParseAuthUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
-	userId := GetUserID(r.Context())
-	if userId == "" {
+	userID := GetUserID(r.Context())
+	if userID == "" {
 		render.Status(r, http.StatusUnauthorized)
 		render.JSON(w, r, map[string]string{
 			"error": "not authenticated",
@@ -52,7 +52,7 @@ func ParseAuthUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 
-	userUUID, err := uuid.Parse(userId)
+	useruuid, err := uuid.Parse(userID)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{
@@ -62,5 +62,5 @@ func ParseAuthUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 
-	return userUUID, true
+	return useruuid, true
 }

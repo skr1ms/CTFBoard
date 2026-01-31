@@ -16,6 +16,7 @@ import (
 // Create Tests
 
 func TestUserRepo_Create(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -31,11 +32,12 @@ func TestUserRepo_Create(t *testing.T) {
 
 	gotUser, err := f.UserRepo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
-	assert.NotEmpty(t, gotUser.Id)
-	user.Id = gotUser.Id
+	assert.NotEmpty(t, gotUser.ID)
+	user.ID = gotUser.ID
 }
 
 func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -53,6 +55,7 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 }
 
 func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -72,21 +75,23 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 // GetByID Tests
 
 func TestUserRepo_GetByID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	user := f.CreateUser(t, "get_by_id")
+	user := f.CreateUser(t, "get_by_ID")
 
-	gotUser, err := f.UserRepo.GetByID(ctx, user.Id)
+	gotUser, err := f.UserRepo.GetByID(ctx, user.ID)
 	require.NoError(t, err)
-	assert.Equal(t, user.Id, gotUser.Id)
+	assert.Equal(t, user.ID, gotUser.ID)
 	assert.Equal(t, user.Username, gotUser.Username)
 	assert.Equal(t, user.Email, gotUser.Email)
-	assert.Nil(t, gotUser.TeamId)
+	assert.Nil(t, gotUser.TeamID)
 }
 
 func TestUserRepo_GetByID_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -100,6 +105,7 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 // GetByEmail Tests
 
 func TestUserRepo_GetByEmail(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -108,12 +114,13 @@ func TestUserRepo_GetByEmail(t *testing.T) {
 
 	gotUser, err := f.UserRepo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
-	assert.Equal(t, user.Id, gotUser.Id)
+	assert.Equal(t, user.ID, gotUser.ID)
 	assert.Equal(t, user.Username, gotUser.Username)
 	assert.Equal(t, user.Email, gotUser.Email)
 }
 
 func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -126,6 +133,7 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 // GetByUsername Tests
 
 func TestUserRepo_GetByUsername(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -134,11 +142,12 @@ func TestUserRepo_GetByUsername(t *testing.T) {
 
 	gotUser, err := f.UserRepo.GetByUsername(ctx, user.Username)
 	require.NoError(t, err)
-	assert.Equal(t, user.Id, gotUser.Id)
+	assert.Equal(t, user.ID, gotUser.ID)
 	assert.Equal(t, user.Username, gotUser.Username)
 }
 
 func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -148,9 +157,10 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
 
-// GetByTeamId Tests
+// GetByTeamID Tests
 
-func TestUserRepo_GetByTeamId(t *testing.T) {
+func TestUserRepo_GetByTeamID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -159,67 +169,71 @@ func TestUserRepo_GetByTeamId(t *testing.T) {
 
 	user2 := f.CreateUser(t, "team_u2")
 
-	err := f.UserRepo.UpdateTeamId(ctx, captain.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamID(ctx, captain.ID, &team.ID)
 	require.NoError(t, err)
 
-	err = f.UserRepo.UpdateTeamId(ctx, user2.Id, &team.Id)
+	err = f.UserRepo.UpdateTeamID(ctx, user2.ID, &team.ID)
 	require.NoError(t, err)
 
-	members, err := f.UserRepo.GetByTeamId(ctx, team.Id)
+	members, err := f.UserRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Len(t, members, 2)
 }
 
-func TestUserRepo_GetByTeamId_Empty(t *testing.T) {
+func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "empty_team")
 
-	members, err := f.UserRepo.GetByTeamId(ctx, team.Id)
+	members, err := f.UserRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Len(t, members, 0)
 }
 
-// UpdateTeamId Tests
-func TestUserRepo_UpdateTeamId(t *testing.T) {
+// UpdateTeamID Tests
+func TestUserRepo_UpdateTeamID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "update_team")
 
-	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamID(ctx, user.ID, &team.ID)
 	require.NoError(t, err)
 
-	gotUser, err := f.UserRepo.GetByID(ctx, user.Id)
+	gotUser, err := f.UserRepo.GetByID(ctx, user.ID)
 	require.NoError(t, err)
-	assert.NotNil(t, gotUser.TeamId)
-	assert.Equal(t, team.Id, *gotUser.TeamId)
+	assert.NotNil(t, gotUser.TeamID)
+	assert.Equal(t, team.ID, *gotUser.TeamID)
 }
 
-func TestUserRepo_UpdateTeamId_Remove(t *testing.T) {
+func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "remove_team")
 
-	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamID(ctx, user.ID, &team.ID)
 	require.NoError(t, err)
 
-	err = f.UserRepo.UpdateTeamId(ctx, user.Id, nil)
+	err = f.UserRepo.UpdateTeamID(ctx, user.ID, nil)
 	require.NoError(t, err)
 
-	gotUser, err := f.UserRepo.GetByID(ctx, user.Id)
+	gotUser, err := f.UserRepo.GetByID(ctx, user.ID)
 	require.NoError(t, err)
-	assert.Nil(t, gotUser.TeamId)
+	assert.Nil(t, gotUser.TeamID)
 }
 
 // Role Persistence Tests
 
 func TestUserRepo_Role_Persistence(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	repo := persistent.NewUserRepo(testPool.Pool)
 	ctx := context.Background()

@@ -1,3 +1,5 @@
+// CleanupUseCase permanently removes soft-deleted teams that have been marked
+// for deletion longer than a configurable threshold (cron job).
 package usecase
 
 import (

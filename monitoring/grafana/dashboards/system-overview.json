@@ -1,7 +1,11 @@
 {
   "uid": "system-overview",
   "title": "System Overview",
-  "tags": ["system", "containers", "resources"],
+  "tags": [
+    "system",
+    "containers",
+    "resources"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -11,7 +15,12 @@
       "id": 1,
       "title": "Backend Service",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "up{job=\"backend\"}",
@@ -21,7 +30,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -49,8 +60,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -61,7 +78,12 @@
       "id": 2,
       "title": "PostgreSQL",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "up{job=\"postgres-exporter\"}",
@@ -71,7 +93,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -99,8 +123,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -111,7 +141,12 @@
       "id": 3,
       "title": "Redis",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "up{job=\"redis-exporter\"}",
@@ -121,7 +156,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -149,8 +186,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -161,7 +204,12 @@
       "id": 4,
       "title": "Vault",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "up{job=\"vault\"}",
@@ -171,7 +219,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -199,8 +249,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -211,7 +267,12 @@
       "id": 5,
       "title": "SeaweedFS",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "SeaweedFS_master_is_leader",
@@ -221,7 +282,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -259,9 +322,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 0, "color": "yellow"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 0,
+                "color": "yellow"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -272,7 +344,12 @@
       "id": 6,
       "title": "Prometheus",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "up{job=\"prometheus\"}",
@@ -282,7 +359,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -310,8 +389,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
             ]
           }
         },
@@ -322,7 +407,12 @@
       "id": 7,
       "title": "System CPU Usage",
       "type": "gauge",
-      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 4},
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{id=\"/\"}[1m])) * 100",
@@ -332,7 +422,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       },
       "fieldConfig": {
@@ -343,9 +435,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "green"},
-              {"value": 60, "color": "yellow"},
-              {"value": 80, "color": "red"}
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 60,
+                "color": "yellow"
+              },
+              {
+                "value": 80,
+                "color": "red"
+              }
             ]
           }
         }
@@ -355,7 +456,12 @@
       "id": 8,
       "title": "System Memory Usage",
       "type": "gauge",
-      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 4},
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
       "targets": [
         {
           "expr": "(container_memory_usage_bytes{id=\"/\"} / container_spec_memory_limit_bytes{id=\"/\"}) * 100",
@@ -365,7 +471,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       },
       "fieldConfig": {
@@ -376,9 +484,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "green"},
-              {"value": 70, "color": "yellow"},
-              {"value": 85, "color": "red"}
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 70,
+                "color": "yellow"
+              },
+              {
+                "value": 85,
+                "color": "red"
+              }
             ]
           }
         }
@@ -388,7 +505,12 @@
       "id": 9,
       "title": "Filesystem Usage",
       "type": "gauge",
-      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 4},
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
       "targets": [
         {
           "expr": "(sum(container_fs_usage_bytes{id=\"/\"}) / sum(container_fs_limit_bytes{id=\"/\"})) * 100",
@@ -398,7 +520,9 @@
       "options": {
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       },
       "fieldConfig": {
@@ -409,9 +533,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "green"},
-              {"value": 75, "color": "yellow"},
-              {"value": 90, "color": "red"}
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 75,
+                "color": "yellow"
+              },
+              {
+                "value": 90,
+                "color": "red"
+              }
             ]
           }
         }
@@ -421,7 +554,12 @@
       "id": 10,
       "title": "Backend RPS",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 10},
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      },
       "targets": [
         {
           "expr": "sum(rate(restapi_requests_total{job=\"backend\"}[1m]))",
@@ -439,7 +577,12 @@
       "id": 11,
       "title": "PostgreSQL Connections",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 10},
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      },
       "targets": [
         {
           "expr": "sum(pg_stat_activity_count{datname=\"board\"})",
@@ -457,7 +600,12 @@
       "id": 12,
       "title": "Redis Memory",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 10},
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      },
       "targets": [
         {
           "expr": "redis_memory_used_bytes",

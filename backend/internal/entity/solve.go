@@ -7,9 +7,9 @@ import (
 )
 
 type Solve struct {
-	Id          uuid.UUID `json:"id"`
-	UserId      uuid.UUID `json:"user_id"`
-	TeamId      uuid.UUID `json:"team_id"`
-	ChallengeId uuid.UUID `json:"challenge_id"`
+	ID          uuid.UUID `json:"id"`
+	UserID      uuid.UUID `json:"user_id"`
+	TeamID      uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
 	SolvedAt    time.Time `json:"solved_at"`
 }

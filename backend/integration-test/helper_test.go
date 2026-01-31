@@ -49,6 +49,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 }
 
 func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
+	t.Helper()
 	ctx := context.Background()
 	user := &entity.User{
 		Username:     "user_" + suffix,
@@ -60,33 +61,36 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 
 	gotUser, err := f.UserRepo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
-	user.Id = gotUser.Id
+	user.ID = gotUser.ID
 	return user
 }
 
-func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainId uuid.UUID) *entity.Team {
+func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUID) *entity.Team {
+	t.Helper()
 	ctx := context.Background()
 	team := &entity.Team{
 		Name:        "team_" + suffix,
 		InviteToken: uuid.New(),
-		CaptainId:   captainId,
+		CaptainID:   captainID,
 	}
 	err := f.TeamRepo.Create(ctx, team)
 	require.NoError(t, err)
 
 	gotTeam, err := f.TeamRepo.GetByName(ctx, team.Name)
 	require.NoError(t, err)
-	team.Id = gotTeam.Id
+	team.ID = gotTeam.ID
 	return team
 }
 
 func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*entity.User, *entity.Team) {
+	t.Helper()
 	user := f.CreateUser(t, suffix)
-	team := f.CreateTeam(t, suffix, user.Id)
+	team := f.CreateTeam(t, suffix, user.ID)
 	return user, team
 }
 
 func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *entity.Challenge {
+	t.Helper()
 	ctx := context.Background()
 	challenge := &entity.Challenge{
 		Title:        "Challenge " + suffix,
@@ -104,7 +108,8 @@ func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *
 	return challenge
 }
 
-func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, min, decay int) *entity.Challenge {
+func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, minValue, decay int) *entity.Challenge {
+	t.Helper()
 	ctx := context.Background()
 	challenge := &entity.Challenge{
 		Title:        "Dynamic " + suffix,
@@ -114,7 +119,7 @@ func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initia
 		FlagHash:     "hash_" + suffix,
 		IsHidden:     false,
 		InitialValue: initial,
-		MinValue:     min,
+		MinValue:     minValue,
 		Decay:        decay,
 	}
 	err := f.ChallengeRepo.Create(ctx, challenge)
@@ -122,10 +127,11 @@ func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initia
 	return challenge
 }
 
-func (f *TestFixture) CreateHint(t *testing.T, challengeId uuid.UUID, cost int, order int) *entity.Hint {
+func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, order int) *entity.Hint {
+	t.Helper()
 	ctx := context.Background()
 	hint := &entity.Hint{
-		ChallengeId: challengeId,
+		ChallengeID: challengeID,
 		Content:     "Hint content",
 		Cost:        cost,
 		OrderIndex:  order,
@@ -135,27 +141,29 @@ func (f *TestFixture) CreateHint(t *testing.T, challengeId uuid.UUID, cost int, 
 	return hint
 }
 
-func (f *TestFixture) CreateSolve(t *testing.T, userId, teamId, challengeId uuid.UUID) *entity.Solve {
+func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid.UUID) *entity.Solve {
+	t.Helper()
 	ctx := context.Background()
 	solve := &entity.Solve{
-		UserId:      userId,
-		TeamId:      teamId,
-		ChallengeId: challengeId,
+		UserID:      userID,
+		TeamID:      teamID,
+		ChallengeID: challengeID,
 	}
 	err := f.SolveRepo.Create(ctx, solve)
 	require.NoError(t, err)
 
-	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, teamId, challengeId)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, teamID, challengeID)
 	require.NoError(t, err)
-	solve.Id = gotSolve.Id
+	solve.ID = gotSolve.ID
 	solve.SolvedAt = gotSolve.SolvedAt
 	return solve
 }
 
-func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamId uuid.UUID, value int, desc string) *entity.Award {
+func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamID uuid.UUID, value int, desc string) *entity.Award {
+	t.Helper()
 	ctx := context.Background()
 	award := &entity.Award{
-		TeamId:      teamId,
+		TeamID:      teamID,
 		Value:       value,
 		Description: desc,
 	}
@@ -165,6 +173,7 @@ func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamId uuid.UUID, v
 }
 
 func (f *TestFixture) AddUserToTeam(t *testing.T, userID, teamID uuid.UUID) {
+	t.Helper()
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", teamID, userID)
 	require.NoError(t, err)

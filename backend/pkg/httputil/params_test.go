@@ -11,7 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestParseUUIDParam(t *testing.T) {
+//nolint:gocognit
+func TestParseuuidParam(t *testing.T) {
 	tests := []struct {
 		name       string
 		paramName  string
@@ -20,22 +21,22 @@ func TestParseUUIDParam(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:       "valid UUID",
-			paramName:  "id",
+			name:       "valid uuid",
+			paramName:  "ID",
 			paramValue: "123e4567-e89b-12d3-a456-426614174000",
 			wantOK:     true,
 			wantStatus: 0,
 		},
 		{
-			name:       "invalid UUID format",
-			paramName:  "id",
+			name:       "invalid uuid format",
+			paramName:  "ID",
 			paramValue: "invalid-uuid",
 			wantOK:     false,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "empty UUID",
-			paramName:  "id",
+			name:       "empty uuid",
+			paramName:  "ID",
 			paramValue: "",
 			wantOK:     false,
 			wantStatus: http.StatusBadRequest,
@@ -54,28 +55,32 @@ func TestParseUUIDParam(t *testing.T) {
 			}
 			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
-			result, ok := ParseUUIDParam(w, r, tt.paramName)
+			result, ok := ParseuuidParam(w, r, tt.paramName)
 
 			if ok != tt.wantOK {
-				t.Errorf("ParseUUIDParam() ok = %v, want %v", ok, tt.wantOK)
+				t.Errorf("ParseuuidParam() ok = %v, want %v", ok, tt.wantOK)
 			}
 
 			if !tt.wantOK {
 				if w.Code != tt.wantStatus {
-					t.Errorf("ParseUUIDParam() status = %v, want %v", w.Code, tt.wantStatus)
+					t.Errorf("ParseuuidParam() status = %v, want %v", w.Code, tt.wantStatus)
 				}
 			} else {
-				expectedUUID, _ := uuid.Parse(tt.paramValue)
-				if result != expectedUUID {
-					t.Errorf("ParseUUIDParam() = %v, want %v", result, expectedUUID)
+				expecteduuid, err := uuid.Parse(tt.paramValue)
+				if err != nil {
+					t.Fatalf("uuid parse: %v", err)
+				}
+				if result != expecteduuid {
+					t.Errorf("ParseuuidParam() = %v, want %v", result, expecteduuid)
 				}
 			}
 		})
 	}
 }
 
+//nolint:gocognit
 func TestParseAuthUserID(t *testing.T) {
-	validUUID := "123e4567-e89b-12d3-a456-426614174000"
+	validuuid := "123e4567-e89b-12d3-a456-426614174000"
 
 	tests := []struct {
 		name       string
@@ -85,12 +90,12 @@ func TestParseAuthUserID(t *testing.T) {
 	}{
 		{
 			name:       "valid user ID",
-			userID:     validUUID,
+			userID:     validuuid,
 			wantOK:     true,
 			wantStatus: 0,
 		},
 		{
-			name:       "invalid UUID format",
+			name:       "invalid uuid format",
 			userID:     "invalid-uuid",
 			wantOK:     false,
 			wantStatus: http.StatusBadRequest,
@@ -124,9 +129,12 @@ func TestParseAuthUserID(t *testing.T) {
 					t.Errorf("ParseAuthUserID() status = %v, want %v", w.Code, tt.wantStatus)
 				}
 			} else {
-				expectedUUID, _ := uuid.Parse(tt.userID)
-				if result != expectedUUID {
-					t.Errorf("ParseAuthUserID() = %v, want %v", result, expectedUUID)
+				expecteduuid, err := uuid.Parse(tt.userID)
+				if err != nil {
+					t.Fatalf("uuid parse: %v", err)
+				}
+				if result != expecteduuid {
+					t.Errorf("ParseAuthUserID() = %v, want %v", result, expecteduuid)
 				}
 			}
 		})
@@ -169,7 +177,7 @@ func TestRenderCreated(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test", nil)
 
-	data := map[string]string{"id": "123"}
+	data := map[string]string{"ID": "123"}
 	RenderCreated(w, r, data)
 
 	if w.Code != http.StatusCreated {

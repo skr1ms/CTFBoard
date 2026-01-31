@@ -25,8 +25,8 @@ func NewFileRepository(pool *pgxpool.Pool) *FileRepository {
 }
 
 func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
-	if file.Id == uuid.Nil {
-		file.Id = uuid.New()
+	if file.ID == uuid.Nil {
+		file.ID = uuid.New()
 	}
 	if file.CreatedAt.IsZero() {
 		file.CreatedAt = time.Now()
@@ -35,9 +35,9 @@ func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
 	query := squirrel.Insert("files").
 		Columns(fileColumns...).
 		Values(
-			file.Id,
+			file.ID,
 			file.Type,
-			file.ChallengeId,
+			file.ChallengeID,
 			file.Location,
 			file.Filename,
 			file.Size,
@@ -58,10 +58,10 @@ func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
 	return nil
 }
 
-func (r *FileRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.File, error) {
+func (r *FileRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.File, error) {
 	query := squirrel.Select(fileColumns...).
 		From("files").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -73,9 +73,9 @@ func (r *FileRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Fil
 
 	var file entity.File
 	err = row.Scan(
-		&file.Id,
+		&file.ID,
 		&file.Type,
-		&file.ChallengeId,
+		&file.ChallengeID,
 		&file.Location,
 		&file.Filename,
 		&file.Size,
@@ -91,10 +91,10 @@ func (r *FileRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Fil
 	return &file, nil
 }
 
-func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeId uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
+func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
 	query := squirrel.Select(fileColumns...).
 		From("files").
-		Where(squirrel.Eq{"challenge_id": challengeId, "type": fileType}).
+		Where(squirrel.Eq{"challenge_id": challengeID, "type": fileType}).
 		OrderBy("created_at DESC").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -113,9 +113,9 @@ func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeId uuid.
 	for rows.Next() {
 		var file entity.File
 		err := rows.Scan(
-			&file.Id,
+			&file.ID,
 			&file.Type,
-			&file.ChallengeId,
+			&file.ChallengeID,
 			&file.Location,
 			&file.Filename,
 			&file.Size,
@@ -130,9 +130,9 @@ func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeId uuid.
 	return files, nil
 }
 
-func (r *FileRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *FileRepository) Delete(ctx context.Context, ID uuid.UUID) error {
 	query := squirrel.Delete("files").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()

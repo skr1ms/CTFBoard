@@ -23,6 +23,7 @@ type E2EHelper struct {
 }
 
 func NewE2EHelper(t *testing.T, e *httpexpect.Expect, pool *pgxpool.Pool) *E2EHelper {
+	t.Helper()
 	return &E2EHelper{
 		t:    t,
 		e:    e,
@@ -33,6 +34,7 @@ func NewE2EHelper(t *testing.T, e *httpexpect.Expect, pool *pgxpool.Pool) *E2EHe
 // API Wrappers
 
 func (h *E2EHelper) Register(username, email, password string) {
+	h.t.Helper()
 	h.e.POST("/api/v1/auth/register").
 		WithJSON(map[string]string{
 			"username": username,
@@ -44,6 +46,7 @@ func (h *E2EHelper) Register(username, email, password string) {
 }
 
 func (h *E2EHelper) Login(email, password string, expectStatus int) *httpexpect.Object {
+	h.t.Helper()
 	return h.e.POST("/api/v1/auth/login").
 		WithJSON(map[string]string{
 			"email":    email,
@@ -55,6 +58,7 @@ func (h *E2EHelper) Login(email, password string, expectStatus int) *httpexpect.
 }
 
 func (h *E2EHelper) ForgotPassword(email string, expectStatus int) {
+	h.t.Helper()
 	h.e.POST("/api/v1/auth/forgot-password").
 		WithJSON(map[string]string{
 			"email": email,
@@ -64,6 +68,7 @@ func (h *E2EHelper) ForgotPassword(email string, expectStatus int) {
 }
 
 func (h *E2EHelper) ResetPassword(token, newPassword string) {
+	h.t.Helper()
 	h.e.POST("/api/v1/auth/reset-password").
 		WithJSON(map[string]string{
 			"token":        token,
@@ -74,6 +79,7 @@ func (h *E2EHelper) ResetPassword(token, newPassword string) {
 }
 
 func (h *E2EHelper) VerifyEmail(token string) {
+	h.t.Helper()
 	h.e.GET("/api/v1/auth/verify-email").
 		WithQuery("token", token).
 		Expect().
@@ -83,15 +89,17 @@ func (h *E2EHelper) VerifyEmail(token string) {
 
 // DB Helpers
 
-func (h *E2EHelper) GetUserIDByEmail(email string) string {
+func (h *E2EHelper) GetuserIDByEmail(email string) string {
+	h.t.Helper()
 	ctx := context.Background()
-	var id string
-	err := h.pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", email).Scan(&id)
+	var ID string
+	err := h.pool.QueryRow(ctx, "SELECT ID FROM users WHERE email = $1", email).Scan(&ID)
 	require.NoError(h.t, err, "failed to find user by email")
-	return id
+	return ID
 }
 
 func (h *E2EHelper) AssertUserVerified(email string, expected bool) {
+	h.t.Helper()
 	ctx := context.Background()
 	var isVerified bool
 	err := h.pool.QueryRow(ctx, "SELECT is_verified FROM users WHERE email = $1", email).Scan(&isVerified)
@@ -100,6 +108,7 @@ func (h *E2EHelper) AssertUserVerified(email string, expected bool) {
 }
 
 func (h *E2EHelper) InjectToken(userID string, tokenType entity.TokenType, knownToken string) {
+	h.t.Helper()
 	ctx := context.Background()
 	hashedToken := h.hashToken(knownToken)
 
@@ -113,6 +122,7 @@ func (h *E2EHelper) InjectToken(userID string, tokenType entity.TokenType, known
 }
 
 func (h *E2EHelper) hashToken(token string) string {
+	h.t.Helper()
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
 }
@@ -120,40 +130,44 @@ func (h *E2EHelper) hashToken(token string) string {
 // Challenge Helpers
 
 func (h *E2EHelper) RegisterUserAndLogin(username string) (email, password, token string) {
+	h.t.Helper()
 	email = username + "@example.com"
 	password = "password123"
 	h.Register(username, email, password)
 
 	resp := h.Login(email, password, http.StatusOK)
 	token = "Bearer " + resp.Value("access_token").String().Raw()
-	return
+	return email, password, token
 }
 
 func (h *E2EHelper) RegisterUser(username string) (email, password string) {
+	h.t.Helper()
 	email = username + "@example.com"
 	password = "password123"
 	h.Register(username, email, password)
-	return
+	return email, password
 }
 
 func (h *E2EHelper) RegisterAdmin(username string) (email, password, token string) {
+	h.t.Helper()
 	ctx := context.Background()
 	email, password, token = h.RegisterUserAndLogin(username)
 
 	meResp := h.e.GET("/api/v1/auth/me").
 		WithHeader("Authorization", token).
 		Expect().Status(200).JSON().Object()
-	userId := meResp.Value("id").String().Raw()
+	userID := meResp.Value("id").String().Raw()
 
-	_, err := h.pool.Exec(ctx, "UPDATE users SET role = 'admin' WHERE id = $1", userId)
+	_, err := h.pool.Exec(ctx, "UPDATE users SET role = 'admin' WHERE ID = $1", userID)
 	require.NoError(h.t, err)
 
 	resp := h.Login(email, password, http.StatusOK)
 	token = "Bearer " + resp.Value("access_token").String().Raw()
-	return
+	return email, password, token
 }
 
 func (h *E2EHelper) CreateChallenge(token string, data map[string]any) string {
+	h.t.Helper()
 	resp := h.e.POST("/api/v1/admin/challenges").
 		WithHeader("Authorization", token).
 		WithJSON(data).
@@ -165,6 +179,7 @@ func (h *E2EHelper) CreateChallenge(token string, data map[string]any) string {
 }
 
 func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) string {
+	h.t.Helper()
 	return h.CreateChallenge(token, map[string]any{
 		"title":       title,
 		"description": "Standard basic challenge",
@@ -175,8 +190,9 @@ func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) 
 	})
 }
 
-func (h *E2EHelper) SubmitFlag(token, challengeId, flag string, expectStatus int) *httpexpect.Object {
-	return h.e.POST("/api/v1/challenges/{id}/submit", challengeId).
+func (h *E2EHelper) SubmitFlag(token, challengeID, flag string, expectStatus int) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.POST("/api/v1/challenges/{ID}/submit", challengeID).
 		WithHeader("Authorization", token).
 		WithJSON(map[string]string{"flag": flag}).
 		Expect().
@@ -184,7 +200,8 @@ func (h *E2EHelper) SubmitFlag(token, challengeId, flag string, expectStatus int
 		JSON().Object()
 }
 
-func (h *E2EHelper) FindChallengeInList(token, challengeId string) *httpexpect.Object {
+func (h *E2EHelper) FindChallengeInList(token, challengeID string) *httpexpect.Object {
+	h.t.Helper()
 	challenges := h.e.GET("/api/v1/challenges").
 		WithHeader("Authorization", token).
 		Expect().
@@ -193,15 +210,16 @@ func (h *E2EHelper) FindChallengeInList(token, challengeId string) *httpexpect.O
 
 	for i := 0; i < int(challenges.Length().Raw()); i++ {
 		c := challenges.Value(i).Object()
-		if c.Value("id").String().Raw() == challengeId {
+		if c.Value("id").String().Raw() == challengeID {
 			return c
 		}
 	}
-	h.t.Fatalf("Challenge %s not found in list", challengeId)
+	h.t.Fatalf("Challenge %s not found in list", challengeID)
 	return nil
 }
 
-func (h *E2EHelper) AssertChallengeMissing(token, challengeId string) {
+func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
+	h.t.Helper()
 	challenges := h.e.GET("/api/v1/challenges").
 		WithHeader("Authorization", token).
 		Expect().
@@ -209,8 +227,8 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeId string) {
 		JSON().Array()
 
 	for i := 0; i < int(challenges.Length().Raw()); i++ {
-		if challenges.Value(i).Object().Value("id").String().Raw() == challengeId {
-			h.t.Fatalf("Challenge %s should NOT be in list", challengeId)
+		if challenges.Value(i).Object().Value("id").String().Raw() == challengeID {
+			h.t.Fatalf("Challenge %s should NOT be in list", challengeID)
 		}
 	}
 }
@@ -218,6 +236,7 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeId string) {
 // Competition Helpers
 
 func (h *E2EHelper) GetCompetitionStatus() *httpexpect.Object {
+	h.t.Helper()
 	return h.e.GET("/api/v1/competition/status").
 		Expect().
 		Status(http.StatusOK).
@@ -225,6 +244,7 @@ func (h *E2EHelper) GetCompetitionStatus() *httpexpect.Object {
 }
 
 func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
+	h.t.Helper()
 	h.e.PUT("/api/v1/admin/competition").
 		WithHeader("Authorization", token).
 		WithJSON(data).
@@ -233,6 +253,7 @@ func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 }
 
 func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
+	h.t.Helper()
 	now := time.Now().UTC()
 	h.UpdateCompetition(token, map[string]any{
 		"name":              "Test CTF",
@@ -247,6 +268,7 @@ func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
 }
 
 func (h *E2EHelper) StartCompetition(adminToken string) {
+	h.t.Helper()
 	now := time.Now().UTC()
 	resp := h.e.PUT("/api/v1/admin/competition").
 		WithHeader("Authorization", adminToken).
@@ -264,6 +286,7 @@ func (h *E2EHelper) StartCompetition(adminToken string) {
 }
 
 func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
+	h.t.Helper()
 	suffix := time.Now().Format("150405")
 	username := adminNamePrefix + "_" + suffix
 	_, _, token := h.RegisterAdmin(username)
@@ -272,7 +295,7 @@ func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
 }
 
 func (h *E2EHelper) UpdateChallenge(token, challengeID string, data map[string]any) {
-	h.e.PUT("/api/v1/admin/challenges/{id}", challengeID).
+	h.e.PUT("/api/v1/admin/challenges/{ID}", challengeID).
 		WithHeader("Authorization", token).
 		WithJSON(data).
 		Expect().
@@ -280,7 +303,7 @@ func (h *E2EHelper) UpdateChallenge(token, challengeID string, data map[string]a
 }
 
 func (h *E2EHelper) DeleteChallenge(token, challengeID string) {
-	h.e.DELETE("/api/v1/admin/challenges/{id}", challengeID).
+	h.e.DELETE("/api/v1/admin/challenges/{ID}", challengeID).
 		WithHeader("Authorization", token).
 		Expect().
 		Status(http.StatusNoContent)
@@ -288,16 +311,17 @@ func (h *E2EHelper) DeleteChallenge(token, challengeID string) {
 
 // First Blood Helpers
 
-func (h *E2EHelper) GetFirstBlood(challengeId string, expectStatus int) *httpexpect.Object {
-	return h.e.GET("/api/v1/challenges/{id}/first-blood", challengeId).
+func (h *E2EHelper) GetFirstBlood(challengeID string, expectStatus int) *httpexpect.Object {
+	return h.e.GET("/api/v1/challenges/{ID}/first-blood", challengeID).
 		Expect().
 		Status(expectStatus).
 		JSON().
 		Object()
 }
 
-func (h *E2EHelper) AssertFirstBlood(challengeId, expectedUsername string) {
-	resp := h.GetFirstBlood(challengeId, http.StatusOK)
+func (h *E2EHelper) AssertFirstBlood(challengeID, expectedUsername string) {
+	h.t.Helper()
+	resp := h.GetFirstBlood(challengeID, http.StatusOK)
 
 	resp.Value("username").String().IsEqual(expectedUsername)
 	resp.Value("team_name").String().IsEqual(expectedUsername)
@@ -310,7 +334,7 @@ func (h *E2EHelper) AssertFirstBlood(challengeId, expectedUsername string) {
 // Hint Helpers
 
 func (h *E2EHelper) CreateHint(token, challengeID, content string, cost int) string {
-	resp := h.e.POST("/api/v1/admin/challenges/{id}/hints", challengeID).
+	resp := h.e.POST("/api/v1/admin/challenges/{ID}/hints", challengeID).
 		WithHeader("Authorization", token).
 		WithJSON(map[string]any{
 			"content":     content,
@@ -325,7 +349,7 @@ func (h *E2EHelper) CreateHint(token, challengeID, content string, cost int) str
 }
 
 func (h *E2EHelper) UnlockHint(token, challengeID, hintID string, expectStatus int) *httpexpect.Object {
-	req := h.e.POST("/api/v1/challenges/{cid}/hints/{hid}/unlock", challengeID, hintID).
+	req := h.e.POST("/api/v1/challenges/{cID}/hints/{hID}/unlock", challengeID, hintID).
 		WithHeader("Authorization", token)
 
 	if expectStatus != http.StatusOK {
@@ -337,7 +361,7 @@ func (h *E2EHelper) UnlockHint(token, challengeID, hintID string, expectStatus i
 }
 
 func (h *E2EHelper) GetHintFromList(token, challengeID, hintID string) *httpexpect.Object {
-	hintsArr := h.e.GET("/api/v1/challenges/{id}/hints", challengeID).
+	hintsArr := h.e.GET("/api/v1/challenges/{ID}/hints", challengeID).
 		WithHeader("Authorization", token).
 		Expect().
 		Status(http.StatusOK).
@@ -358,6 +382,7 @@ func (h *E2EHelper) GetScoreboard() *httpexpect.Response {
 }
 
 func (h *E2EHelper) AssertTeamScore(teamName string, expectedPoints int) {
+	h.t.Helper()
 	scoreboard := h.GetScoreboard().
 		Status(http.StatusOK).
 		JSON().Array()
@@ -389,7 +414,7 @@ func (h *E2EHelper) GetMe(token string) *httpexpect.Object {
 }
 
 func (h *E2EHelper) GetPublicProfile(userID string, expectStatus int) *httpexpect.Object {
-	req := h.e.GET("/api/v1/users/{id}", userID)
+	req := h.e.GET("/api/v1/users/{ID}", userID)
 
 	if expectStatus != http.StatusOK {
 		req.Expect().Status(expectStatus)
@@ -437,6 +462,7 @@ func (h *E2EHelper) CreateTeam(token, name string, expectStatus int) {
 func (h *E2EHelper) CreateSoloTeam(token string, expectStatus int) {
 	h.e.POST("/api/v1/teams/solo").
 		WithHeader("Authorization", token).
+		WithJSON(map[string]any{}).
 		Expect().
 		Status(expectStatus)
 }
@@ -444,7 +470,7 @@ func (h *E2EHelper) CreateSoloTeam(token string, expectStatus int) {
 // File Helpers
 
 func (h *E2EHelper) UploadChallengeFile(token, challengeID, fileName, content string) *httpexpect.Object {
-	return h.e.POST("/api/v1/admin/challenges/{id}/files", challengeID).
+	return h.e.POST("/api/v1/admin/challenges/{ID}/files", challengeID).
 		WithHeader("Authorization", token).
 		WithMultipart().
 		WithFile("file", fileName, strings.NewReader(content)).
@@ -454,7 +480,7 @@ func (h *E2EHelper) UploadChallengeFile(token, challengeID, fileName, content st
 }
 
 func (h *E2EHelper) GetChallengeFiles(token, challengeID string) *httpexpect.Array {
-	return h.e.GET("/api/v1/challenges/{id}/files", challengeID).
+	return h.e.GET("/api/v1/challenges/{ID}/files", challengeID).
 		WithHeader("Authorization", token).
 		Expect().
 		Status(http.StatusOK).
@@ -462,7 +488,7 @@ func (h *E2EHelper) GetChallengeFiles(token, challengeID string) *httpexpect.Arr
 }
 
 func (h *E2EHelper) GetFileDownloadURL(token, fileID string) string {
-	resp := h.e.GET("/api/v1/files/{id}/download", fileID).
+	resp := h.e.GET("/api/v1/files/{ID}/download", fileID).
 		WithHeader("Authorization", token).
 		Expect().
 		Status(http.StatusOK).

@@ -4,108 +4,77 @@ import (
 	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 )
 
-type RegisterResponse struct {
-	Id       string    `json:"id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
-	CreateAt time.Time `json:"created_at"`
+func ptr[T any](v T) *T {
+	return &v
 }
 
-func FromUserForRegister(u *entity.User) RegisterResponse {
-	return RegisterResponse{
-		Id:       u.Id.String(),
-		Username: u.Username,
-		Email:    u.Email,
-		CreateAt: u.CreatedAt,
+func FromUserForRegister(u *entity.User) openapi.ResponseRegisterResponse {
+	return openapi.ResponseRegisterResponse{
+		ID:        ptr(u.ID.String()),
+		Username:  ptr(u.Username),
+		Email:     ptr(u.Email),
+		CreatedAt: ptr(u.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
-type MeResponse struct {
-	Id       string    `json:"id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
-	TeamId   *string   `json:"team_id"`
-	CreateAt time.Time `json:"created_at"`
-}
-
-func FromUserForMe(u *entity.User) MeResponse {
-	var teamIdStr *string
-	if u.TeamId != nil {
-		s := u.TeamId.String()
-		teamIdStr = &s
+func FromUserForMe(u *entity.User) openapi.ResponseMeResponse {
+	var teamIDStr *string
+	if u.TeamID != nil {
+		s := u.TeamID.String()
+		teamIDStr = &s
 	}
-	return MeResponse{
-		Id:       u.Id.String(),
-		Username: u.Username,
-		Email:    u.Email,
-		TeamId:   teamIdStr,
-		CreateAt: u.CreatedAt,
+	return openapi.ResponseMeResponse{
+		ID:        ptr(u.ID.String()),
+		Username:  ptr(u.Username),
+		Email:     ptr(u.Email),
+		TeamID:    teamIDStr,
+		CreatedAt: ptr(u.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
-type UserProfileResponse struct {
-	Id       string          `json:"id"`
-	Username string          `json:"username"`
-	TeamId   *string         `json:"team_id"`
-	CreateAt time.Time       `json:"created_at"`
-	Solves   []SolveResponse `json:"solves"`
-}
-
-func FromUserProfile(up *usecase.UserProfile) UserProfileResponse {
-	var teamIdStr *string
-	if up.User.TeamId != nil {
-		s := up.User.TeamId.String()
-		teamIdStr = &s
+func FromUserProfile(up *user.UserProfile) openapi.ResponseUserProfileResponse {
+	var teamIDStr *string
+	if up.User.TeamID != nil {
+		s := up.User.TeamID.String()
+		teamIDStr = &s
 	}
 
-	solves := make([]SolveResponse, 0, len(up.Solves))
+	solves := make([]openapi.ResponseSolveResponse, 0, len(up.Solves))
 	for _, solve := range up.Solves {
 		solves = append(solves, FromSolve(solve))
 	}
 
-	return UserProfileResponse{
-		Id:       up.User.Id.String(),
-		Username: up.User.Username,
-		TeamId:   teamIdStr,
-		CreateAt: up.User.CreatedAt,
-		Solves:   solves,
+	return openapi.ResponseUserProfileResponse{
+		ID:        ptr(up.User.ID.String()),
+		Username:  ptr(up.User.Username),
+		TeamID:    teamIDStr,
+		CreatedAt: ptr(up.User.CreatedAt.Format(time.RFC3339)),
+		Solves:    &solves,
 	}
 }
 
-type UserResponse struct {
-	Id       string  `json:"id"`
-	Username string  `json:"username"`
-	TeamId   *string `json:"team_id"`
-	Role     string  `json:"role"`
-}
-
-func FromUser(u *entity.User) UserResponse {
-	var teamIdStr *string
-	if u.TeamId != nil {
-		s := u.TeamId.String()
-		teamIdStr = &s
+func FromUser(u *entity.User) openapi.ResponseUserResponse {
+	var teamIDStr *string
+	if u.TeamID != nil {
+		s := u.TeamID.String()
+		teamIDStr = &s
 	}
-	return UserResponse{
-		Id:       u.Id.String(),
-		Username: u.Username,
-		TeamId:   teamIdStr,
-		Role:     u.Role,
+	return openapi.ResponseUserResponse{
+		ID:       ptr(u.ID.String()),
+		Username: ptr(u.Username),
+		TeamID:   teamIDStr,
+		Role:     ptr(u.Role), // Keeping it safe if type changes, but linter says redundant if Role is string.
 	}
 }
 
-type SolveResponse struct {
-	Id          string    `json:"id"`
-	ChallengeId string    `json:"challenge_id"`
-	SolvedAt    time.Time `json:"solved_at"`
-}
-
-func FromSolve(s *entity.Solve) SolveResponse {
-	return SolveResponse{
-		Id:          s.Id.String(),
-		ChallengeId: s.ChallengeId.String(),
-		SolvedAt:    s.SolvedAt,
+func FromSolve(s *entity.Solve) openapi.ResponseSolveResponse {
+	return openapi.ResponseSolveResponse{
+		ID:          ptr(s.ID.String()),
+		ChallengeID: ptr(s.ChallengeID.String()),
+		SolvedAt:    ptr(s.SolvedAt.Format(time.RFC3339)),
 	}
 }

@@ -3,7 +3,7 @@ package entity
 import "time"
 
 type Competition struct {
-	Id              int        `json:"id"`
+	ID              int        `json:"id"`
 	Name            string     `json:"name"`
 	StartTime       *time.Time `json:"start_time"`
 	EndTime         *time.Time `json:"end_time"`
@@ -37,7 +37,7 @@ const (
 	ModeFlexible  CompetitionMode = "flexible"
 )
 
-func (m CompetitionMode) IsValid() bool {
+func (m CompetitionMode) Isvalid() bool {
 	switch m {
 	case ModeSoloOnly, ModeTeamsOnly, ModeFlexible:
 		return true

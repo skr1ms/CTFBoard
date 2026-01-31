@@ -6,8 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type AuditAction string
-type AuditEntityType string
+type (
+	AuditAction     string
+	AuditEntityType string
+)
 
 const (
 	AuditActionCreate AuditAction = "create"
@@ -23,11 +25,11 @@ const (
 )
 
 type AuditLog struct {
-	Id         uuid.UUID       `json:"id"`
-	UserId     *uuid.UUID      `json:"user_id"`
+	ID         uuid.UUID       `json:"id"`
+	UserID     *uuid.UUID      `json:"user_id"`
 	Action     AuditAction     `json:"action"`
 	EntityType AuditEntityType `json:"entity_type"`
-	EntityId   string          `json:"entity_id"`
+	EntityID   string          `json:"entity_id"`
 	IP         string          `json:"ip"`
 	Details    map[string]any  `json:"details,omitempty"`
 	CreatedAt  time.Time       `json:"created_at"`

@@ -15,19 +15,21 @@ import (
 // Create Tests
 
 func TestTeamRepo_Create(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "captain")
 
-	assert.NotEmpty(t, team.Id)
+	assert.NotEmpty(t, team.ID)
 	gotTeam, err := f.TeamRepo.GetByName(ctx, team.Name)
 	require.NoError(t, err)
 	assert.NotZero(t, gotTeam.CreatedAt)
 }
 
 func TestTeamRepo_Create_DuplicateName(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -39,7 +41,7 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 	team2 := &entity.Team{
 		Name:        team1.Name,
 		InviteToken: uuid.New(),
-		CaptainId:   user2.Id,
+		CaptainID:   user2.ID,
 	}
 	err := f.TeamRepo.Create(ctx, team2)
 	assert.Error(t, err)
@@ -52,21 +54,23 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 // GetByID Tests
 
 func TestTeamRepo_GetByID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	_, team := f.CreateUserWithTeam(t, "get_by_id")
+	_, team := f.CreateUserWithTeam(t, "get_by_ID")
 
-	gotTeam, err := f.TeamRepo.GetByID(ctx, team.Id)
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.ID)
 	require.NoError(t, err)
-	assert.Equal(t, team.Id, gotTeam.Id)
+	assert.Equal(t, team.ID, gotTeam.ID)
 	assert.Equal(t, team.Name, gotTeam.Name)
 	assert.Equal(t, team.InviteToken, gotTeam.InviteToken)
-	assert.Equal(t, team.CaptainId, gotTeam.CaptainId)
+	assert.Equal(t, team.CaptainID, gotTeam.CaptainID)
 }
 
 func TestTeamRepo_GetByID_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -80,6 +84,7 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 // GetByInviteToken Tests
 
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -88,11 +93,12 @@ func TestTeamRepo_GetByInviteToken(t *testing.T) {
 
 	gotTeam, err := f.TeamRepo.GetByInviteToken(ctx, team.InviteToken)
 	require.NoError(t, err)
-	assert.Equal(t, team.Id, gotTeam.Id)
+	assert.Equal(t, team.ID, gotTeam.ID)
 	assert.Equal(t, team.InviteToken, gotTeam.InviteToken)
 }
 
 func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -105,6 +111,7 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 // GetByName Tests
 
 func TestTeamRepo_GetByName(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -113,11 +120,12 @@ func TestTeamRepo_GetByName(t *testing.T) {
 
 	gotTeam, err := f.TeamRepo.GetByName(ctx, team.Name)
 	require.NoError(t, err)
-	assert.Equal(t, team.Id, gotTeam.Id)
+	assert.Equal(t, team.ID, gotTeam.ID)
 	assert.Equal(t, team.Name, gotTeam.Name)
 }
 
 func TestTeamRepo_GetByName_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -126,7 +134,9 @@ func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
+
 func TestTeamRepo_Create_Solo(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -136,7 +146,7 @@ func TestTeamRepo_Create_Solo(t *testing.T) {
 	team := &entity.Team{
 		Name:          "SoloRepo",
 		InviteToken:   uuid.New(),
-		CaptainId:     user.Id,
+		CaptainID:     user.ID,
 		IsSolo:        true,
 		IsAutoCreated: false,
 	}
@@ -144,7 +154,7 @@ func TestTeamRepo_Create_Solo(t *testing.T) {
 	err := f.TeamRepo.Create(ctx, team)
 	require.NoError(t, err)
 
-	gotTeam, err := f.TeamRepo.GetByID(ctx, team.Id)
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.ID)
 	require.NoError(t, err)
 	assert.True(t, gotTeam.IsSolo)
 	assert.False(t, gotTeam.IsAutoCreated)

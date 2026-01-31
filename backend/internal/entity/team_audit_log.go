@@ -18,9 +18,9 @@ const (
 )
 
 type TeamAuditLog struct {
-	Id        uuid.UUID       `json:"id"`
-	TeamId    uuid.UUID       `json:"team_id"`
-	UserId    uuid.UUID       `json:"user_id"`
+	ID        uuid.UUID       `json:"id"`
+	TeamID    uuid.UUID       `json:"team_id"`
+	UserID    uuid.UUID       `json:"user_id"`
 	Action    TeamAuditAction `json:"action"`
 	Details   map[string]any  `json:"details,omitempty"`
 	CreatedAt time.Time       `json:"created_at"`

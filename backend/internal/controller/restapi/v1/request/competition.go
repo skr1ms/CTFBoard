@@ -7,7 +7,7 @@ import (
 )
 
 type UpdateCompetitionRequest struct {
-	Name            string     `json:"name" validate:"required,min=1,max=100"`
+	Name            string     `json:"name" Validate:"required,min=1,max=100"`
 	StartTime       *time.Time `json:"start_time"`
 	EndTime         *time.Time `json:"end_time"`
 	FreezeTime      *time.Time `json:"freeze_time"`
@@ -18,9 +18,9 @@ type UpdateCompetitionRequest struct {
 	Mode            string     `json:"mode"`
 }
 
-func (r *UpdateCompetitionRequest) ToCompetition(id int) *entity.Competition {
+func (r *UpdateCompetitionRequest) ToCompetition(ID int) *entity.Competition {
 	return &entity.Competition{
-		Id:              id,
+		ID:              ID,
 		Name:            r.Name,
 		StartTime:       r.StartTime,
 		EndTime:         r.EndTime,

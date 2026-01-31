@@ -15,6 +15,7 @@ import (
 // CreateAndGet Tests
 
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -22,7 +23,7 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 	user := f.CreateUser(t, "vt_user")
 
 	token := &entity.VerificationToken{
-		UserId:    user.Id,
+		UserID:    user.ID,
 		Token:     "test_token_123",
 		Type:      entity.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
@@ -33,7 +34,7 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 
 	fetched, err := f.VerificationTokenRepo.GetByToken(ctx, token.Token)
 	require.NoError(t, err)
-	assert.Equal(t, token.UserId, fetched.UserId)
+	assert.Equal(t, token.UserID, fetched.UserID)
 	assert.Equal(t, token.Token, fetched.Token)
 	assert.Equal(t, token.Type, fetched.Type)
 }
@@ -41,6 +42,7 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 // GetByToken Tests
 
 func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -54,6 +56,7 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 // DeleteByUserAndType Tests
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -62,14 +65,14 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 	user := f.CreateUser(t, "vt_del_user")
 
 	token := &entity.VerificationToken{
-		UserId:    user.Id,
+		UserID:    user.ID,
 		Token:     "token_to_delete",
 		Type:      entity.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 	require.NoError(t, repo.Create(ctx, token))
 
-	err := repo.DeleteByUserAndType(ctx, user.Id, entity.TokenTypeEmailVerification)
+	err := repo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypeEmailVerification)
 	assert.NoError(t, err)
 
 	_, err = repo.GetByToken(ctx, token.Token)
@@ -80,6 +83,7 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 // MarkUsed Tests
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -88,7 +92,7 @@ func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
 	user := f.CreateUser(t, "vt_used_user")
 
 	token := &entity.VerificationToken{
-		UserId:    user.Id,
+		UserID:    user.ID,
 		Token:     "token_mark_used",
 		Type:      entity.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
@@ -97,9 +101,9 @@ func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
 
 	fetched, err := repo.GetByToken(ctx, token.Token)
 	require.NoError(t, err)
-	assert.NotEmpty(t, fetched.Id)
+	assert.NotEmpty(t, fetched.ID)
 
-	err = repo.MarkUsed(ctx, fetched.Id)
+	err = repo.MarkUsed(ctx, fetched.ID)
 	assert.NoError(t, err)
 
 	fetchedUsed, err := repo.GetByToken(ctx, token.Token)

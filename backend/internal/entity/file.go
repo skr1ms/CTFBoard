@@ -14,9 +14,9 @@ const (
 )
 
 type File struct {
-	Id          uuid.UUID `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Type        FileType  `json:"type"`
-	ChallengeId uuid.UUID `json:"challenge_id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
 	Location    string    `json:"location"`
 	Filename    string    `json:"filename"`
 	Size        int64     `json:"size"`

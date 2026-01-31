@@ -11,7 +11,7 @@ func RenderJSON[T any](w http.ResponseWriter, r *http.Request, status int, data 
 	render.JSON(w, r, data)
 }
 
-func RenderNoContent(w http.ResponseWriter, r *http.Request) {
+func RenderNoContent(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -36,4 +36,8 @@ func RenderErrorWithCode(w http.ResponseWriter, r *http.Request, status int, mes
 		"error": message,
 		"code":  code,
 	})
+}
+
+func RenderInvalidID(w http.ResponseWriter, r *http.Request) {
+	RenderError(w, r, http.StatusBadRequest, "invalid ID")
 }

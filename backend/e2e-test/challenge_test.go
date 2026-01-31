@@ -95,16 +95,16 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	challengeState2.Value("solve_count").Number().IsEqual(2)
 }
 
-func TestChallenge_CreateHidden(t *testing.T) {
+func TestChallenge_CreateHIDden(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
 	// 1. Setup Competition
 	_, tokenAdmin := h.SetupCompetition("admin_hidden")
 
-	// 2. Create Hidden Challenge
+	// 2. Create HIDden Challenge
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
-		"title":       "Hidden Challenge",
+		"title":       "HIDden Challenge",
 		"description": "Test hidden challenge",
 		"points":      200,
 		"flag":        "FLAG{hidden}",

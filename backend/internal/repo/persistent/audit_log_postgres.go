@@ -20,7 +20,7 @@ func NewAuditLogRepo(pool *pgxpool.Pool) *AuditLogRepo {
 func (r *AuditLogRepo) Create(ctx context.Context, l *entity.AuditLog) error {
 	query := squirrel.Insert("audit_logs").
 		Columns("user_id", "action", "entity_type", "entity_id", "ip", "details").
-		Values(l.UserId, l.Action, l.EntityType, l.EntityId, l.IP, l.Details).
+		Values(l.UserID, l.Action, l.EntityType, l.EntityID, l.IP, l.Details).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()

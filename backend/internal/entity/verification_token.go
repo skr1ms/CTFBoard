@@ -14,8 +14,8 @@ const (
 )
 
 type VerificationToken struct {
-	Id        uuid.UUID
-	UserId    uuid.UUID
+	ID        uuid.UUID
+	UserID    uuid.UUID
 	Token     string
 	Type      TokenType
 	ExpiresAt time.Time

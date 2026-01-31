@@ -38,7 +38,7 @@ func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.
 	return middleware.Handler
 }
 
-func CheckRateLimit(ctx context.Context, client *redis.Client, keyPrefix string, keySuffix string, limit int64, window time.Duration) (bool, error) {
+func CheckRateLimit(ctx context.Context, client *redis.Client, keyPrefix, keySuffix string, limit int64, window time.Duration) (bool, error) {
 	store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
 		Prefix: "limiter:" + keyPrefix,
 	})

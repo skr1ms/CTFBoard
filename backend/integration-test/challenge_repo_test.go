@@ -16,6 +16,7 @@ import (
 // Create Tests
 
 func TestChallengeRepo_Create(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -34,21 +35,22 @@ func TestChallengeRepo_Create(t *testing.T) {
 
 	err := f.ChallengeRepo.Create(ctx, challenge)
 	require.NoError(t, err)
-	assert.NotEmpty(t, challenge.Id)
+	assert.NotEmpty(t, challenge.ID)
 }
 
 // GetByID Tests
 
 func TestChallengeRepo_GetByID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	challenge := f.CreateDynamicChallenge(t, "get_by_id", 200, 100, 20)
+	challenge := f.CreateDynamicChallenge(t, "get_by_ID", 200, 100, 20)
 
-	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
+	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	require.NoError(t, err)
-	assert.Equal(t, challenge.Id, gotChallenge.Id)
+	assert.Equal(t, challenge.ID, gotChallenge.ID)
 	assert.Equal(t, challenge.Title, gotChallenge.Title)
 	assert.Equal(t, challenge.Points, gotChallenge.Points)
 	assert.Equal(t, challenge.FlagHash, gotChallenge.FlagHash)
@@ -58,6 +60,7 @@ func TestChallengeRepo_GetByID(t *testing.T) {
 }
 
 func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -71,6 +74,7 @@ func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 // GetAll Tests
 
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -79,7 +83,7 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	f.CreateChallenge(t, "public_2", 200)
 
 	hiddenChallenge := &entity.Challenge{
-		Title:       "Hidden Challenge",
+		Title:       "HIDden Challenge",
 		Description: "Description",
 		Category:    "Pwn",
 		Points:      300,
@@ -99,27 +103,28 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 }
 
 func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "team_user")
 
-	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamID(ctx, user.ID, &team.ID)
 	require.NoError(t, err)
 
 	ch1 := f.CreateChallenge(t, "ch_1", 100)
 	f.CreateChallenge(t, "ch_2", 200)
 
-	f.CreateSolve(t, user.Id, team.Id, ch1.Id)
+	f.CreateSolve(t, user.ID, team.ID, ch1.ID)
 
-	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.Id)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.ID)
 	require.NoError(t, err)
 	assert.Len(t, challenges, 2)
 
 	solved := false
 	for _, ch := range challenges {
-		if ch.Challenge.Id == ch1.Id {
+		if ch.Challenge.ID == ch1.ID {
 			assert.True(t, ch.Solved)
 			solved = true
 		} else {
@@ -132,6 +137,7 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 // Update Tests
 
 func TestChallengeRepo_Update(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -151,7 +157,7 @@ func TestChallengeRepo_Update(t *testing.T) {
 	err := f.ChallengeRepo.Update(ctx, challenge)
 	require.NoError(t, err)
 
-	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
+	gotChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Title", gotChallenge.Title)
 	assert.Equal(t, "Updated Description", gotChallenge.Description)
@@ -165,37 +171,39 @@ func TestChallengeRepo_Update(t *testing.T) {
 }
 
 func TestChallengeRepo_Delete(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "to_delete", 100)
 
-	err := f.ChallengeRepo.Delete(ctx, challenge.Id)
+	err := f.ChallengeRepo.Delete(ctx, challenge.ID)
 	require.NoError(t, err)
 
-	_, err = f.ChallengeRepo.GetByID(ctx, challenge.Id)
+	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
 
 func TestChallengeRepo_GetByIDTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateDynamicChallenge(t, "tx_get", 200, 100, 20)
-	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 5 WHERE id = $1", challenge.Id)
+	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 5 WHERE ID = $1", challenge.ID)
 	require.NoError(t, err)
 	challenge.SolveCount = 5
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
 
-	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.Id)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
-	assert.Equal(t, challenge.Id, gotChallenge.Id)
+	assert.Equal(t, challenge.ID, gotChallenge.ID)
 	assert.Equal(t, challenge.Title, gotChallenge.Title)
 	assert.Equal(t, challenge.Points, gotChallenge.Points)
 	assert.Equal(t, challenge.SolveCount, gotChallenge.SolveCount)
@@ -205,13 +213,14 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 }
 
 func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
 
 	nonExistentID := uuid.New()
 	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, nonExistentID)
@@ -220,6 +229,7 @@ func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 }
 
 func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -229,20 +239,22 @@ func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
-	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.Id)
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
 
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
-	tx2, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.Id)
+	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	_ = tx2.Rollback(ctx)
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.ID)
+	require.NoError(t, err)
 	assert.Equal(t, 1, gotChallenge.SolveCount)
 }
 
 func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -253,20 +265,22 @@ func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
 	require.NoError(t, err)
 
 	newPoints := 350
-	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.ID, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
-	tx2, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.Id)
+	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	_ = tx2.Rollback(ctx)
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.ID)
+	require.NoError(t, err)
 	assert.Equal(t, newPoints, gotChallenge.Points)
 }
 
 func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -280,7 +294,7 @@ func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
-	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.Id)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
 
 	solveCount := gotChallenge.SolveCount + 1
@@ -289,16 +303,16 @@ func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 		newPoints = gotChallenge.MinValue
 	}
 
-	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.Id)
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
 
-	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.ID, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
-	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
+	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, finalChallenge.SolveCount)
 	assert.Equal(t, newPoints, finalChallenge.Points)

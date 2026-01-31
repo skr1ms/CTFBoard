@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,12 +16,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/skr1ms/CTFBoard/config"
-	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
 	wsController "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	challenge "github.com/skr1ms/CTFBoard/internal/usecase/challenge"
+	competition "github.com/skr1ms/CTFBoard/internal/usecase/competition"
+	email "github.com/skr1ms/CTFBoard/internal/usecase/email"
+	team "github.com/skr1ms/CTFBoard/internal/usecase/team"
+	user "github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
@@ -34,6 +40,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+//nolint:gocognit,gocyclo,funlen
 func Run(cfg *config.Config, l logger.Logger) {
 	l.Info("Application initialized", map[string]any{
 		"mode":      cfg.ChiMode,
@@ -78,11 +85,9 @@ func Run(cfg *config.Config, l logger.Logger) {
 	txRepo := persistent.NewTxRepo(pool)
 
 	// Seed default admin if configured
-	//nolint:staticcheck
+	//nolint:staticcheck // SA1019: httputil.ReverseProxy.ErrorLog is deprecated but still needed for compatibility
 	adminUsername := cfg.Admin.Username
-	//nolint:staticcheck
-	adminEmail := cfg.Admin.Email
-	//nolint:staticcheck
+	adminEmail := cfg.Email
 	adminPassword := cfg.Admin.Password
 
 	if adminUsername != "" && adminEmail != "" && adminPassword != "" {
@@ -118,14 +123,14 @@ func Run(cfg *config.Config, l logger.Logger) {
 		l.Warn("FlagEncryptionKey not provided, regex challenges will fail")
 	}
 
-	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	challengeUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
-	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
-	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo)
-	competitionUC := usecase.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
-	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
-	awardUC := usecase.NewAwardUseCase(awardRepo, redisClient)
-	statsUC := usecase.NewStatisticsUseCase(statsRepo, redisClient)
+	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
+	teamUC := team.NewTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo)
+	awardUC := team.NewAwardUseCase(awardRepo, redisClient)
+	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
+	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	competitionUC := competition.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
+	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
+	statsUC := competition.NewStatisticsUseCase(statsRepo, redisClient)
 	var storageProvider storage.Provider
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
@@ -164,7 +169,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 
 	fileRepo := persistent.NewFileRepository(pool)
-	fileUC := usecase.NewFileUseCase(fileRepo, storageProvider, cfg.PresignedExpiry)
+	fileUC := challenge.NewFileUseCase(fileRepo, storageProvider, cfg.PresignedExpiry)
 
 	verificationTokenRepo := persistent.NewVerificationTokenRepo(pool)
 	resendMailer := mailer.New(mailer.Config{
@@ -177,7 +182,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
-	emailUC := usecase.NewEmailUseCase(
+	emailUC := email.NewEmailUseCase(
 		userRepo,
 		verificationTokenRepo,
 		asyncMailer,
@@ -192,11 +197,11 @@ func Run(cfg *config.Config, l logger.Logger) {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	if cfg.ChiMode == "production" {
-		router.Use(restapiMiddleware.Logger(l))
+		router.Use(restapimiddleware.Logger(l))
 	} else {
 		router.Use(middleware.Logger)
 	}
-	router.Use(restapiMiddleware.Metrics)
+	router.Use(restapimiddleware.Metrics)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Timeout(60 * time.Second))
 	router.Use(httprate.LimitByIP(100, 1*time.Minute))
@@ -209,11 +214,9 @@ func Run(cfg *config.Config, l logger.Logger) {
 		MaxAge:           300,
 	}))
 
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("OK")); err != nil {
-			l.WithError(err).Error("failed to write health check response")
-		}
+		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
 	})
 
 	router.Handle("/metrics", promhttp.HandlerFor(
@@ -223,13 +226,28 @@ func Run(cfg *config.Config, l logger.Logger) {
 		},
 	))
 
-	router.Get("/swagger/*", httpSwagger.Handler())
+	router.Get("/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
+		swagger, err := openapi.GetSwagger()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonBytes, err := swagger.MarshalJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(jsonBytes) //nolint:errcheck // best-effort openapi json
+	})
+
+	router.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/openapi.json"),
+	))
 
 	wsCtrl := wsController.NewController(wsHub, l, cfg.CORSOrigins)
 
 	router.Route("/api/v1", func(r chi.Router) {
-		wsCtrl.RegisterRoutes(r)
-
 		v1.NewRouter(
 			r,
 			userUC,
@@ -244,6 +262,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 			statsUC,
 			jwtService,
 			redisClient,
+			wsCtrl,
 			validator,
 			l,
 			cfg.SubmitFlag,
@@ -272,7 +291,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 
 	select {
 	case err := <-serverErrors:
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			l.WithError(err).Error("HTTP server error")
 		}
 	case <-shutdown:

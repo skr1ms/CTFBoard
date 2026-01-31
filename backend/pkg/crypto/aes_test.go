@@ -28,7 +28,8 @@ func TestNewCryptoService(t *testing.T) {
 
 func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
 	key := "1234567890123456789012345678901212345678901234567890123456789012"
-	svc, _ := NewCryptoService(key)
+	svc, err := NewCryptoService(key)
+	require.NoError(t, err)
 
 	plaintext := "CTF{this_is_a_secret_flag}"
 
@@ -44,7 +45,8 @@ func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
 
 func TestCryptoService_Decrypt_Error(t *testing.T) {
 	key := "1234567890123456789012345678901212345678901234567890123456789012"
-	svc, _ := NewCryptoService(key)
+	svc, err := NewCryptoService(key)
+	require.NoError(t, err)
 
 	t.Run("InvalidBase64", func(t *testing.T) {
 		_, err := svc.Decrypt("invalid_base64")
@@ -61,14 +63,15 @@ func TestCryptoService_Decrypt_Error(t *testing.T) {
 
 	t.Run("TamperedCiphertext", func(t *testing.T) {
 		plaintext := "secret"
-		encrypted, _ := svc.Encrypt(plaintext)
+		encrypted, err := svc.Encrypt(plaintext)
+		require.NoError(t, err)
 
-		// Decode, modify last byte, encode back
-		data, _ := base64.StdEncoding.DecodeString(encrypted)
+		data, err := base64.StdEncoding.DecodeString(encrypted)
+		require.NoError(t, err)
 		data[len(data)-1] ^= 0xFF // flip bits
 		tampered := base64.StdEncoding.EncodeToString(data)
 
-		_, err := svc.Decrypt(tampered)
+		_, err = svc.Decrypt(tampered)
 		assert.Error(t, err)
 	})
 }

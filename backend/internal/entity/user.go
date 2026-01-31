@@ -12,8 +12,8 @@ const (
 )
 
 type User struct {
-	Id           uuid.UUID  `json:"id"`
-	TeamId       *uuid.UUID `json:"team_id"`
+	ID           uuid.UUID  `json:"id"`
+	TeamID       *uuid.UUID `json:"team_id"`
 	Username     string     `json:"username"`
 	Email        string     `json:"email"`
 	PasswordHash string     `json:"-"`

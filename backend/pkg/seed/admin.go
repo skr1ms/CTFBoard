@@ -27,8 +27,8 @@ func CreateDefaultAdmin(ctx context.Context, userRepo persistent.UserRepo, usern
 
 	now := time.Now()
 	user := &entity.User{
-		Id:           uuid.New(),
-		TeamId:       nil,
+		ID:           uuid.New(),
+		TeamID:       nil,
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(hashedPassword),

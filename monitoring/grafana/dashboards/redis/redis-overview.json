@@ -1,7 +1,11 @@
 {
     "uid": "redis-overview",
     "title": "Redis Overview",
-    "tags": ["redis", "cache", "infrastructure"],
+    "tags": [
+        "redis",
+        "cache",
+        "infrastructure"
+    ],
     "annotations": {
         "list": []
     },
@@ -462,10 +466,6 @@
         }
     ],
     "schemaVersion": 39,
-    "tags": [
-        "redis",
-        "cache"
-    ],
     "templating": {
         "list": []
     },
@@ -475,7 +475,5 @@
     },
     "timepicker": {},
     "timezone": "browser",
-    "title": "Redis Overview",
-    "uid": "redis-overview",
     "version": 1
 }

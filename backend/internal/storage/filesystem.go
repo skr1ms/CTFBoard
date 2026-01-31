@@ -17,7 +17,7 @@ type FilesystemProvider struct {
 }
 
 func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
-	if err := os.MkdirAll(basePath, 0750); err != nil {
+	if err := os.MkdirAll(basePath, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create base directory: %w", err)
 	}
 
@@ -35,7 +35,7 @@ func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
 func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.Reader, size int64, contentType string) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		if err := p.root.MkdirAll(dir, 0750); err != nil {
+		if err := p.root.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 	}
@@ -70,15 +70,14 @@ func (p *FilesystemProvider) Close() error {
 
 func (p *FilesystemProvider) Delete(ctx context.Context, path string) error {
 	if err := p.root.Remove(path); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		_ = p.root.Remove(dir)
+		if err := p.root.Remove(dir); err != nil {
+			return fmt.Errorf("failed to remove dir: %w", err)
+		}
 	}
 
 	return nil

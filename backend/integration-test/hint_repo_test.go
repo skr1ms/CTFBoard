@@ -13,6 +13,7 @@ import (
 // Hint CRUD Tests
 
 func TestHintRepo_CRUD(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -20,16 +21,16 @@ func TestHintRepo_CRUD(t *testing.T) {
 	challenge := f.CreateChallenge(t, "hint_crud", 100)
 
 	hint := &entity.Hint{
-		ChallengeId: challenge.Id,
+		ChallengeID: challenge.ID,
 		Content:     "Secret Hint",
 		Cost:        50,
 		OrderIndex:  1,
 	}
 	err := f.HintRepo.Create(ctx, hint)
 	require.NoError(t, err)
-	assert.NotEmpty(t, hint.Id)
+	assert.NotEmpty(t, hint.ID)
 
-	gotHint, err := f.HintRepo.GetByID(ctx, hint.Id)
+	gotHint, err := f.HintRepo.GetByID(ctx, hint.ID)
 	require.NoError(t, err)
 	assert.Equal(t, hint.Content, gotHint.Content)
 	assert.Equal(t, hint.Cost, gotHint.Cost)
@@ -39,49 +40,51 @@ func TestHintRepo_CRUD(t *testing.T) {
 	err = f.HintRepo.Update(ctx, hint)
 	require.NoError(t, err)
 
-	gotHintUpdated, err := f.HintRepo.GetByID(ctx, hint.Id)
+	gotHintUpdated, err := f.HintRepo.GetByID(ctx, hint.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Hint", gotHintUpdated.Content)
 	assert.Equal(t, 75, gotHintUpdated.Cost)
 
-	err = f.HintRepo.Delete(ctx, hint.Id)
+	err = f.HintRepo.Delete(ctx, hint.ID)
 	require.NoError(t, err)
 
-	_, err = f.HintRepo.GetByID(ctx, hint.Id)
+	_, err = f.HintRepo.GetByID(ctx, hint.ID)
 	assert.Error(t, err)
 }
 
 // HintUnlock Tests
 
 func TestHintUnlockRepo_Flow(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "u1")
 	challenge := f.CreateChallenge(t, "C1", 100)
-	hint := f.CreateHint(t, challenge.Id, 10, 1)
+	hint := f.CreateHint(t, challenge.ID, 10, 1)
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
-	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.Id, hint.Id)
+	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.ID, hint.ID)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit(ctx))
 
-	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.Id, hint.Id)
+	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.ID, hint.ID)
 	require.NoError(t, err)
-	assert.Equal(t, team.Id, unlock.TeamId)
-	assert.Equal(t, hint.Id, unlock.HintId)
+	assert.Equal(t, team.ID, unlock.TeamID)
+	assert.Equal(t, hint.ID, unlock.HintID)
 
-	ids, err := f.HintUnlockRepo.GetUnlockedHintIDs(ctx, team.Id, challenge.Id)
+	IDs, err := f.HintUnlockRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
 	require.NoError(t, err)
-	assert.Contains(t, ids, hint.Id)
+	assert.Contains(t, IDs, hint.ID)
 }
 
 // Award Tests (in HintTest file)
 
 func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -91,44 +94,47 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
-	f.CreateAwardTx(t, tx, team.Id, -50, "Hint penalty")
+	f.CreateAwardTx(t, tx, team.ID, -50, "Hint penalty")
 	require.NoError(t, tx.Commit(ctx))
-	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
+	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, -50, total)
 
-	tx2, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	f.CreateAwardTx(t, tx2, team.Id, 100, "Bonus")
+	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	require.NoError(t, err)
+	f.CreateAwardTx(t, tx2, team.ID, 100, "Bonus")
 	require.NoError(t, tx2.Commit(ctx))
 
-	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.Id)
+	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 50, total) // -50 + 100 = 50
 }
 
 func TestScoreboardWithAwards(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "u3")
 
-	err := f.UserRepo.UpdateTeamId(ctx, user.Id, &team.Id)
+	err := f.UserRepo.UpdateTeamID(ctx, user.ID, &team.ID)
 	require.NoError(t, err)
 
 	challenge := f.CreateChallenge(t, "C3", 100)
 
-	f.CreateSolve(t, user.Id, team.Id, challenge.Id)
+	f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
-	score, err := f.SolveRepo.GetTeamScore(ctx, team.Id)
+	score, err := f.SolveRepo.GetTeamScore(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 100, score)
 
-	tx, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	f.CreateAwardTx(t, tx, team.Id, -20, "Penalty")
+	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	require.NoError(t, err)
+	f.CreateAwardTx(t, tx, team.ID, -20, "Penalty")
 	require.NoError(t, tx.Commit(ctx))
 
-	score, err = f.SolveRepo.GetTeamScore(ctx, team.Id)
+	score, err = f.SolveRepo.GetTeamScore(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 80, score)
 
@@ -136,7 +142,7 @@ func TestScoreboardWithAwards(t *testing.T) {
 	require.NoError(t, err)
 	found := false
 	for _, entry := range scoreboard {
-		if entry.TeamId == team.Id {
+		if entry.TeamID == team.ID {
 			assert.Equal(t, 80, entry.Points)
 			found = true
 			break

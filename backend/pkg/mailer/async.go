@@ -39,7 +39,7 @@ func (m *AsyncMailer) Stop() {
 	m.wg.Wait()
 }
 
-func (m *AsyncMailer) Send(ctx context.Context, msg Message) error {
+func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
 	select {
 	case m.msgChan <- msg:
 		return nil

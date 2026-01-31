@@ -38,7 +38,7 @@ func TestProfile_GetPublicProfile(t *testing.T) {
 	// 3. Access Public Profile Endpoint
 	userProfile := h.GetPublicProfile(userID, http.StatusOK)
 
-	// 4. Verify Sensitive Data (Email) is Hidden
+	// 4. Verify Sensitive Data (Email) is HIDden
 	userProfile.Value("username").String().IsEqual(username)
 	userProfile.NotContainsKey("email")
 }

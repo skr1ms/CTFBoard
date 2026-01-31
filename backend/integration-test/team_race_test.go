@@ -7,17 +7,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := usecase.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo)
+	uc := team.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo)
 
 	u1 := f.CreateUser(t, "racer_1")
 	u2 := f.CreateUser(t, "racer_2")
@@ -31,7 +32,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		team, err := uc.Create(ctx, teamName, u1.Id, false, false)
+		team, err := uc.Create(ctx, teamName, u1.ID, false, false)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -41,7 +42,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		team, err := uc.Create(ctx, teamName, u2.Id, false, false)
+		team, err := uc.Create(ctx, teamName, u2.ID, false, false)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -72,14 +73,15 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 }
 
 func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := usecase.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, 2)
+	uc := team.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, 2)
 
 	captain := f.CreateUser(t, "captain")
-	team, err := uc.Create(ctx, "MaxCapTeam", captain.Id, false, false)
+	team, err := uc.Create(ctx, "MaxCapTeam", captain.ID, false, false)
 	require.NoError(t, err)
 
 	u1 := f.CreateUser(t, "joiner_1")
@@ -101,8 +103,8 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 		}
 	}
 
-	go opts(u1.Id, "joiner_1")
-	go opts(u2.Id, "joiner_2")
+	go opts(u1.ID, "joiner_1")
+	go opts(u2.ID, "joiner_2")
 
 	wg.Wait()
 	close(errCh)
@@ -121,7 +123,7 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 	assert.Equal(t, 1, len(succeeded), "Only one user should be able to join")
 	assert.Equal(t, 1, len(failures), "One user should fail to join")
 
-	members, err := uc.GetTeamMembers(ctx, team.Id)
+	members, err := uc.GetTeamMembers(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(members), "Team should have exactly 2 members")
 }

@@ -16,22 +16,27 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
-
-	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
+	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
+	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
+	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/team"
+	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
+	"github.com/skr1ms/CTFBoard/pkg/websocket"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (
@@ -82,6 +87,7 @@ func TestMain(m *testing.M) {
 
 // E2E Setup
 func setupE2E(t *testing.T) *httpexpect.Expect {
+	t.Helper()
 	if err := TestRedis.FlushAll(context.Background()).Err(); err != nil {
 		t.Fatalf("failed to flush redis: %v", err)
 	}
@@ -163,8 +169,12 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 		fmt.Println("Cleaning up containers...")
 		TestPool.Close()
 		_ = TestRedis.Close()
-		_ = postgresC.Terminate(ctx)
-		_ = redisC.Terminate(ctx)
+		if err := postgresC.Terminate(ctx); err != nil {
+			fmt.Printf("postgres terminate: %v\n", err)
+		}
+		if err := redisC.Terminate(ctx); err != nil {
+			fmt.Printf("redis terminate: %v\n", err)
+		}
 	}
 	return cleanup, nil
 }
@@ -245,89 +255,55 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 
-	_, _ = pool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour))
-
+	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE ID = 1", time.Now().Add(-24*time.Hour)); err != nil {
+		return fmt.Errorf("update competition start_time: %w", err)
+	}
 	return nil
 }
 
 // Server Setup
 
+type testDeps struct {
+	logger    logger.Logger
+	validator validator.Validator
+	jwt       *jwt.JWTService
+	crypto    *crypto.CryptoService
+}
+
+type testUseCases struct {
+	user        *user.UserUseCase
+	challenge   *challenge.ChallengeUseCase
+	solve       *competition.SolveUseCase
+	team        *team.TeamUseCase
+	competition *competition.CompetitionUseCase
+	hint        *challenge.HintUseCase
+	award       *team.AwardUseCase
+	email       *email.EmailUseCase
+	file        *challenge.FileUseCase
+	stats       *competition.StatisticsUseCase
+	ws          *wsV1.Controller
+}
+
 func startTestServer() (func(), error) {
-	// Dependencies
-	l := logger.New(&logger.Options{
-		Level:  logger.ErrorLevel,
-		Output: logger.ConsoleOutput,
-	})
-	validatorService := validator.New()
-	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour)
-
-	// Repositories
-	userRepo := persistent.NewUserRepo(TestPool)
-	challengeRepo := persistent.NewChallengeRepo(TestPool)
-	solveRepo := persistent.NewSolveRepo(TestPool)
-	teamRepo := persistent.NewTeamRepo(TestPool)
-	compRepo := persistent.NewCompetitionRepo(TestPool)
-	hintRepo := persistent.NewHintRepo(TestPool)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(TestPool)
-	awardRepo := persistent.NewAwardRepo(TestPool)
-	txRepo := persistent.NewTxRepo(TestPool)
-	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
-	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
-	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
-	if err != nil {
-		return nil, fmt.Errorf("failed to init crypto service: %w", err)
-	}
-
-	// UseCases
-	userUC := usecase.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	compUC := usecase.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
-	challUC := usecase.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil, auditLogRepo, dummyCrypto)
-	solveUC := usecase.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, nil)
-	teamUC := usecase.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
-	hintUC := usecase.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
-	awardUC := usecase.NewAwardUseCase(awardRepo, TestRedis)
-	emailUC := usecase.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
-	statsRepo := persistent.NewStatisticsRepository(TestPool)
-	statsUC := usecase.NewStatisticsUseCase(statsRepo, TestRedis)
-
-	// File Storage (E2E uses local temp dir)
-	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp storage dir: %w", err)
-	}
-	fileStorage, err := storage.NewFilesystemProvider(tempStorageDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create storage provider: %w", err)
-	}
-	fileRepo := persistent.NewFileRepository(TestPool)
-	fileUC := usecase.NewFileUseCase(fileRepo, fileStorage, 1*time.Hour)
-
-	// Router
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
-	r.Use(restapiMiddleware.Logger(l))
-
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	})
-
-	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, userUC, challUC, solveUC, teamUC, compUC, hintUC, emailUC, fileUC, awardUC, statsUC, jwtService, TestRedis, validatorService, l, 100, 1*time.Minute, false)
-
-		// Static routes for E2E Filesystem
-		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
-			fs := http.StripPrefix("/api/v1/files/download/", http.FileServer(http.Dir(tempStorageDir)))
-			fs.ServeHTTP(w, r)
-		})
-	})
-
-	// Listener on random port
-	listener, err := net.Listen("tcp", ":0")
+	deps, err := initTestDeps()
 	if err != nil {
 		return nil, err
 	}
-	testPort = fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
+
+	useCases, tempStorageDir, err := initTestUseCases(deps)
+	if err != nil {
+		return nil, err
+	}
+
+	r := setupTestRouter(deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
+
+	ctx := context.Background()
+	ls := net.ListenConfig{}
+	listener, err := ls.Listen(ctx, "tcp", ":0")
+	if err != nil {
+		return nil, err
+	}
+	testPort = fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port) //nolint:errcheck // type asserted
 
 	srv := &http.Server{
 		Handler:      r,
@@ -347,9 +323,113 @@ func startTestServer() (func(), error) {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = srv.Shutdown(ctx)
+		if err := srv.Shutdown(ctx); err != nil {
+			fmt.Printf("server shutdown: %v\n", err)
+		}
 		_ = os.RemoveAll(tempStorageDir)
 	}, nil
+}
+
+func initTestDeps() (*testDeps, error) {
+	l := logger.New(&logger.Options{
+		Level:  logger.ErrorLevel,
+		Output: logger.ConsoleOutput,
+	})
+	validatorService := validator.New()
+	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour)
+	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
+	if err != nil {
+		return nil, fmt.Errorf("failed to init crypto service: %w", err)
+	}
+
+	return &testDeps{
+		logger:    l,
+		validator: validatorService,
+		jwt:       jwtService,
+		crypto:    dummyCrypto,
+	}, nil
+}
+
+func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
+	// Repositories
+	userRepo := persistent.NewUserRepo(TestPool)
+	challengeRepo := persistent.NewChallengeRepo(TestPool)
+	solveRepo := persistent.NewSolveRepo(TestPool)
+	teamRepo := persistent.NewTeamRepo(TestPool)
+	compRepo := persistent.NewCompetitionRepo(TestPool)
+	hintRepo := persistent.NewHintRepo(TestPool)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(TestPool)
+	awardRepo := persistent.NewAwardRepo(TestPool)
+	txRepo := persistent.NewTxRepo(TestPool)
+	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
+	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
+	statsRepo := persistent.NewStatisticsRepository(TestPool)
+
+	// UseCases
+	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, deps.jwt)
+	compUC := competition.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
+	challUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil, auditLogRepo, deps.crypto)
+	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, nil)
+	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
+	awardUC := team.NewAwardUseCase(awardRepo, TestRedis)
+	emailUC := email.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+	statsUC := competition.NewStatisticsUseCase(statsRepo, TestRedis)
+
+	// WebSocket
+	hub := websocket.NewHub(TestRedis, "ctfboard:events")
+	go hub.Run()
+	go hub.SubscribeToRedis(context.Background())
+	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
+
+	// File Storage
+	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create temp storage dir: %w", err)
+	}
+	fileStorage, err := storage.NewFilesystemProvider(tempStorageDir)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create storage provider: %w", err)
+	}
+	fileRepo := persistent.NewFileRepository(TestPool)
+	fileUC := challenge.NewFileUseCase(fileRepo, fileStorage, 1*time.Hour)
+
+	return &testUseCases{
+		user:        userUC,
+		challenge:   challUC,
+		solve:       solveUC,
+		team:        teamUC,
+		competition: compUC,
+		hint:        hintUC,
+		award:       awardUC,
+		email:       emailUC,
+		file:        fileUC,
+		stats:       statsUC,
+		ws:          ws,
+	}, tempStorageDir, nil
+}
+
+func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
+	r.Use(restapimiddleware.Logger(l))
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
+	})
+
+	r.Route("/api/v1", func(apiRouter chi.Router) {
+		v1.NewRouter(apiRouter, uc.user, uc.challenge, uc.solve, uc.team, uc.competition, uc.hint, uc.email, uc.file, uc.award, uc.stats, jwtService, TestRedis, uc.ws, validatorService, l, 100, 1*time.Minute, false)
+
+		// Static routes for E2E Filesystem
+		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
+			fs := http.StripPrefix("/api/v1/files/download/", http.FileServer(http.Dir(tempStorageDir)))
+			fs.ServeHTTP(w, r)
+		})
+	})
+
+	return r
 }
 
 // Utils

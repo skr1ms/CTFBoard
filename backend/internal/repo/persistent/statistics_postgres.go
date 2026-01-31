@@ -71,7 +71,7 @@ func (r *StatisticsRepository) GetChallengeStats(ctx context.Context) ([]*entity
 	var stats []*entity.ChallengeStats
 	for rows.Next() {
 		s := &entity.ChallengeStats{}
-		if err := rows.Scan(&s.Id, &s.Title, &s.Category, &s.Points, &s.SolveCount); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.Category, &s.Points, &s.SolveCount); err != nil {
 			return nil, fmt.Errorf("StatisticsRepository - GetChallengeStats - Scan: %w", err)
 		}
 		stats = append(stats, s)
@@ -130,7 +130,7 @@ func (r *StatisticsRepository) GetScoreboardHistory(ctx context.Context, limit i
 	var history []*entity.ScoreboardHistoryEntry
 	for rows.Next() {
 		var h entity.ScoreboardHistoryEntry
-		if err := rows.Scan(&h.TeamId, &h.TeamName, &h.Points, &h.Timestamp); err != nil {
+		if err := rows.Scan(&h.TeamID, &h.TeamName, &h.Points, &h.Timestamp); err != nil {
 			return nil, fmt.Errorf("StatisticsRepository - GetScoreboardHistory - Scan: %w", err)
 		}
 		history = append(history, &h)

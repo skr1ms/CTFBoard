@@ -1,7 +1,7 @@
 CREATE TABLE files (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     type VARCHAR(20) NOT NULL CHECK (type IN ('challenge', 'writeup')),
-    challenge_id UUID NOT NULL,
+    challenge_id uuid NOT NULL,
     location VARCHAR(512) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     size BIGINT NOT NULL,

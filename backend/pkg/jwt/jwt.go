@@ -114,7 +114,6 @@ func (j *JWTService) ValidateAccessToken(tokenString string) (*CustomClaims, err
 		}
 		return j.accessSecret, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate access token: %w", err)
 	}
@@ -136,7 +135,6 @@ func (j *JWTService) ValidateRefreshToken(tokenString string) (*CustomClaims, er
 		}
 		return j.refreshSecret, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate refresh token: %w", err)
 	}
@@ -159,7 +157,7 @@ func (j *JWTService) RefreshTokens(refreshTokenString string) (*TokenPair, error
 
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user id in token claims: %w", err)
+		return nil, fmt.Errorf("invalid user ID in token claims: %w", err)
 	}
 
 	return j.GenerateTokenPair(userID, claims.Email, claims.FullName, claims.Role)

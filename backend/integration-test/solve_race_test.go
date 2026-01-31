@@ -9,23 +9,25 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
+	t.Helper()
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
-	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TxRepo, db, nil)
+	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TxRepo, db, nil)
 
 	captain, team := f.CreateUserWithTeam(t, "solve_racer")
 	u2 := f.CreateUser(t, "solve_racer_2")
-	f.AddUserToTeam(t, u2.Id, team.Id)
+	f.AddUserToTeam(t, u2.ID, team.ID)
 
 	challenge := f.CreateChallenge(t, "SolveRaceChall", 100)
 
@@ -37,9 +39,9 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	submit := func(uID uuid.UUID) {
 		defer wg.Done()
 		solve := &entity.Solve{
-			UserId:      uID,
-			TeamId:      team.Id,
-			ChallengeId: challenge.Id,
+			UserID:      uID,
+			TeamID:      team.ID,
+			ChallengeID: challenge.ID,
 		}
 		err := uc.Create(ctx, solve)
 		if err != nil {
@@ -47,8 +49,8 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 		}
 	}
 
-	go submit(captain.Id)
-	go submit(u2.Id)
+	go submit(captain.ID)
+	go submit(u2.ID)
 
 	wg.Wait()
 	close(errCh)
@@ -61,18 +63,21 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	assert.Equal(t, 1, len(errors), "Exactly one submission should fail")
 
 	var count int
-	_ = f.Pool.QueryRow(ctx, "SELECT count(*) FROM solves WHERE team_id = $1 AND challenge_id = $2", team.Id, challenge.Id).Scan(&count)
+	err := f.Pool.QueryRow(ctx, "SELECT count(*) FROM solves WHERE team_id = $1 AND challenge_id = $2", team.ID, challenge.ID).Scan(&count)
+	require.NoError(t, err)
 	assert.Equal(t, 1, count, "Should be exactly 1 solve record")
 }
 
 func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
+	t.Helper()
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
-	uc := usecase.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TxRepo, db, nil)
+	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TxRepo, db, nil)
 
 	challenge := f.CreateDynamicChallenge(t, "DecayRace", 1000, 100, 10)
 
@@ -83,15 +88,15 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	errCh := make(chan error, concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		go func(idx int) {
+		go func(IDx int) {
 			defer wg.Done()
-			suffix := fmt.Sprintf("decay_%d", idx)
+			suffix := fmt.Sprintf("decay_%d", IDx)
 			u, tm := f.CreateUserWithTeam(t, suffix)
 
 			solve := &entity.Solve{
-				UserId:      u.Id,
-				TeamId:      tm.Id,
-				ChallengeId: challenge.Id,
+				UserID:      u.ID,
+				TeamID:      tm.ID,
+				ChallengeID: challenge.ID,
 			}
 			if err := uc.Create(ctx, solve); err != nil {
 				errCh <- err
@@ -106,7 +111,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	finalChall, err := f.ChallengeRepo.GetByID(ctx, challenge.Id)
+	finalChall, err := f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, concurrency, finalChall.SolveCount, "Solve count should match number of successes")
 	assert.NotEqual(t, 1000, finalChall.Points, "Points should have decayed")

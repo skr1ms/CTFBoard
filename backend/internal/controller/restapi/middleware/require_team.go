@@ -22,7 +22,7 @@ func RequireTeam(competitionMode string) func(http.Handler) http.Handler {
 				return
 			}
 
-			if user.TeamId == nil {
+			if user.TeamID == nil {
 				httputil.RenderErrorWithCode(w, r, http.StatusForbidden, entityError.ErrNoTeamSelected.Error(), "no_team_selected")
 				return
 			}

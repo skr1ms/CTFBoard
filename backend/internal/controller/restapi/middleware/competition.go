@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
-func CompetitionActive(competitionUC *usecase.CompetitionUseCase) func(http.Handler) http.Handler {
+func CompetitionActive(competitionUC *competition.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
@@ -27,6 +27,8 @@ func CompetitionActive(competitionUC *usecase.CompetitionUseCase) func(http.Hand
 					msg = "competition has ended"
 				case entity.CompetitionStatusPaused:
 					msg = "competition is paused"
+				case entity.CompetitionStatusActive, entity.CompetitionStatusFrozen:
+					msg = "submissions are not allowed at this time"
 				default:
 					msg = "submissions are not allowed at this time"
 				}

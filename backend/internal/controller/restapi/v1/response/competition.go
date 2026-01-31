@@ -3,7 +3,7 @@ package response
 import "github.com/skr1ms/CTFBoard/internal/entity"
 
 type CompetitionResponse struct {
-	Id         int     `json:"id"`
+	ID         int     `json:"id"`
 	Name       string  `json:"name"`
 	StartTime  *string `json:"start_time"`
 	EndTime    *string `json:"end_time"`
@@ -29,7 +29,7 @@ func FromCompetition(c *entity.Competition) CompetitionResponse {
 	}
 
 	return CompetitionResponse{
-		Id:         c.Id,
+		ID:         c.ID,
 		Name:       c.Name,
 		StartTime:  startTime,
 		EndTime:    endTime,

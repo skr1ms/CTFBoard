@@ -1,21 +1,30 @@
 {
-  "uid": "go-backend-performance",
+  "uID": "go-backend-performance",
   "title": "Go Backend Performance",
-  "tags": ["backend", "go", "performance"],
+  "tags": [
+    "backend",
+    "go",
+    "performance"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
   "refresh": "30s",
   "panels": [
     {
-      "id": 1,
+      "ID": 1,
       "title": "RPS by Endpoint",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "grIDPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "sum by (path) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "{{path}}"
         }
       ],
@@ -26,14 +35,19 @@
       }
     },
     {
-      "id": 2,
+      "ID": 2,
       "title": "Requests by Status Code",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "grIDPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "sum by (status) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "{{status}}"
         }
       ],
@@ -44,14 +58,19 @@
       }
     },
     {
-      "id": 3,
+      "ID": 3,
       "title": "Latency P95",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "P95 {{path}}"
         }
       ],
@@ -62,14 +81,19 @@
       }
     },
     {
-      "id": 4,
+      "ID": 4,
       "title": "Latency P99",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.99, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "P99 {{path}}"
         }
       ],
@@ -80,14 +104,19 @@
       }
     },
     {
-      "id": 5,
+      "ID": 5,
       "title": "Average Latency",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(restapi_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(restapi_request_duration_seconds_count{job=\"backend\"}[5m]))",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "Avg Latency"
         }
       ],
@@ -98,14 +127,19 @@
       }
     },
     {
-      "id": 6,
+      "ID": 6,
       "title": "Goroutines Count",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "go_goroutines{job=\"backend\"}",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "Goroutines ({{instance}})"
         }
       ],
@@ -116,14 +150,19 @@
       }
     },
     {
-      "id": 7,
+      "ID": 7,
       "title": "Heap Memory",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "go_memstats_heap_alloc_bytes{job=\"backend\"}",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "Heap Allocated ({{instance}})"
         }
       ],
@@ -134,14 +173,19 @@
       }
     },
     {
-      "id": 8,
+      "ID": 8,
       "title": "GC Duration",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+      "grIDPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "rate(go_gc_duration_seconds_sum{job=\"backend\"}[1m])",
-          "refId": "A",
+          "refID": "A",
           "legendFormat": "GC Duration ({{instance}})"
         }
       ],

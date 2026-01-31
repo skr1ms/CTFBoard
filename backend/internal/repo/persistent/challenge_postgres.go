@@ -23,11 +23,11 @@ func NewChallengeRepo(pool *pgxpool.Pool) *ChallengeRepo {
 }
 
 func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
-	c.Id = uuid.New()
+	c.ID = uuid.New()
 
 	query := squirrel.Insert("challenges").
 		Columns("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex").
-		Values(c.Id, c.Title, c.Description, c.Category, c.Points, c.InitialValue, c.MinValue, c.Decay, c.SolveCount, c.FlagHash, c.IsHidden, c.IsRegex, c.IsCaseInsensitive, c.FlagRegex).
+		Values(c.ID, c.Title, c.Description, c.Category, c.Points, c.InitialValue, c.MinValue, c.Decay, c.SolveCount, c.FlagHash, c.IsHidden, c.IsRegex, c.IsCaseInsensitive, c.FlagRegex).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -43,10 +43,10 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
 	return nil
 }
 
-func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Challenge, error) {
+func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
 	query := squirrel.Select("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex").
 		From("challenges").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -56,7 +56,7 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Chal
 
 	var challenge entity.Challenge
 	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&challenge.Id,
+		&challenge.ID,
 		&challenge.Title,
 		&challenge.Description,
 		&challenge.Category,
@@ -71,7 +71,6 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Chal
 		&challenge.IsCaseInsensitive,
 		&challenge.FlagRegex,
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrChallengeNotFound
@@ -82,16 +81,16 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Chal
 	return &challenge, nil
 }
 
-func (r *ChallengeRepo) GetAll(ctx context.Context, teamId *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
 	var query squirrel.SelectBuilder
 
-	if teamId != nil {
+	if teamID != nil {
 		query = squirrel.Select(
 			"c.id", "c.title", "c.description", "c.category", "c.points", "c.initial_value", "c.min_value", "c.decay", "c.solve_count", "c.flag_hash", "c.is_hidden", "c.is_regex", "c.is_case_insensitive", "c.flag_regex",
 			"CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as solved",
 		).
 			From("challenges c").
-			LeftJoin("solves s ON c.id = s.challenge_id AND s.team_id = ?", *teamId).
+			LeftJoin("solves s ON c.id = s.challenge_id AND s.team_id = ?", *teamID).
 			Where(squirrel.Eq{"c.is_hidden": false})
 	} else {
 		query = squirrel.Select(
@@ -118,7 +117,7 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamId *uuid.UUID) ([]*repo.
 		var challenge entity.Challenge
 		var solved int
 		if err := rows.Scan(
-			&challenge.Id,
+			&challenge.ID,
 			&challenge.Title,
 			&challenge.Description,
 			&challenge.Category,
@@ -163,7 +162,7 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
 		Set("is_regex", c.IsRegex).
 		Set("is_case_insensitive", c.IsCaseInsensitive).
 		Set("flag_regex", c.FlagRegex).
-		Where(squirrel.Eq{"id": c.Id}).
+		Where(squirrel.Eq{"id": c.ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -179,9 +178,9 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
 	return nil
 }
 
-func (r *ChallengeRepo) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *ChallengeRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	query := squirrel.Delete("challenges").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -197,10 +196,10 @@ func (r *ChallengeRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, id uuid.UUID) (int, error) {
+func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
 	query := squirrel.Update("challenges").
 		Set("solve_count", squirrel.Expr("solve_count + 1")).
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		Suffix("RETURNING solve_count").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -218,10 +217,10 @@ func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, id uuid.UUID) (
 	return solveCount, nil
 }
 
-func (r *ChallengeRepo) UpdatePoints(ctx context.Context, id uuid.UUID, points int) error {
+func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points int) error {
 	query := squirrel.Update("challenges").
 		Set("points", points).
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()

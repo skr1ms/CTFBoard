@@ -98,6 +98,7 @@ type (
 	}
 )
 
+//nolint:gocognit,gocyclo,funlen
 func New() (*Config, error) {
 	envPaths := []string{".env", "../.env", "../../.env", "/app/.env"}
 	envLoaded := false
@@ -119,25 +120,54 @@ func New() (*Config, error) {
 	chiMode := getEnv("CHI_MODE", "release")
 	logLevel := getEnv("LOG_LEVEL", "info")
 	flagEncryptionKey := getEnv("FLAG_ENCRYPTION_KEY", "")
+	verifyEmails := getEnvBool("VERIFY_EMAILS", false)
 	backendPort := getEnv("BACKEND_PORT", "8080")
 	migrationsPath := getEnv("MIGRATIONS_PATH", "migrations")
+	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
+
 	postgresHost := getEnv("POSTGRES_HOST", "postgres")
 	postgresPort := getEnv("POSTGRES_PORT", "5432")
-	redisHost := getEnv("REDIS_HOST", "redis")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
 	postgresUser := getEnv("POSTGRES_USER", "")
 	postgresPassword := getEnv("POSTGRES_PASSWORD", "")
 	postgresDB := getEnv("POSTGRES_DB", "")
+
+	redisHost := getEnv("REDIS_HOST", "redis")
+	redisPort := getEnv("REDIS_PORT", "6379")
+	redisPassword := getEnv("REDIS_PASSWORD", "")
+
 	jwtAccessSecret := getEnv("JWT_ACCESS_SECRET", "")
 	jwtRefreshSecret := getEnv("JWT_REFRESH_SECRET", "")
-	redisPassword := getEnv("REDIS_PASSWORD", "")
+
 	resendAPIKey := getEnv("RESEND_API_KEY", "")
 	s3AccessKey := getEnv("STORAGE_S3_ACCESS_KEY", "")
 	s3SecretKey := getEnv("STORAGE_S3_SECRET_KEY", "")
+
 	adminUsername := getEnv("ADMIN_USERNAME", "")
 	adminEmail := getEnv("ADMIN_EMAIL", "")
 	adminPassword := getEnv("ADMIN_PASSWORD", "")
+
+	rateLimitSubmitFlag := getEnvInt("RATE_LIMIT_SUBMIT_FLAG", 10)
+	rateLimitSubmitFlagDuration := time.Duration(getEnvInt("RATE_LIMIT_SUBMIT_FLAG_DURATION", 1)) * time.Minute
+
+	resendFromEmail := getEnv("RESEND_FROM_EMAIL", "noreply@ctfboard.local")
+	resendFromName := getEnv("RESEND_FROM_NAME", "CTFBoard")
+	resendEnabled := getEnvBool("RESEND_ENABLED", false)
+	resendVerifyTTL := time.Duration(getEnvInt("RESEND_VERIFY_TTL_HOURS", 24)) * time.Hour
+	resendResetTTL := time.Duration(getEnvInt("RESEND_RESET_TTL_HOURS", 1)) * time.Hour
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
+
+	storageProvider := getEnv("STORAGE_PROVIDER", "filesystem")
+	storageLocalPath := getEnv("STORAGE_LOCAL_PATH", "./uploads")
+	storageS3Endpoint := getEnv("STORAGE_S3_ENDPOINT", "urchin:9000")
+	storageS3PublicEndpoint := getEnv("STORAGE_S3_PUBLIC_ENDPOINT", "")
+	storageS3Bucket := getEnv("STORAGE_S3_BUCKET", "tasks")
+	storageS3UseSSL := getEnvBool("STORAGE_S3_USE_SSL", false)
+	storagePresignedExpiry := time.Duration(getEnvInt("STORAGE_PRESIGNED_EXPIRY_MINUTES", 60)) * time.Minute
+
+	competitionMode := getEnv("COMPETITION_MODE", "flexible")
+	allowTeamSwitch := getEnvBool("ALLOW_TEAM_SWITCH", true)
+	minTeamSize := getEnvInt("MIN_TEAM_SIZE", 1)
+	maxTeamSize := getEnvInt("MAX_TEAM_SIZE", 10)
 
 	var lvl logger.Level
 	switch logLevel {
@@ -277,6 +307,8 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("required flag encryption key is missing (env or vault) - needed for regex challenges")
 	}
 
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB)
+
 	cfg := &Config{
 		App: App{
 			Name:              appName,
@@ -284,7 +316,7 @@ func New() (*Config, error) {
 			ChiMode:           chiMode,
 			LogLevel:          logLevel,
 			FlagEncryptionKey: flagEncryptionKey,
-			VerifyEmails:      getEnvBool("VERIFY_EMAILS", false),
+			VerifyEmails:      verifyEmails,
 		},
 		Admin: Admin{
 			Username: adminUsername,
@@ -296,7 +328,7 @@ func New() (*Config, error) {
 			CORSOrigins: corsOrigins,
 		},
 		DB: DB{
-			URL:            fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB),
+			URL:            dbURL,
 			MigrationsPath: migrationsPath,
 		},
 		JWT: JWT{
@@ -311,34 +343,34 @@ func New() (*Config, error) {
 			Password: redisPassword,
 		},
 		RateLimit: RateLimit{
-			SubmitFlag:         getEnvInt("RATE_LIMIT_SUBMIT_FLAG", 10),
-			SubmitFlagDuration: time.Duration(getEnvInt("RATE_LIMIT_SUBMIT_FLAG_DURATION", 1)) * time.Minute,
+			SubmitFlag:         rateLimitSubmitFlag,
+			SubmitFlagDuration: rateLimitSubmitFlagDuration,
 		},
 		Resend: Resend{
 			APIKey:      resendAPIKey,
-			FromEmail:   getEnv("RESEND_FROM_EMAIL", "noreply@ctfboard.local"),
-			FromName:    getEnv("RESEND_FROM_NAME", "CTFBoard"),
-			Enabled:     getEnvBool("RESEND_ENABLED", false),
-			VerifyTTL:   time.Duration(getEnvInt("RESEND_VERIFY_TTL_HOURS", 24)) * time.Hour,
-			ResetTTL:    time.Duration(getEnvInt("RESEND_RESET_TTL_HOURS", 1)) * time.Hour,
-			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+			FromEmail:   resendFromEmail,
+			FromName:    resendFromName,
+			Enabled:     resendEnabled,
+			VerifyTTL:   resendVerifyTTL,
+			ResetTTL:    resendResetTTL,
+			FrontendURL: frontendURL,
 		},
 		Storage: Storage{
-			Provider:         getEnv("STORAGE_PROVIDER", "filesystem"),
-			LocalPath:        getEnv("STORAGE_LOCAL_PATH", "./uploads"),
-			S3Endpoint:       getEnv("STORAGE_S3_ENDPOINT", "urchin:9000"),
-			S3PublicEndpoint: getEnv("STORAGE_S3_PUBLIC_ENDPOINT", ""),
+			Provider:         storageProvider,
+			LocalPath:        storageLocalPath,
+			S3Endpoint:       storageS3Endpoint,
+			S3PublicEndpoint: storageS3PublicEndpoint,
 			S3AccessKey:      s3AccessKey,
 			S3SecretKey:      s3SecretKey,
-			S3Bucket:         getEnv("STORAGE_S3_BUCKET", "tasks"),
-			S3UseSSL:         getEnvBool("STORAGE_S3_USE_SSL", false),
-			PresignedExpiry:  time.Duration(getEnvInt("STORAGE_PRESIGNED_EXPIRY_MINUTES", 60)) * time.Minute,
+			S3Bucket:         storageS3Bucket,
+			S3UseSSL:         storageS3UseSSL,
+			PresignedExpiry:  storagePresignedExpiry,
 		},
 		Competition: Competition{
-			Mode:            getEnv("COMPETITION_MODE", "flexible"),
-			AllowTeamSwitch: getEnvBool("ALLOW_TEAM_SWITCH", true),
-			MinTeamSize:     getEnvInt("MIN_TEAM_SIZE", 1),
-			MaxTeamSize:     getEnvInt("MAX_TEAM_SIZE", 10),
+			Mode:            competitionMode,
+			AllowTeamSwitch: allowTeamSwitch,
+			MinTeamSize:     minTeamSize,
+			MaxTeamSize:     maxTeamSize,
 		},
 	}
 

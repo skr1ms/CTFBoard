@@ -6,83 +6,31 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	restapiMiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
 
-type fileRoutes struct {
-	fileUC *usecase.FileUseCase
-	logger logger.Logger
-}
-
-func NewFileRoutes(router chi.Router, fileUC *usecase.FileUseCase, logger logger.Logger, jwtService *jwt.JWTService) {
-	routes := fileRoutes{
-		fileUC: fileUC,
-		logger: logger,
-	}
-
-	router.With(restapiMiddleware.Admin).Post("/admin/challenges/{challengeId}/files", routes.Upload)
-	router.With(restapiMiddleware.Admin).Delete("/admin/files/{id}", routes.Delete)
-	router.Get("/files/{id}/download", routes.GetDownloadURL)
-	router.Get("/challenges/{challengeId}/files", routes.GetByChallengeID)
-
-	router.Get("/files/download/*", routes.Download)
-}
-
-func (h *fileRoutes) Download(w http.ResponseWriter, r *http.Request) {
-	path := chi.URLParam(r, "*")
-	if path == "" {
-		httputil.RenderError(w, r, http.StatusBadRequest, "path is required")
-		return
-	}
-
-	rc, err := h.fileUC.Download(r.Context(), path)
+// Upload file to challenge
+// (POST /admin/challenges/{challengeID}/files)
+func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string) {
+	challengeuuid, err := uuid.Parse(challengeID)
 	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - Download")
-		handleError(w, r, err)
-		return
-	}
-	defer func() { _ = rc.Close() }()
-
-	if _, err := io.Copy(w, rc); err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - Download - Copy")
-	}
-}
-
-// @Summary      Upload file to challenge
-// @Description  Uploads file attachment to a challenge. Admin only
-// @Tags         Admin
-// @Accept       multipart/form-data
-// @Produce      json
-// @Security     BearerAuth
-// @Param        challengeId path     string true  "Challenge ID"
-// @Param        file        formData file   true  "File to upload"
-// @Param        type        formData string false "File type: challenge or writeup" default(challenge)
-// @Success      201 {object} map[string]any
-// @Failure      400 {object} ErrorResponse
-// @Failure      401 {object} ErrorResponse
-// @Failure      403 {object} ErrorResponse
-// @Router       /admin/challenges/{challengeId}/files [post]
-func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
-	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "challengeId")
-	if !ok {
+		httputil.RenderInvalidID(w, r)
 		return
 	}
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - Upload - ParseMultipartForm")
+		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - ParseMultipartForm")
 		httputil.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - Upload - FormFile")
+		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - FormFile")
 		httputil.RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
@@ -99,44 +47,37 @@ func (h *fileRoutes) Upload(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/octet-stream"
 	}
 
-	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeUUID, fileType, handler.Filename, file, handler.Size, contentType)
+	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeuuid, fileType, handler.Filename, file, handler.Size, contentType)
 	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - Upload - Upload")
+		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles")
 		handleError(w, r, err)
 		return
 	}
 
 	httputil.RenderCreated(w, r, map[string]any{
-		"id":       uploadedFile.Id.String(),
+		"id":       uploadedFile.ID.String(),
 		"filename": uploadedFile.Filename,
 		"size":     uploadedFile.Size,
 		"sha256":   uploadedFile.SHA256,
 	})
 }
 
-// @Summary      Delete file
-// @Description  Deletes file from storage. Admin only
-// @Tags         Admin
-// @Security     BearerAuth
-// @Param        id path string true "File ID"
-// @Success      204 "No Content"
-// @Failure      401 {object} ErrorResponse
-// @Failure      403 {object} ErrorResponse
-// @Failure      404 {object} ErrorResponse
-// @Router       /admin/files/{id} [delete]
-func (h *fileRoutes) Delete(w http.ResponseWriter, r *http.Request) {
-	fileUUID, ok := httputil.ParseUUIDParam(w, r, "id")
-	if !ok {
+// Delete file
+// (DELETE /admin/files/{ID})
+func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID string) {
+	fileuuid, err := uuid.Parse(ID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
 		return
 	}
 
-	err := h.fileUC.Delete(r.Context(), fileUUID)
+	err = h.fileUC.Delete(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
 			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
-		h.logger.WithError(err).Error("http - v1 - file - Delete - Delete")
+		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminFilesID")
 		handleError(w, r, err)
 		return
 	}
@@ -144,29 +85,22 @@ func (h *fileRoutes) Delete(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderNoContent(w, r)
 }
 
-// @Summary      Get download URL
-// @Description  Returns presigned URL for file download
-// @Tags         Challenges
-// @Produce      json
-// @Security     BearerAuth
-// @Param        id path string true "File ID"
-// @Success      200 {object} map[string]string
-// @Failure      401 {object} ErrorResponse
-// @Failure      404 {object} ErrorResponse
-// @Router       /files/{id}/download [get]
-func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
-	fileUUID, ok := httputil.ParseUUIDParam(w, r, "id")
-	if !ok {
+// Get download URL
+// (GET /files/{ID}/download)
+func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID string) {
+	fileuuid, err := uuid.Parse(ID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
 		return
 	}
 
-	url, err := h.fileUC.GetDownloadURL(r.Context(), fileUUID)
+	url, err := h.fileUC.GetDownloadURL(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
 			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
-		h.logger.WithError(err).Error("http - v1 - file - GetDownloadURL")
+		h.logger.WithError(err).Error("restapi - v1 - GetFilesIDDownload")
 		handleError(w, r, err)
 		return
 	}
@@ -174,31 +108,23 @@ func (h *fileRoutes) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, map[string]string{"url": url})
 }
 
-// @Summary      Get challenge files
-// @Description  Returns list of files attached to a challenge
-// @Tags         Challenges
-// @Produce      json
-// @Security     BearerAuth
-// @Param        challengeId path string true "Challenge ID"
-// @Param        type query string false "File type: challenge or writeup" default(challenge)
-// @Success      200 {array} map[string]any
-// @Failure      401 {object} ErrorResponse
-// @Router       /challenges/{challengeId}/files [get]
-func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
-	challengeUUID, ok := httputil.ParseUUIDParam(w, r, "challengeId")
-	if !ok {
+// Get challenge files
+// (GET /challenges/{challengeID}/files)
+func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetChallengesChallengeIDFilesParams) {
+	challengeuuid, err := uuid.Parse(challengeID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
 		return
 	}
 
-	fileTypeStr := r.URL.Query().Get("type")
 	fileType := entity.FileTypeChallenge
-	if fileTypeStr == "writeup" {
+	if params.Type != nil && *params.Type == "writeup" {
 		fileType = entity.FileTypeWriteup
 	}
 
-	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeUUID, fileType)
+	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeuuid, fileType)
 	if err != nil {
-		h.logger.WithError(err).Error("http - v1 - file - GetByChallengeID")
+		h.logger.WithError(err).Error("restapi - v1 - GetChallengesChallengeIDFiles")
 		handleError(w, r, err)
 		return
 	}
@@ -206,7 +132,7 @@ func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 	result := make([]map[string]any, 0, len(files))
 	for _, f := range files {
 		result = append(result, map[string]any{
-			"id":         f.Id.String(),
+			"id":         f.ID.String(),
 			"filename":   f.Filename,
 			"size":       f.Size,
 			"created_at": f.CreatedAt,
@@ -214,4 +140,25 @@ func (h *fileRoutes) GetByChallengeID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RenderOK(w, r, result)
+}
+
+// Download - Not part of OpenAPI interface, manually routed
+func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
+	path := chi.URLParam(r, "*")
+	if path == "" {
+		httputil.RenderError(w, r, http.StatusBadRequest, "path is required")
+		return
+	}
+
+	rc, err := h.fileUC.Download(r.Context(), path)
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - Download")
+		handleError(w, r, err)
+		return
+	}
+	defer func() { _ = rc.Close() }()
+
+	if _, err := io.Copy(w, rc); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - Download - Copy")
+	}
 }

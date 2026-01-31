@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE challenges (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(50),
@@ -11,16 +11,16 @@ CREATE TABLE challenges (
 );
 
 CREATE TABLE teams (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
-    invite_token UUID DEFAULT uuid_generate_v4() NOT NULL,
-    captain_id UUID NOT NULL,
+    invite_token uuid DEFAULT uuid_generate_v4() NOT NULL,
+    captain_id uuid NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    team_id UUID DEFAULT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id uuid DEFAULT NULL,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -29,10 +29,10 @@ CREATE TABLE users (
 );
 
 CREATE TABLE solves (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    team_id UUID NOT NULL,
-    challenge_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL,
+    team_id uuid NOT NULL,
+    challenge_id uuid NOT NULL,
     solved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_team_solve UNIQUE (team_id, challenge_id)
 );

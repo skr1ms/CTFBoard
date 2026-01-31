@@ -87,7 +87,7 @@ func (p *S3Provider) Delete(ctx context.Context, path string) error {
 }
 
 func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error) {
-	presignedUrl, err := p.client.PresignedGetObject(ctx, p.bucket, path, expiry, nil)
+	presignedURL, err := p.client.PresignedGetObject(ctx, p.bucket, path, expiry, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
@@ -98,9 +98,9 @@ func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry ti
 			return "", fmt.Errorf("failed to parse public endpoint: %w", err)
 		}
 
-		presignedUrl.Scheme = publicURL.Scheme
-		presignedUrl.Host = publicURL.Host
+		presignedURL.Scheme = publicURL.Scheme
+		presignedURL.Host = publicURL.Host
 	}
 
-	return presignedUrl.String(), nil
+	return presignedURL.String(), nil
 }

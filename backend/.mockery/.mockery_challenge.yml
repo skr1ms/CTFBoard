@@ -1,0 +1,96 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      ChallengeRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "ChallengeRepository.go"
+          pkgname: "mocks"
+          structname: "MockChallengeRepository"
+
+      SolveRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "SolveRepository.go"
+          pkgname: "mocks"
+          structname: "MockSolveRepository"
+
+      TxRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "TxRepository.go"
+          pkgname: "mocks"
+          structname: "MockTxRepository"
+
+      FileRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "FileRepository.go"
+          pkgname: "mocks"
+          structname: "MockFileRepository"
+
+      HintRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "HintRepository.go"
+          pkgname: "mocks"
+          structname: "MockHintRepository"
+
+      HintUnlockRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "HintUnlockRepository.go"
+          pkgname: "mocks"
+          structname: "MockHintUnlockRepository"
+
+      AwardRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "AwardRepository.go"
+          pkgname: "mocks"
+          structname: "MockAwardRepository"
+
+      CompetitionRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "CompetitionRepository.go"
+          pkgname: "mocks"
+          structname: "MockCompetitionRepository"
+
+      PgxTx:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "PgxTx.go"
+          pkgname: "mocks"
+          structname: "MockPgxTx"
+      
+      AuditLogRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "AuditLogRepository.go"
+          pkgname: "mocks"
+          structname: "MockAuditLogRepository"
+
+  github.com/skr1ms/CTFBoard/internal/storage:
+    interfaces:
+      Provider:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "S3Provider.go"
+          pkgname: "mocks"
+          structname: "MockS3Provider"
+
+  github.com/skr1ms/CTFBoard/pkg/crypto:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "CryptoService.go"
+          pkgname: "mocks"
+          structname: "MockCryptoService"

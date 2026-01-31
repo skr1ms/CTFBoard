@@ -3,8 +3,8 @@ ADD COLUMN is_verified BOOLEAN DEFAULT FALSE,
 ADD COLUMN verified_at TIMESTAMP NULL;
 
 CREATE TABLE verification_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL,
     token VARCHAR(64) NOT NULL UNIQUE,
     type VARCHAR(20) NOT NULL CHECK (
         type IN ('email_verification', 'password_reset')

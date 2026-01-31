@@ -13,7 +13,7 @@ func TestDynamicScoring_Flow(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
 	// 2. Create Dynamic Challenge
-	// Initial: 500, Min: 100, Decay: 1 (rapid decay)
+	// Initial: 500, Min: 100, Decay: 1 (rapID decay)
 	// Formula: Initial + (Min - Initial) / (Decay^2) * (solve_count^2)
 	// where solve_count = solves - 1
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{

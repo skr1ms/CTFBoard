@@ -33,7 +33,7 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) 
 
 	var c entity.Competition
 	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&c.Id,
+		&c.ID,
 		&c.Name,
 		&c.StartTime,
 		&c.EndTime,

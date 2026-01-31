@@ -1,0 +1,16 @@
+package: openapi
+generate:
+  models: true
+output: internal/openapi/types.gen.go
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms
+---
+package: openapi
+generate:
+  chi-server: true
+output: internal/openapi/server.gen.go
+---
+package: openapi
+generate:
+  embedded-spec: true
+output: internal/openapi/spec.gen.go

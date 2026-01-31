@@ -1,0 +1,57 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      CompetitionRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "CompetitionRepository.go"
+          pkgname: "mocks"
+          structname: "MockCompetitionRepository"
+
+      AuditLogRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "AuditLogRepository.go"
+          pkgname: "mocks"
+          structname: "MockAuditLogRepository"
+
+      SolveRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "SolveRepository.go"
+          pkgname: "mocks"
+          structname: "MockSolveRepository"
+
+      ChallengeRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "ChallengeRepository.go"
+          pkgname: "mocks"
+          structname: "MockChallengeRepository"
+
+      TxRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "TxRepository.go"
+          pkgname: "mocks"
+          structname: "MockTxRepository"
+
+      UserRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
+      StatisticsRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "StatisticsRepository.go"
+          pkgname: "mocks"
+          structname: "MockStatisticsRepository"

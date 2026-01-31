@@ -1,22 +1,34 @@
 {
-  "uid": "backend-logs",
+  "uID": "backend-logs",
   "title": "Backend Logs",
-  "tags": ["backend", "logs", "loki"],
+  "tags": [
+    "backend",
+    "logs",
+    "loki"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
   "refresh": "10s",
   "panels": [
     {
-      "id": 1,
+      "ID": 1,
       "title": "Error Logs",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12},
+      "grIDPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
         {
-          "datasource": {"type": "loki", "uid": "loki"},
+          "datasource": {
+            "type": "loki",
+            "uID": "loki"
+          },
           "queryType": "",
-          "refId": "A",
+          "refID": "A",
           "expr": "{container=\"backend\"} |~ \"(?i)(error|err)\""
         }
       ],
@@ -32,15 +44,23 @@
       }
     },
     {
-      "id": 2,
+      "ID": 2,
       "title": "Slow Requests (>500ms)",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 24},
+      "grIDPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
       "targets": [
         {
-          "datasource": {"type": "loki", "uid": "loki"},
+          "datasource": {
+            "type": "loki",
+            "uID": "loki"
+          },
           "queryType": "",
-          "refId": "A",
+          "refID": "A",
           "expr": "{container=\"backend\"} |~ \"latency_ms.*[5-9][0-9][0-9]|latency_ms.*[0-9]{4,}\""
         }
       ],
@@ -56,15 +76,23 @@
       }
     },
     {
-      "id": 3,
+      "ID": 3,
       "title": "All Backend Logs",
       "type": "logs",
-      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+      "grIDPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
-          "datasource": {"type": "loki", "uid": "loki"},
+          "datasource": {
+            "type": "loki",
+            "uID": "loki"
+          },
           "queryType": "",
-          "refId": "A",
+          "refID": "A",
           "expr": "{container=\"backend\"}"
         }
       ],

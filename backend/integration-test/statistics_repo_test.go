@@ -10,6 +10,7 @@ import (
 )
 
 func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -24,14 +25,15 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
 	user, team := f.CreateUserWithTeam(t, uuid.New().String())
 	chall := f.CreateChallenge(t, uuid.New().String(), 100)
-	f.CreateSolve(t, user.Id, team.Id, chall.Id)
+	f.CreateSolve(t, user.ID, team.ID, chall.ID)
 
-	_, err := f.Pool.Exec(context.Background(), "UPDATE challenges SET solve_count = 1 WHERE id = $1", chall.Id)
+	_, err := f.Pool.Exec(context.Background(), "UPDATE challenges SET solve_count = 1 WHERE ID = $1", chall.ID)
 	require.NoError(t, err)
 
 	stats, err := f.StatisticsRepo.GetChallengeStats(context.Background())
@@ -39,7 +41,7 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 
 	found := false
 	for _, s := range stats {
-		if s.Id == chall.Id {
+		if s.ID == chall.ID {
 			require.Equal(t, 1, s.SolveCount)
 			require.Equal(t, chall.Title, s.Title)
 			found = true
@@ -50,6 +52,7 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -59,7 +62,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	ctx := context.Background()
 
 	solveTime := time.Now().Add(-1 * time.Hour)
-	_, err := f.Pool.Exec(ctx, "INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at) VALUES ($1, $2, $3, $4, $5)", uuid.New(), user1.Id, team1.Id, chall1.Id, solveTime)
+	_, err := f.Pool.Exec(ctx, "INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at) VALUES ($1, $2, $3, $4, $5)", uuid.New(), user1.ID, team1.ID, chall1.ID, solveTime)
 	require.NoError(t, err)
 
 	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 10)
@@ -67,7 +70,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 
 	found := false
 	for _, h := range history {
-		if h.TeamId == team1.Id {
+		if h.TeamID == team1.ID {
 			require.Equal(t, 100, h.Points)
 			found = true
 		}
@@ -76,6 +79,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 

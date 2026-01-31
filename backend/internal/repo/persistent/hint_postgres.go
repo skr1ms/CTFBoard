@@ -23,11 +23,11 @@ func NewHintRepo(pool *pgxpool.Pool) *HintRepo {
 }
 
 func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
-	h.Id = uuid.New()
+	h.ID = uuid.New()
 
 	query := squirrel.Insert("hints").
 		Columns("id", "challenge_id", "content", "cost", "order_index").
-		Values(h.Id, h.ChallengeId, h.Content, h.Cost, h.OrderIndex).
+		Values(h.ID, h.ChallengeID, h.Content, h.Cost, h.OrderIndex).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -43,10 +43,10 @@ func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
 	return nil
 }
 
-func (r *HintRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, error) {
+func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
 	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
 		From("hints").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -56,13 +56,12 @@ func (r *HintRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, err
 
 	var hint entity.Hint
 	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&hint.Id,
-		&hint.ChallengeId,
+		&hint.ID,
+		&hint.ChallengeID,
 		&hint.Content,
 		&hint.Cost,
 		&hint.OrderIndex,
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
@@ -73,10 +72,10 @@ func (r *HintRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, err
 	return &hint, nil
 }
 
-func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeId uuid.UUID) ([]*entity.Hint, error) {
+func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error) {
 	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
 		From("hints").
-		Where(squirrel.Eq{"challenge_id": challengeId}).
+		Where(squirrel.Eq{"challenge_id": challengeID}).
 		OrderBy("order_index ASC").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -95,8 +94,8 @@ func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeId uuid.UUID) 
 	for rows.Next() {
 		var hint entity.Hint
 		if err := rows.Scan(
-			&hint.Id,
-			&hint.ChallengeId,
+			&hint.ID,
+			&hint.ChallengeID,
 			&hint.Content,
 			&hint.Cost,
 			&hint.OrderIndex,
@@ -118,7 +117,7 @@ func (r *HintRepo) Update(ctx context.Context, h *entity.Hint) error {
 		Set("content", h.Content).
 		Set("cost", h.Cost).
 		Set("order_index", h.OrderIndex).
-		Where(squirrel.Eq{"id": h.Id}).
+		Where(squirrel.Eq{"id": h.ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -134,9 +133,9 @@ func (r *HintRepo) Update(ctx context.Context, h *entity.Hint) error {
 	return nil
 }
 
-func (r *HintRepo) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *HintRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	query := squirrel.Delete("hints").
-		Where(squirrel.Eq{"id": id}).
+		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -160,10 +159,10 @@ func NewHintUnlockRepo(pool *pgxpool.Pool) *HintUnlockRepo {
 	return &HintUnlockRepo{pool: pool}
 }
 
-func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId uuid.UUID) (*entity.HintUnlock, error) {
+func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUID) (*entity.HintUnlock, error) {
 	query := squirrel.Select("id", "hint_id", "team_id", "unlocked_at").
 		From("hint_unlocks").
-		Where(squirrel.Eq{"team_id": teamId, "hint_id": hintId}).
+		Where(squirrel.Eq{"team_id": teamID, "hint_id": hintID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -173,12 +172,11 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId uu
 
 	var unlock entity.HintUnlock
 	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&unlock.Id,
-		&unlock.HintId,
-		&unlock.TeamId,
+		&unlock.ID,
+		&unlock.HintID,
+		&unlock.TeamID,
 		&unlock.UnlockedAt,
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
@@ -189,11 +187,11 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamId, hintId uu
 	return &unlock, nil
 }
 
-func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamId, challengeId uuid.UUID) ([]uuid.UUID, error) {
+func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamID, challengeID uuid.UUID) ([]uuid.UUID, error) {
 	query := squirrel.Select("hu.hint_id").
 		From("hint_unlocks hu").
 		Join("hints h ON h.id = hu.hint_id").
-		Where(squirrel.Eq{"hu.team_id": teamId, "h.challenge_id": challengeId}).
+		Where(squirrel.Eq{"hu.team_id": teamID, "h.challenge_id": challengeID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -209,11 +207,11 @@ func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamId, challen
 
 	hintIDs := make([]uuid.UUID, 0)
 	for rows.Next() {
-		var hintId uuid.UUID
-		if err := rows.Scan(&hintId); err != nil {
+		var hintID uuid.UUID
+		if err := rows.Scan(&hintID); err != nil {
 			return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Scan: %w", err)
 		}
-		hintIDs = append(hintIDs, hintId)
+		hintIDs = append(hintIDs, hintID)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -223,5 +221,7 @@ func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamId, challen
 	return hintIDs, nil
 }
 
-var _ repo.HintRepository = (*HintRepo)(nil)
-var _ repo.HintUnlockRepository = (*HintUnlockRepo)(nil)
+var (
+	_ repo.HintRepository       = (*HintRepo)(nil)
+	_ repo.HintUnlockRepository = (*HintUnlockRepo)(nil)
+)

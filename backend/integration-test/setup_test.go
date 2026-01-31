@@ -29,6 +29,7 @@ type TestPool struct {
 }
 
 func SetupTestPool(t *testing.T) *TestPool {
+	t.Helper()
 	ctx := context.Background()
 
 	if os.Getenv("USE_EXTERNAL_Pool") != "true" {
@@ -136,6 +137,7 @@ func runMigrations(ctx context.Context, Pool *pgxpool.Pool) error {
 }
 
 func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
+	t.Helper()
 	ctx := context.Background()
 	tables := []string{
 		"hint_unlocks",
@@ -156,7 +158,10 @@ func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
 		}
 	}
 
-	_, _ = Pool.Exec(ctx, "INSERT INTO competition (id, name) VALUES (1, 'CTF Competition') ON CONFLICT (id) DO NOTHING")
+	_, err := Pool.Exec(ctx, "INSERT INTO competition (ID, name) VALUES (1, 'CTF Competition') ON CONFLICT (ID) DO NOTHING")
+	if err != nil {
+		t.Logf("insert competition: %v", err)
+	}
 }
 
 func getEnv(key, fallback string) string {

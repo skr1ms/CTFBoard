@@ -11,9 +11,9 @@ type ErrorResponse struct {
 	Code  string `json:"code,omitempty"`
 }
 
-var ErrInvalidID = &ErrorResponse{Error: "invalid id format", Code: "INVALID_ID"}
+var ErrInvalidID = &ErrorResponse{Error: "invalid ID format", Code: "INVALID_ID"}
 
-func (e *ErrorResponse) Render(w http.ResponseWriter, r *http.Request) error {
+func (e *ErrorResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 

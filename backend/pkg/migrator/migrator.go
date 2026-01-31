@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
+	// Import postgres driver for migrations
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/skr1ms/CTFBoard/config"
@@ -15,7 +16,6 @@ func Run(cfg *config.DB) error {
 		"file://"+cfg.MigrationsPath,
 		cfg.URL,
 	)
-
 	if err != nil {
 		return fmt.Errorf("migrator - Run - migrate.New: %w", err)
 	}

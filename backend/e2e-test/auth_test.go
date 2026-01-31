@@ -21,7 +21,7 @@ func TestAuth_RegisterAndLogin(t *testing.T) {
 	loginResp := h.Login(email, password, http.StatusOK)
 	token := "Bearer " + loginResp.Value("access_token").String().Raw()
 
-	// 4. Verify Identity via /me Endpoint
+	// 4. Verify IDentity via /me Endpoint
 	meResp := e.GET("/api/v1/auth/me").
 		WithHeader("Authorization", token).
 		Expect().

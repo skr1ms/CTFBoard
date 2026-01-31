@@ -1,0 +1,1836 @@
+openapi: 3.0.0
+info:
+  contact:
+    email: skr1ms13666@gmail.com
+    name: API Support
+  description: REST API for managing CTF competition
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://ctfleague.ru/terms
+  title: CTFBoard API
+  version: 1.0.0
+paths:
+  /admin/awards:
+    post:
+      description: Creates a new award (bonus or penalty) for a team. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateAwardRequest"
+        description: Award data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.AwardResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create award
+      tags:
+        - Admin
+  "/admin/awards/team/{teamID}":
+    get:
+      description: Returns list of awards for a team. Admin only.
+      parameters:
+        - description: Team ID
+          in: path
+          name: teamID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.AwardResponse"
+                type: array
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get awards by team
+      tags:
+        - Admin
+  /admin/challenges:
+    post:
+      description: Creates new challenge. Admin only
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateChallengeRequest"
+        description: Challenge data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.ChallengeResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create challenge
+      tags:
+        - Admin
+  "/admin/challenges/{challengeID}/files":
+    post:
+      description: Uploads file attachment to a challenge. Admin only
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  description: File to upload
+                  type: string
+                  format: binary
+                type:
+                  description: "File type: challenge or writeup"
+                  type: string
+                  default: challenge
+              required:
+                - file
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Upload file to challenge
+      tags:
+        - Admin
+  "/admin/challenges/{challengeID}/hints":
+    post:
+      description: Creates a new hint for a challenge. Admin only.
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateHintRequest"
+        description: Hint data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.HintAdminResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create hint
+      tags:
+        - Admin
+  "/admin/challenges/{ID}":
+    delete:
+      description: Deletes challenge. Admin only
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Delete challenge
+      tags:
+        - Admin
+    put:
+      description: Updates challenge data. Admin only
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateChallengeRequest"
+        description: Challenge data
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.ChallengeResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Update challenge
+      tags:
+        - Admin
+  "/admin/files/{ID}":
+    delete:
+      description: Deletes file from storage. Admin only
+      parameters:
+        - description: File ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Delete file
+      tags:
+        - Admin
+  "/admin/hints/{ID}":
+    delete:
+      description: Deletes hint. Admin only.
+      parameters:
+        - description: Hint ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Delete hint
+      tags:
+        - Admin
+    put:
+      description: Updates hint data. Admin only.
+      parameters:
+        - description: Hint ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateHintRequest"
+        description: Hint data
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.HintAdminResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Update hint
+      tags:
+        - Admin
+  /auth/forgot-password:
+    post:
+      description: Sends password reset email to specified address
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.ForgotPasswordRequest"
+        description: Email address
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Request password reset
+      tags:
+        - Authentication
+  /auth/login:
+    post:
+      description: Authenticates user and returns JWT tokens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.LoginRequest"
+        description: Credentials
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jwt.TokenPair"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: User login
+      tags:
+        - Authentication
+  /auth/me:
+    get:
+      description: Returns information about authenticated user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.MeResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get current user info
+      tags:
+        - Authentication
+  /auth/register:
+    post:
+      description: Creates a new user in the system
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.RegisterRequest"
+        description: Registration data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.RegisterResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Register new user
+      tags:
+        - Authentication
+  /auth/resend-verification:
+    post:
+      description: Resends verification email to authenticated user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Resend verification email
+      tags:
+        - Authentication
+  /auth/reset-password:
+    post:
+      description: Resets password using token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.ResetPasswordRequest"
+        description: Token and new password
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "410":
+          description: Gone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Reset password
+      tags:
+        - Authentication
+  /auth/verify-email:
+    get:
+      description: Verifies user email using token from query parameter
+      parameters:
+        - description: Verification token
+          in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "410":
+          description: Gone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Verify email
+      tags:
+        - Authentication
+  /challenges:
+    get:
+      description: Returns list of all challenges with solved status for user's team
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.ChallengeResponse"
+                type: array
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get challenges list
+      tags:
+        - Challenges
+  "/challenges/{challengeID}/files":
+    get:
+      description: Returns list of files attached to a challenge
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+        - description: "File type: challenge or writeup"
+          in: query
+          name: type
+          schema:
+            type: string
+            default: challenge
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  additionalProperties: true
+                  type: object
+                type: array
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get challenge files
+      tags:
+        - Challenges
+  "/challenges/{challengeID}/hints":
+    get:
+      description: Returns list of hints for a challenge. Content is hidden for
+        non-unlocked hints.
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.HintResponse"
+                type: array
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get hints for challenge
+      tags:
+        - Hints
+  "/challenges/{challengeID}/hints/{hintID}/unlock":
+    post:
+      description: Unlocks a hint by spending team points
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+        - description: Hint ID
+          in: path
+          name: hintID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.HintResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "402":
+          description: Insufficient points
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Already unlocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Unlock hint
+      tags:
+        - Hints
+  "/challenges/{ID}/first-blood":
+    get:
+      description: Returns the first solver of a challenge
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.FirstBloodResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Get first blood
+      tags:
+        - Challenges
+  "/challenges/{ID}/submit":
+    post:
+      description: "Verifies flag for challenge. Rate limit: 5 attempts per minute"
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.SubmitFlagRequest"
+        description: Flag to verify
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Submit flag
+      tags:
+        - Challenges
+  "/files/{ID}/download":
+    get:
+      description: Returns presigned URL for file download
+      parameters:
+        - description: File ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get download URL
+      tags:
+        - Challenges
+  /scoreboard:
+    get:
+      description: Returns current scoreboard state sorted by points descending
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.ScoreboardEntryResponse"
+                type: array
+      summary: Get scoreboard
+      tags:
+        - Scoreboard
+  /statistics/challenges:
+    get:
+      description: Returns statistics for all challenges including solve counts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/entity.ChallengeStats"
+                type: array
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get challenge statistics
+      tags:
+        - Statistics
+  /statistics/general:
+    get:
+      description: Returns general platform statistics (counts of users, teams,
+        challenges, solves)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity.GeneralStats"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get general statistics
+      tags:
+        - Statistics
+  /statistics/scoreboard:
+    get:
+      description:
+        Returns scoreboard history for graph visualization. Default limit
+        10 (max 50)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/entity.ScoreboardHistoryEntry"
+                type: array
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get scoreboard history
+      tags:
+        - Statistics
+  /teams:
+    post:
+      description: Creates new team. User becomes captain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateTeamRequest"
+        description: Team data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create team
+      tags:
+        - Teams
+  "/teams/{ID}":
+    get:
+      description: Returns team information by ID
+      parameters:
+        - description: Team ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get team by ID
+      tags:
+        - Teams
+  /teams/join:
+    post:
+      description: Joins team by invite token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.JoinTeamRequest"
+        description: Invite token
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Join team
+      tags:
+        - Teams
+  /teams/leave:
+    post:
+      description: Leave current team
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Leave team
+      tags:
+        - Teams
+  /teams/me:
+    delete:
+      description: Disbands the current team (Captain only)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Disband team
+      tags:
+        - Teams
+  "/teams/members/{ID}":
+    delete:
+      description: Kicks a member from the team (Captain only)
+      parameters:
+        - description: Member User ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Kick member
+      tags:
+        - Teams
+  /teams/my:
+    get:
+      description: Returns information about current user's team. If no team, returns 404.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamWithMembersResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: User is not in a team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get my team
+      tags:
+        - Teams
+  /teams/solo:
+    post:
+      description: Creates a solo team for the user (Select Solo Mode)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateTeamRequest"
+        description: Confirm reset
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create solo team
+      tags:
+        - Teams
+  /teams/transfer-captain:
+    post:
+      description: Transfer team captain role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.TransferCaptainRequest"
+        description: New captain ID
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Transfer captainship
+      tags:
+        - Teams
+  "/users/{ID}":
+    get:
+      description: Returns public information about user and their solved challenges
+      parameters:
+        - description: User ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.UserProfileResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Get user profile
+      tags:
+        - Users
+  /ws:
+    get:
+      description: Establishes WebSocket connection for real-time scoreboard updates
+      responses:
+        "101":
+          description: Switching Protocols
+      summary: WebSocket connection
+      tags:
+        - Events
+servers:
+  - url: https://api.ctfleague.ru/api/v1
+  - url: http://api.ctfleague.ru/api/v1
+components:
+  securitySchemes:
+    BearerAuth:
+      description: 'JWT access token. Format: "Bearer {token}"'
+      in: header
+      name: Authorization
+      type: apiKey
+  schemas:
+    entity.ChallengeStats:
+      properties:
+        category:
+          type: string
+        id:
+          type: string
+        points:
+          type: integer
+        solve_count:
+          type: integer
+        title:
+          type: string
+      type: object
+    entity.GeneralStats:
+      properties:
+        challenge_count:
+          type: integer
+        solve_count:
+          type: integer
+        team_count:
+          type: integer
+        user_count:
+          type: integer
+      type: object
+    entity.ScoreboardHistoryEntry:
+      properties:
+        points:
+          type: integer
+        team_id:
+          type: string
+        team_name:
+          type: string
+        timestamp:
+          type: string
+      type: object
+    jwt.TokenPair:
+      properties:
+        access_expires_at:
+          type: integer
+        access_token:
+          type: string
+        refresh_expires_at:
+          type: integer
+        refresh_token:
+          type: string
+      type: object
+    request.CreateAwardRequest:
+      properties:
+        description:
+          type: string
+        team_id:
+          type: string
+        value:
+          type: integer
+      required:
+        - description
+        - team_id
+        - value
+      type: object
+    request.CreateChallengeRequest:
+      properties:
+        category:
+          example: Web
+          type: string
+        decay:
+          example: 20
+          minimum: 0
+          type: integer
+        description:
+          example: Challenge description
+          type: string
+        flag:
+          example: CTF{flag_here}
+          type: string
+        initial_value:
+          example: 500
+          minimum: 0
+          type: integer
+        is_case_insensitive:
+          example: false
+          type: boolean
+        is_hidden:
+          example: false
+          type: boolean
+        is_regex:
+          example: false
+          type: boolean
+        min_value:
+          example: 100
+          minimum: 0
+          type: integer
+        points:
+          example: 100
+          minimum: 0
+          type: integer
+        title:
+          example: Challenge 1
+          type: string
+      required:
+        - category
+        - description
+        - flag
+        - points
+        - title
+      type: object
+    request.CreateHintRequest:
+      properties:
+        content:
+          example: This is a hint
+          type: string
+        cost:
+          example: 50
+          minimum: 0
+          type: integer
+        order_index:
+          example: 0
+          minimum: 0
+          type: integer
+      required:
+        - content
+      type: object
+    request.CreateTeamRequest:
+      properties:
+        confirm_reset:
+          type: boolean
+        name:
+          example: Team A
+          type: string
+      required:
+        - name
+      type: object
+    request.ForgotPasswordRequest:
+      properties:
+        email:
+          example: player1@example.com
+          type: string
+      type: object
+    request.JoinTeamRequest:
+      properties:
+        confirm_reset:
+          type: boolean
+        invite_token:
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          type: string
+      required:
+        - invite_token
+      type: object
+    request.LoginRequest:
+      properties:
+        email:
+          example: player1@example.com
+          type: string
+        password:
+          example: SecurePassword123!
+          type: string
+      required:
+        - password
+      type: object
+    request.RegisterRequest:
+      properties:
+        email:
+          example: player1@example.com
+          type: string
+        password:
+          example: SecurePassword123!
+          type: string
+        username:
+          example: player1
+          type: string
+      type: object
+    request.ResetPasswordRequest:
+      properties:
+        new_password:
+          example: NewSecurePassword123!
+          type: string
+        token:
+          type: string
+      required:
+        - token
+      type: object
+    request.SubmitFlagRequest:
+      properties:
+        flag:
+          example: CTF{flag_here}
+          type: string
+      required:
+        - flag
+      type: object
+    request.TransferCaptainRequest:
+      properties:
+        new_captain_id:
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          type: string
+      required:
+        - new_captain_id
+      type: object
+    request.UpdateChallengeRequest:
+      properties:
+        category:
+          example: Web
+          type: string
+        decay:
+          example: 20
+          minimum: 0
+          type: integer
+        description:
+          example: Updated description
+          type: string
+        flag:
+          example: CTF{new_flag}
+          type: string
+        initial_value:
+          example: 500
+          minimum: 0
+          type: integer
+        is_case_insensitive:
+          example: false
+          type: boolean
+        is_hidden:
+          example: false
+          type: boolean
+        is_regex:
+          example: false
+          type: boolean
+        min_value:
+          example: 100
+          minimum: 0
+          type: integer
+        points:
+          example: 150
+          minimum: 0
+          type: integer
+        title:
+          example: Updated title
+          type: string
+      required:
+        - category
+        - description
+        - points
+        - title
+      type: object
+    request.UpdateHintRequest:
+      properties:
+        content:
+          example: Updated hint content
+          type: string
+        cost:
+          example: 100
+          minimum: 0
+          type: integer
+        order_index:
+          example: 1
+          minimum: 0
+          type: integer
+      required:
+        - content
+      type: object
+    response.AwardResponse:
+      properties:
+        created_at:
+          type: string
+        created_by:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        team_id:
+          type: string
+        value:
+          type: integer
+      type: object
+    response.ChallengeResponse:
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        is_hidden:
+          type: boolean
+        points:
+          type: integer
+        solve_count:
+          type: integer
+        solved:
+          type: boolean
+        title:
+          type: string
+      type: object
+    response.FirstBloodResponse:
+      properties:
+        solved_at:
+          type: string
+        team_id:
+          type: string
+        team_name:
+          type: string
+        user_id:
+          type: string
+        username:
+          type: string
+      type: object
+    response.HintAdminResponse:
+      properties:
+        challenge_id:
+          type: string
+        content:
+          type: string
+        cost:
+          type: integer
+        id:
+          type: string
+        order_index:
+          type: integer
+      type: object
+    response.HintResponse:
+      properties:
+        content:
+          type: string
+        cost:
+          type: integer
+        id:
+          type: string
+        order_index:
+          type: integer
+        unlocked:
+          type: boolean
+      type: object
+    response.MeResponse:
+      properties:
+        created_at:
+          type: string
+        email:
+          type: string
+        id:
+          type: string
+        team_id:
+          type: string
+        username:
+          type: string
+      type: object
+    response.RegisterResponse:
+      properties:
+        created_at:
+          type: string
+        email:
+          type: string
+        id:
+          type: string
+        username:
+          type: string
+      type: object
+    response.ScoreboardEntryResponse:
+      properties:
+        last_solved:
+          type: string
+        points:
+          type: integer
+        team_id:
+          type: string
+        team_name:
+          type: string
+      type: object
+    response.SolveResponse:
+      properties:
+        challenge_id:
+          type: string
+        id:
+          type: string
+        solved_at:
+          type: string
+      type: object
+    response.TeamResponse:
+      properties:
+        captain_id:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        invite_token:
+          type: string
+        name:
+          type: string
+      type: object
+    response.TeamWithMembersResponse:
+      properties:
+        captain_id:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        invite_token:
+          type: string
+        members:
+          items:
+            $ref: "#/components/schemas/response.UserResponse"
+          type: array
+        name:
+          type: string
+      type: object
+    response.UserProfileResponse:
+      properties:
+        created_at:
+          type: string
+        id:
+          type: string
+        solves:
+          items:
+            $ref: "#/components/schemas/response.SolveResponse"
+          type: array
+        team_id:
+          type: string
+        username:
+          type: string
+      type: object
+    response.UserResponse:
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+        team_id:
+          type: string
+        username:
+          type: string
+      type: object
+    v1.ErrorResponse:
+      properties:
+        code:
+          type: string
+        error:
+          type: string
+      type: object

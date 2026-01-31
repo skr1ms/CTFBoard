@@ -96,6 +96,10 @@ services:
       BACKEND_PORT: 8080
       MIGRATIONS_PATH: ${MIGRATIONS_PATH:-migrations}
       VERIFY_EMAILS: ${VERIFY_EMAILS:-true}
+      COMPETITION_MODE: ${COMPETITION_MODE:-flexible}
+      ALLOW_TEAM_SWITCH: ${ALLOW_TEAM_SWITCH:-true}
+      MIN_TEAM_SIZE: ${MIN_TEAM_SIZE:-1}
+      MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-10}
 
       # Database connection
       POSTGRES_HOST: postgres

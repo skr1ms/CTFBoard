@@ -1,0 +1,31 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      UserRepository:
+        config:
+          dir: "internal/usecase/email/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
+      VerificationTokenRepository:
+        config:
+          dir: "internal/usecase/email/mocks"
+          filename: "VerificationTokenRepository.go"
+          pkgname: "mocks"
+          structname: "MockVerificationTokenRepository"
+
+  github.com/skr1ms/CTFBoard/pkg/mailer:
+    interfaces:
+      Mailer:
+        config:
+          dir: "internal/usecase/email/mocks"
+          filename: "Mailer.go"
+          pkgname: "mocks"
+          structname: "MockMailer"

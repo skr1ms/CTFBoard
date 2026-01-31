@@ -4,24 +4,16 @@ import (
 	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
-type AwardResponse struct {
-	Id          string  `json:"id"`
-	TeamId      string  `json:"team_id"`
-	Value       int     `json:"value"`
-	Description string  `json:"description"`
-	CreatedBy   *string `json:"created_by,omitempty"`
-	CreatedAt   string  `json:"created_at"`
-}
-
-func FromAward(a *entity.Award) AwardResponse {
-	res := AwardResponse{
-		Id:          a.Id.String(),
-		TeamId:      a.TeamId.String(),
-		Value:       a.Value,
-		Description: a.Description,
-		CreatedAt:   a.CreatedAt.Format(time.RFC3339),
+func FromAward(a *entity.Award) openapi.ResponseAwardResponse {
+	res := openapi.ResponseAwardResponse{
+		ID:          ptr(a.ID.String()),
+		TeamID:      ptr(a.TeamID.String()),
+		Value:       ptr(a.Value),
+		Description: ptr(a.Description),
+		CreatedAt:   ptr(a.CreatedAt.Format(time.RFC3339)),
 	}
 	if a.CreatedBy != nil {
 		cb := a.CreatedBy.String()
@@ -30,8 +22,8 @@ func FromAward(a *entity.Award) AwardResponse {
 	return res
 }
 
-func FromAwardList(items []*entity.Award) []AwardResponse {
-	res := make([]AwardResponse, len(items))
+func FromAwardList(items []*entity.Award) []openapi.ResponseAwardResponse {
+	res := make([]openapi.ResponseAwardResponse, len(items))
 	for i, item := range items {
 		res[i] = FromAward(item)
 	}

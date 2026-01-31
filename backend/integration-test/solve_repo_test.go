@@ -17,6 +17,7 @@ import (
 // Create Tests
 
 func TestSolveRepo_Create(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -25,21 +26,22 @@ func TestSolveRepo_Create(t *testing.T) {
 	challenge := f.CreateChallenge(t, "solve_ch", 100)
 
 	solve := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
+		UserID:      user.ID,
+		TeamID:      team.ID,
+		ChallengeID: challenge.ID,
 	}
 
 	err := f.SolveRepo.Create(ctx, solve)
 	require.NoError(t, err)
 
-	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, solve.TeamId, solve.ChallengeId)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, solve.TeamID, solve.ChallengeID)
 	require.NoError(t, err)
-	assert.NotEmpty(t, gotSolve.Id)
+	assert.NotEmpty(t, gotSolve.ID)
 	assert.False(t, gotSolve.SolvedAt.IsZero())
 }
 
 func TestSolveRepo_Create_Duplicate(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -47,12 +49,12 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 	user, team := f.CreateUserWithTeam(t, "duplicate")
 	challenge := f.CreateChallenge(t, "duplicate_ch", 100)
 
-	f.CreateSolve(t, user.Id, team.Id, challenge.Id)
+	f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
 	solve2 := &entity.Solve{
-		UserId:      user.Id,
-		TeamId:      team.Id,
-		ChallengeId: challenge.Id,
+		UserID:      user.ID,
+		TeamID:      team.ID,
+		ChallengeID: challenge.ID,
 	}
 	err := f.SolveRepo.Create(ctx, solve2)
 	assert.Error(t, err)
@@ -61,23 +63,25 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 // GetByID Tests
 
 func TestSolveRepo_GetByID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	user, team := f.CreateUserWithTeam(t, "get_by_id")
-	challenge := f.CreateChallenge(t, "get_by_id_ch", 100)
-	solve := f.CreateSolve(t, user.Id, team.Id, challenge.Id)
+	user, team := f.CreateUserWithTeam(t, "get_by_ID")
+	challenge := f.CreateChallenge(t, "get_by_ID_ch", 100)
+	solve := f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
-	gotSolve, err := f.SolveRepo.GetByID(ctx, solve.Id)
+	gotSolve, err := f.SolveRepo.GetByID(ctx, solve.ID)
 	require.NoError(t, err)
-	assert.Equal(t, solve.Id, gotSolve.Id)
-	assert.Equal(t, solve.UserId, gotSolve.UserId)
-	assert.Equal(t, solve.TeamId, gotSolve.TeamId)
-	assert.Equal(t, solve.ChallengeId, gotSolve.ChallengeId)
+	assert.Equal(t, solve.ID, gotSolve.ID)
+	assert.Equal(t, solve.UserID, gotSolve.UserID)
+	assert.Equal(t, solve.TeamID, gotSolve.TeamID)
+	assert.Equal(t, solve.ChallengeID, gotSolve.ChallengeID)
 }
 
 func TestSolveRepo_GetByID_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -91,22 +95,24 @@ func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 // GetByTeamAndChallenge Tests
 
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "get_by_team")
 	challenge := f.CreateChallenge(t, "get_by_team_ch", 100)
-	solve := f.CreateSolve(t, user.Id, team.Id, challenge.Id)
+	solve := f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
-	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
 	require.NoError(t, err)
-	assert.Equal(t, solve.Id, gotSolve.Id)
-	assert.Equal(t, team.Id, gotSolve.TeamId)
-	assert.Equal(t, challenge.Id, gotSolve.ChallengeId)
+	assert.Equal(t, solve.ID, gotSolve.ID)
+	assert.Equal(t, team.ID, gotSolve.TeamID)
+	assert.Equal(t, challenge.ID, gotSolve.ChallengeID)
 }
 
 func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -114,14 +120,15 @@ func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 	_, team := f.CreateUserWithTeam(t, "not_found")
 	challenge := f.CreateChallenge(t, "not_found_ch", 100)
 
-	_, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.Id, challenge.Id)
+	_, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
-// GetByUserId Tests
+// GetByUserID Tests
 
-func TestSolveRepo_GetByUserId(t *testing.T) {
+func TestSolveRepo_GetByUserID(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -130,25 +137,26 @@ func TestSolveRepo_GetByUserId(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "ch1", 100)
 	ch2 := f.CreateChallenge(t, "ch2", 200)
 
-	f.CreateSolve(t, user.Id, team.Id, ch1.Id)
+	f.CreateSolve(t, user.ID, team.ID, ch1.ID)
 	time.Sleep(1 * time.Second)
-	f.CreateSolve(t, user.Id, team.Id, ch2.Id)
+	f.CreateSolve(t, user.ID, team.ID, ch2.ID)
 
-	solves, err := f.SolveRepo.GetByUserId(ctx, user.Id)
+	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, solves, 2)
-	assert.Equal(t, ch2.Id, solves[0].ChallengeId)
-	assert.Equal(t, ch1.Id, solves[1].ChallengeId)
+	assert.Equal(t, ch2.ID, solves[0].ChallengeID)
+	assert.Equal(t, ch1.ID, solves[1].ChallengeID)
 }
 
-func TestSolveRepo_GetByUserId_Empty(t *testing.T) {
+func TestSolveRepo_GetByUserID_Empty(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "empty")
 
-	solves, err := f.SolveRepo.GetByUserId(ctx, user.Id)
+	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, solves, 0)
 }
@@ -156,6 +164,7 @@ func TestSolveRepo_GetByUserId_Empty(t *testing.T) {
 // GetScoreboard Tests
 
 func TestSolveRepo_GetScoreboard(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -166,12 +175,12 @@ func TestSolveRepo_GetScoreboard(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "score_ch1", 100)
 	ch2 := f.CreateChallenge(t, "score_ch2", 200)
 
-	f.CreateSolve(t, u1.Id, t1.Id, ch1.Id)
+	f.CreateSolve(t, u1.ID, t1.ID, ch1.ID)
 	time.Sleep(10 * time.Millisecond)
-	f.CreateSolve(t, u1.Id, t1.Id, ch2.Id)
+	f.CreateSolve(t, u1.ID, t1.ID, ch2.ID)
 
 	time.Sleep(10 * time.Millisecond)
-	f.CreateSolve(t, u2.Id, t2.Id, ch1.Id)
+	f.CreateSolve(t, u2.ID, t2.ID, ch1.ID)
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
@@ -179,12 +188,12 @@ func TestSolveRepo_GetScoreboard(t *testing.T) {
 
 	t1Found, t2Found := false, false
 	for _, entry := range scoreboard {
-		if entry.TeamId == t1.Id {
+		if entry.TeamID == t1.ID {
 			assert.Equal(t, t1.Name, entry.TeamName)
 			assert.Equal(t, 300, entry.Points)
 			t1Found = true
 		}
-		if entry.TeamId == t2.Id {
+		if entry.TeamID == t2.ID {
 			assert.Equal(t, t2.Name, entry.TeamName)
 			assert.Equal(t, 100, entry.Points)
 			t2Found = true
@@ -195,6 +204,7 @@ func TestSolveRepo_GetScoreboard(t *testing.T) {
 }
 
 func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -211,6 +221,7 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 // GetFirstBlood Tests
 
 func TestSolveRepo_GetFirstBlood(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -219,26 +230,27 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	u2, t2 := f.CreateUserWithTeam(t, "fb_2")
 	ch := f.CreateChallenge(t, "fb_ch", 100)
 
-	f.CreateSolve(t, u1.Id, t1.Id, ch.Id)
+	f.CreateSolve(t, u1.ID, t1.ID, ch.ID)
 	time.Sleep(1 * time.Second)
-	f.CreateSolve(t, u2.Id, t2.Id, ch.Id)
+	f.CreateSolve(t, u2.ID, t2.ID, ch.ID)
 
-	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.Id)
+	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
 	require.NoError(t, err)
-	assert.Equal(t, u1.Id, firstBlood.UserId)
+	assert.Equal(t, u1.ID, firstBlood.UserID)
 	assert.Equal(t, u1.Username, firstBlood.Username)
-	assert.Equal(t, t1.Id, firstBlood.TeamId)
+	assert.Equal(t, t1.ID, firstBlood.TeamID)
 	assert.Equal(t, t1.Name, firstBlood.TeamName)
 }
 
 func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	ch := f.CreateChallenge(t, "no_solves_ch", 100)
 
-	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.Id)
+	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
@@ -246,6 +258,7 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 // GetScoreboardFrozen Tests
 
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -254,22 +267,22 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "frozen_1", 100)
 	ch2 := f.CreateChallenge(t, "frozen_2", 200)
 
-	solve1 := f.CreateSolve(t, u1.Id, t1.Id, ch1.Id)
+	solve1 := f.CreateSolve(t, u1.ID, t1.ID, ch1.ID)
 
 	backdated := time.Now().Add(-1 * time.Hour)
-	_, err := f.Pool.Exec(ctx, "UPDATE solves SET solved_at = $1 WHERE id = $2", backdated, solve1.Id)
+	_, err := f.Pool.Exec(ctx, "UPDATE solves SET solved_at = $1 WHERE ID = $2", backdated, solve1.ID)
 	require.NoError(t, err)
 
 	freezeTime := time.Now().Add(-30 * time.Minute)
 
-	f.CreateSolve(t, u1.Id, t1.Id, ch2.Id)
+	f.CreateSolve(t, u1.ID, t1.ID, ch2.ID)
 
 	scoreboard, err := f.SolveRepo.GetScoreboardFrozen(ctx, freezeTime)
 	require.NoError(t, err)
 
 	found := false
 	for _, entry := range scoreboard {
-		if entry.TeamId == t1.Id {
+		if entry.TeamID == t1.ID {
 			assert.Equal(t, 100, entry.Points)
 			found = true
 		}
@@ -280,6 +293,7 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 // CreateTx Tests
 
 func TestSolveRepo_CreateTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -291,9 +305,9 @@ func TestSolveRepo_CreateTx(t *testing.T) {
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      u.Id,
-		TeamId:      tTeam.Id,
-		ChallengeId: ch.Id,
+		UserID:      u.ID,
+		TeamID:      tTeam.ID,
+		ChallengeID: ch.ID,
 	}
 
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
@@ -302,13 +316,14 @@ func TestSolveRepo_CreateTx(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
-	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.Id, ch.Id)
+	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.ID, ch.ID)
 	require.NoError(t, err)
-	assert.NotEmpty(t, gotSolve.Id)
-	assert.Equal(t, u.Id, gotSolve.UserId)
+	assert.NotEmpty(t, gotSolve.ID)
+	assert.Equal(t, u.ID, gotSolve.UserID)
 }
 
 func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -320,9 +335,9 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      u.Id,
-		TeamId:      tTeam.Id,
-		ChallengeId: ch.Id,
+		UserID:      u.ID,
+		TeamID:      tTeam.ID,
+		ChallengeID: ch.ID,
 	}
 
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
@@ -331,34 +346,36 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
-	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.Id, ch.Id)
+	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
 func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	u, tTeam := f.CreateUserWithTeam(t, "get_tx")
 	ch := f.CreateChallenge(t, "get_tx_ch", 100)
-	f.CreateSolve(t, u.Id, tTeam.Id, ch.Id)
+	f.CreateSolve(t, u.ID, tTeam.ID, ch.ID)
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
 
-	gotSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
+	gotSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.ID, ch.ID)
 	require.NoError(t, err)
-	assert.Equal(t, tTeam.Id, gotSolve.TeamId)
-	assert.Equal(t, ch.Id, gotSolve.ChallengeId)
+	assert.Equal(t, tTeam.ID, gotSolve.TeamID)
+	assert.Equal(t, ch.ID, gotSolve.ChallengeID)
 
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
 
 func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -368,9 +385,9 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
 
-	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
+	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
@@ -378,6 +395,7 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 // GetTeamScoreTx Tests
 
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -386,14 +404,14 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "score_tx_1", 100)
 	ch2 := f.CreateChallenge(t, "score_tx_2", 200)
 
-	f.CreateSolve(t, u.Id, tTeam.Id, ch1.Id)
-	f.CreateSolve(t, u.Id, tTeam.Id, ch2.Id)
+	f.CreateSolve(t, u.ID, tTeam.ID, ch1.ID)
+	f.CreateSolve(t, u.ID, tTeam.ID, ch2.ID)
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
 
-	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, tTeam.Id)
+	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, tTeam.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 300, score)
 
@@ -404,6 +422,7 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 // AtomicSubmitFlow Tests
 
 func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -415,17 +434,17 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
 
-	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.Id, ch.Id)
+	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 
-	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, ch.Id)
+	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, ch.ID)
 	require.NoError(t, err)
 
 	solve := &entity.Solve{
-		UserId:      u.Id,
-		TeamId:      tTeam.Id,
-		ChallengeId: ch.Id,
+		UserID:      u.ID,
+		TeamID:      tTeam.ID,
+		ChallengeID: ch.ID,
 	}
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	require.NoError(t, err)
@@ -436,24 +455,25 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 		newPoints = gotChallenge.MinValue
 	}
 
-	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, ch.Id)
+	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, ch.ID)
 	require.NoError(t, err)
 
-	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, ch.Id, newPoints)
+	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, ch.ID, newPoints)
 	require.NoError(t, err)
 
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
-	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, ch.Id)
+	finalChallenge, err := f.ChallengeRepo.GetByID(ctx, ch.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, finalChallenge.SolveCount)
 	assert.Equal(t, newPoints, finalChallenge.Points)
 	assert.Equal(t, initialValue, finalChallenge.Points)
 
-	tx2, _ := f.Pool.BeginTx(ctx, pgx.TxOptions{})
-	finalSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx2, tTeam.Id, ch.Id)
+	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	_ = tx2.Rollback(ctx)
-	assert.Equal(t, u.Id, finalSolve.UserId)
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	finalSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx2, tTeam.ID, ch.ID)
+	require.NoError(t, err)
+	assert.Equal(t, u.ID, finalSolve.UserID)
 }

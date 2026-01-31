@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
@@ -26,16 +27,25 @@ type CustomValidator struct {
 func New() *CustomValidator {
 	v := validator.New()
 
-	_ = v.RegisterValidation("strong_password", validateStrongPassword)
-	_ = v.RegisterValidation("custom_email", validateEmail)
-	_ = v.RegisterValidation("custom_username", validateUsername)
-	_ = v.RegisterValidation("team_name", validateTeamName)
-	_ = v.RegisterValidation("challenge_title", validateChallengeTitle)
-	_ = v.RegisterValidation("challenge_description", validateChallengeDescription)
-	_ = v.RegisterValidation("challenge_category", validateChallengeCategory)
-	_ = v.RegisterValidation("challenge_flag", validateChallengeFlag)
-	_ = v.RegisterValidation("hint_content", validateHintContent)
-	_ = v.RegisterValidation("not_empty", validateNotEmpty)
+	// Register all custom validations
+	validations := map[string]validator.Func{
+		"strong_password":       validateStrongPassword,
+		"custom_email":          validateEmail,
+		"custom_username":       validateUsername,
+		"team_name":             validateTeamName,
+		"challenge_title":       validateChallengeTitle,
+		"challenge_description": validateChallengeDescription,
+		"challenge_category":    validateChallengeCategory,
+		"challenge_flag":        validateChallengeFlag,
+		"hint_content":          validateHintContent,
+		"not_empty":             validateNotEmpty,
+	}
+
+	for name, fn := range validations {
+		if err := v.RegisterValidation(name, fn); err != nil {
+			panic(fmt.Sprintf("failed to register %s validation: %v", name, err))
+		}
+	}
 
 	return &CustomValidator{validator: v}
 }

@@ -10,16 +10,17 @@ import (
 )
 
 func TestAuditLogRepo_Create_Success(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
 	user := f.CreateUser(t, uuid.New().String())
 
 	auditLog := &entity.AuditLog{
-		UserId:     &user.Id,
+		UserID:     &user.ID,
 		Action:     "create",
 		EntityType: entity.RoleUser,
-		EntityId:   user.Id.String(),
+		EntityID:   user.ID.String(),
 		IP:         "127.0.0.1",
 		Details:    map[string]any{"foo": "bar"},
 	}
@@ -28,22 +29,23 @@ func TestAuditLogRepo_Create_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	var count int
-	err = f.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM audit_logs WHERE user_id=$1", user.Id).Scan(&count)
+	err = f.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM audit_logs WHERE user_id=$1", user.ID).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 }
 
 func TestAuditLogRepo_Create_Error_InvalidUUID(t *testing.T) {
+	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
-	nonExistentUUID := uuid.New()
+	nonExistentuuid := uuid.New()
 
 	auditLog := &entity.AuditLog{
-		UserId:     &nonExistentUUID,
+		UserID:     &nonExistentuuid,
 		Action:     "create",
 		EntityType: entity.RoleUser,
-		EntityId:   "something",
+		EntityID:   "something",
 		IP:         "127.0.0.1",
 	}
 

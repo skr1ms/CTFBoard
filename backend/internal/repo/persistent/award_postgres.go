@@ -19,10 +19,10 @@ func NewAwardRepo(pool *pgxpool.Pool) *AwardRepo {
 	return &AwardRepo{pool: pool}
 }
 
-func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (int, error) {
+func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int, error) {
 	query := squirrel.Select("COALESCE(SUM(value), 0)").
 		From("awards").
-		Where(squirrel.Eq{"team_id": teamId}).
+		Where(squirrel.Eq{"team_id": teamID}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -40,12 +40,12 @@ func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamId uuid.UUID) (i
 }
 
 func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
-	a.Id = uuid.New()
+	a.ID = uuid.New()
 	a.CreatedAt = time.Now()
 
 	query := squirrel.Insert("awards").
 		Columns("id", "team_id", "value", "description", "created_by", "created_at").
-		Values(a.Id, a.TeamId, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
+		Values(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -61,10 +61,10 @@ func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
 	return nil
 }
 
-func (r *AwardRepo) GetByTeamID(ctx context.Context, teamId uuid.UUID) ([]*entity.Award, error) {
+func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
 	query := squirrel.Select("id", "team_id", "value", "description", "created_by", "created_at").
 		From("awards").
-		Where(squirrel.Eq{"team_id": teamId}).
+		Where(squirrel.Eq{"team_id": teamID}).
 		OrderBy("created_at DESC").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -83,8 +83,8 @@ func (r *AwardRepo) GetByTeamID(ctx context.Context, teamId uuid.UUID) ([]*entit
 	for rows.Next() {
 		var a entity.Award
 		err := rows.Scan(
-			&a.Id,
-			&a.TeamId,
+			&a.ID,
+			&a.TeamID,
 			&a.Value,
 			&a.Description,
 			&a.CreatedBy,

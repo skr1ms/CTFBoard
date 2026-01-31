@@ -1,0 +1,43 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      TeamRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "TeamRepository.go"
+          pkgname: "mocks"
+          structname: "MockTeamRepository"
+
+      UserRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
+      CompetitionRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "CompetitionRepository.go"
+          pkgname: "mocks"
+          structname: "MockCompetitionRepository"
+
+      TxRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "TxRepository.go"
+          pkgname: "mocks"
+          structname: "MockTxRepository"
+
+      AwardRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "AwardRepository.go"
+          pkgname: "mocks"
+          structname: "MockAwardRepository"

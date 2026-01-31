@@ -22,7 +22,7 @@ func TestAuth_EmailVerification_Flow(t *testing.T) {
 	h.AssertUserVerified(email, false)
 
 	// 3. Obtain User ID and Prepare Verification Token
-	userID := h.GetUserIDByEmail(email)
+	userID := h.GetuserIDByEmail(email)
 	rawToken := "known_verification_token"
 
 	// 4. Inject Token into DB (Bypassing Mailer)
@@ -51,7 +51,7 @@ func TestAuth_PasswordReset_Flow(t *testing.T) {
 	h.ForgotPassword(email, http.StatusOK)
 
 	// 4. Inject Reset Token into DB
-	userID := h.GetUserIDByEmail(email)
+	userID := h.GetuserIDByEmail(email)
 	rawToken := "known_reset_token"
 
 	h.InjectToken(userID, entity.TokenTypePasswordReset, rawToken)

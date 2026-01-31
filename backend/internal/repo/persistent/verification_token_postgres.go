@@ -23,13 +23,13 @@ func NewVerificationTokenRepo(pool *pgxpool.Pool) *VerificationTokenRepo {
 }
 
 func (r *VerificationTokenRepo) Create(ctx context.Context, token *entity.VerificationToken) error {
-	if token.Id == uuid.Nil {
-		token.Id = uuid.New()
+	if token.ID == uuid.Nil {
+		token.ID = uuid.New()
 	}
 
 	query, args, err := sq.Insert("verification_tokens").
 		Columns("id", "user_id", "token", "type", "expires_at").
-		Values(token.Id, token.UserId, token.Token, token.Type, token.ExpiresAt).
+		Values(token.ID, token.UserID, token.Token, token.Type, token.ExpiresAt).
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*
 	var t entity.VerificationToken
 	var tokenType string
 	err = r.pool.QueryRow(ctx, query, args...).Scan(
-		&t.Id, &t.UserId, &t.Token, &tokenType, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt,
+		&t.ID, &t.UserID, &t.Token, &tokenType, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -70,10 +70,10 @@ func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*
 	return &t, nil
 }
 
-func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, id uuid.UUID) error {
+func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, ID uuid.UUID) error {
 	query, args, err := sq.Update("verification_tokens").
 		Set("used_at", time.Now()).
-		Where(sq.Eq{"id": id}).
+		Where(sq.Eq{"id": ID}).
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
@@ -105,9 +105,9 @@ func (r *VerificationTokenRepo) DeleteExpired(ctx context.Context) error {
 	return nil
 }
 
-func (r *VerificationTokenRepo) DeleteByUserAndType(ctx context.Context, userId uuid.UUID, tokenType entity.TokenType) error {
+func (r *VerificationTokenRepo) DeleteByUserAndType(ctx context.Context, userID uuid.UUID, tokenType entity.TokenType) error {
 	query, args, err := sq.Delete("verification_tokens").
-		Where(sq.Eq{"user_id": userId, "type": tokenType}).
+		Where(sq.Eq{"user_id": userID, "type": tokenType}).
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
