@@ -68,9 +68,9 @@ func waitWSConnected(t *testing.T, received <-chan map[string]any, readErr <-cha
 	for {
 		select {
 		case msg := <-received:
-			typ, _ := msg["type"].(string)
+			typ, ok := msg["type"].(string)
 			t.Logf("ws received message type=%q", typ)
-			if typ == "connected" {
+			if ok && typ == "connected" {
 				return
 			}
 		case err := <-readErr:
@@ -89,9 +89,9 @@ func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr 
 	for {
 		select {
 		case msg := <-received:
-			typ, _ := msg["type"].(string)
+			typ, ok := msg["type"].(string)
 			t.Logf("ws received message type=%q", typ)
-			if typ == "scoreboard_update" {
+			if ok && typ == "scoreboard_update" {
 				assertScoreboardSolveMessage(t, msg)
 				return
 			}
