@@ -1,8 +1,9 @@
 ifneq ($(wildcard ../.env.local),)
 include ../.env.local
 export
-else
-$(warning WARNING: ../.env.local file not found!)
+else ifneq ($(wildcard ../.env.local.example),)
+include ../.env.local.example
+export
 endif
 
 POSTGRES_DSN ?= postgres://user:password@localhost:5432/ctfboard?sslmode=disable
@@ -46,7 +47,7 @@ install-tools: ## Install development tools
 	@echo "Installing tools..."
 	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go install golang.org/x/vuln/cmd/govulncheck@latest
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	@echo "Tools installed"
 
 generate-openapi: ## Generate OpenAPI code from spec

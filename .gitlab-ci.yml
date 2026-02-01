@@ -71,6 +71,7 @@ build:cleanup:
   image: $GOLANG_IMAGE
   script:
     - cd backend
+    - apk add --no-cache make
     - go mod download
     - make build-cleanup
   artifacts:
@@ -87,15 +88,17 @@ build:cleanup:
 
 # Security stage
 
-# Lint job
+# Lint job 
 lint:backend:
   stage: security
-  image: $GOLANGCI_LINT_IMAGE
+  image: golang:alpine
   variables:
     CGO_ENABLED: "0"
   script:
     - cd backend
+    - apk add --no-cache make
     - go mod download
+    - make install-tools
     - make lint LINT_TIMEOUT=10m
   rules:
     - changes:
@@ -172,7 +175,7 @@ test:backend:
     MIGRATIONS_PATH: migrations
     CGO_ENABLED: "1"
   before_script:
-    - apk add --no-cache build-base git netcat-openbsd postgresql-client
+    - apk add --no-cache build-base git make netcat-openbsd postgresql-client
 
     - |
       echo "Waiting for PostgreSQL..."
