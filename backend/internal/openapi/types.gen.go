@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	BearerAuthScopes = "BearerAuth.Scopes"
+	BearerAuthScopes = "BearerAuth.Scopes" // #nosec G101 -- constant name, not a credential
 )
 
 // Defines values for PostAdminImportMultipartBodyConflictMode.

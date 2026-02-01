@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
 
@@ -398,7 +399,7 @@ func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, f
 			})
 			skipped++
 		}
-		rc.Close()
+		_ = rc.Close()
 	}
 
 	if skipped > 0 {
@@ -427,10 +428,10 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 			}
 			backupData = &entity.BackupData{}
 			if err := json.NewDecoder(rc).Decode(backupData); err != nil {
-				rc.Close()
+				_ = rc.Close()
 				return nil, fmt.Errorf("BackupUseCase - ImportZIP - decode backup.json: %w", err)
 			}
-			rc.Close()
+			_ = rc.Close()
 			break
 		}
 	}
@@ -526,15 +527,15 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 		if opts.ValidateFiles {
 			hash := sha256.New()
 			tee := io.TeeReader(rc, hash)
-
-			if err := uc.storage.Upload(ctx, file.Location, tee, int64(zf.UncompressedSize64), "application/octet-stream"); err != nil { //nolint:gosec
-				rc.Close()
+			size := zipSizeToInt64(zf.UncompressedSize64)
+			if err := uc.storage.Upload(ctx, file.Location, tee, size, "application/octet-stream"); err != nil {
+				_ = rc.Close()
 				errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
 				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
 				errors = append(errors, errMsg)
 				continue
 			}
-			rc.Close()
+			_ = rc.Close()
 
 			hashStr := hex.EncodeToString(hash.Sum(nil))
 			if hashStr != file.SHA256 {
@@ -545,14 +546,15 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 				continue
 			}
 		} else {
-			if err := uc.storage.Upload(ctx, file.Location, rc, int64(zf.UncompressedSize64), "application/octet-stream"); err != nil { //nolint:gosec
-				rc.Close()
+			size := zipSizeToInt64(zf.UncompressedSize64)
+			if err := uc.storage.Upload(ctx, file.Location, rc, size, "application/octet-stream"); err != nil {
+				_ = rc.Close()
 				errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
 				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
 				errors = append(errors, errMsg)
 				continue
 			}
-			rc.Close()
+			_ = rc.Close()
 		}
 		uploaded++
 	}
@@ -566,4 +568,11 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 	}
 
 	return errors
+}
+
+func zipSizeToInt64(u uint64) int64 {
+	if u > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(u)
 }
