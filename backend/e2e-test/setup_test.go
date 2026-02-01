@@ -25,6 +25,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
@@ -261,7 +262,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// Server Setup
+// Server setup
 
 type testDeps struct {
 	logger    logger.Logger
@@ -272,15 +273,17 @@ type testDeps struct {
 
 type testUseCases struct {
 	user        *user.UserUseCase
-	challenge   *challenge.ChallengeUseCase
-	solve       *competition.SolveUseCase
 	team        *team.TeamUseCase
-	competition *competition.CompetitionUseCase
-	hint        *challenge.HintUseCase
 	award       *team.AwardUseCase
 	email       *email.EmailUseCase
+	challenge   *challenge.ChallengeUseCase
+	hint        *challenge.HintUseCase
 	file        *challenge.FileUseCase
+	solve       *competition.SolveUseCase
+	competition *competition.CompetitionUseCase
+	backup      *competition.BackupUseCase
 	stats       *competition.StatisticsUseCase
+	settings    *settings.SettingsUseCase
 	ws          *wsV1.Controller
 }
 
@@ -330,6 +333,7 @@ func startTestServer() (func(), error) {
 	}, nil
 }
 
+// Deps (logger, validator, jwt, crypto)
 func initTestDeps() (*testDeps, error) {
 	l := logger.New(&logger.Options{
 		Level:  logger.ErrorLevel,
@@ -350,6 +354,7 @@ func initTestDeps() (*testDeps, error) {
 	}, nil
 }
 
+// Repositories, storage, hub, usecases
 func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	// Repositories
 	userRepo := persistent.NewUserRepo(TestPool)
@@ -364,25 +369,11 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
 	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
 	statsRepo := persistent.NewStatisticsRepository(TestPool)
+	fileRepo := persistent.NewFileRepository(TestPool)
+	backupRepo := persistent.NewBackupRepo(TestPool)
+	appSettingsRepo := persistent.NewAppSettingsRepo(TestPool)
 
-	// UseCases
-	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, deps.jwt)
-	compUC := competition.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
-	challUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, nil, auditLogRepo, deps.crypto)
-	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, nil)
-	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
-	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
-	awardUC := team.NewAwardUseCase(awardRepo, TestRedis)
-	emailUC := email.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
-	statsUC := competition.NewStatisticsUseCase(statsRepo, TestRedis)
-
-	// WebSocket
-	hub := websocket.NewHub(TestRedis, "ctfboard:events")
-	go hub.Run()
-	go hub.SubscribeToRedis(context.Background())
-	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
-
-	// File Storage
+	// Storage
 	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create temp storage dir: %w", err)
@@ -391,12 +382,32 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create storage provider: %w", err)
 	}
-	fileRepo := persistent.NewFileRepository(TestPool)
+
+	// WebSocket hub
+	hub := websocket.NewHub(TestRedis, "ctfboard:events")
+	go hub.Run()
+	go hub.SubscribeToRedis(context.Background())
+
+	// Usecases
+	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, deps.jwt)
+	compUC := competition.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
+	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, hub, auditLogRepo, deps.crypto)
+	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, hub)
+	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
+	awardUC := team.NewAwardUseCase(awardRepo, txRepo, TestRedis)
+	emailUC := email.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+	statsUC := competition.NewStatisticsUseCase(statsRepo, TestRedis)
+	backupUC := competition.NewBackupUseCase(compRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepo, backupRepo, fileStorage, txRepo, deps.logger)
+	settingsUC := settings.NewSettingsUseCase(appSettingsRepo, auditLogRepo, TestRedis)
+
+	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
+
 	fileUC := challenge.NewFileUseCase(fileRepo, fileStorage, 1*time.Hour)
 
 	return &testUseCases{
 		user:        userUC,
-		challenge:   challUC,
+		challenge:   challengeUC,
 		solve:       solveUC,
 		team:        teamUC,
 		competition: compUC,
@@ -405,10 +416,13 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 		email:       emailUC,
 		file:        fileUC,
 		stats:       statsUC,
+		backup:      backupUC,
+		settings:    settingsUC,
 		ws:          ws,
 	}, tempStorageDir, nil
 }
 
+// Router (chi, middleware, api v1 routes)
 func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
@@ -420,7 +434,7 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 	})
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, uc.user, uc.challenge, uc.solve, uc.team, uc.competition, uc.hint, uc.email, uc.file, uc.award, uc.stats, jwtService, TestRedis, uc.ws, validatorService, l, 100, 1*time.Minute, false)
+		v1.NewRouter(apiRouter, uc.user, uc.challenge, uc.solve, uc.team, uc.competition, uc.hint, uc.email, uc.file, uc.award, uc.stats, uc.backup, uc.settings, jwtService, TestRedis, uc.ws, validatorService, l, 100, 1*time.Minute, false)
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

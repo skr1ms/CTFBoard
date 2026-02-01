@@ -16,7 +16,6 @@ import (
 
 func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	t.Helper()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -69,7 +68,6 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 }
 
 func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
-	t.Helper()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)

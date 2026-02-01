@@ -16,7 +16,11 @@ type Controller struct {
 	allowedOrigins []string
 }
 
-func NewController(hub *pkgWS.Hub, logger logger.Logger, allowedOrigins []string) *Controller {
+func NewController(
+	hub *pkgWS.Hub,
+	logger logger.Logger,
+	allowedOrigins []string,
+) *Controller {
 	return &Controller{
 		hub:            hub,
 		logger:         logger,
@@ -28,11 +32,6 @@ func (c *Controller) RegisterRoutes(router chi.Router) {
 	router.Get("/ws", c.HandleWS)
 }
 
-// @Summary      WebSocket connection
-// @Description  Establishes WebSocket connection for real-time scoreboard updates
-// @Tags         Events
-// @Success      101  "Switching Protocols"
-// @Router       /ws [get]
 func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 	opts := &websocket.AcceptOptions{
 		OriginPatterns: c.allowedOrigins,

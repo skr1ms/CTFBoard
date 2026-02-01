@@ -46,7 +46,7 @@ func (c *Client) ReadPump() {
 	}
 }
 
-//nolint:gocognit
+//nolint:gocognit,gocyclo
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -75,18 +75,22 @@ func (c *Client) WritePump() {
 				cancel()
 				return
 			}
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				if _, err := w.Write([]byte{'\n'}); err != nil {
-					cancel()
-					return
-				}
-				if _, err := w.Write(<-c.send); err != nil {
-					cancel()
-					return
+		drain:
+			for {
+				select {
+				case next := <-c.send:
+					if _, err := w.Write([]byte{'\n'}); err != nil {
+						cancel()
+						return
+					}
+					if _, err := w.Write(next); err != nil {
+						cancel()
+						return
+					}
+				default:
+					break drain
 				}
 			}
-
 			if err := w.Close(); err != nil {
 				cancel()
 				return

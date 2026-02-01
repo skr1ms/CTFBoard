@@ -157,6 +157,42 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
 
+// GetAll Tests
+
+func TestUserRepo_GetAll_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	u1 := f.CreateUser(t, "get_all_1")
+	u2 := f.CreateUser(t, "get_all_2")
+
+	users, err := f.UserRepo.GetAll(ctx)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(users), 2)
+
+	ids := make(map[uuid.UUID]bool)
+	for _, u := range users {
+		ids[u.ID] = true
+	}
+	assert.True(t, ids[u1.ID])
+	assert.True(t, ids[u2.ID])
+}
+
+func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	users, err := f.UserRepo.GetAll(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, users)
+}
+
 // GetByTeamID Tests
 
 func TestUserRepo_GetByTeamID(t *testing.T) {

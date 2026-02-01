@@ -21,7 +21,11 @@ type FileUseCase struct {
 	expiry   time.Duration
 }
 
-func NewFileUseCase(fileRepo repo.FileRepository, storageProvider storage.Provider, presignedExpiry time.Duration) *FileUseCase {
+func NewFileUseCase(
+	fileRepo repo.FileRepository,
+	storageProvider storage.Provider,
+	presignedExpiry time.Duration,
+) *FileUseCase {
 	return &FileUseCase{
 		fileRepo: fileRepo,
 		storage:  storageProvider,
@@ -114,7 +118,7 @@ func (uc *FileUseCase) Delete(ctx context.Context, fileID uuid.UUID) error {
 	}
 
 	if err := uc.fileRepo.Delete(ctx, fileID); err != nil {
-		return fmt.Errorf("FileUseCase - Delete - Repo: %w", err)
+		return fmt.Errorf("FileUseCase - Delete - Delete: %w", err)
 	}
 
 	return nil

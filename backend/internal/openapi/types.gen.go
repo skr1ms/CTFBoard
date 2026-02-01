@@ -4,12 +4,75 @@
 package openapi
 
 import (
+	"time"
+
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
+
+// Defines values for PostAdminImportMultipartBodyConflictMode.
+const (
+	Merge     PostAdminImportMultipartBodyConflictMode = "merge"
+	Overwrite PostAdminImportMultipartBodyConflictMode = "overwrite"
+	Skip      PostAdminImportMultipartBodyConflictMode = "skip"
+)
+
+// EntityAward defines model for entity.Award.
+type EntityAward struct {
+	CreatedAt   *string `json:"created_at,omitempty"`
+	Description *string `json:"description,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	TeamID      *string `json:"team_id,omitempty"`
+	Value       *int    `json:"value,omitempty"`
+}
+
+// EntityBackupData defines model for entity.BackupData.
+type EntityBackupData struct {
+	Awards      *[]EntityAward           `json:"awards,omitempty"`
+	Challenges  *[]EntityChallengeExport `json:"challenges,omitempty"`
+	Competition *EntityCompetition       `json:"competition,omitempty"`
+	ExportedAt  *string                  `json:"exported_at,omitempty"`
+	Files       *[]EntityFile            `json:"files,omitempty"`
+	Solves      *[]EntitySolve           `json:"solves,omitempty"`
+	Teams       *[]EntityTeamExport      `json:"teams,omitempty"`
+	Users       *[]EntityUserExport      `json:"users,omitempty"`
+	Version     *string                  `json:"version,omitempty"`
+}
+
+// EntityChallengeDetailStats defines model for entity.ChallengeDetailStats.
+type EntityChallengeDetailStats struct {
+	Category         *string                      `json:"category,omitempty"`
+	FirstBlood       *EntityChallengeSolveEntry   `json:"first_blood,omitempty"`
+	ID               *string                      `json:"id,omitempty"`
+	PercentageSolved *float32                     `json:"percentage_solved,omitempty"`
+	Points           *int                         `json:"points,omitempty"`
+	SolveCount       *int                         `json:"solve_count,omitempty"`
+	Solves           *[]EntityChallengeSolveEntry `json:"solves,omitempty"`
+	Title            *string                      `json:"title,omitempty"`
+	TotalTeams       *int                         `json:"total_teams,omitempty"`
+}
+
+// EntityChallengeExport defines model for entity.ChallengeExport.
+type EntityChallengeExport struct {
+	Category    *string       `json:"category,omitempty"`
+	Description *string       `json:"description,omitempty"`
+	FlagHash    *string       `json:"flag_hash,omitempty"`
+	Hints       *[]EntityHint `json:"hints,omitempty"`
+	ID          *string       `json:"id,omitempty"`
+	IsHidden    *bool         `json:"is_hidden,omitempty"`
+	Points      *int          `json:"points,omitempty"`
+	Title       *string       `json:"title,omitempty"`
+}
+
+// EntityChallengeSolveEntry defines model for entity.ChallengeSolveEntry.
+type EntityChallengeSolveEntry struct {
+	SolvedAt *time.Time `json:"solved_at,omitempty"`
+	TeamID   *string    `json:"team_id,omitempty"`
+	TeamName *string    `json:"team_name,omitempty"`
+}
 
 // EntityChallengeStats defines model for entity.ChallengeStats.
 type EntityChallengeStats struct {
@@ -20,12 +83,63 @@ type EntityChallengeStats struct {
 	Title      *string `json:"title,omitempty"`
 }
 
+// EntityCompetition defines model for entity.Competition.
+type EntityCompetition struct {
+	EndTime    *string `json:"end_time,omitempty"`
+	FreezeTime *string `json:"freeze_time,omitempty"`
+	ID         *int    `json:"id,omitempty"`
+	IsPaused   *bool   `json:"is_paused,omitempty"`
+	Mode       *string `json:"mode,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	StartTime  *string `json:"start_time,omitempty"`
+}
+
+// EntityFile defines model for entity.File.
+type EntityFile struct {
+	ChallengeID *string `json:"challenge_id,omitempty"`
+	CreatedAt   *string `json:"created_at,omitempty"`
+	Filename    *string `json:"filename,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	Location    *string `json:"location,omitempty"`
+	Sha256      *string `json:"sha256,omitempty"`
+	Size        *int    `json:"size,omitempty"`
+	Type        *string `json:"type,omitempty"`
+}
+
 // EntityGeneralStats defines model for entity.GeneralStats.
 type EntityGeneralStats struct {
 	ChallengeCount *int `json:"challenge_count,omitempty"`
 	SolveCount     *int `json:"solve_count,omitempty"`
 	TeamCount      *int `json:"team_count,omitempty"`
 	UserCount      *int `json:"user_count,omitempty"`
+}
+
+// EntityHint defines model for entity.Hint.
+type EntityHint struct {
+	ChallengeID *string `json:"challenge_id,omitempty"`
+	Content     *string `json:"content,omitempty"`
+	Cost        *int    `json:"cost,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	OrderIndex  *int    `json:"order_index,omitempty"`
+}
+
+// EntityImportResult defines model for entity.ImportResult.
+type EntityImportResult struct {
+	Errors       *[]string `json:"errors,omitempty"`
+	SkippedCount *int      `json:"skipped_count,omitempty"`
+	Success      *bool     `json:"success,omitempty"`
+}
+
+// EntityScorePoint defines model for entity.ScorePoint.
+type EntityScorePoint struct {
+	Score     *int    `json:"score,omitempty"`
+	Timestamp *string `json:"timestamp,omitempty"`
+}
+
+// EntityScoreboardGraph defines model for entity.ScoreboardGraph.
+type EntityScoreboardGraph struct {
+	Range *EntityTimeRange      `json:"range,omitempty"`
+	Teams *[]EntityTeamTimeline `json:"teams,omitempty"`
 }
 
 // EntityScoreboardHistoryEntry defines model for entity.ScoreboardHistoryEntry.
@@ -36,12 +150,57 @@ type EntityScoreboardHistoryEntry struct {
 	Timestamp *string `json:"timestamp,omitempty"`
 }
 
+// EntitySolve defines model for entity.Solve.
+type EntitySolve struct {
+	ChallengeID *string `json:"challenge_id,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	SolvedAt    *string `json:"solved_at,omitempty"`
+	TeamID      *string `json:"team_id,omitempty"`
+	UserID      *string `json:"user_id,omitempty"`
+}
+
+// EntityTeamExport defines model for entity.TeamExport.
+type EntityTeamExport struct {
+	CaptainID *string   `json:"captain_id,omitempty"`
+	ID        *string   `json:"id,omitempty"`
+	IsBanned  *bool     `json:"is_banned,omitempty"`
+	MemberIds *[]string `json:"member_ids,omitempty"`
+	Name      *string   `json:"name,omitempty"`
+}
+
+// EntityTeamTimeline defines model for entity.TeamTimeline.
+type EntityTeamTimeline struct {
+	TeamID   *string             `json:"team_id,omitempty"`
+	TeamName *string             `json:"team_name,omitempty"`
+	Timeline *[]EntityScorePoint `json:"timeline,omitempty"`
+}
+
+// EntityTimeRange defines model for entity.TimeRange.
+type EntityTimeRange struct {
+	End   *string `json:"end,omitempty"`
+	Start *string `json:"start,omitempty"`
+}
+
+// EntityUserExport defines model for entity.UserExport.
+type EntityUserExport struct {
+	Email    *string `json:"email,omitempty"`
+	ID       *string `json:"id,omitempty"`
+	Role     *string `json:"role,omitempty"`
+	TeamID   *string `json:"team_id,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
 // JwtTokenPair defines model for jwt.TokenPair.
 type JwtTokenPair struct {
 	AccessExpiresAt  *int    `json:"access_expires_at,omitempty"`
 	AccessToken      *string `json:"access_token,omitempty"`
 	RefreshExpiresAt *int    `json:"refresh_expires_at,omitempty"`
 	RefreshToken     *string `json:"refresh_token,omitempty"`
+}
+
+// RequestBanTeamRequest defines model for request.BanTeamRequest.
+type RequestBanTeamRequest struct {
+	Reason string `json:"reason"`
 }
 
 // RequestCreateAwardRequest defines model for request.CreateAwardRequest.
@@ -53,17 +212,20 @@ type RequestCreateAwardRequest struct {
 
 // RequestCreateChallengeRequest defines model for request.CreateChallengeRequest.
 type RequestCreateChallengeRequest struct {
-	Category          string `json:"category"`
-	Decay             *int   `json:"decay,omitempty"`
-	Description       string `json:"description"`
-	Flag              string `json:"flag"`
-	InitialValue      *int   `json:"initial_value,omitempty"`
-	IsCaseInsensitive *bool  `json:"is_case_insensitive,omitempty"`
-	IsHidden          *bool  `json:"is_hidden,omitempty"`
-	IsRegex           *bool  `json:"is_regex,omitempty"`
-	MinValue          *int   `json:"min_value,omitempty"`
-	Points            int    `json:"points"`
-	Title             string `json:"title"`
+	Category    string `json:"category"`
+	Decay       *int   `json:"decay,omitempty"`
+	Description string `json:"description"`
+	Flag        string `json:"flag"`
+
+	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
+	InitialValue      *int    `json:"initial_value,omitempty"`
+	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
+	IsHidden          *bool   `json:"is_hidden,omitempty"`
+	IsRegex           *bool   `json:"is_regex,omitempty"`
+	MinValue          *int    `json:"min_value,omitempty"`
+	Points            int     `json:"points"`
+	Title             string  `json:"title"`
 }
 
 // RequestCreateHintRequest defines model for request.CreateHintRequest.
@@ -109,6 +271,11 @@ type RequestResetPasswordRequest struct {
 	Token       string  `json:"token"`
 }
 
+// RequestSetHiddenRequest defines model for request.SetHiddenRequest.
+type RequestSetHiddenRequest struct {
+	Hidden *bool `json:"hidden,omitempty"`
+}
+
 // RequestSubmitFlagRequest defines model for request.SubmitFlagRequest.
 type RequestSubmitFlagRequest struct {
 	Flag string `json:"flag"`
@@ -121,10 +288,13 @@ type RequestTransferCaptainRequest struct {
 
 // RequestUpdateChallengeRequest defines model for request.UpdateChallengeRequest.
 type RequestUpdateChallengeRequest struct {
-	Category          string  `json:"category"`
-	Decay             *int    `json:"decay,omitempty"`
-	Description       string  `json:"description"`
-	Flag              *string `json:"flag,omitempty"`
+	Category    string  `json:"category"`
+	Decay       *int    `json:"decay,omitempty"`
+	Description string  `json:"description"`
+	Flag        *string `json:"flag,omitempty"`
+
+	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
 	InitialValue      *int    `json:"initial_value,omitempty"`
 	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
 	IsHidden          *bool   `json:"is_hidden,omitempty"`
@@ -273,6 +443,45 @@ type PostAdminChallengesChallengeIDFilesMultipartBody struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// GetAdminExportParams defines parameters for GetAdminExport.
+type GetAdminExportParams struct {
+	// IncludeUsers Include user data in export
+	IncludeUsers *bool `form:"include_users,omitempty" json:"include_users,omitempty"`
+
+	// IncludeTeams Include team data in export
+	IncludeTeams *bool `form:"include_teams,omitempty" json:"include_teams,omitempty"`
+
+	// IncludeSolves Include solve data in export
+	IncludeSolves *bool `form:"include_solves,omitempty" json:"include_solves,omitempty"`
+
+	// IncludeAwards Include award data in export
+	IncludeAwards *bool `form:"include_awards,omitempty" json:"include_awards,omitempty"`
+}
+
+// GetAdminExportZipParams defines parameters for GetAdminExportZip.
+type GetAdminExportZipParams struct {
+	// IncludeFiles Include challenge files in export
+	IncludeFiles *bool `form:"include_files,omitempty" json:"include_files,omitempty"`
+}
+
+// PostAdminImportMultipartBody defines parameters for PostAdminImport.
+type PostAdminImportMultipartBody struct {
+	// ConflictMode How to handle conflicts
+	ConflictMode *PostAdminImportMultipartBodyConflictMode `json:"conflict_mode,omitempty"`
+
+	// EraseExisting Erase existing data before import
+	EraseExisting *bool `json:"erase_existing,omitempty"`
+
+	// File ZIP backup file
+	File openapi_types.File `json:"file"`
+
+	// ValidateFiles Validate file checksums
+	ValidateFiles *bool `json:"validate_files,omitempty"`
+}
+
+// PostAdminImportMultipartBodyConflictMode defines parameters for PostAdminImport.
+type PostAdminImportMultipartBodyConflictMode string
+
 // GetAuthVerifyEmailParams defines parameters for GetAuthVerifyEmail.
 type GetAuthVerifyEmailParams struct {
 	// Token Verification token
@@ -283,6 +492,12 @@ type GetAuthVerifyEmailParams struct {
 type GetChallengesChallengeIDFilesParams struct {
 	// Type File type: challenge or writeup
 	Type *string `form:"type,omitempty" json:"type,omitempty"`
+}
+
+// GetScoreboardGraphParams defines parameters for GetScoreboardGraph.
+type GetScoreboardGraphParams struct {
+	// Top Number of top teams to include
+	Top *int `form:"top,omitempty" json:"top,omitempty"`
 }
 
 // PostAdminAwardsJSONRequestBody defines body for PostAdminAwards for application/json ContentType.
@@ -302,6 +517,15 @@ type PostAdminChallengesChallengeIDHintsJSONRequestBody = RequestCreateHintReque
 
 // PutAdminHintsIDJSONRequestBody defines body for PutAdminHintsID for application/json ContentType.
 type PutAdminHintsIDJSONRequestBody = RequestUpdateHintRequest
+
+// PostAdminImportMultipartRequestBody defines body for PostAdminImport for multipart/form-data ContentType.
+type PostAdminImportMultipartRequestBody PostAdminImportMultipartBody
+
+// PostAdminTeamsIDBanJSONRequestBody defines body for PostAdminTeamsIDBan for application/json ContentType.
+type PostAdminTeamsIDBanJSONRequestBody = RequestBanTeamRequest
+
+// PatchAdminTeamsIDHiddenJSONRequestBody defines body for PatchAdminTeamsIDHidden for application/json ContentType.
+type PatchAdminTeamsIDHiddenJSONRequestBody = RequestSetHiddenRequest
 
 // PostAuthForgotPasswordJSONRequestBody defines body for PostAuthForgotPassword for application/json ContentType.
 type PostAuthForgotPasswordJSONRequestBody = RequestForgotPasswordRequest

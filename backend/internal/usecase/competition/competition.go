@@ -20,7 +20,11 @@ type CompetitionUseCase struct {
 	redis           *redis.Client
 }
 
-func NewCompetitionUseCase(competitionRepo repo.CompetitionRepository, auditLogRepo repo.AuditLogRepository, redis *redis.Client) *CompetitionUseCase {
+func NewCompetitionUseCase(
+	competitionRepo repo.CompetitionRepository,
+	auditLogRepo repo.AuditLogRepository,
+	redis *redis.Client,
+) *CompetitionUseCase {
 	return &CompetitionUseCase{
 		competitionRepo: competitionRepo,
 		auditLogRepo:    auditLogRepo,
@@ -68,7 +72,7 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 		},
 	}
 	if err := uc.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("CompetitionUseCase - UpdateSettings - audit log: %w", err)
+		return fmt.Errorf("CompetitionUseCase - Update - Create: %w", err)
 	}
 	return nil
 }

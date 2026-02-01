@@ -14,6 +14,29 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
+var (
+	hintColumns       = []string{"id", "challenge_id", "content", "cost", "order_index"}
+	hintUnlockColumns = []string{"id", "hint_id", "team_id", "unlocked_at"}
+)
+
+func scanHint(row rowScanner) (*entity.Hint, error) {
+	var h entity.Hint
+	err := row.Scan(&h.ID, &h.ChallengeID, &h.Content, &h.Cost, &h.OrderIndex)
+	if err != nil {
+		return nil, err
+	}
+	return &h, nil
+}
+
+func scanHintUnlock(row rowScanner) (*entity.HintUnlock, error) {
+	var u entity.HintUnlock
+	err := row.Scan(&u.ID, &u.HintID, &u.TeamID, &u.UnlockedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 type HintRepo struct {
 	pool *pgxpool.Pool
 }
@@ -26,7 +49,7 @@ func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
 	h.ID = uuid.New()
 
 	query := squirrel.Insert("hints").
-		Columns("id", "challenge_id", "content", "cost", "order_index").
+		Columns(hintColumns...).
 		Values(h.ID, h.ChallengeID, h.Content, h.Cost, h.OrderIndex).
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -44,7 +67,7 @@ func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
 }
 
 func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
-	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
+	query := squirrel.Select(hintColumns...).
 		From("hints").
 		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -54,26 +77,18 @@ func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, err
 		return nil, fmt.Errorf("HintRepo - GetByID - BuildQuery: %w", err)
 	}
 
-	var hint entity.Hint
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&hint.ID,
-		&hint.ChallengeID,
-		&hint.Content,
-		&hint.Cost,
-		&hint.OrderIndex,
-	)
+	hint, err := scanHint(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
 		}
 		return nil, fmt.Errorf("HintRepo - GetByID - Scan: %w", err)
 	}
-
-	return &hint, nil
+	return hint, nil
 }
 
 func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error) {
-	query := squirrel.Select("id", "challenge_id", "content", "cost", "order_index").
+	query := squirrel.Select(hintColumns...).
 		From("hints").
 		Where(squirrel.Eq{"challenge_id": challengeID}).
 		OrderBy("order_index ASC").
@@ -92,17 +107,11 @@ func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) 
 
 	hints := make([]*entity.Hint, 0)
 	for rows.Next() {
-		var hint entity.Hint
-		if err := rows.Scan(
-			&hint.ID,
-			&hint.ChallengeID,
-			&hint.Content,
-			&hint.Cost,
-			&hint.OrderIndex,
-		); err != nil {
+		hint, err := scanHint(rows)
+		if err != nil {
 			return nil, fmt.Errorf("HintRepo - GetByChallengeID - Scan: %w", err)
 		}
-		hints = append(hints, &hint)
+		hints = append(hints, hint)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -160,7 +169,7 @@ func NewHintUnlockRepo(pool *pgxpool.Pool) *HintUnlockRepo {
 }
 
 func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUID) (*entity.HintUnlock, error) {
-	query := squirrel.Select("id", "hint_id", "team_id", "unlocked_at").
+	query := squirrel.Select(hintUnlockColumns...).
 		From("hint_unlocks").
 		Where(squirrel.Eq{"team_id": teamID, "hint_id": hintID}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -170,21 +179,14 @@ func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uu
 		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - BuildQuery: %w", err)
 	}
 
-	var unlock entity.HintUnlock
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&unlock.ID,
-		&unlock.HintID,
-		&unlock.TeamID,
-		&unlock.UnlockedAt,
-	)
+	unlock, err := scanHintUnlock(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrHintNotFound
 		}
 		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Scan: %w", err)
 	}
-
-	return &unlock, nil
+	return unlock, nil
 }
 
 func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamID, challengeID uuid.UUID) ([]uuid.UUID, error) {

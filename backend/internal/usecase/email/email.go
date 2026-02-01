@@ -30,15 +30,16 @@ type EmailUseCase struct {
 func NewEmailUseCase(
 	userRepo repo.UserRepository,
 	tokenRepo repo.VerificationTokenRepository,
-	m mailer.Mailer,
-	verifyTTL, resetTTL time.Duration,
+	mailer mailer.Mailer,
+	verifyTTL time.Duration,
+	resetTTL time.Duration,
 	frontendURL string,
 	enabled bool,
 ) *EmailUseCase {
 	return &EmailUseCase{
 		userRepo:    userRepo,
 		tokenRepo:   tokenRepo,
-		mailer:      m,
+		mailer:      mailer,
 		verifyTTL:   verifyTTL,
 		resetTTL:    resetTTL,
 		frontendURL: frontendURL,

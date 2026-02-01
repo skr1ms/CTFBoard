@@ -9,9 +9,11 @@ import (
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	ws "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
@@ -32,6 +34,8 @@ func NewRouter(
 	fileUC *challenge.FileUseCase,
 	awardUC *team.AwardUseCase,
 	statsUC *competition.StatisticsUseCase,
+	backupUC usecase.BackupUseCase,
+	settingsUC *settings.SettingsUseCase,
 	jwtService *jwt.JWTService,
 	redisClient *redis.Client,
 	wsController *ws.Controller,
@@ -43,8 +47,8 @@ func NewRouter(
 ) {
 	// Initialize Server
 	server := NewServer(
-		userUC, challengeUC, solveUC, teamUC, competitionUC, hintUC, emailUC, fileUC, awardUC, statsUC,
-		jwtService, redisClient, wsController, validator, logger,
+		userUC, challengeUC, solveUC, teamUC, competitionUC, hintUC, emailUC, fileUC, awardUC, statsUC, backupUC,
+		settingsUC, jwtService, redisClient, wsController, validator, logger,
 	)
 
 	// Wrap with OpenAPI handler
@@ -57,7 +61,7 @@ func NewRouter(
 
 	setupPublicRoutes(router, server, wrapper)
 	setupAuthOnlyRoutes(router, jwtService, wrapper)
-	setupProtectedRoutes(router, userUC, jwtService, competitionUC, redisClient, wrapper, submitLimit, durationLimit, verifyEmails, server)
+	setupProtectedRoutes(router, userUC, jwtService, competitionUC, redisClient, wrapper, submitLimit, durationLimit, verifyEmails, server, logger)
 }
 
 func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper) {
@@ -75,7 +79,9 @@ func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.Server
 		r.Get("/users/{ID}", wrapper.GetUsersID)
 		r.Get("/statistics/general", wrapper.GetStatisticsGeneral)
 		r.Get("/statistics/challenges", wrapper.GetStatisticsChallenges)
+		r.Get("/statistics/challenges/{id}", wrapper.GetStatisticsChallengesId)
 		r.Get("/statistics/scoreboard", wrapper.GetStatisticsScoreboard)
+		r.Get("/scoreboard/graph", wrapper.GetScoreboardGraph)
 
 		// WebSocket
 		r.Get("/ws", wrapper.GetWs)
@@ -105,6 +111,7 @@ func setupProtectedRoutes(
 	durationLimit time.Duration,
 	verifyEmails bool,
 	server *Server,
+	logger logger.Logger,
 ) {
 	// Protected Routes (Auth + InjectUser)
 	router.Group(func(r chi.Router) {
@@ -114,7 +121,7 @@ func setupProtectedRoutes(
 		r.Get("/auth/me", wrapper.GetAuthMe)
 
 		setupTeamRoutes(r, wrapper, verifyEmails)
-		setupChallengeRoutes(r, wrapper, competitionUC, redisClient, submitLimit, durationLimit, verifyEmails)
+		setupChallengeRoutes(r, wrapper, competitionUC, redisClient, submitLimit, durationLimit, verifyEmails, logger)
 
 		// Files Download URL (Protected)
 		r.Get("/files/{ID}/download", wrapper.GetFilesIDDownload)
@@ -146,6 +153,7 @@ func setupChallengeRoutes(
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
+	log logger.Logger,
 ) {
 	// Challenges
 	r.Get("/challenges", wrapper.GetChallenges)
@@ -160,14 +168,14 @@ func setupChallengeRoutes(
 
 		ipLimit := restapimiddleware.RateLimit(redisClient, "submit:ip", int64(submitLimit*3), durationLimit, func(r *http.Request) (string, error) {
 			return httputil.GetClientIP(r), nil
-		})
+		}, log)
 		userLimit := restapimiddleware.RateLimit(redisClient, "submit:user", int64(submitLimit), durationLimit, func(r *http.Request) (string, error) {
 			user, ok := restapimiddleware.GetUser(r.Context())
 			if !ok {
 				return "", http.ErrNoCookie
 			}
 			return user.ID.String(), nil
-		})
+		}, log)
 
 		sub.With(ipLimit, userLimit).Post("/challenges/{ID}/submit", wrapper.PostChallengesIDSubmit)
 	})
@@ -186,6 +194,10 @@ func setupAdminRoutes(r chi.Router, server *Server, wrapper openapi.ServerInterf
 		adm.Get("/admin/competition", server.GetAdminCompetition)
 		adm.Put("/admin/competition", server.PutAdminCompetition)
 
+		// Admin Settings (app_settings)
+		adm.Get("/admin/settings", server.GetAdminSettings)
+		adm.Put("/admin/settings", server.PutAdminSettings)
+
 		// Admin Challenges
 		adm.Post("/admin/challenges", wrapper.PostAdminChallenges)
 		adm.Put("/admin/challenges/{ID}", wrapper.PutAdminChallengesID)
@@ -203,5 +215,15 @@ func setupAdminRoutes(r chi.Router, server *Server, wrapper openapi.ServerInterf
 		// Admin Awards
 		adm.Post("/admin/awards", wrapper.PostAdminAwards)
 		adm.Get("/admin/awards/team/{teamID}", wrapper.GetAdminAwardsTeamTeamID)
+
+		// Admin Teams
+		adm.Post("/admin/teams/{ID}/ban", wrapper.PostAdminTeamsIDBan)
+		adm.Delete("/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
+		adm.Patch("/admin/teams/{ID}/hidden", wrapper.PatchAdminTeamsIDHidden)
+
+		// Admin Backup
+		adm.Get("/admin/export", wrapper.GetAdminExport)
+		adm.Get("/admin/export/zip", wrapper.GetAdminExportZip)
+		adm.Post("/admin/import", wrapper.PostAdminImport)
 	})
 }

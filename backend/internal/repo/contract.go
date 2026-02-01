@@ -31,6 +31,7 @@ type (
 		GetByEmail(ctx context.Context, email string) (*entity.User, error)
 		GetByUsername(ctx context.Context, username string) (*entity.User, error)
 		GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error)
+		GetAll(ctx context.Context) ([]*entity.User, error)
 		UpdateTeamID(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error
 		SetVerified(ctx context.Context, userID uuid.UUID) error
 		UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string) error
@@ -57,9 +58,13 @@ type (
 		GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error)
 		GetByName(ctx context.Context, name string) (*entity.Team, error)
 		GetSoloTeamByUserID(ctx context.Context, userID uuid.UUID) (*entity.Team, error)
+		GetAll(ctx context.Context) ([]*entity.Team, error)
 		CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 		HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error
+		Ban(ctx context.Context, teamID uuid.UUID, reason string) error
+		Unban(ctx context.Context, teamID uuid.UUID) error
+		SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error
 	}
 
 	SolveRepository interface {
@@ -67,6 +72,7 @@ type (
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.Solve, error)
 		GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*entity.Solve, error)
 		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Solve, error)
+		GetAll(ctx context.Context) ([]*entity.Solve, error)
 		GetScoreboard(ctx context.Context) ([]*ScoreboardEntry, error)
 		GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*ScoreboardEntry, error)
 		GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*FirstBloodEntry, error)
@@ -76,6 +82,11 @@ type (
 	CompetitionRepository interface {
 		Get(ctx context.Context) (*entity.Competition, error)
 		Update(ctx context.Context, competition *entity.Competition) error
+	}
+
+	AppSettingsRepository interface {
+		Get(ctx context.Context) (*entity.AppSettings, error)
+		Update(ctx context.Context, s *entity.AppSettings) error
 	}
 
 	HintRepository interface {
@@ -94,6 +105,7 @@ type (
 	AwardRepository interface {
 		Create(ctx context.Context, award *entity.Award) error
 		GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error)
+		GetAll(ctx context.Context) ([]*entity.Award, error)
 		GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int, error)
 	}
 
@@ -101,6 +113,7 @@ type (
 		Create(ctx context.Context, file *entity.File) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.File, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error)
+		GetAll(ctx context.Context) ([]*entity.File, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
 
@@ -110,6 +123,7 @@ type (
 		RunTransaction(ctx context.Context, fn func(context.Context, pgx.Tx) error) error
 
 		GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Challenge, error)
+		DeleteChallengeTx(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error
 		IncrementChallengeSolveCountTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (int, error)
 		UpdateChallengePointsTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int) error
 
@@ -173,6 +187,18 @@ type (
 	StatisticsRepository interface {
 		GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error)
 		GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error)
+		GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error)
 		GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error)
+	}
+
+	BackupRepository interface {
+		EraseAllTablesTx(ctx context.Context, tx pgx.Tx) error
+		ImportCompetitionTx(ctx context.Context, tx pgx.Tx, comp *entity.Competition) error
+		ImportChallengesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
+		ImportTeamsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportUsersTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportAwardsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
+		ImportSolvesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
+		ImportFileMetadataTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
 	}
 )

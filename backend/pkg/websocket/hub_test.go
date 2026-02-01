@@ -42,7 +42,11 @@ func TestHub_Broadcast(t *testing.T) {
 	}
 	hub.Register(client)
 
-	time.Sleep(50 * time.Millisecond)
+	select {
+	case <-client.send:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for connected")
+	}
 
 	msg := []byte("hello")
 	hub.Broadcast(msg)
@@ -58,6 +62,7 @@ func TestHub_Broadcast(t *testing.T) {
 func TestHub_BroadcastEvent_Redis(t *testing.T) {
 	db, redisClient := redismock.NewClientMock()
 	hub := NewHub(db, "test-channel")
+	go hub.Run()
 
 	event := Event{
 		Type:      "test",
@@ -84,7 +89,12 @@ func TestHub_BroadcastEvent_LocalFallback(t *testing.T) {
 		send: make(chan []byte, 10),
 	}
 	hub.Register(client)
-	time.Sleep(50 * time.Millisecond)
+
+	select {
+	case <-client.send:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for connected")
+	}
 
 	event := Event{
 		Type:      "test",

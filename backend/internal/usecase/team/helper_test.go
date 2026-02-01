@@ -74,6 +74,7 @@ func (h *TeamTestHelper) NewTeam(id uuid.UUID, name string, captainID, inviteTok
 type AwardTestHelper struct {
 	t       *testing.T
 	repo    *mocks.MockAwardRepository
+	txRepo  *mocks.MockTxRepository
 	redis   redismock.ClientMock
 	useCase *AwardUseCase
 	teamID  uuid.UUID
@@ -83,11 +84,13 @@ type AwardTestHelper struct {
 func NewAwardTestHelper(t *testing.T) *AwardTestHelper {
 	t.Helper()
 	repo := mocks.NewMockAwardRepository(t)
+	txRepo := mocks.NewMockTxRepository(t)
 	client, redis := redismock.NewClientMock()
-	uc := NewAwardUseCase(repo, client)
+	uc := NewAwardUseCase(repo, txRepo, client)
 	return &AwardTestHelper{
 		t:       t,
 		repo:    repo,
+		txRepo:  txRepo,
 		redis:   redis,
 		useCase: uc,
 		teamID:  uuid.New(),
@@ -103,6 +106,11 @@ func (h *AwardTestHelper) CreateUseCase() *AwardUseCase {
 func (h *AwardTestHelper) Repo() *mocks.MockAwardRepository {
 	h.t.Helper()
 	return h.repo
+}
+
+func (h *AwardTestHelper) TxRepo() *mocks.MockTxRepository {
+	h.t.Helper()
+	return h.txRepo
 }
 
 func (h *AwardTestHelper) Redis() redismock.ClientMock {

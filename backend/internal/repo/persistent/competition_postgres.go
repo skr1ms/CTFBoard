@@ -12,6 +12,23 @@ import (
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 )
 
+var competitionColumns = []string{
+	"id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public",
+	"flag_regex", "mode", "allow_team_switch", "min_team_size", "max_team_size", "created_at", "updated_at",
+}
+
+func scanCompetition(row rowScanner) (*entity.Competition, error) {
+	var c entity.Competition
+	err := row.Scan(
+		&c.ID, &c.Name, &c.StartTime, &c.EndTime, &c.FreezeTime, &c.IsPaused, &c.IsPublic,
+		&c.FlagRegex, &c.Mode, &c.AllowTeamSwitch, &c.MinTeamSize, &c.MaxTeamSize, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 type CompetitionRepo struct {
 	pool *pgxpool.Pool
 }
@@ -21,7 +38,7 @@ func NewCompetitionRepo(pool *pgxpool.Pool) *CompetitionRepo {
 }
 
 func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) {
-	query := squirrel.Select("id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public", "flag_regex", "mode", "allow_team_switch", "min_team_size", "max_team_size", "created_at", "updated_at").
+	query := squirrel.Select(competitionColumns...).
 		From("competition").
 		Where(squirrel.Eq{"id": 1}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -31,31 +48,14 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) 
 		return nil, fmt.Errorf("CompetitionRepo - Get - BuildQuery: %w", err)
 	}
 
-	var c entity.Competition
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&c.ID,
-		&c.Name,
-		&c.StartTime,
-		&c.EndTime,
-		&c.FreezeTime,
-		&c.IsPaused,
-		&c.IsPublic,
-		&c.FlagRegex,
-		&c.Mode,
-		&c.AllowTeamSwitch,
-		&c.MinTeamSize,
-		&c.MaxTeamSize,
-		&c.CreatedAt,
-		&c.UpdatedAt,
-	)
+	c, err := scanCompetition(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrCompetitionNotFound
 		}
 		return nil, fmt.Errorf("CompetitionRepo - Get: %w", err)
 	}
-
-	return &c, nil
+	return c, nil
 }
 
 func (r *CompetitionRepo) Update(ctx context.Context, c *entity.Competition) error {

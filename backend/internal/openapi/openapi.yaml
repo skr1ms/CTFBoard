@@ -51,6 +51,166 @@ paths:
       summary: Create award
       tags:
         - Admin
+  /admin/export:
+    get:
+      description: Exports competition data as JSON backup. Admin only.
+      parameters:
+        - name: include_users
+          in: query
+          description: Include user data in export
+          schema:
+            type: boolean
+            default: false
+        - name: include_teams
+          in: query
+          description: Include team data in export
+          schema:
+            type: boolean
+            default: true
+        - name: include_solves
+          in: query
+          description: Include solve data in export
+          schema:
+            type: boolean
+            default: false
+        - name: include_awards
+          in: query
+          description: Include award data in export
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Backup data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity.BackupData"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Export competition backup
+      tags:
+        - Admin
+  /admin/export/zip:
+    get:
+      description: Exports competition data as ZIP archive with files. Admin only.
+      parameters:
+        - name: include_files
+          in: query
+          description: Include challenge files in export
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: ZIP archive
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="backup-20260201T130000Z.zip"'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Export competition backup as ZIP
+      tags:
+        - Admin
+  /admin/import:
+    post:
+      description: Imports competition data from ZIP backup. Admin only.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: ZIP backup file
+                erase_existing:
+                  type: boolean
+                  description: Erase existing data before import
+                conflict_mode:
+                  type: string
+                  enum: [merge, overwrite, skip]
+                  description: How to handle conflicts
+                validate_files:
+                  type: boolean
+                  description: Validate file checksums
+              required:
+                - file
+        required: true
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity.ImportResult"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Import competition backup
+      tags:
+        - Admin
   "/admin/awards/team/{teamID}":
     get:
       description: Returns list of awards for a team. Admin only.
@@ -91,6 +251,157 @@ paths:
       security:
         - BearerAuth: []
       summary: Get awards by team
+      tags:
+        - Admin
+  "/admin/teams/{ID}/ban":
+    post:
+      description: Bans a team. Admin only.
+      parameters:
+        - description: Team ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.BanTeamRequest"
+        description: Ban reason
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Ban team
+      tags:
+        - Admin
+    delete:
+      description: Unbans a team. Admin only.
+      parameters:
+        - description: Team ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Unban team
+      tags:
+        - Admin
+  "/admin/teams/{ID}/hidden":
+    patch:
+      description: Sets team hidden status. Admin only.
+      parameters:
+        - description: Team ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.SetHiddenRequest"
+        description: Hidden status
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Set team hidden status
       tags:
         - Admin
   /admin/challenges:
@@ -953,6 +1264,32 @@ paths:
       summary: Get scoreboard
       tags:
         - Scoreboard
+  /scoreboard/graph:
+    get:
+      description: Returns scoreboard graph data with team timelines for visualization
+      parameters:
+        - description: Number of top teams to include
+          in: query
+          name: top
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity.ScoreboardGraph"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      summary: Get scoreboard graph
+      tags:
+        - Scoreboard
   /statistics/challenges:
     get:
       description: Returns statistics for all challenges including solve counts
@@ -974,6 +1311,46 @@ paths:
       security:
         - BearerAuth: []
       summary: Get challenge statistics
+      tags:
+        - Statistics
+  /statistics/challenges/{id}:
+    get:
+      description: Returns detailed statistics for a single challenge (solves, first blood, percentage)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity.ChallengeDetailStats"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Challenge not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get challenge detail statistics
       tags:
         - Statistics
   /statistics/general:
@@ -1410,6 +1787,207 @@ components:
         title:
           type: string
       type: object
+    entity.ChallengeSolveEntry:
+      properties:
+        team_id:
+          type: string
+        team_name:
+          type: string
+        solved_at:
+          type: string
+          format: date-time
+      type: object
+    entity.ChallengeDetailStats:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        points:
+          type: integer
+        solve_count:
+          type: integer
+        total_teams:
+          type: integer
+        percentage_solved:
+          type: number
+        first_blood:
+          $ref: "#/components/schemas/entity.ChallengeSolveEntry"
+        solves:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.ChallengeSolveEntry"
+      type: object
+    entity.BackupData:
+      properties:
+        version:
+          type: string
+        exported_at:
+          type: string
+        competition:
+          $ref: "#/components/schemas/entity.Competition"
+        challenges:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.ChallengeExport"
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.TeamExport"
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.UserExport"
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.Award"
+        solves:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.Solve"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.File"
+      type: object
+    entity.ImportResult:
+      properties:
+        success:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        skipped_count:
+          type: integer
+      type: object
+    entity.File:
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        challenge_id:
+          type: string
+        location:
+          type: string
+        filename:
+          type: string
+        size:
+          type: integer
+        sha256:
+          type: string
+        created_at:
+          type: string
+      type: object
+    entity.ChallengeExport:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        points:
+          type: integer
+        flag_hash:
+          type: string
+        is_hidden:
+          type: boolean
+        hints:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.Hint"
+      type: object
+    entity.TeamExport:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        captain_id:
+          type: string
+        is_banned:
+          type: boolean
+        member_ids:
+          type: array
+          items:
+            type: string
+      type: object
+    entity.UserExport:
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        team_id:
+          type: string
+      type: object
+    entity.Competition:
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        start_time:
+          type: string
+        end_time:
+          type: string
+        freeze_time:
+          type: string
+        is_paused:
+          type: boolean
+        mode:
+          type: string
+      type: object
+    entity.Hint:
+      properties:
+        id:
+          type: string
+        challenge_id:
+          type: string
+        content:
+          type: string
+        cost:
+          type: integer
+        order_index:
+          type: integer
+      type: object
+    entity.Award:
+      properties:
+        id:
+          type: string
+        team_id:
+          type: string
+        value:
+          type: integer
+        description:
+          type: string
+        created_at:
+          type: string
+      type: object
+    entity.Solve:
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        team_id:
+          type: string
+        challenge_id:
+          type: string
+        solved_at:
+          type: string
+      type: object
     entity.GeneralStats:
       properties:
         challenge_count:
@@ -1431,6 +2009,40 @@ components:
           type: string
         timestamp:
           type: string
+      type: object
+    entity.ScorePoint:
+      properties:
+        timestamp:
+          type: string
+        score:
+          type: integer
+      type: object
+    entity.TeamTimeline:
+      properties:
+        team_id:
+          type: string
+        team_name:
+          type: string
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.ScorePoint"
+      type: object
+    entity.TimeRange:
+      properties:
+        start:
+          type: string
+        end:
+          type: string
+      type: object
+    entity.ScoreboardGraph:
+      properties:
+        range:
+          $ref: "#/components/schemas/entity.TimeRange"
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/entity.TeamTimeline"
       type: object
     jwt.TokenPair:
       properties:
@@ -1470,6 +2082,10 @@ components:
           type: string
         flag:
           example: CTF{flag_here}
+          type: string
+        flag_format_regex:
+          description: Optional regex for flag format validation for this challenge; overrides competition default
+          example: '^CTF\{[a-zA-Z0-9_]+\}$'
           type: string
         initial_value:
           example: 500
@@ -1527,6 +2143,20 @@ components:
           type: string
       required:
         - name
+      type: object
+    request.BanTeamRequest:
+      properties:
+        reason:
+          example: Violation of rules
+          type: string
+          maxLength: 500
+      required:
+        - reason
+      type: object
+    request.SetHiddenRequest:
+      properties:
+        hidden:
+          type: boolean
       type: object
     request.ForgotPasswordRequest:
       properties:
@@ -1607,6 +2237,10 @@ components:
           type: string
         flag:
           example: CTF{new_flag}
+          type: string
+        flag_format_regex:
+          description: Optional regex for flag format validation for this challenge; overrides competition default
+          example: '^CTF\{[a-zA-Z0-9_]+\}$'
           type: string
         initial_value:
           example: 500

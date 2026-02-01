@@ -2,14 +2,34 @@ package persistent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
+
+var statisticsChallengeStatsColumns = []string{"id", "title", "category", "points", "solve_count"}
+
+var statisticsChallengeDetailColumns = []string{
+	"c.id", "c.title", "c.category", "c.points", "c.solve_count",
+	"(SELECT COUNT(*)::int FROM teams WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false) AS total_teams",
+}
+
+var statisticsSolveEntryColumns = []string{"s.team_id", "t.name", "s.solved_at"}
+
+func scanChallengeStats(row rowScanner) (*entity.ChallengeStats, error) {
+	var s entity.ChallengeStats
+	err := row.Scan(&s.ID, &s.Title, &s.Category, &s.Points, &s.SolveCount)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
 
 type StatisticsRepository struct {
 	pool *pgxpool.Pool
@@ -52,7 +72,7 @@ func (r *StatisticsRepository) GetGeneralStats(ctx context.Context) (*entity.Gen
 }
 
 func (r *StatisticsRepository) GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error) {
-	query := squirrel.Select("id", "title", "category", "points", "solve_count").
+	query := squirrel.Select(statisticsChallengeStatsColumns...).
 		From("challenges").
 		OrderBy("solve_count DESC").
 		PlaceholderFormat(squirrel.Dollar)
@@ -70,14 +90,88 @@ func (r *StatisticsRepository) GetChallengeStats(ctx context.Context) ([]*entity
 
 	var stats []*entity.ChallengeStats
 	for rows.Next() {
-		s := &entity.ChallengeStats{}
-		if err := rows.Scan(&s.ID, &s.Title, &s.Category, &s.Points, &s.SolveCount); err != nil {
+		s, err := scanChallengeStats(rows)
+		if err != nil {
 			return nil, fmt.Errorf("StatisticsRepository - GetChallengeStats - Scan: %w", err)
 		}
 		stats = append(stats, s)
 	}
-
 	return stats, nil
+}
+
+func (r *StatisticsRepository) GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error) {
+	challengeQuery := squirrel.Select(statisticsChallengeDetailColumns...).
+		From("challenges c").
+		Where(squirrel.Eq{"c.id": challengeID}).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := challengeQuery.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - BuildChallengeQuery: %w", err)
+	}
+
+	var id uuid.UUID
+	var title, category string
+	var points, solveCount, totalTeams int
+	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(&id, &title, &category, &points, &solveCount, &totalTeams)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - Challenge: %w", err)
+	}
+
+	percentageSolved := 0.0
+	if totalTeams > 0 {
+		percentageSolved = float64(solveCount) / float64(totalTeams) * 100
+	}
+
+	solvesQuery := squirrel.Select(statisticsSolveEntryColumns...).
+		From("solves s").
+		Join("teams t ON t.id = s.team_id").
+		Where(squirrel.Eq{"s.challenge_id": challengeID}).
+		Where(squirrel.Eq{"t.deleted_at": nil}).
+		Where(squirrel.Eq{"t.is_banned": false}).
+		Where(squirrel.Eq{"t.is_hidden": false}).
+		OrderBy("s.solved_at ASC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	solvesSQL, solvesArgs, err := solvesQuery.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - BuildSolvesQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, solvesSQL, solvesArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - Solves: %w", err)
+	}
+	defer rows.Close()
+
+	var solves []entity.ChallengeSolveEntry
+	for rows.Next() {
+		var e entity.ChallengeSolveEntry
+		if err := rows.Scan(&e.TeamID, &e.TeamName, &e.SolvedAt); err != nil {
+			return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - Scan: %w", err)
+		}
+		solves = append(solves, e)
+	}
+
+	var firstBlood *entity.ChallengeSolveEntry
+	if len(solves) > 0 {
+		firstBlood = &solves[0]
+	}
+
+	return &entity.ChallengeDetailStats{
+		ID:               id,
+		Title:            title,
+		Category:         category,
+		Points:           points,
+		SolveCount:       solveCount,
+		TotalTeams:       totalTeams,
+		PercentageSolved: percentageSolved,
+		FirstBlood:       firstBlood,
+		Solves:           solves,
+	}, nil
 }
 
 func (r *StatisticsRepository) GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // ServerInterface represents all server handlers.
@@ -35,6 +36,12 @@ type ServerInterface interface {
 	// Create hint
 	// (POST /admin/challenges/{challengeID}/hints)
 	PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Export competition backup
+	// (GET /admin/export)
+	GetAdminExport(w http.ResponseWriter, r *http.Request, params GetAdminExportParams)
+	// Export competition backup as ZIP
+	// (GET /admin/export/zip)
+	GetAdminExportZip(w http.ResponseWriter, r *http.Request, params GetAdminExportZipParams)
 	// Delete file
 	// (DELETE /admin/files/{ID})
 	DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, id string)
@@ -44,6 +51,18 @@ type ServerInterface interface {
 	// Update hint
 	// (PUT /admin/hints/{ID})
 	PutAdminHintsID(w http.ResponseWriter, r *http.Request, id string)
+	// Import competition backup
+	// (POST /admin/import)
+	PostAdminImport(w http.ResponseWriter, r *http.Request)
+	// Unban team
+	// (DELETE /admin/teams/{ID}/ban)
+	DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string)
+	// Ban team
+	// (POST /admin/teams/{ID}/ban)
+	PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string)
+	// Set team hidden status
+	// (PATCH /admin/teams/{ID}/hidden)
+	PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, id string)
 	// Request password reset
 	// (POST /auth/forgot-password)
 	PostAuthForgotPassword(w http.ResponseWriter, r *http.Request)
@@ -89,9 +108,15 @@ type ServerInterface interface {
 	// Get scoreboard
 	// (GET /scoreboard)
 	GetScoreboard(w http.ResponseWriter, r *http.Request)
+	// Get scoreboard graph
+	// (GET /scoreboard/graph)
+	GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams)
 	// Get challenge statistics
 	// (GET /statistics/challenges)
 	GetStatisticsChallenges(w http.ResponseWriter, r *http.Request)
+	// Get challenge detail statistics
+	// (GET /statistics/challenges/{id})
+	GetStatisticsChallengesId(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Get general statistics
 	// (GET /statistics/general)
 	GetStatisticsGeneral(w http.ResponseWriter, r *http.Request)
@@ -179,6 +204,18 @@ func (_ Unimplemented) PostAdminChallengesChallengeIDHints(w http.ResponseWriter
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Export competition backup
+// (GET /admin/export)
+func (_ Unimplemented) GetAdminExport(w http.ResponseWriter, r *http.Request, params GetAdminExportParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Export competition backup as ZIP
+// (GET /admin/export/zip)
+func (_ Unimplemented) GetAdminExportZip(w http.ResponseWriter, r *http.Request, params GetAdminExportZipParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Delete file
 // (DELETE /admin/files/{ID})
 func (_ Unimplemented) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, id string) {
@@ -194,6 +231,30 @@ func (_ Unimplemented) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request
 // Update hint
 // (PUT /admin/hints/{ID})
 func (_ Unimplemented) PutAdminHintsID(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Import competition backup
+// (POST /admin/import)
+func (_ Unimplemented) PostAdminImport(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Unban team
+// (DELETE /admin/teams/{ID}/ban)
+func (_ Unimplemented) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Ban team
+// (POST /admin/teams/{ID}/ban)
+func (_ Unimplemented) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set team hidden status
+// (PATCH /admin/teams/{ID}/hidden)
+func (_ Unimplemented) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -287,9 +348,21 @@ func (_ Unimplemented) GetScoreboard(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get scoreboard graph
+// (GET /scoreboard/graph)
+func (_ Unimplemented) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get challenge statistics
 // (GET /statistics/challenges)
 func (_ Unimplemented) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get challenge detail statistics
+// (GET /statistics/challenges/{id})
+func (_ Unimplemented) GetStatisticsChallengesId(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -575,6 +648,96 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDHints(w http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetAdminExport operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminExport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminExportParams
+
+	// ------------- Optional query parameter "include_users" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_users", r.URL.Query(), &params.IncludeUsers)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_users", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "include_teams" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_teams", r.URL.Query(), &params.IncludeTeams)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_teams", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "include_solves" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_solves", r.URL.Query(), &params.IncludeSolves)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_solves", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "include_awards" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_awards", r.URL.Query(), &params.IncludeAwards)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_awards", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminExport(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminExportZip operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminExportZip(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminExportZipParams
+
+	// ------------- Optional query parameter "include_files" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_files", r.URL.Query(), &params.IncludeFiles)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_files", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminExportZip(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteAdminFilesID operation middleware
 func (siw *ServerInterfaceWrapper) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request) {
 
@@ -659,6 +822,119 @@ func (siw *ServerInterfaceWrapper) PutAdminHintsID(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutAdminHintsID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminImport operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminImport(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminTeamsIDBan operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminTeamsIDBan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminTeamsIDBan operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminTeamsIDBan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchAdminTeamsIDHidden operation middleware
+func (siw *ServerInterfaceWrapper) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchAdminTeamsIDHidden(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1032,6 +1308,33 @@ func (siw *ServerInterfaceWrapper) GetScoreboard(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetScoreboardGraph operation middleware
+func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetScoreboardGraphParams
+
+	// ------------- Optional query parameter "top" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "top", r.URL.Query(), &params.Top)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "top", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScoreboardGraph(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetStatisticsChallenges operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
 
@@ -1043,6 +1346,37 @@ func (siw *ServerInterfaceWrapper) GetStatisticsChallenges(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetStatisticsChallenges(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStatisticsChallengesId operation middleware
+func (siw *ServerInterfaceWrapper) GetStatisticsChallengesId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStatisticsChallengesId(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1468,6 +1802,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/challenges/{challengeID}/hints", wrapper.PostAdminChallengesChallengeIDHints)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/export", wrapper.GetAdminExport)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/export/zip", wrapper.GetAdminExportZip)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/files/{ID}", wrapper.DeleteAdminFilesID)
 	})
 	r.Group(func(r chi.Router) {
@@ -1475,6 +1815,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/admin/hints/{ID}", wrapper.PutAdminHintsID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/import", wrapper.PostAdminImport)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/teams/{ID}/ban", wrapper.PostAdminTeamsIDBan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/admin/teams/{ID}/hidden", wrapper.PatchAdminTeamsIDHidden)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/forgot-password", wrapper.PostAuthForgotPassword)
@@ -1522,7 +1874,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/scoreboard", wrapper.GetScoreboard)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/scoreboard/graph", wrapper.GetScoreboardGraph)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/statistics/challenges", wrapper.GetStatisticsChallenges)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/statistics/challenges/{id}", wrapper.GetStatisticsChallengesId)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/statistics/general", wrapper.GetStatisticsGeneral)

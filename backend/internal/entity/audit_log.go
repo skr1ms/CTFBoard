@@ -22,6 +22,7 @@ const (
 	AuditEntityCompetition AuditEntityType = "competition"
 	AuditEntityTeam        AuditEntityType = "team"
 	AuditEntityUser        AuditEntityType = RoleUser
+	AuditEntityAppSettings AuditEntityType = "app_settings"
 )
 
 type AuditLog struct {

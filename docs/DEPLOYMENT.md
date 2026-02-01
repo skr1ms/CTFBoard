@@ -1,130 +1,134 @@
-# Деплой
+# Deployment
 
-Инструкция по развертыванию сервиса CTFBoard в производственной (production) и локальной (development) средах.
+This document describes the deployment of the CTFBoard service in production and development environments.
 
-## Требования
+## Requirements
 
-Для развертывания проекта требуются следующие компоненты:
+The following components are required:
 
-- **Docker Engine** (версия 20.10+)
-- **Docker Compose** (версия 2.0+)
-- **Make** (опционально)
+- **Docker Engine** (version 20.10 or later)
+- **Docker Compose** (version 2.0 or later)
+- **Make** (optional)
 
-## Конфигурация
+## Configuration
 
-Конфигурация приложения управляется через переменные окружения, определенные в файле `.env`.
+Application configuration is provided via environment variables. Define them in a `.env` file or in the host environment.
 
-### Основные параметры приложения
+### Application Parameters
 
-| Переменная | Описание | Пример |
-| :--- | :--- | :--- |
-| `APP_NAME` | Имя приложения | `CTFBoard` |
-| `VERSION` | Версия приложения | `1.0.0` |
-| `CHI_MODE` | Режим работы роутера (debug/release) | `debug` |
-| `LOG_LEVEL` | Уровень логирования (debug/info/warn/error) | `debug` |
-| `BACKEND_PORT` | Порт API сервера | `8090` |
-| `MIGRATIONS_PATH` | Путь к миграциям внутри контейнера | `/app/migrations` |
-| `CORS_ORIGINS` | Разрешенные источники (CORS) | `http://localhost:3000` |
-| `FRONTEND_URL` | URL фронтенда (для ссылок в письмах) | `http://localhost:3000` |
+| Variable       | Description                          | Example   |
+| :------------- | :----------------------------------- | :-------- |
+| `APP_NAME`    | Application name                     | `CTFBoard` |
+| `APP_VERSION` | Application version                  | `1.0.0`   |
+| `CHI_MODE`   | Router mode (`debug` or `release`)   | `release` |
+| `LOG_LEVEL`  | Log level (`debug`, `info`, `warn`, `error`) | `info` |
+| `BACKEND_PORT` | API server port                   | `8090`   |
+| `MIGRATIONS_PATH` | Path to migrations inside the container | `/app/migrations` |
+| `CORS_ORIGINS` | Allowed CORS origins              | `https://example.com` |
+| `FRONTEND_URL` | Frontend URL (e.g. for email links) | `https://example.com` |
+| `VERIFY_EMAILS` | Enable email verification         | `true`   |
+| `COMPETITION_MODE` | Competition mode                | `flexible` |
+| `ALLOW_TEAM_SWITCH` | Allow users to switch teams   | `true`   |
+| `MIN_TEAM_SIZE` | Minimum team size                 | `1`      |
+| `MAX_TEAM_SIZE` | Maximum team size                 | `10`     |
 
-### База данных (MariaDB)
+### Database (PostgreSQL)
 
-| Переменная | Описание |
-| :--- | :--- |
-| `MARIADB_HOST` | Хост базы данных |
-| `MARIADB_PORT` | Порт (по умолчанию `3306`) |
-| `MARIADB_USER` | Имя пользователя БД |
-| `MARIADB_PASSWORD` | Пароль пользователя |
-| `MARIADB_DB` | Имя базы данных |
-| `MARIADB_ROOT_PASSWORD` | Пароль root пользователя |
+| Variable             | Description                |
+| :------------------- | :------------------------- |
+| `POSTGRES_USER`     | Database user              |
+| `POSTGRES_PASSWORD` | Database password          |
+| `POSTGRES_DB`       | Database name              |
 
-### Redis (Кэш и сессии)
+### Redis
 
-| Переменная | Описание |
-| :--- | :--- |
-| `REDIS_HOST` | Хост Redis |
-| `REDIS_PORT` | Порт (по умолчанию `6379`) |
-| `REDIS_PASSWORD` | Пароль доступа |
+| Variable          | Description     |
+| :---------------- | :-------------- |
+| `REDIS_HOST`      | Redis host      |
+| `REDIS_PORT`      | Redis port (default `6379`) |
+| `REDIS_PASSWORD`  | Redis password  |
 
-### JWT (Безопасность)
+### JWT
 
-| Переменная | Описание |
-| :--- | :--- |
-| `JWT_ACCESS_SECRET` | Секретный ключ для Access токенов (мин. 32 символа) |
-| `JWT_REFRESH_SECRET` | Секретный ключ для Refresh токенов (мин. 32 символа) |
+| Variable           | Description                          |
+| :----------------- | :----------------------------------- |
+| `JWT_ACCESS_SECRET`  | Access token secret (minimum 32 characters) |
+| `JWT_REFRESH_SECRET` | Refresh token secret (minimum 32 characters) |
 
-### HashiCorp Vault (Секреты)
+### HashiCorp Vault
 
-| Переменная | Описание |
-| :--- | :--- |
-| `VAULT_ADDR` | Адрес сервера Vault |
-| `VAULT_TOKEN` | Токен доступа (Root token) |
-| `VAULT_PORT` | Порт (по умолчанию `8200`) |
-| `VAULT_MOUNT_PATH` | Путь монтирования секретов |
+| Variable           | Description           |
+| :----------------- | :-------------------- |
+| `VAULT_ADDR`       | Vault server address  |
+| `VAULT_TOKEN`      | Access token          |
+| `VAULT_PORT`       | Port (default `8200`) |
+| `VAULT_MOUNT_PATH`  | Secrets mount path   |
 
-### Rate Limiting (Ограничение запросов)
+### Rate Limiting
 
-| Переменная | Описание | Пример |
-| :--- | :--- | :--- |
-| `RATE_LIMIT_SUBMIT_FLAG` | Лимит попыток сдачи флага | `10` |
-| `RATE_LIMIT_SUBMIT_FLAG_DURATION` | Период лимита (в минутах) | `1` |
+| Variable                        | Description              | Example |
+| :----------------------------- | :----------------------- | :------ |
+| `RATE_LIMIT_SUBMIT_FLAG`       | Flag submission limit    | `10`    |
+| `RATE_LIMIT_SUBMIT_FLAG_DURATION` | Limit window (minutes) | `1`     |
 
-### Resend (Отправка Email)
+### Resend (Email)
 
-| Переменная | Описание |
-| :--- | :--- |
-| `RESEND_ENABLED` | Включить отправку писем (`true`/`false`) |
-| `RESEND_API_KEY` | API ключ сервиса Resend |
-| `RESEND_FROM_EMAIL` | Email отправителя |
-| `RESEND_FROM_NAME` | Имя отправителя |
-| `RESEND_VERIFY_TTL_HOURS` | Время жизни ссылки подтверждения (часы) |
-| `RESEND_RESET_TTL_HOURS` | Время жизни ссылки сброса пароля (часы) |
+| Variable                 | Description                    |
+| :----------------------- | :----------------------------- |
+| `RESEND_ENABLED`         | Enable email sending (`true`/`false`) |
+| `RESEND_API_KEY`         | Resend API key                |
+| `RESEND_FROM_EMAIL`      | Sender email                  |
+| `RESEND_FROM_NAME`       | Sender name                   |
+| `RESEND_VERIFY_TTL_HOURS` | Verification link TTL (hours) |
+| `RESEND_RESET_TTL_HOURS`  | Password reset link TTL (hours) |
 
-### Grafana (Мониторинг)
+### Grafana
 
-| Переменная | Описание |
-| :--- | :--- |
-| `GRAFANA_ADMIN_USER` | Логин администратора Grafana |
-| `GRAFANA_ADMIN_PASSWORD` | Пароль администратора Grafana |
+| Variable                | Description           |
+| :---------------------- | :-------------------- |
+| `GRAFANA_ADMIN_USER`    | Grafana admin username |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password |
 
-## Процесс установки
+## Installation
 
-### 1. Подготовка окружения
+### 1. Prepare the environment
 
-Создайте файл `.env` на основе примера `.env.example` и заполните все необходимые переменные.
+Create a `.env` file from `.env.example` and set the required variables.
 
 ```bash
 cp .env.example .env
 ```
 
-### 2. Запуск в Docker Compose
+Edit `.env` and fill in all values required for your environment.
 
-Запуск всей инфраструктуры (Backend, DB, Redis, Monitoring, Vault):
+### 2. Start with Docker Compose
+
+Start the stack (backend, database, Redis, monitoring, and optionally Vault):
 
 ```bash
 docker compose --env-file .env -f deployment/docker/docker-compose.yml up --build -d
 ```
 
-### 3. Инициализация Vault (если используется)
+### 3. Initialize Vault (optional)
 
-Если настроено использование Vault, необходимо инициализировать его и добавить секреты (см. раздел "Важно" в документации Vault или логи приложения при старте).
+If Vault is used for secrets, initialize it and configure the required secrets. Refer to the Vault documentation or application logs for the exact steps.
 
-## Обслуживание
+## Maintenance
 
-### Обновление контейнеров
+### Update containers
 
 ```bash
 docker compose --env-file .env -f deployment/docker/docker-compose.yml pull
 docker compose --env-file .env -f deployment/docker/docker-compose.yml up -d
 ```
 
-### Проверка статуса
+### Check status
 
 ```bash
 docker compose --env-file .env -f deployment/docker/docker-compose.yml ps
 ```
 
-### Просмотр логов
+### View logs
 
 ```bash
 docker compose --env-file .env -f deployment/docker/docker-compose.yml logs -f backend

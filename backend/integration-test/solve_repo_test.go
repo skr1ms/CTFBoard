@@ -161,6 +161,40 @@ func TestSolveRepo_GetByUserID_Empty(t *testing.T) {
 	assert.Len(t, solves, 0)
 }
 
+// GetAll Tests
+
+func TestSolveRepo_GetAll_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	u1, t1 := f.CreateUserWithTeam(t, "get_all_1")
+	u2, t2 := f.CreateUserWithTeam(t, "get_all_2")
+	ch1 := f.CreateChallenge(t, "get_all_ch1", 100)
+	ch2 := f.CreateChallenge(t, "get_all_ch2", 200)
+
+	f.CreateSolve(t, u1.ID, t1.ID, ch1.ID)
+	f.CreateSolve(t, u2.ID, t2.ID, ch2.ID)
+
+	solves, err := f.SolveRepo.GetAll(ctx)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(solves), 2)
+}
+
+func TestSolveRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	solves, err := f.SolveRepo.GetAll(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, solves)
+}
+
 // GetScoreboard Tests
 
 func TestSolveRepo_GetScoreboard(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
@@ -158,4 +159,163 @@ func TestTeamRepo_Create_Solo(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, gotTeam.IsSolo)
 	assert.False(t, gotTeam.IsAutoCreated)
+}
+
+func TestTeamRepo_Ban_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "ban_success")
+
+	err := f.TeamRepo.Ban(ctx, team.ID, "rule violation")
+	require.NoError(t, err)
+
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.ID)
+	require.NoError(t, err)
+	assert.True(t, gotTeam.IsBanned)
+	assert.NotNil(t, gotTeam.BannedAt)
+	require.NotNil(t, gotTeam.BannedReason)
+	assert.Equal(t, "rule violation", *gotTeam.BannedReason)
+}
+
+func TestTeamRepo_Ban_Error_NotFound(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	err := f.TeamRepo.Ban(ctx, uuid.New(), "reason")
+	assert.Error(t, err)
+}
+
+func TestTeamRepo_Unban_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "unban_success")
+	err := f.TeamRepo.Ban(ctx, team.ID, "reason")
+	require.NoError(t, err)
+
+	err = f.TeamRepo.Unban(ctx, team.ID)
+	require.NoError(t, err)
+
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.ID)
+	require.NoError(t, err)
+	assert.False(t, gotTeam.IsBanned)
+	assert.Nil(t, gotTeam.BannedAt)
+	assert.Nil(t, gotTeam.BannedReason)
+}
+
+func TestTeamRepo_Unban_Error_NotFound(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	err := f.TeamRepo.Unban(ctx, uuid.New())
+	assert.Error(t, err)
+}
+
+func TestTeamRepo_SetHidden_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "set_hidden_success")
+
+	err := f.TeamRepo.SetHidden(ctx, team.ID, true)
+	require.NoError(t, err)
+
+	gotTeam, err := f.TeamRepo.GetByID(ctx, team.ID)
+	require.NoError(t, err)
+	assert.True(t, gotTeam.IsHidden)
+
+	err = f.TeamRepo.SetHidden(ctx, team.ID, false)
+	require.NoError(t, err)
+
+	gotTeam, err = f.TeamRepo.GetByID(ctx, team.ID)
+	require.NoError(t, err)
+	assert.False(t, gotTeam.IsHidden)
+}
+
+func TestTeamRepo_SetHidden_Error_NotFound(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	err := f.TeamRepo.SetHidden(ctx, uuid.New(), true)
+	assert.Error(t, err)
+}
+
+func TestTeamRepo_HardDeleteTeams_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "hard_del_success")
+	err := f.TeamRepo.Delete(ctx, team.ID)
+	require.NoError(t, err)
+
+	cutoff := time.Now().Add(-1 * time.Hour)
+	f.BackdateTeamDeletedAt(t, team.ID, cutoff)
+
+	err = f.TeamRepo.HardDeleteTeams(ctx, time.Now().Add(-30*time.Minute))
+	require.NoError(t, err)
+
+	_, err = f.TeamRepo.GetByID(ctx, team.ID)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+func TestTeamRepo_HardDeleteTeams_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := f.TeamRepo.HardDeleteTeams(ctx, time.Now())
+	assert.Error(t, err)
+}
+
+func TestTeamRepo_GetAll_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team1 := f.CreateUserWithTeam(t, "get_all_1")
+	_, team2 := f.CreateUserWithTeam(t, "get_all_2")
+
+	teams, err := f.TeamRepo.GetAll(ctx)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(teams), 2)
+
+	ids := make(map[uuid.UUID]bool)
+	for _, tm := range teams {
+		ids[tm.ID] = true
+	}
+	assert.True(t, ids[team1.ID])
+	assert.True(t, ids[team2.ID])
+}
+
+func TestTeamRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	teams, err := f.TeamRepo.GetAll(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, teams)
 }

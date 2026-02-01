@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-chi/render"
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -21,9 +20,7 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromScoreboardList(entries)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromScoreboardList(entries))
 }
 
 // Get first blood
@@ -38,8 +35,7 @@ func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Reques
 	entry, err := h.solveUC.GetFirstBlood(r.Context(), challengeuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrSolveNotFound) {
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, map[string]string{"error": "no solves yet"})
+			httputil.RenderError(w, r, http.StatusNotFound, "no solves yet")
 			return
 		}
 		h.logger.WithError(err).Error("restapi - v1 - GetChallengesIDFirstBlood")
@@ -47,7 +43,5 @@ func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	res := response.FromFirstBlood(entry)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromFirstBlood(entry))
 }

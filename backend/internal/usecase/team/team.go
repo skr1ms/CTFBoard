@@ -22,7 +22,12 @@ type TeamUseCase struct {
 	maxTeamSize int
 }
 
-func NewTeamUseCase(teamRepo repo.TeamRepository, userRepo repo.UserRepository, compRepo repo.CompetitionRepository, txRepo repo.TxRepository) *TeamUseCase {
+func NewTeamUseCase(
+	teamRepo repo.TeamRepository,
+	userRepo repo.UserRepository,
+	compRepo repo.CompetitionRepository,
+	txRepo repo.TxRepository,
+) *TeamUseCase {
 	return &TeamUseCase{
 		teamRepo:    teamRepo,
 		userRepo:    userRepo,
@@ -32,7 +37,13 @@ func NewTeamUseCase(teamRepo repo.TeamRepository, userRepo repo.UserRepository, 
 	}
 }
 
-func NewTeamUseCaseWithSize(teamRepo repo.TeamRepository, userRepo repo.UserRepository, compRepo repo.CompetitionRepository, txRepo repo.TxRepository, maxTeamSize int) *TeamUseCase {
+func NewTeamUseCaseWithSize(
+	teamRepo repo.TeamRepository,
+	userRepo repo.UserRepository,
+	compRepo repo.CompetitionRepository,
+	txRepo repo.TxRepository,
+	maxTeamSize int,
+) *TeamUseCase {
 	return &TeamUseCase{
 		teamRepo:    teamRepo,
 		userRepo:    userRepo,
@@ -46,7 +57,7 @@ func NewTeamUseCaseWithSize(teamRepo repo.TeamRepository, userRepo repo.UserRepo
 func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*entity.Team, error) {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("GetCompetition: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - Create - Get: %w", err)
 	}
 
 	mode := entity.CompetitionMode(comp.Mode)
@@ -122,7 +133,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.U
 func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("GetCompetition: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - Join - Get: %w", err)
 	}
 	if !comp.AllowTeamSwitch {
 		return nil, entityError.ErrRosterFrozen
@@ -191,13 +202,13 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, 
 func (uc *TeamUseCase) Leave(ctx context.Context, userID uuid.UUID) error {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return fmt.Errorf("GetCompetition: %w", err)
+		return fmt.Errorf("TeamUseCase - Leave - Get: %w", err)
 	}
 	if !comp.AllowTeamSwitch {
 		return entityError.ErrRosterFrozen
 	}
 
-	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, userID); err != nil {
 			return fmt.Errorf("LockUserTx: %w", err)
 		}
@@ -248,13 +259,17 @@ func (uc *TeamUseCase) Leave(ctx context.Context, userID uuid.UUID) error {
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - Leave - Transaction: %w", err)
+	}
+	return nil
 }
 
 //nolint:gocognit,gocyclo
 func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainID, newCaptainID uuid.UUID) error {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return fmt.Errorf("GetCompetition: %w", err)
+		return fmt.Errorf("TeamUseCase - TransferCaptain - Get: %w", err)
 	}
 	if !comp.AllowTeamSwitch {
 		return entityError.ErrRosterFrozen
@@ -264,7 +279,7 @@ func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainID, newCaptai
 		return entityError.ErrCannotTransferToSelf
 	}
 
-	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, captainID); err != nil {
 			return fmt.Errorf("LockUserTx captain: %w", err)
 		}
@@ -319,6 +334,10 @@ func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainID, newCaptai
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - TransferCaptain - Transaction: %w", err)
+	}
+	return nil
 }
 
 func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Team, error) {
@@ -364,7 +383,7 @@ func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]
 func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("GetCompetition: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeam - Get: %w", err)
 	}
 
 	mode := entity.CompetitionMode(comp.Mode)
@@ -487,13 +506,13 @@ func (uc *TeamUseCase) shouldCleanupSoloTeam(user *entity.User, members []*entit
 func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) error {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return fmt.Errorf("GetCompetition: %w", err)
+		return fmt.Errorf("TeamUseCase - DisbandTeam - Get: %w", err)
 	}
 	if !comp.AllowTeamSwitch {
 		return entityError.ErrRosterFrozen
 	}
 
-	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, captainID); err != nil {
 			return fmt.Errorf("LockUserTx: %w", err)
 		}
@@ -549,13 +568,17 @@ func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) err
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - DisbandTeam - Transaction: %w", err)
+	}
+	return nil
 }
 
 //nolint:gocognit,gocyclo
 func (uc *TeamUseCase) KickMember(ctx context.Context, captainID, targetUserID uuid.UUID) error {
 	comp, err := uc.compRepo.Get(ctx)
 	if err != nil {
-		return fmt.Errorf("GetCompetition: %w", err)
+		return fmt.Errorf("TeamUseCase - KickMember - Get: %w", err)
 	}
 	if !comp.AllowTeamSwitch {
 		return entityError.ErrRosterFrozen
@@ -565,7 +588,7 @@ func (uc *TeamUseCase) KickMember(ctx context.Context, captainID, targetUserID u
 		return entityError.ErrCannotLeaveAsOnlyMember
 	}
 
-	return uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := uc.txRepo.LockUserTx(ctx, tx, captainID); err != nil {
 			return fmt.Errorf("LockUserTx captain: %w", err)
 		}
@@ -619,4 +642,47 @@ func (uc *TeamUseCase) KickMember(ctx context.Context, captainID, targetUserID u
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - KickMember - Transaction: %w", err)
+	}
+	return nil
+}
+
+func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason string) error {
+	_, err := uc.teamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - BanTeam - GetByID: %w", err)
+	}
+
+	if err := uc.teamRepo.Ban(ctx, teamID, reason); err != nil {
+		return fmt.Errorf("TeamUseCase - BanTeam - Ban: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *TeamUseCase) UnbanTeam(ctx context.Context, teamID uuid.UUID) error {
+	_, err := uc.teamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - UnbanTeam - GetByID: %w", err)
+	}
+
+	if err := uc.teamRepo.Unban(ctx, teamID); err != nil {
+		return fmt.Errorf("TeamUseCase - UnbanTeam - Unban: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
+	_, err := uc.teamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - SetHidden - GetByID: %w", err)
+	}
+
+	if err := uc.teamRepo.SetHidden(ctx, teamID, hidden); err != nil {
+		return fmt.Errorf("TeamUseCase - SetHidden - SetHidden: %w", err)
+	}
+
+	return nil
 }

@@ -15,6 +15,17 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
+var solveColumns = []string{"id", "user_id", "team_id", "challenge_id", "solved_at"}
+
+func scanSolve(row rowScanner) (*entity.Solve, error) {
+	var s entity.Solve
+	err := row.Scan(&s.ID, &s.UserID, &s.TeamID, &s.ChallengeID, &s.SolvedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
 type SolveRepo struct {
 	pool *pgxpool.Pool
 }
@@ -28,7 +39,7 @@ func (r *SolveRepo) Create(ctx context.Context, s *entity.Solve) error {
 	s.SolvedAt = time.Now()
 
 	query := squirrel.Insert("solves").
-		Columns("id", "user_id", "team_id", "challenge_id", "solved_at").
+		Columns(solveColumns...).
 		Values(s.ID, s.UserID, s.TeamID, s.ChallengeID, s.SolvedAt).
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -46,7 +57,7 @@ func (r *SolveRepo) Create(ctx context.Context, s *entity.Solve) error {
 }
 
 func (r *SolveRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Solve, error) {
-	query := squirrel.Select("id", "user_id", "team_id", "challenge_id", "solved_at").
+	query := squirrel.Select(solveColumns...).
 		From("solves").
 		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -56,26 +67,18 @@ func (r *SolveRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Solve, e
 		return nil, fmt.Errorf("SolveRepo - GetByID - BuildQuery: %w", err)
 	}
 
-	var solve entity.Solve
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&solve.ID,
-		&solve.UserID,
-		&solve.TeamID,
-		&solve.ChallengeID,
-		&solve.SolvedAt,
-	)
+	solve, err := scanSolve(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetByID - Scan: %w", err)
 	}
-
-	return &solve, nil
+	return solve, nil
 }
 
 func (r *SolveRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*entity.Solve, error) {
-	query := squirrel.Select("id", "user_id", "team_id", "challenge_id", "solved_at").
+	query := squirrel.Select(solveColumns...).
 		From("solves").
 		Where(squirrel.Eq{"team_id": teamID, "challenge_id": challengeID}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -85,26 +88,18 @@ func (r *SolveRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challenge
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallenge - BuildQuery: %w", err)
 	}
 
-	var solve entity.Solve
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&solve.ID,
-		&solve.UserID,
-		&solve.TeamID,
-		&solve.ChallengeID,
-		&solve.SolvedAt,
-	)
+	solve, err := scanSolve(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallenge - Scan: %w", err)
 	}
-
-	return &solve, nil
+	return solve, nil
 }
 
 func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Solve, error) {
-	query := squirrel.Select("id", "user_id", "team_id", "challenge_id", "solved_at").
+	query := squirrel.Select(solveColumns...).
 		From("solves").
 		Where(squirrel.Eq{"user_id": userID}).
 		OrderBy("solved_at DESC").
@@ -123,17 +118,11 @@ func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entit
 
 	solves := make([]*entity.Solve, 0)
 	for rows.Next() {
-		var solve entity.Solve
-		if err := rows.Scan(
-			&solve.ID,
-			&solve.UserID,
-			&solve.TeamID,
-			&solve.ChallengeID,
-			&solve.SolvedAt,
-		); err != nil {
+		solve, err := scanSolve(rows)
+		if err != nil {
 			return nil, fmt.Errorf("SolveRepo - GetByUserID - Scan: %w", err)
 		}
-		solves = append(solves, &solve)
+		solves = append(solves, solve)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -163,6 +152,9 @@ func (r *SolveRepo) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEntry,
 		From("teams t").
 		LeftJoin(fmt.Sprintf("(%s) solve_points ON solve_points.team_id = t.id", solveSQL), solveArgs...).
 		LeftJoin(fmt.Sprintf("(%s) award_points ON award_points.team_id = t.id", awardSQL), awardArgs...).
+		Where(squirrel.Eq{"t.is_banned": false}).
+		Where(squirrel.Eq{"t.is_hidden": false}).
+		Where(squirrel.Eq{"t.deleted_at": nil}).
 		OrderBy("points DESC", "COALESCE(solve_points.last_solved, '9999-12-31') ASC").
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -254,6 +246,7 @@ func (r *SolveRepo) GetScoreboardFrozen(ctx context.Context, freezeTime time.Tim
 			WHERE created_at <= $2
 			GROUP BY team_id
 		) award_points ON award_points.team_id = t.id
+		WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 		ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31') ASC
 	`
 
@@ -356,4 +349,37 @@ func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*
 	}
 
 	return &entry, nil
+}
+
+func (r *SolveRepo) GetAll(ctx context.Context) ([]*entity.Solve, error) {
+	query := squirrel.Select(solveColumns...).
+		From("solves").
+		OrderBy("solved_at ASC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetAll - BuildQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetAll - Query: %w", err)
+	}
+	defer rows.Close()
+
+	var solves []*entity.Solve
+	for rows.Next() {
+		solve, err := scanSolve(rows)
+		if err != nil {
+			return nil, fmt.Errorf("SolveRepo - GetAll - Scan: %w", err)
+		}
+		solves = append(solves, solve)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetAll - Rows: %w", err)
+	}
+
+	return solves, nil
 }

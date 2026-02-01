@@ -39,9 +39,7 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromAward(award)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromAward(award))
 }
 
 // Get awards by team
@@ -60,7 +58,5 @@ func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	res := response.FromAwardList(awards)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromAwardList(awards))
 }

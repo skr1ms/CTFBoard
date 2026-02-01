@@ -111,3 +111,68 @@ func TestStatisticsUseCase_GetScoreboardHistory_Success(t *testing.T) {
 	assert.Len(t, result, 1)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
+
+func TestStatisticsUseCase_GetChallengeStats_Error(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:challenges").SetErr(redis.Nil)
+	deps.statsRepo.On("GetChallengeStats", mock.Anything).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetChallengeStats(context.Background())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetScoreboardHistory_Error(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:history:10").SetErr(redis.Nil)
+	deps.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetScoreboardHistory(context.Background(), 10)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetScoreboardGraph_Success(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	history := []*entity.ScoreboardHistoryEntry{
+		{TeamID: uuid.New(), TeamName: "Team1", Points: 100, Timestamp: time.Now()},
+	}
+
+	redisClient.ExpectGet("stats:graph:10").SetErr(redis.Nil)
+	deps.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(history, nil)
+	redisClient.Regexp().ExpectSet("stats:graph:10", `.*`, 30*time.Second).SetVal("OK")
+
+	result, err := uc.GetScoreboardGraph(context.Background(), 10)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetScoreboardGraph_Error(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:graph:10").SetErr(redis.Nil)
+	deps.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetScoreboardGraph(context.Background(), 10)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}

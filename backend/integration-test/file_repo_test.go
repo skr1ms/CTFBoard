@@ -95,6 +95,40 @@ func TestFileRepo_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+// GetAll Tests
+
+func TestFileRepo_GetAll_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	ch1 := f.CreateChallenge(t, "getall_1", 100)
+	ch2 := f.CreateChallenge(t, "getall_2", 200)
+
+	f1 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
+	f2 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
+	require.NoError(t, f.FileRepo.Create(ctx, f1))
+	require.NoError(t, f.FileRepo.Create(ctx, f2))
+
+	files, err := f.FileRepo.GetAll(ctx)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(files), 2)
+}
+
+func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	files, err := f.FileRepo.GetAll(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, files)
+}
+
 // GetByChallengeID Tests
 
 func TestFileRepo_GetByChallengeID(t *testing.T) {

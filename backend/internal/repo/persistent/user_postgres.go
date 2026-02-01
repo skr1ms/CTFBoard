@@ -24,10 +24,6 @@ func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
 	return &UserRepo{pool: pool}
 }
 
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
 func scanUser(row rowScanner) (*entity.User, error) {
 	var user entity.User
 	err := row.Scan(
@@ -161,6 +157,37 @@ func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity
 		return nil, fmt.Errorf("UserRepo - GetByTeamID - CollectRows: %w", err)
 	}
 
+	return users, nil
+}
+
+func (r *UserRepo) GetAll(ctx context.Context) ([]*entity.User, error) {
+	query := squirrel.Select(userColumns...).
+		From("users").
+		OrderBy("created_at ASC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("UserRepo - GetAll - BuildQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("UserRepo - GetAll - Query: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*entity.User
+	for rows.Next() {
+		user, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("UserRepo - GetAll - Scan: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("UserRepo - GetAll - Rows: %w", err)
+	}
 	return users, nil
 }
 

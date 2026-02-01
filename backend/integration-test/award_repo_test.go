@@ -10,6 +10,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// GetAll Tests
+
+func TestAwardRepo_GetAll_Success(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	admin := f.CreateUser(t, "admin_getall")
+	_, team1 := f.CreateUserWithTeam(t, "team_getall_1")
+	_, team2 := f.CreateUserWithTeam(t, "team_getall_2")
+
+	a1 := &entity.Award{TeamID: team1.ID, Value: 10, Description: "A1", CreatedBy: &admin.ID}
+	a2 := &entity.Award{TeamID: team2.ID, Value: 20, Description: "A2", CreatedBy: &admin.ID}
+	require.NoError(t, f.AwardRepo.Create(ctx, a1))
+	require.NoError(t, f.AwardRepo.Create(ctx, a2))
+
+	awards, err := f.AwardRepo.GetAll(ctx)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(awards), 2)
+}
+
+func TestAwardRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	awards, err := f.AwardRepo.GetAll(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, awards)
+}
+
 func TestAwardRepo_Create(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)

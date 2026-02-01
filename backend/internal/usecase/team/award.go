@@ -5,26 +5,33 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
 type AwardUseCase struct {
-	repo  repo.AwardRepository
-	redis *redis.Client
+	awardRepo repo.AwardRepository
+	txRepo    repo.TxRepository
+	redis     *redis.Client
 }
 
-func NewAwardUseCase(repo repo.AwardRepository, redis *redis.Client) *AwardUseCase {
+func NewAwardUseCase(
+	awardRepo repo.AwardRepository,
+	txRepo repo.TxRepository,
+	redis *redis.Client,
+) *AwardUseCase {
 	return &AwardUseCase{
-		repo:  repo,
-		redis: redis,
+		awardRepo: awardRepo,
+		txRepo:    txRepo,
+		redis:     redis,
 	}
 }
 
 func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*entity.Award, error) {
 	if value == 0 {
-		return nil, fmt.Errorf("value cannot be 0")
+		return nil, fmt.Errorf("AwardUseCase - Create: value cannot be 0")
 	}
 
 	award := &entity.Award{
@@ -34,7 +41,9 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		CreatedBy:   &createdBy,
 	}
 
-	if err := uc.repo.Create(ctx, award); err != nil {
+	if err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		return uc.txRepo.CreateAwardTx(ctx, tx, award)
+	}); err != nil {
 		return nil, fmt.Errorf("AwardUseCase - Create: %w", err)
 	}
 
@@ -45,7 +54,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 }
 
 func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
-	awards, err := uc.repo.GetByTeamID(ctx, teamID)
+	awards, err := uc.awardRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetByTeamID: %w", err)
 	}

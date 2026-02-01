@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +17,18 @@ func TestAwardUseCase_Create(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
-		h.Repo().On("Create", ctx, mock.MatchedBy(func(a *entity.Award) bool {
+		h.TxRepo().On("RunTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			ctx, ok := args.Get(0).(context.Context)
+			if !ok {
+				return
+			}
+			fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+			if !ok {
+				return
+			}
+			assert.NoError(t, fn(ctx, nil))
+		}).Return(nil).Once()
+		h.TxRepo().On("CreateAwardTx", mock.Anything, mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
 			return a.TeamID == h.TeamID() && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == h.AdminID()
 		})).Return(nil).Once()
 
@@ -41,7 +53,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 	})
 
 	t.Run("RepoError", func(t *testing.T) {
-		h.Repo().On("Create", ctx, mock.Anything).Return(errors.New("db error")).Once()
+		h.TxRepo().On("RunTransaction", mock.Anything, mock.Anything).Return(errors.New("db error")).Once()
 
 		award, err := h.CreateUseCase().Create(ctx, h.TeamID(), 50, "Error", h.AdminID())
 

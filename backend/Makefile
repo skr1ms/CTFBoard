@@ -52,7 +52,9 @@ install-tools: ## Install development tools
 generate-openapi: ## Generate OpenAPI code from spec
 	@echo "Generating OpenAPI code..."
 	@mkdir -p internal/openapi
-	@oapi-codegen -config oapi-codegen.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config oapi-codegen/oapi-codegen-types.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config oapi-codegen/oapi-codegen-server.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config oapi-codegen/oapi-codegen-spec.yml internal/openapi/openapi.yaml
 	@echo "OpenAPI code generated"
 
 generate-mocks: ## Generate all mocks for usecase and pkg packages
@@ -88,6 +90,11 @@ build: generate-openapi ## Build the binary
 	@echo "Building binary..."
 	@go build -o bin/backend cmd/app/main.go
 	@echo "Binary built: bin/backend"
+
+build-cleanup: ## Build cleanup binary (for CI: GOOS=linux GOARCH=amd64)
+	@echo "Building cleanup binary..."
+	@GOOS=linux GOARCH=amd64 go build -o bin/ctfboard-cleanup ./cmd/cleanup
+	@echo "Binary built: bin/ctfboard-cleanup"
 
 run: generate-openapi ## Run the application locally
 	@echo "Running application..."
@@ -192,9 +199,11 @@ test-coverage: ## Generate coverage report (all packages, no race)
 
 # QUALITY ==============================================================================================================
 
-lint: ## Run golangci-lint
+LINT_TIMEOUT ?= 5m
+
+lint: ## Run golangci-lint (LINT_TIMEOUT for CI, e.g. 10m)
 	@echo "Running linter..."
-	@golangci-lint run ./...
+	@golangci-lint run -v --timeout $(LINT_TIMEOUT) ./...
 
 deps-audit: ## Check dependencies for vulnerabilities
 	@echo "Checking dependencies..."

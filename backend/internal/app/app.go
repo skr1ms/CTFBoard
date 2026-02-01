@@ -25,6 +25,7 @@ import (
 	challenge "github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	competition "github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	email "github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	team "github.com/skr1ms/CTFBoard/internal/usecase/team"
 	user "github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
@@ -72,65 +73,6 @@ func Run(cfg *config.Config, l logger.Logger) {
 		return
 	}
 
-	userRepo := persistent.NewUserRepo(pool)
-	challengeRepo := persistent.NewChallengeRepo(pool)
-	solveRepo := persistent.NewSolveRepo(pool)
-	teamRepo := persistent.NewTeamRepo(pool)
-	competitionRepo := persistent.NewCompetitionRepo(pool)
-	hintRepo := persistent.NewHintRepo(pool)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(pool)
-	awardRepo := persistent.NewAwardRepo(pool)
-	auditLogRepo := persistent.NewAuditLogRepo(pool)
-	statsRepo := persistent.NewStatisticsRepository(pool)
-	txRepo := persistent.NewTxRepo(pool)
-
-	// Seed default admin if configured
-	//nolint:staticcheck // SA1019: httputil.ReverseProxy.ErrorLog is deprecated but still needed for compatibility
-	adminUsername := cfg.Admin.Username
-	adminEmail := cfg.Email
-	adminPassword := cfg.Admin.Password
-
-	if adminUsername != "" && adminEmail != "" && adminPassword != "" {
-		if err := seed.CreateDefaultAdmin(context.Background(), *userRepo, adminUsername, adminEmail, adminPassword, l); err != nil {
-			l.WithError(err).Error("Failed to seed default admin")
-		}
-	} else {
-		l.Info("Admin credentials not provided, skipping default admin creation")
-	}
-
-	validator := validator.New()
-
-	jwtService := jwt.NewJWTService(
-		cfg.AccessSecret,
-		cfg.RefreshSecret,
-		cfg.AccessTTL,
-		cfg.RefreshTTL,
-	)
-
-	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
-	go wsHub.Run()
-	go wsHub.SubscribeToRedis(context.Background())
-
-	var cryptoService *crypto.CryptoService
-	if cfg.FlagEncryptionKey != "" {
-		c, err := crypto.NewCryptoService(cfg.FlagEncryptionKey)
-		if err != nil {
-			l.WithError(err).Error("failed to initialize crypto service")
-			return
-		}
-		cryptoService = c
-	} else {
-		l.Warn("FlagEncryptionKey not provided, regex challenges will fail")
-	}
-
-	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
-	teamUC := team.NewTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo)
-	awardUC := team.NewAwardUseCase(awardRepo, redisClient)
-	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
-	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
-	competitionUC := competition.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
-	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
-	statsUC := competition.NewStatisticsUseCase(statsRepo, redisClient)
 	var storageProvider storage.Provider
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
@@ -157,40 +99,75 @@ func Run(cfg *config.Config, l logger.Logger) {
 			l.WithError(err).Error("failed to create filesystem storage provider")
 			return
 		}
-
 		defer func() {
 			if err := fsProvider.Close(); err != nil {
 				l.WithError(err).Error("failed to close filesystem provider")
 			}
 		}()
-
 		storageProvider = fsProvider
 		l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})
 	}
 
+	userRepo := persistent.NewUserRepo(pool)
+	challengeRepo := persistent.NewChallengeRepo(pool)
+	solveRepo := persistent.NewSolveRepo(pool)
+	teamRepo := persistent.NewTeamRepo(pool)
+	competitionRepo := persistent.NewCompetitionRepo(pool)
+	hintRepo := persistent.NewHintRepo(pool)
+	hintUnlockRepo := persistent.NewHintUnlockRepo(pool)
+	awardRepo := persistent.NewAwardRepo(pool)
+	auditLogRepo := persistent.NewAuditLogRepo(pool)
+	statsRepo := persistent.NewStatisticsRepository(pool)
 	fileRepo := persistent.NewFileRepository(pool)
-	fileUC := challenge.NewFileUseCase(fileRepo, storageProvider, cfg.PresignedExpiry)
-
+	txRepo := persistent.NewTxRepo(pool)
+	backupRepo := persistent.NewBackupRepo(pool)
+	appSettingsRepo := persistent.NewAppSettingsRepo(pool)
 	verificationTokenRepo := persistent.NewVerificationTokenRepo(pool)
-	resendMailer := mailer.New(mailer.Config{
-		APIKey:    cfg.APIKey,
-		FromEmail: cfg.FromEmail,
-		FromName:  cfg.FromName,
-	})
 
+	adminUsername, adminEmail, adminPassword := cfg.Admin.Username, cfg.Email, cfg.Admin.Password //nolint:staticcheck
+	if adminUsername != "" && adminEmail != "" && adminPassword != "" {
+		if err := seed.CreateDefaultAdmin(context.Background(), *userRepo, adminUsername, adminEmail, adminPassword, l); err != nil {
+			l.WithError(err).Error("Failed to seed default admin")
+		}
+	} else {
+		l.Info("Admin credentials not provided, skipping default admin creation")
+	}
+
+	validator := validator.New()
+	jwtService := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL)
+	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
+	go wsHub.Run()
+	go wsHub.SubscribeToRedis(context.Background())
+
+	var cryptoService *crypto.CryptoService
+	if cfg.FlagEncryptionKey != "" {
+		c, err := crypto.NewCryptoService(cfg.FlagEncryptionKey)
+		if err != nil {
+			l.WithError(err).Error("failed to initialize crypto service")
+			return
+		}
+		cryptoService = c
+	} else {
+		l.Warn("FlagEncryptionKey not provided, regex challenges will fail")
+	}
+
+	resendMailer := mailer.New(mailer.Config{APIKey: cfg.APIKey, FromEmail: cfg.FromEmail, FromName: cfg.FromName})
 	asyncMailer := mailer.NewAsyncMailer(resendMailer, 100, 2, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
-	emailUC := email.NewEmailUseCase(
-		userRepo,
-		verificationTokenRepo,
-		asyncMailer,
-		cfg.VerifyTTL,
-		cfg.ResetTTL,
-		cfg.FrontendURL,
-		cfg.Enabled,
-	)
+	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
+	teamUC := team.NewTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo)
+	awardUC := team.NewAwardUseCase(awardRepo, txRepo, redisClient)
+	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, redisClient, wsHub, auditLogRepo, cryptoService)
+	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redisClient)
+	competitionUC := competition.NewCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
+	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
+	statsUC := competition.NewStatisticsUseCase(statsRepo, redisClient)
+	fileUC := challenge.NewFileUseCase(fileRepo, storageProvider, cfg.PresignedExpiry)
+	backupUC := competition.NewBackupUseCase(competitionRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepo, backupRepo, storageProvider, txRepo, l)
+	settingsUC := settings.NewSettingsUseCase(appSettingsRepo, auditLogRepo, redisClient)
+	emailUC := email.NewEmailUseCase(userRepo, verificationTokenRepo, asyncMailer, cfg.VerifyTTL, cfg.ResetTTL, cfg.FrontendURL, cfg.Enabled)
 
 	router := chi.NewRouter()
 
@@ -260,6 +237,8 @@ func Run(cfg *config.Config, l logger.Logger) {
 			fileUC,
 			awardUC,
 			statsUC,
+			backupUC,
+			settingsUC,
 			jwtService,
 			redisClient,
 			wsCtrl,

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
@@ -23,14 +25,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := openapi.EntityGeneralStats{
-		UserCount:      ptr(stats.UserCount),
-		TeamCount:      ptr(stats.TeamCount),
-		ChallengeCount: ptr(stats.ChallengeCount),
-		SolveCount:     ptr(stats.SolveCount),
-	}
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromGeneralStats(stats))
 }
 
 // Get challenge statistics
@@ -43,18 +38,24 @@ func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	res := make([]openapi.EntityChallengeStats, len(stats))
-	for i, s := range stats {
-		res[i] = openapi.EntityChallengeStats{
-			ID:         ptr(s.ID.String()),
-			Title:      ptr(s.Title),
-			Points:     ptr(s.Points),
-			SolveCount: ptr(s.SolveCount),
-			Category:   ptr(s.Category),
-		}
+	httputil.RenderOK(w, r, response.FromChallengeStatsList(stats))
+}
+
+// Get challenge detail statistics
+// (GET /statistics/challenges/{id})
+func (h *Server) GetStatisticsChallengesId(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	stats, err := h.statsUC.GetChallengeDetailStats(r.Context(), id.String())
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsChallengesId")
+		httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get challenge detail stats")
+		return
+	}
+	if stats == nil {
+		httputil.RenderError(w, r, http.StatusNotFound, "challenge not found")
+		return
 	}
 
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromChallengeDetailStats(stats))
 }
 
 // Get scoreboard history
@@ -77,15 +78,26 @@ func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	res := make([]openapi.EntityScoreboardHistoryEntry, len(stats))
-	for i, s := range stats {
-		res[i] = openapi.EntityScoreboardHistoryEntry{
-			TeamID:    ptr(s.TeamID.String()),
-			TeamName:  ptr(s.TeamName),
-			Points:    ptr(s.Points),
-			Timestamp: ptr(s.Timestamp.String()),
+	httputil.RenderOK(w, r, response.FromScoreboardHistoryList(stats))
+}
+
+// Get scoreboard graph
+// (GET /scoreboard/graph)
+func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params openapi.GetScoreboardGraphParams) {
+	topN := defaultScoreboardHistoryLimit
+	if params.Top != nil && *params.Top > 0 {
+		topN = *params.Top
+		if topN > maxScoreboardHistoryLimit {
+			topN = maxScoreboardHistoryLimit
 		}
 	}
 
-	httputil.RenderOK(w, r, res)
+	graph, err := h.statsUC.GetScoreboardGraph(r.Context(), topN)
+	if err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - GetScoreboardGraph")
+		httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get scoreboard graph")
+		return
+	}
+
+	httputil.RenderOK(w, r, response.FromScoreboardGraph(graph))
 }

@@ -14,6 +14,37 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
+var challengeColumns = []string{
+	"id", "title", "description", "category", "points", "initial_value", "min_value", "decay",
+	"solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex",
+}
+
+func scanChallenge(row rowScanner) (*entity.Challenge, error) {
+	var c entity.Challenge
+	err := row.Scan(
+		&c.ID, &c.Title, &c.Description, &c.Category, &c.Points, &c.InitialValue, &c.MinValue, &c.Decay,
+		&c.SolveCount, &c.FlagHash, &c.IsHidden, &c.IsRegex, &c.IsCaseInsensitive, &c.FlagRegex, &c.FlagFormatRegex,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func scanChallengeWithSolved(row rowScanner) (*entity.Challenge, int, error) {
+	var c entity.Challenge
+	var solved int
+	err := row.Scan(
+		&c.ID, &c.Title, &c.Description, &c.Category, &c.Points, &c.InitialValue, &c.MinValue, &c.Decay,
+		&c.SolveCount, &c.FlagHash, &c.IsHidden, &c.IsRegex, &c.IsCaseInsensitive, &c.FlagRegex, &c.FlagFormatRegex,
+		&solved,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	return &c, solved, nil
+}
+
 type ChallengeRepo struct {
 	pool *pgxpool.Pool
 }
@@ -26,8 +57,8 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
 	c.ID = uuid.New()
 
 	query := squirrel.Insert("challenges").
-		Columns("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex").
-		Values(c.ID, c.Title, c.Description, c.Category, c.Points, c.InitialValue, c.MinValue, c.Decay, c.SolveCount, c.FlagHash, c.IsHidden, c.IsRegex, c.IsCaseInsensitive, c.FlagRegex).
+		Columns(challengeColumns...).
+		Values(c.ID, c.Title, c.Description, c.Category, c.Points, c.InitialValue, c.MinValue, c.Decay, c.SolveCount, c.FlagHash, c.IsHidden, c.IsRegex, c.IsCaseInsensitive, c.FlagRegex, c.FlagFormatRegex).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sqlQuery, args, err := query.ToSql()
@@ -44,7 +75,7 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
 }
 
 func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
-	query := squirrel.Select("id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex").
+	query := squirrel.Select(challengeColumns...).
 		From("challenges").
 		Where(squirrel.Eq{"id": ID}).
 		PlaceholderFormat(squirrel.Dollar)
@@ -54,49 +85,35 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Chal
 		return nil, fmt.Errorf("ChallengeRepo - GetByID - BuildQuery: %w", err)
 	}
 
-	var challenge entity.Challenge
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(
-		&challenge.ID,
-		&challenge.Title,
-		&challenge.Description,
-		&challenge.Category,
-		&challenge.Points,
-		&challenge.InitialValue,
-		&challenge.MinValue,
-		&challenge.Decay,
-		&challenge.SolveCount,
-		&challenge.FlagHash,
-		&challenge.IsHidden,
-		&challenge.IsRegex,
-		&challenge.IsCaseInsensitive,
-		&challenge.FlagRegex,
-	)
+	challenge, err := scanChallenge(r.pool.QueryRow(ctx, sqlQuery, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrChallengeNotFound
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetByID - Scan: %w", err)
 	}
+	return challenge, nil
+}
 
-	return &challenge, nil
+func challengeColumnsC() []string {
+	out := make([]string, len(challengeColumns))
+	for i, col := range challengeColumns {
+		out[i] = "c." + col
+	}
+	return out
 }
 
 func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
 	var query squirrel.SelectBuilder
+	colsC := challengeColumnsC()
 
 	if teamID != nil {
-		query = squirrel.Select(
-			"c.id", "c.title", "c.description", "c.category", "c.points", "c.initial_value", "c.min_value", "c.decay", "c.solve_count", "c.flag_hash", "c.is_hidden", "c.is_regex", "c.is_case_insensitive", "c.flag_regex",
-			"CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as solved",
-		).
+		query = squirrel.Select(append(colsC, "CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as solved")...).
 			From("challenges c").
 			LeftJoin("solves s ON c.id = s.challenge_id AND s.team_id = ?", *teamID).
 			Where(squirrel.Eq{"c.is_hidden": false})
 	} else {
-		query = squirrel.Select(
-			"c.id", "c.title", "c.description", "c.category", "c.points", "c.initial_value", "c.min_value", "c.decay", "c.solve_count", "c.flag_hash", "c.is_hidden", "c.is_regex", "c.is_case_insensitive", "c.flag_regex",
-			"0 as solved",
-		).
+		query = squirrel.Select(append(colsC, "0 as solved")...).
 			From("challenges c").
 			Where(squirrel.Eq{"c.is_hidden": false})
 	}
@@ -114,29 +131,12 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.
 
 	result := make([]*repo.ChallengeWithSolved, 0)
 	for rows.Next() {
-		var challenge entity.Challenge
-		var solved int
-		if err := rows.Scan(
-			&challenge.ID,
-			&challenge.Title,
-			&challenge.Description,
-			&challenge.Category,
-			&challenge.Points,
-			&challenge.InitialValue,
-			&challenge.MinValue,
-			&challenge.Decay,
-			&challenge.SolveCount,
-			&challenge.FlagHash,
-			&challenge.IsHidden,
-			&challenge.IsRegex,
-			&challenge.IsCaseInsensitive,
-			&challenge.FlagRegex,
-			&solved,
-		); err != nil {
+		challenge, solved, err := scanChallengeWithSolved(rows)
+		if err != nil {
 			return nil, fmt.Errorf("ChallengeRepo - GetAll - Scan: %w", err)
 		}
 		result = append(result, &repo.ChallengeWithSolved{
-			Challenge: &challenge,
+			Challenge: challenge,
 			Solved:    solved == 1,
 		})
 	}
@@ -162,6 +162,7 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
 		Set("is_regex", c.IsRegex).
 		Set("is_case_insensitive", c.IsCaseInsensitive).
 		Set("flag_regex", c.FlagRegex).
+		Set("flag_format_regex", c.FlagFormatRegex).
 		Where(squirrel.Eq{"id": c.ID}).
 		PlaceholderFormat(squirrel.Dollar)
 

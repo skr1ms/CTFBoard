@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -27,6 +28,7 @@ type TestFixture struct {
 	FileRepo              *persistent.FileRepository
 	AuditLogRepo          *persistent.AuditLogRepo
 	StatisticsRepo        *persistent.StatisticsRepository
+	BackupRepo            *persistent.BackupRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -45,6 +47,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		FileRepo:              persistent.NewFileRepository(Pool),
 		AuditLogRepo:          persistent.NewAuditLogRepo(Pool),
 		StatisticsRepo:        persistent.NewStatisticsRepository(Pool),
+		BackupRepo:            persistent.NewBackupRepo(Pool),
 	}
 }
 
@@ -177,4 +180,28 @@ func (f *TestFixture) AddUserToTeam(t *testing.T, userID, teamID uuid.UUID) {
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", teamID, userID)
 	require.NoError(t, err)
+}
+
+func (f *TestFixture) BackdateTeamDeletedAt(t *testing.T, teamID uuid.UUID, deletedAt time.Time) {
+	t.Helper()
+	ctx := context.Background()
+	_, err := f.Pool.Exec(ctx, "UPDATE teams SET deleted_at = $1 WHERE id = $2", deletedAt, teamID)
+	require.NoError(t, err)
+}
+
+func (f *TestFixture) NewMinimalBackupData(t *testing.T) *entity.BackupData {
+	t.Helper()
+	comp, err := f.CompetitionRepo.Get(context.Background())
+	require.NoError(t, err)
+	return &entity.BackupData{
+		Version:     entity.BackupVersion,
+		ExportedAt:  time.Now().UTC(),
+		Competition: comp,
+		Challenges:  []entity.ChallengeExport{},
+		Teams:       []entity.TeamExport{},
+		Users:       []entity.UserExport{},
+		Awards:      []entity.Award{},
+		Solves:      []entity.Solve{},
+		Files:       []entity.File{},
+	}
 }

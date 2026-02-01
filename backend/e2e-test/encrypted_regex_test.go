@@ -5,40 +5,32 @@ import (
 	"testing"
 )
 
+// POST /challenges/{ID}/submit with is_regex flag: invalid pattern 400; valid pattern 200; duplicate 409 with ALREADY_SOLVED.
 func TestEncryptedRegex_Challenge(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Setup Competition
 	_, tokenAdmin := h.SetupCompetition("admin_enc_regex")
 
-	// 2. Create Challenge with Regex Flag
-	// Flag: "CTF{.*}" (encrypted in DB)
-	// We verify that input matching this regex is accepted
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Regex Challenge",
 		"description": "Find the pattern",
-		"flag":        "CTF{[0-9]{4}}", // e.g., CTF{1234}
+		"flag":        "CTF{[0-9]{4}}",
 		"points":      100,
 		"category":    "crypto",
 		"is_regex":    true,
 		"is_hidden":   false,
 	})
 
-	// 3. Register User
 	_, _, tokenUser := h.RegisterUserAndLogin("user_enc_regex")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
-	// 4. Try SUBMIT with invalid pattern
 	h.SubmitFlag(tokenUser, challID, "CTF{abcd}", http.StatusBadRequest).
 		Value("error").IsEqual("invalid flag")
 
-	// 5. Try SUBMIT with valid pattern
 	h.SubmitFlag(tokenUser, challID, "CTF{1234}", http.StatusOK).
 		Value("message").IsEqual("flag accepted")
 
-	// 6. Try another valid pattern (should be rejected as already solved)
-	// API returns 409 Conflict for duplicate solves
 	h.SubmitFlag(tokenUser, challID, "CTF{5678}", http.StatusConflict).
 		Value("code").IsEqual("ALREADY_SOLVED")
 }

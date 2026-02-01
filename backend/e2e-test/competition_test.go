@@ -6,22 +6,22 @@ import (
 	"time"
 )
 
+// GET /competition/status: returns status, start_time, end_time (public, no auth).
 func TestCompetition_Status(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Verify Public Competition Status Endpoint
 	h.GetCompetitionStatus().
 		ContainsKey("status").
 		ContainsKey("start_time").
 		ContainsKey("end_time")
 }
 
+// PUT /admin/competition: pause/resume; when paused, POST /challenges/{ID}/submit returns 403; when resumed, submit succeeds.
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Register Admin and Create Challenge
 	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
@@ -33,11 +33,9 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 		"is_hidden":   false,
 	})
 
-	// 2. Register Regular User
 	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
-	// 3. Admin Pauses Competition
 	now := time.Now().UTC()
 	h.UpdateCompetition(tokenAdmin, map[string]any{
 		"name":              "Comp Name",
@@ -51,10 +49,8 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	h.GetCompetitionStatus().
 		Value("status").String().IsEqual("paused")
 
-	// 4. User Attempts to Submit Flag while Paused (Expect Forbidden)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusForbidden)
 
-	// 5. Admin Resumes Competition
 	h.UpdateCompetition(tokenAdmin, map[string]any{
 		"name":              "Comp Name",
 		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
@@ -64,6 +60,18 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 		"mode":              "flexible",
 	})
 
-	// 6. User Successfully Submits Flag
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusOK)
+}
+
+// GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.).
+func TestCompetition_Admin_Get(t *testing.T) {
+	e := setupE2E(t)
+	h := NewE2EHelper(t, e, TestPool)
+
+	_, tokenAdmin := h.SetupCompetition("admin_get")
+
+	obj := h.GetAdminCompetition(tokenAdmin)
+	obj.ContainsKey("name")
+	obj.ContainsKey("start_time")
+	obj.ContainsKey("end_time")
 }

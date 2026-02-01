@@ -11,6 +11,8 @@ import (
 	"io"
 )
 
+var ErrServiceNotConfigured = errors.New("encryption service not configured")
+
 type Service interface {
 	Encrypt(plaintext string) (string, error)
 	Decrypt(ciphertext64 string) (string, error)

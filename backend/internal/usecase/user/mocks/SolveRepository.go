@@ -98,6 +98,68 @@ func (_c *MockSolveRepository_Create_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetAll provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetAll(ctx context.Context) ([]*entity.Solve, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAll")
+	}
+
+	var r0 []*entity.Solve
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.Solve, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.Solve); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Solve)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAll'
+type MockSolveRepository_GetAll_Call struct {
+	*mock.Call
+}
+
+// GetAll is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockSolveRepository_Expecter) GetAll(ctx interface{}) *MockSolveRepository_GetAll_Call {
+	return &MockSolveRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
+}
+
+func (_c *MockSolveRepository_GetAll_Call) Run(run func(ctx context.Context)) *MockSolveRepository_GetAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetAll_Call) Return(solves []*entity.Solve, err error) *MockSolveRepository_GetAll_Call {
+	_c.Call.Return(solves, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.Solve, error)) *MockSolveRepository_GetAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function for the type MockSolveRepository
 func (_mock *MockSolveRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Solve, error) {
 	ret := _mock.Called(ctx, ID)

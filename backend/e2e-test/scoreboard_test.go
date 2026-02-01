@@ -8,14 +8,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// GET /scoreboard: ranks and points reflect solves; team with more solves has higher rank and correct total points.
 func TestScoreboard_Display(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Setup Competition
 	_, tokenAdmin := h.SetupCompetition("admin_scoreboard")
 
-	// 2. Create Multiple Challenges
 	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Challenge 1",
 		"description": "Test challenge 1",
@@ -32,7 +31,6 @@ func TestScoreboard_Display(t *testing.T) {
 		"category":    "crypto",
 	})
 
-	// 3. Register Two Solver Teams
 	suffix := uuid.New().String()[:8]
 	nameUser1 := "user4_" + suffix
 	_, _, tokenUser1 := h.RegisterUserAndLogin(nameUser1)
@@ -42,25 +40,22 @@ func TestScoreboard_Display(t *testing.T) {
 	_, _, tokenUser2 := h.RegisterUserAndLogin(nameUser2)
 	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 
-	// 4. Team 1 Solves Both Challenges
 	h.SubmitFlag(tokenUser1, challengeID1, "FLAG{chall1}", http.StatusOK)
 	time.Sleep(1 * time.Second)
 	h.SubmitFlag(tokenUser1, challengeID2, "FLAG{chall2}", http.StatusOK)
 
-	// 5. Team 2 Solves Only Challenge 1
 	time.Sleep(1 * time.Second)
 	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
-	// 6. Verify Scoreboard Ranks and Points
 	h.AssertTeamScore(nameUser1, 300)
 	h.AssertTeamScore(nameUser2, 100)
 }
 
+// GET /scoreboard: returns 200 and array even when no teams/solves.
 func TestScoreboard_Empty(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Verify Scoreboard Returns Successfully Even When Empty
 	h.GetScoreboard().
 		Status(http.StatusOK).
 		JSON().

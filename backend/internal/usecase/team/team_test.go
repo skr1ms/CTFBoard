@@ -749,3 +749,143 @@ func TestTeamUseCase_KickMember_Error_RosterFrozen(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
 }
+
+func TestTeamUseCase_GetByID_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, entityError.ErrTeamNotFound).Once()
+
+	uc := h.CreateUseCase()
+
+	team, err := uc.GetByID(context.Background(), teamID)
+
+	assert.Error(t, err)
+	assert.Nil(t, team)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+func TestTeamUseCase_GetMyTeam_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	userID := uuid.New()
+	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, entityError.ErrUserNotFound).Once()
+
+	uc := h.CreateUseCase()
+
+	team, members, err := uc.GetMyTeam(context.Background(), userID)
+
+	assert.Error(t, err)
+	assert.Nil(t, team)
+	assert.Nil(t, members)
+	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
+}
+
+func TestTeamUseCase_GetTeamMembers_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return(nil, errors.New("db error")).Once()
+
+	uc := h.CreateUseCase()
+
+	members, err := uc.GetTeamMembers(context.Background(), teamID)
+
+	assert.Error(t, err)
+	assert.Nil(t, members)
+}
+
+func TestTeamUseCase_BanTeam_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	team := &entity.Team{ID: teamID, Name: "Team"}
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	deps.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.BanTeam(context.Background(), teamID, "reason")
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_BanTeam_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, entityError.ErrTeamNotFound).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.BanTeam(context.Background(), teamID, "reason")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	team := &entity.Team{ID: teamID, Name: "Team"}
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	deps.teamRepo.EXPECT().Unban(mock.Anything, teamID).Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.UnbanTeam(context.Background(), teamID)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_UnbanTeam_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, errors.New("db error")).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.UnbanTeam(context.Background(), teamID)
+
+	assert.Error(t, err)
+}
+
+func TestTeamUseCase_SetHidden_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	team := &entity.Team{ID: teamID, Name: "Team"}
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	deps.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.SetHidden(context.Background(), teamID, true)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_SetHidden_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, entityError.ErrTeamNotFound).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.SetHidden(context.Background(), teamID, true)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}

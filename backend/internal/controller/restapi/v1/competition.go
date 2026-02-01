@@ -19,9 +19,7 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromCompetitionStatus(comp)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 
 // Get competition (Admin)
@@ -33,9 +31,7 @@ func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromCompetition(comp)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromCompetition(comp))
 }
 
 // Update competition (Admin)

@@ -12,14 +12,12 @@ import (
 )
 
 func CreateDefaultAdmin(ctx context.Context, userRepo persistent.UserRepo, username, email, password string, log logger.Logger) error {
-	// Check if admin already exists by email
 	_, err := userRepo.GetByEmail(ctx, email)
 	if err == nil {
 		log.Info("Seed: default admin already exists, skipping")
 		return nil
 	}
 
-	// Create admin user
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

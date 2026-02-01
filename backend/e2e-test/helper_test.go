@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -43,6 +44,19 @@ func (h *E2EHelper) Register(username, email, password string) {
 		}).
 		Expect().
 		Status(http.StatusCreated)
+}
+
+func (h *E2EHelper) RegisterExpectStatus(username, email, password string, expectStatus int) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.POST("/api/v1/auth/register").
+		WithJSON(map[string]string{
+			"username": username,
+			"email":    email,
+			"password": password,
+		}).
+		Expect().
+		Status(expectStatus).
+		JSON().Object()
 }
 
 func (h *E2EHelper) Login(email, password string, expectStatus int) *httpexpect.Object {
@@ -503,4 +517,212 @@ func (h *E2EHelper) DownloadFileContent(token, url string) string {
 		Expect().
 		Status(http.StatusOK).
 		Body().Raw()
+}
+
+func (h *E2EHelper) CreateAward(token, teamID string, value int, description string, expectStatus int) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.POST("/api/v1/admin/awards").
+		WithHeader("Authorization", token).
+		WithJSON(map[string]any{
+			"team_id":     teamID,
+			"value":       value,
+			"description": description,
+		}).
+		Expect().
+		Status(expectStatus).
+		JSON().Object()
+}
+
+func (h *E2EHelper) GetAwardsByTeam(token, teamID string, expectStatus int) *httpexpect.Array {
+	h.t.Helper()
+	return h.e.GET("/api/v1/admin/awards/team/{teamID}", teamID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus).
+		JSON().Array()
+}
+
+func (h *E2EHelper) BanTeam(token, teamID, reason string, expectStatus int) {
+	h.t.Helper()
+	h.e.POST("/api/v1/admin/teams/{ID}/ban", teamID).
+		WithHeader("Authorization", token).
+		WithJSON(map[string]string{"reason": reason}).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) UnbanTeam(token, teamID string, expectStatus int) {
+	h.t.Helper()
+	h.e.DELETE("/api/v1/admin/teams/{ID}/ban", teamID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) SetTeamHidden(token, teamID string, hidden bool, expectStatus int) {
+	h.t.Helper()
+	h.e.PATCH("/api/v1/admin/teams/{ID}/hidden", teamID).
+		WithHeader("Authorization", token).
+		WithJSON(map[string]bool{"hidden": hidden}).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) TransferCaptain(token, newCaptainID string, expectStatus int) {
+	h.t.Helper()
+	h.e.POST("/api/v1/teams/transfer-captain").
+		WithHeader("Authorization", token).
+		WithJSON(map[string]string{"new_captain_id": newCaptainID}).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) KickMember(token, memberID string, expectStatus int) {
+	h.t.Helper()
+	h.e.DELETE("/api/v1/teams/members/{ID}", memberID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) LeaveTeam(token string, expectStatus int) {
+	h.t.Helper()
+	h.e.POST("/api/v1/teams/leave").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) GetStatisticsGeneral() *httpexpect.Object {
+	h.t.Helper()
+	return h.e.GET("/api/v1/statistics/general").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+}
+
+func (h *E2EHelper) GetStatisticsChallenges() *httpexpect.Array {
+	h.t.Helper()
+	return h.e.GET("/api/v1/statistics/challenges").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Array()
+}
+
+func (h *E2EHelper) GetStatisticsChallengesId(id string) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.GET("/api/v1/statistics/challenges/{id}", id).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+}
+
+func (h *E2EHelper) GetStatisticsChallengesIdExpectStatus(id string, expectStatus int) {
+	h.t.Helper()
+	h.e.GET("/api/v1/statistics/challenges/{id}", id).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) GetStatisticsScoreboard(limit int) *httpexpect.Array {
+	h.t.Helper()
+	req := h.e.GET("/api/v1/statistics/scoreboard")
+	if limit > 0 {
+		req = req.WithQuery("limit", limit)
+	}
+	return req.Expect().Status(http.StatusOK).JSON().Array()
+}
+
+func (h *E2EHelper) GetScoreboardGraph(top int) *httpexpect.Object {
+	h.t.Helper()
+	req := h.e.GET("/api/v1/scoreboard/graph")
+	if top > 0 {
+		req = req.WithQuery("top", top)
+	}
+	return req.Expect().Status(http.StatusOK).JSON().Object()
+}
+
+func (h *E2EHelper) ResendVerification(token string, expectStatus int) {
+	h.t.Helper()
+	h.e.POST("/api/v1/auth/resend-verification").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) GetTeamByID(token, teamID string, expectStatus int) *httpexpect.Object {
+	h.t.Helper()
+	req := h.e.GET("/api/v1/teams/{ID}", teamID).
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+	if expectStatus != http.StatusOK {
+		return nil
+	}
+	return req.JSON().Object()
+}
+
+func (h *E2EHelper) DisbandTeam(token string, expectStatus int) {
+	h.t.Helper()
+	h.e.DELETE("/api/v1/teams/me").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) GetAdminCompetition(token string) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.GET("/api/v1/admin/competition").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+}
+
+func (h *E2EHelper) GetAdminSettings(token string) *httpexpect.Object {
+	h.t.Helper()
+	return h.e.GET("/api/v1/admin/settings").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object()
+}
+
+func (h *E2EHelper) PutAdminSettings(token string, body map[string]any, expectStatus int) *httpexpect.Response {
+	h.t.Helper()
+	return h.e.PUT("/api/v1/admin/settings").
+		WithHeader("Authorization", token).
+		WithJSON(body).
+		Expect().
+		Status(expectStatus)
+}
+
+func (h *E2EHelper) AdminExport(token string, includeUsers, includeAwards bool) *httpexpect.Response {
+	h.t.Helper()
+	return h.e.GET("/api/v1/admin/export").
+		WithHeader("Authorization", token).
+		WithQuery("include_users", includeUsers).
+		WithQuery("include_awards", includeAwards).
+		Expect().
+		Status(http.StatusOK)
+}
+
+func (h *E2EHelper) AdminExportZip(token string) *httpexpect.Response {
+	h.t.Helper()
+	return h.e.GET("/api/v1/admin/export/zip").
+		WithHeader("Authorization", token).
+		Expect().
+		Status(http.StatusOK)
+}
+
+func (h *E2EHelper) AdminImport(token string, fileContent []byte, fileName, conflictMode string, expectStatus int) *httpexpect.Response {
+	h.t.Helper()
+	req := h.e.POST("/api/v1/admin/import").
+		WithHeader("Authorization", token).
+		WithMultipart().
+		WithFile("file", fileName, bytes.NewReader(fileContent))
+	if conflictMode != "" {
+		req = req.WithFormField("conflict_mode", conflictMode)
+	}
+	return req.Expect().Status(expectStatus)
 }

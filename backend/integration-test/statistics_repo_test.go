@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,4 +89,45 @@ func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 
 	_, err := f.StatisticsRepo.GetGeneralStats(ctx)
 	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, uuid.New().String())
+	chall := f.CreateChallenge(t, uuid.New().String(), 100)
+	f.CreateSolve(t, user.ID, team.ID, chall.ID)
+
+	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 1 WHERE id = $1", chall.ID)
+	require.NoError(t, err)
+
+	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID)
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, chall.ID, stats.ID)
+	assert.Equal(t, chall.Title, stats.Title)
+	assert.Equal(t, chall.Category, stats.Category)
+	assert.Equal(t, chall.Points, stats.Points)
+	assert.Equal(t, 1, stats.SolveCount)
+	assert.GreaterOrEqual(t, stats.TotalTeams, 1)
+	assert.NotNil(t, stats.FirstBlood)
+	assert.Equal(t, team.ID, stats.FirstBlood.TeamID)
+	assert.Equal(t, team.Name, stats.FirstBlood.TeamName)
+	require.Len(t, stats.Solves, 1)
+	assert.Equal(t, team.ID, stats.Solves[0].TeamID)
+	assert.Equal(t, team.Name, stats.Solves[0].TeamName)
+}
+
+func TestStatisticsRepo_GetChallengeDetailStats_Error_NotFound(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New())
+	require.NoError(t, err)
+	assert.Nil(t, stats)
 }

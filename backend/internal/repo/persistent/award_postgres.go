@@ -11,6 +11,17 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
+var awardColumns = []string{"id", "team_id", "value", "description", "created_by", "created_at"}
+
+func scanAward(row rowScanner) (*entity.Award, error) {
+	var a entity.Award
+	err := row.Scan(&a.ID, &a.TeamID, &a.Value, &a.Description, &a.CreatedBy, &a.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
 type AwardRepo struct {
 	pool *pgxpool.Pool
 }
@@ -44,7 +55,7 @@ func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
 	a.CreatedAt = time.Now()
 
 	query := squirrel.Insert("awards").
-		Columns("id", "team_id", "value", "description", "created_by", "created_at").
+		Columns(awardColumns...).
 		Values(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -62,7 +73,7 @@ func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
 }
 
 func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
-	query := squirrel.Select("id", "team_id", "value", "description", "created_by", "created_at").
+	query := squirrel.Select(awardColumns...).
 		From("awards").
 		Where(squirrel.Eq{"team_id": teamID}).
 		OrderBy("created_at DESC").
@@ -81,19 +92,42 @@ func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entit
 
 	var awards []*entity.Award
 	for rows.Next() {
-		var a entity.Award
-		err := rows.Scan(
-			&a.ID,
-			&a.TeamID,
-			&a.Value,
-			&a.Description,
-			&a.CreatedBy,
-			&a.CreatedAt,
-		)
+		a, err := scanAward(rows)
 		if err != nil {
 			return nil, fmt.Errorf("AwardRepo - GetByTeamID - Scan: %w", err)
 		}
-		awards = append(awards, &a)
+		awards = append(awards, a)
+	}
+	return awards, nil
+}
+
+func (r *AwardRepo) GetAll(ctx context.Context) ([]*entity.Award, error) {
+	query := squirrel.Select(awardColumns...).
+		From("awards").
+		OrderBy("created_at ASC").
+		PlaceholderFormat(squirrel.Dollar)
+
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetAll - BuildQuery: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetAll - Query: %w", err)
+	}
+	defer rows.Close()
+
+	var awards []*entity.Award
+	for rows.Next() {
+		a, err := scanAward(rows)
+		if err != nil {
+			return nil, fmt.Errorf("AwardRepo - GetAll - Scan: %w", err)
+		}
+		awards = append(awards, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetAll - Rows: %w", err)
 	}
 
 	return awards, nil

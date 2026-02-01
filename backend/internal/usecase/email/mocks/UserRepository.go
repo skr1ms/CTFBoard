@@ -96,6 +96,68 @@ func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// GetAll provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) GetAll(ctx context.Context) ([]*entity.User, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAll")
+	}
+
+	var r0 []*entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.User, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.User); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_GetAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAll'
+type MockUserRepository_GetAll_Call struct {
+	*mock.Call
+}
+
+// GetAll is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockUserRepository_Expecter) GetAll(ctx interface{}) *MockUserRepository_GetAll_Call {
+	return &MockUserRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
+}
+
+func (_c *MockUserRepository_GetAll_Call) Run(run func(ctx context.Context)) *MockUserRepository_GetAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_GetAll_Call) Return(users []*entity.User, err error) *MockUserRepository_GetAll_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.User, error)) *MockUserRepository_GetAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByEmail provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
 	ret := _mock.Called(ctx, email)

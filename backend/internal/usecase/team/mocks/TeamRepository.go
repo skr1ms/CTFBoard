@@ -40,6 +40,69 @@ func (_m *MockTeamRepository) EXPECT() *MockTeamRepository_Expecter {
 	return &MockTeamRepository_Expecter{mock: &_m.Mock}
 }
 
+// Ban provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) Ban(ctx context.Context, teamID uuid.UUID, reason string) error {
+	ret := _mock.Called(ctx, teamID, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Ban")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, teamID, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_Ban_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ban'
+type MockTeamRepository_Ban_Call struct {
+	*mock.Call
+}
+
+// Ban is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - reason string
+func (_e *MockTeamRepository_Expecter) Ban(ctx interface{}, teamID interface{}, reason interface{}) *MockTeamRepository_Ban_Call {
+	return &MockTeamRepository_Ban_Call{Call: _e.mock.On("Ban", ctx, teamID, reason)}
+}
+
+func (_c *MockTeamRepository_Ban_Call) Run(run func(ctx context.Context, teamID uuid.UUID, reason string)) *MockTeamRepository_Ban_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_Ban_Call) Return(err error) *MockTeamRepository_Ban_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, reason string) error) *MockTeamRepository_Ban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountTeamMembers provides a mock function for the type MockTeamRepository
 func (_mock *MockTeamRepository) CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, teamID)
@@ -216,6 +279,68 @@ func (_c *MockTeamRepository_Delete_Call) Return(err error) *MockTeamRepository_
 }
 
 func (_c *MockTeamRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockTeamRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAll provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) GetAll(ctx context.Context) ([]*entity.Team, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAll")
+	}
+
+	var r0 []*entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.Team, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.Team); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_GetAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAll'
+type MockTeamRepository_GetAll_Call struct {
+	*mock.Call
+}
+
+// GetAll is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockTeamRepository_Expecter) GetAll(ctx interface{}) *MockTeamRepository_GetAll_Call {
+	return &MockTeamRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
+}
+
+func (_c *MockTeamRepository_GetAll_Call) Run(run func(ctx context.Context)) *MockTeamRepository_GetAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_GetAll_Call) Return(teams []*entity.Team, err error) *MockTeamRepository_GetAll_Call {
+	_c.Call.Return(teams, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.Team, error)) *MockTeamRepository_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -545,6 +670,126 @@ func (_c *MockTeamRepository_HardDeleteTeams_Call) Return(err error) *MockTeamRe
 }
 
 func (_c *MockTeamRepository_HardDeleteTeams_Call) RunAndReturn(run func(ctx context.Context, cutoffDate time.Time) error) *MockTeamRepository_HardDeleteTeams_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetHidden provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
+	ret := _mock.Called(ctx, teamID, hidden)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetHidden")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, teamID, hidden)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_SetHidden_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetHidden'
+type MockTeamRepository_SetHidden_Call struct {
+	*mock.Call
+}
+
+// SetHidden is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - hidden bool
+func (_e *MockTeamRepository_Expecter) SetHidden(ctx interface{}, teamID interface{}, hidden interface{}) *MockTeamRepository_SetHidden_Call {
+	return &MockTeamRepository_SetHidden_Call{Call: _e.mock.On("SetHidden", ctx, teamID, hidden)}
+}
+
+func (_c *MockTeamRepository_SetHidden_Call) Run(run func(ctx context.Context, teamID uuid.UUID, hidden bool)) *MockTeamRepository_SetHidden_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_SetHidden_Call) Return(err error) *MockTeamRepository_SetHidden_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_SetHidden_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, hidden bool) error) *MockTeamRepository_SetHidden_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Unban provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) Unban(ctx context.Context, teamID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Unban")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_Unban_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Unban'
+type MockTeamRepository_Unban_Call struct {
+	*mock.Call
+}
+
+// Unban is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockTeamRepository_Expecter) Unban(ctx interface{}, teamID interface{}) *MockTeamRepository_Unban_Call {
+	return &MockTeamRepository_Unban_Call{Call: _e.mock.On("Unban", ctx, teamID)}
+}
+
+func (_c *MockTeamRepository_Unban_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockTeamRepository_Unban_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_Unban_Call) Return(err error) *MockTeamRepository_Unban_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_Unban_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockTeamRepository_Unban_Call {
 	_c.Call.Return(run)
 	return _c
 }

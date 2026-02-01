@@ -4,9 +4,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
@@ -27,6 +29,8 @@ type Server struct {
 	fileUC        *challenge.FileUseCase
 	awardUC       *team.AwardUseCase
 	statsUC       *competition.StatisticsUseCase
+	backupUC      usecase.BackupUseCase
+	settingsUC    *settings.SettingsUseCase
 	jwtService    *jwt.JWTService
 	redisClient   *redis.Client
 	wsController  *wsV1.Controller
@@ -45,6 +49,8 @@ func NewServer(
 	fileUC *challenge.FileUseCase,
 	awardUC *team.AwardUseCase,
 	statsUC *competition.StatisticsUseCase,
+	backupUC usecase.BackupUseCase,
+	settingsUC *settings.SettingsUseCase,
 	jwtService *jwt.JWTService,
 	redisClient *redis.Client,
 	wsController *wsV1.Controller,
@@ -62,14 +68,12 @@ func NewServer(
 		fileUC:        fileUC,
 		awardUC:       awardUC,
 		statsUC:       statsUC,
+		backupUC:      backupUC,
+		settingsUC:    settingsUC,
 		jwtService:    jwtService,
 		redisClient:   redisClient,
 		wsController:  wsController,
 		validator:     validator,
 		logger:        logger,
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

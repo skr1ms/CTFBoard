@@ -104,7 +104,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, entityError.ErrAlreadySolved) || errors.Is(err, entityError.ErrTeamModeRequired) {
+		if errors.Is(err, entityError.ErrAlreadySolved) || errors.Is(err, entityError.ErrNoTeamSelected) {
 			return err
 		}
 		return fmt.Errorf("SolveUseCase - Create - Transaction: %w", err)

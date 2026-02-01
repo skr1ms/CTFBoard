@@ -2,23 +2,24 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/ulule/limiter/v3"
 	mhttp "github.com/ulule/limiter/v3/drivers/middleware/stdlib"
 	sredis "github.com/ulule/limiter/v3/drivers/store/redis"
 )
 
-func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.Duration, keyFunc func(r *http.Request) (string, error)) func(next http.Handler) http.Handler {
+func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.Duration, keyFunc func(r *http.Request) (string, error), logger logger.Logger) func(next http.Handler) http.Handler {
 	store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
 		Prefix:   "limiter:" + keyPrefix,
 		MaxRetry: 3,
 	})
 	if err != nil {
-		log.Fatal(err)
+		logger.WithError(err).Fatal("failed to create rate limit store")
+		return nil
 	}
 
 	rate := limiter.Rate{

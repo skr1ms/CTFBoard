@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync/atomic"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/redis/go-redis/v9"
@@ -15,9 +16,14 @@ type Client struct {
 	send chan []byte
 }
 
+type broadcastItem struct {
+	data []byte
+	done chan struct{}
+}
+
 type Hub struct {
 	clients      map[*Client]bool
-	broadcast    chan []byte
+	broadcast    chan broadcastItem
 	register     chan *Client
 	unregister   chan *Client
 	clientCount  int64
@@ -28,7 +34,7 @@ type Hub struct {
 func NewHub(redisClient *redis.Client, redisChannel string) *Hub {
 	return &Hub{
 		clients:      make(map[*Client]bool),
-		broadcast:    make(chan []byte, 256),
+		broadcast:    make(chan broadcastItem, 256),
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
 		redisClient:  redisClient,
@@ -42,25 +48,42 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.clients[client] = true
 			atomic.AddInt64(&h.clientCount, 1)
-
-		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-				atomic.AddInt64(&h.clientCount, -1)
-			}
-
-		case message := <-h.broadcast:
-			for client := range h.clients {
+			if welcome, err := json.Marshal(Event{Type: "connected", Payload: nil, Timestamp: time.Now()}); err == nil {
 				select {
-				case client.send <- message:
+				case client.send <- welcome:
 				default:
-					close(client.send)
-					delete(h.clients, client)
-					atomic.AddInt64(&h.clientCount, -1)
 				}
 			}
+
+		case client := <-h.unregister:
+			h.unregisterClient(client)
+
+		case item := <-h.broadcast:
+			h.broadcastToClients(item)
 		}
+	}
+}
+
+func (h *Hub) unregisterClient(client *Client) {
+	if _, ok := h.clients[client]; ok {
+		delete(h.clients, client)
+		close(client.send)
+		atomic.AddInt64(&h.clientCount, -1)
+	}
+}
+
+func (h *Hub) broadcastToClients(item broadcastItem) {
+	for client := range h.clients {
+		select {
+		case client.send <- item.data:
+		default:
+			close(client.send)
+			delete(h.clients, client)
+			atomic.AddInt64(&h.clientCount, -1)
+		}
+	}
+	if item.done != nil {
+		close(item.done)
 	}
 }
 
@@ -73,7 +96,7 @@ func (h *Hub) Unregister(client *Client) {
 }
 
 func (h *Hub) Broadcast(data []byte) {
-	h.broadcast <- data
+	h.broadcast <- broadcastItem{data: data}
 }
 
 func (h *Hub) BroadcastEvent(event any) {
@@ -83,9 +106,10 @@ func (h *Hub) BroadcastEvent(event any) {
 	}
 	if h.redisClient != nil {
 		h.redisClient.Publish(context.Background(), h.redisChannel, data)
-	} else {
-		h.Broadcast(data)
 	}
+	done := make(chan struct{})
+	h.broadcast <- broadcastItem{data: data, done: done}
+	<-done
 }
 
 func (h *Hub) SubscribeToRedis(ctx context.Context) {

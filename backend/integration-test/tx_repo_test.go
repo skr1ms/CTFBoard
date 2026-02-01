@@ -264,6 +264,45 @@ func TestTxRepo_GetChallengeByIDTx_Error_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
 
+// DeleteChallengeTx Tests
+
+func TestTxRepo_DeleteChallengeTx_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	challenge := f.CreateChallenge(t, "DeleteTxChallenge", 100)
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+
+	err = f.TxRepo.DeleteChallengeTx(ctx, tx, challenge.ID)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
+}
+
+func TestTxRepo_DeleteChallengeTx_Error_NotFound(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	tx, err := f.TxRepo.BeginTx(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+
+	err = f.TxRepo.DeleteChallengeTx(ctx, tx, uuid.New())
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
+}
+
 // IncrementChallengeSolveCountTx Tests
 
 func TestTxRepo_IncrementChallengeSolveCountTx_Success(t *testing.T) {

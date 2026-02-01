@@ -4,13 +4,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-chi/render"
 	"github.com/google/uuid"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
@@ -37,9 +35,7 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromTeam(team)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromTeam(team))
 }
 
 // Join team
@@ -60,8 +56,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 
 	inviteTokenuuid, err := uuid.Parse(req.InviteToken)
 	if err != nil {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, openapi.V1ErrorResponse{Error: ptr("invalid invite token format")})
+		httputil.RenderError(w, r, http.StatusBadRequest, "invalid invite token format")
 		return
 	}
 
@@ -72,10 +67,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromTeam(team)
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, response.FromTeam(team))
 }
 
 // Leave team
@@ -93,8 +85,7 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Successfully left the team"})
+	httputil.RenderOK(w, r, map[string]string{"message": "Successfully left the team"})
 }
 
 // Disband team
@@ -112,8 +103,7 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Team disbanded successfully"})
+	httputil.RenderOK(w, r, map[string]string{"message": "Team disbanded successfully"})
 }
 
 // Kick member
@@ -137,8 +127,7 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Member kicked successfully"})
+	httputil.RenderOK(w, r, map[string]string{"message": "Member kicked successfully"})
 }
 
 // Get my team
@@ -161,10 +150,7 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromTeamWithMembers(team, members)
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+	httputil.RenderOK(w, r, response.FromTeamWithMembers(team, members))
 }
 
 // Create solo team
@@ -189,9 +175,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromTeam(team)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromTeam(team))
 }
 
 // Transfer captainship
@@ -222,8 +206,7 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Captainship transferred successfully"})
+	httputil.RenderOK(w, r, map[string]string{"message": "Captainship transferred successfully"})
 }
 
 // Get team by ID
@@ -242,8 +225,73 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	res := response.FromTeamWithoutToken(team)
+	httputil.RenderOK(w, r, response.FromTeamWithoutToken(team))
+}
 
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, res)
+// Ban team
+// (POST /admin/teams/{ID}/ban)
+func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
+	teamuuid, err := uuid.Parse(ID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[request.BanTeamRequest](
+		w, r, h.validator, h.logger, "PostAdminTeamsIDBan",
+	)
+	if !ok {
+		return
+	}
+
+	if err := h.teamUC.BanTeam(r.Context(), teamuuid, req.Reason); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - PostAdminTeamsIDBan")
+		handleError(w, r, err)
+		return
+	}
+
+	httputil.RenderOK(w, r, map[string]string{"message": "team banned"})
+}
+
+// Unban team
+// (DELETE /admin/teams/{ID}/ban)
+func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
+	teamuuid, err := uuid.Parse(ID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
+		return
+	}
+
+	if err := h.teamUC.UnbanTeam(r.Context(), teamuuid); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminTeamsIDBan")
+		handleError(w, r, err)
+		return
+	}
+
+	httputil.RenderOK(w, r, map[string]string{"message": "team unbanned"})
+}
+
+// Set team hidden status
+// (PATCH /admin/teams/{ID}/hidden)
+func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, ID string) {
+	teamuuid, err := uuid.Parse(ID)
+	if err != nil {
+		httputil.RenderInvalidID(w, r)
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[request.SetHiddenRequest](
+		w, r, h.validator, h.logger, "PatchAdminTeamsIDHidden",
+	)
+	if !ok {
+		return
+	}
+
+	if err := h.teamUC.SetHidden(r.Context(), teamuuid, req.Hidden); err != nil {
+		h.logger.WithError(err).Error("restapi - v1 - PatchAdminTeamsIDHidden")
+		handleError(w, r, err)
+		return
+	}
+
+	httputil.RenderOK(w, r, map[string]bool{"hidden": req.Hidden})
 }

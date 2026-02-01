@@ -611,6 +611,69 @@ func (_c *MockTxRepository_CreateUserTx_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// DeleteChallengeTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) DeleteChallengeTx(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error {
+	ret := _mock.Called(ctx, tx, challengeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteChallengeTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, tx, challengeID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxRepository_DeleteChallengeTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteChallengeTx'
+type MockTxRepository_DeleteChallengeTx_Call struct {
+	*mock.Call
+}
+
+// DeleteChallengeTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx pgx.Tx
+//   - challengeID uuid.UUID
+func (_e *MockTxRepository_Expecter) DeleteChallengeTx(ctx interface{}, tx interface{}, challengeID interface{}) *MockTxRepository_DeleteChallengeTx_Call {
+	return &MockTxRepository_DeleteChallengeTx_Call{Call: _e.mock.On("DeleteChallengeTx", ctx, tx, challengeID)}
+}
+
+func (_c *MockTxRepository_DeleteChallengeTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID)) *MockTxRepository_DeleteChallengeTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 pgx.Tx
+		if args[1] != nil {
+			arg1 = args[1].(pgx.Tx)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_DeleteChallengeTx_Call) Return(err error) *MockTxRepository_DeleteChallengeTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxRepository_DeleteChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error) *MockTxRepository_DeleteChallengeTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteSolvesByTeamIDTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)

@@ -26,9 +26,7 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromChallengeList(challenges)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromChallengeList(challenges))
 }
 
 // Submit flag
@@ -91,6 +89,7 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 		req.IsHidden,
 		req.IsRegex,
 		req.IsCaseInsensitive,
+		req.FlagFormatRegex,
 	)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallenges")
@@ -98,9 +97,7 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromChallenge(challenge)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromChallenge(challenge))
 }
 
 // Delete challenge
@@ -160,6 +157,7 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		req.IsHidden,
 		req.IsRegex,
 		req.IsCaseInsensitive,
+		req.FlagFormatRegex,
 	)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PutAdminChallengesID")
@@ -167,7 +165,5 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	res := response.FromChallenge(challenge)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromChallenge(challenge))
 }

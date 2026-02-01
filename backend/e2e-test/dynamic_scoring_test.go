@@ -5,17 +5,13 @@ import (
 	"testing"
 )
 
+// Dynamic scoring: first solver gets initial_value; second solver gets decayed score (min_value) and scoreboard reflects it.
 func TestDynamicScoring_Flow(t *testing.T) {
 	e := setupE2E(t)
 	h := NewE2EHelper(t, e, TestPool)
 
-	// 1. Setup Competition
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
-	// 2. Create Dynamic Challenge
-	// Initial: 500, Min: 100, Decay: 1 (rapID decay)
-	// Formula: Initial + (Min - Initial) / (Decay^2) * (solve_count^2)
-	// where solve_count = solves - 1
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":         "Dynamic Chall",
 		"description":   "Points drop fast",
@@ -28,25 +24,16 @@ func TestDynamicScoring_Flow(t *testing.T) {
 		"is_hidden":     false,
 	})
 
-	// 3. Register 2 Users
 	_, _, user1 := h.RegisterUserAndLogin("user_dyn_1")
 	h.CreateSoloTeam(user1, http.StatusCreated)
 	_, _, user2 := h.RegisterUserAndLogin("user_dyn_2")
 	h.CreateSoloTeam(user2, http.StatusCreated)
 
-	// 4. First Solve (First Blood) - Should get 500 (Initial)
-	// CTFd Logic: solves=1, solve_count=0. Score = Initial.
 	h.SubmitFlag(user1, challID, "flag{dyn}", http.StatusOK)
 	h.AssertTeamScore("user_dyn_1", 500)
 
-	// 5. Verify Challenge Points Updated
-	// Decay = 1.
-	// If User 2 solves: solves = 2. solve_count = 1.
-	// Formula: 500 + (100-500)/(1^2) * 1^2 = 500 - 400 = 100.
-
 	h.SubmitFlag(user2, challID, "flag{dyn}", http.StatusOK)
 
-	// 5. Verify User 2 Score
 	scoreboard := h.GetScoreboard().Status(http.StatusOK).JSON().Array()
 
 	var user2Points float64

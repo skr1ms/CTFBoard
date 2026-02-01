@@ -71,7 +71,8 @@ build:cleanup:
   image: $GOLANG_IMAGE
   script:
     - cd backend
-    - GOOS=linux GOARCH=amd64 go build -o bin/ctfboard-cleanup ./cmd/cleanup
+    - go mod download
+    - make build-cleanup
   artifacts:
     paths:
       - backend/bin/ctfboard-cleanup
@@ -95,7 +96,7 @@ lint:backend:
   script:
     - cd backend
     - go mod download
-    - golangci-lint run -v --timeout 10m
+    - make lint LINT_TIMEOUT=10m
   rules:
     - changes:
         - backend/**/*
@@ -192,7 +193,7 @@ test:backend:
     - cd backend
     - go mod download
   script:
-    - go test ./... -v -race
+    - make test-race
   rules:
     - changes:
         - backend/**/*

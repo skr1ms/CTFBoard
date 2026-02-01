@@ -1,0 +1,4 @@
+package: openapi
+generate:
+  embedded-spec: true
+output: internal/openapi/spec.gen.go

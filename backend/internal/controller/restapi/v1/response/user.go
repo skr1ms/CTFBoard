@@ -6,6 +6,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
+	"github.com/skr1ms/CTFBoard/pkg/jwt"
 )
 
 func ptr[T any](v T) *T {
@@ -76,5 +77,14 @@ func FromSolve(s *entity.Solve) openapi.ResponseSolveResponse {
 		ID:          ptr(s.ID.String()),
 		ChallengeID: ptr(s.ChallengeID.String()),
 		SolvedAt:    ptr(s.SolvedAt.Format(time.RFC3339)),
+	}
+}
+
+func FromTokenPair(p *jwt.TokenPair) openapi.JwtTokenPair {
+	return openapi.JwtTokenPair{
+		AccessToken:      ptr(p.AccessToken),
+		AccessExpiresAt:  ptr(int(p.AccessExpiresAt)),
+		RefreshToken:     ptr(p.RefreshToken),
+		RefreshExpiresAt: ptr(int(p.RefreshExpiresAt)),
 	}
 }

@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -36,6 +37,74 @@ type MockStatisticsRepository_Expecter struct {
 
 func (_m *MockStatisticsRepository) EXPECT() *MockStatisticsRepository_Expecter {
 	return &MockStatisticsRepository_Expecter{mock: &_m.Mock}
+}
+
+// GetChallengeDetailStats provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error) {
+	ret := _mock.Called(ctx, challengeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChallengeDetailStats")
+	}
+
+	var r0 *entity.ChallengeDetailStats
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.ChallengeDetailStats, error)); ok {
+		return returnFunc(ctx, challengeID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.ChallengeDetailStats); ok {
+		r0 = returnFunc(ctx, challengeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.ChallengeDetailStats)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, challengeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetChallengeDetailStats_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChallengeDetailStats'
+type MockStatisticsRepository_GetChallengeDetailStats_Call struct {
+	*mock.Call
+}
+
+// GetChallengeDetailStats is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+func (_e *MockStatisticsRepository_Expecter) GetChallengeDetailStats(ctx interface{}, challengeID interface{}) *MockStatisticsRepository_GetChallengeDetailStats_Call {
+	return &MockStatisticsRepository_GetChallengeDetailStats_Call{Call: _e.mock.On("GetChallengeDetailStats", ctx, challengeID)}
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStats_Call) Run(run func(ctx context.Context, challengeID uuid.UUID)) *MockStatisticsRepository_GetChallengeDetailStats_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStats_Call) Return(challengeDetailStats *entity.ChallengeDetailStats, err error) *MockStatisticsRepository_GetChallengeDetailStats_Call {
+	_c.Call.Return(challengeDetailStats, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStats_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error)) *MockStatisticsRepository_GetChallengeDetailStats_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetChallengeStats provides a mock function for the type MockStatisticsRepository

@@ -9,6 +9,8 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
+var auditLogColumns = []string{"user_id", "action", "entity_type", "entity_id", "ip", "details"}
+
 type AuditLogRepo struct {
 	pool *pgxpool.Pool
 }
@@ -19,7 +21,7 @@ func NewAuditLogRepo(pool *pgxpool.Pool) *AuditLogRepo {
 
 func (r *AuditLogRepo) Create(ctx context.Context, l *entity.AuditLog) error {
 	query := squirrel.Insert("audit_logs").
-		Columns("user_id", "action", "entity_type", "entity_id", "ip", "details").
+		Columns(auditLogColumns...).
 		Values(l.UserID, l.Action, l.EntityType, l.EntityID, l.IP, l.Details).
 		PlaceholderFormat(squirrel.Dollar)
 

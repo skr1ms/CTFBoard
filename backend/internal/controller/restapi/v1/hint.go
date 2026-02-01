@@ -32,9 +32,7 @@ func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	res := response.FromHintWithUnlockList(hints)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromHintWithUnlockList(hints))
 }
 
 // Unlock hint
@@ -64,9 +62,7 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 		return
 	}
 
-	res := response.FromUnlockedHint(hint)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromUnlockedHint(hint))
 }
 
 // Create hint
@@ -92,9 +88,7 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 		return
 	}
 
-	res := response.FromHint(hint)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromHint(hint))
 }
 
 // Update hint
@@ -120,9 +114,7 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	res := response.FromHint(hint)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromHint(hint))
 }
 
 // Delete hint

@@ -1,88 +1,90 @@
-# Мониторинг
+# Monitoring
 
-Система мониторинга реализована на базе стека Prometheus, Grafana и Loki. Обеспечивает сбор метрик, агрегацию логов и визуализацию состояния системы.
+The monitoring stack is based on Prometheus, Grafana, and Loki. It provides metrics collection, log aggregation, and visualization.
 
-## Архитектура
+## Architecture
 
-Компоненты системы мониторинга:
+The following components are used:
 
-- **Prometheus** — Сбор и хранение временных рядов (Time Series Database).
-- **Grafana** — Визуализация данных и дашборды.
-- **Loki** — Агрегация и хранение логов.
-- **Promtail** — Агент для сбора и отправки логов в Loki.
-- **Alertmanager** — Управление оповещениями.
-- **Exporters** — Экспорт метрик сторонних сервисов (MySQL, cAdvisor).
+- **Prometheus** — Metrics collection and time-series storage.
+- **Grafana** — Dashboards and visualization.
+- **Loki** — Log aggregation and storage.
+- **Promtail** — Log collection and shipment to Loki.
+- **Alertmanager** — Alert routing and management.
+- **Exporters** — Metrics export for external services (PostgreSQL, Redis, cAdvisor, etc.).
 
-## Компоненты
+## Components
 
 ### Prometheus
 
-**Назначение:** Сбор метрик с сервисов с заданным интервалом.
+**Purpose:** Collect metrics from targets at a configured interval.
 
-- **Порт:** `9090`
-- **Конфигурация:** `monitoring/prometheus/prometheus.yml`
-- **Scrape Targets:**
-    - `backend` (приложение)
-    - `mysqld-exporter` (база данных)
-    - `cadvisor` (Docker контейнеры)
-    - `prometheus` (самомониторинг)
+- **Port:** `9090`
+- **Configuration:** `monitoring/prometheus/prometheus.yml`
+- **Scrape targets:**
+  - `backend` (application)
+  - `postgres-exporter` or equivalent (database)
+  - `redis-exporter` (Redis)
+  - `cadvisor` (containers)
+  - `prometheus` (self)
 
 ### Grafana
 
-**Назначение:** Интерфейс для визуализации метрик и логов.
+**Purpose:** Visualization of metrics and logs.
 
-- **Порт:** `3000`
-- **Доступ:** `http://localhost:3000`
+- **Port:** `3000`
+- **URL:** `http://localhost:3000`
 - **Provisioning:**
-    - **Datasources:** Автоматическое подключение Prometheus и Loki.
-    - **Dashboards:** Автоматическая загрузка дашбордов из `monitoring/grafana/dashboards/`.
+  - **Datasources:** Prometheus and Loki are configured automatically.
+  - **Dashboards:** Dashboards are loaded from `monitoring/grafana/dashboards/`.
 
 ### Loki
 
-**Назначение:** Горизонтально масштабируемая система агрегации логов.
+**Purpose:** Horizontally scalable log aggregation system.
 
-- **Порт:** `3100`
-- **Конфигурация:** `monitoring/loki/loki-config.yml`
+- **Port:** `3100`
+- **Configuration:** `monitoring/loki/loki-config.yml`
 
 ### Promtail
 
-**Назначение:** Агент, собирающий логи Docker-контейнеров и отправляющий их в Loki.
+**Purpose:** Agent that collects logs from Docker containers and sends them to Loki.
 
-- **Конфигурация:** `monitoring/promtail/promtail-config.yml`
-- **Метки:** Автоматически добавляет лейблы `container`, `compose_service` к логам.
+- **Configuration:** `monitoring/promtail/promtail-config.yml`
+- **Labels:** Labels such as `container` and `compose_service` are attached to log streams.
 
 ### Alertmanager
 
-**Назначение:** Обработка алертов, отправляемых Prometheus (дедупликация, группировка, маршрутизация).
+**Purpose:** Handles alerts from Prometheus (deduplication, grouping, routing).
 
-- **Порт:** `9093`
-- **Конфигурация:** `monitoring/alertmanager/alertmanager.yml`
+- **Port:** `9093`
+- **Configuration:** `monitoring/alertmanager/alertmanager.yml`
 
 ### Exporters
 
-- **MySQLd Exporter:** (`:9104`) Метрики производительности MariaDB.
-- **cAdvisor:** (`:8080`) Метрики использования ресурсов контейнерами (CPU, Memory, Network).
+- **PostgreSQL Exporter:** Database metrics.
+- **Redis Exporter:** Redis metrics.
+- **cAdvisor:** Container resource usage (CPU, memory, network).
 
-## Метрики Приложения
+## Application Metrics
 
-Бэкенд экспортирует метрики в формате Prometheus на эндпоинте `/metrics`.
+The backend exposes Prometheus metrics at the `/metrics` endpoint.
 
-### Ключевые метрики
+### Main metrics
 
-- **HTTP Requests:**
-    - `http_requests_total` — Количество запросов (counter).
-    - `http_request_duration_seconds` — Гистограмма длительности обработки.
-- **Go Runtime:**
-    - `go_goroutines` — Количество горутин.
-    - `go_memstats_alloc_bytes` — Использование памяти.
-- **Business Logic:**
-    - `flag_submissions_total` — Количество отправок флагов.
+- **HTTP:**
+  - `http_requests_total` — Request count (counter).
+  - `http_request_duration_seconds` — Request duration (histogram).
+- **Go runtime:**
+  - `go_goroutines` — Number of goroutines.
+  - `go_memstats_alloc_bytes` — Allocated memory.
+- **Business:**
+  - `flag_submissions_total` — Flag submission count.
 
-## Логирование
+## Logging
 
-Используется структурированное JSON-логирование.
+The application uses structured JSON logging.
 
-### Формат лога
+### Log format
 
 ```json
 {
@@ -94,14 +96,16 @@
 }
 ```
 
-### Запросы LogQL (Grafana)
+### LogQL examples (Grafana)
 
-**Поиск ошибок бэкенда:**
+**Filter backend errors:**
+
 ```logql
 {compose_service="backend"} |= "error"
 ```
 
-**Поиск по Trace ID:**
+**Filter by trace ID:**
+
 ```logql
 {compose_service="backend"} |= "trace_id=12345"
 ```

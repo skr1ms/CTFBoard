@@ -17,4 +17,5 @@ type Challenge struct {
 	IsRegex           bool      `json:"is_regex"`
 	IsCaseInsensitive bool      `json:"is_case_insensitive"`
 	FlagRegex         string    `json:"flag_regex,omitempty"`
+	FlagFormatRegex   *string   `json:"flag_format_regex,omitempty"`
 }

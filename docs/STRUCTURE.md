@@ -1,192 +1,204 @@
-# Структура проекта
+# Project Structure
 
-Проект построен на Go с использованием clean architecture. Приложение разделено на слои: presentation, application, domain и data.
+The project is implemented in Go using a clean architecture. The application is split into presentation, application, domain, and data layers.
 
-## Архитектура
+## Architecture
 
-Проект следует принципам clean architecture с четким разделением ответственности:
+The codebase follows clean architecture with clear separation of concerns:
 
-- **Presentation Layer** (`internal/controller/restapi`, `internal/controller/websocket`) - HTTP и WebSocket контроллеры, обработка запросов
-- **Application Layer** (`internal/usecase`) - бизнес-логика, use cases
-- **Domain Layer** (`internal/entity`) - доменные сущности и бизнес-правила
-- **Data Layer** (`internal/repo`) - работа с данными, репозитории
+- **Presentation layer** (`internal/controller/restapi`, `internal/controller/websocket`) — HTTP and WebSocket handlers, request handling.
+- **Application layer** (`internal/usecase`) — Business logic and use cases.
+- **Domain layer** (`internal/entity`) — Domain entities and business rules.
+- **Data layer** (`internal/repo`) — Data access and repositories.
 
-## Структура директорий
+## Directory Layout
 
 ### Backend
 
 ```
 backend/
-├── cmd/app/              # Точка входа приложения
-├── config/               # Конфигурация приложения
-├── internal/             # Внутренние пакеты приложения
-│   ├── app/              # Инициализация и запуск приложения
-│   ├── controller/       # Presentation layer
-│   │   ├── restapi/      # REST API контроллеры (v1)
+├── cmd/app/                 # Application entry point
+├── config/                  # Configuration loading
+├── internal/                # Private application packages
+│   ├── app/                 # Application bootstrap and wiring
+│   ├── controller/          # Presentation layer
+│   │   ├── restapi/         # REST API (v1)
 │   │   │   ├── middleware/  # HTTP middleware
-│   │   │   └── v1/          # API v1 handlers
-│   │   └── websocket/v1/    # WebSocket контроллеры
-│   ├── entity/           # Domain layer
-│   │   └── error/        # Доменные ошибки
-│   ├── repo/             # Data layer
-│   │   ├── contract.go   # Интерфейсы репозиториев
-│   │   └── persistent/   # Реализации репозиториев
-│   └── usecase/          # Application layer
-│       └── mocks/        # Моки для тестирования
-├── pkg/                  # Общие пакеты
-│   ├── jwt/              # JWT сервис
-│   ├── logger/           # Логирование
-│   ├── mailer/           # Отправка email
-│   ├── mariadb/          # MariaDB клиент
-│   ├── postgres/         # PostgreSQL клиент
-│   ├── redis/            # Redis клиент
-│   ├── migrator/         # Миграции БД
-│   ├── validator/        # Валидация данных
-│   ├── vault/            # HashiCorp Vault клиент
-│   └── websocket/        # Утилиты для WebSocket
-├── migrations/           # SQL миграции
-├── schema/               # SQL схемы
-├── e2e-test/             # E2E тесты
-└── integration-test/     # Интеграционные тесты
+│   │   │   └── v1/          # API v1 handlers and request/response types
+│   │   └── websocket/v1/    # WebSocket handlers
+│   ├── entity/              # Domain layer
+│   │   └── error/           # Domain errors
+│   ├── openapi/             # OpenAPI spec and generated types
+│   ├── repo/                # Data layer
+│   │   ├── contract.go      # Repository interfaces
+│   │   └── persistent/      # Repository implementations
+│   └── usecase/             # Application layer
+│       └── .../mocks/       # Mocks for tests
+├── pkg/                     # Shared packages
+│   ├── crypto/              # Encryption (e.g. AES)
+│   ├── httputil/            # HTTP helpers
+│   ├── jwt/                 # JWT service
+│   ├── logger/              # Logging
+│   ├── mailer/              # Email sending
+│   ├── migrator/            # Database migrations
+│   ├── postgres/            # PostgreSQL client
+│   ├── redis/               # Redis client
+│   ├── seed/                # Database seeding
+│   ├── validator/           # Request validation
+│   ├── vault/               # HashiCorp Vault client
+│   └── websocket/           # WebSocket hub and client
+├── migrations/              # SQL migrations
+├── schema/                  # Full SQL schema (reference)
+├── e2e-test/                # End-to-end tests
+└── integration-test/        # Integration tests (repositories, DB)
 ```
 
 ### Deployment
 
 ```
 deployment/
-├── docker/               # Docker конфигурации
+├── docker/                  # Docker and Compose
 │   ├── docker-compose.yml
 │   └── docker-compose.local.yml
-├── nginx/                # Nginx конфигурация
-└── vault/                # Vault конфигурация
+├── nginx/                   # Nginx configuration
+├── vault/                   # Vault configuration
+├── cron-jobs/               # Cron job definitions
+├── scripts/                 # Deployment scripts
+└── seaweedfs/               # S3-compatible storage config (if used)
 ```
 
 ### Monitoring
 
 ```
 monitoring/
-├── grafana/              # Grafana дашборды и provisioning
-├── loki/                 # Loki конфигурация
-├── prometheus/           # Prometheus конфигурация
-├── promtail/             # Promtail конфигурация
-└── mysqld-exporter/      # MySQL exporter конфигурация
+├── grafana/                 # Grafana dashboards and provisioning
+├── loki/                    # Loki configuration
+├── prometheus/              # Prometheus configuration and alerts
+├── promtail/                # Promtail configuration
+└── alertmanager/            # Alertmanager configuration
 ```
 
-## Основные компоненты
+## Main Components
 
-### Entry Point
+### Entry point
 
-**Файл:** `cmd/app/main.go`
+**File:** `cmd/app/main.go`
 
-Инициализирует конфигурацию, создает логгер и запускает приложение.
+Loads configuration, creates the logger, and starts the application.
 
-### Application Initialization
+### Application initialization
 
-**Файл:** `internal/app/app.go`
+**File:** `internal/app/app.go`
 
-Инициализирует зависимости:
-- Подключение к БД (MariaDB/PostgreSQL) и Redis
-- Запуск миграций
-- Создание репозиториев
-- Создание use cases
-- Настройка HTTP роутера и middleware
-- Запуск HTTP сервера
+Wires dependencies:
+
+- PostgreSQL and Redis connections
+- Migrations
+- Repositories
+- Use cases
+- HTTP router and middleware
+- HTTP server
 
 ### Controllers
 
-**Директория:** `internal/controller`
+**Directory:** `internal/controller`
 
 **REST API (`restapi/v1`):**
-- `user.go` - аутентификация и управление пользователями
-- `challenge.go` - управление задачами
-- `solve.go` - отправка флагов
-- `team.go` - управление командами
-- `scoreboard.go` - турнирная таблица
-- `email.go` - управление email (сброс пароля, верификация)
-- `hint.go` - управление подсказками
-- `competition.go` - управление соревнованием
+
+- `user.go` — Authentication and user management
+- `challenge.go` — Challenge (task) management
+- `competition.go` — Competition settings
+- `scoreboard.go` — Scoreboard
+- `statistics.go` — Statistics
+- `team.go` — Team management
+- `award.go` — Awards
+- `email.go` — Email (verification, password reset)
+- `hint.go` — Hints
+- `file.go` — File upload/download
+- `backup.go` — Backup
+- `settings.go` — Admin settings
+- `websocket.go` — WebSocket upgrade
 
 **WebSocket (`websocket/v1`):**
-- `controller.go` - обработка WebSocket соединений для обновлений в реальном времени
 
-### Use Cases
+- `controller.go` — WebSocket connections and real-time updates
 
-**Директория:** `internal/usecase`
+### Use cases
 
-Бизнес-логика приложения:
-- `user.go` - регистрация, аутентификация, профили
-- `challenge.go` - управление задачами
-- `solve.go` - обработка решений задач
-- `team.go` - управление командами
-- `email.go` - логика отправки писем
-- `hint.go` - логика покупки и открытия подсказок
-- `competition.go` - статус и настройки соревнования
+**Directory:** `internal/usecase`
+
+Business logic is grouped by domain:
+
+- `user/` — Registration, authentication, profile
+- `challenge/` — Challenges, hints, files
+- `competition/` — Competition state, scoring, solve, statistics, backup
+- `team/` — Teams, awards
+- `email/` — Verification and password reset emails
+- `settings/` — Application settings (admin)
 
 ### Entities
 
-**Директория:** `internal/entity`
+**Directory:** `internal/entity`
 
-Доменные сущности:
-- `user.go` - пользователь
-- `challenge.go` - задача
-- `solve.go` - решение задачи
-- `team.go` - команда
-- `hint.go` - подсказка
-- `competition.go` - настройки соревнования
-- `verification_token.go` - токены подтверждения
+Domain entities include:
+
+- `user.go` — User
+- `challenge.go` — Challenge
+- `team.go` — Team
+- `solve` (in competition flow) — Solve
+- `hint.go` — Hint
+- `competition.go` — Competition
+- `app_settings.go` — Application settings
+- `verification_token.go` — Verification tokens
+- `audit_log.go` — Audit log entries
+- Others as used by the API and use cases
 
 ### Repositories
 
-**Директория:** `internal/repo`
+**Directory:** `internal/repo`
 
-Интерфейсы репозиториев определены в `contract.go`:
-- `UserRepository`
-- `ChallengeRepository`
-- `SolveRepository`
-- `TeamRepository`
-- `HintRepository`
-- `CompetitionRepository`
-
-Реализации в `persistent/`:
-- `*mariadb.go` - реализация для MariaDB
+Interfaces are defined in `contract.go`. Implementations live in `persistent/` (e.g. PostgreSQL). Repositories are used for users, challenges, teams, solves, hints, competition, settings, audit log, backup, and related entities.
 
 ### Middleware
 
-**Директория:** `internal/controller/restapi/middleware`
+**Directory:** `internal/controller/restapi/middleware`
 
-- `auth.go` - JWT аутентификация
-- `logger.go` - логирование запросов
-- `metrics.go` - метрики Prometheus
+- Authentication (JWT)
+- Request logging
+- Metrics (Prometheus)
 
 ### Configuration
 
-**Файл:** `config/config.go`
+**File:** `config/config.go` (or equivalent)
 
-Загрузка конфигурации из:
-- Переменных окружения
-- HashiCorp Vault (опционально)
+Configuration is loaded from environment variables and optionally from HashiCorp Vault.
 
-### Common Packages
+### Shared packages
 
-**Пакет:** `pkg/mailer`
-Отправка транзакционных писем (SMTP).
+- **`pkg/mailer`** — Transactional email (e.g. Resend).
+- **`pkg/websocket`** — WebSocket hub and client handling.
+- **`pkg/postgres`** — PostgreSQL connection and pool.
+- **`pkg/redis`** — Redis client.
+- **`pkg/jwt`** — JWT creation and validation.
+- **`pkg/validator`** — Request validation.
+- **`pkg/migrator`** — Running SQL migrations.
 
-**Пакет:** `pkg/websocket`
-Управление пулом WebSocket соединений.
+## Testing
 
-## Тестирование
+### End-to-end tests
 
-### E2E тесты
+**Directory:** `backend/e2e-test/`
 
-**Директория:** `e2e-test/`
-Тесты полного цикла через HTTP API.
+Tests exercise the system via the HTTP API (and optionally WebSocket) against a running or in-process backend.
 
-### Интеграционные тесты
+### Integration tests
 
-**Директория:** `integration-test/`
-Тесты репозиториев с реальной БД.
+**Directory:** `backend/integration-test/`
 
-### Unit тесты
+Tests run against a real database and verify repository behaviour and data consistency.
 
-**Директория:** `internal/usecase/` et al.
-Unit тесты бизнес-логики с моками.
+### Unit tests
+
+**Locations:** e.g. `internal/usecase/*/**_test.go`
+
+Business logic is tested with mocked repositories and services.

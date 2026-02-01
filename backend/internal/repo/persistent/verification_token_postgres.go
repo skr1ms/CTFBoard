@@ -14,6 +14,22 @@ import (
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 )
 
+var (
+	verificationTokenInsertColumns = []string{"id", "user_id", "token", "type", "expires_at"}
+	verificationTokenSelectColumns = []string{"id", "user_id", "token", "type", "expires_at", "used_at", "created_at"}
+)
+
+func scanVerificationToken(row rowScanner) (*entity.VerificationToken, error) {
+	var t entity.VerificationToken
+	var tokenType string
+	err := row.Scan(&t.ID, &t.UserID, &t.Token, &tokenType, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	t.Type = entity.TokenType(tokenType)
+	return &t, nil
+}
+
 type VerificationTokenRepo struct {
 	pool *pgxpool.Pool
 }
@@ -28,7 +44,7 @@ func (r *VerificationTokenRepo) Create(ctx context.Context, token *entity.Verifi
 	}
 
 	query, args, err := sq.Insert("verification_tokens").
-		Columns("id", "user_id", "token", "type", "expires_at").
+		Columns(verificationTokenInsertColumns...).
 		Values(token.ID, token.UserID, token.Token, token.Type, token.ExpiresAt).
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
@@ -45,7 +61,7 @@ func (r *VerificationTokenRepo) Create(ctx context.Context, token *entity.Verifi
 }
 
 func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*entity.VerificationToken, error) {
-	query, args, err := sq.Select("id", "user_id", "token", "type", "expires_at", "used_at", "created_at").
+	query, args, err := sq.Select(verificationTokenSelectColumns...).
 		From("verification_tokens").
 		Where(sq.Eq{"token": token}).
 		PlaceholderFormat(sq.Dollar).
@@ -54,20 +70,14 @@ func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*
 		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken - ToSql: %w", err)
 	}
 
-	var t entity.VerificationToken
-	var tokenType string
-	err = r.pool.QueryRow(ctx, query, args...).Scan(
-		&t.ID, &t.UserID, &t.Token, &tokenType, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt,
-	)
+	t, err := scanVerificationToken(r.pool.QueryRow(ctx, query, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, entityError.ErrTokenNotFound
 		}
 		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken - QueryRow: %w", err)
 	}
-
-	t.Type = entity.TokenType(tokenType)
-	return &t, nil
+	return t, nil
 }
 
 func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, ID uuid.UUID) error {

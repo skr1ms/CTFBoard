@@ -7,7 +7,6 @@ import (
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
@@ -28,14 +27,7 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := openapi.JwtTokenPair{
-		AccessToken:      ptr(tokenPair.AccessToken),
-		AccessExpiresAt:  ptr(int(tokenPair.AccessExpiresAt)),
-		RefreshToken:     ptr(tokenPair.RefreshToken),
-		RefreshExpiresAt: ptr(int(tokenPair.RefreshExpiresAt)),
-	}
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
 // Register new user
@@ -59,9 +51,7 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		h.logger.WithError(err).Error("restapi - v1 - PostAuthRegister - SendVerificationEmail")
 	}
 
-	res := response.FromUserForRegister(user)
-
-	httputil.RenderCreated(w, r, res)
+	httputil.RenderCreated(w, r, response.FromUserForRegister(user))
 }
 
 // Get current user info
@@ -73,9 +63,7 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response.FromUserForMe(user)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromUserForMe(user))
 }
 
 // Get user profile
@@ -94,7 +82,5 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	res := response.FromUserProfile(profile)
-
-	httputil.RenderOK(w, r, res)
+	httputil.RenderOK(w, r, response.FromUserProfile(profile))
 }

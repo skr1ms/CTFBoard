@@ -102,6 +102,19 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	}
 }
 
+func TestChallengeRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	challenges, err := f.ChallengeRepo.GetAll(ctx, nil)
+	assert.Error(t, err)
+	assert.Nil(t, challenges)
+}
+
 func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
