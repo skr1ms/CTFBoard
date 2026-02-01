@@ -55,13 +55,14 @@ generate-openapi: ## Generate OpenAPI code from spec
 	@oapi-codegen -config oapi-codegen.yml internal/openapi/openapi.yaml
 	@echo "OpenAPI code generated"
 
-generate-mocks: ## Generate all mocks for usecase packages
+generate-mocks: ## Generate all mocks for usecase and pkg packages
 	@echo "Generating mocks..."
 	@mockery --config .mockery/.mockery_user.yml
 	@mockery --config .mockery/.mockery_team.yml
 	@mockery --config .mockery/.mockery_challenge.yml
 	@mockery --config .mockery/.mockery_competition.yml
 	@mockery --config .mockery/.mockery_email.yml
+	@mockery --config .mockery/.mockery_pkg.yml
 	@echo "All mocks generated"
 
 generate-mocks-user: ## Generate mocks for user package
@@ -78,6 +79,9 @@ generate-mocks-competition: ## Generate mocks for competition package
 
 generate-mocks-email: ## Generate mocks for email package
 	@mockery --config .mockery/.mockery_email.yml
+
+generate-mocks-pkg: ## Generate mocks for pkg interfaces used in pkg tests (mailer)
+	@mockery --config .mockery/.mockery_pkg.yml
 
 
 build: generate-openapi ## Build the binary

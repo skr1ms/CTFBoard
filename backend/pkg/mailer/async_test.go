@@ -2,61 +2,39 @@ package mailer_test
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
+	"github.com/skr1ms/CTFBoard/pkg/mailer/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-type mockMailer struct {
-	mu       sync.Mutex
-	messages []mailer.Message
-	wg       sync.WaitGroup
-}
-
-func (m *mockMailer) Send(ctx context.Context, msg mailer.Message) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.messages = append(m.messages, msg)
-	m.wg.Done()
-	return nil
-}
-
 func TestAsyncMailer(t *testing.T) {
-	mock := &mockMailer{}
+	mockMailer := mocks.NewMockMailer(t)
 	l := logger.New(&logger.Options{
 		Level:  logger.InfoLevel,
 		Output: logger.ConsoleOutput,
 	})
-	asyncMailer := mailer.NewAsyncMailer(mock, 10, 1, l)
+	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
 	msg := mailer.Message{To: "test@example.com", Subject: "Test", Body: "Body"}
+	done := make(chan struct{})
 
-	mock.wg.Add(1)
+	mockMailer.On("Send", mock.Anything, mock.MatchedBy(func(m mailer.Message) bool {
+		return m.To == "test@example.com" && m.Subject == "Test" && m.Body == "Body"
+	})).Return(nil).Once().Run(func(mock.Arguments) { close(done) })
+
 	err := asyncMailer.Send(context.Background(), msg)
 	assert.NoError(t, err)
 
-	// Wait for worker to process
-	done := make(chan struct{})
-	go func() {
-		mock.wg.Wait()
-		close(done)
-	}()
-
 	select {
 	case <-done:
-		// Success
 	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for mailer")
+		t.Fatal("timeout waiting for mailer Send")
 	}
-
-	mock.mu.Lock()
-	assert.Len(t, mock.messages, 1)
-	assert.Equal(t, "test@example.com", mock.messages[0].To)
-	mock.mu.Unlock()
 }
