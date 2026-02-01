@@ -74,13 +74,7 @@ func (h *Hub) unregisterClient(client *Client) {
 
 func (h *Hub) broadcastToClients(item broadcastItem) {
 	for client := range h.clients {
-		select {
-		case client.send <- item.data:
-		default:
-			close(client.send)
-			delete(h.clients, client)
-			atomic.AddInt64(&h.clientCount, -1)
-		}
+		client.send <- item.data
 	}
 	if item.done != nil {
 		close(item.done)
@@ -104,12 +98,12 @@ func (h *Hub) BroadcastEvent(event any) {
 	if err != nil {
 		return
 	}
-	if h.redisClient != nil {
-		h.redisClient.Publish(context.Background(), h.redisChannel, data)
-	}
 	done := make(chan struct{})
 	h.broadcast <- broadcastItem{data: data, done: done}
 	<-done
+	if h.redisClient != nil {
+		h.redisClient.Publish(context.Background(), h.redisChannel, data)
+	}
 }
 
 func (h *Hub) SubscribeToRedis(ctx context.Context) {
