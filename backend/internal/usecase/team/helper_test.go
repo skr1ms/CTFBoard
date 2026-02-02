@@ -6,13 +6,16 @@ import (
 
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team/mocks"
 )
 
 type TeamTestHelper struct {
-	t    *testing.T
-	deps *teamTestDeps
+	t           *testing.T
+	deps        *teamTestDeps
+	redisClient *redis.Client
+	redisMock   redismock.ClientMock
 }
 
 type teamTestDeps struct {
@@ -24,6 +27,7 @@ type teamTestDeps struct {
 
 func NewTeamTestHelper(t *testing.T) *TeamTestHelper {
 	t.Helper()
+	client, redisMock := redismock.NewClientMock()
 	return &TeamTestHelper{
 		t: t,
 		deps: &teamTestDeps{
@@ -32,6 +36,8 @@ func NewTeamTestHelper(t *testing.T) *TeamTestHelper {
 			compRepo: mocks.NewMockCompetitionRepository(t),
 			txRepo:   mocks.NewMockTxRepository(t),
 		},
+		redisClient: client,
+		redisMock:   redisMock,
 	}
 }
 
@@ -42,7 +48,13 @@ func (h *TeamTestHelper) CreateUseCase() *TeamUseCase {
 		h.deps.userRepo,
 		h.deps.compRepo,
 		h.deps.txRepo,
+		h.redisClient,
 	)
+}
+
+func (h *TeamTestHelper) Redis() redismock.ClientMock {
+	h.t.Helper()
+	return h.redisMock
 }
 
 func (h *TeamTestHelper) Deps() *teamTestDeps {

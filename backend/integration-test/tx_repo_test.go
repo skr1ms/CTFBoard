@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// BeginTx Tests
-
 func TestTxRepo_BeginTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -34,7 +32,6 @@ func TestTxRepo_BeginTx_Error(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
-	// Close Pool to force error
 	testPool.Pool.Close()
 
 	ctx := context.Background()
@@ -42,8 +39,6 @@ func TestTxRepo_BeginTx_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 }
-
-// RunTransaction Tests
 
 func TestTxRepo_RunTransaction_Success(t *testing.T) {
 	t.Helper()
@@ -82,8 +77,6 @@ func TestTxRepo_RunTransaction_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "forced error")
 }
 
-// CreateUserTx Tests
-
 func TestTxRepo_CreateUserTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -92,7 +85,7 @@ func TestTxRepo_CreateUserTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	user := &entity.User{
 		Username:     "tx_user",
@@ -123,7 +116,7 @@ func TestTxRepo_CreateUserTx_Error_DuplicateEmail(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	user := &entity.User{
 		Username:     "different_username",
@@ -136,8 +129,6 @@ func TestTxRepo_CreateUserTx_Error_DuplicateEmail(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// UpdateUserTeamIDTx Tests
-
 func TestTxRepo_UpdateUserTeamIDTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -148,7 +139,7 @@ func TestTxRepo_UpdateUserTeamIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, user.ID, &team.ID)
 	require.NoError(t, err)
@@ -165,14 +156,12 @@ func TestTxRepo_UpdateUserTeamIDTx_Error_InvalidUserID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	nonExistentUserID := uuid.New()
 	err = f.TxRepo.UpdateUserTeamIDTx(ctx, tx, nonExistentUserID, nil)
 	assert.Error(t, err)
 }
-
-// CreateTeamTx Tests
 
 func TestTxRepo_CreateTeamTx_Success(t *testing.T) {
 	t.Helper()
@@ -184,7 +173,7 @@ func TestTxRepo_CreateTeamTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	team := &entity.Team{
 		Name:        "TxTeam",
@@ -212,7 +201,7 @@ func TestTxRepo_CreateTeamTx_Error_InvalidCaptainID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	nonExistentCaptainID := uuid.New()
 	team := &entity.Team{
@@ -225,8 +214,6 @@ func TestTxRepo_CreateTeamTx_Error_InvalidCaptainID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// GetChallengeByIDTx Tests
-
 func TestTxRepo_GetChallengeByIDTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -237,7 +224,7 @@ func TestTxRepo_GetChallengeByIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
@@ -257,14 +244,12 @@ func TestTxRepo_GetChallengeByIDTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, uuid.Nil)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
-
-// DeleteChallengeTx Tests
 
 func TestTxRepo_DeleteChallengeTx_Success(t *testing.T) {
 	t.Helper()
@@ -296,14 +281,12 @@ func TestTxRepo_DeleteChallengeTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.DeleteChallengeTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
-
-// IncrementChallengeSolveCountTx Tests
 
 func TestTxRepo_IncrementChallengeSolveCountTx_Success(t *testing.T) {
 	t.Helper()
@@ -315,7 +298,7 @@ func TestTxRepo_IncrementChallengeSolveCountTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	newCount, err := f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
@@ -337,13 +320,11 @@ func TestTxRepo_IncrementChallengeSolveCountTx_Error_InvalidID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.IncrementChallengeSolveCountTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 }
-
-// UpdateChallengePointsTx Tests
 
 func TestTxRepo_UpdateChallengePointsTx_Success(t *testing.T) {
 	t.Helper()
@@ -355,7 +336,7 @@ func TestTxRepo_UpdateChallengePointsTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, challenge.ID, 200)
 	require.NoError(t, err)
@@ -376,13 +357,11 @@ func TestTxRepo_UpdateChallengePointsTx_Error_InvalidID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.UpdateChallengePointsTx(ctx, tx, uuid.New(), 200)
 	assert.Error(t, err)
 }
-
-// CreateSolveTx Tests
 
 func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
 	t.Helper()
@@ -395,7 +374,7 @@ func TestTxRepo_CreateSolveTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	solve := &entity.Solve{
 		UserID:      user.ID,
@@ -425,7 +404,7 @@ func TestTxRepo_CreateSolveTx_Error_InvalidUserID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	solve := &entity.Solve{
 		UserID:      uuid.New(),
@@ -436,8 +415,6 @@ func TestTxRepo_CreateSolveTx_Error_InvalidUserID(t *testing.T) {
 	err = f.TxRepo.CreateSolveTx(ctx, tx, solve)
 	assert.Error(t, err)
 }
-
-// GetSolveByTeamAndChallengeTx Tests
 
 func TestTxRepo_GetSolveByTeamAndChallengeTx_Success(t *testing.T) {
 	t.Helper()
@@ -451,7 +428,7 @@ func TestTxRepo_GetSolveByTeamAndChallengeTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	solve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, team.ID, challenge.ID)
 	require.NoError(t, err)
@@ -473,14 +450,12 @@ func TestTxRepo_GetSolveByTeamAndChallengeTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, team.ID, challenge.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
-
-// GetTeamScoreTx Tests
 
 func TestTxRepo_GetTeamScoreTx_Success(t *testing.T) {
 	t.Helper()
@@ -497,7 +472,7 @@ func TestTxRepo_GetTeamScoreTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -515,15 +490,12 @@ func TestTxRepo_GetTeamScoreTx_NonExistentTeam(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
-	// Non-existent team should return 0 score
 	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, uuid.New())
 	assert.NoError(t, err)
 	assert.Equal(t, 0, score)
 }
-
-// CreateHintUnlockTx Tests
 
 func TestTxRepo_CreateHintUnlockTx_Success(t *testing.T) {
 	t.Helper()
@@ -537,7 +509,7 @@ func TestTxRepo_CreateHintUnlockTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.ID, hint.ID)
 	require.NoError(t, err)
@@ -562,13 +534,11 @@ func TestTxRepo_CreateHintUnlockTx_Error_InvalidTeamID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, uuid.New(), hint.ID)
 	assert.Error(t, err)
 }
-
-// GetHintUnlockByTeamAndHintTx Tests
 
 func TestTxRepo_GetHintUnlockByTeamAndHintTx_Success(t *testing.T) {
 	t.Helper()
@@ -589,7 +559,7 @@ func TestTxRepo_GetHintUnlockByTeamAndHintTx_Success(t *testing.T) {
 
 	tx2, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck
 
 	unlock, err := f.TxRepo.GetHintUnlockByTeamAndHintTx(ctx, tx2, team.ID, hint.ID)
 	require.NoError(t, err)
@@ -612,14 +582,12 @@ func TestTxRepo_GetHintUnlockByTeamAndHintTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, team.ID, hint.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrHintNotFound))
 }
-
-// CreateAwardTx Tests
 
 func TestTxRepo_CreateAwardTx_Success(t *testing.T) {
 	t.Helper()
@@ -631,7 +599,7 @@ func TestTxRepo_CreateAwardTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	award := &entity.Award{
 		TeamID:      team.ID,
@@ -659,7 +627,7 @@ func TestTxRepo_CreateAwardTx_Error_InvalidTeamID(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	award := &entity.Award{
 		TeamID:      uuid.New(),
@@ -671,8 +639,6 @@ func TestTxRepo_CreateAwardTx_Error_InvalidTeamID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// LockTeamTx Tests
-
 func TestTxRepo_LockTeamTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -683,7 +649,7 @@ func TestTxRepo_LockTeamTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.LockTeamTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -700,14 +666,12 @@ func TestTxRepo_LockTeamTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.LockTeamTx(ctx, tx, uuid.Nil)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// BeginSerializableTx Tests
 
 func TestTxRepo_BeginSerializableTx_Success(t *testing.T) {
 	t.Helper()
@@ -736,8 +700,6 @@ func TestTxRepo_BeginSerializableTx_Error(t *testing.T) {
 	assert.Nil(t, tx)
 }
 
-// LockUserTx Tests
-
 func TestTxRepo_LockUserTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -748,7 +710,7 @@ func TestTxRepo_LockUserTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.LockUserTx(ctx, tx, user.ID)
 	require.NoError(t, err)
@@ -765,14 +727,12 @@ func TestTxRepo_LockUserTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.LockUserTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
-
-// GetTeamByNameTx Tests
 
 func TestTxRepo_GetTeamByNameTx_Success(t *testing.T) {
 	t.Helper()
@@ -784,7 +744,7 @@ func TestTxRepo_GetTeamByNameTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotTeam, err := f.TxRepo.GetTeamByNameTx(ctx, tx, team.Name)
 	require.NoError(t, err)
@@ -802,14 +762,12 @@ func TestTxRepo_GetTeamByNameTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetTeamByNameTx(ctx, tx, "NonExistentTeam")
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// GetTeamByInviteTokenTx Tests
 
 func TestTxRepo_GetTeamByInviteTokenTx_Success(t *testing.T) {
 	t.Helper()
@@ -821,7 +779,7 @@ func TestTxRepo_GetTeamByInviteTokenTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotTeam, err := f.TxRepo.GetTeamByInviteTokenTx(ctx, tx, team.InviteToken)
 	require.NoError(t, err)
@@ -839,14 +797,12 @@ func TestTxRepo_GetTeamByInviteTokenTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetTeamByInviteTokenTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// GetUsersByTeamIDTx Tests
 
 func TestTxRepo_GetUsersByTeamIDTx_Success(t *testing.T) {
 	t.Helper()
@@ -863,7 +819,7 @@ func TestTxRepo_GetUsersByTeamIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	users, err := f.TxRepo.GetUsersByTeamIDTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -886,13 +842,11 @@ func TestTxRepo_GetUsersByTeamIDTx_Error_Query(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(context.Background())
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(context.Background()) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetUsersByTeamIDTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 }
-
-// DeleteTeamTx Tests
 
 func TestTxRepo_DeleteTeamTx_Success(t *testing.T) {
 	t.Helper()
@@ -904,7 +858,7 @@ func TestTxRepo_DeleteTeamTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.DeleteTeamTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -925,14 +879,12 @@ func TestTxRepo_DeleteTeamTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.DeleteTeamTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// UpdateTeamCaptainTx Tests
 
 func TestTxRepo_UpdateTeamCaptainTx_Success(t *testing.T) {
 	t.Helper()
@@ -945,7 +897,7 @@ func TestTxRepo_UpdateTeamCaptainTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.UpdateTeamCaptainTx(ctx, tx, team.ID, newCap.ID)
 	require.NoError(t, err)
@@ -967,14 +919,12 @@ func TestTxRepo_UpdateTeamCaptainTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.UpdateTeamCaptainTx(ctx, tx, uuid.New(), uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// SoftDeleteTeamTx Tests
 
 func TestTxRepo_SoftDeleteTeamTx_Success(t *testing.T) {
 	t.Helper()
@@ -986,7 +936,7 @@ func TestTxRepo_SoftDeleteTeamTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.SoftDeleteTeamTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -1003,14 +953,12 @@ func TestTxRepo_SoftDeleteTeamTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.SoftDeleteTeamTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// CreateTeamAuditLogTx Tests
 
 func TestTxRepo_CreateTeamAuditLogTx_Success(t *testing.T) {
 	t.Helper()
@@ -1022,7 +970,7 @@ func TestTxRepo_CreateTeamAuditLogTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	log := &entity.TeamAuditLog{
 		TeamID:  team.ID,
@@ -1047,7 +995,7 @@ func TestTxRepo_CreateTeamAuditLogTx_Error_InvalidReference(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	log := &entity.TeamAuditLog{
 		TeamID: uuid.New(),
@@ -1058,8 +1006,6 @@ func TestTxRepo_CreateTeamAuditLogTx_Error_InvalidReference(t *testing.T) {
 	err = f.TxRepo.CreateTeamAuditLogTx(ctx, tx, log)
 	assert.Error(t, err)
 }
-
-// DeleteSolvesByTeamIDTx Tests
 
 func TestTxRepo_DeleteSolvesByTeamIDTx_Success(t *testing.T) {
 	t.Helper()
@@ -1073,7 +1019,7 @@ func TestTxRepo_DeleteSolvesByTeamIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	err = f.TxRepo.DeleteSolvesByTeamIDTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -1102,8 +1048,6 @@ func TestTxRepo_DeleteSolvesByTeamIDTx_Error_TxClosed(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// GetTeamByIDTx Tests
-
 func TestTxRepo_GetTeamByIDTx_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -1114,7 +1058,7 @@ func TestTxRepo_GetTeamByIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotTeam, err := f.TxRepo.GetTeamByIDTx(ctx, tx, team.ID)
 	require.NoError(t, err)
@@ -1133,14 +1077,12 @@ func TestTxRepo_GetTeamByIDTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetTeamByIDTx(ctx, tx, uuid.New())
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// GetSoloTeamByUserIDTx Tests
 
 func TestTxRepo_GetSoloTeamByUserIDTx_Success(t *testing.T) {
 	t.Helper()
@@ -1150,7 +1092,7 @@ func TestTxRepo_GetSoloTeamByUserIDTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	user := f.CreateUser(t, "solo_getter")
 
@@ -1183,7 +1125,7 @@ func TestTxRepo_GetSoloTeamByUserIDTx_Error_NotFound(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	user := f.CreateUser(t, "no_solo_team")
 
@@ -1191,8 +1133,6 @@ func TestTxRepo_GetSoloTeamByUserIDTx_Error_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// CreateAuditLogTx Tests
 
 func TestTxRepo_CreateAuditLogTx_Success(t *testing.T) {
 	t.Helper()
@@ -1204,7 +1144,7 @@ func TestTxRepo_CreateAuditLogTx_Success(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	log := &entity.AuditLog{
 		UserID:     &user.ID,
@@ -1231,7 +1171,7 @@ func TestTxRepo_CreateAuditLogTx_Error_InvalidUser(t *testing.T) {
 
 	tx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	invalidID := uuid.New()
 	log := &entity.AuditLog{

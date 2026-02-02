@@ -62,6 +62,13 @@ packages:
           filename: "BackupRepository.go"
           pkgname: "mocks"
           structname: "MockBackupRepository"
+      
+      AppSettingsRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "AppSettingsRepository.go"
+          pkgname: "mocks"
+          structname: "MockAppSettingsRepository"
 
   github.com/skr1ms/CTFBoard/pkg/logger:
     interfaces:

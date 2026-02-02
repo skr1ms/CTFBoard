@@ -127,6 +127,8 @@ security:code:
 # Security container job
 security:container:
   stage: security
+  needs:
+    - build:backend
   image:
     name: $TRIVY_IMAGE
     entrypoint: [""]

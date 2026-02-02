@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 // POST /teams/solo + GET /teams/my + POST /teams/join: captain creates solo team; player joins by invite_token; both see same team.
 func TestTeam_FullFlow(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
@@ -19,11 +20,11 @@ func TestTeam_FullFlow(t *testing.T) {
 	h.CreateSoloTeam(tokenCap, http.StatusCreated)
 
 	initialTeam := h.GetMyTeam(tokenCap, http.StatusOK)
-	inviteToken := initialTeam.Value("invite_token").String().Raw()
-	teamID := initialTeam.Value("id").String().Raw()
-
-	initialTeam.Value("name").String().IsEqual(captainName)
-	initialTeam.Value("members").Array().Length().IsEqual(1)
+	require.NotNil(t, initialTeam.JSON200)
+	inviteToken := *initialTeam.JSON200.InviteToken
+	teamID := *initialTeam.JSON200.ID
+	require.Equal(t, captainName, *initialTeam.JSON200.Name)
+	require.Len(t, *initialTeam.JSON200.Members, 1)
 
 	playerName := "player_" + suffix
 	_, _, tokenPlayer := h.RegisterUserAndLogin(playerName)
@@ -31,14 +32,15 @@ func TestTeam_FullFlow(t *testing.T) {
 	h.JoinTeam(tokenPlayer, inviteToken, false, http.StatusOK)
 
 	teamState := h.GetMyTeam(tokenPlayer, http.StatusOK)
-	teamState.Value("id").String().IsEqual(teamID)
-	teamState.Value("members").Array().Length().IsEqual(2)
+	require.NotNil(t, teamState.JSON200)
+	require.Equal(t, teamID, *teamState.JSON200.ID)
+	require.Len(t, *teamState.JSON200.Members, 2)
 }
 
 // Full flow: competition + challenge + captain creates team + member joins + captain submits flag; GET /scoreboard shows team points.
 func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_workflow")
 
@@ -59,9 +61,10 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 	h.CreateTeam(tokenCap, teamName, http.StatusCreated)
 
 	myTeam := h.GetMyTeam(tokenCap, http.StatusOK)
-	myTeam.Value("name").String().IsEqual(teamName)
-	inviteToken := myTeam.Value("invite_token").String().Raw()
-	teamID := myTeam.Value("id").String().Raw()
+	require.NotNil(t, myTeam.JSON200)
+	require.Equal(t, teamName, *myTeam.JSON200.Name)
+	inviteToken := *myTeam.JSON200.InviteToken
+	teamID := *myTeam.JSON200.ID
 
 	memberName := "member_" + suffix
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
@@ -69,9 +72,10 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
 
 	memberTeam := h.GetMyTeam(tokenMember, http.StatusOK)
-	memberTeam.Value("id").String().IsEqual(teamID)
-	memberTeam.Value("name").String().IsEqual(teamName)
-	memberTeam.Value("members").Array().Length().IsEqual(2)
+	require.NotNil(t, memberTeam.JSON200)
+	require.Equal(t, teamID, *memberTeam.JSON200.ID)
+	require.Equal(t, teamName, *memberTeam.JSON200.Name)
+	require.Len(t, *memberTeam.JSON200.Members, 2)
 
 	h.SubmitFlag(tokenCap, challengeID, "flag{team_work_makes_dream_work}", http.StatusOK)
 
@@ -80,30 +84,26 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 
 // POST /teams: creating team with name that already exists returns 409 Conflict.
 func TestTeam_CreateDuplicateName(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
 	_, _, token1 := h.RegisterUserAndLogin("captain1_" + suffix)
 	h.CreateSoloTeam(token1, http.StatusCreated)
-	teamName1 := h.GetMyTeam(token1, http.StatusOK).Value("name").String().Raw()
+	myTeam := h.GetMyTeam(token1, http.StatusOK)
+	require.NotNil(t, myTeam.JSON200)
+	teamName1 := *myTeam.JSON200.Name
 
 	_, _, token2 := h.RegisterUserAndLogin("captain2_" + suffix)
 
-	e.POST("/api/v1/teams").
-		WithHeader("Authorization", token2).
-		WithJSON(map[string]string{
-			"name": teamName1,
-		}).
-		Expect().
-		Status(http.StatusConflict)
+	h.CreateTeam(token2, teamName1, http.StatusConflict)
 }
 
 // POST /teams/join: invalid invite_token returns 404.
 func TestTeam_JoinInvalidToken(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, _, token := h.RegisterUserAndLogin("user_" + uuid.New().String()[:8])
 
@@ -113,18 +113,22 @@ func TestTeam_JoinInvalidToken(t *testing.T) {
 
 // POST /teams/join: user already in a team tries to join another returns 409 Conflict.
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 
 	_, _, tokenCap := h.RegisterUserAndLogin("captain3_" + suffix)
 	h.CreateTeam(tokenCap, "TeamA_"+suffix, http.StatusCreated)
-	inviteTokenA := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
+	teamA := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, teamA.JSON200)
+	inviteTokenA := *teamA.JSON200.InviteToken
 
 	_, _, tokenUser1 := h.RegisterUserAndLogin("user1_" + suffix)
 	h.CreateTeam(tokenUser1, "TeamB_"+suffix, http.StatusCreated)
-	inviteTokenB := h.GetMyTeam(tokenUser1, http.StatusOK).Value("invite_token").String().Raw()
+	teamB := h.GetMyTeam(tokenUser1, http.StatusOK)
+	require.NotNil(t, teamB.JSON200)
+	inviteTokenB := *teamB.JSON200.InviteToken
 
 	_, _, tokenUser2 := h.RegisterUserAndLogin("user2_" + suffix)
 
@@ -135,17 +139,20 @@ func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 
 // POST /teams/join with confirm_reset: solo player with points joins another team; scoreboard shows target team with 0 (points reset).
 func TestTeam_Join_PointsCheck(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_points")
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
-		"title":       "Solvable",
-		"description": "Test team points",
-		"points":      100,
-		"flag":        "flag{ez}",
-		"category":    "misc",
+		"title":         "Solvable",
+		"description":   "Test team points",
+		"points":        100,
+		"flag":          "flag{ez}",
+		"category":      "misc",
+		"initial_value": 100,
+		"min_value":     100,
+		"decay":         1,
 	})
 
 	suffix := uuid.New().String()[:8]
@@ -159,17 +166,22 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 	targetCapName := "target_cap_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(targetCapName)
 	h.CreateTeam(tokenCap, targetCapName, http.StatusCreated)
-	inviteToken := h.GetMyTeam(tokenCap, http.StatusOK).Value("invite_token").String().Raw()
+	myTeam := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, myTeam.JSON200)
+	inviteToken := *myTeam.JSON200.InviteToken
 
 	h.JoinTeam(tokenSolo, inviteToken, true, http.StatusOK)
 
-	scoreboard := h.GetScoreboard().Status(http.StatusOK).JSON().Array()
-
-	var teamPoints float64 = -1
-	for _, val := range scoreboard.Iter() {
-		obj := val.Object()
-		if obj.Value("team_name").String().Raw() == targetCapName {
-			teamPoints = obj.Value("points").Number().Raw()
+	scoreboard := h.GetScoreboard()
+	require.NotNil(t, scoreboard.JSON200)
+	teamPoints := -1
+	for _, entry := range *scoreboard.JSON200 {
+		if entry.TeamName != nil && *entry.TeamName == targetCapName {
+			if entry.Points != nil {
+				teamPoints = *entry.Points
+			} else {
+				teamPoints = 0
+			}
 			break
 		}
 	}
@@ -185,8 +197,8 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: admin bans team; returns 200.
 func TestTeam_Admin_Ban(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_ban")
 	suffix := uuid.New().String()[:8]
@@ -194,15 +206,16 @@ func TestTeam_Admin_Ban(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
-	teamID := team.Value("id").String().Raw()
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
 
 	h.BanTeam(tokenAdmin, teamID, "test ban reason", http.StatusOK)
 }
 
 // DELETE /admin/teams/{ID}/ban: admin unbans team; returns 200.
 func TestTeam_Admin_Unban(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_unban")
 	suffix := uuid.New().String()[:8]
@@ -210,7 +223,8 @@ func TestTeam_Admin_Unban(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
-	teamID := team.Value("id").String().Raw()
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
 
 	h.BanTeam(tokenAdmin, teamID, "reason", http.StatusOK)
 	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
@@ -218,8 +232,8 @@ func TestTeam_Admin_Unban(t *testing.T) {
 
 // PATCH /admin/teams/{ID}/hidden: admin sets team hidden; returns 200.
 func TestTeam_Admin_SetHidden(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_hidden_team")
 	suffix := uuid.New().String()[:8]
@@ -227,16 +241,51 @@ func TestTeam_Admin_SetHidden(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
-	teamID := team.Value("id").String().Raw()
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
 
 	h.SetTeamHidden(tokenAdmin, teamID, true, http.StatusOK)
 	h.SetTeamHidden(tokenAdmin, teamID, false, http.StatusOK)
 }
 
+// DELETE /admin/teams/{ID}/ban: non-admin gets 403 Forbidden.
+func TestTeam_Admin_Unban_Forbidden(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _ = h.SetupCompetition("admin_unban_f")
+	suffix := uuid.New().String()[:8]
+	_, _, tokenUser := h.RegisterUserAndLogin("user_unban_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	_, _, tokenOther := h.RegisterUserAndLogin("other_unban_" + suffix)
+	h.CreateSoloTeam(tokenOther, http.StatusCreated)
+	h.UnbanTeam(tokenOther, teamID, http.StatusForbidden)
+}
+
+// PATCH /admin/teams/{ID}/hidden: non-admin gets 403 Forbidden.
+func TestTeam_Admin_SetHidden_Forbidden(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _ = h.SetupCompetition("admin_hidden_f")
+	suffix := uuid.New().String()[:8]
+	_, _, tokenUser := h.RegisterUserAndLogin("user_hidden_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	_, _, tokenOther := h.RegisterUserAndLogin("other_hidden_" + suffix)
+	h.CreateSoloTeam(tokenOther, http.StatusCreated)
+	h.SetTeamHidden(tokenOther, teamID, true, http.StatusForbidden)
+}
+
 // POST /admin/teams/{ID}/ban: non-admin gets 403.
 func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, _ = h.SetupCompetition("admin_ban_f")
 	suffix := uuid.New().String()[:8]
@@ -244,22 +293,19 @@ func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
-	teamID := team.Value("id").String().Raw()
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
 
 	_, _, tokenOther := h.RegisterUserAndLogin("other_" + suffix)
 	h.CreateSoloTeam(tokenOther, http.StatusCreated)
 
-	e.POST("/api/v1/admin/teams/{ID}/ban", teamID).
-		WithHeader("Authorization", tokenOther).
-		WithJSON(map[string]string{"reason": "malicious"}).
-		Expect().
-		Status(http.StatusForbidden)
+	h.BanTeam(tokenOther, teamID, "malicious", http.StatusForbidden)
 }
 
 // POST /teams/transfer-captain: captain transfers role to another member; GET /teams/my shows new captain_id.
 func TestTeam_TransferCaptain(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_transfer_" + suffix
@@ -268,34 +314,36 @@ func TestTeam_TransferCaptain(t *testing.T) {
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 	h.CreateTeam(tokenCap, "TransferTeam_"+suffix, http.StatusCreated)
 	team := h.GetMyTeam(tokenCap, http.StatusOK)
-	inviteToken := team.Value("invite_token").String().Raw()
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
 
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
 
 	teamAfterJoin := h.GetMyTeam(tokenCap, http.StatusOK)
-	memberID := ""
-	for _, m := range teamAfterJoin.Value("members").Array().Iter() {
-		obj := m.Object()
-		if obj.Value("username").String().Raw() == memberName {
-			memberID = obj.Value("id").String().Raw()
+	require.NotNil(t, teamAfterJoin.JSON200)
+	var memberID string
+	for _, m := range *teamAfterJoin.JSON200.Members {
+		if m.Username != nil && *m.Username == memberName {
+			require.NotNil(t, m.ID)
+			memberID = *m.ID
 			break
 		}
 	}
-	if memberID == "" {
-		t.Fatal("member not found in team")
-	}
+	require.NotEmpty(t, memberID, "member not found in team")
 
 	h.TransferCaptain(tokenCap, memberID, http.StatusOK)
 
 	newCapTeam := h.GetMyTeam(tokenMember, http.StatusOK)
-	newCapTeam.Value("captain_id").String().IsEqual(memberID)
+	require.NotNil(t, newCapTeam.JSON200)
+	require.NotNil(t, newCapTeam.JSON200.CaptainID)
+	require.Equal(t, memberID, *newCapTeam.JSON200.CaptainID)
 }
 
 // DELETE /teams/members/{ID}: captain kicks member; kicked user GET /teams/my returns 404.
 func TestTeam_KickMember(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_kick_" + suffix
@@ -304,23 +352,23 @@ func TestTeam_KickMember(t *testing.T) {
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 	h.CreateTeam(tokenCap, "KickTeam_"+suffix, http.StatusCreated)
 	team := h.GetMyTeam(tokenCap, http.StatusOK)
-	inviteToken := team.Value("invite_token").String().Raw()
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
 
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
 
 	teamWithMember := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, teamWithMember.JSON200)
 	var memberID string
-	for _, m := range teamWithMember.Value("members").Array().Iter() {
-		obj := m.Object()
-		if obj.Value("username").String().Raw() == memberName {
-			memberID = obj.Value("id").String().Raw()
+	for _, m := range *teamWithMember.JSON200.Members {
+		if m.Username != nil && *m.Username == memberName {
+			require.NotNil(t, m.ID)
+			memberID = *m.ID
 			break
 		}
 	}
-	if memberID == "" {
-		t.Fatal("member not found")
-	}
+	require.NotEmpty(t, memberID, "member not found")
 
 	h.KickMember(tokenCap, memberID, http.StatusOK)
 
@@ -329,8 +377,8 @@ func TestTeam_KickMember(t *testing.T) {
 
 // POST /teams/leave: member leaves team; GET /teams/my returns 404 for that user.
 func TestTeam_LeaveTeam(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_leave_" + suffix
@@ -339,7 +387,8 @@ func TestTeam_LeaveTeam(t *testing.T) {
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 	h.CreateTeam(tokenCap, "LeaveTeam_"+suffix, http.StatusCreated)
 	team := h.GetMyTeam(tokenCap, http.StatusOK)
-	inviteToken := team.Value("invite_token").String().Raw()
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
 
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
@@ -351,26 +400,28 @@ func TestTeam_LeaveTeam(t *testing.T) {
 
 // GET /teams/{ID}: returns team by ID (name, id, captain_id); member can fetch own team.
 func TestTeam_GetByID(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	_, _, token := h.RegisterUserAndLogin("getteam_" + suffix)
 	h.CreateSoloTeam(token, http.StatusCreated)
 
 	team := h.GetMyTeam(token, http.StatusOK)
-	teamID := team.Value("id").String().Raw()
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
 
 	got := h.GetTeamByID(token, teamID, http.StatusOK)
-	got.Value("id").String().IsEqual(teamID)
-	got.Value("name").String().NotEmpty()
-	got.ContainsKey("captain_id")
+	require.NotNil(t, got.JSON200)
+	require.Equal(t, teamID, *got.JSON200.ID)
+	require.NotEmpty(t, *got.JSON200.Name)
+	require.NotNil(t, got.JSON200.CaptainID)
 }
 
 // DELETE /teams/me: captain disbands team; GET /teams/my returns 404 for all former members.
 func TestTeam_Disband(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_disband_" + suffix
@@ -379,7 +430,8 @@ func TestTeam_Disband(t *testing.T) {
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 	h.CreateTeam(tokenCap, "DisbandTeam_"+suffix, http.StatusCreated)
 	team := h.GetMyTeam(tokenCap, http.StatusOK)
-	inviteToken := team.Value("invite_token").String().Raw()
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
 
 	_, _, tokenMember := h.RegisterUserAndLogin(memberName)
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
@@ -388,4 +440,90 @@ func TestTeam_Disband(t *testing.T) {
 
 	h.GetMyTeam(tokenCap, http.StatusNotFound)
 	h.GetMyTeam(tokenMember, http.StatusNotFound)
+}
+
+// GET /teams/my: user not in any team returns 404.
+func TestTeam_GetMy_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _, token := h.RegisterUserAndLogin("noteam_" + uuid.New().String()[:8])
+	h.GetMyTeam(token, http.StatusNotFound)
+}
+
+// GET /teams/{ID}: non-existent team returns 404.
+func TestTeam_GetByID_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _, token := h.RegisterUserAndLogin("getbyid_" + uuid.New().String()[:8])
+	h.GetTeamByID(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
+}
+
+// POST /teams/leave: user not in team returns 404.
+func TestTeam_Leave_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _, token := h.RegisterUserAndLogin("leave_no_" + uuid.New().String()[:8])
+	h.LeaveTeam(token, http.StatusNotFound)
+}
+
+// DELETE /teams/me: user not in team returns 404.
+func TestTeam_Disband_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _, token := h.RegisterUserAndLogin("disband_no_" + uuid.New().String()[:8])
+	h.DisbandTeam(token, http.StatusNotFound)
+}
+
+// DELETE /teams/members/{ID}: non-existent member or not captain returns 404.
+func TestTeam_KickMember_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	suffix := uuid.New().String()[:8]
+	_, _, token := h.RegisterUserAndLogin("kick_cap_" + suffix)
+	h.CreateSoloTeam(token, http.StatusCreated)
+	h.KickMember(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
+}
+
+// POST /teams/transfer-captain: non-captain gets 403 Forbidden.
+func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	suffix := uuid.New().String()[:8]
+	capName := "cap_tf_" + suffix
+	memName := "mem_tf_" + suffix
+	_, _, tokenCap := h.RegisterUserAndLogin(capName)
+	h.CreateTeam(tokenCap, "TfTeam_"+suffix, http.StatusCreated)
+	team := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
+	_, _, tokenMem := h.RegisterUserAndLogin(memName)
+	h.JoinTeam(tokenMem, inviteToken, false, http.StatusOK)
+	teamAfter := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, teamAfter.JSON200)
+	var capID string
+	for _, m := range *teamAfter.JSON200.Members {
+		if m.Username != nil && *m.Username == capName {
+			require.NotNil(t, m.ID)
+			capID = *m.ID
+			break
+		}
+	}
+	require.NotEmpty(t, capID)
+	h.TransferCaptain(tokenMem, capID, http.StatusForbidden)
+}
+
+// POST /teams/solo: user already in team gets 400 Conflict.
+func TestTeam_CreateSolo_Conflict(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _, token := h.RegisterUserAndLogin("solo_dup_" + uuid.New().String()[:8])
+	h.CreateSoloTeam(token, http.StatusCreated)
+	h.CreateSoloTeam(token, http.StatusBadRequest)
 }

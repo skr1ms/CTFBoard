@@ -2,45 +2,37 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
 type UserRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-var userColumns = []string{"id", "team_id", "username", "email", "password_hash", "role", "is_verified", "verified_at", "created_at"}
-
-func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
-	return &UserRepo{pool: pool}
+func NewUserRepo(db *pgxpool.Pool) *UserRepo {
+	return &UserRepo{db: db, q: sqlc.New(db)}
 }
 
-func scanUser(row rowScanner) (*entity.User, error) {
-	var user entity.User
-	err := row.Scan(
-		&user.ID,
-		&user.TeamID,
-		&user.Username,
-		&user.Email,
-		&user.PasswordHash,
-		&user.Role,
-		&user.IsVerified,
-		&user.VerifiedAt,
-		&user.CreatedAt,
-	)
-	if err != nil {
-		return nil, err
+func toEntityUser(u sqlc.User) *entity.User {
+	return &entity.User{
+		ID:           u.ID,
+		Username:     u.Username,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		Role:         ptrStrToStr(u.Role),
+		IsVerified:   boolPtrToBool(u.IsVerified),
+		TeamID:       u.TeamID,
+		VerifiedAt:   u.VerifiedAt,
+		CreatedAt:    ptrTimeToTime(u.CreatedAt),
 	}
-	return &user, nil
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *entity.User) error {
@@ -50,206 +42,112 @@ func (r *UserRepo) Create(ctx context.Context, u *entity.User) error {
 	u.ID = uuid.New()
 	u.CreatedAt = time.Now()
 	u.IsVerified = false
-
-	query := squirrel.Insert("users").
-		Columns("id", "username", "email", "password_hash", "role", "is_verified", "created_at").
-		Values(u.ID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.CreatedAt).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	isVerified := false
+	err := r.q.CreateUser(ctx, sqlc.CreateUserParams{
+		ID:           u.ID,
+		Username:     u.Username,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		Role:         &u.Role,
+		IsVerified:   &isVerified,
+		CreatedAt:    &u.CreatedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("UserRepo - Create - BuildQuery: %w", err)
+		return fmt.Errorf("UserRepo - Create: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("UserRepo - Create - ExecQuery: %w", err)
-	}
-
 	return nil
 }
 
-func (r *UserRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *UserRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
+	u, err := r.q.GetUserByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByID - BuildQuery: %w", err)
-	}
-
-	user, err := scanUser(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("UserRepo - GetByID - Scan: %w", err)
+		return nil, fmt.Errorf("UserRepo - GetByID: %w", err)
 	}
-
-	return user, nil
+	return toEntityUser(u), nil
 }
 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		Where(squirrel.Eq{"email": email}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	u, err := r.q.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByEmail - BuildQuery: %w", err)
-	}
-
-	user, err := scanUser(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("UserRepo - GetByEmail - Scan: %w", err)
+		return nil, fmt.Errorf("UserRepo - GetByEmail: %w", err)
 	}
-
-	return user, nil
+	return toEntityUser(u), nil
 }
 
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		Where(squirrel.Eq{"username": username}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	u, err := r.q.GetUserByUsername(ctx, username)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByUsername - BuildQuery: %w", err)
-	}
-
-	user, err := scanUser(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("UserRepo - GetByUsername - Scan: %w", err)
+		return nil, fmt.Errorf("UserRepo - GetByUsername: %w", err)
 	}
-
-	return user, nil
+	return toEntityUser(u), nil
 }
 
 func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		Where(squirrel.Eq{"team_id": teamID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.ListUsersByTeamID(ctx, &teamID)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByTeamID - BuildQuery: %w", err)
+		return nil, fmt.Errorf("UserRepo - GetByTeamID: %w", err)
 	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByTeamID - Query: %w", err)
+	out := make([]*entity.User, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, toEntityUser(u))
 	}
-	defer rows.Close()
-
-	users, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[entity.User])
-	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetByTeamID - CollectRows: %w", err)
-	}
-
-	return users, nil
+	return out, nil
 }
 
 func (r *UserRepo) GetAll(ctx context.Context) ([]*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		OrderBy("created_at ASC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.GetAllUsers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetAll - BuildQuery: %w", err)
+		return nil, fmt.Errorf("UserRepo - GetAll: %w", err)
 	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("UserRepo - GetAll - Query: %w", err)
+	out := make([]*entity.User, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, toEntityUser(u))
 	}
-	defer rows.Close()
-
-	var users []*entity.User
-	for rows.Next() {
-		user, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("UserRepo - GetAll - Scan: %w", err)
-		}
-		users = append(users, user)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("UserRepo - GetAll - Rows: %w", err)
-	}
-	return users, nil
+	return out, nil
 }
 
 func (r *UserRepo) UpdateTeamID(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error {
-	query := squirrel.Update("users").
-		Where(squirrel.Eq{"id": userID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	if teamID != nil {
-		query = query.Set("team_id", *teamID)
-	} else {
-		query = query.Set("team_id", nil)
-	}
-
-	sqlQuery, args, err := query.ToSql()
+	_, err := r.q.UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{
+		ID:     userID,
+		TeamID: teamID,
+	})
 	if err != nil {
-		return fmt.Errorf("UserRepo - UpdateTeamID - BuildQuery: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrUserNotFound
+		}
+		return fmt.Errorf("UserRepo - UpdateTeamID: %w", err)
 	}
-
-	if _, err := r.pool.Exec(ctx, sqlQuery, args...); err != nil {
-		return fmt.Errorf("UserRepo - UpdateTeamID - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *UserRepo) SetVerified(ctx context.Context, userID uuid.UUID) error {
 	now := time.Now()
-	query := squirrel.Update("users").
-		Set("is_verified", true).
-		Set("verified_at", now).
-		Where(squirrel.Eq{"id": userID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("UserRepo - SetVerified - BuildQuery: %w", err)
+	ok := true
+	if err := r.q.UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{
+		ID:         userID,
+		IsVerified: &ok,
+		VerifiedAt: &now,
+	}); err != nil {
+		return fmt.Errorf("UserRepo - SetVerified: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("UserRepo - SetVerified - ExecQuery: %w", err)
-	}
-
 	return nil
 }
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string) error {
-	query := squirrel.Update("users").
-		Set("password_hash", passwordHash).
-		Where(squirrel.Eq{"id": userID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("UserRepo - UpdatePassword - BuildQuery: %w", err)
+	if err := r.q.UpdatePassword(ctx, sqlc.UpdatePasswordParams{
+		ID:           userID,
+		PasswordHash: passwordHash,
+	}); err != nil {
+		return fmt.Errorf("UserRepo - UpdatePassword: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("UserRepo - UpdatePassword - ExecQuery: %w", err)
-	}
-
 	return nil
 }

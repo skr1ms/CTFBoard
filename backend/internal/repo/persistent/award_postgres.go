@@ -5,130 +5,81 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
-var awardColumns = []string{"id", "team_id", "value", "description", "created_by", "created_at"}
-
-func scanAward(row rowScanner) (*entity.Award, error) {
-	var a entity.Award
-	err := row.Scan(&a.ID, &a.TeamID, &a.Value, &a.Description, &a.CreatedBy, &a.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &a, nil
-}
-
 type AwardRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewAwardRepo(pool *pgxpool.Pool) *AwardRepo {
-	return &AwardRepo{pool: pool}
+func NewAwardRepo(db *pgxpool.Pool) *AwardRepo {
+	return &AwardRepo{db: db, q: sqlc.New(db)}
 }
 
-func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int, error) {
-	query := squirrel.Select("COALESCE(SUM(value), 0)").
-		From("awards").
-		Where(squirrel.Eq{"team_id": teamID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards - BuildQuery: %w", err)
+func toEntityAward(a sqlc.Award) *entity.Award {
+	return &entity.Award{
+		ID:          a.ID,
+		TeamID:      a.TeamID,
+		Value:       int(a.Value),
+		Description: a.Description,
+		CreatedBy:   a.CreatedBy,
+		CreatedAt:   ptrTimeToTime(a.CreatedAt),
 	}
-
-	var total int
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(&total)
-	if err != nil {
-		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards - Scan: %w", err)
-	}
-
-	return total, nil
 }
 
 func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
 	a.ID = uuid.New()
 	a.CreatedAt = time.Now()
-
-	query := squirrel.Insert("awards").
-		Columns(awardColumns...).
-		Values(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	value, err := intToInt32Safe(a.Value)
 	if err != nil {
-		return fmt.Errorf("AwardRepo - Create - BuildQuery: %w", err)
+		return fmt.Errorf("AwardRepo - Create: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	err = r.q.CreateAward(ctx, sqlc.CreateAwardParams{
+		ID:          a.ID,
+		TeamID:      a.TeamID,
+		Value:       value,
+		Description: a.Description,
+		CreatedBy:   a.CreatedBy,
+		CreatedAt:   &a.CreatedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("AwardRepo - Create - Exec: %w", err)
+		return fmt.Errorf("AwardRepo - Create: %w", err)
 	}
-
 	return nil
 }
 
 func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
-	query := squirrel.Select(awardColumns...).
-		From("awards").
-		Where(squirrel.Eq{"team_id": teamID}).
-		OrderBy("created_at DESC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.GetAwardsByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, fmt.Errorf("AwardRepo - GetByTeamID - BuildQuery: %w", err)
+		return nil, fmt.Errorf("AwardRepo - GetByTeamID: %w", err)
 	}
+	out := make([]*entity.Award, 0, len(rows))
+	for _, a := range rows {
+		out = append(out, toEntityAward(a))
+	}
+	return out, nil
+}
 
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int, error) {
+	total, err := r.q.GetTeamTotalAwards(ctx, teamID)
 	if err != nil {
-		return nil, fmt.Errorf("AwardRepo - GetByTeamID - Query: %w", err)
+		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards: %w", err)
 	}
-	defer rows.Close()
-
-	var awards []*entity.Award
-	for rows.Next() {
-		a, err := scanAward(rows)
-		if err != nil {
-			return nil, fmt.Errorf("AwardRepo - GetByTeamID - Scan: %w", err)
-		}
-		awards = append(awards, a)
-	}
-	return awards, nil
+	return int(total), nil
 }
 
 func (r *AwardRepo) GetAll(ctx context.Context) ([]*entity.Award, error) {
-	query := squirrel.Select(awardColumns...).
-		From("awards").
-		OrderBy("created_at ASC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.GetAllAwards(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("AwardRepo - GetAll - BuildQuery: %w", err)
+		return nil, fmt.Errorf("AwardRepo - GetAll: %w", err)
 	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("AwardRepo - GetAll - Query: %w", err)
+	out := make([]*entity.Award, 0, len(rows))
+	for _, a := range rows {
+		out = append(out, toEntityAward(a))
 	}
-	defer rows.Close()
-
-	var awards []*entity.Award
-	for rows.Next() {
-		a, err := scanAward(rows)
-		if err != nil {
-			return nil, fmt.Errorf("AwardRepo - GetAll - Scan: %w", err)
-		}
-		awards = append(awards, a)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("AwardRepo - GetAll - Rows: %w", err)
-	}
-
-	return awards, nil
+	return out, nil
 }

@@ -3,12 +3,14 @@ package e2e_test
 import (
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Dynamic scoring: first solver gets initial_value; second solver gets decayed score (min_value) and scoreboard reflects it.
 func TestDynamicScoring_Flow(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
@@ -34,17 +36,35 @@ func TestDynamicScoring_Flow(t *testing.T) {
 
 	h.SubmitFlag(user2, challID, "flag{dyn}", http.StatusOK)
 
-	scoreboard := h.GetScoreboard().Status(http.StatusOK).JSON().Array()
-
-	var user2Points float64
-	for _, val := range scoreboard.Iter() {
-		obj := val.Object()
-		if obj.Value("team_name").String().Raw() == "user_dyn_2" {
-			user2Points = obj.Value("points").Number().Raw()
+	scoreboard := h.GetScoreboard()
+	require.Equal(t, http.StatusOK, scoreboard.StatusCode())
+	require.NotNil(t, scoreboard.JSON200)
+	var user2Points int
+	for _, entry := range *scoreboard.JSON200 {
+		if entry.TeamName != nil && *entry.TeamName == "user_dyn_2" {
+			if entry.Points != nil {
+				user2Points = *entry.Points
+			}
+			break
 		}
 	}
+	require.Equal(t, 100, user2Points, "Dynamic scoring: user2 should get 100 points")
+}
 
-	if user2Points != 100 {
-		t.Fatalf("Dynamic scoring failed, user2 got %v points (expected 100)", user2Points)
-	}
+// POST /challenges/{ID}/submit: wrong flag returns 400 Bad Request.
+func TestDynamicScoring_InvalidFlag_Returns400(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+	_, tokenAdmin := h.SetupCompetition("admin_dynamic_err")
+	challID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title": "Dyn Err", "description": "x", "flag": "flag{dyn_err}",
+		"points": 500, "initial_value": 500, "min_value": 100, "decay": 1,
+		"category": "misc", "is_hidden": false,
+	})
+	_, _, tokenUser := h.RegisterUserAndLogin("user_dyn_err")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	resp := h.SubmitFlag(tokenUser, challID, "wrong_flag", http.StatusBadRequest)
+	require.NotNil(t, resp.JSON400)
+	require.NotNil(t, resp.JSON400.Error)
+	require.Equal(t, "invalid flag", *resp.JSON400.Error)
 }

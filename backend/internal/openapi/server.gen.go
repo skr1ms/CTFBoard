@@ -36,6 +36,12 @@ type ServerInterface interface {
 	// Create hint
 	// (POST /admin/challenges/{challengeID}/hints)
 	PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Get admin competition
+	// (GET /admin/competition)
+	GetAdminCompetition(w http.ResponseWriter, r *http.Request)
+	// Update competition
+	// (PUT /admin/competition)
+	PutAdminCompetition(w http.ResponseWriter, r *http.Request)
 	// Export competition backup
 	// (GET /admin/export)
 	GetAdminExport(w http.ResponseWriter, r *http.Request, params GetAdminExportParams)
@@ -54,6 +60,12 @@ type ServerInterface interface {
 	// Import competition backup
 	// (POST /admin/import)
 	PostAdminImport(w http.ResponseWriter, r *http.Request)
+	// Get admin settings
+	// (GET /admin/settings)
+	GetAdminSettings(w http.ResponseWriter, r *http.Request)
+	// Update admin settings
+	// (PUT /admin/settings)
+	PutAdminSettings(w http.ResponseWriter, r *http.Request)
 	// Unban team
 	// (DELETE /admin/teams/{ID}/ban)
 	DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string)
@@ -102,6 +114,9 @@ type ServerInterface interface {
 	// Unlock hint
 	// (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 	PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID string, hintID string)
+	// Get competition status
+	// (GET /competition/status)
+	GetCompetitionStatus(w http.ResponseWriter, r *http.Request)
 	// Get download URL
 	// (GET /files/{ID}/download)
 	GetFilesIDDownload(w http.ResponseWriter, r *http.Request, id string)
@@ -204,6 +219,18 @@ func (_ Unimplemented) PostAdminChallengesChallengeIDHints(w http.ResponseWriter
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get admin competition
+// (GET /admin/competition)
+func (_ Unimplemented) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update competition
+// (PUT /admin/competition)
+func (_ Unimplemented) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Export competition backup
 // (GET /admin/export)
 func (_ Unimplemented) GetAdminExport(w http.ResponseWriter, r *http.Request, params GetAdminExportParams) {
@@ -237,6 +264,18 @@ func (_ Unimplemented) PutAdminHintsID(w http.ResponseWriter, r *http.Request, i
 // Import competition backup
 // (POST /admin/import)
 func (_ Unimplemented) PostAdminImport(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get admin settings
+// (GET /admin/settings)
+func (_ Unimplemented) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update admin settings
+// (PUT /admin/settings)
+func (_ Unimplemented) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -333,6 +372,12 @@ func (_ Unimplemented) GetChallengesChallengeIDHints(w http.ResponseWriter, r *h
 // Unlock hint
 // (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 func (_ Unimplemented) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID string, hintID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get competition status
+// (GET /competition/status)
+func (_ Unimplemented) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -648,6 +693,46 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDHints(w http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetAdminCompetition operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminCompetition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminCompetition operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminCompetition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAdminExport operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminExport(w http.ResponseWriter, r *http.Request) {
 
@@ -842,6 +927,46 @@ func (siw *ServerInterfaceWrapper) PostAdminImport(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAdminImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1254,6 +1379,20 @@ func (siw *ServerInterfaceWrapper) PostChallengesChallengeIDHintsHintIDUnlock(w 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostChallengesChallengeIDHintsHintIDUnlock(w, r, challengeID, hintID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCompetitionStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCompetitionStatus(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1802,6 +1941,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/challenges/{challengeID}/hints", wrapper.PostAdminChallengesChallengeIDHints)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/competition", wrapper.GetAdminCompetition)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/competition", wrapper.PutAdminCompetition)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/export", wrapper.GetAdminExport)
 	})
 	r.Group(func(r chi.Router) {
@@ -1818,6 +1963,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/import", wrapper.PostAdminImport)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/settings", wrapper.GetAdminSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/settings", wrapper.PutAdminSettings)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
@@ -1866,6 +2017,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/challenges/{challengeID}/hints/{hintID}/unlock", wrapper.PostChallengesChallengeIDHintsHintIDUnlock)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/competition/status", wrapper.GetCompetitionStatus)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/files/{ID}/download", wrapper.GetFilesIDDownload)

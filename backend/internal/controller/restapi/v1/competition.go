@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"time"
 
-	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
-// Get competition status (Public)
+// Get competition status
+// (GET /competition/status)
 func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
 	if err != nil {
@@ -19,10 +20,11 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
+	RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 
-// Get competition (Admin)
+// Get competition
+// (GET /admin/competition)
 func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
 	if err != nil {
@@ -31,32 +33,38 @@ func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromCompetition(comp))
+	RenderOK(w, r, response.FromCompetition(comp))
 }
 
-// Update competition (Admin)
+// Update competition
+// (PUT /admin/competition)
 func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
-	req, ok := httputil.DecodeAndValidate[request.UpdateCompetitionRequest](
+	req, ok := DecodeAndValidate[openapi.RequestUpdateCompetitionRequest](
 		w, r, h.validator, h.logger, "UpdateCompetition",
 	)
 	if !ok {
 		return
 	}
 
+	if req.Name == "" {
+		RenderError(w, r, http.StatusBadRequest, "name is required")
+		return
+	}
+
 	if err := validateCompetitionTimes(req.StartTime, req.EndTime, req.FreezeTime); err != "" {
-		httputil.RenderError(w, r, http.StatusBadRequest, err)
+		RenderError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	comp := req.ToCompetition(1)
+	comp := request.UpdateCompetitionRequestToEntity(&req, 1)
 
-	user, ok := restapimiddleware.GetUser(r.Context())
+	user, ok := middleware.GetUser(r.Context())
 	if !ok {
-		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	clientIP := httputil.GetClientIP(r)
+	clientIP := GetClientIP(r)
 
 	if err := h.competitionUC.Update(r.Context(), comp, user.ID, clientIP); err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PutAdminCompetition - Update")
@@ -64,10 +72,9 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, map[string]string{"message": "competition updated"})
+	RenderOK(w, r, map[string]string{"message": "competition updated"})
 }
 
-// validateCompetitionTimes validates the competition time constraints
 func validateCompetitionTimes(startTime, endTime, freezeTime *time.Time) string {
 	if endTime != nil && startTime != nil && endTime.Before(*startTime) {
 		return "end_time must be after start_time"

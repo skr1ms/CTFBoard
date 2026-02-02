@@ -100,7 +100,7 @@ func verifyHintUnlockResults(t *testing.T, f *TestFixture, ctx context.Context, 
 
 	checkTx, err := f.TxRepo.BeginTx(ctx)
 	require.NoError(t, err)
-	defer func() { _ = checkTx.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = checkTx.Rollback(ctx) }() //nolint:errcheck
 	finalScore, err := f.TxRepo.GetTeamScoreTx(ctx, checkTx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, finalScore, "Final score should be 0, not negative")

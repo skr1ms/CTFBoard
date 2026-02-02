@@ -10,7 +10,14 @@ import (
 )
 
 const (
-	BearerAuthScopes = "BearerAuth.Scopes" // #nosec G101 -- constant name, not a credential
+	BearerAuthScopes = "BearerAuth.Scopes"
+)
+
+// Defines values for RequestUpdateAppSettingsRequestScoreboardVisible.
+const (
+	AdminsOnly RequestUpdateAppSettingsRequestScoreboardVisible = "admins_only"
+	Hidden     RequestUpdateAppSettingsRequestScoreboardVisible = "hidden"
+	Public     RequestUpdateAppSettingsRequestScoreboardVisible = "public"
 )
 
 // Defines values for PostAdminImportMultipartBodyConflictMode.
@@ -286,6 +293,26 @@ type RequestTransferCaptainRequest struct {
 	NewCaptainID string `json:"new_captain_id"`
 }
 
+// RequestUpdateAppSettingsRequest defines model for request.UpdateAppSettingsRequest.
+type RequestUpdateAppSettingsRequest struct {
+	AppName                string                                            `json:"app_name"`
+	CorsOrigins            string                                            `json:"cors_origins"`
+	FrontendURL            string                                            `json:"frontend_url"`
+	RegistrationOpen       *bool                                             `json:"registration_open,omitempty"`
+	ResendEnabled          *bool                                             `json:"resend_enabled,omitempty"`
+	ResendFromEmail        string                                            `json:"resend_from_email"`
+	ResendFromName         string                                            `json:"resend_from_name"`
+	ResetTTLHours          *int                                              `json:"reset_ttl_hours,omitempty"`
+	ScoreboardVisible      *RequestUpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty"`
+	SubmitLimitDurationMin *int                                              `json:"submit_limit_duration_min,omitempty"`
+	SubmitLimitPerUser     *int                                              `json:"submit_limit_per_user,omitempty"`
+	VerifyEmails           *bool                                             `json:"verify_emails,omitempty"`
+	VerifyTTLHours         *int                                              `json:"verify_ttl_hours,omitempty"`
+}
+
+// RequestUpdateAppSettingsRequestScoreboardVisible defines model for RequestUpdateAppSettingsRequest.ScoreboardVisible.
+type RequestUpdateAppSettingsRequestScoreboardVisible string
+
 // RequestUpdateChallengeRequest defines model for request.UpdateChallengeRequest.
 type RequestUpdateChallengeRequest struct {
 	Category    string  `json:"category"`
@@ -304,11 +331,42 @@ type RequestUpdateChallengeRequest struct {
 	Title             string  `json:"title"`
 }
 
+// RequestUpdateCompetitionRequest defines model for request.UpdateCompetitionRequest.
+type RequestUpdateCompetitionRequest struct {
+	AllowTeamSwitch *bool      `json:"allow_team_switch,omitempty"`
+	EndTime         *time.Time `json:"end_time,omitempty"`
+	FlagRegex       *string    `json:"flag_regex,omitempty"`
+	FreezeTime      *time.Time `json:"freeze_time,omitempty"`
+	IsPaused        *bool      `json:"is_paused,omitempty"`
+	IsPublic        *bool      `json:"is_public,omitempty"`
+	Mode            *string    `json:"mode,omitempty"`
+	Name            string     `json:"name"`
+	StartTime       *time.Time `json:"start_time,omitempty"`
+}
+
 // RequestUpdateHintRequest defines model for request.UpdateHintRequest.
 type RequestUpdateHintRequest struct {
 	Content    string `json:"content"`
 	Cost       *int   `json:"cost,omitempty"`
 	OrderIndex *int   `json:"order_index,omitempty"`
+}
+
+// ResponseAppSettingsResponse defines model for response.AppSettingsResponse.
+type ResponseAppSettingsResponse struct {
+	AppName                *string `json:"app_name,omitempty"`
+	CorsOrigins            *string `json:"cors_origins,omitempty"`
+	FrontendURL            *string `json:"frontend_url,omitempty"`
+	RegistrationOpen       *bool   `json:"registration_open,omitempty"`
+	ResendEnabled          *bool   `json:"resend_enabled,omitempty"`
+	ResendFromEmail        *string `json:"resend_from_email,omitempty"`
+	ResendFromName         *string `json:"resend_from_name,omitempty"`
+	ResetTTLHours          *int    `json:"reset_ttl_hours,omitempty"`
+	ScoreboardVisible      *string `json:"scoreboard_visible,omitempty"`
+	SubmitLimitDurationMin *int    `json:"submit_limit_duration_min,omitempty"`
+	SubmitLimitPerUser     *int    `json:"submit_limit_per_user,omitempty"`
+	UpdatedAt              *string `json:"updated_at,omitempty"`
+	VerifyEmails           *bool   `json:"verify_emails,omitempty"`
+	VerifyTTLHours         *int    `json:"verify_ttl_hours,omitempty"`
 }
 
 // ResponseAwardResponse defines model for response.AwardResponse.
@@ -331,6 +389,28 @@ type ResponseChallengeResponse struct {
 	SolveCount  *int    `json:"solve_count,omitempty"`
 	Solved      *bool   `json:"solved,omitempty"`
 	Title       *string `json:"title,omitempty"`
+}
+
+// ResponseCompetitionResponse defines model for response.CompetitionResponse.
+type ResponseCompetitionResponse struct {
+	EndTime    *string `json:"end_time,omitempty"`
+	FreezeTime *string `json:"freeze_time,omitempty"`
+	ID         *int    `json:"id,omitempty"`
+	IsPaused   *bool   `json:"is_paused,omitempty"`
+	IsPublic   *bool   `json:"is_public,omitempty"`
+	Mode       *string `json:"mode,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	StartTime  *string `json:"start_time,omitempty"`
+	Status     *string `json:"status,omitempty"`
+}
+
+// ResponseCompetitionStatusResponse defines model for response.CompetitionStatusResponse.
+type ResponseCompetitionStatusResponse struct {
+	EndTime           *string `json:"end_time,omitempty"`
+	Name              *string `json:"name,omitempty"`
+	StartTime         *string `json:"start_time,omitempty"`
+	Status            *string `json:"status,omitempty"`
+	SubmissionAllowed *bool   `json:"submission_allowed,omitempty"`
 }
 
 // ResponseFirstBloodResponse defines model for response.FirstBloodResponse.
@@ -365,8 +445,11 @@ type ResponseMeResponse struct {
 	CreatedAt *string `json:"created_at,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	ID        *string `json:"id,omitempty"`
-	TeamID    *string `json:"team_id,omitempty"`
-	Username  *string `json:"username,omitempty"`
+
+	// Role user role (admin, user)
+	Role     *string `json:"role,omitempty"`
+	TeamID   *string `json:"team_id,omitempty"`
+	Username *string `json:"username,omitempty"`
 }
 
 // ResponseRegisterResponse defines model for response.RegisterResponse.
@@ -403,12 +486,15 @@ type ResponseTeamResponse struct {
 
 // ResponseTeamWithMembersResponse defines model for response.TeamWithMembersResponse.
 type ResponseTeamWithMembersResponse struct {
-	CaptainID   *string                 `json:"captain_id,omitempty"`
-	CreatedAt   *string                 `json:"created_at,omitempty"`
-	ID          *string                 `json:"id,omitempty"`
-	InviteToken *string                 `json:"invite_token,omitempty"`
-	Members     *[]ResponseUserResponse `json:"members,omitempty"`
-	Name        *string                 `json:"name,omitempty"`
+	BannedAt     *string                 `json:"banned_at,omitempty"`
+	BannedReason *string                 `json:"banned_reason,omitempty"`
+	CaptainID    *string                 `json:"captain_id,omitempty"`
+	CreatedAt    *string                 `json:"created_at,omitempty"`
+	ID           *string                 `json:"id,omitempty"`
+	InviteToken  *string                 `json:"invite_token,omitempty"`
+	IsBanned     *bool                   `json:"is_banned,omitempty"`
+	Members      *[]ResponseUserResponse `json:"members,omitempty"`
+	Name         *string                 `json:"name,omitempty"`
 }
 
 // ResponseUserProfileResponse defines model for response.UserProfileResponse.
@@ -515,11 +601,17 @@ type PostAdminChallengesChallengeIDFilesMultipartRequestBody PostAdminChallenges
 // PostAdminChallengesChallengeIDHintsJSONRequestBody defines body for PostAdminChallengesChallengeIDHints for application/json ContentType.
 type PostAdminChallengesChallengeIDHintsJSONRequestBody = RequestCreateHintRequest
 
+// PutAdminCompetitionJSONRequestBody defines body for PutAdminCompetition for application/json ContentType.
+type PutAdminCompetitionJSONRequestBody = RequestUpdateCompetitionRequest
+
 // PutAdminHintsIDJSONRequestBody defines body for PutAdminHintsID for application/json ContentType.
 type PutAdminHintsIDJSONRequestBody = RequestUpdateHintRequest
 
 // PostAdminImportMultipartRequestBody defines body for PostAdminImport for multipart/form-data ContentType.
 type PostAdminImportMultipartRequestBody PostAdminImportMultipartBody
+
+// PutAdminSettingsJSONRequestBody defines body for PutAdminSettings for application/json ContentType.
+type PutAdminSettingsJSONRequestBody = RequestUpdateAppSettingsRequest
 
 // PostAdminTeamsIDBanJSONRequestBody defines body for PostAdminTeamsIDBan for application/json ContentType.
 type PostAdminTeamsIDBanJSONRequestBody = RequestBanTeamRequest

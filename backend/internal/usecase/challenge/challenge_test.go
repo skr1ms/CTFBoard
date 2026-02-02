@@ -10,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -129,7 +130,7 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.ID == challengeID && c.Title == "Updated Title" && c.Points == 150
 	})).Return(nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil)
 
@@ -151,7 +152,7 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.ID == challengeID && c.FlagHash != "old_hash"
 	})).Return(nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "new_flag", false, false, false, nil)
 
@@ -200,13 +201,13 @@ func TestChallengeUseCase_Delete(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := &entity.Challenge{ID: challengeID, Title: "ToDelete"}
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("DeleteChallengeTx", mock.Anything, mock.Anything, challengeID).Return(nil)
@@ -243,7 +244,10 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 	userID := uuid.New()
 	flag := "flag{test}"
 	challenge := h.NewChallenge(challengeID, "Test Challenge", "Web", 100, h.Sha256Hash(flag))
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		ctx, ok := args.Get(0).(context.Context)
@@ -254,7 +258,7 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
@@ -262,7 +266,7 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		return s.ChallengeID == challengeID && s.TeamID == teamID && s.UserID == userID
 	})).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -279,7 +283,10 @@ func TestChallengeUseCase_SubmitFlag_InvalidFlag(t *testing.T) {
 	teamID := uuid.New()
 	userID := uuid.New()
 	challenge := h.NewChallenge(challengeID, "Test Challenge", "Web", 100, h.Sha256Hash("flag{correct}"))
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID)
@@ -302,6 +309,25 @@ func TestChallengeUseCase_SubmitFlag_NoTeam(t *testing.T) {
 	assert.False(t, valid)
 }
 
+func TestChallengeUseCase_SubmitFlag_BannedTeam(t *testing.T) {
+	h := NewChallengeTestHelper(t)
+	deps := h.Deps()
+	uc, _ := h.CreateChallengeUseCase()
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	userID := uuid.New()
+	bannedTeam := h.NewBannedTeam(teamID)
+
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(bannedTeam, nil)
+
+	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamBanned))
+	assert.False(t, valid)
+}
+
 func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
@@ -310,7 +336,9 @@ func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 	challengeID := uuid.New()
 	teamID := uuid.New()
 	userID := uuid.New()
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, entityError.ErrChallengeNotFound)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
@@ -329,9 +357,9 @@ func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 	teamID := uuid.New()
 	userID := uuid.New()
 	expectedError := assert.AnError
+	team := h.NewTeam(teamID)
 
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
-
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID)
@@ -357,6 +385,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		FlagHash: hash,
 		Points:   100,
 	}
+	team := h.NewTeam(teamID)
 
 	existingSolve := &entity.Solve{
 		ID:          uuid.New(),
@@ -364,6 +393,8 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		ChallengeID: challengeID,
 	}
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(entityError.ErrAlreadySolved).Run(func(args mock.Arguments) {
@@ -375,7 +406,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns ErrAlreadySolved, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(existingSolve, nil)
@@ -404,8 +435,11 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 		FlagHash: hash,
 		Points:   100,
 	}
+	team := h.NewTeam(teamID)
 	expectedError := assert.AnError
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError)
 
@@ -432,8 +466,11 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 		FlagHash: hash,
 		Points:   100,
 	}
+	team := h.NewTeam(teamID)
 	expectedError := assert.AnError
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError).Run(func(args mock.Arguments) {
@@ -445,7 +482,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, expectedError)
@@ -473,8 +510,11 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 		FlagHash: hash,
 		Points:   100,
 	}
+	team := h.NewTeam(teamID)
 	expectedError := assert.AnError
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(expectedError).Run(func(args mock.Arguments) {
@@ -486,7 +526,7 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
@@ -505,19 +545,22 @@ func TestChallengeUseCase_SubmitFlag_InvalidFormat(t *testing.T) {
 	uc, _ := h.CreateChallengeUseCaseWithCompAndCrypto()
 
 	challengeID := uuid.New()
+	teamID := uuid.New()
 	challenge := &entity.Challenge{
 		ID:              challengeID,
 		FlagHash:        "hash",
 		IsRegex:         false,
 		FlagFormatRegex: nil,
 	}
+	team := h.NewTeam(teamID)
+
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	regex := "^GoCTF\\{.+\\}$"
 	comp := &entity.Competition{FlagRegex: &regex}
 	deps.compRepo.On("Get", mock.Anything).Return(comp, nil)
 
-	teamID := uuid.New()
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "InvalidFlag", uuid.New(), &teamID)
 
 	assert.Error(t, err)
@@ -588,7 +631,7 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.IsRegex && c.FlagRegex == encryptedFlag && c.FlagHash == "REGEX_CHALLENGE"
 	})).Return(nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil)
 
@@ -638,7 +681,9 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		FlagRegex: encryptedRegex,
 		Points:    100,
 	}
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	deps.crypto.On("Decrypt", encryptedRegex).Return(regexPattern, nil)
@@ -651,13 +696,13 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
@@ -681,7 +726,9 @@ func TestChallengeUseCase_SubmitFlag_Regex_DecryptionError(t *testing.T) {
 		IsRegex:   true,
 		FlagRegex: encryptedRegex,
 	}
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	deps.crypto.On("Decrypt", encryptedRegex).Return("", errors.New("decryption failed"))
@@ -710,7 +757,10 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		FlagHash:          flagHash,
 		Points:            100,
 	}
+	team := h.NewTeam(teamID)
 
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
+	deps.compRepo.On("Get", mock.Anything).Return(&entity.Competition{}, nil)
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
@@ -722,14 +772,14 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(ctx, nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(ctx, nil) //nolint:errcheck
 	})
 
 	deps.txRepo.On("GetSolveByTeamAndChallengeTx", mock.Anything, mock.Anything, teamID, challengeID).Return(nil, entityError.ErrSolveNotFound)
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 

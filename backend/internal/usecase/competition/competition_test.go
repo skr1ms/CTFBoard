@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -23,9 +24,9 @@ func TestCompetitionUseCase_Get_Success(t *testing.T) {
 
 	comp := h.NewCompetition("Test CTF", "flexible", true)
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	redisClient.Regexp().ExpectSet("competition", `.*`, 5*time.Second).SetVal("OK")
+	redisClient.Regexp().ExpectSet(redisKeys.KeyCompetition, `.*`, 5*time.Second).SetVal("OK")
 
 	result, err := uc.Get(context.Background())
 
@@ -45,7 +46,7 @@ func TestCompetitionUseCase_Get_Cached_Success(t *testing.T) {
 	bytes, err := json.Marshal(comp)
 	require.NoError(t, err)
 
-	redisClient.ExpectGet("competition").SetVal(string(bytes))
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetVal(string(bytes))
 
 	result, err := uc.Get(context.Background())
 
@@ -60,7 +61,7 @@ func TestCompetitionUseCase_Get_NotFound_Error(t *testing.T) {
 	deps := h.Deps()
 	uc, redisClient := h.CreateCompetitionUseCase()
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, entityError.ErrCompetitionNotFound)
 
 	result, err := uc.Get(context.Background())
@@ -88,7 +89,7 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 			c.MinTeamSize == comp.MinTeamSize &&
 			c.MaxTeamSize == comp.MaxTeamSize
 	})).Return(nil)
-	redisClient.ExpectDel("competition").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyCompetition).SetVal(1)
 	deps.auditLogRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
 		return a.Action == entity.AuditActionUpdate && a.EntityType == entity.AuditEntityCompetition
 	})).Return(nil)
@@ -122,9 +123,9 @@ func TestCompetitionUseCase_GetStatus_Success(t *testing.T) {
 	startTime := time.Now().Add(-1 * time.Hour)
 	comp := h.NewCompetitionWithTimes("Test CTF", &startTime, nil)
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	redisClient.ExpectSet("competition", mock.Anything, 5*time.Second).SetVal("OK")
+	redisClient.ExpectSet(redisKeys.KeyCompetition, mock.Anything, 5*time.Second).SetVal("OK")
 
 	status, err := uc.GetStatus(context.Background())
 
@@ -137,7 +138,7 @@ func TestCompetitionUseCase_GetStatus_Error(t *testing.T) {
 	deps := h.Deps()
 	uc, redisClient := h.CreateCompetitionUseCase()
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
 
 	status, err := uc.GetStatus(context.Background())
@@ -155,9 +156,9 @@ func TestCompetitionUseCase_IsSubmissionAllowed_Success(t *testing.T) {
 	endTime := time.Now().Add(1 * time.Hour)
 	comp := h.NewCompetitionWithTimes("Test CTF", &startTime, &endTime)
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	redisClient.ExpectSet("competition", mock.Anything, 5*time.Second).SetVal("OK")
+	redisClient.ExpectSet(redisKeys.KeyCompetition, mock.Anything, 5*time.Second).SetVal("OK")
 
 	allowed, err := uc.IsSubmissionAllowed(context.Background())
 
@@ -173,9 +174,9 @@ func TestCompetitionUseCase_IsSubmissionAllowed_NotStarted_Success(t *testing.T)
 	startTime := time.Now().Add(1 * time.Hour)
 	comp := h.NewCompetitionWithTimes("Test CTF", &startTime, nil)
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	redisClient.ExpectSet("competition", mock.Anything, 5*time.Second).SetVal("OK")
+	redisClient.ExpectSet(redisKeys.KeyCompetition, mock.Anything, 5*time.Second).SetVal("OK")
 
 	allowed, err := uc.IsSubmissionAllowed(context.Background())
 
@@ -192,9 +193,9 @@ func TestCompetitionUseCase_IsSubmissionAllowed_Ended_Success(t *testing.T) {
 	endTime := time.Now().Add(-1 * time.Hour)
 	comp := h.NewCompetitionWithTimes("Test CTF", &startTime, &endTime)
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	redisClient.ExpectSet("competition", mock.Anything, 5*time.Second).SetVal("OK")
+	redisClient.ExpectSet(redisKeys.KeyCompetition, mock.Anything, 5*time.Second).SetVal("OK")
 
 	allowed, err := uc.IsSubmissionAllowed(context.Background())
 
@@ -207,7 +208,7 @@ func TestCompetitionUseCase_IsSubmissionAllowed_Error(t *testing.T) {
 	deps := h.Deps()
 	uc, redisClient := h.CreateCompetitionUseCase()
 
-	redisClient.ExpectGet("competition").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyCompetition).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
 
 	allowed, err := uc.IsSubmissionAllowed(context.Background())

@@ -4,42 +4,42 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
 // Create award
 // (POST /admin/awards)
 func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
-	req, ok := httputil.DecodeAndValidate[request.CreateAwardRequest](
+	req, ok := DecodeAndValidate[openapi.RequestCreateAwardRequest](
 		w, r, h.validator, h.logger, "PostAdminAwards",
 	)
 	if !ok {
 		return
 	}
 
-	teamuuid, err := uuid.Parse(req.TeamID)
+	teamID, value, description, err := request.CreateAwardRequestToParams(&req)
 	if err != nil {
-		httputil.RenderError(w, r, http.StatusBadRequest, "invalid team ID")
+		RenderError(w, r, http.StatusBadRequest, "invalid team ID")
 		return
 	}
 
-	user, ok := restapimiddleware.GetUser(r.Context())
+	user, ok := middleware.GetUser(r.Context())
 	if !ok {
-		httputil.RenderError(w, r, http.StatusUnauthorized, "not authenticated")
+		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	award, err := h.awardUC.Create(r.Context(), teamuuid, req.Value, req.Description, user.ID)
+	award, err := h.awardUC.Create(r.Context(), teamID, value, description, user.ID)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminAwards")
 		handleError(w, r, err)
 		return
 	}
 
-	httputil.RenderCreated(w, r, response.FromAward(award))
+	RenderCreated(w, r, response.FromAward(award))
 }
 
 // Get awards by team
@@ -47,7 +47,7 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string) {
 	teamuuid, err := uuid.Parse(teamID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
@@ -58,5 +58,5 @@ func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromAwardList(awards))
+	RenderOK(w, r, response.FromAwardList(awards))
 }

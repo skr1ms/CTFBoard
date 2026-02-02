@@ -32,12 +32,22 @@ func FromTeamWithMembers(t *entity.Team, members []*entity.User) openapi.Respons
 		memberResponses = append(memberResponses, FromUser(member))
 	}
 
-	return openapi.ResponseTeamWithMembersResponse{
+	resp := openapi.ResponseTeamWithMembersResponse{
 		ID:          ptr(t.ID.String()),
 		Name:        ptr(t.Name),
 		InviteToken: ptr(t.InviteToken.String()),
 		CaptainID:   ptr(t.CaptainID.String()),
 		CreatedAt:   ptr(t.CreatedAt.Format(time.RFC3339)),
 		Members:     &memberResponses,
+		IsBanned:    ptr(t.IsBanned),
 	}
+
+	if t.BannedAt != nil {
+		resp.BannedAt = ptr(t.BannedAt.Format(time.RFC3339))
+	}
+	if t.BannedReason != nil {
+		resp.BannedReason = t.BannedReason
+	}
+
+	return resp
 }

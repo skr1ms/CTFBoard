@@ -1,69 +1,61 @@
 package response
 
-import "github.com/skr1ms/CTFBoard/internal/entity"
+import (
+	"time"
 
-type CompetitionResponse struct {
-	ID         int     `json:"id"`
-	Name       string  `json:"name"`
-	StartTime  *string `json:"start_time"`
-	EndTime    *string `json:"end_time"`
-	FreezeTime *string `json:"freeze_time"`
-	IsPaused   bool    `json:"is_paused"`
-	IsPublic   bool    `json:"is_public"`
-	Status     string  `json:"status"`
-}
+	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
+)
 
-func FromCompetition(c *entity.Competition) CompetitionResponse {
+func FromCompetition(c *entity.Competition) openapi.ResponseCompetitionResponse {
 	var startTime, endTime, freezeTime *string
 	if c.StartTime != nil {
-		s := c.StartTime.Format("2006-01-02T15:04:05Z07:00")
+		s := c.StartTime.Format(time.RFC3339)
 		startTime = &s
 	}
 	if c.EndTime != nil {
-		s := c.EndTime.Format("2006-01-02T15:04:05Z07:00")
+		s := c.EndTime.Format(time.RFC3339)
 		endTime = &s
 	}
 	if c.FreezeTime != nil {
-		s := c.FreezeTime.Format("2006-01-02T15:04:05Z07:00")
+		s := c.FreezeTime.Format(time.RFC3339)
 		freezeTime = &s
 	}
-
-	return CompetitionResponse{
-		ID:         c.ID,
-		Name:       c.Name,
+	status := string(c.GetStatus())
+	id := c.ID
+	name := c.Name
+	mode := c.Mode
+	return openapi.ResponseCompetitionResponse{
+		ID:         &id,
+		Name:       &name,
 		StartTime:  startTime,
 		EndTime:    endTime,
 		FreezeTime: freezeTime,
-		IsPaused:   c.IsPaused,
-		IsPublic:   c.IsPublic,
-		Status:     string(c.GetStatus()),
+		IsPaused:   &c.IsPaused,
+		IsPublic:   &c.IsPublic,
+		Status:     &status,
+		Mode:       &mode,
 	}
 }
 
-type CompetitionStatusResponse struct {
-	Status            string  `json:"status"`
-	Name              string  `json:"name"`
-	StartTime         *string `json:"start_time"`
-	EndTime           *string `json:"end_time"`
-	SubmissionAllowed bool    `json:"submission_allowed"`
-}
-
-func FromCompetitionStatus(c *entity.Competition) CompetitionStatusResponse {
+func FromCompetitionStatus(c *entity.Competition) openapi.ResponseCompetitionStatusResponse {
 	var startTime, endTime *string
 	if c.StartTime != nil {
-		s := c.StartTime.Format("2006-01-02T15:04:05Z07:00")
+		s := c.StartTime.Format(time.RFC3339)
 		startTime = &s
 	}
 	if c.EndTime != nil {
-		s := c.EndTime.Format("2006-01-02T15:04:05Z07:00")
+		s := c.EndTime.Format(time.RFC3339)
 		endTime = &s
 	}
-
-	return CompetitionStatusResponse{
-		Status:            string(c.GetStatus()),
-		Name:              c.Name,
+	status := string(c.GetStatus())
+	name := c.Name
+	submissionAllowed := c.IsSubmissionAllowed()
+	return openapi.ResponseCompetitionStatusResponse{
+		Status:            &status,
+		Name:              &name,
 		StartTime:         startTime,
 		EndTime:           endTime,
-		SubmissionAllowed: c.IsSubmissionAllowed(),
+		SubmissionAllowed: &submissionAllowed,
 	}
 }

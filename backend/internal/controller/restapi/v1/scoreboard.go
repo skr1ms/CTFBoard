@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
 // Get scoreboard
@@ -20,7 +19,7 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromScoreboardList(entries))
+	RenderOK(w, r, response.FromScoreboardList(entries))
 }
 
 // Get first blood
@@ -28,14 +27,14 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request) {
 func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request, ID string) {
 	challengeuuid, err := uuid.Parse(ID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
 	entry, err := h.solveUC.GetFirstBlood(r.Context(), challengeuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrSolveNotFound) {
-			httputil.RenderError(w, r, http.StatusNotFound, "no solves yet")
+			RenderError(w, r, http.StatusNotFound, "no solves yet")
 			return
 		}
 		h.logger.WithError(err).Error("restapi - v1 - GetChallengesIDFirstBlood")
@@ -43,5 +42,5 @@ func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromFirstBlood(entry))
+	RenderOK(w, r, response.FromFirstBlood(entry))
 }

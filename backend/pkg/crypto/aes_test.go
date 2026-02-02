@@ -10,7 +10,6 @@ import (
 
 func TestNewCryptoService(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		// 32 bytes hex encoded = 64 chars
 		key := "1234567890123456789012345678901212345678901234567890123456789012"
 		svc, err := NewCryptoService(key)
 		require.NoError(t, err)
@@ -54,7 +53,6 @@ func TestCryptoService_Decrypt_Error(t *testing.T) {
 	})
 
 	t.Run("ShortCiphertext", func(t *testing.T) {
-		// Base64 valid but decodes to too few bytes (< nonce size 12)
 		short := base64.StdEncoding.EncodeToString([]byte("123"))
 		_, err := svc.Decrypt(short)
 		assert.Error(t, err)

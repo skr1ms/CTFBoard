@@ -12,6 +12,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,13 +26,13 @@ func TestSolveUseCase_Create(t *testing.T) {
 	challengeID := uuid.New()
 	solve := h.NewSolve(uuid.New(), teamID, challengeID)
 
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	challenge := h.NewChallenge(challengeID, "Challenge", 100)
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
@@ -59,7 +60,7 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns ErrAlreadySolved, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	challenge := h.NewChallenge(challengeID, "Challenge", 100)
 	existingSolve := &entity.Solve{
@@ -92,7 +93,7 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	challenge := h.NewChallenge(challengeID, "Challenge", 100)
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
@@ -114,13 +115,13 @@ func TestSolveUseCase_Create_AutoDetectTeam(t *testing.T) {
 	challengeID := uuid.New()
 	solve := h.NewSolve(userID, uuid.Nil, challengeID)
 
-	redisClient.ExpectDel("scoreboard").SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	user := h.NewUser(userID, &teamID)
 	deps.txRepo.On("LockUserTx", mock.Anything, mock.Anything, userID).Return(nil)
@@ -153,7 +154,7 @@ func TestSolveUseCase_Create_NoTeamError(t *testing.T) {
 		if !ok {
 			return
 		}
-		_ = fn(context.Background(), nil) //nolint:errcheck // mock returns error, callback error ignored
+		_ = fn(context.Background(), nil) //nolint:errcheck
 	})
 	user := h.NewUser(userID, nil)
 	deps.txRepo.On("LockUserTx", mock.Anything, mock.Anything, userID).Return(nil)
@@ -175,10 +176,10 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 		h.NewScoreboardEntry(uuid.New(), "Team2", 300),
 	}
 
-	redisClient.ExpectGet("scoreboard").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyScoreboard).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, entityError.ErrCompetitionNotFound)
 	deps.solveRepo.On("GetScoreboard", mock.Anything).Return(entries, nil)
-	redisClient.Regexp().ExpectSet("scoreboard", `.*`, 15*time.Second).SetVal("OK")
+	redisClient.Regexp().ExpectSet(redisKeys.KeyScoreboard, `.*`, 15*time.Second).SetVal("OK")
 
 	result, err := uc.GetScoreboard(context.Background())
 
@@ -200,10 +201,10 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 	comp.FreezeTime = &freezeTime
 	entries := []*repo.ScoreboardEntry{h.NewScoreboardEntry(uuid.New(), "Team1", 500)}
 
-	redisClient.ExpectGet("scoreboard:frozen").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyScoreboardFrozen).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
 	deps.solveRepo.On("GetScoreboardFrozen", mock.Anything, freezeTime).Return(entries, nil)
-	redisClient.Regexp().ExpectSet("scoreboard:frozen", `.*`, 15*time.Second).SetVal("OK")
+	redisClient.Regexp().ExpectSet(redisKeys.KeyScoreboardFrozen, `.*`, 15*time.Second).SetVal("OK")
 
 	result, err := uc.GetScoreboard(context.Background())
 
@@ -219,7 +220,7 @@ func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 	uc, redisClient := h.CreateSolveUseCase()
 
 	expectedError := assert.AnError
-	redisClient.ExpectGet("scoreboard").SetErr(redis.Nil)
+	redisClient.ExpectGet(redisKeys.KeyScoreboard).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, entityError.ErrCompetitionNotFound)
 	deps.solveRepo.On("GetScoreboard", mock.Anything).Return(nil, expectedError)
 

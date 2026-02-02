@@ -971,6 +971,113 @@ paths:
       summary: Verify email
       tags:
         - Authentication
+  /competition/status:
+    get:
+      description: Returns competition status (public, no auth)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.CompetitionStatusResponse"
+      summary: Get competition status
+      tags:
+        - Competition
+  /admin/competition:
+    get:
+      description: Returns full competition config. Admin only.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.CompetitionResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Get admin competition
+      tags:
+        - Admin
+    put:
+      description: Updates competition. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateCompetitionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Update competition
+      tags:
+        - Admin
+  /admin/settings:
+    get:
+      description: Returns app settings. Admin only.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.AppSettingsResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Get admin settings
+      tags:
+        - Admin
+    put:
+      description: Updates app settings. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateAppSettingsRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Update admin settings
+      tags:
+        - Admin
   /challenges:
     get:
       description: Returns list of all challenges with solved status for user's team
@@ -2223,6 +2330,81 @@ components:
       required:
         - new_captain_id
       type: object
+    request.UpdateCompetitionRequest:
+      properties:
+        allow_team_switch:
+          type: boolean
+        end_time:
+          format: date-time
+          type: string
+        flag_regex:
+          type: string
+        freeze_time:
+          format: date-time
+          type: string
+        is_paused:
+          type: boolean
+        is_public:
+          type: boolean
+        mode:
+          type: string
+        name:
+          type: string
+        start_time:
+          format: date-time
+          type: string
+      required:
+        - name
+      type: object
+    request.UpdateAppSettingsRequest:
+      properties:
+        app_name:
+          maxLength: 100
+          type: string
+        cors_origins:
+          type: string
+        frontend_url:
+          maxLength: 512
+          type: string
+        registration_open:
+          type: boolean
+        reset_ttl_hours:
+          maximum: 168
+          minimum: 1
+          type: integer
+        resend_enabled:
+          type: boolean
+        resend_from_email:
+          maxLength: 255
+          type: string
+        resend_from_name:
+          maxLength: 100
+          type: string
+        scoreboard_visible:
+          enum:
+            - public
+            - hidden
+            - admins_only
+          type: string
+        submit_limit_duration_min:
+          minimum: 1
+          type: integer
+        submit_limit_per_user:
+          minimum: 1
+          type: integer
+        verify_emails:
+          type: boolean
+        verify_ttl_hours:
+          maximum: 168
+          minimum: 1
+          type: integer
+      required:
+        - app_name
+        - cors_origins
+        - frontend_url
+        - resend_from_email
+        - resend_from_name
+      type: object
     request.UpdateChallengeRequest:
       properties:
         category:
@@ -2322,6 +2504,71 @@ components:
         title:
           type: string
       type: object
+    response.CompetitionResponse:
+      properties:
+        end_time:
+          type: string
+        freeze_time:
+          type: string
+        id:
+          type: integer
+        is_paused:
+          type: boolean
+        is_public:
+          type: boolean
+        mode:
+          type: string
+        name:
+          type: string
+        start_time:
+          type: string
+        status:
+          type: string
+      type: object
+    response.CompetitionStatusResponse:
+      properties:
+        end_time:
+          type: string
+        name:
+          type: string
+        start_time:
+          type: string
+        status:
+          type: string
+        submission_allowed:
+          type: boolean
+      type: object
+    response.AppSettingsResponse:
+      properties:
+        app_name:
+          type: string
+        cors_origins:
+          type: string
+        frontend_url:
+          type: string
+        registration_open:
+          type: boolean
+        reset_ttl_hours:
+          type: integer
+        resend_enabled:
+          type: boolean
+        resend_from_email:
+          type: string
+        resend_from_name:
+          type: string
+        scoreboard_visible:
+          type: string
+        submit_limit_duration_min:
+          type: integer
+        submit_limit_per_user:
+          type: integer
+        updated_at:
+          type: string
+        verify_emails:
+          type: boolean
+        verify_ttl_hours:
+          type: integer
+      type: object
     response.FirstBloodResponse:
       properties:
         solved_at:
@@ -2369,6 +2616,9 @@ components:
           type: string
         id:
           type: string
+        role:
+          type: string
+          description: user role (admin, user)
         team_id:
           type: string
         username:
@@ -2433,6 +2683,12 @@ components:
             $ref: "#/components/schemas/response.UserResponse"
           type: array
         name:
+          type: string
+        is_banned:
+          type: boolean
+        banned_at:
+          type: string
+        banned_reason:
           type: string
       type: object
     response.UserProfileResponse:

@@ -1,38 +1,60 @@
 package request
 
-import "github.com/skr1ms/CTFBoard/internal/entity"
+import (
+	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
+)
 
-type UpdateAppSettingsRequest struct {
-	AppName                string `json:"app_name" validate:"required,max=100"`
-	VerifyEmails           bool   `json:"verify_emails"`
-	FrontendURL            string `json:"frontend_url" validate:"required,max=512"`
-	CORSOrigins            string `json:"cors_origins" validate:"required"`
-	ResendEnabled          bool   `json:"resend_enabled"`
-	ResendFromEmail        string `json:"resend_from_email" validate:"required,max=255"`
-	ResendFromName         string `json:"resend_from_name" validate:"required,max=100"`
-	VerifyTTLHours         int    `json:"verify_ttl_hours" validate:"min=1,max=168"`
-	ResetTTLHours          int    `json:"reset_ttl_hours" validate:"min=1,max=168"`
-	SubmitLimitPerUser     int    `json:"submit_limit_per_user" validate:"min=1"`
-	SubmitLimitDurationMin int    `json:"submit_limit_duration_min" validate:"min=1"`
-	ScoreboardVisible      string `json:"scoreboard_visible" validate:"oneof=public hidden admins_only"`
-	RegistrationOpen       bool   `json:"registration_open"`
-}
-
-func (r *UpdateAppSettingsRequest) ToAppSettings(ID int) *entity.AppSettings {
+func UpdateAppSettingsRequestToEntity(req *openapi.RequestUpdateAppSettingsRequest, id int) *entity.AppSettings {
+	var verifyEmails, resendEnabled, registrationOpen bool
+	var verifyTTLHours, resetTTLHours, submitLimitPerUser, submitLimitDurationMin int
+	scoreboardVisible := "public"
+	if req.VerifyEmails != nil {
+		verifyEmails = *req.VerifyEmails
+	}
+	if req.ResendEnabled != nil {
+		resendEnabled = *req.ResendEnabled
+	}
+	if req.RegistrationOpen != nil {
+		registrationOpen = *req.RegistrationOpen
+	}
+	if req.VerifyTTLHours != nil {
+		verifyTTLHours = *req.VerifyTTLHours
+	} else {
+		verifyTTLHours = 24
+	}
+	if req.ResetTTLHours != nil {
+		resetTTLHours = *req.ResetTTLHours
+	} else {
+		resetTTLHours = 24
+	}
+	if req.SubmitLimitPerUser != nil {
+		submitLimitPerUser = *req.SubmitLimitPerUser
+	} else {
+		submitLimitPerUser = 10
+	}
+	if req.SubmitLimitDurationMin != nil {
+		submitLimitDurationMin = *req.SubmitLimitDurationMin
+	} else {
+		submitLimitDurationMin = 5
+	}
+	if req.ScoreboardVisible != nil {
+		scoreboardVisible = string(*req.ScoreboardVisible)
+	}
 	return &entity.AppSettings{
-		ID:                     ID,
-		AppName:                r.AppName,
-		VerifyEmails:           r.VerifyEmails,
-		FrontendURL:            r.FrontendURL,
-		CORSOrigins:            r.CORSOrigins,
-		ResendEnabled:          r.ResendEnabled,
-		ResendFromEmail:        r.ResendFromEmail,
-		ResendFromName:         r.ResendFromName,
-		VerifyTTLHours:         r.VerifyTTLHours,
-		ResetTTLHours:          r.ResetTTLHours,
-		SubmitLimitPerUser:     r.SubmitLimitPerUser,
-		SubmitLimitDurationMin: r.SubmitLimitDurationMin,
-		ScoreboardVisible:      r.ScoreboardVisible,
-		RegistrationOpen:       r.RegistrationOpen,
+		ID:                     id,
+		AppName:                req.AppName,
+		VerifyEmails:           verifyEmails,
+		FrontendURL:            req.FrontendURL,
+		CORSOrigins:            req.CorsOrigins,
+		ResendEnabled:          resendEnabled,
+		ResendFromEmail:        req.ResendFromEmail,
+		ResendFromName:         req.ResendFromName,
+		VerifyTTLHours:         verifyTTLHours,
+		ResetTTLHours:          resetTTLHours,
+		SubmitLimitPerUser:     submitLimitPerUser,
+		SubmitLimitDurationMin: submitLimitDurationMin,
+		ScoreboardVisible:      scoreboardVisible,
+		RegistrationOpen:       registrationOpen,
 	}
 }

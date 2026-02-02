@@ -8,6 +8,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	KeyScoreboard       = "scoreboard"
+	KeyScoreboardFrozen = "scoreboard:frozen"
+	KeyCompetition      = "competition"
+	KeyAppSettings      = "app_settings"
+)
+
 func New(host, port, password string) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:        fmt.Sprintf("%s:%s", host, port),

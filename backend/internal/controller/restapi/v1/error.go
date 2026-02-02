@@ -18,7 +18,15 @@ func (e *ErrorResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 }
 
 func RenderInvalidID(w http.ResponseWriter, r *http.Request) {
-	httputil.RenderError(w, r, http.StatusBadRequest, ErrInvalidID.Error)
+	RenderErrorWithCode(w, r, http.StatusBadRequest, ErrInvalidID.Error, ErrInvalidID.Code)
+}
+
+func RenderError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	httputil.RenderError(w, r, status, message)
+}
+
+func RenderErrorWithCode(w http.ResponseWriter, r *http.Request, status int, message, code string) {
+	httputil.RenderErrorWithCode(w, r, status, message, code)
 }
 
 func handleError(w http.ResponseWriter, r *http.Request, err error) {

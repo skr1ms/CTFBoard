@@ -31,6 +31,7 @@ type competitionTestDeps struct {
 	userRepo        *mocks.MockUserRepository
 	txRepo          *mocks.MockTxRepository
 	statsRepo       *mocks.MockStatisticsRepository
+	appSettingsRepo *mocks.MockAppSettingsRepository
 	hintRepo        *challengeMocks.MockHintRepository
 	teamRepo        *teamMocks.MockTeamRepository
 	awardRepo       *teamMocks.MockAwardRepository
@@ -57,6 +58,7 @@ func NewCompetitionTestHelper(t *testing.T) *CompetitionTestHelper {
 			userRepo:        mocks.NewMockUserRepository(t),
 			txRepo:          mocks.NewMockTxRepository(t),
 			statsRepo:       mocks.NewMockStatisticsRepository(t),
+			appSettingsRepo: mocks.NewMockAppSettingsRepository(t),
 			hintRepo:        challengeMocks.NewMockHintRepository(t),
 			teamRepo:        teamMocks.NewMockTeamRepository(t),
 			awardRepo:       teamMocks.NewMockAwardRepository(t),
@@ -95,6 +97,50 @@ func (h *CompetitionTestHelper) CreateStatisticsUseCase() (*StatisticsUseCase, r
 	h.t.Helper()
 	client, redis := redismock.NewClientMock()
 	return NewStatisticsUseCase(h.deps.statsRepo, client), redis
+}
+
+func (h *CompetitionTestHelper) CreateSettingsUseCase() (*SettingsUseCase, redismock.ClientMock) {
+	h.t.Helper()
+	client, redis := redismock.NewClientMock()
+	return NewSettingsUseCase(h.deps.appSettingsRepo, h.deps.auditLogRepo, client), redis
+}
+
+func (h *CompetitionTestHelper) NewAppSettings() *entity.AppSettings {
+	h.t.Helper()
+	return &entity.AppSettings{
+		ID:                     1,
+		AppName:                "CTFBoard",
+		VerifyEmails:           true,
+		FrontendURL:            "http://localhost:3000",
+		CORSOrigins:            "http://localhost:3000",
+		ResendEnabled:          false,
+		ResendFromEmail:        "noreply@ctfboard.local",
+		ResendFromName:         "CTFBoard",
+		VerifyTTLHours:         24,
+		ResetTTLHours:          1,
+		SubmitLimitPerUser:     10,
+		SubmitLimitDurationMin: 1,
+		ScoreboardVisible:      entity.ScoreboardVisiblePublic,
+		RegistrationOpen:       true,
+		UpdatedAt:              time.Now(),
+	}
+}
+
+func (h *CompetitionTestHelper) NewAppSettingsWithValues(
+	submitLimit int,
+	submitDuration int,
+	verifyTTL int,
+	resetTTL int,
+	visibility string,
+) *entity.AppSettings {
+	h.t.Helper()
+	s := h.NewAppSettings()
+	s.SubmitLimitPerUser = submitLimit
+	s.SubmitLimitDurationMin = submitDuration
+	s.VerifyTTLHours = verifyTTL
+	s.ResetTTLHours = resetTTL
+	s.ScoreboardVisible = visibility
+	return s
 }
 
 func (h *CompetitionTestHelper) NewCompetition(name, mode string, allowTeamSwitch bool) *entity.Competition {

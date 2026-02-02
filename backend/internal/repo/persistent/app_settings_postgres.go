@@ -2,101 +2,90 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
-var appSettingsColumns = []string{
-	"id", "app_name", "verify_emails", "frontend_url", "cors_origins",
-	"resend_enabled", "resend_from_email", "resend_from_name",
-	"verify_ttl_hours", "reset_ttl_hours",
-	"submit_limit_per_user", "submit_limit_duration_min",
-	"scoreboard_visible", "registration_open", "updated_at",
-}
-
-func scanAppSettings(row rowScanner) (*entity.AppSettings, error) {
-	var s entity.AppSettings
-	err := row.Scan(
-		&s.ID, &s.AppName, &s.VerifyEmails, &s.FrontendURL, &s.CORSOrigins,
-		&s.ResendEnabled, &s.ResendFromEmail, &s.ResendFromName,
-		&s.VerifyTTLHours, &s.ResetTTLHours,
-		&s.SubmitLimitPerUser, &s.SubmitLimitDurationMin,
-		&s.ScoreboardVisible, &s.RegistrationOpen, &s.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &s, nil
-}
-
 type AppSettingsRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewAppSettingsRepo(pool *pgxpool.Pool) *AppSettingsRepo {
-	return &AppSettingsRepo{pool: pool}
+func NewAppSettingsRepo(db *pgxpool.Pool) *AppSettingsRepo {
+	return &AppSettingsRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityAppSettings(s sqlc.AppSetting) *entity.AppSettings {
+	return &entity.AppSettings{
+		ID:                     int(s.ID),
+		AppName:                s.AppName,
+		VerifyEmails:           s.VerifyEmails,
+		FrontendURL:            s.FrontendUrl,
+		CORSOrigins:            s.CorsOrigins,
+		ResendEnabled:          s.ResendEnabled,
+		ResendFromEmail:        s.ResendFromEmail,
+		ResendFromName:         s.ResendFromName,
+		VerifyTTLHours:         int(s.VerifyTtlHours),
+		ResetTTLHours:          int(s.ResetTtlHours),
+		SubmitLimitPerUser:     int(s.SubmitLimitPerUser),
+		SubmitLimitDurationMin: int(s.SubmitLimitDurationMin),
+		ScoreboardVisible:      s.ScoreboardVisible,
+		RegistrationOpen:       s.RegistrationOpen,
+		UpdatedAt:              s.UpdatedAt,
+	}
 }
 
 func (r *AppSettingsRepo) Get(ctx context.Context) (*entity.AppSettings, error) {
-	query := squirrel.Select(appSettingsColumns...).
-		From("app_settings").
-		Where(squirrel.Eq{"id": 1}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	s, err := r.q.GetAppSettings(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("AppSettingsRepo - Get - BuildQuery: %w", err)
-	}
-
-	s, err := scanAppSettings(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrAppSettingsNotFound
 		}
 		return nil, fmt.Errorf("AppSettingsRepo - Get: %w", err)
 	}
-	return s, nil
+	return toEntityAppSettings(s), nil
 }
 
 func (r *AppSettingsRepo) Update(ctx context.Context, s *entity.AppSettings) error {
-	query := squirrel.Update("app_settings").
-		Set("app_name", s.AppName).
-		Set("verify_emails", s.VerifyEmails).
-		Set("frontend_url", s.FrontendURL).
-		Set("cors_origins", s.CORSOrigins).
-		Set("resend_enabled", s.ResendEnabled).
-		Set("resend_from_email", s.ResendFromEmail).
-		Set("resend_from_name", s.ResendFromName).
-		Set("verify_ttl_hours", s.VerifyTTLHours).
-		Set("reset_ttl_hours", s.ResetTTLHours).
-		Set("submit_limit_per_user", s.SubmitLimitPerUser).
-		Set("submit_limit_duration_min", s.SubmitLimitDurationMin).
-		Set("scoreboard_visible", s.ScoreboardVisible).
-		Set("registration_open", s.RegistrationOpen).
-		Set("updated_at", time.Now()).
-		Where(squirrel.Eq{"id": 1}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	verifyTtl, err := intToInt32Safe(s.VerifyTTLHours)
 	if err != nil {
-		return fmt.Errorf("AppSettingsRepo - Update - BuildQuery: %w", err)
+		return fmt.Errorf("AppSettingsRepo - Update VerifyTTLHours: %w", err)
 	}
-
-	result, err := r.pool.Exec(ctx, sqlQuery, args...)
+	resetTtl, err := intToInt32Safe(s.ResetTTLHours)
+	if err != nil {
+		return fmt.Errorf("AppSettingsRepo - Update ResetTTLHours: %w", err)
+	}
+	submitLimit, err := intToInt32Safe(s.SubmitLimitPerUser)
+	if err != nil {
+		return fmt.Errorf("AppSettingsRepo - Update SubmitLimitPerUser: %w", err)
+	}
+	submitDuration, err := intToInt32Safe(s.SubmitLimitDurationMin)
+	if err != nil {
+		return fmt.Errorf("AppSettingsRepo - Update SubmitLimitDurationMin: %w", err)
+	}
+	err = r.q.UpdateAppSettings(ctx, sqlc.UpdateAppSettingsParams{
+		AppName:                s.AppName,
+		VerifyEmails:           s.VerifyEmails,
+		FrontendUrl:            s.FrontendURL,
+		CorsOrigins:            s.CORSOrigins,
+		ResendEnabled:          s.ResendEnabled,
+		ResendFromEmail:        s.ResendFromEmail,
+		ResendFromName:         s.ResendFromName,
+		VerifyTtlHours:         verifyTtl,
+		ResetTtlHours:          resetTtl,
+		SubmitLimitPerUser:     submitLimit,
+		SubmitLimitDurationMin: submitDuration,
+		ScoreboardVisible:      s.ScoreboardVisible,
+		RegistrationOpen:       s.RegistrationOpen,
+		UpdatedAt:              time.Now(),
+	})
 	if err != nil {
 		return fmt.Errorf("AppSettingsRepo - Update: %w", err)
 	}
-
-	if result.RowsAffected() == 0 {
-		return entityError.ErrAppSettingsNotFound
-	}
-
 	return nil
 }

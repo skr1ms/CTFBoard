@@ -86,4 +86,9 @@ var (
 		StatusCode: http.StatusForbidden,
 		Code:       "EMAIL_NOT_VERIFIED",
 	}
+	ErrTeamBanned = &HTTPError{
+		Err:        errors.New("team is banned"),
+		StatusCode: http.StatusForbidden,
+		Code:       "TEAM_BANNED",
+	}
 )

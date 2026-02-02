@@ -10,7 +10,6 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
 // Upload file to challenge
@@ -18,20 +17,20 @@ import (
 func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeuuid, err := uuid.Parse(challengeID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - ParseMultipartForm")
-		httputil.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
+		RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - FormFile")
-		httputil.RenderError(w, r, http.StatusBadRequest, "file is required")
+		RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
 	defer func() { _ = file.Close() }()
@@ -54,7 +53,7 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		return
 	}
 
-	httputil.RenderCreated(w, r, map[string]any{
+	RenderCreated(w, r, map[string]any{
 		"id":       uploadedFile.ID.String(),
 		"filename": uploadedFile.Filename,
 		"size":     uploadedFile.Size,
@@ -67,14 +66,14 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID string) {
 	fileuuid, err := uuid.Parse(ID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
 	err = h.fileUC.Delete(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
-			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
+			RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
 		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminFilesID")
@@ -82,7 +81,7 @@ func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	httputil.RenderNoContent(w, r)
+	RenderNoContent(w, r)
 }
 
 // Get download URL
@@ -90,14 +89,14 @@ func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID s
 func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID string) {
 	fileuuid, err := uuid.Parse(ID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
 	url, err := h.fileUC.GetDownloadURL(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
-			httputil.RenderError(w, r, http.StatusNotFound, "file not found")
+			RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
 		h.logger.WithError(err).Error("restapi - v1 - GetFilesIDDownload")
@@ -105,7 +104,7 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	httputil.RenderOK(w, r, map[string]string{"url": url})
+	RenderOK(w, r, map[string]string{"url": url})
 }
 
 // Get challenge files
@@ -113,7 +112,7 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetChallengesChallengeIDFilesParams) {
 	challengeuuid, err := uuid.Parse(challengeID)
 	if err != nil {
-		httputil.RenderInvalidID(w, r)
+		RenderInvalidID(w, r)
 		return
 	}
 
@@ -139,14 +138,14 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 		})
 	}
 
-	httputil.RenderOK(w, r, result)
+	RenderOK(w, r, result)
 }
 
 // Download - Not part of OpenAPI interface, manually routed
 func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
-		httputil.RenderError(w, r, http.StatusBadRequest, "path is required")
+		RenderError(w, r, http.StatusBadRequest, "path is required")
 		return
 	}
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
 )
 
 // Export competition backup as JSON
@@ -26,7 +25,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	data, err := h.backupUC.Export(r.Context(), opts)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - GetAdminExport")
-		httputil.RenderError(w, r, http.StatusInternalServerError, "failed to export backup")
+		handleError(w, r, err)
 		return
 	}
 
@@ -56,7 +55,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	rc, err := h.backupUC.ExportZIP(r.Context(), opts)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - GetAdminExportZip")
-		httputil.RenderError(w, r, http.StatusInternalServerError, "failed to export backup")
+		handleError(w, r, err)
 		return
 	}
 	defer rc.Close()
@@ -75,20 +74,20 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 // (POST /admin/import)
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(500 << 20); err != nil {
-		httputil.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
+		RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		httputil.RenderError(w, r, http.StatusBadRequest, "file is required")
+		RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		httputil.RenderError(w, r, http.StatusBadRequest, "failed to read file")
+		RenderError(w, r, http.StatusBadRequest, "failed to read file")
 		return
 	}
 
@@ -105,9 +104,9 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	result, err := h.backupUC.ImportZIP(r.Context(), reader, header.Size, opts)
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminImport")
-		httputil.RenderError(w, r, http.StatusBadRequest, err.Error())
+		handleError(w, r, err)
 		return
 	}
 
-	httputil.RenderJSON(w, r, http.StatusOK, result)
+	RenderJSON(w, r, http.StatusOK, result)
 }

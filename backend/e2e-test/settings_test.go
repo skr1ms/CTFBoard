@@ -3,23 +3,30 @@ package e2e_test
 import (
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
+// GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).
 func TestSettings_Admin_Get(t *testing.T) {
-	h := NewE2EHelper(t, setupE2E(t), TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 	_, tokenAdmin := h.SetupCompetition("admin_settings")
 
-	obj := h.GetAdminSettings(tokenAdmin)
-	obj.ContainsKey("app_name")
-	obj.ContainsKey("verify_emails")
-	obj.ContainsKey("frontend_url")
-	obj.ContainsKey("cors_origins")
-	obj.ContainsKey("scoreboard_visible")
-	obj.ContainsKey("registration_open")
+	resp := h.GetAdminSettings(tokenAdmin)
+	require.NotNil(t, resp.JSON200)
+	require.NotNil(t, resp.JSON200.AppName)
+	require.NotNil(t, resp.JSON200.VerifyEmails)
+	require.NotNil(t, resp.JSON200.FrontendURL)
+	require.NotNil(t, resp.JSON200.CorsOrigins)
+	require.NotNil(t, resp.JSON200.ScoreboardVisible)
+	require.NotNil(t, resp.JSON200.RegistrationOpen)
 }
 
+// PUT /admin/settings: admin updates app settings; GET reflects new values.
 func TestSettings_Admin_Put(t *testing.T) {
-	h := NewE2EHelper(t, setupE2E(t), TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 	_, tokenAdmin := h.SetupCompetition("admin_settings_put")
 
 	body := map[string]any{
@@ -39,8 +46,37 @@ func TestSettings_Admin_Put(t *testing.T) {
 	}
 	h.PutAdminSettings(tokenAdmin, body, http.StatusOK)
 
-	obj := h.GetAdminSettings(tokenAdmin)
-	obj.HasValue("app_name", "CTFBoard Test")
-	obj.HasValue("frontend_url", "https://test.example.com")
-	obj.HasValue("submit_limit_per_user", 20)
+	resp := h.GetAdminSettings(tokenAdmin)
+	require.NotNil(t, resp.JSON200)
+	require.Equal(t, "CTFBoard Test", *resp.JSON200.AppName)
+	require.Equal(t, "https://test.example.com", *resp.JSON200.FrontendURL)
+	require.NotNil(t, resp.JSON200.SubmitLimitPerUser)
+	require.Equal(t, 20, *resp.JSON200.SubmitLimitPerUser)
+}
+
+// GET /admin/settings: non-admin gets 403 Forbidden.
+func TestSettings_Admin_Get_Forbidden(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _ = h.SetupCompetition("admin_set_f")
+	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_set")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	h.GetAdminSettingsExpectStatus(tokenUser, http.StatusForbidden)
+}
+
+// PUT /admin/settings: non-admin gets 403 Forbidden.
+func TestSettings_Admin_Put_Forbidden(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, _ = h.SetupCompetition("admin_set_put_f")
+	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put_set")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	body := map[string]any{
+		"app_name": "X", "verify_emails": true, "frontend_url": "https://x.com",
+		"cors_origins": "*", "scoreboard_visible": "public", "registration_open": true,
+	}
+	h.PutAdminSettings(tokenUser, body, http.StatusForbidden)
 }

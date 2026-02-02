@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Create Tests
-
 func TestTeamRepo_Create(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -52,8 +50,6 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 	assert.Equal(t, team1.InviteToken, gotTeam1.InviteToken)
 }
 
-// GetByID Tests
-
 func TestTeamRepo_GetByID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -82,8 +78,6 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
 
-// GetByInviteToken Tests
-
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -108,8 +102,6 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
-
-// GetByName Tests
 
 func TestTeamRepo_GetByName(t *testing.T) {
 	t.Helper()

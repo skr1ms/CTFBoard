@@ -189,7 +189,7 @@
       },
       "targets": [
         {
-          "expr": "SeaweedFS_master_is_leader",
+          "expr": "max(SeaweedFS_master_is_leader)",
           "refId": "A"
         }
       ],

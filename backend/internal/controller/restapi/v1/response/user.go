@@ -32,6 +32,7 @@ func FromUserForMe(u *entity.User) openapi.ResponseMeResponse {
 		ID:        ptr(u.ID.String()),
 		Username:  ptr(u.Username),
 		Email:     ptr(u.Email),
+		Role:      ptr(u.Role),
 		TeamID:    teamIDStr,
 		CreatedAt: ptr(u.CreatedAt.Format(time.RFC3339)),
 	}

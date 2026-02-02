@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 type AwardUseCase struct {
@@ -47,8 +48,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		return nil, fmt.Errorf("AwardUseCase - Create: %w", err)
 	}
 
-	uc.redis.Del(ctx, "scoreboard")
-	uc.redis.Del(ctx, "scoreboard:frozen")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
 
 	return award, nil
 }

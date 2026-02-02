@@ -2,18 +2,18 @@ apiVersion: 1
 
 providers:
   - name: "System"
-    orgId: 1
+    orgid: 1
     folder: ""
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards
+      path: /var/lib/grafana/dashboards_root
       foldersFromFilesStructure: false
 
   - name: "Backend"
-    orgId: 1
+    orgid: 1
     folder: "Application"
     type: file
     disableDeletion: true
@@ -24,7 +24,7 @@ providers:
       foldersFromFilesStructure: false
 
   - name: "PostgreSQL"
-    orgId: 1
+    orgid: 1
     folder: "Infrastructure"
     type: file
     disableDeletion: true
@@ -35,7 +35,7 @@ providers:
       foldersFromFilesStructure: false
 
   - name: "Redis"
-    orgId: 1
+    orgid: 1
     folder: "Infrastructure"
     type: file
     disableDeletion: true
@@ -46,7 +46,7 @@ providers:
       foldersFromFilesStructure: false
 
   - name: "Vault"
-    orgId: 1
+    orgid: 1
     folder: "Infrastructure"
     type: file
     disableDeletion: true
@@ -57,7 +57,7 @@ providers:
       foldersFromFilesStructure: false
 
   - name: "SeaweedFS"
-    orgId: 1
+    orgid: 1
     folder: "Infrastructure"
     type: file
     disableDeletion: true
@@ -65,4 +65,15 @@ providers:
     allowUiUpdates: false
     options:
       path: /var/lib/grafana/dashboards/seaweedfs
+      foldersFromFilesStructure: false
+
+  - name: "UI"
+    orgid: 1
+    folder: "UI"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/ui
       foldersFromFilesStructure: false

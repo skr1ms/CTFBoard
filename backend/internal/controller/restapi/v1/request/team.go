@@ -1,23 +1,34 @@
 package request
 
-type CreateTeamRequest struct {
-	Name         string `json:"name" Validate:"required,team_name" example:"Team A"`
-	ConfirmReset bool   `json:"confirm_reset"`
+import "github.com/skr1ms/CTFBoard/internal/openapi"
+
+func CreateTeamRequestToParams(req *openapi.RequestCreateTeamRequest) (name string, confirmReset bool) {
+	confirmReset = false
+	if req.ConfirmReset != nil {
+		confirmReset = *req.ConfirmReset
+	}
+	return req.Name, confirmReset
 }
 
-type JoinTeamRequest struct {
-	InviteToken  string `json:"invite_token" Validate:"required,not_empty" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
-	ConfirmReset bool   `json:"confirm_reset"`
+func JoinTeamRequestToParams(req *openapi.RequestJoinTeamRequest) (inviteToken string, confirmReset bool) {
+	confirmReset = false
+	if req.ConfirmReset != nil {
+		confirmReset = *req.ConfirmReset
+	}
+	return req.InviteToken, confirmReset
 }
 
-type TransferCaptainRequest struct {
-	NewCaptainID string `json:"new_captain_id" Validate:"required,uuid" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
+func TransferCaptainRequestToNewCaptainID(req *openapi.RequestTransferCaptainRequest) string {
+	return req.NewCaptainID
 }
 
-type BanTeamRequest struct {
-	Reason string `json:"reason" validate:"required,max=500"`
+func BanTeamRequestToReason(req *openapi.RequestBanTeamRequest) string {
+	return req.Reason
 }
 
-type SetHiddenRequest struct {
-	Hidden bool `json:"hidden"`
+func SetHiddenRequestToHidden(req *openapi.RequestSetHiddenRequest) bool {
+	if req.Hidden != nil {
+		return *req.Hidden
+	}
+	return false
 }

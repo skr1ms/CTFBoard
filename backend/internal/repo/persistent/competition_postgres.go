@@ -2,91 +2,80 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"time"
 
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
-var competitionColumns = []string{
-	"id", "name", "start_time", "end_time", "freeze_time", "is_paused", "is_public",
-	"flag_regex", "mode", "allow_team_switch", "min_team_size", "max_team_size", "created_at", "updated_at",
-}
-
-func scanCompetition(row rowScanner) (*entity.Competition, error) {
-	var c entity.Competition
-	err := row.Scan(
-		&c.ID, &c.Name, &c.StartTime, &c.EndTime, &c.FreezeTime, &c.IsPaused, &c.IsPublic,
-		&c.FlagRegex, &c.Mode, &c.AllowTeamSwitch, &c.MinTeamSize, &c.MaxTeamSize, &c.CreatedAt, &c.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
 type CompetitionRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewCompetitionRepo(pool *pgxpool.Pool) *CompetitionRepo {
-	return &CompetitionRepo{pool: pool}
+func NewCompetitionRepo(db *pgxpool.Pool) *CompetitionRepo {
+	return &CompetitionRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityCompetition(c sqlc.Competition) *entity.Competition {
+	return &entity.Competition{
+		ID:              int(c.ID),
+		Name:            c.Name,
+		StartTime:       c.StartTime,
+		EndTime:         c.EndTime,
+		FreezeTime:      c.FreezeTime,
+		IsPaused:        boolPtrToBool(c.IsPaused),
+		IsPublic:        boolPtrToBool(c.IsPublic),
+		FlagRegex:       c.FlagRegex,
+		Mode:            ptrStrToStr(c.Mode),
+		AllowTeamSwitch: boolPtrToBool(c.AllowTeamSwitch),
+		MinTeamSize:     int32PtrToInt(c.MinTeamSize),
+		MaxTeamSize:     int32PtrToInt(c.MaxTeamSize),
+		CreatedAt:       ptrTimeToTime(c.CreatedAt),
+		UpdatedAt:       ptrTimeToTime(c.UpdatedAt),
+	}
 }
 
 func (r *CompetitionRepo) Get(ctx context.Context) (*entity.Competition, error) {
-	query := squirrel.Select(competitionColumns...).
-		From("competition").
-		Where(squirrel.Eq{"id": 1}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	c, err := r.q.GetCompetition(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("CompetitionRepo - Get - BuildQuery: %w", err)
-	}
-
-	c, err := scanCompetition(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrCompetitionNotFound
 		}
 		return nil, fmt.Errorf("CompetitionRepo - Get: %w", err)
 	}
-	return c, nil
+	return toEntityCompetition(c), nil
 }
 
 func (r *CompetitionRepo) Update(ctx context.Context, c *entity.Competition) error {
-	query := squirrel.Update("competition").
-		Set("name", c.Name).
-		Set("start_time", c.StartTime).
-		Set("end_time", c.EndTime).
-		Set("freeze_time", c.FreezeTime).
-		Set("is_paused", c.IsPaused).
-		Set("is_public", c.IsPublic).
-		Set("flag_regex", c.FlagRegex).
-		Set("mode", c.Mode).
-		Set("allow_team_switch", c.AllowTeamSwitch).
-		Set("min_team_size", c.MinTeamSize).
-		Set("max_team_size", c.MaxTeamSize).
-		Where(squirrel.Eq{"id": 1}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	minTeamSize, err := intToInt32Safe(c.MinTeamSize)
 	if err != nil {
-		return fmt.Errorf("CompetitionRepo - Update - BuildQuery: %w", err)
+		return fmt.Errorf("CompetitionRepo - Update MinTeamSize: %w", err)
 	}
-
-	result, err := r.pool.Exec(ctx, sqlQuery, args...)
+	maxTeamSize, err := intToInt32Safe(c.MaxTeamSize)
+	if err != nil {
+		return fmt.Errorf("CompetitionRepo - Update MaxTeamSize: %w", err)
+	}
+	updatedAt := time.Now()
+	err = r.q.UpdateCompetition(ctx, sqlc.UpdateCompetitionParams{
+		Name:            c.Name,
+		StartTime:       c.StartTime,
+		EndTime:         c.EndTime,
+		FreezeTime:      c.FreezeTime,
+		IsPaused:        &c.IsPaused,
+		IsPublic:        &c.IsPublic,
+		FlagRegex:       c.FlagRegex,
+		Mode:            &c.Mode,
+		AllowTeamSwitch: &c.AllowTeamSwitch,
+		MinTeamSize:     &minTeamSize,
+		MaxTeamSize:     &maxTeamSize,
+		UpdatedAt:       &updatedAt,
+	})
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update: %w", err)
 	}
-
-	if result.RowsAffected() == 0 {
-		return entityError.ErrCompetitionNotFound
-	}
-
 	return nil
 }

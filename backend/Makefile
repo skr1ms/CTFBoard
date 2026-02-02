@@ -48,46 +48,61 @@ install-tools: ## Install development tools
 	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go install golang.org/x/vuln/cmd/govulncheck@latest
 	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	@go install github.com/google/wire/cmd/wire@latest
 	@echo "Tools installed"
 
-generate-openapi: ## Generate OpenAPI code from spec
+oapi-codegen: ## Generate OpenAPI code from spec (types, server, spec, client)
 	@echo "Generating OpenAPI code..."
 	@mkdir -p internal/openapi
-	@oapi-codegen -config oapi-codegen/oapi-codegen-types.yml internal/openapi/openapi.yaml
-	@oapi-codegen -config oapi-codegen/oapi-codegen-server.yml internal/openapi/openapi.yaml
-	@oapi-codegen -config oapi-codegen/oapi-codegen-spec.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config codegen/oapi-codegen-types.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config codegen/oapi-codegen-server.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config codegen/oapi-codegen-spec.yml internal/openapi/openapi.yaml
+	@oapi-codegen -config codegen/oapi-codegen-client.yml internal/openapi/openapi.yaml
 	@echo "OpenAPI code generated"
 
-generate-mocks: ## Generate all mocks for usecase and pkg packages
+sqlc: ## Generate sqlc code from queries and schema
+	@echo "Generating sqlc code..."
+	@sqlc -f codegen/sqlc.yaml generate
+	@echo "sqlc code generated"
+
+wire: ## Generate Wire DI code
+	@echo "Generating Wire code..."
+	@cd internal/wire && go generate .
+	@echo "Wire code generated"
+
+mockery: ## Generate all mocks for usecase and pkg packages
 	@echo "Generating mocks..."
-	@mockery --config .mockery/.mockery_user.yml
-	@mockery --config .mockery/.mockery_team.yml
-	@mockery --config .mockery/.mockery_challenge.yml
-	@mockery --config .mockery/.mockery_competition.yml
-	@mockery --config .mockery/.mockery_email.yml
-	@mockery --config .mockery/.mockery_pkg.yml
+	@mockery --config codegen/.mockery_user.yml
+	@mockery --config codegen/.mockery_team.yml
+	@mockery --config codegen/.mockery_challenge.yml
+	@mockery --config codegen/.mockery_competition.yml
+	@mockery --config codegen/.mockery_email.yml
+	@mockery --config codegen/.mockery_pkg.yml
 	@echo "All mocks generated"
 
 generate-mocks-user: ## Generate mocks for user package
-	@mockery --config .mockery/.mockery_user.yml
+	@mockery --config codegen/.mockery_user.yml
 
 generate-mocks-team: ## Generate mocks for team package
-	@mockery --config .mockery/.mockery_team.yml
+	@mockery --config codegen/.mockery_team.yml
 
 generate-mocks-challenge: ## Generate mocks for challenge package
-	@mockery --config .mockery/.mockery_challenge.yml
+	@mockery --config codegen/.mockery_challenge.yml
 
 generate-mocks-competition: ## Generate mocks for competition package
-	@mockery --config .mockery/.mockery_competition.yml
+	@mockery --config codegen/.mockery_competition.yml
 
 generate-mocks-email: ## Generate mocks for email package
-	@mockery --config .mockery/.mockery_email.yml
+	@mockery --config codegen/.mockery_email.yml
 
 generate-mocks-pkg: ## Generate mocks for pkg interfaces used in pkg tests (mailer)
-	@mockery --config .mockery/.mockery_pkg.yml
+	@mockery --config codegen/.mockery_pkg.yml
 
+generate: oapi-codegen sqlc mockery ## Run all code generation (OpenAPI, sqlc, mocks)
+	@echo "All code generation completed"
 
-build: generate-openapi ## Build the binary
+build: oapi-codegen ## Build the binary
 	@echo "Building binary..."
 	@go build -o bin/backend cmd/app/main.go
 	@echo "Binary built: bin/backend"
@@ -97,7 +112,7 @@ build-cleanup: ## Build cleanup binary (for CI: GOOS=linux GOARCH=amd64)
 	@GOOS=linux GOARCH=amd64 go build -o bin/ctfboard-cleanup ./cmd/cleanup
 	@echo "Binary built: bin/ctfboard-cleanup"
 
-run: generate-openapi ## Run the application locally
+run: oapi-codegen ## Run the application locally
 	@echo "Running application..."
 	@go run cmd/app/main.go
 

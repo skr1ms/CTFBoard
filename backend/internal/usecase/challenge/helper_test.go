@@ -23,6 +23,7 @@ type challengeTestDeps struct {
 	challengeRepo  *mocks.MockChallengeRepository
 	solveRepo      *mocks.MockSolveRepository
 	txRepo         *mocks.MockTxRepository
+	teamRepo       *mocks.MockTeamRepository
 	compRepo       *mocks.MockCompetitionRepository
 	auditLogRepo   *mocks.MockAuditLogRepository
 	crypto         *mocks.MockCryptoService
@@ -35,12 +36,14 @@ type challengeTestDeps struct {
 
 func NewChallengeTestHelper(t *testing.T) *ChallengeTestHelper {
 	t.Helper()
+
 	return &ChallengeTestHelper{
 		t: t,
 		deps: &challengeTestDeps{
 			challengeRepo:  mocks.NewMockChallengeRepository(t),
 			solveRepo:      mocks.NewMockSolveRepository(t),
 			txRepo:         mocks.NewMockTxRepository(t),
+			teamRepo:       mocks.NewMockTeamRepository(t),
 			compRepo:       mocks.NewMockCompetitionRepository(t),
 			auditLogRepo:   mocks.NewMockAuditLogRepository(t),
 			crypto:         mocks.NewMockCryptoService(t),
@@ -60,22 +63,23 @@ func (h *ChallengeTestHelper) Deps() *challengeTestDeps {
 
 func (h *ChallengeTestHelper) CreateChallengeUseCase() (*ChallengeUseCase, redismock.ClientMock) {
 	h.t.Helper()
-	return h.createChallengeUseCase(nil, nil)
+	return h.createChallengeUseCase(nil)
 }
 
 func (h *ChallengeTestHelper) CreateChallengeUseCaseWithCompAndCrypto() (*ChallengeUseCase, redismock.ClientMock) {
 	h.t.Helper()
-	return h.createChallengeUseCase(h.deps.compRepo, h.deps.crypto)
+	return h.createChallengeUseCase(h.deps.crypto)
 }
 
-func (h *ChallengeTestHelper) createChallengeUseCase(compRepo repo.CompetitionRepository, cryptoSvc crypto.Service) (*ChallengeUseCase, redismock.ClientMock) {
+func (h *ChallengeTestHelper) createChallengeUseCase(cryptoSvc crypto.Service) (*ChallengeUseCase, redismock.ClientMock) {
 	h.t.Helper()
 	client, redis := redismock.NewClientMock()
 	return NewChallengeUseCase(
 		h.deps.challengeRepo,
 		h.deps.solveRepo,
 		h.deps.txRepo,
-		compRepo,
+		h.deps.compRepo,
+		h.deps.teamRepo,
 		client,
 		nil,
 		nil,
@@ -136,4 +140,21 @@ func (h *ChallengeTestHelper) NewHint(id, challengeID uuid.UUID, content string,
 		Cost:        cost,
 		OrderIndex:  orderIndex,
 	}
+}
+
+func (h *ChallengeTestHelper) NewTeam(id uuid.UUID) *entity.Team {
+	h.t.Helper()
+	return &entity.Team{
+		ID:        id,
+		Name:      "Test Team",
+		IsBanned:  false,
+		CaptainID: uuid.New(),
+	}
+}
+
+func (h *ChallengeTestHelper) NewBannedTeam(id uuid.UUID) *entity.Team {
+	h.t.Helper()
+	team := h.NewTeam(id)
+	team.IsBanned = true
+	return team
 }

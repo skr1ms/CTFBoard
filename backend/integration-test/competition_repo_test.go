@@ -9,9 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Get Tests
-
-func TestCompetitionRepo_Get(t *testing.T) {
+func TestCompetitionRepo_Get_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -27,9 +25,18 @@ func TestCompetitionRepo_Get(t *testing.T) {
 	assert.Nil(t, comp.FreezeTime)
 }
 
-// Update Tests
+func TestCompetitionRepo_Get_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-func TestCompetitionRepo_Update(t *testing.T) {
+	_, err := f.CompetitionRepo.Get(ctx)
+	require.Error(t, err)
+}
+
+func TestCompetitionRepo_Update_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -80,4 +87,20 @@ func TestCompetitionRepo_Update_Partial(t *testing.T) {
 	assert.Equal(t, name, updatedComp.Name)
 	assert.Equal(t, freeze.Unix(), updatedComp.FreezeTime.Unix())
 	assert.Nil(t, updatedComp.StartTime)
+}
+
+func TestCompetitionRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+
+	comp, err := f.CompetitionRepo.Get(context.Background())
+	require.NoError(t, err)
+	comp.Name = "Should Fail"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = f.CompetitionRepo.Update(ctx, comp)
+	require.Error(t, err)
 }

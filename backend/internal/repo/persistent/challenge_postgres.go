@@ -2,237 +2,203 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
-var challengeColumns = []string{
-	"id", "title", "description", "category", "points", "initial_value", "min_value", "decay",
-	"solve_count", "flag_hash", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex",
-}
-
-func scanChallenge(row rowScanner) (*entity.Challenge, error) {
-	var c entity.Challenge
-	err := row.Scan(
-		&c.ID, &c.Title, &c.Description, &c.Category, &c.Points, &c.InitialValue, &c.MinValue, &c.Decay,
-		&c.SolveCount, &c.FlagHash, &c.IsHidden, &c.IsRegex, &c.IsCaseInsensitive, &c.FlagRegex, &c.FlagFormatRegex,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
-func scanChallengeWithSolved(row rowScanner) (*entity.Challenge, int, error) {
-	var c entity.Challenge
-	var solved int
-	err := row.Scan(
-		&c.ID, &c.Title, &c.Description, &c.Category, &c.Points, &c.InitialValue, &c.MinValue, &c.Decay,
-		&c.SolveCount, &c.FlagHash, &c.IsHidden, &c.IsRegex, &c.IsCaseInsensitive, &c.FlagRegex, &c.FlagFormatRegex,
-		&solved,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-	return &c, solved, nil
-}
-
 type ChallengeRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewChallengeRepo(pool *pgxpool.Pool) *ChallengeRepo {
-	return &ChallengeRepo{pool: pool}
+func NewChallengeRepo(db *pgxpool.Pool) *ChallengeRepo {
+	return &ChallengeRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityChallengeFromRow(id uuid.UUID, title, description string, category *string, points *int32, initialValue, minValue, decay, solveCount int32, flagHash string, isHidden, isRegex, isCaseInsensitive *bool, flagRegex, flagFormatRegex *string) *entity.Challenge {
+	var pts int
+	if points != nil {
+		pts = int(*points)
+	}
+	return &entity.Challenge{
+		ID:                id,
+		Title:             title,
+		Description:       description,
+		Category:          ptrStrToStr(category),
+		Points:            pts,
+		InitialValue:      int(initialValue),
+		MinValue:          int(minValue),
+		Decay:             int(decay),
+		SolveCount:        int(solveCount),
+		FlagHash:          flagHash,
+		IsHidden:          boolPtrToBool(isHidden),
+		IsRegex:           boolPtrToBool(isRegex),
+		IsCaseInsensitive: boolPtrToBool(isCaseInsensitive),
+		FlagRegex:         ptrStrToStr(flagRegex),
+		FlagFormatRegex:   flagFormatRegex,
+	}
 }
 
 func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
 	c.ID = uuid.New()
-
-	query := squirrel.Insert("challenges").
-		Columns(challengeColumns...).
-		Values(c.ID, c.Title, c.Description, c.Category, c.Points, c.InitialValue, c.MinValue, c.Decay, c.SolveCount, c.FlagHash, c.IsHidden, c.IsRegex, c.IsCaseInsensitive, c.FlagRegex, c.FlagFormatRegex).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	pts, err := intToInt32Safe(c.Points)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Create - BuildQuery: %w", err)
+		return fmt.Errorf("ChallengeRepo - Create Points: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	initialValue, err := intToInt32Safe(c.InitialValue)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Create - ExecQuery: %w", err)
+		return fmt.Errorf("ChallengeRepo - Create InitialValue: %w", err)
 	}
-
+	minValue, err := intToInt32Safe(c.MinValue)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create MinValue: %w", err)
+	}
+	decay, err := intToInt32Safe(c.Decay)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create Decay: %w", err)
+	}
+	solveCount, err := intToInt32Safe(c.SolveCount)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create SolveCount: %w", err)
+	}
+	err = r.q.CreateChallenge(ctx, sqlc.CreateChallengeParams{
+		ID:                c.ID,
+		Title:             c.Title,
+		Description:       c.Description,
+		Category:          strPtrOrNil(c.Category),
+		Points:            &pts,
+		InitialValue:      initialValue,
+		MinValue:          minValue,
+		Decay:             decay,
+		SolveCount:        solveCount,
+		FlagHash:          c.FlagHash,
+		IsHidden:          &c.IsHidden,
+		IsRegex:           &c.IsRegex,
+		IsCaseInsensitive: &c.IsCaseInsensitive,
+		FlagRegex:         strPtrOrNil(c.FlagRegex),
+		FlagFormatRegex:   c.FlagFormatRegex,
+	})
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create: %w", err)
+	}
 	return nil
 }
 
-func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
-	query := squirrel.Select(challengeColumns...).
-		From("challenges").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Challenge, error) {
+	row, err := r.q.GetChallengeByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("ChallengeRepo - GetByID - BuildQuery: %w", err)
-	}
-
-	challenge, err := scanChallenge(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrChallengeNotFound
 		}
-		return nil, fmt.Errorf("ChallengeRepo - GetByID - Scan: %w", err)
+		return nil, fmt.Errorf("ChallengeRepo - GetByID: %w", err)
 	}
-	return challenge, nil
-}
-
-func challengeColumnsC() []string {
-	out := make([]string, len(challengeColumns))
-	for i, col := range challengeColumns {
-		out[i] = "c." + col
-	}
-	return out
+	return toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex), nil
 }
 
 func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	var query squirrel.SelectBuilder
-	colsC := challengeColumnsC()
-
 	if teamID != nil {
-		query = squirrel.Select(append(colsC, "CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as solved")...).
-			From("challenges c").
-			LeftJoin("solves s ON c.id = s.challenge_id AND s.team_id = ?", *teamID).
-			Where(squirrel.Eq{"c.is_hidden": false})
-	} else {
-		query = squirrel.Select(append(colsC, "0 as solved")...).
-			From("challenges c").
-			Where(squirrel.Eq{"c.is_hidden": false})
-	}
-
-	sqlQuery, args, err := query.PlaceholderFormat(squirrel.Dollar).ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("ChallengeRepo - GetAll - BuildQuery: %w", err)
-	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("ChallengeRepo - GetAll - Query: %w", err)
-	}
-	defer rows.Close()
-
-	result := make([]*repo.ChallengeWithSolved, 0)
-	for rows.Next() {
-		challenge, solved, err := scanChallengeWithSolved(rows)
+		rows, err := r.q.ListChallengesForTeam(ctx, *teamID)
 		if err != nil {
-			return nil, fmt.Errorf("ChallengeRepo - GetAll - Scan: %w", err)
+			return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
 		}
-		result = append(result, &repo.ChallengeWithSolved{
-			Challenge: challenge,
-			Solved:    solved == 1,
+		out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, &repo.ChallengeWithSolved{
+				Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
+				Solved:    row.Solved == 1,
+			})
+		}
+		return out, nil
+	}
+	rows, err := r.q.ListChallenges(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
+	}
+	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &repo.ChallengeWithSolved{
+			Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
+			Solved:    false,
 		})
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("ChallengeRepo - GetAll - Rows: %w", err)
-	}
-
-	return result, nil
+	return out, nil
 }
 
 func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
-	query := squirrel.Update("challenges").
-		Set("title", c.Title).
-		Set("description", c.Description).
-		Set("category", c.Category).
-		Set("points", c.Points).
-		Set("initial_value", c.InitialValue).
-		Set("min_value", c.MinValue).
-		Set("decay", c.Decay).
-		Set("flag_hash", c.FlagHash).
-		Set("is_hidden", c.IsHidden).
-		Set("is_regex", c.IsRegex).
-		Set("is_case_insensitive", c.IsCaseInsensitive).
-		Set("flag_regex", c.FlagRegex).
-		Set("flag_format_regex", c.FlagFormatRegex).
-		Where(squirrel.Eq{"id": c.ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	pts, err := intToInt32Safe(c.Points)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Update - BuildQuery: %w", err)
+		return fmt.Errorf("ChallengeRepo - Update Points: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	initialValue, err := intToInt32Safe(c.InitialValue)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Update - ExecQuery: %w", err)
+		return fmt.Errorf("ChallengeRepo - Update InitialValue: %w", err)
 	}
-
+	minValue, err := intToInt32Safe(c.MinValue)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update MinValue: %w", err)
+	}
+	decay, err := intToInt32Safe(c.Decay)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update Decay: %w", err)
+	}
+	err = r.q.UpdateChallenge(ctx, sqlc.UpdateChallengeParams{
+		ID:                c.ID,
+		Title:             c.Title,
+		Description:       c.Description,
+		Category:          strPtrOrNil(c.Category),
+		Points:            &pts,
+		InitialValue:      initialValue,
+		MinValue:          minValue,
+		Decay:             decay,
+		FlagHash:          c.FlagHash,
+		IsHidden:          &c.IsHidden,
+		IsRegex:           &c.IsRegex,
+		IsCaseInsensitive: &c.IsCaseInsensitive,
+		FlagRegex:         strPtrOrNil(c.FlagRegex),
+		FlagFormatRegex:   c.FlagFormatRegex,
+	})
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update: %w", err)
+	}
 	return nil
 }
 
-func (r *ChallengeRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	query := squirrel.Delete("challenges").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *ChallengeRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.q.DeleteChallenge(ctx, id)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Delete - BuildQuery: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrChallengeNotFound
+		}
+		return fmt.Errorf("ChallengeRepo - Delete: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("ChallengeRepo - Delete - ExecQuery: %w", err)
-	}
-
 	return nil
 }
 
-func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
-	query := squirrel.Update("challenges").
-		Set("solve_count", squirrel.Expr("solve_count + 1")).
-		Where(squirrel.Eq{"id": ID}).
-		Suffix("RETURNING solve_count").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, id uuid.UUID) (int, error) {
+	n, err := r.q.IncrementChallengeSolveCount(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("ChallengeRepo - IncrementSolveCount - BuildQuery: %w", err)
+		return 0, fmt.Errorf("ChallengeRepo - IncrementSolveCount: %w", err)
 	}
-
-	var solveCount int
-	err = r.pool.QueryRow(ctx, sqlQuery, args...).Scan(&solveCount)
-	if err != nil {
-		return 0, fmt.Errorf("ChallengeRepo - IncrementSolveCount - Query: %w", err)
-	}
-
-	return solveCount, nil
+	return int(n), nil
 }
 
-func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points int) error {
-	query := squirrel.Update("challenges").
-		Set("points", points).
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *ChallengeRepo) UpdatePoints(ctx context.Context, id uuid.UUID, points int) error {
+	pts, err := intToInt32Safe(points)
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - UpdatePoints - BuildQuery: %w", err)
+		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	_, err = r.q.UpdateChallengePoints(ctx, sqlc.UpdateChallengePointsParams{ID: id, Points: &pts})
 	if err != nil {
-		return fmt.Errorf("ChallengeRepo - UpdatePoints - Exec: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrChallengeNotFound
+		}
+		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
 	}
-
 	return nil
 }

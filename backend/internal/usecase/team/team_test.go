@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -131,7 +132,7 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once() // Add compRepo expectation
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
 	deps.txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound).Once()
 	deps.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
@@ -535,7 +536,7 @@ func TestTeamUseCase_CreateSoloTeam_Success(t *testing.T) {
 	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		return fn(ctx, nil)
 	}).Once()
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once() // Add compRepo expectation
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
 	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 
@@ -806,6 +807,7 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
+	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 
@@ -837,6 +839,7 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().Unban(mock.Anything, teamID).Return(nil).Once()
+	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 
@@ -867,6 +870,7 @@ func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 

@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Create Tests
-
 func TestFileRepo_Create(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -56,8 +54,6 @@ func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// GetByID Tests
-
 func TestFileRepo_GetByID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -95,8 +91,6 @@ func TestFileRepo_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-// GetAll Tests
-
 func TestFileRepo_GetAll_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -129,8 +123,6 @@ func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	assert.Nil(t, files)
 }
 
-// GetByChallengeID Tests
-
 func TestFileRepo_GetByChallengeID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -161,8 +153,6 @@ func TestFileRepo_GetByChallengeID_Empty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, files)
 }
-
-// Delete Tests
 
 func TestFileRepo_Delete(t *testing.T) {
 	t.Helper()

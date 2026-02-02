@@ -13,6 +13,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
@@ -110,7 +111,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		return fmt.Errorf("SolveUseCase - Create - Transaction: %w", err)
 	}
 
-	uc.redis.Del(ctx, "scoreboard")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
 	if uc.hub != nil && solvedChallenge != nil {
 		payload := websocket.ScoreboardUpdate{
@@ -175,9 +176,9 @@ func (uc *SolveUseCase) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEn
 
 func (uc *SolveUseCase) getScoreboardCacheKey(comp *entity.Competition) (string, bool) {
 	if comp != nil && comp.FreezeTime != nil && time.Now().After(*comp.FreezeTime) {
-		return "scoreboard:frozen", true
+		return redisKeys.KeyScoreboardFrozen, true
 	}
-	return "scoreboard", false
+	return redisKeys.KeyScoreboard, false
 }
 
 func (uc *SolveUseCase) tryGetCachedScoreboard(ctx context.Context, cacheKey string) []*repo.ScoreboardEntry {

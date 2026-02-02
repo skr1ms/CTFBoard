@@ -20,6 +20,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
@@ -28,6 +29,7 @@ type ChallengeUseCase struct {
 	solveRepo     repo.SolveRepository
 	txRepo        repo.TxRepository
 	compRepo      repo.CompetitionRepository
+	teamRepo      repo.TeamRepository
 	redis         *redis.Client
 	hub           *websocket.Hub
 	auditLogRepo  repo.AuditLogRepository
@@ -40,6 +42,7 @@ func NewChallengeUseCase(
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	compRepo repo.CompetitionRepository,
+	teamRepo repo.TeamRepository,
 	redis *redis.Client,
 	hub *websocket.Hub,
 	auditLogRepo repo.AuditLogRepository,
@@ -48,6 +51,7 @@ func NewChallengeUseCase(
 	return &ChallengeUseCase{
 		challengeRepo: challengeRepo,
 		solveRepo:     solveRepo,
+		teamRepo:      teamRepo,
 		txRepo:        txRepo,
 		compRepo:      compRepo,
 		redis:         redis,
@@ -157,7 +161,7 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, title, des
 		return nil, fmt.Errorf("ChallengeUseCase - Update: %w", err)
 	}
 
-	uc.redis.Del(ctx, "scoreboard")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
 	return challenge, nil
 }
@@ -188,7 +192,7 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, ID, actorID uuid.UUID, c
 		return fmt.Errorf("ChallengeUseCase - Delete - Transaction: %w", err)
 	}
 
-	uc.redis.Del(ctx, "scoreboard")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
 	return nil
 }
@@ -197,6 +201,16 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, ID, actorID uuid.UUID, c
 func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID) (bool, error) {
 	if teamID == nil {
 		return false, entityError.ErrUserMustBeInTeam
+	}
+
+	if uc.teamRepo != nil {
+		team, err := uc.teamRepo.GetByID(ctx, *teamID)
+		if err != nil {
+			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetTeam: %w", err)
+		}
+		if team.IsBanned {
+			return false, entityError.ErrTeamBanned
+		}
 	}
 
 	challenge, err := uc.challengeRepo.GetByID(ctx, challengeID)
@@ -328,7 +342,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		}
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Transaction: %w", err)
 	}
-	uc.redis.Del(ctx, "scoreboard")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
 	if uc.hub != nil && solvedChallenge != nil {
 		payload := websocket.ScoreboardUpdate{

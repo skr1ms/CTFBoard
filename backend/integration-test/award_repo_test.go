@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// GetAll Tests
-
 func TestAwardRepo_GetAll_Success(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
@@ -45,7 +43,7 @@ func TestAwardRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	assert.Nil(t, awards)
 }
 
-func TestAwardRepo_Create(t *testing.T) {
+func TestAwardRepo_Create_Success(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -65,6 +63,26 @@ func TestAwardRepo_Create(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotZero(t, award.ID)
 	assert.NotZero(t, award.CreatedAt)
+}
+
+func TestAwardRepo_Create_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	admin := f.CreateUser(t, "admin_ctx")
+	_, team := f.CreateUserWithTeam(t, "team_ctx")
+
+	award := &entity.Award{
+		TeamID:      team.ID,
+		Value:       10,
+		Description: "Fail",
+		CreatedBy:   &admin.ID,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := f.AwardRepo.Create(ctx, award)
+	assert.Error(t, err)
 }
 
 func TestAwardRepo_GetByTeamID(t *testing.T) {

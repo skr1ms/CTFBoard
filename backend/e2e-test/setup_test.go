@@ -25,7 +25,6 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
@@ -86,16 +85,16 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// E2E Setup
-func setupE2E(t *testing.T) *httpexpect.Expect {
+func GetTestBaseURL() string {
+	return fmt.Sprintf("http://localhost:%s", testPort)
+}
+
+func setupE2E(t *testing.T) {
 	t.Helper()
 	if err := TestRedis.FlushAll(context.Background()).Err(); err != nil {
 		t.Fatalf("failed to flush redis: %v", err)
 	}
-
-	baseURL := fmt.Sprintf("http://localhost:%s", testPort)
-
-	return httpexpect.Default(t, baseURL)
+	_ = httpexpect.Default(t, GetTestBaseURL())
 }
 
 // Infrastructure Setup
@@ -283,7 +282,7 @@ type testUseCases struct {
 	competition *competition.CompetitionUseCase
 	backup      *competition.BackupUseCase
 	stats       *competition.StatisticsUseCase
-	settings    *settings.SettingsUseCase
+	settings    *competition.SettingsUseCase
 	ws          *wsV1.Controller
 }
 
@@ -391,15 +390,15 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	// Usecases
 	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, deps.jwt)
 	compUC := competition.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
-	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, TestRedis, hub, auditLogRepo, deps.crypto)
+	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, teamRepo, TestRedis, hub, auditLogRepo, deps.crypto)
 	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, hub)
-	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo)
+	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo, TestRedis)
 	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
 	awardUC := team.NewAwardUseCase(awardRepo, txRepo, TestRedis)
 	emailUC := email.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
 	statsUC := competition.NewStatisticsUseCase(statsRepo, TestRedis)
 	backupUC := competition.NewBackupUseCase(compRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepo, backupRepo, fileStorage, txRepo, deps.logger)
-	settingsUC := settings.NewSettingsUseCase(appSettingsRepo, auditLogRepo, TestRedis)
+	settingsUC := competition.NewSettingsUseCase(appSettingsRepo, auditLogRepo, TestRedis)
 
 	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
 

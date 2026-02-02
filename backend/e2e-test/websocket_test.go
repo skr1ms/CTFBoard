@@ -105,8 +105,10 @@ func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr 
 	}
 }
 
+// GET /ws: client receives scoreboard_update event when a solve is submitted.
 func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
-	h := NewE2EHelper(t, setupE2E(t), TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_ws")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "WS Chall", "flag{ws_event}", 100)
@@ -136,4 +138,31 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "flag{ws_event}", http.StatusOK)
 	t.Logf("ws submit done, waiting for scoreboard_update")
 	waitScoreboardUpdate(t, received, readErr, done)
+}
+
+// GET /ws on invalid path: connection fails or returns 404.
+func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
+	setupE2E(t)
+	_, _ = NewE2EHelper(t, nil, TestPool), TestPool
+	wsURL := "ws://localhost:" + testPort + "/api/v1/ws-invalid"
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		return
+	}
+	if conn != nil {
+		conn.Close(websocket.StatusNormalClosure, "")
+	}
+	status := 0
+	if resp != nil {
+		status = resp.StatusCode
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
+	}
+	if status == http.StatusNotFound {
+		return
+	}
+	t.Fatalf("expected 404 or dial error for invalid path, got status=%d err=%v", status, err)
 }

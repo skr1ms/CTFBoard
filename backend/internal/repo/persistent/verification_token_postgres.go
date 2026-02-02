@@ -2,132 +2,85 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
-
-var (
-	verificationTokenInsertColumns = []string{"id", "user_id", "token", "type", "expires_at"}
-	verificationTokenSelectColumns = []string{"id", "user_id", "token", "type", "expires_at", "used_at", "created_at"}
-)
-
-func scanVerificationToken(row rowScanner) (*entity.VerificationToken, error) {
-	var t entity.VerificationToken
-	var tokenType string
-	err := row.Scan(&t.ID, &t.UserID, &t.Token, &tokenType, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	t.Type = entity.TokenType(tokenType)
-	return &t, nil
-}
 
 type VerificationTokenRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewVerificationTokenRepo(pool *pgxpool.Pool) *VerificationTokenRepo {
-	return &VerificationTokenRepo{pool: pool}
+func NewVerificationTokenRepo(db *pgxpool.Pool) *VerificationTokenRepo {
+	return &VerificationTokenRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityVerificationToken(t sqlc.VerificationToken) *entity.VerificationToken {
+	return &entity.VerificationToken{
+		ID:        t.ID,
+		UserID:    t.UserID,
+		Token:     t.Token,
+		Type:      entity.TokenType(t.Type),
+		ExpiresAt: t.ExpiresAt,
+		UsedAt:    t.UsedAt,
+		CreatedAt: ptrTimeToTime(t.CreatedAt),
+	}
 }
 
 func (r *VerificationTokenRepo) Create(ctx context.Context, token *entity.VerificationToken) error {
 	if token.ID == uuid.Nil {
 		token.ID = uuid.New()
 	}
-
-	query, args, err := sq.Insert("verification_tokens").
-		Columns(verificationTokenInsertColumns...).
-		Values(token.ID, token.UserID, token.Token, token.Type, token.ExpiresAt).
-		PlaceholderFormat(sq.Dollar).
-		ToSql()
+	err := r.q.CreateVerificationToken(ctx, sqlc.CreateVerificationTokenParams{
+		ID:        token.ID,
+		UserID:    token.UserID,
+		Token:     token.Token,
+		Type:      string(token.Type),
+		ExpiresAt: token.ExpiresAt,
+	})
 	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - Create - ToSql: %w", err)
+		return fmt.Errorf("VerificationTokenRepo - Create: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - Create - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*entity.VerificationToken, error) {
-	query, args, err := sq.Select(verificationTokenSelectColumns...).
-		From("verification_tokens").
-		Where(sq.Eq{"token": token}).
-		PlaceholderFormat(sq.Dollar).
-		ToSql()
+	t, err := r.q.GetVerificationTokenByToken(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken - ToSql: %w", err)
-	}
-
-	t, err := scanVerificationToken(r.pool.QueryRow(ctx, query, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrTokenNotFound
 		}
-		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken - QueryRow: %w", err)
+		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken: %w", err)
 	}
-	return t, nil
+	return toEntityVerificationToken(t), nil
 }
 
-func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, ID uuid.UUID) error {
-	query, args, err := sq.Update("verification_tokens").
-		Set("used_at", time.Now()).
-		Where(sq.Eq{"id": ID}).
-		PlaceholderFormat(sq.Dollar).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - MarkUsed - ToSql: %w", err)
+func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.MarkVerificationTokenUsed(ctx, id); err != nil {
+		return fmt.Errorf("VerificationTokenRepo - MarkUsed: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - MarkUsed - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *VerificationTokenRepo) DeleteExpired(ctx context.Context) error {
-	query, args, err := sq.Delete("verification_tokens").
-		Where(sq.Lt{"expires_at": time.Now()}).
-		PlaceholderFormat(sq.Dollar).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - DeleteExpired - ToSql: %w", err)
+	if err := r.q.DeleteExpiredVerificationTokens(ctx, time.Now()); err != nil {
+		return fmt.Errorf("VerificationTokenRepo - DeleteExpired: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - DeleteExpired - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *VerificationTokenRepo) DeleteByUserAndType(ctx context.Context, userID uuid.UUID, tokenType entity.TokenType) error {
-	query, args, err := sq.Delete("verification_tokens").
-		Where(sq.Eq{"user_id": userID, "type": tokenType}).
-		PlaceholderFormat(sq.Dollar).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - DeleteByUserAndType - ToSql: %w", err)
+	if err := r.q.DeleteVerificationTokensByUserAndType(ctx, sqlc.DeleteVerificationTokensByUserAndTypeParams{
+		UserID: userID,
+		Type:   string(tokenType),
+	}); err != nil {
+		return fmt.Errorf("VerificationTokenRepo - DeleteByUserAndType: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("VerificationTokenRepo - DeleteByUserAndType - Exec: %w", err)
-	}
-
 	return nil
 }

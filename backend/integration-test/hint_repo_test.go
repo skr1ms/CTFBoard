@@ -4,15 +4,24 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Hint CRUD Tests
+func TestHintRepo_GetByID_NotFound(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
 
-func TestHintRepo_CRUD(t *testing.T) {
+	_, err := f.HintRepo.GetByID(ctx, uuid.Nil)
+	assert.Error(t, err)
+}
+
+func TestHintRepo_CRUD_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -52,8 +61,6 @@ func TestHintRepo_CRUD(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// HintUnlock Tests
-
 func TestHintUnlockRepo_Flow(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -81,8 +88,6 @@ func TestHintUnlockRepo_Flow(t *testing.T) {
 	assert.Contains(t, IDs, hint.ID)
 }
 
-// Award Tests (in HintTest file)
-
 func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -107,7 +112,7 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 
 	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
-	assert.Equal(t, 50, total) // -50 + 100 = 50
+	assert.Equal(t, 50, total)
 }
 
 func TestScoreboardWithAwards(t *testing.T) {

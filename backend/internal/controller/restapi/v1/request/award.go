@@ -1,7 +1,11 @@
 package request
 
-type CreateAwardRequest struct {
-	TeamID      string `json:"team_id" Validate:"required,uuid"`
-	Value       int    `json:"value" Validate:"required,ne=0"`
-	Description string `json:"description" Validate:"required"`
+import (
+	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
+)
+
+func CreateAwardRequestToParams(req *openapi.RequestCreateAwardRequest) (teamID uuid.UUID, value int, description string, err error) {
+	teamID, err = uuid.Parse(req.TeamID)
+	return teamID, req.Value, req.Description, err
 }

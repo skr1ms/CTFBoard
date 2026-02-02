@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 // GET /challenges + POST /challenges/{ID}/submit: create challenge, submit correct flag, verify solved state; duplicate submit returns 409.
 func TestChallenge_Lifecycle(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_lifecycle")
 
@@ -20,7 +21,6 @@ func TestChallenge_Lifecycle(t *testing.T) {
 		"points":      100,
 		"flag":        "FLAG{test}",
 		"category":    "web",
-		"difficulty":  "easy",
 		"is_hidden":   false,
 	})
 
@@ -30,23 +30,25 @@ func TestChallenge_Lifecycle(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	challenge := h.FindChallengeInList(tokenUser, challengeID)
-	challenge.Value("title").String().IsEqual("Test Challenge")
-	challenge.Value("solved").Boolean().IsFalse()
-	challenge.Value("solve_count").Number().IsEqual(0)
+	require.Equal(t, "Test Challenge", *challenge.Title)
+	solvedFalse := false
+	solveCount0 := 0
+	RequireChallengeFields(t, challenge, "", &solvedFalse, &solveCount0, nil)
 
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusOK)
 
 	challengeAfterSolve := h.FindChallengeInList(tokenUser, challengeID)
-	challengeAfterSolve.Value("solved").Boolean().IsTrue()
-	challengeAfterSolve.Value("solve_count").Number().IsEqual(1)
+	solvedTrue := true
+	solveCount1 := 1
+	RequireChallengeFields(t, challengeAfterSolve, "", &solvedTrue, &solveCount1, nil)
 
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusConflict)
 }
 
 // Dynamic scoring: first solver gets initial points, second gets decayed points (min_value).
 func TestChallenge_DynamicScoring(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("adm_dyn")
 
@@ -59,7 +61,6 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 		"decay":         1,
 		"flag":          "FLAG{dynamic}",
 		"category":      "web",
-		"difficulty":    "easy",
 		"is_hidden":     false,
 	})
 
@@ -69,22 +70,24 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	challengeState1 := h.FindChallengeInList(tokenUser1, challengeID)
-	challengeState1.Value("points").Number().IsEqual(500)
-	challengeState1.Value("solve_count").Number().IsEqual(1)
+	points500 := 500
+	solveCount1 := 1
+	RequireChallengeFields(t, challengeState1, "", nil, &solveCount1, &points500)
 
 	_, _, tokenUser2 := h.RegisterUserAndLogin("solver2_" + suffix)
 	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{dynamic}", http.StatusOK)
 
 	challengeState2 := h.FindChallengeInList(tokenUser2, challengeID)
-	challengeState2.Value("points").Number().IsEqual(100)
-	challengeState2.Value("solve_count").Number().IsEqual(2)
+	points100 := 100
+	solveCount2 := 2
+	RequireChallengeFields(t, challengeState2, "", nil, &solveCount2, &points100)
 }
 
 // POST /admin/challenges with is_hidden: hidden challenge is not visible in GET /challenges for regular user.
 func TestChallenge_CreateHIDden(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_hidden")
 
@@ -106,8 +109,8 @@ func TestChallenge_CreateHIDden(t *testing.T) {
 
 // PUT /admin/challenges/{ID}: update challenge fields; GET /challenges reflects new title, description, points.
 func TestChallenge_Update(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_update")
 
@@ -126,20 +129,20 @@ func TestChallenge_Update(t *testing.T) {
 		"points":      150,
 		"flag":        "FLAG{updated}",
 		"category":    "pwn",
-		"difficulty":  "hard",
 		"is_hidden":   false,
 	})
 
 	challenge := h.FindChallengeInList(tokenAdmin, challengeID)
-	challenge.Value("title").String().IsEqual("Updated Title")
-	challenge.Value("description").String().IsEqual("Updated Description")
-	challenge.Value("points").Number().IsEqual(150)
+	require.Equal(t, "Updated Title", *challenge.Title)
+	require.Equal(t, "Updated Description", *challenge.Description)
+	points150 := 150
+	RequireChallengeFields(t, challenge, "", nil, nil, &points150)
 }
 
 // POST /challenges/{ID}/submit: wrong flag returns 400 Bad Request.
 func TestChallenge_SubmitInvalidFlag(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_invalid")
 
@@ -160,8 +163,8 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 
 // DELETE /admin/challenges/{ID}: challenge is removed; GET /challenges no longer returns it.
 func TestChallenge_Delete(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_delete")
 
@@ -176,4 +179,33 @@ func TestChallenge_Delete(t *testing.T) {
 	h.DeleteChallenge(tokenAdmin, challengeID)
 
 	h.AssertChallengeMissing(tokenAdmin, challengeID)
+}
+
+// GET /challenges: request without token returns 401 Unauthorized.
+func TestChallenge_GetChallenges_Unauthorized(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	resp := h.GetChallengesExpectStatus("", http.StatusUnauthorized)
+	require.NotNil(t, resp.JSON401)
+}
+
+// PUT /admin/challenges/{ID}: non-existent challenge returns 404.
+func TestChallenge_Update_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, tokenAdmin := h.SetupCompetition("admin_up_404")
+	h.UpdateChallengeExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", map[string]any{
+		"title": "X", "description": "Y", "points": 10, "category": "misc",
+	}, http.StatusNotFound)
+}
+
+// DELETE /admin/challenges/{ID}: non-existent challenge returns 404.
+func TestChallenge_Delete_NotFound(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+
+	_, tokenAdmin := h.SetupCompetition("admin_del_404")
+	h.DeleteChallengeExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }

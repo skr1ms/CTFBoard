@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Create Tests
-
 func TestUserRepo_Create(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -72,8 +70,6 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// GetByID Tests
-
 func TestUserRepo_GetByID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -102,8 +98,6 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
 
-// GetByEmail Tests
-
 func TestUserRepo_GetByEmail(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -130,8 +124,6 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
 
-// GetByUsername Tests
-
 func TestUserRepo_GetByUsername(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -156,8 +148,6 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
 }
-
-// GetAll Tests
 
 func TestUserRepo_GetAll_Success(t *testing.T) {
 	t.Helper()
@@ -193,8 +183,6 @@ func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	assert.Nil(t, users)
 }
 
-// GetByTeamID Tests
-
 func TestUserRepo_GetByTeamID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -229,7 +217,6 @@ func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
 	assert.Len(t, members, 0)
 }
 
-// UpdateTeamID Tests
 func TestUserRepo_UpdateTeamID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -265,8 +252,6 @@ func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, gotUser.TeamID)
 }
-
-// Role Persistence Tests
 
 func TestUserRepo_Role_Persistence(t *testing.T) {
 	t.Helper()

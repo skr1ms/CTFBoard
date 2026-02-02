@@ -6,29 +6,36 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 // GET /scoreboard: ranks and points reflect solves; team with more solves has higher rank and correct total points.
 func TestScoreboard_Display(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("admin_scoreboard")
 
 	challengeID1 := h.CreateChallenge(tokenAdmin, map[string]any{
-		"title":       "Challenge 1",
-		"description": "Test challenge 1",
-		"points":      100,
-		"flag":        "FLAG{chall1}",
-		"category":    "web",
+		"title":         "Challenge 1",
+		"description":   "Test challenge 1",
+		"points":        100,
+		"flag":          "FLAG{chall1}",
+		"category":      "web",
+		"initial_value": 100,
+		"min_value":     100,
+		"decay":         1,
 	})
 
 	challengeID2 := h.CreateChallenge(tokenAdmin, map[string]any{
-		"title":       "Challenge 2",
-		"description": "Test challenge 2",
-		"points":      200,
-		"flag":        "FLAG{chall2}",
-		"category":    "crypto",
+		"title":         "Challenge 2",
+		"description":   "Test challenge 2",
+		"points":        200,
+		"flag":          "FLAG{chall2}",
+		"category":      "crypto",
+		"initial_value": 200,
+		"min_value":     200,
+		"decay":         1,
 	})
 
 	suffix := uuid.New().String()[:8]
@@ -53,11 +60,10 @@ func TestScoreboard_Display(t *testing.T) {
 
 // GET /scoreboard: returns 200 and array even when no teams/solves.
 func TestScoreboard_Empty(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
-	h.GetScoreboard().
-		Status(http.StatusOK).
-		JSON().
-		Array()
+	resp := h.GetScoreboard()
+	require.Equal(t, http.StatusOK, resp.StatusCode())
+	require.NotNil(t, resp.JSON200)
 }

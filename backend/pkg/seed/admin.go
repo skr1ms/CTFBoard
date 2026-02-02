@@ -6,12 +6,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateDefaultAdmin(ctx context.Context, userRepo persistent.UserRepo, username, email, password string, log logger.Logger) error {
+func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, username, email, password string, log logger.Logger) error {
 	_, err := userRepo.GetByEmail(ctx, email)
 	if err == nil {
 		log.Info("Seed: default admin already exists, skipping")

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -32,8 +33,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 			return a.TeamID == h.TeamID() && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == h.AdminID()
 		})).Return(nil).Once()
 
-		h.Redis().ExpectDel("scoreboard").SetVal(0)
-		h.Redis().ExpectDel("scoreboard:frozen").SetVal(0)
+		h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 		award, err := h.CreateUseCase().Create(ctx, h.TeamID(), 100, "Bonus", h.AdminID())
 

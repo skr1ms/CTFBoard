@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Create Tests
-
 func TestChallengeRepo_Create(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -37,8 +35,6 @@ func TestChallengeRepo_Create(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, challenge.ID)
 }
-
-// GetByID Tests
 
 func TestChallengeRepo_GetByID(t *testing.T) {
 	t.Helper()
@@ -70,8 +66,6 @@ func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrChallengeNotFound))
 }
-
-// GetAll Tests
 
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	t.Helper()
@@ -147,8 +141,6 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 	assert.True(t, solved)
 }
 
-// Update Tests
-
 func TestChallengeRepo_Update(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -212,7 +204,7 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx, challenge.ID)
 	require.NoError(t, err)
@@ -233,7 +225,7 @@ func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	nonExistentID := uuid.New()
 	_, err = f.TxRepo.GetChallengeByIDTx(ctx, tx, nonExistentID)
@@ -260,7 +252,7 @@ func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 
 	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck
 	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, gotChallenge.SolveCount)
@@ -286,7 +278,7 @@ func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
 
 	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck
 	gotChallenge, err := f.TxRepo.GetChallengeByIDTx(ctx, tx2, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, newPoints, gotChallenge.Points)
@@ -329,6 +321,5 @@ func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, finalChallenge.SolveCount)
 	assert.Equal(t, newPoints, finalChallenge.Points)
-	// First solve check: 100 + 400/(1+0/10) = 500. Points haven't dropped yet.
 	assert.Equal(t, initialValue, finalChallenge.Points)
 }

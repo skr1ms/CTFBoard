@@ -123,7 +123,7 @@ func New() (*Config, error) {
 	verifyEmails := getEnvBool("VERIFY_EMAILS", false)
 	backendPort := getEnv("BACKEND_PORT", "8080")
 	migrationsPath := getEnv("MIGRATIONS_PATH", "migrations")
-	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
+	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5000"))
 
 	postgresHost := getEnv("POSTGRES_HOST", "postgres")
 	postgresPort := getEnv("POSTGRES_PORT", "5432")

@@ -1,13 +1,25 @@
 package request
 
-type CreateHintRequest struct {
-	Content    string `json:"content" Validate:"required,hint_content" example:"This is a hint"`
-	Cost       int    `json:"cost" Validate:"gte=0" example:"50"`
-	OrderIndex int    `json:"order_index" Validate:"gte=0" example:"0"`
+import "github.com/skr1ms/CTFBoard/internal/openapi"
+
+func CreateHintRequestToParams(req *openapi.RequestCreateHintRequest) (content string, cost, orderIndex int) {
+	cost, orderIndex = 0, 0
+	if req.Cost != nil {
+		cost = *req.Cost
+	}
+	if req.OrderIndex != nil {
+		orderIndex = *req.OrderIndex
+	}
+	return req.Content, cost, orderIndex
 }
 
-type UpdateHintRequest struct {
-	Content    string `json:"content" Validate:"required,hint_content" example:"Updated hint content"`
-	Cost       int    `json:"cost" Validate:"gte=0" example:"100"`
-	OrderIndex int    `json:"order_index" Validate:"gte=0" example:"1"`
+func UpdateHintRequestToParams(req *openapi.RequestUpdateHintRequest) (content string, cost, orderIndex int) {
+	cost, orderIndex = 0, 0
+	if req.Cost != nil {
+		cost = *req.Cost
+	}
+	if req.OrderIndex != nil {
+		orderIndex = *req.OrderIndex
+	}
+	return req.Content, cost, orderIndex
 }

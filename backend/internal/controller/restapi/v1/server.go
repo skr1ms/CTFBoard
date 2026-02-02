@@ -8,7 +8,6 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
@@ -16,7 +15,6 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
-// Server implements the openapi.ServerInterface
 type Server struct {
 	openapi.Unimplemented
 	userUC        *user.UserUseCase
@@ -30,7 +28,7 @@ type Server struct {
 	awardUC       *team.AwardUseCase
 	statsUC       *competition.StatisticsUseCase
 	backupUC      usecase.BackupUseCase
-	settingsUC    *settings.SettingsUseCase
+	settingsUC    *competition.SettingsUseCase
 	jwtService    *jwt.JWTService
 	redisClient   *redis.Client
 	wsController  *wsV1.Controller
@@ -50,7 +48,7 @@ func NewServer(
 	awardUC *team.AwardUseCase,
 	statsUC *competition.StatisticsUseCase,
 	backupUC usecase.BackupUseCase,
-	settingsUC *settings.SettingsUseCase,
+	settingsUC *competition.SettingsUseCase,
 	jwtService *jwt.JWTService,
 	redisClient *redis.Client,
 	wsController *wsV1.Controller,

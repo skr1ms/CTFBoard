@@ -58,6 +58,7 @@ services:
     container_name: seaweedfs
     command: >
       server
+      -filer
       -s3
       -s3.port=8333
       -s3.config=/etc/seaweedfs/s3.json
@@ -68,6 +69,7 @@ services:
     ports:
       - "127.0.0.1:${SEAWEED_S3_PORT:-8333}:8333"
       - "127.0.0.1:9333:9333"
+      - "127.0.0.1:8888:8888"
     volumes:
       - ../seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
       - seaweed_data:/data
@@ -80,6 +82,33 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+  
+
+  seaweedfs-ui:
+    build:
+      context: ../../frontend/seaweedfs-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_HOST: ${VITE_HOST}
+        VITE_FILER_PORT: ${VITE_FILER_PORT}
+        VITE_MASTER_PORT: ${VITE_MASTER_PORT}
+        VITE_MASTER_PROXY_PATH: ${VITE_MASTER_PROXY_PATH:-master}
+    image: ${SEAWEEDFS_UI_IMAGE:-ctfboard-seaweedfs-ui}
+    container_name: seaweedfs-ui
+    ports:
+      - "127.0.0.1:${SEAWEEDFS_UI_PORT:-5000}:5000"
+    networks:
+      - ctfboard_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    depends_on:
+      - seaweedfs
 
   backend:
     build:
@@ -229,7 +258,13 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ../../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ../../monitoring/grafana/dashboards/root:/var/lib/grafana/dashboards_root:ro
+      - ../../monitoring/grafana/dashboards/backend:/var/lib/grafana/dashboards/backend:ro
+      - ../../monitoring/grafana/dashboards/postgres:/var/lib/grafana/dashboards/postgres:ro
+      - ../../monitoring/grafana/dashboards/redis:/var/lib/grafana/dashboards/redis:ro
+      - ../../monitoring/grafana/dashboards/vault:/var/lib/grafana/dashboards/vault:ro
+      - ../../monitoring/grafana/dashboards/seaweedfs:/var/lib/grafana/dashboards/seaweedfs:ro
+      - ../../monitoring/grafana/dashboards/ui:/var/lib/grafana/dashboards/ui:ro
     networks:
       - ctfboard_network
     restart: unless-stopped

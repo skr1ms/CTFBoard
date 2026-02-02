@@ -10,9 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 )
-
-const competitionCacheKey = "competition"
 
 type CompetitionUseCase struct {
 	competitionRepo repo.CompetitionRepository
@@ -33,7 +32,7 @@ func NewCompetitionUseCase(
 }
 
 func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, error) {
-	val, err := uc.redis.Get(ctx, competitionCacheKey).Result()
+	val, err := uc.redis.Get(ctx, redisKeys.KeyCompetition).Result()
 	if err == nil {
 		var comp entity.Competition
 		if err := json.Unmarshal([]byte(val), &comp); err == nil {
@@ -47,7 +46,7 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 	}
 
 	if bytes, err := json.Marshal(comp); err == nil {
-		uc.redis.Set(ctx, competitionCacheKey, bytes, 5*time.Second)
+		uc.redis.Set(ctx, redisKeys.KeyCompetition, bytes, 5*time.Second)
 	}
 
 	return comp, nil
@@ -59,7 +58,7 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 		return fmt.Errorf("CompetitionUseCase - Update: %w", err)
 	}
 
-	uc.redis.Del(ctx, competitionCacheKey)
+	uc.redis.Del(ctx, redisKeys.KeyCompetition)
 
 	auditLog := &entity.AuditLog{
 		UserID:     &actorID,

@@ -18,7 +18,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := team.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo)
+	uc := team.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, nil)
 
 	u1 := f.CreateUser(t, "racer_1")
 	u2 := f.CreateUser(t, "racer_2")
@@ -78,7 +78,7 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := team.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, 2)
+	uc := team.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, nil, 2)
 
 	captain := f.CreateUser(t, "captain")
 	team, err := uc.Create(ctx, "MaxCapTeam", captain.ID, false, false)

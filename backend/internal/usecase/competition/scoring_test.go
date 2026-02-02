@@ -1,6 +1,10 @@
 package competition
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestCalculateDynamicScore(t *testing.T) {
 	tests := []struct {
@@ -23,10 +27,7 @@ func TestCalculateDynamicScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := CalculateDynamicScore(tt.initial, tt.min, tt.decay, tt.solves)
-			if got != tt.expected {
-				t.Errorf("CalculateDynamicScore(%d, %d, %d, %d) = %d, expected %d",
-					tt.initial, tt.min, tt.decay, tt.solves, got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }

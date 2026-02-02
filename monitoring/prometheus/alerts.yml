@@ -64,7 +64,7 @@ groups:
           summary: "PostgreSQL deadlocks detected"
           description: "PostgreSQL has detected deadlocks in the last minute."
 
-      - alert: APIDown
+      - alert: APidown
         expr: up{job="backend"} == 0
         for: 1m
         labels:

@@ -48,7 +48,6 @@ func TestParseuuidParam(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest("GET", "/test", nil)
 
-			// Setup chi context
 			rctx := chi.NewRouteContext()
 			if tt.paramValue != "" {
 				rctx.URLParams.Add(tt.paramName, tt.paramValue)

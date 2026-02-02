@@ -13,10 +13,8 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
@@ -35,7 +33,7 @@ func NewRouter(
 	awardUC *team.AwardUseCase,
 	statsUC *competition.StatisticsUseCase,
 	backupUC usecase.BackupUseCase,
-	settingsUC *settings.SettingsUseCase,
+	settingsUC *competition.SettingsUseCase,
 	jwtService *jwt.JWTService,
 	redisClient *redis.Client,
 	wsController *ws.Controller,
@@ -55,13 +53,13 @@ func NewRouter(
 	wrapper := openapi.ServerInterfaceWrapper{
 		Handler: server,
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			httputil.RenderError(w, r, http.StatusBadRequest, err.Error())
+			RenderError(w, r, http.StatusBadRequest, err.Error())
 		},
 	}
 
 	setupPublicRoutes(router, server, wrapper)
 	setupAuthOnlyRoutes(router, jwtService, wrapper)
-	setupProtectedRoutes(router, userUC, jwtService, competitionUC, redisClient, wrapper, submitLimit, durationLimit, verifyEmails, server, logger)
+	setupProtectedRoutes(router, userUC, jwtService, competitionUC, redisClient, wrapper, submitLimit, durationLimit, verifyEmails, logger)
 }
 
 func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper) {
@@ -73,7 +71,7 @@ func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.Server
 		r.Post("/auth/forgot-password", wrapper.PostAuthForgotPassword)
 		r.Post("/auth/reset-password", wrapper.PostAuthResetPassword)
 
-		r.Get("/competition/status", server.GetCompetitionStatus)
+		r.Get("/competition/status", wrapper.GetCompetitionStatus)
 		r.Get("/scoreboard", wrapper.GetScoreboard)
 		r.Get("/challenges/{ID}/first-blood", wrapper.GetChallengesIDFirstBlood)
 		r.Get("/users/{ID}", wrapper.GetUsersID)
@@ -110,7 +108,6 @@ func setupProtectedRoutes(
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
-	server *Server,
 	logger logger.Logger,
 ) {
 	// Protected Routes (Auth + InjectUser)
@@ -126,7 +123,7 @@ func setupProtectedRoutes(
 		// Files Download URL (Protected)
 		r.Get("/files/{ID}/download", wrapper.GetFilesIDDownload)
 
-		setupAdminRoutes(r, server, wrapper)
+		setupAdminRoutes(r, wrapper)
 	})
 }
 
@@ -167,7 +164,7 @@ func setupChallengeRoutes(
 		sub.Use(restapimiddleware.RequireTeam(""))
 
 		ipLimit := restapimiddleware.RateLimit(redisClient, "submit:ip", int64(submitLimit*3), durationLimit, func(r *http.Request) (string, error) {
-			return httputil.GetClientIP(r), nil
+			return GetClientIP(r), nil
 		}, log)
 		userLimit := restapimiddleware.RateLimit(redisClient, "submit:user", int64(submitLimit), durationLimit, func(r *http.Request) (string, error) {
 			user, ok := restapimiddleware.GetUser(r.Context())
@@ -185,18 +182,15 @@ func setupChallengeRoutes(
 	sub.Post("/challenges/{challengeID}/hints/{hintID}/unlock", wrapper.PostChallengesChallengeIDHintsHintIDUnlock)
 }
 
-func setupAdminRoutes(r chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper) {
+func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	// Admin Routes
 	r.Group(func(adm chi.Router) {
 		adm.Use(restapimiddleware.Admin)
 
-		// Admin Competition (Manual)
-		adm.Get("/admin/competition", server.GetAdminCompetition)
-		adm.Put("/admin/competition", server.PutAdminCompetition)
-
-		// Admin Settings (app_settings)
-		adm.Get("/admin/settings", server.GetAdminSettings)
-		adm.Put("/admin/settings", server.PutAdminSettings)
+		adm.Get("/admin/competition", wrapper.GetAdminCompetition)
+		adm.Put("/admin/competition", wrapper.PutAdminCompetition)
+		adm.Get("/admin/settings", wrapper.GetAdminSettings)
+		adm.Put("/admin/settings", wrapper.PutAdminSettings)
 
 		// Admin Challenges
 		adm.Post("/admin/challenges", wrapper.PostAdminChallenges)

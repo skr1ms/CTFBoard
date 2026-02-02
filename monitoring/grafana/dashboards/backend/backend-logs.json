@@ -1,5 +1,5 @@
 {
-  "uID": "backend-logs",
+  "uid": "backend-logs",
   "title": "Backend Logs",
   "tags": [
     "backend",
@@ -12,10 +12,10 @@
   "refresh": "10s",
   "panels": [
     {
-      "ID": 1,
+      "id": 1,
       "title": "Error Logs",
       "type": "logs",
-      "grIDPos": {
+      "gridPos": {
         "h": 12,
         "w": 24,
         "x": 0,
@@ -25,10 +25,10 @@
         {
           "datasource": {
             "type": "loki",
-            "uID": "loki"
+            "uid": "loki"
           },
           "queryType": "",
-          "refID": "A",
+          "refId": "A",
           "expr": "{container=\"backend\"} |~ \"(?i)(error|err)\""
         }
       ],
@@ -44,10 +44,10 @@
       }
     },
     {
-      "ID": 2,
+      "id": 2,
       "title": "Slow Requests (>500ms)",
       "type": "logs",
-      "grIDPos": {
+      "gridPos": {
         "h": 12,
         "w": 24,
         "x": 0,
@@ -57,10 +57,10 @@
         {
           "datasource": {
             "type": "loki",
-            "uID": "loki"
+            "uid": "loki"
           },
           "queryType": "",
-          "refID": "A",
+          "refId": "A",
           "expr": "{container=\"backend\"} |~ \"latency_ms.*[5-9][0-9][0-9]|latency_ms.*[0-9]{4,}\""
         }
       ],
@@ -76,10 +76,10 @@
       }
     },
     {
-      "ID": 3,
+      "id": 3,
       "title": "All Backend Logs",
       "type": "logs",
-      "grIDPos": {
+      "gridPos": {
         "h": 12,
         "w": 24,
         "x": 0,
@@ -89,10 +89,10 @@
         {
           "datasource": {
             "type": "loki",
-            "uID": "loki"
+            "uid": "loki"
           },
           "queryType": "",
-          "refID": "A",
+          "refId": "A",
           "expr": "{container=\"backend\"}"
         }
       ],

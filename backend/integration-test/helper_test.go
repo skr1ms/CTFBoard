@@ -29,6 +29,7 @@ type TestFixture struct {
 	AuditLogRepo          *persistent.AuditLogRepo
 	StatisticsRepo        *persistent.StatisticsRepository
 	BackupRepo            *persistent.BackupRepo
+	AppSettingsRepo       *persistent.AppSettingsRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -48,6 +49,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		AuditLogRepo:          persistent.NewAuditLogRepo(Pool),
 		StatisticsRepo:        persistent.NewStatisticsRepository(Pool),
 		BackupRepo:            persistent.NewBackupRepo(Pool),
+		AppSettingsRepo:       persistent.NewAppSettingsRepo(Pool),
 	}
 }
 
@@ -204,4 +206,36 @@ func (f *TestFixture) NewMinimalBackupData(t *testing.T) *entity.BackupData {
 		Solves:      []entity.Solve{},
 		Files:       []entity.File{},
 	}
+}
+
+func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.AppSettings {
+	t.Helper()
+	ctx := context.Background()
+	settings, err := f.AppSettingsRepo.Get(ctx)
+	require.NoError(t, err)
+	return settings
+}
+
+func (f *TestFixture) ResetAppSettings(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	_, err := f.Pool.Exec(ctx, `
+		UPDATE app_settings SET 
+			app_name = 'CTFBoard',
+			verify_emails = TRUE,
+			frontend_url = 'http://localhost:3000',
+			cors_origins = 'http://localhost:3000,http://localhost:5173',
+			resend_enabled = FALSE,
+			resend_from_email = 'noreply@ctfboard.local',
+			resend_from_name = 'CTFBoard',
+			verify_ttl_hours = 24,
+			reset_ttl_hours = 1,
+			submit_limit_per_user = 10,
+			submit_limit_duration_min = 1,
+			scoreboard_visible = 'public',
+			registration_open = TRUE,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = 1
+	`)
+	require.NoError(t, err)
 }

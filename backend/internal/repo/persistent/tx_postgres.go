@@ -10,21 +10,20 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
-
-// TxRepo
 
 type TxRepo struct {
 	pool *pgxpool.Pool
+	q    *sqlc.Queries
 }
 
 func NewTxRepo(pool *pgxpool.Pool) *TxRepo {
-	return &TxRepo{pool: pool}
+	return &TxRepo{pool: pool, q: sqlc.New(pool)}
 }
 
 func (r *TxRepo) BeginTx(ctx context.Context) (pgx.Tx, error) {
@@ -68,57 +67,35 @@ func (r *TxRepo) RunTransaction(ctx context.Context, fn func(context.Context, pg
 	return nil
 }
 
-// UserRepo Tx Methods
-
-var userInsertColumnsTx = []string{"username", "email", "password_hash", "role", "created_at"}
-
 func (r *TxRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, user *entity.User) error {
 	user.CreatedAt = time.Now()
-
-	query := squirrel.Insert("users").
-		Columns(userInsertColumnsTx...).
-		Values(user.Username, user.Email, user.PasswordHash, user.Role, user.CreatedAt).
-		Suffix("RETURNING id").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	isVerified := false
+	id, err := r.q.WithTx(tx).CreateUserReturningID(ctx, sqlc.CreateUserReturningIDParams{
+		Username:     user.Username,
+		Email:        user.Email,
+		PasswordHash: user.PasswordHash,
+		Role:         &user.Role,
+		IsVerified:   &isVerified,
+		CreatedAt:    &user.CreatedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateUserTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - CreateUserTx: %w", err)
 	}
-
-	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&user.ID)
-	if err != nil {
-		return fmt.Errorf("TxRepo - CreateUserTx - Exec: %w", err)
-	}
-
+	user.ID = id
 	return nil
 }
 
 func (r *TxRepo) UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID) error {
-	updateBuilder := squirrel.Update("users").
-		Where(squirrel.Eq{"id": userID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	if teamID != nil {
-		updateBuilder = updateBuilder.Set("team_id", *teamID)
-	} else {
-		updateBuilder = updateBuilder.Set("team_id", nil)
-	}
-
-	sqlQuery, args, err := updateBuilder.ToSql()
+	_, err := r.q.WithTx(tx).UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{
+		ID:     userID,
+		TeamID: teamID,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - UpdateUserTeamIDTx - BuildQuery: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrUserNotFound
+		}
+		return fmt.Errorf("TxRepo - UpdateUserTeamIDTx: %w", err)
 	}
-
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("TxRepo - UpdateUserTeamIDTx - Exec: %w", err)
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return entityError.ErrUserNotFound
-	}
-
 	return nil
 }
 
@@ -146,102 +123,55 @@ func (r *TxRepo) LockUserTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) er
 	return nil
 }
 
-// TeamRepo Tx Methods
-
-var teamInsertColumnsTx = []string{"name", "invite_token", "captain_id", "is_solo", "is_auto_created", "created_at"}
-
 func (r *TxRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error {
 	team.CreatedAt = time.Now()
-
-	query := squirrel.Insert("teams").
-		Columns(teamInsertColumnsTx...).
-		Values(team.Name, team.InviteToken, team.CaptainID, team.IsSolo, team.IsAutoCreated, team.CreatedAt).
-		Suffix("RETURNING id").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	id, err := r.q.WithTx(tx).CreateTeamReturningID(ctx, sqlc.CreateTeamReturningIDParams{
+		Name:          team.Name,
+		InviteToken:   team.InviteToken,
+		CaptainID:     team.CaptainID,
+		IsSolo:        &team.IsSolo,
+		IsAutoCreated: &team.IsAutoCreated,
+		CreatedAt:     &team.CreatedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateTeamTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - CreateTeamTx: %w", err)
 	}
-
-	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&team.ID)
-	if err != nil {
-		return fmt.Errorf("TxRepo - CreateTeamTx - Exec: %w", err)
-	}
-
+	team.ID = id
 	return nil
 }
 
 func (r *TxRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error) {
-	query := squirrel.Select(teamSelectColumns...).
-		From("teams").
-		Where(squirrel.Eq{"name": name}).
-		Where(squirrel.Eq{"deleted_at": nil}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	row, err := r.q.WithTx(tx).GetTeamByName(ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetTeamByNameTx - BuildQuery: %w", err)
-	}
-
-	team, err := scanTeam(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetTeamByNameTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetTeamByNameTx: %w", err)
 	}
-	return team, nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
-	query := squirrel.Select(teamSelectColumns...).
-		From("teams").
-		Where(squirrel.Eq{"invite_token": inviteToken}).
-		Where(squirrel.Eq{"deleted_at": nil}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	row, err := r.q.WithTx(tx).GetTeamByInviteToken(ctx, inviteToken)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetTeamByInviteTokenTx - BuildQuery: %w", err)
-	}
-
-	team, err := scanTeam(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetTeamByInviteTokenTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetTeamByInviteTokenTx: %w", err)
 	}
-	return team, nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error) {
-	query := squirrel.Select(userColumns...).
-		From("users").
-		Where(squirrel.Eq{"team_id": teamID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.WithTx(tx).ListUsersByTeamID(ctx, &teamID)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetUsersByTeamIDTx - BuildQuery: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetUsersByTeamIDTx: %w", err)
 	}
-
-	rows, err := tx.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetUsersByTeamIDTx - Query: %w", err)
+	out := make([]*entity.User, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, toEntityUser(u))
 	}
-	defer rows.Close()
-
-	var users []*entity.User
-	for rows.Next() {
-		user, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("TxRepo - GetUsersByTeamIDTx - Scan: %w", err)
-		}
-		users = append(users, user)
-	}
-	return users, nil
+	return out, nil
 }
 
 func (r *TxRepo) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
@@ -292,26 +222,13 @@ func (r *TxRepo) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID, new
 }
 
 func (r *TxRepo) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
-	query := squirrel.Update("teams").
-		Set("deleted_at", time.Now()).
-		Where(squirrel.Eq{"id": teamID}).
-		Where(squirrel.Eq{"deleted_at": nil}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	_, err := r.q.WithTx(tx).SoftDeleteTeam(ctx, teamID)
 	if err != nil {
-		return fmt.Errorf("TxRepo - SoftDeleteTeamTx - BuildQuery: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrTeamNotFound
+		}
+		return fmt.Errorf("TxRepo - SoftDeleteTeamTx: %w", err)
 	}
-
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("TxRepo - SoftDeleteTeamTx - Exec: %w", err)
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return entityError.ErrTeamNotFound
-	}
-
 	return nil
 }
 
@@ -346,287 +263,166 @@ func (r *TxRepo) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entit
 	return nil
 }
 
-// ChallengeRepo Tx Methods
-
-func (r *TxRepo) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Challenge, error) {
-	query := squirrel.Select(challengeColumns...).
-		From("challenges").
-		Where(squirrel.Eq{"id": ID}).
-		Suffix("FOR UPDATE").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *TxRepo) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Challenge, error) {
+	row, err := r.q.WithTx(tx).GetChallengeByIDForUpdate(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetChallengeByIDTx - BuildQuery: %w", err)
-	}
-
-	challenge, err := scanChallenge(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrChallengeNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetChallengeByIDTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetChallengeByIDTx: %w", err)
 	}
-	return challenge, nil
+	return toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex), nil
 }
 
-func (r *TxRepo) IncrementChallengeSolveCountTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (int, error) {
-	query := squirrel.Update("challenges").
-		Set("solve_count", squirrel.Expr("solve_count + 1")).
-		Where(squirrel.Eq{"id": ID}).
-		Suffix("RETURNING solve_count").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *TxRepo) IncrementChallengeSolveCountTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (int, error) {
+	n, err := r.q.WithTx(tx).IncrementChallengeSolveCount(ctx, id)
 	if err != nil {
-		return 0, fmt.Errorf("TxRepo - IncrementChallengeSolveCountTx - BuildQuery: %w", err)
+		return 0, fmt.Errorf("TxRepo - IncrementChallengeSolveCountTx: %w", err)
 	}
-
-	var solveCount int
-	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&solveCount)
-	if err != nil {
-		return 0, fmt.Errorf("TxRepo - IncrementChallengeSolveCountTx - Query: %w", err)
-	}
-
-	return solveCount, nil
+	return int(n), nil
 }
 
-func (r *TxRepo) UpdateChallengePointsTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int) error {
-	query := squirrel.Update("challenges").
-		Set("points", points).
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *TxRepo) UpdateChallengePointsTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, points int) error {
+	pts, err := intToInt32Safe(points)
 	if err != nil {
-		return fmt.Errorf("TxRepo - UpdateChallengePointsTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - UpdateChallengePointsTx: %w", err)
 	}
-
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
+	_, err = r.q.WithTx(tx).UpdateChallengePoints(ctx, sqlc.UpdateChallengePointsParams{ID: id, Points: &pts})
 	if err != nil {
-		return fmt.Errorf("TxRepo - UpdateChallengePointsTx - Exec: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrChallengeNotFound
+		}
+		return fmt.Errorf("TxRepo - UpdateChallengePointsTx: %w", err)
 	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return entityError.ErrChallengeNotFound
-	}
-
 	return nil
 }
 
 func (r *TxRepo) DeleteChallengeTx(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error {
-	query := squirrel.Delete("challenges").
-		Where(squirrel.Eq{"id": challengeID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	_, err := r.q.WithTx(tx).DeleteChallenge(ctx, challengeID)
 	if err != nil {
-		return fmt.Errorf("TxRepo - DeleteChallengeTx - BuildQuery: %w", err)
+		if isNoRows(err) {
+			return entityError.ErrChallengeNotFound
+		}
+		return fmt.Errorf("TxRepo - DeleteChallengeTx: %w", err)
 	}
-
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("TxRepo - DeleteChallengeTx - Exec: %w", err)
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return entityError.ErrChallengeNotFound
-	}
-
 	return nil
 }
-
-// SolveRepo Tx Methods
 
 func (r *TxRepo) CreateSolveTx(ctx context.Context, tx pgx.Tx, s *entity.Solve) error {
 	s.ID = uuid.New()
 	s.SolvedAt = time.Now()
-
-	query := squirrel.Insert("solves").
-		Columns(solveColumns...).
-		Values(s.ID, s.UserID, s.TeamID, s.ChallengeID, s.SolvedAt).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	err := r.q.WithTx(tx).CreateSolve(ctx, sqlc.CreateSolveParams{
+		ID:          s.ID,
+		UserID:      s.UserID,
+		TeamID:      s.TeamID,
+		ChallengeID: s.ChallengeID,
+		SolvedAt:    &s.SolvedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateSolveTx - BuildQuery: %w", err)
-	}
-
-	_, err = tx.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if isPgUniqueViolation(err) {
 			return entityError.ErrAlreadySolved
 		}
-		return fmt.Errorf("TxRepo - CreateSolveTx - Exec: %w", err)
+		return fmt.Errorf("TxRepo - CreateSolveTx: %w", err)
 	}
-
 	return nil
 }
 
 func (r *TxRepo) DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
-	query := squirrel.Delete("solves").
-		Where(squirrel.Eq{"team_id": teamID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("TxRepo - DeleteSolvesByTeamIDTx - BuildQuery: %w", err)
+	if err := r.q.WithTx(tx).DeleteSolvesByTeamID(ctx, teamID); err != nil {
+		return fmt.Errorf("TxRepo - DeleteSolvesByTeamIDTx: %w", err)
 	}
-
-	if _, err := tx.Exec(ctx, sqlQuery, args...); err != nil {
-		return fmt.Errorf("TxRepo - DeleteSolvesByTeamIDTx - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *TxRepo) GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamID, challengeID uuid.UUID) (*entity.Solve, error) {
-	query := squirrel.Select(solveColumns...).
-		From("solves").
-		Where(squirrel.Eq{"team_id": teamID, "challenge_id": challengeID}).
-		Suffix("FOR UPDATE").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	s, err := r.q.WithTx(tx).GetSolveByTeamAndChallengeForUpdate(ctx, sqlc.GetSolveByTeamAndChallengeForUpdateParams{
+		TeamID:      teamID,
+		ChallengeID: challengeID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetSolveByTeamAndChallengeTx - BuildQuery: %w", err)
-	}
-
-	solve, err := scanSolve(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrSolveNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetSolveByTeamAndChallengeTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetSolveByTeamAndChallengeTx: %w", err)
 	}
-	return solve, nil
+	return toEntitySolve(s), nil
 }
 
 func (r *TxRepo) GetTeamScoreTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) (int, error) {
-	query := squirrel.Select(
-		"COALESCE(SUM(c.points), 0) + COALESCE((SELECT SUM(value) FROM awards WHERE team_ID = $1), 0) as total_points",
-	).
-		From("solves s").
-		RightJoin("(SELECT 1) dummy ON true").
-		LeftJoin("challenges c ON c.ID = s.challenge_ID AND s.team_ID = $1").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, _, err := query.ToSql()
+	total, err := r.q.WithTx(tx).GetTeamScore(ctx, teamID)
 	if err != nil {
-		return 0, fmt.Errorf("TxRepo - GetTeamScoreTx - BuildQuery: %w", err)
+		return 0, fmt.Errorf("TxRepo - GetTeamScoreTx: %w", err)
 	}
-
-	var points int
-	err = tx.QueryRow(ctx, sqlQuery, teamID).Scan(&points)
-	if err != nil {
-		return 0, fmt.Errorf("TxRepo - GetTeamScoreTx - Scan: %w", err)
-	}
-
-	return points, nil
+	return int(total), nil
 }
 
 // HintUnlockRepo Tx Methods
 
 func (r *TxRepo) CreateHintUnlockTx(ctx context.Context, tx pgx.Tx, teamID, hintID uuid.UUID) error {
-	query := squirrel.Insert("hint_unlocks").
-		Columns("id", "hint_id", "team_id").
-		Values(uuid.New(), hintID, teamID).
-		Suffix("ON CONFLICT (hint_id, team_id) DO NOTHING").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	err := r.q.WithTx(tx).CreateHintUnlock(ctx, sqlc.CreateHintUnlockParams{
+		ID:     uuid.New(),
+		HintID: hintID,
+		TeamID: teamID,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateHintUnlockTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - CreateHintUnlockTx: %w", err)
 	}
-
-	_, err = tx.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("TxRepo - CreateHintUnlockTx - Exec: %w", err)
-	}
-
 	return nil
 }
 
 func (r *TxRepo) GetHintUnlockByTeamAndHintTx(ctx context.Context, tx pgx.Tx, teamID, hintID uuid.UUID) (*entity.HintUnlock, error) {
-	query := squirrel.Select(hintUnlockColumns...).
-		From("hint_unlocks").
-		Where(squirrel.Eq{"team_id": teamID, "hint_id": hintID}).
-		Suffix("FOR UPDATE").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	u, err := r.q.WithTx(tx).GetHintUnlockByTeamAndHintForUpdate(ctx, sqlc.GetHintUnlockByTeamAndHintForUpdateParams{
+		TeamID: teamID,
+		HintID: hintID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetHintUnlockByTeamAndHintTx - BuildQuery: %w", err)
-	}
-
-	unlock, err := scanHintUnlock(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrHintNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetHintUnlockByTeamAndHintTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetHintUnlockByTeamAndHintTx: %w", err)
 	}
-	return unlock, nil
+	return toEntityHintUnlock(u), nil
 }
-
-// AwardRepo Tx Methods
 
 func (r *TxRepo) CreateAwardTx(ctx context.Context, tx pgx.Tx, a *entity.Award) error {
 	a.ID = uuid.New()
 	a.CreatedAt = time.Now()
-
-	query := squirrel.Insert("awards").
-		Columns(awardColumns...).
-		Values(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	value, err := intToInt32Safe(a.Value)
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateAwardTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - CreateAwardTx: %w", err)
 	}
-
-	_, err = tx.Exec(ctx, sqlQuery, args...)
+	err = r.q.WithTx(tx).CreateAward(ctx, sqlc.CreateAwardParams{
+		ID:          a.ID,
+		TeamID:      a.TeamID,
+		Value:       value,
+		Description: a.Description,
+		CreatedBy:   a.CreatedBy,
+		CreatedAt:   &a.CreatedAt,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateAwardTx - Exec: %w", err)
+		return fmt.Errorf("TxRepo - CreateAwardTx: %w", err)
 	}
-
 	return nil
 }
 
 func (r *TxRepo) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error {
-	if log.ID == uuid.Nil {
-		log.ID = uuid.New()
-	}
-	if log.CreatedAt.IsZero() {
-		log.CreatedAt = time.Now()
-	}
-	detailsJSON, err := json.Marshal(log.Details)
+	details, err := json.Marshal(log.Details)
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateAuditLogTx - MarshalDetails: %w", err)
+		return fmt.Errorf("TxRepo - CreateAuditLogTx Marshal: %w", err)
 	}
-
-	var details string
-	if log.Details == nil {
-		details = "{}"
-	} else {
-		details = string(detailsJSON)
-	}
-
-	query := squirrel.Insert("audit_logs").
-		Columns("id", "user_id", "action", "entity_type", "entity_id", "ip", "details", "created_at").
-		Values(log.ID, log.UserID, log.Action, log.EntityType, log.EntityID, log.IP, details, log.CreatedAt).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	row, err := r.q.WithTx(tx).CreateAuditLog(ctx, sqlc.CreateAuditLogParams{
+		UserID:     log.UserID,
+		Action:     string(log.Action),
+		EntityType: string(log.EntityType),
+		EntityID:   strPtrOrNil(log.EntityID),
+		Ip:         strPtrOrNil(log.IP),
+		Details:    details,
+	})
 	if err != nil {
-		return fmt.Errorf("TxRepo - CreateAuditLogTx - BuildQuery: %w", err)
+		return fmt.Errorf("TxRepo - CreateAuditLogTx: %w", err)
 	}
-
-	if _, err := tx.Exec(ctx, sqlQuery, args...); err != nil {
-		return fmt.Errorf("TxRepo - CreateAuditLogTx - Exec: %w", err)
-	}
-
+	log.ID = row.ID
+	log.CreatedAt = ptrTimeToTime(row.CreatedAt)
 	return nil
 }
 
@@ -654,50 +450,26 @@ func (r *TxRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) er
 	return nil
 }
 
-func (r *TxRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Team, error) {
-	query := squirrel.Select(teamSelectColumns...).
-		From("teams").
-		Where(squirrel.Eq{"id": ID}).
-		Where(squirrel.Eq{"deleted_at": nil}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *TxRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error) {
+	row, err := r.q.WithTx(tx).GetTeamByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx - BuildQuery: %w", err)
-	}
-
-	team, err := scanTeam(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx: %w", err)
 	}
-	return team, nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error) {
-	query := squirrel.Select(teamSelectColumnsT()...).
-		From("teams t").
-		Join("users u ON u.team_id = t.id").
-		Where(squirrel.Eq{"u.id": userID}).
-		Where(squirrel.Eq{"t.is_solo": true}).
-		Where(squirrel.Eq{"t.deleted_at": nil}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	row, err := r.q.WithTx(tx).GetSoloTeamByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx - BuildQuery: %w", err)
-	}
-
-	team, err := scanTeam(tx.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
 		}
-		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx - Scan: %w", err)
+		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx: %w", err)
 	}
-	return team, nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 var _ repo.TxRepository = (*TxRepo)(nil)

@@ -10,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 type HintUseCase struct {
@@ -194,8 +195,7 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamID, hintID uuid.UUID)
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - Commit: %w", err)
 	}
 
-	uc.redis.Del(ctx, "scoreboard")
-	uc.redis.Del(ctx, "scoreboard:frozen")
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
 
 	return hint, nil
 }

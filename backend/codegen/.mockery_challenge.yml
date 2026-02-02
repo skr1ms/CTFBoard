@@ -21,6 +21,13 @@ packages:
           pkgname: "mocks"
           structname: "MockSolveRepository"
 
+      TeamRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "TeamRepository.go"
+          pkgname: "mocks"
+          structname: "MockTeamRepository"
+
       TxRepository:
         config:
           dir: "internal/usecase/challenge/mocks"

@@ -1,4 +1,4 @@
-package settings
+package competition
 
 import (
 	"context"
@@ -10,12 +10,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
-const (
-	appSettingsCacheKey = "app_settings"
-	cacheTTL            = 5 * time.Minute
-)
+const cacheTTL = 5 * time.Minute
 
 type SettingsUseCase struct {
 	repo         repo.AppSettingsRepository
@@ -36,7 +34,7 @@ func NewSettingsUseCase(
 }
 
 func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.AppSettings, error) {
-	val, err := uc.redis.Get(ctx, appSettingsCacheKey).Result()
+	val, err := uc.redis.Get(ctx, redisKeys.KeyAppSettings).Result()
 	if err == nil {
 		var s entity.AppSettings
 		if err := json.Unmarshal([]byte(val), &s); err == nil {
@@ -50,7 +48,7 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.AppSettings, error)
 	}
 
 	if bytes, err := json.Marshal(s); err == nil {
-		uc.redis.Set(ctx, appSettingsCacheKey, bytes, cacheTTL)
+		uc.redis.Set(ctx, redisKeys.KeyAppSettings, bytes, cacheTTL)
 	}
 
 	return s, nil
@@ -65,7 +63,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.AppSettings, ac
 		return fmt.Errorf("SettingsUseCase - Update: %w", err)
 	}
 
-	uc.redis.Del(ctx, appSettingsCacheKey)
+	uc.redis.Del(ctx, redisKeys.KeyAppSettings)
 
 	auditLog := &entity.AuditLog{
 		UserID:     &actorID,

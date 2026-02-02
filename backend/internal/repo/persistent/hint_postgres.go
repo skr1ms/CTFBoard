@@ -2,228 +2,152 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
-
-var (
-	hintColumns       = []string{"id", "challenge_id", "content", "cost", "order_index"}
-	hintUnlockColumns = []string{"id", "hint_id", "team_id", "unlocked_at"}
-)
-
-func scanHint(row rowScanner) (*entity.Hint, error) {
-	var h entity.Hint
-	err := row.Scan(&h.ID, &h.ChallengeID, &h.Content, &h.Cost, &h.OrderIndex)
-	if err != nil {
-		return nil, err
-	}
-	return &h, nil
-}
-
-func scanHintUnlock(row rowScanner) (*entity.HintUnlock, error) {
-	var u entity.HintUnlock
-	err := row.Scan(&u.ID, &u.HintID, &u.TeamID, &u.UnlockedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
 
 type HintRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewHintRepo(pool *pgxpool.Pool) *HintRepo {
-	return &HintRepo{pool: pool}
+func NewHintRepo(db *pgxpool.Pool) *HintRepo {
+	return &HintRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityHint(h sqlc.Hint) *entity.Hint {
+	return &entity.Hint{
+		ID:          h.ID,
+		ChallengeID: h.ChallengeID,
+		Content:     h.Content,
+		Cost:        int(h.Cost),
+		OrderIndex:  int(h.OrderIndex),
+	}
 }
 
 func (r *HintRepo) Create(ctx context.Context, h *entity.Hint) error {
 	h.ID = uuid.New()
-
-	query := squirrel.Insert("hints").
-		Columns(hintColumns...).
-		Values(h.ID, h.ChallengeID, h.Content, h.Cost, h.OrderIndex).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	cost, err := intToInt32Safe(h.Cost)
 	if err != nil {
-		return fmt.Errorf("HintRepo - Create - BuildQuery: %w", err)
+		return fmt.Errorf("HintRepo - Create Cost: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	orderIndex, err := intToInt32Safe(h.OrderIndex)
 	if err != nil {
-		return fmt.Errorf("HintRepo - Create - ExecQuery: %w", err)
+		return fmt.Errorf("HintRepo - Create OrderIndex: %w", err)
 	}
-
+	err = r.q.CreateHint(ctx, sqlc.CreateHintParams{
+		ID:          h.ID,
+		ChallengeID: h.ChallengeID,
+		Content:     h.Content,
+		Cost:        cost,
+		OrderIndex:  orderIndex,
+	})
+	if err != nil {
+		return fmt.Errorf("HintRepo - Create: %w", err)
+	}
 	return nil
 }
 
-func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
-	query := squirrel.Select(hintColumns...).
-		From("hints").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *HintRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Hint, error) {
+	h, err := r.q.GetHintByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByID - BuildQuery: %w", err)
-	}
-
-	hint, err := scanHint(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrHintNotFound
 		}
-		return nil, fmt.Errorf("HintRepo - GetByID - Scan: %w", err)
+		return nil, fmt.Errorf("HintRepo - GetByID: %w", err)
 	}
-	return hint, nil
+	return toEntityHint(h), nil
 }
 
 func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error) {
-	query := squirrel.Select(hintColumns...).
-		From("hints").
-		Where(squirrel.Eq{"challenge_id": challengeID}).
-		OrderBy("order_index ASC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	rows, err := r.q.GetHintsByChallengeID(ctx, challengeID)
 	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByChallengeID - BuildQuery: %w", err)
+		return nil, fmt.Errorf("HintRepo - GetByChallengeID: %w", err)
 	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByChallengeID - Query: %w", err)
+	out := make([]*entity.Hint, 0, len(rows))
+	for _, h := range rows {
+		out = append(out, toEntityHint(h))
 	}
-	defer rows.Close()
-
-	hints := make([]*entity.Hint, 0)
-	for rows.Next() {
-		hint, err := scanHint(rows)
-		if err != nil {
-			return nil, fmt.Errorf("HintRepo - GetByChallengeID - Scan: %w", err)
-		}
-		hints = append(hints, hint)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("HintRepo - GetByChallengeID - Rows: %w", err)
-	}
-
-	return hints, nil
+	return out, nil
 }
 
 func (r *HintRepo) Update(ctx context.Context, h *entity.Hint) error {
-	query := squirrel.Update("hints").
-		Set("content", h.Content).
-		Set("cost", h.Cost).
-		Set("order_index", h.OrderIndex).
-		Where(squirrel.Eq{"id": h.ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	cost, err := intToInt32Safe(h.Cost)
 	if err != nil {
-		return fmt.Errorf("HintRepo - Update - BuildQuery: %w", err)
+		return fmt.Errorf("HintRepo - Update Cost: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	orderIndex, err := intToInt32Safe(h.OrderIndex)
 	if err != nil {
-		return fmt.Errorf("HintRepo - Update - ExecQuery: %w", err)
+		return fmt.Errorf("HintRepo - Update OrderIndex: %w", err)
 	}
-
+	err = r.q.UpdateHint(ctx, sqlc.UpdateHintParams{
+		ID:         h.ID,
+		Content:    h.Content,
+		Cost:       cost,
+		OrderIndex: orderIndex,
+	})
+	if err != nil {
+		return fmt.Errorf("HintRepo - Update: %w", err)
+	}
 	return nil
 }
 
-func (r *HintRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	query := squirrel.Delete("hints").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("HintRepo - Delete - BuildQuery: %w", err)
+func (r *HintRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.DeleteHint(ctx, id); err != nil {
+		return fmt.Errorf("HintRepo - Delete: %w", err)
 	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
-		return fmt.Errorf("HintRepo - Delete - ExecQuery: %w", err)
-	}
-
 	return nil
 }
 
 type HintUnlockRepo struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewHintUnlockRepo(pool *pgxpool.Pool) *HintUnlockRepo {
-	return &HintUnlockRepo{pool: pool}
+func NewHintUnlockRepo(db *pgxpool.Pool) *HintUnlockRepo {
+	return &HintUnlockRepo{db: db, q: sqlc.New(db)}
+}
+
+func toEntityHintUnlock(u sqlc.HintUnlock) *entity.HintUnlock {
+	return &entity.HintUnlock{
+		ID:         u.ID,
+		HintID:     u.HintID,
+		TeamID:     u.TeamID,
+		UnlockedAt: ptrTimeToTime(u.UnlockedAt),
+	}
 }
 
 func (r *HintUnlockRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUID) (*entity.HintUnlock, error) {
-	query := squirrel.Select(hintUnlockColumns...).
-		From("hint_unlocks").
-		Where(squirrel.Eq{"team_id": teamID, "hint_id": hintID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+	u, err := r.q.GetHintUnlockByTeamAndHint(ctx, sqlc.GetHintUnlockByTeamAndHintParams{
+		TeamID: teamID,
+		HintID: hintID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - BuildQuery: %w", err)
-	}
-
-	unlock, err := scanHintUnlock(r.pool.QueryRow(ctx, sqlQuery, args...))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrHintNotFound
 		}
-		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint - Scan: %w", err)
+		return nil, fmt.Errorf("HintUnlockRepo - GetByTeamAndHint: %w", err)
 	}
-	return unlock, nil
+	return toEntityHintUnlock(u), nil
 }
 
 func (r *HintUnlockRepo) GetUnlockedHintIDs(ctx context.Context, teamID, challengeID uuid.UUID) ([]uuid.UUID, error) {
-	query := squirrel.Select("hu.hint_id").
-		From("hint_unlocks hu").
-		Join("hints h ON h.id = hu.hint_id").
-		Where(squirrel.Eq{"hu.team_id": teamID, "h.challenge_id": challengeID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - BuildQuery: %w", err)
-	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Query: %w", err)
-	}
-	defer rows.Close()
-
-	hintIDs := make([]uuid.UUID, 0)
-	for rows.Next() {
-		var hintID uuid.UUID
-		if err := rows.Scan(&hintID); err != nil {
-			return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Scan: %w", err)
-		}
-		hintIDs = append(hintIDs, hintID)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("HintUnlockRepo - GetUnlockedHintIDs - Rows: %w", err)
-	}
-
-	return hintIDs, nil
+	return r.q.GetUnlockedHintIDs(ctx, sqlc.GetUnlockedHintIDsParams{
+		TeamID:      teamID,
+		ChallengeID: challengeID,
+	})
 }
 
-var (
-	_ repo.HintRepository       = (*HintRepo)(nil)
-	_ repo.HintUnlockRepository = (*HintUnlockRepo)(nil)
-)
+func (r *HintUnlockRepo) Create(ctx context.Context, u *entity.HintUnlock) error {
+	u.ID = uuid.New()
+	return r.q.CreateHintUnlock(ctx, sqlc.CreateHintUnlockParams{
+		ID:     u.ID,
+		HintID: u.HintID,
+		TeamID: u.TeamID,
+	})
+}

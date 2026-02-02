@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // GET /challenges/{ID}/first-blood: first solver is credited as first blood; response contains username/team.
 func TestFirstBlood_Display(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("adminfb")
 
@@ -33,13 +35,13 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	h.AssertFirstBlood(challengeID, "fbuser1")
+	h.AssertFirstBlood(challengeID, "fbuser1", "fbuser1")
 }
 
 // GET /challenges/{ID}/first-blood: unsolved challenge returns 404 with "no solves yet".
 func TestFirstBlood_NotFound(t *testing.T) {
-	e := setupE2E(t)
-	h := NewE2EHelper(t, e, TestPool)
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
 
 	_, tokenAdmin := h.SetupCompetition("adminfb2")
 
@@ -51,6 +53,16 @@ func TestFirstBlood_NotFound(t *testing.T) {
 		"points":      100,
 	})
 
-	h.GetFirstBlood(challengeID, http.StatusNotFound).
-		Value("error").String().IsEqual("no solves yet")
+	resp := h.GetFirstBlood(challengeID, http.StatusNotFound)
+	require.NotNil(t, resp.JSON404)
+	require.NotNil(t, resp.JSON404.Error)
+	require.Equal(t, "no solves yet", *resp.JSON404.Error)
+}
+
+// GET /challenges/{ID}/first-blood: invalid challenge ID format returns 400.
+func TestFirstBlood_InvalidID(t *testing.T) {
+	setupE2E(t)
+	h := NewE2EHelper(t, nil, TestPool)
+	_, _ = h.SetupCompetition("adminfb3")
+	h.GetFirstBlood("not-a-uuid", http.StatusBadRequest)
 }

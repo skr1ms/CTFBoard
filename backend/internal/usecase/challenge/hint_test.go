@@ -9,6 +9,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge/mocks"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -49,8 +50,6 @@ func TestHintUseCase_Create_Error(t *testing.T) {
 	assert.Nil(t, hint)
 }
 
-// GetByID Tests
-
 func TestHintUseCase_GetByID(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
@@ -81,8 +80,6 @@ func TestHintUseCase_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, entityError.ErrHintNotFound))
 }
-
-// GetByChallengeID Tests
 
 func TestHintUseCase_GetByChallengeID(t *testing.T) {
 	h := NewChallengeTestHelper(t)
@@ -146,8 +143,6 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-// Update Tests
-
 func TestHintUseCase_Update(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
@@ -202,8 +197,6 @@ func TestHintUseCase_Update_RepoError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-// Delete Tests
-
 func TestHintUseCase_Delete(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
@@ -232,8 +225,6 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// UnlockHint Tests
-
 func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
@@ -256,8 +247,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 		return a.Value == -50 && a.TeamID == teamID
 	})).Return(nil)
 	deps.txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.ExpectDel("scoreboard").SetVal(0)
-	redisClient.ExpectDel("scoreboard:frozen").SetVal(0)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -286,8 +276,7 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	deps.txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
 	deps.txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
 	deps.txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.ExpectDel("scoreboard").SetVal(0)
-	redisClient.ExpectDel("scoreboard:frozen").SetVal(0)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 

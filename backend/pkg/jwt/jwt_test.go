@@ -44,7 +44,6 @@ func TestJWTService_ValidateAccessToken_InvalidSignature(t *testing.T) {
 	pair, err := service1.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
 	require.NoError(t, err)
 
-	// ValIDate with wrong secret
 	claims, err := service2.ValidateAccessToken(pair.AccessToken)
 	assert.Error(t, err)
 	assert.Nil(t, claims)

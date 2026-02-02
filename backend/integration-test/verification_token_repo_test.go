@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// CreateAndGet Tests
-
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -39,8 +37,6 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 	assert.Equal(t, token.Type, fetched.Type)
 }
 
-// GetByToken Tests
-
 func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -52,8 +48,6 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTokenNotFound))
 }
-
-// DeleteByUserAndType Tests
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 	t.Helper()
@@ -79,8 +73,6 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTokenNotFound))
 }
-
-// MarkUsed Tests
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
 	t.Helper()

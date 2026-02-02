@@ -1,0 +1,67 @@
+{
+  "uid": "seaweedfs-ui",
+  "title": "SeaweedFS UI",
+  "tags": ["ui", "seaweedfs", "nginx"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "All Logs",
+      "type": "logs",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "refId": "A",
+          "expr": "{compose_service=\"seaweedfs-ui\"}"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 2,
+      "title": "Nginx Access (HTTP status)",
+      "type": "logs",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 12},
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "refId": "A",
+          "expr": "{compose_service=\"seaweedfs-ui\"} |~ \"\\\\d{3}\\\\s\""
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "weekStart": ""
+}

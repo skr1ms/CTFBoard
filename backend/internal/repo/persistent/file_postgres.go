@@ -2,35 +2,36 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
-var fileColumns = []string{"id", "type", "challenge_id", "location", "filename", "size", "sha256", "created_at"}
-
-func scanFile(row rowScanner) (*entity.File, error) {
-	var f entity.File
-	err := row.Scan(&f.ID, &f.Type, &f.ChallengeID, &f.Location, &f.Filename, &f.Size, &f.SHA256, &f.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &f, nil
-}
-
 type FileRepository struct {
-	pool *pgxpool.Pool
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewFileRepository(pool *pgxpool.Pool) *FileRepository {
-	return &FileRepository{pool: pool}
+func NewFileRepository(db *pgxpool.Pool) *FileRepository {
+	return &FileRepository{db: db, q: sqlc.New(db)}
+}
+
+func toEntityFile(f sqlc.File) *entity.File {
+	return &entity.File{
+		ID:          f.ID,
+		Type:        entity.FileType(f.Type),
+		ChallengeID: f.ChallengeID,
+		Location:    f.Location,
+		Filename:    f.Filename,
+		Size:        f.Size,
+		SHA256:      f.Sha256,
+		CreatedAt:   f.CreatedAt,
+	}
 }
 
 func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
@@ -40,128 +41,67 @@ func (r *FileRepository) Create(ctx context.Context, file *entity.File) error {
 	if file.CreatedAt.IsZero() {
 		file.CreatedAt = time.Now()
 	}
-
-	query := squirrel.Insert("files").
-		Columns(fileColumns...).
-		Values(
-			file.ID,
-			file.Type,
-			file.ChallengeID,
-			file.Location,
-			file.Filename,
-			file.Size,
-			file.SHA256,
-			file.CreatedAt,
-		).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("FileRepository - Create - BuildQuery: %w", err)
-	}
-
-	_, err = r.pool.Exec(ctx, sqlQuery, args...)
+	err := r.q.CreateFile(ctx, sqlc.CreateFileParams{
+		ID:          file.ID,
+		Type:        string(file.Type),
+		ChallengeID: file.ChallengeID,
+		Location:    file.Location,
+		Filename:    file.Filename,
+		Size:        file.Size,
+		Sha256:      file.SHA256,
+		CreatedAt:   file.CreatedAt,
+	})
 	if err != nil {
 		return fmt.Errorf("FileRepository - Create: %w", err)
 	}
 	return nil
 }
 
-func (r *FileRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.File, error) {
-	query := squirrel.Select(fileColumns...).
-		From("files").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *FileRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.File, error) {
+	f, err := r.q.GetFileByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("FileRepository - GetByID - BuildQuery: %w", err)
-	}
-
-	row := r.pool.QueryRow(ctx, sqlQuery, args...)
-	file, err := scanFile(row)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, entityError.ErrFileNotFound
 		}
 		return nil, fmt.Errorf("FileRepository - GetByID: %w", err)
 	}
-	return file, nil
+	return toEntityFile(f), nil
 }
 
 func (r *FileRepository) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
-	query := squirrel.Select(fileColumns...).
-		From("files").
-		Where(squirrel.Eq{"challenge_id": challengeID, "type": fileType}).
-		OrderBy("created_at DESC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("FileRepository - GetByChallengeID - BuildQuery: %w", err)
-	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	rows, err := r.q.GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
+		ChallengeID: challengeID,
+		Type:        string(fileType),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("FileRepository - GetByChallengeID: %w", err)
 	}
-	defer rows.Close()
-
-	var files []*entity.File
-	for rows.Next() {
-		file, err := scanFile(rows)
-		if err != nil {
-			return nil, fmt.Errorf("FileRepository - GetByChallengeID - Scan: %w", err)
-		}
-		files = append(files, file)
+	out := make([]*entity.File, 0, len(rows))
+	for _, f := range rows {
+		out = append(out, toEntityFile(f))
 	}
-	return files, nil
+	return out, nil
 }
 
 func (r *FileRepository) GetAll(ctx context.Context) ([]*entity.File, error) {
-	query := squirrel.Select(fileColumns...).
-		From("files").
-		OrderBy("created_at DESC").
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("FileRepository - GetAll - BuildQuery: %w", err)
-	}
-
-	rows, err := r.pool.Query(ctx, sqlQuery, args...)
+	rows, err := r.q.GetAllFiles(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("FileRepository - GetAll: %w", err)
 	}
-	defer rows.Close()
-
-	var files []*entity.File
-	for rows.Next() {
-		file, err := scanFile(rows)
-		if err != nil {
-			return nil, fmt.Errorf("FileRepository - GetAll - Scan: %w", err)
-		}
-		files = append(files, file)
+	out := make([]*entity.File, 0, len(rows))
+	for _, f := range rows {
+		out = append(out, toEntityFile(f))
 	}
-	return files, nil
+	return out, nil
 }
 
-func (r *FileRepository) Delete(ctx context.Context, ID uuid.UUID) error {
-	query := squirrel.Delete("files").
-		Where(squirrel.Eq{"id": ID}).
-		PlaceholderFormat(squirrel.Dollar)
-
-	sqlQuery, args, err := query.ToSql()
+func (r *FileRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.q.DeleteFile(ctx, id)
 	if err != nil {
-		return fmt.Errorf("FileRepository - Delete - BuildQuery: %w", err)
-	}
-
-	result, err := r.pool.Exec(ctx, sqlQuery, args...)
-	if err != nil {
+		if isNoRows(err) {
+			return entityError.ErrFileNotFound
+		}
 		return fmt.Errorf("FileRepository - Delete: %w", err)
-	}
-	if result.RowsAffected() == 0 {
-		return entityError.ErrFileNotFound
 	}
 	return nil
 }

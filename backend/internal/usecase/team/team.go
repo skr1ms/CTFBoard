@@ -7,9 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 )
 
 const DefaultMaxTeamSize = 10
@@ -19,6 +21,7 @@ type TeamUseCase struct {
 	userRepo    repo.UserRepository
 	compRepo    repo.CompetitionRepository
 	txRepo      repo.TxRepository
+	redis       *redis.Client
 	maxTeamSize int
 }
 
@@ -27,12 +30,14 @@ func NewTeamUseCase(
 	userRepo repo.UserRepository,
 	compRepo repo.CompetitionRepository,
 	txRepo repo.TxRepository,
+	redis *redis.Client,
 ) *TeamUseCase {
 	return &TeamUseCase{
 		teamRepo:    teamRepo,
 		userRepo:    userRepo,
 		compRepo:    compRepo,
 		txRepo:      txRepo,
+		redis:       redis,
 		maxTeamSize: DefaultMaxTeamSize,
 	}
 }
@@ -42,6 +47,7 @@ func NewTeamUseCaseWithSize(
 	userRepo repo.UserRepository,
 	compRepo repo.CompetitionRepository,
 	txRepo repo.TxRepository,
+	redis *redis.Client,
 	maxTeamSize int,
 ) *TeamUseCase {
 	return &TeamUseCase{
@@ -49,6 +55,7 @@ func NewTeamUseCaseWithSize(
 		userRepo:    userRepo,
 		compRepo:    compRepo,
 		txRepo:      txRepo,
+		redis:       redis,
 		maxTeamSize: maxTeamSize,
 	}
 }
@@ -658,6 +665,7 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 		return fmt.Errorf("TeamUseCase - BanTeam - Ban: %w", err)
 	}
 
+	uc.invalidateScoreboardCache(ctx)
 	return nil
 }
 
@@ -671,6 +679,7 @@ func (uc *TeamUseCase) UnbanTeam(ctx context.Context, teamID uuid.UUID) error {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - Unban: %w", err)
 	}
 
+	uc.invalidateScoreboardCache(ctx)
 	return nil
 }
 
@@ -684,5 +693,13 @@ func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden b
 		return fmt.Errorf("TeamUseCase - SetHidden - SetHidden: %w", err)
 	}
 
+	uc.invalidateScoreboardCache(ctx)
 	return nil
+}
+
+func (uc *TeamUseCase) invalidateScoreboardCache(ctx context.Context) {
+	if uc.redis == nil {
+		return
+	}
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
 }

@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Create Tests
-
 func TestSolveRepo_Create(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -60,8 +58,6 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// GetByID Tests
-
 func TestSolveRepo_GetByID(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -91,8 +87,6 @@ func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
-
-// GetByTeamAndChallenge Tests
 
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
 	t.Helper()
@@ -124,8 +118,6 @@ func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
-
-// GetByUserID Tests
 
 func TestSolveRepo_GetByUserID(t *testing.T) {
 	t.Helper()
@@ -161,8 +153,6 @@ func TestSolveRepo_GetByUserID_Empty(t *testing.T) {
 	assert.Len(t, solves, 0)
 }
 
-// GetAll Tests
-
 func TestSolveRepo_GetAll_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -194,8 +184,6 @@ func TestSolveRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, solves)
 }
-
-// GetScoreboard Tests
 
 func TestSolveRepo_GetScoreboard(t *testing.T) {
 	t.Helper()
@@ -252,7 +240,49 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 	assert.Equal(t, 0, scoreboard[0].Points)
 }
 
-// GetFirstBlood Tests
+func TestSolveRepo_GetScoreboard_HiddenTeamNotIncluded(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	u1, t1 := f.CreateUserWithTeam(t, "visible_team")
+	u2, t2 := f.CreateUserWithTeam(t, "hidden_team")
+
+	ch := f.CreateChallenge(t, "score_ch", 100)
+	f.CreateSolve(t, u1.ID, t1.ID, ch.ID)
+	f.CreateSolve(t, u2.ID, t2.ID, ch.ID)
+
+	err := f.TeamRepo.SetHidden(ctx, t2.ID, true)
+	require.NoError(t, err)
+
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	require.NoError(t, err)
+	assert.Len(t, scoreboard, 1)
+	assert.Equal(t, t1.Name, scoreboard[0].TeamName)
+}
+
+func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	u1, t1 := f.CreateUserWithTeam(t, "active_team")
+	u2, t2 := f.CreateUserWithTeam(t, "banned_team")
+
+	ch := f.CreateChallenge(t, "ban_score_ch", 100)
+	f.CreateSolve(t, u1.ID, t1.ID, ch.ID)
+	f.CreateSolve(t, u2.ID, t2.ID, ch.ID)
+
+	err := f.TeamRepo.Ban(ctx, t2.ID, "test ban")
+	require.NoError(t, err)
+
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	require.NoError(t, err)
+	assert.Len(t, scoreboard, 1)
+	assert.Equal(t, t1.Name, scoreboard[0].TeamName)
+}
 
 func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	t.Helper()
@@ -289,8 +319,6 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
 
-// GetScoreboardFrozen Tests
-
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
@@ -323,8 +351,6 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	}
 	assert.True(t, found)
 }
-
-// CreateTx Tests
 
 func TestSolveRepo_CreateTx(t *testing.T) {
 	t.Helper()
@@ -397,7 +423,7 @@ func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	gotSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.ID, ch.ID)
 	require.NoError(t, err)
@@ -419,14 +445,12 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	_, err = f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrSolveNotFound))
 }
-
-// GetTeamScoreTx Tests
 
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	t.Helper()
@@ -443,7 +467,7 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 
 	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // rollback after commit is expected to fail
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
 
 	score, err := f.TxRepo.GetTeamScoreTx(ctx, tx, tTeam.ID)
 	require.NoError(t, err)
@@ -452,8 +476,6 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 }
-
-// AtomicSubmitFlow Tests
 
 func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 	t.Helper()
@@ -506,7 +528,7 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 
 	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
 	require.NoError(t, err)
-	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck // rollback in defer, error ignored
+	defer func() { _ = tx2.Rollback(ctx) }() //nolint:errcheck
 	finalSolve, err := f.TxRepo.GetSolveByTeamAndChallengeTx(ctx, tx2, tTeam.ID, ch.ID)
 	require.NoError(t, err)
 	assert.Equal(t, u.ID, finalSolve.UserID)
