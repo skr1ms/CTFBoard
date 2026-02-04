@@ -8,6 +8,8 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/page"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
@@ -17,61 +19,66 @@ import (
 
 type Server struct {
 	openapi.Unimplemented
-	userUC        *user.UserUseCase
-	challengeUC   *challenge.ChallengeUseCase
-	solveUC       *competition.SolveUseCase
-	teamUC        *team.TeamUseCase
-	competitionUC *competition.CompetitionUseCase
-	hintUC        *challenge.HintUseCase
-	emailUC       *email.EmailUseCase
-	fileUC        *challenge.FileUseCase
-	awardUC       *team.AwardUseCase
-	statsUC       *competition.StatisticsUseCase
-	backupUC      usecase.BackupUseCase
-	settingsUC    *competition.SettingsUseCase
-	jwtService    *jwt.JWTService
-	redisClient   *redis.Client
-	wsController  *wsV1.Controller
-	validator     validator.Validator
-	logger        logger.Logger
+	userUC          *user.UserUseCase
+	challengeUC     *challenge.ChallengeUseCase
+	solveUC         *competition.SolveUseCase
+	teamUC          *team.TeamUseCase
+	competitionUC   *competition.CompetitionUseCase
+	hintUC          *challenge.HintUseCase
+	emailUC         *email.EmailUseCase
+	fileUC          *challenge.FileUseCase
+	awardUC         *team.AwardUseCase
+	statsUC         *competition.StatisticsUseCase
+	submissionUC    *competition.SubmissionUseCase
+	tagUC           *challenge.TagUseCase
+	fieldUC         *settings.FieldUseCase
+	pageUC          *page.PageUseCase
+	bracketUC       *competition.BracketUseCase
+	notifUC         usecase.NotificationUseCase
+	apiTokenUC      usecase.APITokenUseCase
+	backupUC        usecase.BackupUseCase
+	settingsUC      *settings.SettingsUseCase
+	dynamicConfigUC *competition.DynamicConfigUseCase
+	commentUC       *challenge.CommentUseCase
+	ratingUC        *competition.RatingUseCase
+	jwtService      *jwt.JWTService
+	redisClient     *redis.Client
+	wsController    *wsV1.Controller
+	validator       validator.Validator
+	logger          logger.Logger
 }
 
-func NewServer(
-	userUC *user.UserUseCase,
-	challengeUC *challenge.ChallengeUseCase,
-	solveUC *competition.SolveUseCase,
-	teamUC *team.TeamUseCase,
-	competitionUC *competition.CompetitionUseCase,
-	hintUC *challenge.HintUseCase,
-	emailUC *email.EmailUseCase,
-	fileUC *challenge.FileUseCase,
-	awardUC *team.AwardUseCase,
-	statsUC *competition.StatisticsUseCase,
-	backupUC usecase.BackupUseCase,
-	settingsUC *competition.SettingsUseCase,
-	jwtService *jwt.JWTService,
-	redisClient *redis.Client,
-	wsController *wsV1.Controller,
-	validator validator.Validator,
-	logger logger.Logger,
-) *Server {
+func NewServer(deps *ServerDeps) *Server {
+	if deps == nil {
+		return nil
+	}
 	return &Server{
-		userUC:        userUC,
-		challengeUC:   challengeUC,
-		solveUC:       solveUC,
-		teamUC:        teamUC,
-		competitionUC: competitionUC,
-		hintUC:        hintUC,
-		emailUC:       emailUC,
-		fileUC:        fileUC,
-		awardUC:       awardUC,
-		statsUC:       statsUC,
-		backupUC:      backupUC,
-		settingsUC:    settingsUC,
-		jwtService:    jwtService,
-		redisClient:   redisClient,
-		wsController:  wsController,
-		validator:     validator,
-		logger:        logger,
+		userUC:          deps.UserUC,
+		challengeUC:     deps.ChallengeUC,
+		solveUC:         deps.SolveUC,
+		teamUC:          deps.TeamUC,
+		competitionUC:   deps.CompetitionUC,
+		hintUC:          deps.HintUC,
+		emailUC:         deps.EmailUC,
+		fileUC:          deps.FileUC,
+		awardUC:         deps.AwardUC,
+		statsUC:         deps.StatsUC,
+		submissionUC:    deps.SubmissionUC,
+		tagUC:           deps.TagUC,
+		fieldUC:         deps.FieldUC,
+		pageUC:          deps.PageUC,
+		bracketUC:       deps.BracketUC,
+		notifUC:         deps.NotifUC,
+		apiTokenUC:      deps.APITokenUC,
+		backupUC:        deps.BackupUC,
+		settingsUC:      deps.SettingsUC,
+		dynamicConfigUC: deps.DynamicConfigUC,
+		commentUC:       deps.CommentUC,
+		ratingUC:        deps.RatingUC,
+		jwtService:      deps.JWTService,
+		redisClient:     deps.RedisClient,
+		wsController:    deps.WSController,
+		validator:       deps.Validator,
+		logger:          deps.Logger,
 	}
 }

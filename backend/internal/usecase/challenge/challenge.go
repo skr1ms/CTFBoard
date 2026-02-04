@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
@@ -26,6 +28,7 @@ import (
 
 type ChallengeUseCase struct {
 	challengeRepo repo.ChallengeRepository
+	tagRepo       repo.TagRepository
 	solveRepo     repo.SolveRepository
 	txRepo        repo.TxRepository
 	compRepo      repo.CompetitionRepository
@@ -35,10 +38,12 @@ type ChallengeUseCase struct {
 	auditLogRepo  repo.AuditLogRepository
 	crypto        crypto.Service
 	regexCache    sync.Map
+	regexSf       singleflight.Group
 }
 
 func NewChallengeUseCase(
 	challengeRepo repo.ChallengeRepository,
+	tagRepo repo.TagRepository,
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	compRepo repo.CompetitionRepository,
@@ -50,6 +55,7 @@ func NewChallengeUseCase(
 ) *ChallengeUseCase {
 	return &ChallengeUseCase{
 		challengeRepo: challengeRepo,
+		tagRepo:       tagRepo,
 		solveRepo:     solveRepo,
 		teamRepo:      teamRepo,
 		txRepo:        txRepo,
@@ -61,15 +67,44 @@ func NewChallengeUseCase(
 	}
 }
 
-func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	challenges, err := uc.challengeRepo.GetAll(ctx, teamID)
+func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*usecase.ChallengeWithTags, error) {
+	challenges, err := uc.challengeRepo.GetAll(ctx, teamID, tagID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - GetAll: %w", err)
 	}
-	return challenges, nil
+	if uc.tagRepo == nil {
+		out := make([]*usecase.ChallengeWithTags, len(challenges))
+		for i, c := range challenges {
+			out[i] = &usecase.ChallengeWithTags{
+				ChallengeWithSolved: c,
+				Tags:                []*entity.Tag{},
+			}
+		}
+		return out, nil
+	}
+	ids := make([]uuid.UUID, len(challenges))
+	for i, c := range challenges {
+		ids[i] = c.Challenge.ID
+	}
+	tagsMap, err := uc.tagRepo.GetByChallengeIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeUseCase - GetAll - GetTags: %w", err)
+	}
+	out := make([]*usecase.ChallengeWithTags, len(challenges))
+	for i, c := range challenges {
+		tags := tagsMap[c.Challenge.ID]
+		if tags == nil {
+			tags = []*entity.Tag{}
+		}
+		out[i] = &usecase.ChallengeWithTags{
+			ChallengeWithSolved: c,
+			Tags:                tags,
+		}
+	}
+	return out, nil
 }
 
-func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string) (*entity.Challenge, error) {
+func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*entity.Challenge, error) {
 	var flagHash string
 	var flagRegex string
 
@@ -113,10 +148,16 @@ func (uc *ChallengeUseCase) Create(ctx context.Context, title, description, cate
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Create: %w", err)
 	}
+	if uc.tagRepo != nil && len(tagIDs) > 0 {
+		if err := uc.tagRepo.SetChallengeTags(ctx, challenge.ID, tagIDs); err != nil {
+			return nil, fmt.Errorf("ChallengeUseCase - Create - SetTags: %w", err)
+		}
+	}
 	return challenge, nil
 }
 
-func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string) (*entity.Challenge, error) {
+//nolint:gocognit // many branches for flag and tags
+func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*entity.Challenge, error) {
 	challenge, err := uc.challengeRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Update - GetByID: %w", err)
@@ -160,6 +201,11 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, title, des
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Update: %w", err)
 	}
+	if uc.tagRepo != nil {
+		if err := uc.tagRepo.SetChallengeTags(ctx, ID, tagIDs); err != nil {
+			return nil, fmt.Errorf("ChallengeUseCase - Update - SetTags: %w", err)
+		}
+	}
 
 	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
@@ -195,6 +241,30 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, ID, actorID uuid.UUID, c
 	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 
 	return nil
+}
+
+func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, error) {
+	if v, ok := uc.regexCache.Load(pattern); ok {
+		if re, ok := v.(*regexp.Regexp); ok {
+			return re, nil
+		}
+		return nil, fmt.Errorf("ChallengeUseCase - getCompiledRegex: invalid cached regex type")
+	}
+	v, err, _ := uc.regexSf.Do(pattern, func() (any, error) {
+		if v, ok := uc.regexCache.Load(pattern); ok {
+			return v.(*regexp.Regexp), nil
+		}
+		compiled, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("ChallengeUseCase - getCompiledRegex - Compile: %w", err)
+		}
+		uc.regexCache.Store(pattern, compiled)
+		return compiled, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*regexp.Regexp), nil
 }
 
 //nolint:gocognit,gocyclo,funlen
@@ -256,20 +326,9 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 			pattern = "(?i)" + pattern
 		}
 
-		var compiledRegex *regexp.Regexp
-		if v, ok := uc.regexCache.Load(pattern); ok {
-			var typeOk bool
-			compiledRegex, typeOk = v.(*regexp.Regexp)
-			if !typeOk {
-				return false, fmt.Errorf("ChallengeUseCase - SubmitFlag: invalid cached regex type")
-			}
-		} else {
-			compiled, err := regexp.Compile(pattern)
-			if err != nil {
-				return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Compile: %w", err)
-			}
-			uc.regexCache.Store(pattern, compiled)
-			compiledRegex = compiled
+		compiledRegex, err := uc.getCompiledRegex(pattern)
+		if err != nil {
+			return false, err
 		}
 
 		if compiledRegex.MatchString(flag) {

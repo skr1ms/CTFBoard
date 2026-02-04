@@ -211,6 +211,1142 @@ paths:
       summary: Import competition backup
       tags:
         - Admin
+  /admin/submissions:
+    get:
+      description: Returns paginated list of all flag submissions. Admin only.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.SubmissionListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get all submissions
+      tags:
+        - Admin
+  "/admin/submissions/challenge/{challengeID}":
+    get:
+      description: Returns paginated list of submissions for a challenge. Admin only.
+      parameters:
+        - name: challengeID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.SubmissionListResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get submissions by challenge
+      tags:
+        - Admin
+  "/admin/submissions/challenge/{challengeID}/stats":
+    get:
+      description: Returns submission statistics for a challenge. Admin only.
+      parameters:
+        - name: challengeID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.SubmissionStatsResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get submission stats by challenge
+      tags:
+        - Admin
+  "/admin/submissions/user/{userID}":
+    get:
+      description: Returns paginated list of submissions by a user. Admin only.
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.SubmissionListResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get submissions by user
+      tags:
+        - Admin
+  "/admin/submissions/team/{teamID}":
+    get:
+      description: Returns paginated list of submissions by a team. Admin only.
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.SubmissionListResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get submissions by team
+      tags:
+        - Admin
+  /tags:
+    get:
+      description: Returns list of all tags
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.TagResponse"
+                type: array
+      summary: Get all tags
+      tags:
+        - Tags
+  /admin/tags:
+    post:
+      description: Creates a new tag. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateTagRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TagResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Create tag
+      tags:
+        - Admin
+  "/admin/tags/{ID}":
+    put:
+      description: Updates a tag. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateTagRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TagResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Update tag
+      tags:
+        - Admin
+    delete:
+      description: Deletes a tag. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete tag
+      tags:
+        - Admin
+  /fields:
+    get:
+      description: Returns custom fields for registration (filter by entity_type)
+      parameters:
+        - name: entity_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [user, team]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.FieldResponse"
+                type: array
+      summary: Get fields by entity type
+      tags:
+        - Fields
+  /admin/fields:
+    post:
+      description: Creates a custom field. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateFieldRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.FieldResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Create field
+      tags:
+        - Admin
+  "/admin/fields/{ID}":
+    put:
+      description: Updates a custom field. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateFieldRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.FieldResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Update field
+      tags:
+        - Admin
+    delete:
+      description: Deletes a custom field. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete field
+      tags:
+        - Admin
+  /brackets:
+    get:
+      description: Returns list of all brackets (team categories)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.BracketResponse"
+                type: array
+      summary: Get brackets list
+      tags:
+        - Brackets
+  /admin/brackets:
+    post:
+      description: Creates a new bracket. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateBracketRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.BracketResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "409":
+          description: Conflict
+      security:
+        - BearerAuth: []
+      summary: Create bracket
+      tags:
+        - Admin
+  "/admin/brackets/{ID}":
+    get:
+      description: Returns bracket by ID. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.BracketResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Get bracket by ID
+      tags:
+        - Admin
+    put:
+      description: Updates a bracket. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateBracketRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.BracketResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "409":
+          description: Conflict
+      security:
+        - BearerAuth: []
+      summary: Update bracket
+      tags:
+        - Admin
+    delete:
+      description: Deletes a bracket. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete bracket
+      tags:
+        - Admin
+  "/admin/teams/{ID}/bracket":
+    patch:
+      description: Sets team bracket (category). Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.SetTeamBracketRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Set team bracket
+      tags:
+        - Admin
+  /ratings:
+    get:
+      description: Returns global team ratings (paginated)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.GlobalRatingsListResponse"
+      summary: Get global ratings
+      tags:
+        - Ratings
+  "/ratings/team/{ID}":
+    get:
+      description: Returns rating for a team (global + per-event)
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.TeamRatingResponse"
+        "404":
+          description: Not Found
+      summary: Get team rating
+      tags:
+        - Ratings
+  /admin/ctf-events:
+    get:
+      description: Returns list of CTF events. Admin only.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.CTFEventResponse"
+                type: array
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Get CTF events list
+      tags:
+        - Admin
+    post:
+      description: Creates a new CTF event. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateCTFEventRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.CTFEventResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Create CTF event
+      tags:
+        - Admin
+  "/admin/ctf-events/{ID}/finalize":
+    post:
+      description: Finalizes CTF event and recalculates global ratings. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Finalize CTF event
+      tags:
+        - Admin
+  /pages:
+    get:
+      description: Returns list of published pages (title, slug)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.PageListItemResponse"
+                type: array
+      summary: Get published pages list
+      tags:
+        - Pages
+  "/pages/{slug}":
+    get:
+      description: Returns page by slug (published only)
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.PageResponse"
+        "404":
+          description: Not Found
+      summary: Get page by slug
+      tags:
+        - Pages
+  /admin/pages:
+    get:
+      description: Returns list of all pages. Admin only.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.PageResponse"
+                type: array
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Get all pages
+      tags:
+        - Admin
+    post:
+      description: Creates a new page. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreatePageRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.PageResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "409":
+          description: Conflict
+      security:
+        - BearerAuth: []
+      summary: Create page
+      tags:
+        - Admin
+  "/admin/pages/{ID}":
+    get:
+      description: Returns page by ID. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.PageResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Get page by ID
+      tags:
+        - Admin
+    put:
+      description: Updates a page. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdatePageRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.PageResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "409":
+          description: Conflict
+      security:
+        - BearerAuth: []
+      summary: Update page
+      tags:
+        - Admin
+    delete:
+      description: Deletes a page. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete page
+      tags:
+        - Admin
+  /notifications:
+    get:
+      description: Returns list of global notifications
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.NotificationResponse"
+                type: array
+      summary: Get global notifications
+      tags:
+        - Notifications
+  /user/notifications:
+    get:
+      description: Returns list of notifications for current user
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.UserNotificationResponse"
+                type: array
+        "401":
+          description: Unauthorized
+      security:
+        - BearerAuth: []
+      summary: Get user notifications
+      tags:
+        - Notifications
+  "/user/notifications/{ID}/read":
+    patch:
+      description: Marks notification as read
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+        - Notifications
+  /user/tokens:
+    get:
+      description: Returns list of API tokens for current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/response.APITokenResponse"
+        "401":
+          description: Unauthorized
+      security:
+        - BearerAuth: []
+      summary: List my API tokens
+      tags:
+        - User
+    post:
+      description: Creates a new API token. Returns plaintext token once.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateAPITokenRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.APITokenCreatedResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+      security:
+        - BearerAuth: []
+      summary: Create API token
+      tags:
+        - User
+  "/user/tokens/{ID}":
+    delete:
+      description: Revokes an API token
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Revoke API token
+      tags:
+        - User
+  /admin/notifications:
+    post:
+      description: Creates a global notification. Admin only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateNotificationRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.NotificationResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Create global notification
+      tags:
+        - Admin
+  "/admin/notifications/user/{userID}":
+    post:
+      description: Creates a personal notification for a user. Admin only.
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateUserNotificationRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.UserNotificationResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Create personal notification
+      tags:
+        - Admin
+  "/admin/notifications/{ID}":
+    put:
+      description: Updates a notification. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.UpdateNotificationRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.NotificationResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Update notification
+      tags:
+        - Admin
+    delete:
+      description: Deletes a notification. Admin only.
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete notification
+      tags:
+        - Admin
   "/admin/awards/team/{teamID}":
     get:
       description: Returns list of awards for a team. Admin only.
@@ -1078,9 +2214,119 @@ paths:
       summary: Update admin settings
       tags:
         - Admin
+  /admin/configs:
+    get:
+      description: Returns all dynamic configs. Admin only.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.ConfigResponse"
+                type: array
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Get all configs
+      tags:
+        - Admin
+  "/admin/configs/{key}":
+    get:
+      description: Returns config by key. Admin only.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.ConfigResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Get config by key
+      tags:
+        - Admin
+    put:
+      description: Set or update config. Admin only.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.SetConfigRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - BearerAuth: []
+      summary: Set config
+      tags:
+        - Admin
+    delete:
+      description: Delete config. Admin only.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+        - BearerAuth: []
+      summary: Delete config
+      tags:
+        - Admin
   /challenges:
     get:
       description: Returns list of all challenges with solved status for user's team
+      parameters:
+        - name: tag
+          in: query
+          description: Filter challenges by tag ID
+          schema:
+            type: string
       responses:
         "200":
           description: OK
@@ -1227,6 +2473,123 @@ paths:
       summary: Unlock hint
       tags:
         - Hints
+  "/challenges/{challengeID}/comments":
+    get:
+      description: Returns comments for a challenge. Available only after competition has ended.
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/response.CommentResponse"
+                type: array
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden (competition not ended)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Get comments for challenge
+      tags:
+        - Comments
+    post:
+      description: Creates a comment for a challenge. Available only after competition has ended.
+      parameters:
+        - description: Challenge ID
+          in: path
+          name: challengeID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/request.CreateCommentRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/response.CommentResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden (competition not ended)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Create comment for challenge
+      tags:
+        - Comments
+  "/comments/{ID}":
+    delete:
+      description: Deletes own comment by ID.
+      parameters:
+        - description: Comment ID
+          in: path
+          name: ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "403":
+          description: Forbidden (not comment owner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/v1.ErrorResponse"
+      security:
+        - BearerAuth: []
+      summary: Delete comment
+      tags:
+        - Comments
   "/challenges/{ID}/first-blood":
     get:
       description: Returns the first solver of a challenge
@@ -1358,7 +2721,15 @@ paths:
         - Challenges
   /scoreboard:
     get:
-      description: Returns current scoreboard state sorted by points descending
+      description: Returns current scoreboard state sorted by points descending. Optional bracket_id filters by team category.
+      parameters:
+        - name: bracket
+          in: query
+          description: Filter scoreboard by bracket (category) ID
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: OK
@@ -2215,6 +3586,11 @@ components:
           example: 100
           minimum: 0
           type: integer
+        tag_ids:
+          description: Tag IDs for the challenge
+          items:
+            type: string
+          type: array
         title:
           example: Challenge 1
           type: string
@@ -2241,6 +3617,110 @@ components:
       required:
         - content
       type: object
+    request.CreateTagRequest:
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+          default: "#6b7280"
+      required:
+        - name
+      type: object
+    request.UpdateTagRequest:
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+      required:
+        - name
+      type: object
+    request.CreateFieldRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        field_type:
+          type: string
+          enum: [text, number, select, boolean]
+        entity_type:
+          type: string
+          enum: [user, team]
+        required:
+          type: boolean
+          default: false
+        options:
+          description: Options for select type
+          items:
+            type: string
+          type: array
+        order_index:
+          type: integer
+          default: 0
+      required:
+        - name
+        - field_type
+        - entity_type
+      type: object
+    request.UpdateFieldRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        field_type:
+          type: string
+          enum: [text, number, select, boolean]
+        required:
+          type: boolean
+        options:
+          items:
+            type: string
+          type: array
+        order_index:
+          type: integer
+      required:
+        - name
+        - field_type
+      type: object
+    request.CreatePageRequest:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 100
+        content:
+          type: string
+        is_draft:
+          type: boolean
+          default: true
+        order_index:
+          type: integer
+          default: 0
+      required:
+        - title
+        - slug
+      type: object
+    request.UpdatePageRequest:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 100
+        content:
+          type: string
+        is_draft:
+          type: boolean
+        order_index:
+          type: integer
+      required:
+        - title
+        - slug
+      type: object
     request.CreateTeamRequest:
       properties:
         confirm_reset:
@@ -2264,6 +3744,57 @@ components:
       properties:
         hidden:
           type: boolean
+      type: object
+    request.CreateBracketRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        is_default:
+          type: boolean
+          default: false
+      required:
+        - name
+      type: object
+    request.UpdateBracketRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        is_default:
+          type: boolean
+      required:
+        - name
+      type: object
+    request.SetTeamBracketRequest:
+      properties:
+        bracket_id:
+          type: string
+          format: uuid
+          nullable: true
+      type: object
+    request.CreateCTFEventRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        weight:
+          type: number
+          default: 1.0
+      required:
+        - name
+        - start_time
+        - end_time
       type: object
     request.ForgotPasswordRequest:
       properties:
@@ -2303,6 +3834,11 @@ components:
         username:
           example: player1
           type: string
+        custom_fields:
+          description: Custom field values (field_id -> value)
+          additionalProperties:
+            type: string
+          type: object
       type: object
     request.ResetPasswordRequest:
       properties:
@@ -2355,6 +3891,23 @@ components:
           type: string
       required:
         - name
+      type: object
+    request.SetConfigRequest:
+      properties:
+        value:
+          type: string
+        value_type:
+          enum:
+            - string
+            - int
+            - bool
+            - json
+          type: string
+          default: string
+        description:
+          type: string
+      required:
+        - value
       type: object
     request.UpdateAppSettingsRequest:
       properties:
@@ -2445,6 +3998,11 @@ components:
           example: 150
           minimum: 0
           type: integer
+        tag_ids:
+          description: Tag IDs for the challenge
+          items:
+            type: string
+          type: array
         title:
           example: Updated title
           type: string
@@ -2501,8 +4059,160 @@ components:
           type: integer
         solved:
           type: boolean
+        tags:
+          items:
+            $ref: "#/components/schemas/response.TagResponse"
+          type: array
         title:
           type: string
+      type: object
+    response.TagResponse:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+      type: object
+    response.FieldResponse:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        field_type:
+          type: string
+          enum: [text, number, select, boolean]
+        entity_type:
+          type: string
+          enum: [user, team]
+        required:
+          type: boolean
+        options:
+          items:
+            type: string
+          type: array
+        order_index:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      type: object
+    response.PageListItemResponse:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        order_index:
+          type: integer
+      type: object
+    response.PageResponse:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        is_draft:
+          type: boolean
+        order_index:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    response.BracketResponse:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        is_default:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      type: object
+    response.GlobalRatingResponse:
+      properties:
+        team_id:
+          type: string
+        team_name:
+          type: string
+        total_points:
+          type: number
+        events_count:
+          type: integer
+        best_rank:
+          type: integer
+          nullable: true
+        last_updated:
+          type: string
+          format: date-time
+      type: object
+    response.GlobalRatingsListResponse:
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/response.GlobalRatingResponse"
+        total:
+          type: integer
+      type: object
+    response.TeamRatingItemResponse:
+      properties:
+        id:
+          type: string
+        ctf_event_id:
+          type: string
+        rank:
+          type: integer
+        score:
+          type: integer
+        rating_points:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+      type: object
+    response.TeamRatingResponse:
+      properties:
+        global:
+          $ref: "#/components/schemas/response.GlobalRatingResponse"
+        event_ratings:
+          type: array
+          items:
+            $ref: "#/components/schemas/response.TeamRatingItemResponse"
+      type: object
+    response.CTFEventResponse:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        weight:
+          type: number
+        created_at:
+          type: string
+          format: date-time
       type: object
     response.CompetitionResponse:
       properties:
@@ -2537,6 +4247,24 @@ components:
           type: string
         submission_allowed:
           type: boolean
+      type: object
+    response.ConfigResponse:
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        value_type:
+          type: string
+        description:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - key
+        - value
+        - value_type
       type: object
     response.AppSettingsResponse:
       properties:
@@ -2716,6 +4444,195 @@ components:
           type: string
         username:
           type: string
+      type: object
+    response.SubmissionResponse:
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        team_id:
+          type: string
+        challenge_id:
+          type: string
+        submitted_flag:
+          type: string
+        is_correct:
+          type: boolean
+        ip:
+          type: string
+        created_at:
+          type: string
+        username:
+          type: string
+        team_name:
+          type: string
+        challenge_title:
+          type: string
+        challenge_category:
+          type: string
+      type: object
+    response.SubmissionListResponse:
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/response.SubmissionResponse"
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+      type: object
+    response.SubmissionStatsResponse:
+      properties:
+        total:
+          type: integer
+        correct:
+          type: integer
+        incorrect:
+          type: integer
+      type: object
+    request.CreateNotificationRequest:
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, success, error]
+          default: info
+        is_pinned:
+          type: boolean
+          default: false
+      required:
+        - title
+        - content
+      type: object
+    request.CreateUserNotificationRequest:
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, success, error]
+          default: info
+      required:
+        - title
+        - content
+      type: object
+    request.UpdateNotificationRequest:
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, success, error]
+        is_pinned:
+          type: boolean
+      required:
+        - title
+        - content
+      type: object
+    response.NotificationResponse:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+        is_pinned:
+          type: boolean
+        created_at:
+          type: string
+      type: object
+    response.UserNotificationResponse:
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+      type: object
+    request.CreateAPITokenRequest:
+      properties:
+        description:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+      type: object
+    response.APITokenResponse:
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+      type: object
+    response.APITokenCreatedResponse:
+      properties:
+        id:
+          type: string
+        token:
+          type: string
+          description: Plaintext token (shown once)
+        description:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+      required:
+        - token
+      type: object
+    request.CreateCommentRequest:
+      properties:
+        content:
+          type: string
+      required:
+        - content
+      type: object
+    response.CommentResponse:
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        challenge_id:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
       type: object
     v1.ErrorResponse:
       properties:

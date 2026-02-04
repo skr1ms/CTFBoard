@@ -99,7 +99,7 @@ func (q *Queries) CreateTeamReturningID(ctx context.Context, arg CreateTeamRetur
 }
 
 const getAllTeams = `-- name: GetAllTeams :many
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE deleted_at IS NULL
 ORDER BY created_at ASC
@@ -110,6 +110,7 @@ type GetAllTeamsRow struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	IsSolo        *bool      `json:"is_solo"`
 	IsAutoCreated *bool      `json:"is_auto_created"`
 	IsBanned      *bool      `json:"is_banned"`
@@ -133,6 +134,7 @@ func (q *Queries) GetAllTeams(ctx context.Context) ([]GetAllTeamsRow, error) {
 			&i.Name,
 			&i.InviteToken,
 			&i.CaptainID,
+			&i.BracketID,
 			&i.IsSolo,
 			&i.IsAutoCreated,
 			&i.IsBanned,
@@ -152,7 +154,7 @@ func (q *Queries) GetAllTeams(ctx context.Context) ([]GetAllTeamsRow, error) {
 }
 
 const getSoloTeamByUserID = `-- name: GetSoloTeamByUserID :one
-SELECT t.id, t.name, t.invite_token, t.captain_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
+SELECT t.id, t.name, t.invite_token, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
 FROM teams t
 JOIN users u ON u.team_id = t.id
 WHERE u.id = $1 AND t.is_solo = true AND t.deleted_at IS NULL
@@ -163,6 +165,7 @@ type GetSoloTeamByUserIDRow struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	IsSolo        *bool      `json:"is_solo"`
 	IsAutoCreated *bool      `json:"is_auto_created"`
 	IsBanned      *bool      `json:"is_banned"`
@@ -180,6 +183,7 @@ func (q *Queries) GetSoloTeamByUserID(ctx context.Context, id uuid.UUID) (GetSol
 		&i.Name,
 		&i.InviteToken,
 		&i.CaptainID,
+		&i.BracketID,
 		&i.IsSolo,
 		&i.IsAutoCreated,
 		&i.IsBanned,
@@ -192,7 +196,7 @@ func (q *Queries) GetSoloTeamByUserID(ctx context.Context, id uuid.UUID) (GetSol
 }
 
 const getTeamByID = `-- name: GetTeamByID :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -202,6 +206,7 @@ type GetTeamByIDRow struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	IsSolo        *bool      `json:"is_solo"`
 	IsAutoCreated *bool      `json:"is_auto_created"`
 	IsBanned      *bool      `json:"is_banned"`
@@ -219,6 +224,7 @@ func (q *Queries) GetTeamByID(ctx context.Context, id uuid.UUID) (GetTeamByIDRow
 		&i.Name,
 		&i.InviteToken,
 		&i.CaptainID,
+		&i.BracketID,
 		&i.IsSolo,
 		&i.IsAutoCreated,
 		&i.IsBanned,
@@ -231,7 +237,7 @@ func (q *Queries) GetTeamByID(ctx context.Context, id uuid.UUID) (GetTeamByIDRow
 }
 
 const getTeamByInviteToken = `-- name: GetTeamByInviteToken :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE invite_token = $1 AND deleted_at IS NULL
 `
@@ -241,6 +247,7 @@ type GetTeamByInviteTokenRow struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	IsSolo        *bool      `json:"is_solo"`
 	IsAutoCreated *bool      `json:"is_auto_created"`
 	IsBanned      *bool      `json:"is_banned"`
@@ -258,6 +265,7 @@ func (q *Queries) GetTeamByInviteToken(ctx context.Context, inviteToken uuid.UUI
 		&i.Name,
 		&i.InviteToken,
 		&i.CaptainID,
+		&i.BracketID,
 		&i.IsSolo,
 		&i.IsAutoCreated,
 		&i.IsBanned,
@@ -270,7 +278,7 @@ func (q *Queries) GetTeamByInviteToken(ctx context.Context, inviteToken uuid.UUI
 }
 
 const getTeamByName = `-- name: GetTeamByName :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE name = $1 AND deleted_at IS NULL
 `
@@ -280,6 +288,7 @@ type GetTeamByNameRow struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	IsSolo        *bool      `json:"is_solo"`
 	IsAutoCreated *bool      `json:"is_auto_created"`
 	IsBanned      *bool      `json:"is_banned"`
@@ -297,6 +306,7 @@ func (q *Queries) GetTeamByName(ctx context.Context, name string) (GetTeamByName
 		&i.Name,
 		&i.InviteToken,
 		&i.CaptainID,
+		&i.BracketID,
 		&i.IsSolo,
 		&i.IsAutoCreated,
 		&i.IsBanned,
@@ -315,6 +325,22 @@ DELETE FROM teams WHERE deleted_at IS NOT NULL AND deleted_at < $1
 func (q *Queries) HardDeleteTeamsBefore(ctx context.Context, deletedAt *time.Time) error {
 	_, err := q.db.Exec(ctx, hardDeleteTeamsBefore, deletedAt)
 	return err
+}
+
+const setTeamBracket = `-- name: SetTeamBracket :one
+UPDATE teams SET bracket_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id
+`
+
+type SetTeamBracketParams struct {
+	ID        uuid.UUID  `json:"id"`
+	BracketID *uuid.UUID `json:"bracket_id"`
+}
+
+func (q *Queries) SetTeamBracket(ctx context.Context, arg SetTeamBracketParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, setTeamBracket, arg.ID, arg.BracketID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const setTeamHidden = `-- name: SetTeamHidden :one

@@ -18,6 +18,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 type BackupUseCase struct {
@@ -69,27 +70,15 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
+	g, gCtx := errgroup.WithContext(ctx)
 	backup := &entity.BackupData{
 		Version:    entity.BackupVersion,
 		ExportedAt: time.Now().UTC(),
 	}
-
-	var wg sync.WaitGroup
 	var mu sync.Mutex
-	errs := make(chan error, 7)
 
-	run := func(fn func() error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := fn(); err != nil {
-				errs <- err
-			}
-		}()
-	}
-
-	run(func() error {
-		comp, err := uc.competitionRepo.Get(ctx)
+	g.Go(func() error {
+		comp, err := uc.competitionRepo.Get(gCtx)
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - Get: %w", err)
 		}
@@ -99,8 +88,8 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 		return nil
 	})
 
-	run(func() error {
-		challenges, err := uc.fetchChallengesWithHints(ctx)
+	g.Go(func() error {
+		challenges, err := uc.fetchChallengesWithHints(gCtx)
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - fetchChallengesWithHints: %w", err)
 		}
@@ -110,19 +99,10 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 		return nil
 	})
 
-	uc.exportOptional(ctx, backup, opts, &mu, run)
+	uc.exportOptional(gCtx, backup, opts, &mu, g)
 
-	wg.Wait()
-	close(errs)
-
-	var firstErr error
-	for err := range errs {
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	if firstErr != nil {
-		return nil, firstErr
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 	return backup, nil
 }
@@ -133,10 +113,10 @@ func (uc *BackupUseCase) exportOptional(
 	backup *entity.BackupData,
 	opts entity.ExportOptions,
 	mu *sync.Mutex,
-	run func(func() error),
+	g *errgroup.Group,
 ) {
 	if opts.IncludeTeams {
-		run(func() error {
+		g.Go(func() error {
 			teams, err := uc.fetchTeamsWithMembers(ctx)
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - fetchTeamsWithMembers: %w", err)
@@ -148,7 +128,7 @@ func (uc *BackupUseCase) exportOptional(
 		})
 	}
 	if opts.IncludeUsers {
-		run(func() error {
+		g.Go(func() error {
 			users, err := uc.fetchUsers(ctx)
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - fetchUsers: %w", err)
@@ -160,7 +140,7 @@ func (uc *BackupUseCase) exportOptional(
 		})
 	}
 	if opts.IncludeAwards {
-		run(func() error {
+		g.Go(func() error {
 			awards, err := uc.fetchAwards(ctx)
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - fetchAwards: %w", err)
@@ -172,7 +152,7 @@ func (uc *BackupUseCase) exportOptional(
 		})
 	}
 	if opts.IncludeSolves {
-		run(func() error {
+		g.Go(func() error {
 			solves, err := uc.fetchSolves(ctx)
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - fetchSolves: %w", err)
@@ -184,7 +164,7 @@ func (uc *BackupUseCase) exportOptional(
 		})
 	}
 	if opts.IncludeFiles {
-		run(func() error {
+		g.Go(func() error {
 			files, err := uc.fetchFiles(ctx)
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - fetchFiles: %w", err)
@@ -198,7 +178,7 @@ func (uc *BackupUseCase) exportOptional(
 }
 
 func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]entity.ChallengeExport, error) {
-	challengesWithSolved, err := uc.challengeRepo.GetAll(ctx, nil)
+	challengesWithSolved, err := uc.challengeRepo.GetAll(ctx, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchChallengesWithHints - GetAll: %w", err)
 	}
@@ -499,8 +479,11 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 	return result, nil
 }
 
+const maxConcurrentFileUploads = 5
+
 //nolint:gocognit
 func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reader, files []entity.File, opts entity.ImportOptions) []string {
+	var mu sync.Mutex
 	var errors []string
 	var uploaded int
 
@@ -510,54 +493,89 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 		fileMap[path] = f
 	}
 
+	type task struct {
+		zf   *zip.File
+		file entity.File
+	}
+	var tasks []task
 	for _, zf := range zr.File {
 		file, ok := fileMap[zf.Name]
 		if !ok {
 			continue
 		}
-
-		rc, err := zf.Open()
-		if err != nil {
-			errMsg := fmt.Sprintf("open %s: %v", zf.Name, err)
-			uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		if opts.ValidateFiles {
-			hash := sha256.New()
-			tee := io.TeeReader(rc, hash)
-			size := zipSizeToInt64(zf.UncompressedSize64)
-			if err := uc.storage.Upload(ctx, file.Location, tee, size, "application/octet-stream"); err != nil {
-				_ = rc.Close()
-				errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
-				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
-				errors = append(errors, errMsg)
-				continue
-			}
-			_ = rc.Close()
-
-			hashStr := hex.EncodeToString(hash.Sum(nil))
-			if hashStr != file.SHA256 {
-				_ = uc.storage.Delete(ctx, file.Location) //nolint:errcheck
-				errMsg := fmt.Sprintf("sha256 mismatch for %s: expected %s, got %s", zf.Name, file.SHA256, hashStr)
-				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
-				errors = append(errors, errMsg)
-				continue
-			}
-		} else {
-			size := zipSizeToInt64(zf.UncompressedSize64)
-			if err := uc.storage.Upload(ctx, file.Location, rc, size, "application/octet-stream"); err != nil {
-				_ = rc.Close()
-				errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
-				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
-				errors = append(errors, errMsg)
-				continue
-			}
-			_ = rc.Close()
-		}
-		uploaded++
+		tasks = append(tasks, task{zf: zf, file: file})
 	}
+
+	sem := make(chan struct{}, maxConcurrentFileUploads)
+	var wg sync.WaitGroup
+	for _, t := range tasks {
+		wg.Add(1)
+		go func(zf *zip.File, file entity.File) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				mu.Lock()
+				errors = append(errors, fmt.Sprintf("cancelled: %s", zf.Name))
+				mu.Unlock()
+				return
+			}
+
+			rc, err := zf.Open()
+			if err != nil {
+				errMsg := fmt.Sprintf("open %s: %v", zf.Name, err)
+				uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
+				mu.Lock()
+				errors = append(errors, errMsg)
+				mu.Unlock()
+				return
+			}
+
+			if opts.ValidateFiles {
+				hash := sha256.New()
+				tee := io.TeeReader(rc, hash)
+				size := zipSizeToInt64(zf.UncompressedSize64)
+				if err := uc.storage.Upload(ctx, file.Location, tee, size, "application/octet-stream"); err != nil {
+					_ = rc.Close()
+					errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
+					uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
+					mu.Lock()
+					errors = append(errors, errMsg)
+					mu.Unlock()
+					return
+				}
+				_ = rc.Close()
+
+				hashStr := hex.EncodeToString(hash.Sum(nil))
+				if hashStr != file.SHA256 {
+					_ = uc.storage.Delete(ctx, file.Location) //nolint:errcheck
+					errMsg := fmt.Sprintf("sha256 mismatch for %s: expected %s, got %s", zf.Name, file.SHA256, hashStr)
+					uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
+					mu.Lock()
+					errors = append(errors, errMsg)
+					mu.Unlock()
+					return
+				}
+			} else {
+				size := zipSizeToInt64(zf.UncompressedSize64)
+				if err := uc.storage.Upload(ctx, file.Location, rc, size, "application/octet-stream"); err != nil {
+					_ = rc.Close()
+					errMsg := fmt.Sprintf("upload %s: %v", zf.Name, err)
+					uc.logger.Warn("BackupUseCase - importFilesToStorage", map[string]any{"error": errMsg})
+					mu.Lock()
+					errors = append(errors, errMsg)
+					mu.Unlock()
+					return
+				}
+				_ = rc.Close()
+			}
+			mu.Lock()
+			uploaded++
+			mu.Unlock()
+		}(t.zf, t.file)
+	}
+	wg.Wait()
 
 	if len(errors) > 0 {
 		uc.logger.Warn("BackupUseCase - importFilesToStorage - completed with errors", map[string]any{

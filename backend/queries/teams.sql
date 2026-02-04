@@ -8,17 +8,17 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id;
 
 -- name: GetTeamByID :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: GetTeamByInviteToken :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE invite_token = $1 AND deleted_at IS NULL;
 
 -- name: GetTeamByName :one
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE name = $1 AND deleted_at IS NULL;
 
@@ -26,7 +26,7 @@ WHERE name = $1 AND deleted_at IS NULL;
 UPDATE teams SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: GetSoloTeamByUserID :one
-SELECT t.id, t.name, t.invite_token, t.captain_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
+SELECT t.id, t.name, t.invite_token, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
 FROM teams t
 JOIN users u ON u.team_id = t.id
 WHERE u.id = $1 AND t.is_solo = true AND t.deleted_at IS NULL;
@@ -49,10 +49,13 @@ UPDATE teams SET is_hidden = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING i
 UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: GetAllTeams :many
-SELECT id, name, invite_token, captain_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
 FROM teams
 WHERE deleted_at IS NULL
 ORDER BY created_at ASC;
+
+-- name: SetTeamBracket :one
+UPDATE teams SET bracket_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: HardDeleteTeamsBefore :exec
 DELETE FROM teams WHERE deleted_at IS NOT NULL AND deleted_at < $1;

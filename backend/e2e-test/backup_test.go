@@ -5,13 +5,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/export: admin exports competition as JSON; returns 200 and JSON body.
 func TestBackup_ExportJSON(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_backup_export")
 	h.CreateBasicChallenge(tokenAdmin, "Export Chall", "flag{export}", 50)
@@ -25,8 +27,9 @@ func TestBackup_ExportJSON(t *testing.T) {
 
 // GET /admin/export/zip: admin exports competition as ZIP; returns 200 and binary body.
 func TestBackup_ExportZip(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_backup_zip")
 	h.CreateBasicChallenge(tokenAdmin, "Zip Chall", "flag{zip}", 50)
@@ -41,8 +44,9 @@ func TestBackup_ExportZip(t *testing.T) {
 
 // GET /admin/export/zip then POST /admin/import: export ZIP, re-import with conflict_mode skip; returns 200.
 func TestBackup_ExportThenImport(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_backup_roundtrip")
 	h.CreateBasicChallenge(tokenAdmin, "Roundtrip Chall", "flag{rt}", 50)
@@ -55,8 +59,9 @@ func TestBackup_ExportThenImport(t *testing.T) {
 
 // GET /admin/export: non-admin gets 403 Forbidden.
 func TestBackup_Export_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_exp_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_exp")
@@ -66,8 +71,9 @@ func TestBackup_Export_Forbidden(t *testing.T) {
 
 // GET /admin/export/zip: non-admin gets 403 Forbidden.
 func TestBackup_ExportZip_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_zip_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_zip")
@@ -77,8 +83,9 @@ func TestBackup_ExportZip_Forbidden(t *testing.T) {
 
 // POST /admin/import: non-admin gets 403 Forbidden.
 func TestBackup_Import_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_imp_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_imp")

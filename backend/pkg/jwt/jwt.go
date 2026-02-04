@@ -45,7 +45,12 @@ type TokenPair struct {
 	RefreshExpiresAt int64  `json:"refresh_expires_at"`
 }
 
-func NewJWTService(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration) *JWTService {
+func NewJWTService(
+	accessSecret string,
+	refreshSecret string,
+	accessTTL time.Duration,
+	refreshTTL time.Duration,
+) *JWTService {
 	return &JWTService{
 		accessSecret:  []byte(accessSecret),
 		refreshSecret: []byte(refreshSecret),

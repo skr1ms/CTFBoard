@@ -6,13 +6,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /scoreboard: ranks and points reflect solves; team with more solves has higher rank and correct total points.
 func TestScoreboard_Display(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_scoreboard")
 
@@ -60,10 +62,11 @@ func TestScoreboard_Display(t *testing.T) {
 
 // GET /scoreboard: returns 200 and array even when no teams/solves.
 func TestScoreboard_Empty(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	resp := h.GetScoreboard()
-	require.Equal(t, http.StatusOK, resp.StatusCode())
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard empty")
 	require.NotNil(t, resp.JSON200)
 }

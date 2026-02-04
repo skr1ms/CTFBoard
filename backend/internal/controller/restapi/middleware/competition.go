@@ -40,3 +40,20 @@ func CompetitionActive(competitionUC *competition.CompetitionUseCase) func(http.
 		})
 	}
 }
+
+func CompetitionEnded(competitionUC *competition.CompetitionUseCase) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			comp, err := competitionUC.Get(r.Context())
+			if err != nil {
+				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get competition status")
+				return
+			}
+			if comp.GetStatus() != entity.CompetitionStatusEnded {
+				httputil.RenderError(w, r, http.StatusForbidden, "comments available only after competition has ended")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}

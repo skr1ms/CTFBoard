@@ -87,7 +87,7 @@ func runRegisterTest(t *testing.T, tt registerTestCase) {
 	h := NewUserTestHelper(t)
 	tt.setupMocks(h.Deps().userRepo, h.Deps().txRepo)
 	uc := h.CreateUseCase()
-	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password)
+	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password, nil)
 	if tt.expectedError {
 		assert.Error(t, err)
 		assert.Nil(t, user)
@@ -197,7 +197,7 @@ func TestUserUseCase_Login(t *testing.T) {
 	}
 }
 
-func TestUserUseCase_GetByID(t *testing.T) {
+func TestUserUseCase_GetByID_Success(t *testing.T) {
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
@@ -237,7 +237,7 @@ func TestUserUseCase_GetByID_Error(t *testing.T) {
 	assert.Nil(t, user)
 }
 
-func TestUserUseCase_GetProfile(t *testing.T) {
+func TestUserUseCase_GetProfile_Success(t *testing.T) {
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 

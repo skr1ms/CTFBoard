@@ -66,6 +66,19 @@ sqlc: ## Generate sqlc code from queries and schema
 	@sqlc -f codegen/sqlc.yaml generate
 	@echo "sqlc code generated"
 
+migrate-up: ## Run database migrations up
+	@echo "Running migrations..."
+	@migrate -path migrations -database "$(POSTGRES_DSN)" up
+	@echo "Migrations applied"
+
+migrate-down: ## Run database migrations down (last batch)
+	@echo "Reverting migrations..."
+	@migrate -path migrations -database "$(POSTGRES_DSN)" down 1
+	@echo "Migrations reverted"
+
+migrate-create: ## Create new migration (usage: make migrate-create name=create_something)
+	@migrate create -ext sql -dir migrations -seq $(name)
+
 wire: ## Generate Wire DI code
 	@echo "Generating Wire code..."
 	@cd internal/wire && go generate .
@@ -78,6 +91,9 @@ mockery: ## Generate all mocks for usecase and pkg packages
 	@mockery --config codegen/.mockery_challenge.yml
 	@mockery --config codegen/.mockery_competition.yml
 	@mockery --config codegen/.mockery_email.yml
+	@mockery --config codegen/.mockery_settings.yml
+	@mockery --config codegen/.mockery_notification.yml
+	@mockery --config codegen/.mockery_page.yml
 	@mockery --config codegen/.mockery_pkg.yml
 	@echo "All mocks generated"
 
@@ -99,7 +115,16 @@ generate-mocks-email: ## Generate mocks for email package
 generate-mocks-pkg: ## Generate mocks for pkg interfaces used in pkg tests (mailer)
 	@mockery --config codegen/.mockery_pkg.yml
 
-generate: oapi-codegen sqlc mockery ## Run all code generation (OpenAPI, sqlc, mocks)
+generate-mocks-settings: ## Generate mocks for settings package
+	@mockery --config codegen/.mockery_settings.yml
+
+generate-mocks-notification: ## Generate mocks for notification package
+	@mockery --config codegen/.mockery_notification.yml
+
+generate-mocks-page: ## Generate mocks for page package
+	@mockery --config codegen/.mockery_page.yml
+
+generate: oapi-codegen sqlc mockery wire ## Run all code generation (OpenAPI, sqlc, mocks)
 	@echo "All code generation completed"
 
 build: oapi-codegen ## Build the binary
@@ -126,11 +151,13 @@ clean: ## Clean generated files
 
 ##@ Tests
 
+TEST_RACE_TIMEOUT ?= 15m
+
 test: test-race
 
-test-race: ## Run all tests with race detection
+test-race: ## Run all tests with race detection (default)
 	@echo "Running all tests (race)..."
-	@go test -race ./...
+	@go test -race -timeout $(TEST_RACE_TIMEOUT) ./...
 
 test-no-race: ## Run all tests without race (faster)
 	@echo "Running all tests (no race)..."
@@ -150,7 +177,7 @@ test-integration: ## Run integration tests (no race)
 
 test-integration-race: ## Run integration tests with race detection
 	@echo "Running integration tests (race)..."
-	@go test -race -v ./integration-test/...
+	@go test -race -timeout $(TEST_RACE_TIMEOUT) -v ./integration-test/...
 
 test-e2e: ## Run E2E tests (no race)
 	@echo "Running E2E tests..."
@@ -158,7 +185,7 @@ test-e2e: ## Run E2E tests (no race)
 
 test-e2e-race: ## Run E2E tests with race detection
 	@echo "Running E2E tests (race)..."
-	@go test -race -v ./e2e-test/...
+	@go test -race -timeout $(TEST_RACE_TIMEOUT) -v ./e2e-test/...
 
 test-usecase: ## Run all usecase tests with race
 	@echo "Running usecase tests (race)..."
@@ -207,11 +234,31 @@ test-usecase-email-race: ## Run email usecase tests with race
 test-usecase-email-no-race: ## Run email usecase tests without race
 	@go test -v ./internal/usecase/email/...
 
-test-coverage: ## Generate coverage report (all packages, no race)
-	@echo "Running tests with coverage..."
-	@go test -coverprofile=coverage.out ./...
+COVERPKG = ./cmd/...,./config/...,./internal/...,./pkg/...
+
+COVERPKG_TESTABLE = ./internal/controller/...,./internal/usecase,./internal/usecase/challenge,./internal/usecase/competition,./internal/usecase/email,./internal/usecase/settings,./internal/usecase/notification,./internal/usecase/page,./internal/usecase/team,./internal/usecase/user,./internal/repo/persistent,./internal/storage,./config/...,./pkg/crypto,./pkg/httputil,./pkg/jwt,./pkg/mailer,./pkg/redis,./pkg/validator,./pkg/vault,./pkg/websocket
+
+test-coverage: ## Generate coverage report (unit + integration + e2e, -coverpkg to include production code)
+	@echo "Running all tests with coverage (requires Docker for e2e)..."
+	@go test -coverprofile=coverage.out -coverpkg=$(COVERPKG) ./...
+	@go tool cover -func=coverage.out | tail -1
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report saved to coverage.html"
+
+test-coverage-unit: ## Coverage from unit tests only (fast, no Docker)
+	@echo "Running unit tests with coverage..."
+	@go test -coverprofile=coverage_unit.out -coverpkg=$(COVERPKG) ./internal/... ./pkg/... ./config/...
+	@go tool cover -func=coverage_unit.out | tail -1
+	@go tool cover -html=coverage_unit.out -o coverage.html
+	@echo "Coverage report saved to coverage.html (unit only)"
+
+test-coverage-testable: ## Coverage only for testable packages (excludes cmd, wire, openapi, entity, mocks, sqlc, logger, migrator, postgres, seed). Goal: 80%%
+	@echo "Running all tests with coverage (testable packages only, requires Docker for e2e)..."
+	@go test -coverprofile=coverage_testable.out -coverpkg=$(COVERPKG_TESTABLE) ./...
+	@echo "--- Coverage (testable packages) ---"
+	@go tool cover -func=coverage_testable.out
+	@go tool cover -html=coverage_testable.out -o coverage_testable.html
+	@echo "Report: coverage_testable.html"
 
 # QUALITY ==============================================================================================================
 

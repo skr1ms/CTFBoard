@@ -32,6 +32,7 @@ func TestAppSettingsRepo_Get_Success(t *testing.T) {
 }
 
 func TestAppSettingsRepo_Update_Success(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
@@ -68,6 +69,7 @@ func TestAppSettingsRepo_Update_Success(t *testing.T) {
 }
 
 func TestAppSettingsRepo_Update_ScoreboardVisibility(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
@@ -86,6 +88,7 @@ func TestAppSettingsRepo_Update_ScoreboardVisibility(t *testing.T) {
 }
 
 func TestAppSettingsRepo_Update_InvalidScoreboardVisibility_Error(t *testing.T) {
+	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)

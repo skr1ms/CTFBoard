@@ -30,3 +30,16 @@ func ParseAuthUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 func GetClientIP(r *http.Request) string {
 	return httputil.GetClientIP(r)
 }
+
+func ParseUUID(w http.ResponseWriter, r *http.Request, id string) (uuid.UUID, bool) {
+	if id == "" {
+		RenderInvalidID(w, r)
+		return uuid.Nil, false
+	}
+	parsed, err := uuid.Parse(id)
+	if err != nil {
+		RenderInvalidID(w, r)
+		return uuid.Nil, false
+	}
+	return parsed, true
+}

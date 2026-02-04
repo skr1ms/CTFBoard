@@ -500,6 +500,148 @@ func (_c *MockSolveRepository_GetScoreboard_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// GetScoreboardByBracket provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
+	ret := _mock.Called(ctx, bracketID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetScoreboardByBracket")
+	}
+
+	var r0 []*repo.ScoreboardEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID) ([]*repo.ScoreboardEntry, error)); ok {
+		return returnFunc(ctx, bracketID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID) []*repo.ScoreboardEntry); ok {
+		r0 = returnFunc(ctx, bracketID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repo.ScoreboardEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, bracketID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetScoreboardByBracket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetScoreboardByBracket'
+type MockSolveRepository_GetScoreboardByBracket_Call struct {
+	*mock.Call
+}
+
+// GetScoreboardByBracket is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bracketID *uuid.UUID
+func (_e *MockSolveRepository_Expecter) GetScoreboardByBracket(ctx interface{}, bracketID interface{}) *MockSolveRepository_GetScoreboardByBracket_Call {
+	return &MockSolveRepository_GetScoreboardByBracket_Call{Call: _e.mock.On("GetScoreboardByBracket", ctx, bracketID)}
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracket_Call) Run(run func(ctx context.Context, bracketID *uuid.UUID)) *MockSolveRepository_GetScoreboardByBracket_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(*uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracket_Call) Return(scoreboardEntrys []*repo.ScoreboardEntry, err error) *MockSolveRepository_GetScoreboardByBracket_Call {
+	_c.Call.Return(scoreboardEntrys, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracket_Call) RunAndReturn(run func(ctx context.Context, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardByBracket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetScoreboardByBracketFrozen provides a mock function for the type MockSolveRepository
+func (_mock *MockSolveRepository) GetScoreboardByBracketFrozen(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
+	ret := _mock.Called(ctx, freezeTime, bracketID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetScoreboardByBracketFrozen")
+	}
+
+	var r0 []*repo.ScoreboardEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, *uuid.UUID) ([]*repo.ScoreboardEntry, error)); ok {
+		return returnFunc(ctx, freezeTime, bracketID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, *uuid.UUID) []*repo.ScoreboardEntry); ok {
+		r0 = returnFunc(ctx, freezeTime, bracketID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repo.ScoreboardEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, *uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, freezeTime, bracketID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSolveRepository_GetScoreboardByBracketFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetScoreboardByBracketFrozen'
+type MockSolveRepository_GetScoreboardByBracketFrozen_Call struct {
+	*mock.Call
+}
+
+// GetScoreboardByBracketFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - freezeTime time.Time
+//   - bracketID *uuid.UUID
+func (_e *MockSolveRepository_Expecter) GetScoreboardByBracketFrozen(ctx interface{}, freezeTime interface{}, bracketID interface{}) *MockSolveRepository_GetScoreboardByBracketFrozen_Call {
+	return &MockSolveRepository_GetScoreboardByBracketFrozen_Call{Call: _e.mock.On("GetScoreboardByBracketFrozen", ctx, freezeTime, bracketID)}
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracketFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID)) *MockSolveRepository_GetScoreboardByBracketFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		var arg2 *uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(*uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracketFrozen_Call) Return(scoreboardEntrys []*repo.ScoreboardEntry, err error) *MockSolveRepository_GetScoreboardByBracketFrozen_Call {
+	_c.Call.Return(scoreboardEntrys, err)
+	return _c
+}
+
+func (_c *MockSolveRepository_GetScoreboardByBracketFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardByBracketFrozen_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetScoreboardFrozen provides a mock function for the type MockSolveRepository
 func (_mock *MockSolveRepository) GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*repo.ScoreboardEntry, error) {
 	ret := _mock.Called(ctx, freezeTime)

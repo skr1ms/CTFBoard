@@ -1,0 +1,22 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      FieldRepository:
+        config:
+          dir: "internal/usecase/settings/mocks"
+          filename: "FieldRepository.go"
+          pkgname: "mocks"
+          structname: "MockFieldRepository"
+      
+      AppSettingsRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "AppSettingsRepository.go"
+          pkgname: "mocks"
+          structname: "MockAppSettingsRepository"

@@ -50,6 +50,24 @@ func toScoreboardEntryFrozen(row sqlc.GetScoreboardFrozenRow) *repo.ScoreboardEn
 	}
 }
 
+func toScoreboardEntryByBracket(row sqlc.GetScoreboardByBracketRow) *repo.ScoreboardEntry {
+	return &repo.ScoreboardEntry{
+		TeamID:   row.TeamID,
+		TeamName: row.TeamName,
+		Points:   int(row.Points),
+		SolvedAt: timeFromNullable(row.SolvedAt),
+	}
+}
+
+func toScoreboardEntryByBracketFrozen(row sqlc.GetScoreboardByBracketFrozenRow) *repo.ScoreboardEntry {
+	return &repo.ScoreboardEntry{
+		TeamID:   row.TeamID,
+		TeamName: row.TeamName,
+		Points:   int(row.Points),
+		SolvedAt: timeFromNullable(row.SolvedAt),
+	}
+}
+
 func toFirstBloodEntry(row sqlc.GetFirstBloodRow) *repo.FirstBloodEntry {
 	return &repo.FirstBloodEntry{
 		UserID:   row.UserID,
@@ -139,6 +157,34 @@ func (r *SolveRepo) GetScoreboardFrozen(ctx context.Context, freezeTime time.Tim
 	out := make([]*repo.ScoreboardEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toScoreboardEntryFrozen(row))
+	}
+	return out, nil
+}
+
+func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
+	rows, err := r.q.GetScoreboardByBracket(ctx, bracketID)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracket: %w", err)
+	}
+	out := make([]*repo.ScoreboardEntry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toScoreboardEntryByBracket(row))
+	}
+	return out, nil
+}
+
+func (r *SolveRepo) GetScoreboardByBracketFrozen(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
+	rows, err := r.q.GetScoreboardByBracketFrozen(ctx, sqlc.GetScoreboardByBracketFrozenParams{
+		SolvedAt:  &freezeTime,
+		CreatedAt: &freezeTime,
+		BracketID: bracketID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracketFrozen: %w", err)
+	}
+	out := make([]*repo.ScoreboardEntry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toScoreboardEntryByBracketFrozen(row))
 	}
 	return out, nil
 }

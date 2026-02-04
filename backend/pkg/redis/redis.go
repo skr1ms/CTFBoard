@@ -15,6 +15,14 @@ const (
 	KeyAppSettings      = "app_settings"
 )
 
+func KeyScoreboardBracket(bracketID string) string {
+	return "scoreboard:bracket:" + bracketID
+}
+
+func KeyScoreboardBracketFrozen(bracketID string) string {
+	return "scoreboard:frozen:bracket:" + bracketID
+}
+
 func New(host, port, password string) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:        fmt.Sprintf("%s:%s", host, port),

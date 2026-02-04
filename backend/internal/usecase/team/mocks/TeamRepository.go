@@ -674,6 +674,69 @@ func (_c *MockTeamRepository_HardDeleteTeams_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// SetBracket provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID, bracketID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetBracket")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID, bracketID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_SetBracket_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetBracket'
+type MockTeamRepository_SetBracket_Call struct {
+	*mock.Call
+}
+
+// SetBracket is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - bracketID *uuid.UUID
+func (_e *MockTeamRepository_Expecter) SetBracket(ctx interface{}, teamID interface{}, bracketID interface{}) *MockTeamRepository_SetBracket_Call {
+	return &MockTeamRepository_SetBracket_Call{Call: _e.mock.On("SetBracket", ctx, teamID, bracketID)}
+}
+
+func (_c *MockTeamRepository_SetBracket_Call) Run(run func(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID)) *MockTeamRepository_SetBracket_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(*uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_SetBracket_Call) Return(err error) *MockTeamRepository_SetBracket_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_SetBracket_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error) *MockTeamRepository_SetBracket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetHidden provides a mock function for the type MockTeamRepository
 func (_mock *MockTeamRepository) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
 	ret := _mock.Called(ctx, teamID, hidden)

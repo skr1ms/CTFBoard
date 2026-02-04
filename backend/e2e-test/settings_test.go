@@ -4,13 +4,15 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).
 func TestSettings_Admin_Get(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings")
 
 	resp := h.GetAdminSettings(tokenAdmin)
@@ -25,8 +27,9 @@ func TestSettings_Admin_Get(t *testing.T) {
 
 // PUT /admin/settings: admin updates app settings; GET reflects new values.
 func TestSettings_Admin_Put(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings_put")
 
 	body := map[string]any{
@@ -56,8 +59,9 @@ func TestSettings_Admin_Put(t *testing.T) {
 
 // GET /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Get_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_set_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_set")
@@ -67,8 +71,9 @@ func TestSettings_Admin_Get_Forbidden(t *testing.T) {
 
 // PUT /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Put_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_set_put_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put_set")

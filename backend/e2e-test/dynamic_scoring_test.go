@@ -4,13 +4,15 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // Dynamic scoring: first solver gets initial_value; second solver gets decayed score (min_value) and scoreboard reflects it.
 func TestDynamicScoring_Flow(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
@@ -37,7 +39,7 @@ func TestDynamicScoring_Flow(t *testing.T) {
 	h.SubmitFlag(user2, challID, "flag{dyn}", http.StatusOK)
 
 	scoreboard := h.GetScoreboard()
-	require.Equal(t, http.StatusOK, scoreboard.StatusCode())
+	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard dynamic")
 	require.NotNil(t, scoreboard.JSON200)
 	var user2Points int
 	for _, entry := range *scoreboard.JSON200 {
@@ -53,8 +55,9 @@ func TestDynamicScoring_Flow(t *testing.T) {
 
 // POST /challenges/{ID}/submit: wrong flag returns 400 Bad Request.
 func TestDynamicScoring_InvalidFlag_Returns400(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic_err")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Dyn Err", "description": "x", "flag": "flag{dyn_err}",

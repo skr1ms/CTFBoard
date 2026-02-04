@@ -2,6 +2,23 @@ package entity
 
 import "time"
 
+type ConfigValueType string
+
+const (
+	ConfigTypeString ConfigValueType = "string"
+	ConfigTypeInt    ConfigValueType = "int"
+	ConfigTypeBool   ConfigValueType = "bool"
+	ConfigTypeJSON   ConfigValueType = "json"
+)
+
+type Config struct {
+	Key         string          `json:"key"`
+	Value       string          `json:"value"`
+	ValueType   ConfigValueType `json:"value_type"`
+	Description string          `json:"description,omitempty"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
 const (
 	ScoreboardVisiblePublic     = "public"
 	ScoreboardVisibleHidden     = "hidden"

@@ -30,6 +30,17 @@ type TestFixture struct {
 	StatisticsRepo        *persistent.StatisticsRepository
 	BackupRepo            *persistent.BackupRepo
 	AppSettingsRepo       *persistent.AppSettingsRepo
+	TagRepo               *persistent.TagRepo
+	CommentRepo           *persistent.CommentRepo
+	BracketRepo           *persistent.BracketRepo
+	ConfigRepo            *persistent.ConfigRepo
+	FieldRepo             *persistent.FieldRepo
+	FieldValueRepo        *persistent.FieldValueRepo
+	NotificationRepo      *persistent.NotificationRepo
+	PageRepo              *persistent.PageRepo
+	RatingRepo            *persistent.RatingRepo
+	SubmissionRepo        *persistent.SubmissionRepo
+	APITokenRepo          *persistent.APITokenRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -50,6 +61,17 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		StatisticsRepo:        persistent.NewStatisticsRepository(Pool),
 		BackupRepo:            persistent.NewBackupRepo(Pool),
 		AppSettingsRepo:       persistent.NewAppSettingsRepo(Pool),
+		TagRepo:               persistent.NewTagRepo(Pool),
+		CommentRepo:           persistent.NewCommentRepo(Pool),
+		BracketRepo:           persistent.NewBracketRepo(Pool),
+		ConfigRepo:            persistent.NewConfigRepo(Pool),
+		FieldRepo:             persistent.NewFieldRepo(Pool),
+		FieldValueRepo:        persistent.NewFieldValueRepo(Pool),
+		NotificationRepo:      persistent.NewNotificationRepo(Pool),
+		PageRepo:              persistent.NewPageRepo(Pool),
+		RatingRepo:            persistent.NewRatingRepo(Pool),
+		SubmissionRepo:        persistent.NewSubmissionRepo(Pool),
+		APITokenRepo:          persistent.NewAPITokenRepo(Pool),
 	}
 }
 
@@ -214,6 +236,98 @@ func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.AppSettings {
 	settings, err := f.AppSettingsRepo.Get(ctx)
 	require.NoError(t, err)
 	return settings
+}
+
+func (f *TestFixture) CreateTag(t *testing.T, suffix string) *entity.Tag {
+	t.Helper()
+	ctx := context.Background()
+	tag := &entity.Tag{
+		Name:  "tag_" + suffix,
+		Color: "#ff0000",
+	}
+	err := f.TagRepo.Create(ctx, tag)
+	require.NoError(t, err)
+	gotTag, err := f.TagRepo.GetByName(ctx, tag.Name)
+	require.NoError(t, err)
+	tag.ID = gotTag.ID
+	return tag
+}
+
+func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID, content string) *entity.Comment {
+	t.Helper()
+	ctx := context.Background()
+	comment := &entity.Comment{
+		UserID:      userID,
+		ChallengeID: challengeID,
+		Content:     content,
+	}
+	err := f.CommentRepo.Create(ctx, comment)
+	require.NoError(t, err)
+	return comment
+}
+
+func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *entity.Bracket {
+	t.Helper()
+	ctx := context.Background()
+	bracket := &entity.Bracket{
+		Name:        "bracket_" + suffix,
+		Description: "desc",
+		IsDefault:   false,
+	}
+	err := f.BracketRepo.Create(ctx, bracket)
+	require.NoError(t, err)
+	got, err := f.BracketRepo.GetByName(ctx, bracket.Name)
+	require.NoError(t, err)
+	bracket.ID = got.ID
+	return bracket
+}
+
+func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *entity.Page {
+	t.Helper()
+	ctx := context.Background()
+	page := &entity.Page{
+		Title:      "Page " + suffix,
+		Slug:       "page-" + suffix,
+		Content:    "content",
+		IsDraft:    isDraft,
+		OrderIndex: 0,
+	}
+	err := f.PageRepo.Create(ctx, page)
+	require.NoError(t, err)
+	got, err := f.PageRepo.GetBySlug(ctx, page.Slug)
+	require.NoError(t, err)
+	page.ID = got.ID
+	return page
+}
+
+func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *entity.Notification {
+	t.Helper()
+	ctx := context.Background()
+	notif := &entity.Notification{
+		Title:    "Notif " + suffix,
+		Content:  "content",
+		Type:     entity.NotificationInfo,
+		IsPinned: false,
+		IsGlobal: true,
+	}
+	err := f.NotificationRepo.Create(ctx, notif)
+	require.NoError(t, err)
+	return notif
+}
+
+func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType entity.EntityType) *entity.Field {
+	t.Helper()
+	ctx := context.Background()
+	field := &entity.Field{
+		Name:       "field_" + suffix,
+		FieldType:  entity.FieldTypeText,
+		EntityType: entityType,
+		Required:   false,
+		OrderIndex: 0,
+	}
+	err := f.FieldRepo.Create(ctx, field)
+	require.NoError(t, err)
+	return field
 }
 
 func (f *TestFixture) ResetAppSettings(t *testing.T) {

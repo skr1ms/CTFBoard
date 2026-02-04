@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/vault"
+	"golang.org/x/sync/errgroup"
 )
 
 type (
@@ -194,100 +196,69 @@ func New() (*Config, error) {
 		l.Info("Config: attempting to fetch secrets from Vault")
 		vaultClient, err := vault.New(vaultAddr, vaultToken)
 		if err == nil {
-			// Database secrets
-			dbSecrets, err := vaultClient.GetSecret("ctfboard/database")
-			if err == nil {
-				l.Info("Config: database secrets loaded from Vault")
-				if u, ok := dbSecrets[entity.RoleUser].(string); ok && u != "" {
+			g, _ := errgroup.WithContext(context.Background())
+
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/database", "database", "using env", func(s map[string]any) {
+				if u, ok := s[entity.RoleUser].(string); ok && u != "" {
 					postgresUser = u
 				}
-				if p, ok := dbSecrets["password"].(string); ok && p != "" {
+				if p, ok := s["password"].(string); ok && p != "" {
 					postgresPassword = p
 				}
-				if db, ok := dbSecrets["dbname"].(string); ok && db != "" {
+				if db, ok := s["dbname"].(string); ok && db != "" {
 					postgresDB = db
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load database secrets from Vault, using env")
-			}
+			}))
 
-			// Redis secrets
-			redisSecrets, err := vaultClient.GetSecret("ctfboard/redis")
-			if err == nil {
-				l.Info("Config: redis secrets loaded from Vault")
-				if p, ok := redisSecrets["password"].(string); ok && p != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/redis", "redis", "using env", func(s map[string]any) {
+				if p, ok := s["password"].(string); ok && p != "" {
 					redisPassword = p
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load redis secrets from Vault, using env")
-			}
+			}))
 
-			// JWT secrets
-			jwtSecrets, err := vaultClient.GetSecret("ctfboard/jwt")
-			if err == nil {
-				l.Info("Config: JWT secrets loaded from Vault")
-				if access, ok := jwtSecrets["access_secret"].(string); ok && access != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/jwt", "jwt", "using env", func(s map[string]any) {
+				if access, ok := s["access_secret"].(string); ok && access != "" {
 					jwtAccessSecret = access
 				}
-				if refresh, ok := jwtSecrets["refresh_secret"].(string); ok && refresh != "" {
+				if refresh, ok := s["refresh_secret"].(string); ok && refresh != "" {
 					jwtRefreshSecret = refresh
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load jwt secrets from Vault, using env")
-			}
+			}))
 
-			// Resend secrets
-			resendSecrets, err := vaultClient.GetSecret("ctfboard/resend")
-			if err == nil {
-				l.Info("Config: Resend secrets loaded from Vault")
-				if k, ok := resendSecrets["api_key"].(string); ok && k != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/resend", "Resend", "using env (or not configured)", func(s map[string]any) {
+				if k, ok := s["api_key"].(string); ok && k != "" {
 					resendAPIKey = k
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load resend secrets from Vault, using env (or not configured)")
-			}
+			}))
 
-			// Storage secrets
-			storageSecrets, err := vaultClient.GetSecret("ctfboard/storage")
-			if err == nil {
-				l.Info("Config: Storage secrets loaded from Vault")
-				if k, ok := storageSecrets["access_key"].(string); ok && k != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/storage", "Storage", "(optional)", func(s map[string]any) {
+				if k, ok := s["access_key"].(string); ok && k != "" {
 					s3AccessKey = k
 				}
-				if s, ok := storageSecrets["secret_key"].(string); ok && s != "" {
-					s3SecretKey = s
+				if sec, ok := s["secret_key"].(string); ok && sec != "" {
+					s3SecretKey = sec
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load storage secrets from Vault (optional)")
-			}
+			}))
 
-			// App secrets (encryption keys)
-			appSecrets, err := vaultClient.GetSecret("ctfboard/app")
-			if err == nil {
-				l.Info("Config: app secrets loaded from Vault")
-				if key, ok := appSecrets["flag_encryption_key"].(string); ok && key != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/app", "app", "using env", func(s map[string]any) {
+				if key, ok := s["flag_encryption_key"].(string); ok && key != "" {
 					flagEncryptionKey = key
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load app secrets from Vault, using env")
-			}
+			}))
 
-			// Admin secrets (default admin credentials)
-			adminSecrets, err := vaultClient.GetSecret("ctfboard/admin")
-			if err == nil {
-				l.Info("Config: admin secrets loaded from Vault")
-				if u, ok := adminSecrets["username"].(string); ok && u != "" {
+			g.Go(vaultFetch(vaultClient, l, "ctfboard/admin", "admin", "using env (optional)", func(s map[string]any) {
+				if u, ok := s["username"].(string); ok && u != "" {
 					adminUsername = u
 				}
-				if e, ok := adminSecrets["email"].(string); ok && e != "" {
+				if e, ok := s["email"].(string); ok && e != "" {
 					adminEmail = e
 				}
-				if p, ok := adminSecrets["password"].(string); ok && p != "" {
+				if p, ok := s["password"].(string); ok && p != "" {
 					adminPassword = p
 				}
-			} else {
-				l.WithError(err).Warn("Config: failed to load admin secrets from Vault, using env (optional)")
-			}
+			}))
+
+			_ = g.Wait()
 		} else {
 			l.WithError(err).Error("Config: failed to initialize vault client")
 		}

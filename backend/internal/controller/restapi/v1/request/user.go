@@ -9,7 +9,7 @@ func LoginRequestCredentials(req *openapi.RequestLoginRequest) (email, password 
 	return email, req.Password
 }
 
-func RegisterRequestCredentials(req *openapi.RequestRegisterRequest) (username, email, password string) {
+func RegisterRequestCredentials(req *openapi.RequestRegisterRequest) (username, email, password string, customFields map[string]string) {
 	if req.Username != nil {
 		username = *req.Username
 	}
@@ -19,5 +19,8 @@ func RegisterRequestCredentials(req *openapi.RequestRegisterRequest) (username, 
 	if req.Password != nil {
 		password = *req.Password
 	}
-	return username, email, password
+	if req.CustomFields != nil {
+		customFields = *req.CustomFields
+	}
+	return username, email, password, customFields
 }

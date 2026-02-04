@@ -53,6 +53,28 @@ LEFT JOIN (
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
 
+-- name: GetScoreboardByBracket :many
+SELECT
+    t.id AS team_id,
+    t.name AS team_name,
+    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
+    solve_points.last_solved AS solved_at
+FROM teams t
+LEFT JOIN (
+    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    FROM solves s
+    JOIN challenges c ON c.id = s.challenge_id
+    GROUP BY s.team_id
+) solve_points ON solve_points.team_id = t.id
+LEFT JOIN (
+    SELECT team_id, SUM(value)::int AS total
+    FROM awards
+    GROUP BY team_id
+) award_points ON award_points.team_id = t.id
+WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
+  AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
+
 -- name: GetScoreboardFrozen :many
 SELECT
     t.id AS team_id,
@@ -74,6 +96,30 @@ LEFT JOIN (
     GROUP BY team_id
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
+
+-- name: GetScoreboardByBracketFrozen :many
+SELECT
+    t.id AS team_id,
+    t.name AS team_name,
+    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
+    solve_points.last_solved AS solved_at
+FROM teams t
+LEFT JOIN (
+    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    FROM solves s
+    JOIN challenges c ON c.id = s.challenge_id
+    WHERE s.solved_at <= $1
+    GROUP BY s.team_id
+) solve_points ON solve_points.team_id = t.id
+LEFT JOIN (
+    SELECT team_id, SUM(value)::int AS total
+    FROM awards
+    WHERE awards.created_at <= $2
+    GROUP BY team_id
+) award_points ON award_points.team_id = t.id
+WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
+  AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
 ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
 
 -- name: GetTeamScore :one

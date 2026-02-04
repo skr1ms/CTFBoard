@@ -23,9 +23,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	}
 
 	data, err := h.backupUC.Export(r.Context(), opts)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetAdminExport")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetAdminExport", "Export") {
 		return
 	}
 
@@ -53,9 +51,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	}
 
 	rc, err := h.backupUC.ExportZIP(r.Context(), opts)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetAdminExportZip")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetAdminExportZip", "ExportZIP") {
 		return
 	}
 	defer rc.Close()
@@ -102,9 +98,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 
 	reader := bytes.NewReader(data)
 	result, err := h.backupUC.ImportZIP(r.Context(), reader, header.Size, opts)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminImport")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostAdminImport", "ImportZIP") {
 		return
 	}
 

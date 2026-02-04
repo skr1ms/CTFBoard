@@ -1,17 +1,20 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /statistics/general: returns user_count, team_count, challenge_count, solve_count (public, no auth).
 func TestStatistics_General(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_stats")
 	h.CreateBasicChallenge(tokenAdmin, "Stats Chall", "flag{stats}", 100)
@@ -34,8 +37,9 @@ func TestStatistics_General(t *testing.T) {
 
 // GET /statistics/challenges: returns array of challenge stats (id, title, points, solve_count, category); public.
 func TestStatistics_Challenges(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_stats_chall")
 	h.CreateBasicChallenge(tokenAdmin, "Chall A", "flag{a}", 50)
@@ -60,8 +64,9 @@ func TestStatistics_Challenges(t *testing.T) {
 
 // GET /statistics/scoreboard: returns scoreboard history entries; optional limit query; public.
 func TestStatistics_Scoreboard(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_stats_sb")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "SB Chall", "flag{sb}", 100)
@@ -78,8 +83,9 @@ func TestStatistics_Scoreboard(t *testing.T) {
 
 // GET /scoreboard/graph: returns range and teams with timelines; optional top query; public.
 func TestStatistics_ScoreboardGraph(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_graph")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Graph Chall", "flag{graph}", 100)
@@ -98,8 +104,9 @@ func TestStatistics_ScoreboardGraph(t *testing.T) {
 
 // GET /statistics/challenges/{id}: returns challenge detail stats (id, title, category, points, solve_count, first_blood, solves); public.
 func TestStatistics_ChallengeDetail_Success(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_detail")
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
@@ -141,9 +148,24 @@ func TestStatistics_ChallengeDetail_Success(t *testing.T) {
 
 // GET /statistics/challenges/{id}: 404 when challenge does not exist.
 func TestStatistics_ChallengeDetail_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	h.SetupCompetition("admin_detail_404")
 	h.GetStatisticsChallengesIdExpectStatus(uuid.New().String(), http.StatusNotFound)
+}
+
+// GET /statistics/challenges/{id}: invalid UUID returns 400.
+func TestStatistics_ChallengeDetail_InvalidID_Returns400(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	_ = helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/statistics/challenges/not-a-uuid", nil)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

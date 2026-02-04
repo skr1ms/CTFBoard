@@ -31,7 +31,10 @@ type Hub struct {
 	redisChannel string
 }
 
-func NewHub(redisClient *redis.Client, redisChannel string) *Hub {
+func NewHub(
+	redisClient *redis.Client,
+	redisChannel string,
+) *Hub {
 	return &Hub{
 		clients:      make(map[*Client]bool),
 		broadcast:    make(chan broadcastItem, 256),
@@ -42,9 +45,11 @@ func NewHub(redisClient *redis.Client, redisChannel string) *Hub {
 	}
 }
 
-func (h *Hub) Run() {
+func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case client := <-h.register:
 			h.clients[client] = true
 			atomic.AddInt64(&h.clientCount, 1)
@@ -74,7 +79,10 @@ func (h *Hub) unregisterClient(client *Client) {
 
 func (h *Hub) broadcastToClients(item broadcastItem) {
 	for client := range h.clients {
-		client.send <- item.data
+		select {
+		case client.send <- item.data:
+		default:
+		}
 	}
 	if item.done != nil {
 		close(item.done)

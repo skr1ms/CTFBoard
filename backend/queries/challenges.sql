@@ -18,11 +18,25 @@ SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.mi
 FROM challenges c
 WHERE c.is_hidden = false;
 
+-- name: ListChallengesByTag :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
+FROM challenges c
+JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
+WHERE c.is_hidden = false;
+
 -- name: ListChallengesForTeam :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1
+WHERE c.is_hidden = false;
+
+-- name: ListChallengesForTeamByTag :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
+    (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
+FROM challenges c
+JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
+LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2
 WHERE c.is_hidden = false;
 
 -- name: UpdateChallenge :exec

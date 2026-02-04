@@ -85,7 +85,7 @@ func TestAwardRepo_Create_Error_CancelledContext(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAwardRepo_GetByTeamID(t *testing.T) {
+func TestAwardRepo_GetByTeamID_Success(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -115,7 +115,20 @@ func TestAwardRepo_GetByTeamID(t *testing.T) {
 	assert.Equal(t, admin.ID, *awards[0].CreatedBy)
 }
 
-func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
+func TestAwardRepo_GetByTeamID_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	_, team := f.CreateUserWithTeam(t, "team_get_err")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	awards, err := f.AwardRepo.GetByTeamID(ctx, team.ID)
+	assert.Error(t, err)
+	assert.Nil(t, awards)
+}
+
+func TestAwardRepo_GetTeamTotalAwards_Success(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -139,4 +152,16 @@ func TestAwardRepo_GetTeamTotalAwards(t *testing.T) {
 	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 70, total)
+}
+
+func TestAwardRepo_GetTeamTotalAwards_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	_, team := f.CreateUserWithTeam(t, "team_total_err")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
+	assert.Error(t, err)
 }

@@ -3,8 +3,6 @@ package v1
 import (
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -22,9 +20,7 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	email, password := request.LoginRequestCredentials(&req)
 	tokenPair, err := h.userUC.Login(r.Context(), email, password)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAuthLogin")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostAuthLogin", "Login") {
 		return
 	}
 
@@ -41,11 +37,9 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, email, password := request.RegisterRequestCredentials(&req)
-	user, err := h.userUC.Register(r.Context(), username, email, password)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAuthRegister")
-		handleError(w, r, err)
+	username, email, password, customFields := request.RegisterRequestCredentials(&req)
+	user, err := h.userUC.Register(r.Context(), username, email, password, customFields)
+	if h.OnError(w, r, err, "PostAuthRegister", "Register") {
 		return
 	}
 
@@ -59,9 +53,8 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 // Get current user info
 // (GET /auth/me)
 func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
@@ -71,16 +64,13 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 // Get user profile
 // (GET /users/{ID})
 func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
-	useruuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	useruuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
 	profile, err := h.userUC.GetProfile(r.Context(), useruuid)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetUsersID")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetUsersID", "GetProfile") {
 		return
 	}
 

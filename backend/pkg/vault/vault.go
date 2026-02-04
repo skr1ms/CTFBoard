@@ -13,11 +13,18 @@ type Client struct {
 	mountPath string
 }
 
-func New(addr, token string) (*Client, error) {
+func New(
+	addr string,
+	token string,
+) (*Client, error) {
 	return NewWithMount(addr, token, "secret")
 }
 
-func NewWithMount(addr, token, mountPath string) (*Client, error) {
+func NewWithMount(
+	addr string,
+	token string,
+	mountPath string,
+) (*Client, error) {
 	config := vault.DefaultConfig()
 	config.Address = addr
 

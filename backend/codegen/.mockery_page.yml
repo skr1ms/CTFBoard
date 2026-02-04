@@ -1,0 +1,15 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      PageRepository:
+        config:
+          dir: "internal/usecase/page/mocks"
+          filename: "PageRepository.go"
+          pkgname: "mocks"
+          structname: "MockPageRepository"

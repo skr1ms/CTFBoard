@@ -5,13 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /challenges/{ID}/first-blood: first solver is credited as first blood; response contains username/team.
 func TestFirstBlood_Display(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("adminfb")
 
@@ -38,10 +40,11 @@ func TestFirstBlood_Display(t *testing.T) {
 	h.AssertFirstBlood(challengeID, "fbuser1", "fbuser1")
 }
 
-// GET /challenges/{ID}/first-blood: unsolved challenge returns 404 with "no solves yet".
+// GET /challenges/{ID}/first-blood: unsolved challenge returns 404 with "solve not found".
 func TestFirstBlood_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("adminfb2")
 
@@ -56,13 +59,14 @@ func TestFirstBlood_NotFound(t *testing.T) {
 	resp := h.GetFirstBlood(challengeID, http.StatusNotFound)
 	require.NotNil(t, resp.JSON404)
 	require.NotNil(t, resp.JSON404.Error)
-	require.Equal(t, "no solves yet", *resp.JSON404.Error)
+	require.Equal(t, "solve not found", *resp.JSON404.Error)
 }
 
 // GET /challenges/{ID}/first-blood: invalid challenge ID format returns 400.
 func TestFirstBlood_InvalidID(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, _ = h.SetupCompetition("adminfb3")
 	h.GetFirstBlood("not-a-uuid", http.StatusBadRequest)
 }

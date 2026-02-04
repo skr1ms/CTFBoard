@@ -22,7 +22,9 @@ type CryptoService struct {
 	key []byte
 }
 
-func NewCryptoService(key string) (*CryptoService, error) {
+func NewCryptoService(
+	key string,
+) (*CryptoService, error) {
 	if len(key) != 64 {
 		return nil, errors.New("key must be 64 characters (hex encoded 32 bytes) for AES-256")
 	}

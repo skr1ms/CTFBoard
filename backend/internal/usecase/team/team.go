@@ -697,6 +697,18 @@ func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden b
 	return nil
 }
 
+func (uc *TeamUseCase) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
+	_, err := uc.teamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - SetBracket - GetByID: %w", err)
+	}
+	if err := uc.teamRepo.SetBracket(ctx, teamID, bracketID); err != nil {
+		return fmt.Errorf("TeamUseCase - SetBracket: %w", err)
+	}
+	uc.invalidateScoreboardCache(ctx)
+	return nil
+}
+
 func (uc *TeamUseCase) invalidateScoreboardCache(ctx context.Context) {
 	if uc.redis == nil {
 		return

@@ -26,7 +26,8 @@ func TestSolveUseCase_Create(t *testing.T) {
 	challengeID := uuid.New()
 	solve := h.NewSolve(uuid.New(), teamID, challengeID)
 
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(nil, nil)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
 		if !ok {
@@ -115,7 +116,8 @@ func TestSolveUseCase_Create_AutoDetectTeam(t *testing.T) {
 	challengeID := uuid.New()
 	solve := h.NewSolve(userID, uuid.Nil, challengeID)
 
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
+	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
+	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(nil, nil)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
 		if !ok {
@@ -166,7 +168,7 @@ func TestSolveUseCase_Create_NoTeamError(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrNoTeamSelected))
 }
 
-func TestSolveUseCase_GetScoreboard(t *testing.T) {
+func TestSolveUseCase_GetScoreboard_Success(t *testing.T) {
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSolveUseCase()
@@ -178,10 +180,10 @@ func TestSolveUseCase_GetScoreboard(t *testing.T) {
 
 	redisClient.ExpectGet(redisKeys.KeyScoreboard).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, entityError.ErrCompetitionNotFound)
-	deps.solveRepo.On("GetScoreboard", mock.Anything).Return(entries, nil)
+	deps.solveRepo.On("GetScoreboardByBracket", mock.Anything, (*uuid.UUID)(nil)).Return(entries, nil)
 	redisClient.Regexp().ExpectSet(redisKeys.KeyScoreboard, `.*`, 15*time.Second).SetVal("OK")
 
-	result, err := uc.GetScoreboard(context.Background())
+	result, err := uc.GetScoreboard(context.Background(), nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -203,10 +205,10 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 
 	redisClient.ExpectGet(redisKeys.KeyScoreboardFrozen).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(comp, nil)
-	deps.solveRepo.On("GetScoreboardFrozen", mock.Anything, freezeTime).Return(entries, nil)
+	deps.solveRepo.On("GetScoreboardByBracketFrozen", mock.Anything, freezeTime, (*uuid.UUID)(nil)).Return(entries, nil)
 	redisClient.Regexp().ExpectSet(redisKeys.KeyScoreboardFrozen, `.*`, 15*time.Second).SetVal("OK")
 
-	result, err := uc.GetScoreboard(context.Background())
+	result, err := uc.GetScoreboard(context.Background(), nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -222,16 +224,16 @@ func TestSolveUseCase_GetScoreboard_Error(t *testing.T) {
 	expectedError := assert.AnError
 	redisClient.ExpectGet(redisKeys.KeyScoreboard).SetErr(redis.Nil)
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, entityError.ErrCompetitionNotFound)
-	deps.solveRepo.On("GetScoreboard", mock.Anything).Return(nil, expectedError)
+	deps.solveRepo.On("GetScoreboardByBracket", mock.Anything, (*uuid.UUID)(nil)).Return(nil, expectedError)
 
-	result, err := uc.GetScoreboard(context.Background())
+	result, err := uc.GetScoreboard(context.Background(), nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
-func TestSolveUseCase_GetFirstBlood(t *testing.T) {
+func TestSolveUseCase_GetFirstBlood_Success(t *testing.T) {
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateSolveUseCase()
@@ -255,7 +257,7 @@ func TestSolveUseCase_GetFirstBlood(t *testing.T) {
 	assert.Equal(t, entry.TeamName, result.TeamName)
 }
 
-func TestSolveUseCase_GetFirstBlood_NotFound(t *testing.T) {
+func TestSolveUseCase_GetFirstBlood_Error(t *testing.T) {
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateSolveUseCase()

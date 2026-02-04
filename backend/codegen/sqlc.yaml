@@ -16,6 +16,8 @@ sql:
         overrides:
           - db_type: "pg_catalog.numeric"
             go_type: "float64"
+          - column: "ctf_events.weight"
+            go_type: "float64"
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"

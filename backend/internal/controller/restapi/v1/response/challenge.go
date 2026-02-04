@@ -6,6 +6,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/usecase"
 )
 
 func FromChallenge(c *entity.Challenge) openapi.ResponseChallengeResponse {
@@ -20,18 +21,44 @@ func FromChallenge(c *entity.Challenge) openapi.ResponseChallengeResponse {
 	}
 }
 
-// FromChallengeWithSolved creates ChallengeResponse from ChallengeWithSolved
 func FromChallengeWithSolved(cws *repo.ChallengeWithSolved) openapi.ResponseChallengeResponse {
 	res := FromChallenge(cws.Challenge)
 	res.Solved = ptr(cws.Solved)
 	return res
 }
 
-// FromChallengeList creates list of ChallengeResponse
-func FromChallengeList(items []*repo.ChallengeWithSolved) []openapi.ResponseChallengeResponse {
+func FromChallengeWithTags(cwt *usecase.ChallengeWithTags) openapi.ResponseChallengeResponse {
+	res := FromChallengeWithSolved(cwt.ChallengeWithSolved)
+	if len(cwt.Tags) > 0 {
+		tags := make([]openapi.ResponseTagResponse, len(cwt.Tags))
+		for i, t := range cwt.Tags {
+			tags[i] = FromTag(t)
+		}
+		res.Tags = &tags
+	}
+	return res
+}
+
+func FromChallengeList(items []*usecase.ChallengeWithTags) []openapi.ResponseChallengeResponse {
 	res := make([]openapi.ResponseChallengeResponse, len(items))
 	for i, item := range items {
-		res[i] = FromChallengeWithSolved(item)
+		res[i] = FromChallengeWithTags(item)
+	}
+	return res
+}
+
+func FromTag(t *entity.Tag) openapi.ResponseTagResponse {
+	return openapi.ResponseTagResponse{
+		ID:    ptr(t.ID.String()),
+		Name:  ptr(t.Name),
+		Color: ptr(t.Color),
+	}
+}
+
+func FromTagList(items []*entity.Tag) []openapi.ResponseTagResponse {
+	res := make([]openapi.ResponseTagResponse, len(items))
+	for i, item := range items {
+		res[i] = FromTag(item)
 	}
 	return res
 }

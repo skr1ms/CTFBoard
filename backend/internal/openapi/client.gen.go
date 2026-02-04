@@ -98,6 +98,22 @@ type ClientInterface interface {
 	// GetAdminAwardsTeamTeamID request
 	GetAdminAwardsTeamTeamID(ctx context.Context, teamID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostAdminBracketsWithBody request with any body
+	PostAdminBracketsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminBrackets(ctx context.Context, body PostAdminBracketsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminBracketsID request
+	DeleteAdminBracketsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminBracketsID request
+	GetAdminBracketsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminBracketsIDWithBody request with any body
+	PutAdminBracketsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminBracketsID(ctx context.Context, id string, body PutAdminBracketsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostAdminChallengesWithBody request with any body
 	PostAdminChallengesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -127,11 +143,49 @@ type ClientInterface interface {
 
 	PutAdminCompetition(ctx context.Context, body PutAdminCompetitionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetAdminConfigs request
+	GetAdminConfigs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminConfigsKey request
+	DeleteAdminConfigsKey(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminConfigsKey request
+	GetAdminConfigsKey(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminConfigsKeyWithBody request with any body
+	PutAdminConfigsKeyWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminConfigsKey(ctx context.Context, key string, body PutAdminConfigsKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminCtfEvents request
+	GetAdminCtfEvents(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminCtfEventsWithBody request with any body
+	PostAdminCtfEventsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminCtfEvents(ctx context.Context, body PostAdminCtfEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminCtfEventsIDFinalize request
+	PostAdminCtfEventsIDFinalize(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminExport request
 	GetAdminExport(ctx context.Context, params *GetAdminExportParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAdminExportZip request
 	GetAdminExportZip(ctx context.Context, params *GetAdminExportZipParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminFieldsWithBody request with any body
+	PostAdminFieldsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminFields(ctx context.Context, body PostAdminFieldsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminFieldsID request
+	DeleteAdminFieldsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminFieldsIDWithBody request with any body
+	PutAdminFieldsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminFieldsID(ctx context.Context, id string, body PutAdminFieldsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAdminFilesID request
 	DeleteAdminFilesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -147,6 +201,43 @@ type ClientInterface interface {
 	// PostAdminImportWithBody request with any body
 	PostAdminImportWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostAdminNotificationsWithBody request with any body
+	PostAdminNotificationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminNotifications(ctx context.Context, body PostAdminNotificationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminNotificationsUserUserIDWithBody request with any body
+	PostAdminNotificationsUserUserIDWithBody(ctx context.Context, userID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminNotificationsUserUserID(ctx context.Context, userID string, body PostAdminNotificationsUserUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminNotificationsID request
+	DeleteAdminNotificationsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminNotificationsIDWithBody request with any body
+	PutAdminNotificationsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminNotificationsID(ctx context.Context, id string, body PutAdminNotificationsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminPages request
+	GetAdminPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminPagesWithBody request with any body
+	PostAdminPagesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminPages(ctx context.Context, body PostAdminPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminPagesID request
+	DeleteAdminPagesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminPagesID request
+	GetAdminPagesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminPagesIDWithBody request with any body
+	PutAdminPagesIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminPagesID(ctx context.Context, id string, body PutAdminPagesIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminSettings request
 	GetAdminSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -155,6 +246,34 @@ type ClientInterface interface {
 
 	PutAdminSettings(ctx context.Context, body PutAdminSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetAdminSubmissions request
+	GetAdminSubmissions(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminSubmissionsChallengeChallengeID request
+	GetAdminSubmissionsChallengeChallengeID(ctx context.Context, challengeID string, params *GetAdminSubmissionsChallengeChallengeIDParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminSubmissionsChallengeChallengeIDStats request
+	GetAdminSubmissionsChallengeChallengeIDStats(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminSubmissionsTeamTeamID request
+	GetAdminSubmissionsTeamTeamID(ctx context.Context, teamID string, params *GetAdminSubmissionsTeamTeamIDParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminSubmissionsUserUserID request
+	GetAdminSubmissionsUserUserID(ctx context.Context, userID string, params *GetAdminSubmissionsUserUserIDParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminTagsWithBody request with any body
+	PostAdminTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminTags(ctx context.Context, body PostAdminTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminTagsID request
+	DeleteAdminTagsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminTagsIDWithBody request with any body
+	PutAdminTagsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminTagsID(ctx context.Context, id string, body PutAdminTagsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteAdminTeamsIDBan request
 	DeleteAdminTeamsIDBan(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -162,6 +281,11 @@ type ClientInterface interface {
 	PostAdminTeamsIDBanWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostAdminTeamsIDBan(ctx context.Context, id string, body PostAdminTeamsIDBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchAdminTeamsIDBracketWithBody request with any body
+	PatchAdminTeamsIDBracketWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PatchAdminTeamsIDBracket(ctx context.Context, id string, body PatchAdminTeamsIDBracketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PatchAdminTeamsIDHiddenWithBody request with any body
 	PatchAdminTeamsIDHiddenWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -197,8 +321,11 @@ type ClientInterface interface {
 	// GetAuthVerifyEmail request
 	GetAuthVerifyEmail(ctx context.Context, params *GetAuthVerifyEmailParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetBrackets request
+	GetBrackets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetChallenges request
-	GetChallenges(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetChallenges(ctx context.Context, params *GetChallengesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetChallengesIDFirstBlood request
 	GetChallengesIDFirstBlood(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -207,6 +334,14 @@ type ClientInterface interface {
 	PostChallengesIDSubmitWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostChallengesIDSubmit(ctx context.Context, id string, body PostChallengesIDSubmitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetChallengesChallengeIDComments request
+	GetChallengesChallengeIDComments(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostChallengesChallengeIDCommentsWithBody request with any body
+	PostChallengesChallengeIDCommentsWithBody(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostChallengesChallengeIDComments(ctx context.Context, challengeID string, body PostChallengesChallengeIDCommentsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetChallengesChallengeIDFiles request
 	GetChallengesChallengeIDFiles(ctx context.Context, challengeID string, params *GetChallengesChallengeIDFilesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -217,14 +352,35 @@ type ClientInterface interface {
 	// PostChallengesChallengeIDHintsHintIDUnlock request
 	PostChallengesChallengeIDHintsHintIDUnlock(ctx context.Context, challengeID string, hintID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteCommentsID request
+	DeleteCommentsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCompetitionStatus request
 	GetCompetitionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetFields request
+	GetFields(ctx context.Context, params *GetFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetFilesIDDownload request
 	GetFilesIDDownload(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetNotifications request
+	GetNotifications(ctx context.Context, params *GetNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPages request
+	GetPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPagesSlug request
+	GetPagesSlug(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRatings request
+	GetRatings(ctx context.Context, params *GetRatingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRatingsTeamID request
+	GetRatingsTeamID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetScoreboard request
-	GetScoreboard(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetScoreboard(ctx context.Context, params *GetScoreboardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetScoreboardGraph request
 	GetScoreboardGraph(ctx context.Context, params *GetScoreboardGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -240,6 +396,9 @@ type ClientInterface interface {
 
 	// GetStatisticsScoreboard request
 	GetStatisticsScoreboard(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTags request
+	GetTags(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostTeamsWithBody request with any body
 	PostTeamsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -276,6 +435,23 @@ type ClientInterface interface {
 	// GetTeamsID request
 	GetTeamsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetUserNotifications request
+	GetUserNotifications(ctx context.Context, params *GetUserNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchUserNotificationsIDRead request
+	PatchUserNotificationsIDRead(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetUserTokens request
+	GetUserTokens(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostUserTokensWithBody request with any body
+	PostUserTokensWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostUserTokens(ctx context.Context, body PostUserTokensJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteUserTokensID request
+	DeleteUserTokensID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetUsersID request
 	GetUsersID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -309,6 +485,78 @@ func (c *Client) PostAdminAwards(ctx context.Context, body PostAdminAwardsJSONRe
 
 func (c *Client) GetAdminAwardsTeamTeamID(ctx context.Context, teamID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminAwardsTeamTeamIDRequest(c.Server, teamID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminBracketsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminBracketsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminBrackets(ctx context.Context, body PostAdminBracketsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminBracketsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminBracketsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminBracketsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminBracketsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminBracketsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminBracketsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminBracketsIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminBracketsID(ctx context.Context, id string, body PutAdminBracketsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminBracketsIDRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -451,6 +699,114 @@ func (c *Client) PutAdminCompetition(ctx context.Context, body PutAdminCompetiti
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetAdminConfigs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminConfigsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminConfigsKey(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminConfigsKeyRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminConfigsKey(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminConfigsKeyRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminConfigsKeyWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminConfigsKeyRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminConfigsKey(ctx context.Context, key string, body PutAdminConfigsKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminConfigsKeyRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminCtfEvents(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminCtfEventsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminCtfEventsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminCtfEventsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminCtfEvents(ctx context.Context, body PostAdminCtfEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminCtfEventsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminCtfEventsIDFinalize(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminCtfEventsIDFinalizeRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAdminExport(ctx context.Context, params *GetAdminExportParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminExportRequest(c.Server, params)
 	if err != nil {
@@ -465,6 +821,66 @@ func (c *Client) GetAdminExport(ctx context.Context, params *GetAdminExportParam
 
 func (c *Client) GetAdminExportZip(ctx context.Context, params *GetAdminExportZipParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminExportZipRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminFieldsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminFieldsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminFields(ctx context.Context, body PostAdminFieldsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminFieldsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminFieldsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminFieldsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminFieldsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminFieldsIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminFieldsID(ctx context.Context, id string, body PutAdminFieldsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminFieldsIDRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -535,6 +951,174 @@ func (c *Client) PostAdminImportWithBody(ctx context.Context, contentType string
 	return c.Client.Do(req)
 }
 
+func (c *Client) PostAdminNotificationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminNotificationsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminNotifications(ctx context.Context, body PostAdminNotificationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminNotificationsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminNotificationsUserUserIDWithBody(ctx context.Context, userID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminNotificationsUserUserIDRequestWithBody(c.Server, userID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminNotificationsUserUserID(ctx context.Context, userID string, body PostAdminNotificationsUserUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminNotificationsUserUserIDRequest(c.Server, userID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminNotificationsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminNotificationsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminNotificationsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminNotificationsIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminNotificationsID(ctx context.Context, id string, body PutAdminNotificationsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminNotificationsIDRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminPagesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminPagesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminPagesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminPages(ctx context.Context, body PostAdminPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminPagesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminPagesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminPagesIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminPagesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminPagesIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminPagesIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminPagesIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminPagesID(ctx context.Context, id string, body PutAdminPagesIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminPagesIDRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAdminSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminSettingsRequest(c.Server)
 	if err != nil {
@@ -571,6 +1155,126 @@ func (c *Client) PutAdminSettings(ctx context.Context, body PutAdminSettingsJSON
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetAdminSubmissions(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSubmissionsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminSubmissionsChallengeChallengeID(ctx context.Context, challengeID string, params *GetAdminSubmissionsChallengeChallengeIDParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSubmissionsChallengeChallengeIDRequest(c.Server, challengeID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminSubmissionsChallengeChallengeIDStats(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSubmissionsChallengeChallengeIDStatsRequest(c.Server, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminSubmissionsTeamTeamID(ctx context.Context, teamID string, params *GetAdminSubmissionsTeamTeamIDParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSubmissionsTeamTeamIDRequest(c.Server, teamID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminSubmissionsUserUserID(ctx context.Context, userID string, params *GetAdminSubmissionsUserUserIDParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSubmissionsUserUserIDRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTagsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTags(ctx context.Context, body PostAdminTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTagsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminTagsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminTagsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminTagsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminTagsIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminTagsID(ctx context.Context, id string, body PutAdminTagsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminTagsIDRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteAdminTeamsIDBan(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteAdminTeamsIDBanRequest(c.Server, id)
 	if err != nil {
@@ -597,6 +1301,30 @@ func (c *Client) PostAdminTeamsIDBanWithBody(ctx context.Context, id string, con
 
 func (c *Client) PostAdminTeamsIDBan(ctx context.Context, id string, body PostAdminTeamsIDBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAdminTeamsIDBanRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminTeamsIDBracketWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminTeamsIDBracketRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminTeamsIDBracket(ctx context.Context, id string, body PatchAdminTeamsIDBracketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminTeamsIDBracketRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -763,8 +1491,20 @@ func (c *Client) GetAuthVerifyEmail(ctx context.Context, params *GetAuthVerifyEm
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetChallenges(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetChallengesRequest(c.Server)
+func (c *Client) GetBrackets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBracketsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetChallenges(ctx context.Context, params *GetChallengesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetChallengesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -811,6 +1551,42 @@ func (c *Client) PostChallengesIDSubmit(ctx context.Context, id string, body Pos
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetChallengesChallengeIDComments(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetChallengesChallengeIDCommentsRequest(c.Server, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostChallengesChallengeIDCommentsWithBody(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostChallengesChallengeIDCommentsRequestWithBody(c.Server, challengeID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostChallengesChallengeIDComments(ctx context.Context, challengeID string, body PostChallengesChallengeIDCommentsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostChallengesChallengeIDCommentsRequest(c.Server, challengeID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetChallengesChallengeIDFiles(ctx context.Context, challengeID string, params *GetChallengesChallengeIDFilesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetChallengesChallengeIDFilesRequest(c.Server, challengeID, params)
 	if err != nil {
@@ -847,8 +1623,32 @@ func (c *Client) PostChallengesChallengeIDHintsHintIDUnlock(ctx context.Context,
 	return c.Client.Do(req)
 }
 
+func (c *Client) DeleteCommentsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCommentsIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetCompetitionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetCompetitionStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetFields(ctx context.Context, params *GetFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetFieldsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -871,8 +1671,68 @@ func (c *Client) GetFilesIDDownload(ctx context.Context, id string, reqEditors .
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetScoreboard(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetScoreboardRequest(c.Server)
+func (c *Client) GetNotifications(ctx context.Context, params *GetNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetNotificationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPagesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPagesSlug(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPagesSlugRequest(c.Server, slug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRatings(ctx context.Context, params *GetRatingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRatingsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRatingsTeamID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRatingsTeamIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetScoreboard(ctx context.Context, params *GetScoreboardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetScoreboardRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -933,6 +1793,18 @@ func (c *Client) GetStatisticsGeneral(ctx context.Context, reqEditors ...Request
 
 func (c *Client) GetStatisticsScoreboard(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetStatisticsScoreboardRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTags(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTagsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1099,6 +1971,78 @@ func (c *Client) GetTeamsID(ctx context.Context, id string, reqEditors ...Reques
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetUserNotifications(ctx context.Context, params *GetUserNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetUserNotificationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchUserNotificationsIDRead(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchUserNotificationsIDReadRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetUserTokens(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetUserTokensRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostUserTokensWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostUserTokensRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostUserTokens(ctx context.Context, body PostUserTokensJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostUserTokensRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteUserTokensID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteUserTokensIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetUsersID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetUsersIDRequest(c.Server, id)
 	if err != nil {
@@ -1193,6 +2137,161 @@ func NewGetAdminAwardsTeamTeamIDRequest(server string, teamID string) (*http.Req
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPostAdminBracketsRequest calls the generic PostAdminBrackets builder with application/json body
+func NewPostAdminBracketsRequest(server string, body PostAdminBracketsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminBracketsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminBracketsRequestWithBody generates requests for PostAdminBrackets with any type of body
+func NewPostAdminBracketsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/brackets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminBracketsIDRequest generates requests for DeleteAdminBracketsID
+func NewDeleteAdminBracketsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/brackets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminBracketsIDRequest generates requests for GetAdminBracketsID
+func NewGetAdminBracketsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/brackets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminBracketsIDRequest calls the generic PutAdminBracketsID builder with application/json body
+func NewPutAdminBracketsIDRequest(server string, id string, body PutAdminBracketsIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminBracketsIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutAdminBracketsIDRequestWithBody generates requests for PutAdminBracketsID with any type of body
+func NewPutAdminBracketsIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/brackets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1468,6 +2567,249 @@ func NewPutAdminCompetitionRequestWithBody(server string, contentType string, bo
 	return req, nil
 }
 
+// NewGetAdminConfigsRequest generates requests for GetAdminConfigs
+func NewGetAdminConfigsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteAdminConfigsKeyRequest generates requests for DeleteAdminConfigsKey
+func NewDeleteAdminConfigsKeyRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminConfigsKeyRequest generates requests for GetAdminConfigsKey
+func NewGetAdminConfigsKeyRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminConfigsKeyRequest calls the generic PutAdminConfigsKey builder with application/json body
+func NewPutAdminConfigsKeyRequest(server string, key string, body PutAdminConfigsKeyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminConfigsKeyRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewPutAdminConfigsKeyRequestWithBody generates requests for PutAdminConfigsKey with any type of body
+func NewPutAdminConfigsKeyRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAdminCtfEventsRequest generates requests for GetAdminCtfEvents
+func NewGetAdminCtfEventsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ctf-events")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostAdminCtfEventsRequest calls the generic PostAdminCtfEvents builder with application/json body
+func NewPostAdminCtfEventsRequest(server string, body PostAdminCtfEventsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminCtfEventsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminCtfEventsRequestWithBody generates requests for PostAdminCtfEvents with any type of body
+func NewPostAdminCtfEventsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ctf-events")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminCtfEventsIDFinalizeRequest generates requests for PostAdminCtfEventsIDFinalize
+func NewPostAdminCtfEventsIDFinalizeRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ctf-events/%s/finalize", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetAdminExportRequest generates requests for GetAdminExport
 func NewGetAdminExportRequest(server string, params *GetAdminExportParams) (*http.Request, error) {
 	var err error
@@ -1610,6 +2952,127 @@ func NewGetAdminExportZipRequest(server string, params *GetAdminExportZipParams)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPostAdminFieldsRequest calls the generic PostAdminFields builder with application/json body
+func NewPostAdminFieldsRequest(server string, body PostAdminFieldsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminFieldsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminFieldsRequestWithBody generates requests for PostAdminFields with any type of body
+func NewPostAdminFieldsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/fields")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminFieldsIDRequest generates requests for DeleteAdminFieldsID
+func NewDeleteAdminFieldsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/fields/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminFieldsIDRequest calls the generic PutAdminFieldsID builder with application/json body
+func NewPutAdminFieldsIDRequest(server string, id string, body PutAdminFieldsIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminFieldsIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutAdminFieldsIDRequestWithBody generates requests for PutAdminFieldsID with any type of body
+func NewPutAdminFieldsIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/fields/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1758,6 +3221,356 @@ func NewPostAdminImportRequestWithBody(server string, contentType string, body i
 	return req, nil
 }
 
+// NewPostAdminNotificationsRequest calls the generic PostAdminNotifications builder with application/json body
+func NewPostAdminNotificationsRequest(server string, body PostAdminNotificationsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminNotificationsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminNotificationsRequestWithBody generates requests for PostAdminNotifications with any type of body
+func NewPostAdminNotificationsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/notifications")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminNotificationsUserUserIDRequest calls the generic PostAdminNotificationsUserUserID builder with application/json body
+func NewPostAdminNotificationsUserUserIDRequest(server string, userID string, body PostAdminNotificationsUserUserIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminNotificationsUserUserIDRequestWithBody(server, userID, "application/json", bodyReader)
+}
+
+// NewPostAdminNotificationsUserUserIDRequestWithBody generates requests for PostAdminNotificationsUserUserID with any type of body
+func NewPostAdminNotificationsUserUserIDRequestWithBody(server string, userID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userID", runtime.ParamLocationPath, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/notifications/user/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminNotificationsIDRequest generates requests for DeleteAdminNotificationsID
+func NewDeleteAdminNotificationsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/notifications/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminNotificationsIDRequest calls the generic PutAdminNotificationsID builder with application/json body
+func NewPutAdminNotificationsIDRequest(server string, id string, body PutAdminNotificationsIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminNotificationsIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutAdminNotificationsIDRequestWithBody generates requests for PutAdminNotificationsID with any type of body
+func NewPutAdminNotificationsIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/notifications/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAdminPagesRequest generates requests for GetAdminPages
+func NewGetAdminPagesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/pages")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostAdminPagesRequest calls the generic PostAdminPages builder with application/json body
+func NewPostAdminPagesRequest(server string, body PostAdminPagesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminPagesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminPagesRequestWithBody generates requests for PostAdminPages with any type of body
+func NewPostAdminPagesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/pages")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminPagesIDRequest generates requests for DeleteAdminPagesID
+func NewDeleteAdminPagesIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminPagesIDRequest generates requests for GetAdminPagesID
+func NewGetAdminPagesIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminPagesIDRequest calls the generic PutAdminPagesID builder with application/json body
+func NewPutAdminPagesIDRequest(server string, id string, body PutAdminPagesIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminPagesIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutAdminPagesIDRequestWithBody generates requests for PutAdminPagesID with any type of body
+func NewPutAdminPagesIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetAdminSettingsRequest generates requests for GetAdminSettings
 func NewGetAdminSettingsRequest(server string) (*http.Request, error) {
 	var err error
@@ -1806,6 +3619,442 @@ func NewPutAdminSettingsRequestWithBody(server string, contentType string, body 
 	}
 
 	operationPath := fmt.Sprintf("/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAdminSubmissionsRequest generates requests for GetAdminSubmissions
+func NewGetAdminSubmissionsRequest(server string, params *GetAdminSubmissionsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/submissions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminSubmissionsChallengeChallengeIDRequest generates requests for GetAdminSubmissionsChallengeChallengeID
+func NewGetAdminSubmissionsChallengeChallengeIDRequest(server string, challengeID string, params *GetAdminSubmissionsChallengeChallengeIDParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/submissions/challenge/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminSubmissionsChallengeChallengeIDStatsRequest generates requests for GetAdminSubmissionsChallengeChallengeIDStats
+func NewGetAdminSubmissionsChallengeChallengeIDStatsRequest(server string, challengeID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/submissions/challenge/%s/stats", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminSubmissionsTeamTeamIDRequest generates requests for GetAdminSubmissionsTeamTeamID
+func NewGetAdminSubmissionsTeamTeamIDRequest(server string, teamID string, params *GetAdminSubmissionsTeamTeamIDParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "teamID", runtime.ParamLocationPath, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/submissions/team/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminSubmissionsUserUserIDRequest generates requests for GetAdminSubmissionsUserUserID
+func NewGetAdminSubmissionsUserUserIDRequest(server string, userID string, params *GetAdminSubmissionsUserUserIDParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userID", runtime.ParamLocationPath, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/submissions/user/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostAdminTagsRequest calls the generic PostAdminTags builder with application/json body
+func NewPostAdminTagsRequest(server string, body PostAdminTagsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminTagsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminTagsRequestWithBody generates requests for PostAdminTags with any type of body
+func NewPostAdminTagsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tags")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminTagsIDRequest generates requests for DeleteAdminTagsID
+func NewDeleteAdminTagsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tags/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminTagsIDRequest calls the generic PutAdminTagsID builder with application/json body
+func NewPutAdminTagsIDRequest(server string, id string, body PutAdminTagsIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminTagsIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutAdminTagsIDRequestWithBody generates requests for PutAdminTagsID with any type of body
+func NewPutAdminTagsIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tags/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1897,6 +4146,53 @@ func NewPostAdminTeamsIDBanRequestWithBody(server string, id string, contentType
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPatchAdminTeamsIDBracketRequest calls the generic PatchAdminTeamsIDBracket builder with application/json body
+func NewPatchAdminTeamsIDBracketRequest(server string, id string, body PatchAdminTeamsIDBracketJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchAdminTeamsIDBracketRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPatchAdminTeamsIDBracketRequestWithBody generates requests for PatchAdminTeamsIDBracket with any type of body
+func NewPatchAdminTeamsIDBracketRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/%s/bracket", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -2212,8 +4508,35 @@ func NewGetAuthVerifyEmailRequest(server string, params *GetAuthVerifyEmailParam
 	return req, nil
 }
 
+// NewGetBracketsRequest generates requests for GetBrackets
+func NewGetBracketsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/brackets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetChallengesRequest generates requests for GetChallenges
-func NewGetChallengesRequest(server string) (*http.Request, error) {
+func NewGetChallengesRequest(server string, params *GetChallengesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -2229,6 +4552,28 @@ func NewGetChallengesRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "tag", runtime.ParamLocationQuery, *params.Tag); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -2301,6 +4646,87 @@ func NewPostChallengesIDSubmitRequestWithBody(server string, id string, contentT
 	}
 
 	operationPath := fmt.Sprintf("/challenges/%s/submit", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetChallengesChallengeIDCommentsRequest generates requests for GetChallengesChallengeIDComments
+func NewGetChallengesChallengeIDCommentsRequest(server string, challengeID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/challenges/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostChallengesChallengeIDCommentsRequest calls the generic PostChallengesChallengeIDComments builder with application/json body
+func NewPostChallengesChallengeIDCommentsRequest(server string, challengeID string, body PostChallengesChallengeIDCommentsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostChallengesChallengeIDCommentsRequestWithBody(server, challengeID, "application/json", bodyReader)
+}
+
+// NewPostChallengesChallengeIDCommentsRequestWithBody generates requests for PostChallengesChallengeIDComments with any type of body
+func NewPostChallengesChallengeIDCommentsRequestWithBody(server string, challengeID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/challenges/%s/comments", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2451,6 +4877,40 @@ func NewPostChallengesChallengeIDHintsHintIDUnlockRequest(server string, challen
 	return req, nil
 }
 
+// NewDeleteCommentsIDRequest generates requests for DeleteCommentsID
+func NewDeleteCommentsIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/comments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetCompetitionStatusRequest generates requests for GetCompetitionStatus
 func NewGetCompetitionStatusRequest(server string) (*http.Request, error) {
 	var err error
@@ -2468,6 +4928,51 @@ func NewGetCompetitionStatusRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetFieldsRequest generates requests for GetFields
+func NewGetFieldsRequest(server string, params *GetFieldsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/fields")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "entity_type", runtime.ParamLocationQuery, params.EntityType); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -2512,8 +5017,233 @@ func NewGetFilesIDDownloadRequest(server string, id string) (*http.Request, erro
 	return req, nil
 }
 
+// NewGetNotificationsRequest generates requests for GetNotifications
+func NewGetNotificationsRequest(server string, params *GetNotificationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/notifications")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPagesRequest generates requests for GetPages
+func NewGetPagesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPagesSlugRequest generates requests for GetPagesSlug
+func NewGetPagesSlugRequest(server string, slug string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "slug", runtime.ParamLocationPath, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetRatingsRequest generates requests for GetRatings
+func NewGetRatingsRequest(server string, params *GetRatingsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ratings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetRatingsTeamIDRequest generates requests for GetRatingsTeamID
+func NewGetRatingsTeamIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ratings/team/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetScoreboardRequest generates requests for GetScoreboard
-func NewGetScoreboardRequest(server string) (*http.Request, error) {
+func NewGetScoreboardRequest(server string, params *GetScoreboardParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -2529,6 +5259,28 @@ func NewGetScoreboardRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Bracket != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "bracket", runtime.ParamLocationQuery, *params.Bracket); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -2686,6 +5438,33 @@ func NewGetStatisticsScoreboardRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/statistics/scoreboard")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTagsRequest generates requests for GetTags
+func NewGetTagsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tags")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3012,6 +5791,206 @@ func NewGetTeamsIDRequest(server string, id string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetUserNotificationsRequest generates requests for GetUserNotifications
+func NewGetUserNotificationsRequest(server string, params *GetUserNotificationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/user/notifications")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPatchUserNotificationsIDReadRequest generates requests for PatchUserNotificationsIDRead
+func NewPatchUserNotificationsIDReadRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/user/notifications/%s/read", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetUserTokensRequest generates requests for GetUserTokens
+func NewGetUserTokensRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/user/tokens")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostUserTokensRequest calls the generic PostUserTokens builder with application/json body
+func NewPostUserTokensRequest(server string, body PostUserTokensJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostUserTokensRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostUserTokensRequestWithBody generates requests for PostUserTokens with any type of body
+func NewPostUserTokensRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/user/tokens")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteUserTokensIDRequest generates requests for DeleteUserTokensID
+func NewDeleteUserTokensIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/user/tokens/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetUsersIDRequest generates requests for GetUsersID
 func NewGetUsersIDRequest(server string, id string) (*http.Request, error) {
 	var err error
@@ -3124,6 +6103,22 @@ type ClientWithResponsesInterface interface {
 	// GetAdminAwardsTeamTeamIDWithResponse request
 	GetAdminAwardsTeamTeamIDWithResponse(ctx context.Context, teamID string, reqEditors ...RequestEditorFn) (*GetAdminAwardsTeamTeamIDResponse, error)
 
+	// PostAdminBracketsWithBodyWithResponse request with any body
+	PostAdminBracketsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminBracketsResponse, error)
+
+	PostAdminBracketsWithResponse(ctx context.Context, body PostAdminBracketsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminBracketsResponse, error)
+
+	// DeleteAdminBracketsIDWithResponse request
+	DeleteAdminBracketsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminBracketsIDResponse, error)
+
+	// GetAdminBracketsIDWithResponse request
+	GetAdminBracketsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminBracketsIDResponse, error)
+
+	// PutAdminBracketsIDWithBodyWithResponse request with any body
+	PutAdminBracketsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminBracketsIDResponse, error)
+
+	PutAdminBracketsIDWithResponse(ctx context.Context, id string, body PutAdminBracketsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminBracketsIDResponse, error)
+
 	// PostAdminChallengesWithBodyWithResponse request with any body
 	PostAdminChallengesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminChallengesResponse, error)
 
@@ -3153,11 +6148,49 @@ type ClientWithResponsesInterface interface {
 
 	PutAdminCompetitionWithResponse(ctx context.Context, body PutAdminCompetitionJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminCompetitionResponse, error)
 
+	// GetAdminConfigsWithResponse request
+	GetAdminConfigsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminConfigsResponse, error)
+
+	// DeleteAdminConfigsKeyWithResponse request
+	DeleteAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteAdminConfigsKeyResponse, error)
+
+	// GetAdminConfigsKeyWithResponse request
+	GetAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*GetAdminConfigsKeyResponse, error)
+
+	// PutAdminConfigsKeyWithBodyWithResponse request with any body
+	PutAdminConfigsKeyWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminConfigsKeyResponse, error)
+
+	PutAdminConfigsKeyWithResponse(ctx context.Context, key string, body PutAdminConfigsKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminConfigsKeyResponse, error)
+
+	// GetAdminCtfEventsWithResponse request
+	GetAdminCtfEventsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminCtfEventsResponse, error)
+
+	// PostAdminCtfEventsWithBodyWithResponse request with any body
+	PostAdminCtfEventsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsResponse, error)
+
+	PostAdminCtfEventsWithResponse(ctx context.Context, body PostAdminCtfEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsResponse, error)
+
+	// PostAdminCtfEventsIDFinalizeWithResponse request
+	PostAdminCtfEventsIDFinalizeWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsIDFinalizeResponse, error)
+
 	// GetAdminExportWithResponse request
 	GetAdminExportWithResponse(ctx context.Context, params *GetAdminExportParams, reqEditors ...RequestEditorFn) (*GetAdminExportResponse, error)
 
 	// GetAdminExportZipWithResponse request
 	GetAdminExportZipWithResponse(ctx context.Context, params *GetAdminExportZipParams, reqEditors ...RequestEditorFn) (*GetAdminExportZipResponse, error)
+
+	// PostAdminFieldsWithBodyWithResponse request with any body
+	PostAdminFieldsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminFieldsResponse, error)
+
+	PostAdminFieldsWithResponse(ctx context.Context, body PostAdminFieldsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminFieldsResponse, error)
+
+	// DeleteAdminFieldsIDWithResponse request
+	DeleteAdminFieldsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminFieldsIDResponse, error)
+
+	// PutAdminFieldsIDWithBodyWithResponse request with any body
+	PutAdminFieldsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminFieldsIDResponse, error)
+
+	PutAdminFieldsIDWithResponse(ctx context.Context, id string, body PutAdminFieldsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminFieldsIDResponse, error)
 
 	// DeleteAdminFilesIDWithResponse request
 	DeleteAdminFilesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminFilesIDResponse, error)
@@ -3173,6 +6206,43 @@ type ClientWithResponsesInterface interface {
 	// PostAdminImportWithBodyWithResponse request with any body
 	PostAdminImportWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminImportResponse, error)
 
+	// PostAdminNotificationsWithBodyWithResponse request with any body
+	PostAdminNotificationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminNotificationsResponse, error)
+
+	PostAdminNotificationsWithResponse(ctx context.Context, body PostAdminNotificationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminNotificationsResponse, error)
+
+	// PostAdminNotificationsUserUserIDWithBodyWithResponse request with any body
+	PostAdminNotificationsUserUserIDWithBodyWithResponse(ctx context.Context, userID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminNotificationsUserUserIDResponse, error)
+
+	PostAdminNotificationsUserUserIDWithResponse(ctx context.Context, userID string, body PostAdminNotificationsUserUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminNotificationsUserUserIDResponse, error)
+
+	// DeleteAdminNotificationsIDWithResponse request
+	DeleteAdminNotificationsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminNotificationsIDResponse, error)
+
+	// PutAdminNotificationsIDWithBodyWithResponse request with any body
+	PutAdminNotificationsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminNotificationsIDResponse, error)
+
+	PutAdminNotificationsIDWithResponse(ctx context.Context, id string, body PutAdminNotificationsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminNotificationsIDResponse, error)
+
+	// GetAdminPagesWithResponse request
+	GetAdminPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminPagesResponse, error)
+
+	// PostAdminPagesWithBodyWithResponse request with any body
+	PostAdminPagesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminPagesResponse, error)
+
+	PostAdminPagesWithResponse(ctx context.Context, body PostAdminPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminPagesResponse, error)
+
+	// DeleteAdminPagesIDWithResponse request
+	DeleteAdminPagesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminPagesIDResponse, error)
+
+	// GetAdminPagesIDWithResponse request
+	GetAdminPagesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminPagesIDResponse, error)
+
+	// PutAdminPagesIDWithBodyWithResponse request with any body
+	PutAdminPagesIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminPagesIDResponse, error)
+
+	PutAdminPagesIDWithResponse(ctx context.Context, id string, body PutAdminPagesIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminPagesIDResponse, error)
+
 	// GetAdminSettingsWithResponse request
 	GetAdminSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminSettingsResponse, error)
 
@@ -3181,6 +6251,34 @@ type ClientWithResponsesInterface interface {
 
 	PutAdminSettingsWithResponse(ctx context.Context, body PutAdminSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminSettingsResponse, error)
 
+	// GetAdminSubmissionsWithResponse request
+	GetAdminSubmissionsWithResponse(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsResponse, error)
+
+	// GetAdminSubmissionsChallengeChallengeIDWithResponse request
+	GetAdminSubmissionsChallengeChallengeIDWithResponse(ctx context.Context, challengeID string, params *GetAdminSubmissionsChallengeChallengeIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsChallengeChallengeIDResponse, error)
+
+	// GetAdminSubmissionsChallengeChallengeIDStatsWithResponse request
+	GetAdminSubmissionsChallengeChallengeIDStatsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsChallengeChallengeIDStatsResponse, error)
+
+	// GetAdminSubmissionsTeamTeamIDWithResponse request
+	GetAdminSubmissionsTeamTeamIDWithResponse(ctx context.Context, teamID string, params *GetAdminSubmissionsTeamTeamIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsTeamTeamIDResponse, error)
+
+	// GetAdminSubmissionsUserUserIDWithResponse request
+	GetAdminSubmissionsUserUserIDWithResponse(ctx context.Context, userID string, params *GetAdminSubmissionsUserUserIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsUserUserIDResponse, error)
+
+	// PostAdminTagsWithBodyWithResponse request with any body
+	PostAdminTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTagsResponse, error)
+
+	PostAdminTagsWithResponse(ctx context.Context, body PostAdminTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTagsResponse, error)
+
+	// DeleteAdminTagsIDWithResponse request
+	DeleteAdminTagsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTagsIDResponse, error)
+
+	// PutAdminTagsIDWithBodyWithResponse request with any body
+	PutAdminTagsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminTagsIDResponse, error)
+
+	PutAdminTagsIDWithResponse(ctx context.Context, id string, body PutAdminTagsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminTagsIDResponse, error)
+
 	// DeleteAdminTeamsIDBanWithResponse request
 	DeleteAdminTeamsIDBanWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDBanResponse, error)
 
@@ -3188,6 +6286,11 @@ type ClientWithResponsesInterface interface {
 	PostAdminTeamsIDBanWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTeamsIDBanResponse, error)
 
 	PostAdminTeamsIDBanWithResponse(ctx context.Context, id string, body PostAdminTeamsIDBanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTeamsIDBanResponse, error)
+
+	// PatchAdminTeamsIDBracketWithBodyWithResponse request with any body
+	PatchAdminTeamsIDBracketWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDBracketResponse, error)
+
+	PatchAdminTeamsIDBracketWithResponse(ctx context.Context, id string, body PatchAdminTeamsIDBracketJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDBracketResponse, error)
 
 	// PatchAdminTeamsIDHiddenWithBodyWithResponse request with any body
 	PatchAdminTeamsIDHiddenWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDHiddenResponse, error)
@@ -3223,8 +6326,11 @@ type ClientWithResponsesInterface interface {
 	// GetAuthVerifyEmailWithResponse request
 	GetAuthVerifyEmailWithResponse(ctx context.Context, params *GetAuthVerifyEmailParams, reqEditors ...RequestEditorFn) (*GetAuthVerifyEmailResponse, error)
 
+	// GetBracketsWithResponse request
+	GetBracketsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBracketsResponse, error)
+
 	// GetChallengesWithResponse request
-	GetChallengesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetChallengesResponse, error)
+	GetChallengesWithResponse(ctx context.Context, params *GetChallengesParams, reqEditors ...RequestEditorFn) (*GetChallengesResponse, error)
 
 	// GetChallengesIDFirstBloodWithResponse request
 	GetChallengesIDFirstBloodWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetChallengesIDFirstBloodResponse, error)
@@ -3233,6 +6339,14 @@ type ClientWithResponsesInterface interface {
 	PostChallengesIDSubmitWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostChallengesIDSubmitResponse, error)
 
 	PostChallengesIDSubmitWithResponse(ctx context.Context, id string, body PostChallengesIDSubmitJSONRequestBody, reqEditors ...RequestEditorFn) (*PostChallengesIDSubmitResponse, error)
+
+	// GetChallengesChallengeIDCommentsWithResponse request
+	GetChallengesChallengeIDCommentsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDCommentsResponse, error)
+
+	// PostChallengesChallengeIDCommentsWithBodyWithResponse request with any body
+	PostChallengesChallengeIDCommentsWithBodyWithResponse(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDCommentsResponse, error)
+
+	PostChallengesChallengeIDCommentsWithResponse(ctx context.Context, challengeID string, body PostChallengesChallengeIDCommentsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDCommentsResponse, error)
 
 	// GetChallengesChallengeIDFilesWithResponse request
 	GetChallengesChallengeIDFilesWithResponse(ctx context.Context, challengeID string, params *GetChallengesChallengeIDFilesParams, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDFilesResponse, error)
@@ -3243,14 +6357,35 @@ type ClientWithResponsesInterface interface {
 	// PostChallengesChallengeIDHintsHintIDUnlockWithResponse request
 	PostChallengesChallengeIDHintsHintIDUnlockWithResponse(ctx context.Context, challengeID string, hintID string, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDHintsHintIDUnlockResponse, error)
 
+	// DeleteCommentsIDWithResponse request
+	DeleteCommentsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteCommentsIDResponse, error)
+
 	// GetCompetitionStatusWithResponse request
 	GetCompetitionStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCompetitionStatusResponse, error)
+
+	// GetFieldsWithResponse request
+	GetFieldsWithResponse(ctx context.Context, params *GetFieldsParams, reqEditors ...RequestEditorFn) (*GetFieldsResponse, error)
 
 	// GetFilesIDDownloadWithResponse request
 	GetFilesIDDownloadWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetFilesIDDownloadResponse, error)
 
+	// GetNotificationsWithResponse request
+	GetNotificationsWithResponse(ctx context.Context, params *GetNotificationsParams, reqEditors ...RequestEditorFn) (*GetNotificationsResponse, error)
+
+	// GetPagesWithResponse request
+	GetPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPagesResponse, error)
+
+	// GetPagesSlugWithResponse request
+	GetPagesSlugWithResponse(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*GetPagesSlugResponse, error)
+
+	// GetRatingsWithResponse request
+	GetRatingsWithResponse(ctx context.Context, params *GetRatingsParams, reqEditors ...RequestEditorFn) (*GetRatingsResponse, error)
+
+	// GetRatingsTeamIDWithResponse request
+	GetRatingsTeamIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetRatingsTeamIDResponse, error)
+
 	// GetScoreboardWithResponse request
-	GetScoreboardWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetScoreboardResponse, error)
+	GetScoreboardWithResponse(ctx context.Context, params *GetScoreboardParams, reqEditors ...RequestEditorFn) (*GetScoreboardResponse, error)
 
 	// GetScoreboardGraphWithResponse request
 	GetScoreboardGraphWithResponse(ctx context.Context, params *GetScoreboardGraphParams, reqEditors ...RequestEditorFn) (*GetScoreboardGraphResponse, error)
@@ -3266,6 +6401,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetStatisticsScoreboardWithResponse request
 	GetStatisticsScoreboardWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStatisticsScoreboardResponse, error)
+
+	// GetTagsWithResponse request
+	GetTagsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTagsResponse, error)
 
 	// PostTeamsWithBodyWithResponse request with any body
 	PostTeamsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTeamsResponse, error)
@@ -3301,6 +6439,23 @@ type ClientWithResponsesInterface interface {
 
 	// GetTeamsIDWithResponse request
 	GetTeamsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTeamsIDResponse, error)
+
+	// GetUserNotificationsWithResponse request
+	GetUserNotificationsWithResponse(ctx context.Context, params *GetUserNotificationsParams, reqEditors ...RequestEditorFn) (*GetUserNotificationsResponse, error)
+
+	// PatchUserNotificationsIDReadWithResponse request
+	PatchUserNotificationsIDReadWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PatchUserNotificationsIDReadResponse, error)
+
+	// GetUserTokensWithResponse request
+	GetUserTokensWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetUserTokensResponse, error)
+
+	// PostUserTokensWithBodyWithResponse request with any body
+	PostUserTokensWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostUserTokensResponse, error)
+
+	PostUserTokensWithResponse(ctx context.Context, body PostUserTokensJSONRequestBody, reqEditors ...RequestEditorFn) (*PostUserTokensResponse, error)
+
+	// DeleteUserTokensIDWithResponse request
+	DeleteUserTokensIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteUserTokensIDResponse, error)
 
 	// GetUsersIDWithResponse request
 	GetUsersIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetUsersIDResponse, error)
@@ -3353,6 +6508,93 @@ func (r GetAdminAwardsTeamTeamIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetAdminAwardsTeamTeamIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminBracketsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseBracketResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminBracketsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminBracketsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminBracketsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminBracketsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminBracketsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminBracketsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseBracketResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminBracketsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminBracketsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminBracketsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseBracketResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminBracketsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminBracketsIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3525,6 +6767,158 @@ func (r PutAdminCompetitionResponse) StatusCode() int {
 	return 0
 }
 
+type GetAdminConfigsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseConfigResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminConfigsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminConfigsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminConfigsKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminConfigsKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminConfigsKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminConfigsKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseConfigResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminConfigsKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminConfigsKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminConfigsKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]string
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminConfigsKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminConfigsKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminCtfEventsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseCTFEventResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminCtfEventsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminCtfEventsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminCtfEventsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseCTFEventResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminCtfEventsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminCtfEventsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminCtfEventsIDFinalizeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminCtfEventsIDFinalizeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminCtfEventsIDFinalizeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminExportResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3568,6 +6962,71 @@ func (r GetAdminExportZipResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetAdminExportZipResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminFieldsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseFieldResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminFieldsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminFieldsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminFieldsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminFieldsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminFieldsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminFieldsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseFieldResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminFieldsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminFieldsIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3667,6 +7126,202 @@ func (r PostAdminImportResponse) StatusCode() int {
 	return 0
 }
 
+type PostAdminNotificationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseNotificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminNotificationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminNotificationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminNotificationsUserUserIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseUserNotificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminNotificationsUserUserIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminNotificationsUserUserIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminNotificationsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminNotificationsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminNotificationsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminNotificationsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseNotificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminNotificationsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminNotificationsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminPagesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponsePageResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminPagesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminPagesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminPagesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponsePageResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminPagesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminPagesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminPagesIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminPagesIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminPagesIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminPagesIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponsePageResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminPagesIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminPagesIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminPagesIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponsePageResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminPagesIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminPagesIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminSettingsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3705,6 +7360,195 @@ func (r PutAdminSettingsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PutAdminSettingsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSubmissionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseSubmissionListResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSubmissionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSubmissionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSubmissionsChallengeChallengeIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseSubmissionListResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSubmissionsChallengeChallengeIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSubmissionsChallengeChallengeIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSubmissionsChallengeChallengeIDStatsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseSubmissionStatsResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSubmissionsChallengeChallengeIDStatsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSubmissionsChallengeChallengeIDStatsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSubmissionsTeamTeamIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseSubmissionListResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSubmissionsTeamTeamIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSubmissionsTeamTeamIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSubmissionsUserUserIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseSubmissionListResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSubmissionsUserUserIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSubmissionsUserUserIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseTagResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminTagsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminTagsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminTagsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminTagsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseTagResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminTagsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminTagsIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3756,6 +7600,28 @@ func (r PostAdminTeamsIDBanResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostAdminTeamsIDBanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PatchAdminTeamsIDBracketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseTeamResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchAdminTeamsIDBracketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchAdminTeamsIDBracketResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3954,6 +7820,28 @@ func (r GetAuthVerifyEmailResponse) StatusCode() int {
 	return 0
 }
 
+type GetBracketsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseBracketResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBracketsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBracketsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetChallengesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4022,6 +7910,55 @@ func (r PostChallengesIDSubmitResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostChallengesIDSubmitResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetChallengesChallengeIDCommentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseCommentResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetChallengesChallengeIDCommentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetChallengesChallengeIDCommentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostChallengesChallengeIDCommentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseCommentResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostChallengesChallengeIDCommentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostChallengesChallengeIDCommentsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4101,6 +8038,30 @@ func (r PostChallengesChallengeIDHintsHintIDUnlockResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteCommentsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON404      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCommentsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCommentsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetCompetitionStatusResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4117,6 +8078,28 @@ func (r GetCompetitionStatusResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetCompetitionStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetFieldsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseFieldResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetFieldsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetFieldsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4141,6 +8124,116 @@ func (r GetFilesIDDownloadResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetFilesIDDownloadResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetNotificationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseNotificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetNotificationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetNotificationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPagesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponsePageListItemResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPagesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPagesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPagesSlugResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponsePageResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPagesSlugResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPagesSlugResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRatingsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseGlobalRatingsListResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRatingsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRatingsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRatingsTeamIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ResponseTeamRatingResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRatingsTeamIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRatingsTeamIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4280,6 +8373,28 @@ func (r GetStatisticsScoreboardResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetStatisticsScoreboardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseTagResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTagsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4508,6 +8623,114 @@ func (r GetTeamsIDResponse) StatusCode() int {
 	return 0
 }
 
+type GetUserNotificationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseUserNotificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetUserNotificationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetUserNotificationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PatchUserNotificationsIDReadResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchUserNotificationsIDReadResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchUserNotificationsIDReadResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetUserTokensResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ResponseAPITokenResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetUserTokensResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetUserTokensResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostUserTokensResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ResponseAPITokenCreatedResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostUserTokensResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostUserTokensResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteUserTokensIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteUserTokensIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteUserTokensIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetUsersIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4576,6 +8799,58 @@ func (c *ClientWithResponses) GetAdminAwardsTeamTeamIDWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseGetAdminAwardsTeamTeamIDResponse(rsp)
+}
+
+// PostAdminBracketsWithBodyWithResponse request with arbitrary body returning *PostAdminBracketsResponse
+func (c *ClientWithResponses) PostAdminBracketsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminBracketsResponse, error) {
+	rsp, err := c.PostAdminBracketsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminBracketsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminBracketsWithResponse(ctx context.Context, body PostAdminBracketsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminBracketsResponse, error) {
+	rsp, err := c.PostAdminBrackets(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminBracketsResponse(rsp)
+}
+
+// DeleteAdminBracketsIDWithResponse request returning *DeleteAdminBracketsIDResponse
+func (c *ClientWithResponses) DeleteAdminBracketsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminBracketsIDResponse, error) {
+	rsp, err := c.DeleteAdminBracketsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminBracketsIDResponse(rsp)
+}
+
+// GetAdminBracketsIDWithResponse request returning *GetAdminBracketsIDResponse
+func (c *ClientWithResponses) GetAdminBracketsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminBracketsIDResponse, error) {
+	rsp, err := c.GetAdminBracketsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminBracketsIDResponse(rsp)
+}
+
+// PutAdminBracketsIDWithBodyWithResponse request with arbitrary body returning *PutAdminBracketsIDResponse
+func (c *ClientWithResponses) PutAdminBracketsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminBracketsIDResponse, error) {
+	rsp, err := c.PutAdminBracketsIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminBracketsIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminBracketsIDWithResponse(ctx context.Context, id string, body PutAdminBracketsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminBracketsIDResponse, error) {
+	rsp, err := c.PutAdminBracketsID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminBracketsIDResponse(rsp)
 }
 
 // PostAdminChallengesWithBodyWithResponse request with arbitrary body returning *PostAdminChallengesResponse
@@ -4673,6 +8948,85 @@ func (c *ClientWithResponses) PutAdminCompetitionWithResponse(ctx context.Contex
 	return ParsePutAdminCompetitionResponse(rsp)
 }
 
+// GetAdminConfigsWithResponse request returning *GetAdminConfigsResponse
+func (c *ClientWithResponses) GetAdminConfigsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminConfigsResponse, error) {
+	rsp, err := c.GetAdminConfigs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminConfigsResponse(rsp)
+}
+
+// DeleteAdminConfigsKeyWithResponse request returning *DeleteAdminConfigsKeyResponse
+func (c *ClientWithResponses) DeleteAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteAdminConfigsKeyResponse, error) {
+	rsp, err := c.DeleteAdminConfigsKey(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminConfigsKeyResponse(rsp)
+}
+
+// GetAdminConfigsKeyWithResponse request returning *GetAdminConfigsKeyResponse
+func (c *ClientWithResponses) GetAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*GetAdminConfigsKeyResponse, error) {
+	rsp, err := c.GetAdminConfigsKey(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminConfigsKeyResponse(rsp)
+}
+
+// PutAdminConfigsKeyWithBodyWithResponse request with arbitrary body returning *PutAdminConfigsKeyResponse
+func (c *ClientWithResponses) PutAdminConfigsKeyWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminConfigsKeyResponse, error) {
+	rsp, err := c.PutAdminConfigsKeyWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminConfigsKeyResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminConfigsKeyWithResponse(ctx context.Context, key string, body PutAdminConfigsKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminConfigsKeyResponse, error) {
+	rsp, err := c.PutAdminConfigsKey(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminConfigsKeyResponse(rsp)
+}
+
+// GetAdminCtfEventsWithResponse request returning *GetAdminCtfEventsResponse
+func (c *ClientWithResponses) GetAdminCtfEventsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminCtfEventsResponse, error) {
+	rsp, err := c.GetAdminCtfEvents(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminCtfEventsResponse(rsp)
+}
+
+// PostAdminCtfEventsWithBodyWithResponse request with arbitrary body returning *PostAdminCtfEventsResponse
+func (c *ClientWithResponses) PostAdminCtfEventsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsResponse, error) {
+	rsp, err := c.PostAdminCtfEventsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminCtfEventsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminCtfEventsWithResponse(ctx context.Context, body PostAdminCtfEventsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsResponse, error) {
+	rsp, err := c.PostAdminCtfEvents(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminCtfEventsResponse(rsp)
+}
+
+// PostAdminCtfEventsIDFinalizeWithResponse request returning *PostAdminCtfEventsIDFinalizeResponse
+func (c *ClientWithResponses) PostAdminCtfEventsIDFinalizeWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PostAdminCtfEventsIDFinalizeResponse, error) {
+	rsp, err := c.PostAdminCtfEventsIDFinalize(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminCtfEventsIDFinalizeResponse(rsp)
+}
+
 // GetAdminExportWithResponse request returning *GetAdminExportResponse
 func (c *ClientWithResponses) GetAdminExportWithResponse(ctx context.Context, params *GetAdminExportParams, reqEditors ...RequestEditorFn) (*GetAdminExportResponse, error) {
 	rsp, err := c.GetAdminExport(ctx, params, reqEditors...)
@@ -4689,6 +9043,49 @@ func (c *ClientWithResponses) GetAdminExportZipWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseGetAdminExportZipResponse(rsp)
+}
+
+// PostAdminFieldsWithBodyWithResponse request with arbitrary body returning *PostAdminFieldsResponse
+func (c *ClientWithResponses) PostAdminFieldsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminFieldsResponse, error) {
+	rsp, err := c.PostAdminFieldsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminFieldsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminFieldsWithResponse(ctx context.Context, body PostAdminFieldsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminFieldsResponse, error) {
+	rsp, err := c.PostAdminFields(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminFieldsResponse(rsp)
+}
+
+// DeleteAdminFieldsIDWithResponse request returning *DeleteAdminFieldsIDResponse
+func (c *ClientWithResponses) DeleteAdminFieldsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminFieldsIDResponse, error) {
+	rsp, err := c.DeleteAdminFieldsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminFieldsIDResponse(rsp)
+}
+
+// PutAdminFieldsIDWithBodyWithResponse request with arbitrary body returning *PutAdminFieldsIDResponse
+func (c *ClientWithResponses) PutAdminFieldsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminFieldsIDResponse, error) {
+	rsp, err := c.PutAdminFieldsIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminFieldsIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminFieldsIDWithResponse(ctx context.Context, id string, body PutAdminFieldsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminFieldsIDResponse, error) {
+	rsp, err := c.PutAdminFieldsID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminFieldsIDResponse(rsp)
 }
 
 // DeleteAdminFilesIDWithResponse request returning *DeleteAdminFilesIDResponse
@@ -4735,6 +9132,127 @@ func (c *ClientWithResponses) PostAdminImportWithBodyWithResponse(ctx context.Co
 	return ParsePostAdminImportResponse(rsp)
 }
 
+// PostAdminNotificationsWithBodyWithResponse request with arbitrary body returning *PostAdminNotificationsResponse
+func (c *ClientWithResponses) PostAdminNotificationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminNotificationsResponse, error) {
+	rsp, err := c.PostAdminNotificationsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminNotificationsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminNotificationsWithResponse(ctx context.Context, body PostAdminNotificationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminNotificationsResponse, error) {
+	rsp, err := c.PostAdminNotifications(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminNotificationsResponse(rsp)
+}
+
+// PostAdminNotificationsUserUserIDWithBodyWithResponse request with arbitrary body returning *PostAdminNotificationsUserUserIDResponse
+func (c *ClientWithResponses) PostAdminNotificationsUserUserIDWithBodyWithResponse(ctx context.Context, userID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminNotificationsUserUserIDResponse, error) {
+	rsp, err := c.PostAdminNotificationsUserUserIDWithBody(ctx, userID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminNotificationsUserUserIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminNotificationsUserUserIDWithResponse(ctx context.Context, userID string, body PostAdminNotificationsUserUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminNotificationsUserUserIDResponse, error) {
+	rsp, err := c.PostAdminNotificationsUserUserID(ctx, userID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminNotificationsUserUserIDResponse(rsp)
+}
+
+// DeleteAdminNotificationsIDWithResponse request returning *DeleteAdminNotificationsIDResponse
+func (c *ClientWithResponses) DeleteAdminNotificationsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminNotificationsIDResponse, error) {
+	rsp, err := c.DeleteAdminNotificationsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminNotificationsIDResponse(rsp)
+}
+
+// PutAdminNotificationsIDWithBodyWithResponse request with arbitrary body returning *PutAdminNotificationsIDResponse
+func (c *ClientWithResponses) PutAdminNotificationsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminNotificationsIDResponse, error) {
+	rsp, err := c.PutAdminNotificationsIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminNotificationsIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminNotificationsIDWithResponse(ctx context.Context, id string, body PutAdminNotificationsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminNotificationsIDResponse, error) {
+	rsp, err := c.PutAdminNotificationsID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminNotificationsIDResponse(rsp)
+}
+
+// GetAdminPagesWithResponse request returning *GetAdminPagesResponse
+func (c *ClientWithResponses) GetAdminPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminPagesResponse, error) {
+	rsp, err := c.GetAdminPages(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminPagesResponse(rsp)
+}
+
+// PostAdminPagesWithBodyWithResponse request with arbitrary body returning *PostAdminPagesResponse
+func (c *ClientWithResponses) PostAdminPagesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminPagesResponse, error) {
+	rsp, err := c.PostAdminPagesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminPagesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminPagesWithResponse(ctx context.Context, body PostAdminPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminPagesResponse, error) {
+	rsp, err := c.PostAdminPages(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminPagesResponse(rsp)
+}
+
+// DeleteAdminPagesIDWithResponse request returning *DeleteAdminPagesIDResponse
+func (c *ClientWithResponses) DeleteAdminPagesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminPagesIDResponse, error) {
+	rsp, err := c.DeleteAdminPagesID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminPagesIDResponse(rsp)
+}
+
+// GetAdminPagesIDWithResponse request returning *GetAdminPagesIDResponse
+func (c *ClientWithResponses) GetAdminPagesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminPagesIDResponse, error) {
+	rsp, err := c.GetAdminPagesID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminPagesIDResponse(rsp)
+}
+
+// PutAdminPagesIDWithBodyWithResponse request with arbitrary body returning *PutAdminPagesIDResponse
+func (c *ClientWithResponses) PutAdminPagesIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminPagesIDResponse, error) {
+	rsp, err := c.PutAdminPagesIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminPagesIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminPagesIDWithResponse(ctx context.Context, id string, body PutAdminPagesIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminPagesIDResponse, error) {
+	rsp, err := c.PutAdminPagesID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminPagesIDResponse(rsp)
+}
+
 // GetAdminSettingsWithResponse request returning *GetAdminSettingsResponse
 func (c *ClientWithResponses) GetAdminSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminSettingsResponse, error) {
 	rsp, err := c.GetAdminSettings(ctx, reqEditors...)
@@ -4761,6 +9279,94 @@ func (c *ClientWithResponses) PutAdminSettingsWithResponse(ctx context.Context, 
 	return ParsePutAdminSettingsResponse(rsp)
 }
 
+// GetAdminSubmissionsWithResponse request returning *GetAdminSubmissionsResponse
+func (c *ClientWithResponses) GetAdminSubmissionsWithResponse(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsResponse, error) {
+	rsp, err := c.GetAdminSubmissions(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSubmissionsResponse(rsp)
+}
+
+// GetAdminSubmissionsChallengeChallengeIDWithResponse request returning *GetAdminSubmissionsChallengeChallengeIDResponse
+func (c *ClientWithResponses) GetAdminSubmissionsChallengeChallengeIDWithResponse(ctx context.Context, challengeID string, params *GetAdminSubmissionsChallengeChallengeIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsChallengeChallengeIDResponse, error) {
+	rsp, err := c.GetAdminSubmissionsChallengeChallengeID(ctx, challengeID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSubmissionsChallengeChallengeIDResponse(rsp)
+}
+
+// GetAdminSubmissionsChallengeChallengeIDStatsWithResponse request returning *GetAdminSubmissionsChallengeChallengeIDStatsResponse
+func (c *ClientWithResponses) GetAdminSubmissionsChallengeChallengeIDStatsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsChallengeChallengeIDStatsResponse, error) {
+	rsp, err := c.GetAdminSubmissionsChallengeChallengeIDStats(ctx, challengeID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSubmissionsChallengeChallengeIDStatsResponse(rsp)
+}
+
+// GetAdminSubmissionsTeamTeamIDWithResponse request returning *GetAdminSubmissionsTeamTeamIDResponse
+func (c *ClientWithResponses) GetAdminSubmissionsTeamTeamIDWithResponse(ctx context.Context, teamID string, params *GetAdminSubmissionsTeamTeamIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsTeamTeamIDResponse, error) {
+	rsp, err := c.GetAdminSubmissionsTeamTeamID(ctx, teamID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSubmissionsTeamTeamIDResponse(rsp)
+}
+
+// GetAdminSubmissionsUserUserIDWithResponse request returning *GetAdminSubmissionsUserUserIDResponse
+func (c *ClientWithResponses) GetAdminSubmissionsUserUserIDWithResponse(ctx context.Context, userID string, params *GetAdminSubmissionsUserUserIDParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsUserUserIDResponse, error) {
+	rsp, err := c.GetAdminSubmissionsUserUserID(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSubmissionsUserUserIDResponse(rsp)
+}
+
+// PostAdminTagsWithBodyWithResponse request with arbitrary body returning *PostAdminTagsResponse
+func (c *ClientWithResponses) PostAdminTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTagsResponse, error) {
+	rsp, err := c.PostAdminTagsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTagsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminTagsWithResponse(ctx context.Context, body PostAdminTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTagsResponse, error) {
+	rsp, err := c.PostAdminTags(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTagsResponse(rsp)
+}
+
+// DeleteAdminTagsIDWithResponse request returning *DeleteAdminTagsIDResponse
+func (c *ClientWithResponses) DeleteAdminTagsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTagsIDResponse, error) {
+	rsp, err := c.DeleteAdminTagsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminTagsIDResponse(rsp)
+}
+
+// PutAdminTagsIDWithBodyWithResponse request with arbitrary body returning *PutAdminTagsIDResponse
+func (c *ClientWithResponses) PutAdminTagsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminTagsIDResponse, error) {
+	rsp, err := c.PutAdminTagsIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminTagsIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminTagsIDWithResponse(ctx context.Context, id string, body PutAdminTagsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminTagsIDResponse, error) {
+	rsp, err := c.PutAdminTagsID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminTagsIDResponse(rsp)
+}
+
 // DeleteAdminTeamsIDBanWithResponse request returning *DeleteAdminTeamsIDBanResponse
 func (c *ClientWithResponses) DeleteAdminTeamsIDBanWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDBanResponse, error) {
 	rsp, err := c.DeleteAdminTeamsIDBan(ctx, id, reqEditors...)
@@ -4785,6 +9391,23 @@ func (c *ClientWithResponses) PostAdminTeamsIDBanWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParsePostAdminTeamsIDBanResponse(rsp)
+}
+
+// PatchAdminTeamsIDBracketWithBodyWithResponse request with arbitrary body returning *PatchAdminTeamsIDBracketResponse
+func (c *ClientWithResponses) PatchAdminTeamsIDBracketWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDBracketResponse, error) {
+	rsp, err := c.PatchAdminTeamsIDBracketWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminTeamsIDBracketResponse(rsp)
+}
+
+func (c *ClientWithResponses) PatchAdminTeamsIDBracketWithResponse(ctx context.Context, id string, body PatchAdminTeamsIDBracketJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDBracketResponse, error) {
+	rsp, err := c.PatchAdminTeamsIDBracket(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminTeamsIDBracketResponse(rsp)
 }
 
 // PatchAdminTeamsIDHiddenWithBodyWithResponse request with arbitrary body returning *PatchAdminTeamsIDHiddenResponse
@@ -4899,9 +9522,18 @@ func (c *ClientWithResponses) GetAuthVerifyEmailWithResponse(ctx context.Context
 	return ParseGetAuthVerifyEmailResponse(rsp)
 }
 
+// GetBracketsWithResponse request returning *GetBracketsResponse
+func (c *ClientWithResponses) GetBracketsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBracketsResponse, error) {
+	rsp, err := c.GetBrackets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBracketsResponse(rsp)
+}
+
 // GetChallengesWithResponse request returning *GetChallengesResponse
-func (c *ClientWithResponses) GetChallengesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetChallengesResponse, error) {
-	rsp, err := c.GetChallenges(ctx, reqEditors...)
+func (c *ClientWithResponses) GetChallengesWithResponse(ctx context.Context, params *GetChallengesParams, reqEditors ...RequestEditorFn) (*GetChallengesResponse, error) {
+	rsp, err := c.GetChallenges(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -4934,6 +9566,32 @@ func (c *ClientWithResponses) PostChallengesIDSubmitWithResponse(ctx context.Con
 	return ParsePostChallengesIDSubmitResponse(rsp)
 }
 
+// GetChallengesChallengeIDCommentsWithResponse request returning *GetChallengesChallengeIDCommentsResponse
+func (c *ClientWithResponses) GetChallengesChallengeIDCommentsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDCommentsResponse, error) {
+	rsp, err := c.GetChallengesChallengeIDComments(ctx, challengeID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetChallengesChallengeIDCommentsResponse(rsp)
+}
+
+// PostChallengesChallengeIDCommentsWithBodyWithResponse request with arbitrary body returning *PostChallengesChallengeIDCommentsResponse
+func (c *ClientWithResponses) PostChallengesChallengeIDCommentsWithBodyWithResponse(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDCommentsResponse, error) {
+	rsp, err := c.PostChallengesChallengeIDCommentsWithBody(ctx, challengeID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostChallengesChallengeIDCommentsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostChallengesChallengeIDCommentsWithResponse(ctx context.Context, challengeID string, body PostChallengesChallengeIDCommentsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDCommentsResponse, error) {
+	rsp, err := c.PostChallengesChallengeIDComments(ctx, challengeID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostChallengesChallengeIDCommentsResponse(rsp)
+}
+
 // GetChallengesChallengeIDFilesWithResponse request returning *GetChallengesChallengeIDFilesResponse
 func (c *ClientWithResponses) GetChallengesChallengeIDFilesWithResponse(ctx context.Context, challengeID string, params *GetChallengesChallengeIDFilesParams, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDFilesResponse, error) {
 	rsp, err := c.GetChallengesChallengeIDFiles(ctx, challengeID, params, reqEditors...)
@@ -4961,6 +9619,15 @@ func (c *ClientWithResponses) PostChallengesChallengeIDHintsHintIDUnlockWithResp
 	return ParsePostChallengesChallengeIDHintsHintIDUnlockResponse(rsp)
 }
 
+// DeleteCommentsIDWithResponse request returning *DeleteCommentsIDResponse
+func (c *ClientWithResponses) DeleteCommentsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteCommentsIDResponse, error) {
+	rsp, err := c.DeleteCommentsID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCommentsIDResponse(rsp)
+}
+
 // GetCompetitionStatusWithResponse request returning *GetCompetitionStatusResponse
 func (c *ClientWithResponses) GetCompetitionStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCompetitionStatusResponse, error) {
 	rsp, err := c.GetCompetitionStatus(ctx, reqEditors...)
@@ -4968,6 +9635,15 @@ func (c *ClientWithResponses) GetCompetitionStatusWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseGetCompetitionStatusResponse(rsp)
+}
+
+// GetFieldsWithResponse request returning *GetFieldsResponse
+func (c *ClientWithResponses) GetFieldsWithResponse(ctx context.Context, params *GetFieldsParams, reqEditors ...RequestEditorFn) (*GetFieldsResponse, error) {
+	rsp, err := c.GetFields(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetFieldsResponse(rsp)
 }
 
 // GetFilesIDDownloadWithResponse request returning *GetFilesIDDownloadResponse
@@ -4979,9 +9655,54 @@ func (c *ClientWithResponses) GetFilesIDDownloadWithResponse(ctx context.Context
 	return ParseGetFilesIDDownloadResponse(rsp)
 }
 
+// GetNotificationsWithResponse request returning *GetNotificationsResponse
+func (c *ClientWithResponses) GetNotificationsWithResponse(ctx context.Context, params *GetNotificationsParams, reqEditors ...RequestEditorFn) (*GetNotificationsResponse, error) {
+	rsp, err := c.GetNotifications(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetNotificationsResponse(rsp)
+}
+
+// GetPagesWithResponse request returning *GetPagesResponse
+func (c *ClientWithResponses) GetPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPagesResponse, error) {
+	rsp, err := c.GetPages(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPagesResponse(rsp)
+}
+
+// GetPagesSlugWithResponse request returning *GetPagesSlugResponse
+func (c *ClientWithResponses) GetPagesSlugWithResponse(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*GetPagesSlugResponse, error) {
+	rsp, err := c.GetPagesSlug(ctx, slug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPagesSlugResponse(rsp)
+}
+
+// GetRatingsWithResponse request returning *GetRatingsResponse
+func (c *ClientWithResponses) GetRatingsWithResponse(ctx context.Context, params *GetRatingsParams, reqEditors ...RequestEditorFn) (*GetRatingsResponse, error) {
+	rsp, err := c.GetRatings(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRatingsResponse(rsp)
+}
+
+// GetRatingsTeamIDWithResponse request returning *GetRatingsTeamIDResponse
+func (c *ClientWithResponses) GetRatingsTeamIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetRatingsTeamIDResponse, error) {
+	rsp, err := c.GetRatingsTeamID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRatingsTeamIDResponse(rsp)
+}
+
 // GetScoreboardWithResponse request returning *GetScoreboardResponse
-func (c *ClientWithResponses) GetScoreboardWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetScoreboardResponse, error) {
-	rsp, err := c.GetScoreboard(ctx, reqEditors...)
+func (c *ClientWithResponses) GetScoreboardWithResponse(ctx context.Context, params *GetScoreboardParams, reqEditors ...RequestEditorFn) (*GetScoreboardResponse, error) {
+	rsp, err := c.GetScoreboard(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -5031,6 +9752,15 @@ func (c *ClientWithResponses) GetStatisticsScoreboardWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseGetStatisticsScoreboardResponse(rsp)
+}
+
+// GetTagsWithResponse request returning *GetTagsResponse
+func (c *ClientWithResponses) GetTagsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTagsResponse, error) {
+	rsp, err := c.GetTags(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTagsResponse(rsp)
 }
 
 // PostTeamsWithBodyWithResponse request with arbitrary body returning *PostTeamsResponse
@@ -5146,6 +9876,59 @@ func (c *ClientWithResponses) GetTeamsIDWithResponse(ctx context.Context, id str
 	return ParseGetTeamsIDResponse(rsp)
 }
 
+// GetUserNotificationsWithResponse request returning *GetUserNotificationsResponse
+func (c *ClientWithResponses) GetUserNotificationsWithResponse(ctx context.Context, params *GetUserNotificationsParams, reqEditors ...RequestEditorFn) (*GetUserNotificationsResponse, error) {
+	rsp, err := c.GetUserNotifications(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetUserNotificationsResponse(rsp)
+}
+
+// PatchUserNotificationsIDReadWithResponse request returning *PatchUserNotificationsIDReadResponse
+func (c *ClientWithResponses) PatchUserNotificationsIDReadWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PatchUserNotificationsIDReadResponse, error) {
+	rsp, err := c.PatchUserNotificationsIDRead(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchUserNotificationsIDReadResponse(rsp)
+}
+
+// GetUserTokensWithResponse request returning *GetUserTokensResponse
+func (c *ClientWithResponses) GetUserTokensWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetUserTokensResponse, error) {
+	rsp, err := c.GetUserTokens(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetUserTokensResponse(rsp)
+}
+
+// PostUserTokensWithBodyWithResponse request with arbitrary body returning *PostUserTokensResponse
+func (c *ClientWithResponses) PostUserTokensWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostUserTokensResponse, error) {
+	rsp, err := c.PostUserTokensWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostUserTokensResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostUserTokensWithResponse(ctx context.Context, body PostUserTokensJSONRequestBody, reqEditors ...RequestEditorFn) (*PostUserTokensResponse, error) {
+	rsp, err := c.PostUserTokens(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostUserTokensResponse(rsp)
+}
+
+// DeleteUserTokensIDWithResponse request returning *DeleteUserTokensIDResponse
+func (c *ClientWithResponses) DeleteUserTokensIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteUserTokensIDResponse, error) {
+	rsp, err := c.DeleteUserTokensID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteUserTokensIDResponse(rsp)
+}
+
 // GetUsersIDWithResponse request returning *GetUsersIDResponse
 func (c *ClientWithResponses) GetUsersIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetUsersIDResponse, error) {
 	rsp, err := c.GetUsersID(ctx, id, reqEditors...)
@@ -5252,6 +10035,100 @@ func ParseGetAdminAwardsTeamTeamIDResponse(rsp *http.Response) (*GetAdminAwardsT
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminBracketsResponse parses an HTTP response from a PostAdminBracketsWithResponse call
+func ParsePostAdminBracketsResponse(rsp *http.Response) (*PostAdminBracketsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminBracketsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseBracketResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminBracketsIDResponse parses an HTTP response from a DeleteAdminBracketsIDWithResponse call
+func ParseDeleteAdminBracketsIDResponse(rsp *http.Response) (*DeleteAdminBracketsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminBracketsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminBracketsIDResponse parses an HTTP response from a GetAdminBracketsIDWithResponse call
+func ParseGetAdminBracketsIDResponse(rsp *http.Response) (*GetAdminBracketsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminBracketsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseBracketResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminBracketsIDResponse parses an HTTP response from a PutAdminBracketsIDWithResponse call
+func ParsePutAdminBracketsIDResponse(rsp *http.Response) (*PutAdminBracketsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminBracketsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseBracketResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -5521,6 +10398,168 @@ func ParsePutAdminCompetitionResponse(rsp *http.Response) (*PutAdminCompetitionR
 	return response, nil
 }
 
+// ParseGetAdminConfigsResponse parses an HTTP response from a GetAdminConfigsWithResponse call
+func ParseGetAdminConfigsResponse(rsp *http.Response) (*GetAdminConfigsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminConfigsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseConfigResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminConfigsKeyResponse parses an HTTP response from a DeleteAdminConfigsKeyWithResponse call
+func ParseDeleteAdminConfigsKeyResponse(rsp *http.Response) (*DeleteAdminConfigsKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminConfigsKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminConfigsKeyResponse parses an HTTP response from a GetAdminConfigsKeyWithResponse call
+func ParseGetAdminConfigsKeyResponse(rsp *http.Response) (*GetAdminConfigsKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminConfigsKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConfigResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminConfigsKeyResponse parses an HTTP response from a PutAdminConfigsKeyWithResponse call
+func ParsePutAdminConfigsKeyResponse(rsp *http.Response) (*PutAdminConfigsKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminConfigsKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminCtfEventsResponse parses an HTTP response from a GetAdminCtfEventsWithResponse call
+func ParseGetAdminCtfEventsResponse(rsp *http.Response) (*GetAdminCtfEventsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminCtfEventsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseCTFEventResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminCtfEventsResponse parses an HTTP response from a PostAdminCtfEventsWithResponse call
+func ParsePostAdminCtfEventsResponse(rsp *http.Response) (*PostAdminCtfEventsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminCtfEventsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseCTFEventResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminCtfEventsIDFinalizeResponse parses an HTTP response from a PostAdminCtfEventsIDFinalizeWithResponse call
+func ParsePostAdminCtfEventsIDFinalizeResponse(rsp *http.Response) (*PostAdminCtfEventsIDFinalizeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminCtfEventsIDFinalizeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetAdminExportResponse parses an HTTP response from a GetAdminExportWithResponse call
 func ParseGetAdminExportResponse(rsp *http.Response) (*GetAdminExportResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5602,6 +10641,74 @@ func ParseGetAdminExportZipResponse(rsp *http.Response) (*GetAdminExportZipRespo
 			return nil, err
 		}
 		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminFieldsResponse parses an HTTP response from a PostAdminFieldsWithResponse call
+func ParsePostAdminFieldsResponse(rsp *http.Response) (*PostAdminFieldsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminFieldsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseFieldResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminFieldsIDResponse parses an HTTP response from a DeleteAdminFieldsIDWithResponse call
+func ParseDeleteAdminFieldsIDResponse(rsp *http.Response) (*DeleteAdminFieldsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminFieldsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminFieldsIDResponse parses an HTTP response from a PutAdminFieldsIDWithResponse call
+func ParsePutAdminFieldsIDResponse(rsp *http.Response) (*PutAdminFieldsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminFieldsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseFieldResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -5741,6 +10848,220 @@ func ParsePostAdminImportResponse(rsp *http.Response) (*PostAdminImportResponse,
 	return response, nil
 }
 
+// ParsePostAdminNotificationsResponse parses an HTTP response from a PostAdminNotificationsWithResponse call
+func ParsePostAdminNotificationsResponse(rsp *http.Response) (*PostAdminNotificationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminNotificationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseNotificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminNotificationsUserUserIDResponse parses an HTTP response from a PostAdminNotificationsUserUserIDWithResponse call
+func ParsePostAdminNotificationsUserUserIDResponse(rsp *http.Response) (*PostAdminNotificationsUserUserIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminNotificationsUserUserIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseUserNotificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminNotificationsIDResponse parses an HTTP response from a DeleteAdminNotificationsIDWithResponse call
+func ParseDeleteAdminNotificationsIDResponse(rsp *http.Response) (*DeleteAdminNotificationsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminNotificationsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminNotificationsIDResponse parses an HTTP response from a PutAdminNotificationsIDWithResponse call
+func ParsePutAdminNotificationsIDResponse(rsp *http.Response) (*PutAdminNotificationsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminNotificationsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseNotificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminPagesResponse parses an HTTP response from a GetAdminPagesWithResponse call
+func ParseGetAdminPagesResponse(rsp *http.Response) (*GetAdminPagesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminPagesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponsePageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminPagesResponse parses an HTTP response from a PostAdminPagesWithResponse call
+func ParsePostAdminPagesResponse(rsp *http.Response) (*PostAdminPagesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminPagesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponsePageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminPagesIDResponse parses an HTTP response from a DeleteAdminPagesIDWithResponse call
+func ParseDeleteAdminPagesIDResponse(rsp *http.Response) (*DeleteAdminPagesIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminPagesIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminPagesIDResponse parses an HTTP response from a GetAdminPagesIDWithResponse call
+func ParseGetAdminPagesIDResponse(rsp *http.Response) (*GetAdminPagesIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminPagesIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponsePageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminPagesIDResponse parses an HTTP response from a PutAdminPagesIDWithResponse call
+func ParsePutAdminPagesIDResponse(rsp *http.Response) (*PutAdminPagesIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminPagesIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponsePageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAdminSettingsResponse parses an HTTP response from a GetAdminSettingsWithResponse call
 func ParseGetAdminSettingsResponse(rsp *http.Response) (*GetAdminSettingsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5783,6 +11104,302 @@ func ParsePutAdminSettingsResponse(rsp *http.Response) (*PutAdminSettingsRespons
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest map[string]string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSubmissionsResponse parses an HTTP response from a GetAdminSubmissionsWithResponse call
+func ParseGetAdminSubmissionsResponse(rsp *http.Response) (*GetAdminSubmissionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSubmissionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSubmissionListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSubmissionsChallengeChallengeIDResponse parses an HTTP response from a GetAdminSubmissionsChallengeChallengeIDWithResponse call
+func ParseGetAdminSubmissionsChallengeChallengeIDResponse(rsp *http.Response) (*GetAdminSubmissionsChallengeChallengeIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSubmissionsChallengeChallengeIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSubmissionListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSubmissionsChallengeChallengeIDStatsResponse parses an HTTP response from a GetAdminSubmissionsChallengeChallengeIDStatsWithResponse call
+func ParseGetAdminSubmissionsChallengeChallengeIDStatsResponse(rsp *http.Response) (*GetAdminSubmissionsChallengeChallengeIDStatsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSubmissionsChallengeChallengeIDStatsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSubmissionStatsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSubmissionsTeamTeamIDResponse parses an HTTP response from a GetAdminSubmissionsTeamTeamIDWithResponse call
+func ParseGetAdminSubmissionsTeamTeamIDResponse(rsp *http.Response) (*GetAdminSubmissionsTeamTeamIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSubmissionsTeamTeamIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSubmissionListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSubmissionsUserUserIDResponse parses an HTTP response from a GetAdminSubmissionsUserUserIDWithResponse call
+func ParseGetAdminSubmissionsUserUserIDResponse(rsp *http.Response) (*GetAdminSubmissionsUserUserIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSubmissionsUserUserIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSubmissionListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminTagsResponse parses an HTTP response from a PostAdminTagsWithResponse call
+func ParsePostAdminTagsResponse(rsp *http.Response) (*PostAdminTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseTagResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminTagsIDResponse parses an HTTP response from a DeleteAdminTagsIDWithResponse call
+func ParseDeleteAdminTagsIDResponse(rsp *http.Response) (*DeleteAdminTagsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminTagsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminTagsIDResponse parses an HTTP response from a PutAdminTagsIDWithResponse call
+func ParsePutAdminTagsIDResponse(rsp *http.Response) (*PutAdminTagsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminTagsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseTagResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5888,6 +11505,32 @@ func ParsePostAdminTeamsIDBanResponse(rsp *http.Response) (*PostAdminTeamsIDBanR
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchAdminTeamsIDBracketResponse parses an HTTP response from a PatchAdminTeamsIDBracketWithResponse call
+func ParsePatchAdminTeamsIDBracketResponse(rsp *http.Response) (*PatchAdminTeamsIDBracketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchAdminTeamsIDBracketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseTeamResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -6214,6 +11857,32 @@ func ParseGetAuthVerifyEmailResponse(rsp *http.Response) (*GetAuthVerifyEmailRes
 	return response, nil
 }
 
+// ParseGetBracketsResponse parses an HTTP response from a GetBracketsWithResponse call
+func ParseGetBracketsResponse(rsp *http.Response) (*GetBracketsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBracketsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseBracketResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetChallengesResponse parses an HTTP response from a GetChallengesWithResponse call
 func ParseGetChallengesResponse(rsp *http.Response) (*GetChallengesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6348,6 +12017,93 @@ func ParsePostChallengesIDSubmitResponse(rsp *http.Response) (*PostChallengesIDS
 	return response, nil
 }
 
+// ParseGetChallengesChallengeIDCommentsResponse parses an HTTP response from a GetChallengesChallengeIDCommentsWithResponse call
+func ParseGetChallengesChallengeIDCommentsResponse(rsp *http.Response) (*GetChallengesChallengeIDCommentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetChallengesChallengeIDCommentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseCommentResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostChallengesChallengeIDCommentsResponse parses an HTTP response from a PostChallengesChallengeIDCommentsWithResponse call
+func ParsePostChallengesChallengeIDCommentsResponse(rsp *http.Response) (*PostChallengesChallengeIDCommentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostChallengesChallengeIDCommentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseCommentResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetChallengesChallengeIDFilesResponse parses an HTTP response from a GetChallengesChallengeIDFilesWithResponse call
 func ParseGetChallengesChallengeIDFilesResponse(rsp *http.Response) (*GetChallengesChallengeIDFilesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6475,6 +12231,46 @@ func ParsePostChallengesChallengeIDHintsHintIDUnlockResponse(rsp *http.Response)
 	return response, nil
 }
 
+// ParseDeleteCommentsIDResponse parses an HTTP response from a DeleteCommentsIDWithResponse call
+func ParseDeleteCommentsIDResponse(rsp *http.Response) (*DeleteCommentsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCommentsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetCompetitionStatusResponse parses an HTTP response from a GetCompetitionStatusWithResponse call
 func ParseGetCompetitionStatusResponse(rsp *http.Response) (*GetCompetitionStatusResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6491,6 +12287,32 @@ func ParseGetCompetitionStatusResponse(rsp *http.Response) (*GetCompetitionStatu
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ResponseCompetitionStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetFieldsResponse parses an HTTP response from a GetFieldsWithResponse call
+func ParseGetFieldsResponse(rsp *http.Response) (*GetFieldsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetFieldsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseFieldResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -6535,6 +12357,136 @@ func ParseGetFilesIDDownloadResponse(rsp *http.Response) (*GetFilesIDDownloadRes
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetNotificationsResponse parses an HTTP response from a GetNotificationsWithResponse call
+func ParseGetNotificationsResponse(rsp *http.Response) (*GetNotificationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetNotificationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseNotificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPagesResponse parses an HTTP response from a GetPagesWithResponse call
+func ParseGetPagesResponse(rsp *http.Response) (*GetPagesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPagesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponsePageListItemResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPagesSlugResponse parses an HTTP response from a GetPagesSlugWithResponse call
+func ParseGetPagesSlugResponse(rsp *http.Response) (*GetPagesSlugResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPagesSlugResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponsePageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRatingsResponse parses an HTTP response from a GetRatingsWithResponse call
+func ParseGetRatingsResponse(rsp *http.Response) (*GetRatingsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRatingsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseGlobalRatingsListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRatingsTeamIDResponse parses an HTTP response from a GetRatingsTeamIDWithResponse call
+func ParseGetRatingsTeamIDResponse(rsp *http.Response) (*GetRatingsTeamIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRatingsTeamIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseTeamRatingResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -6740,6 +12692,32 @@ func ParseGetStatisticsScoreboardResponse(rsp *http.Response) (*GetStatisticsSco
 			return nil, err
 		}
 		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTagsResponse parses an HTTP response from a GetTagsWithResponse call
+func ParseGetTagsResponse(rsp *http.Response) (*GetTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseTagResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -7143,6 +13121,116 @@ func ParseGetTeamsIDResponse(rsp *http.Response) (*GetTeamsIDResponse, error) {
 		}
 		response.JSON404 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseGetUserNotificationsResponse parses an HTTP response from a GetUserNotificationsWithResponse call
+func ParseGetUserNotificationsResponse(rsp *http.Response) (*GetUserNotificationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetUserNotificationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseUserNotificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchUserNotificationsIDReadResponse parses an HTTP response from a PatchUserNotificationsIDReadWithResponse call
+func ParsePatchUserNotificationsIDReadResponse(rsp *http.Response) (*PatchUserNotificationsIDReadResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchUserNotificationsIDReadResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetUserTokensResponse parses an HTTP response from a GetUserTokensWithResponse call
+func ParseGetUserTokensResponse(rsp *http.Response) (*GetUserTokensResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetUserTokensResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ResponseAPITokenResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostUserTokensResponse parses an HTTP response from a PostUserTokensWithResponse call
+func ParsePostUserTokensResponse(rsp *http.Response) (*PostUserTokensResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostUserTokensResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ResponseAPITokenCreatedResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteUserTokensIDResponse parses an HTTP response from a DeleteUserTokensIDWithResponse call
+func ParseDeleteUserTokensIDResponse(rsp *http.Response) (*DeleteUserTokensIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteUserTokensIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

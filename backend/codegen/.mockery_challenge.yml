@@ -84,6 +84,20 @@ packages:
           pkgname: "mocks"
           structname: "MockAuditLogRepository"
 
+      TagRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "TagRepository.go"
+          pkgname: "mocks"
+          structname: "MockTagRepository"
+
+      CommentRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "CommentRepository.go"
+          pkgname: "mocks"
+          structname: "MockCommentRepository"
+
   github.com/skr1ms/CTFBoard/internal/storage:
     interfaces:
       Provider:

@@ -1,0 +1,15 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/skr1ms/CTFBoard/internal/repo:
+    interfaces:
+      NotificationRepository:
+        config:
+          dir: "internal/usecase/notification/mocks"
+          filename: "NotificationRepository.go"
+          pkgname: "mocks"
+          structname: "MockNotificationRepository"

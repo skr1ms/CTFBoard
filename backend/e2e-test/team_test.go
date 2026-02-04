@@ -5,13 +5,15 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // POST /teams/solo + GET /teams/my + POST /teams/join: captain creates solo team; player joins by invite_token; both see same team.
 func TestTeam_FullFlow(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 
@@ -39,8 +41,9 @@ func TestTeam_FullFlow(t *testing.T) {
 
 // Full flow: competition + challenge + captain creates team + member joins + captain submits flag; GET /scoreboard shows team points.
 func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_workflow")
 
@@ -84,8 +87,9 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 
 // POST /teams: creating team with name that already exists returns 409 Conflict.
 func TestTeam_CreateDuplicateName(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 
@@ -102,8 +106,9 @@ func TestTeam_CreateDuplicateName(t *testing.T) {
 
 // POST /teams/join: invalid invite_token returns 404.
 func TestTeam_JoinInvalidToken(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("user_" + uuid.New().String()[:8])
 
@@ -113,8 +118,9 @@ func TestTeam_JoinInvalidToken(t *testing.T) {
 
 // POST /teams/join: user already in a team tries to join another returns 409 Conflict.
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 
@@ -139,8 +145,9 @@ func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 
 // POST /teams/join with confirm_reset: solo player with points joins another team; scoreboard shows target team with 0 (points reset).
 func TestTeam_Join_PointsCheck(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_points")
 
@@ -197,8 +204,9 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: admin bans team; returns 200.
 func TestTeam_Admin_Ban(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_ban")
 	suffix := uuid.New().String()[:8]
@@ -214,8 +222,9 @@ func TestTeam_Admin_Ban(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/ban: admin unbans team; returns 200.
 func TestTeam_Admin_Unban(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_unban")
 	suffix := uuid.New().String()[:8]
@@ -232,8 +241,9 @@ func TestTeam_Admin_Unban(t *testing.T) {
 
 // PATCH /admin/teams/{ID}/hidden: admin sets team hidden; returns 200.
 func TestTeam_Admin_SetHidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hidden_team")
 	suffix := uuid.New().String()[:8]
@@ -250,8 +260,9 @@ func TestTeam_Admin_SetHidden(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/ban: non-admin gets 403 Forbidden.
 func TestTeam_Admin_Unban_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_unban_f")
 	suffix := uuid.New().String()[:8]
@@ -267,8 +278,9 @@ func TestTeam_Admin_Unban_Forbidden(t *testing.T) {
 
 // PATCH /admin/teams/{ID}/hidden: non-admin gets 403 Forbidden.
 func TestTeam_Admin_SetHidden_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_hidden_f")
 	suffix := uuid.New().String()[:8]
@@ -284,8 +296,9 @@ func TestTeam_Admin_SetHidden_Forbidden(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: non-admin gets 403.
 func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_ban_f")
 	suffix := uuid.New().String()[:8]
@@ -304,8 +317,9 @@ func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
 
 // POST /teams/transfer-captain: captain transfers role to another member; GET /teams/my shows new captain_id.
 func TestTeam_TransferCaptain(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_transfer_" + suffix
@@ -342,8 +356,9 @@ func TestTeam_TransferCaptain(t *testing.T) {
 
 // DELETE /teams/members/{ID}: captain kicks member; kicked user GET /teams/my returns 404.
 func TestTeam_KickMember(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_kick_" + suffix
@@ -377,8 +392,9 @@ func TestTeam_KickMember(t *testing.T) {
 
 // POST /teams/leave: member leaves team; GET /teams/my returns 404 for that user.
 func TestTeam_LeaveTeam(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_leave_" + suffix
@@ -400,8 +416,9 @@ func TestTeam_LeaveTeam(t *testing.T) {
 
 // GET /teams/{ID}: returns team by ID (name, id, captain_id); member can fetch own team.
 func TestTeam_GetByID(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, token := h.RegisterUserAndLogin("getteam_" + suffix)
@@ -420,8 +437,9 @@ func TestTeam_GetByID(t *testing.T) {
 
 // DELETE /teams/me: captain disbands team; GET /teams/my returns 404 for all former members.
 func TestTeam_Disband(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	captainName := "cap_disband_" + suffix
@@ -444,8 +462,9 @@ func TestTeam_Disband(t *testing.T) {
 
 // GET /teams/my: user not in any team returns 404.
 func TestTeam_GetMy_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("noteam_" + uuid.New().String()[:8])
 	h.GetMyTeam(token, http.StatusNotFound)
@@ -453,8 +472,9 @@ func TestTeam_GetMy_NotFound(t *testing.T) {
 
 // GET /teams/{ID}: non-existent team returns 404.
 func TestTeam_GetByID_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("getbyid_" + uuid.New().String()[:8])
 	h.GetTeamByID(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
@@ -462,8 +482,9 @@ func TestTeam_GetByID_NotFound(t *testing.T) {
 
 // POST /teams/leave: user not in team returns 404.
 func TestTeam_Leave_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("leave_no_" + uuid.New().String()[:8])
 	h.LeaveTeam(token, http.StatusNotFound)
@@ -471,8 +492,9 @@ func TestTeam_Leave_NotFound(t *testing.T) {
 
 // DELETE /teams/me: user not in team returns 404.
 func TestTeam_Disband_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("disband_no_" + uuid.New().String()[:8])
 	h.DisbandTeam(token, http.StatusNotFound)
@@ -480,8 +502,9 @@ func TestTeam_Disband_NotFound(t *testing.T) {
 
 // DELETE /teams/members/{ID}: non-existent member or not captain returns 404.
 func TestTeam_KickMember_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, token := h.RegisterUserAndLogin("kick_cap_" + suffix)
@@ -491,8 +514,9 @@ func TestTeam_KickMember_NotFound(t *testing.T) {
 
 // POST /teams/transfer-captain: non-captain gets 403 Forbidden.
 func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	capName := "cap_tf_" + suffix
@@ -520,8 +544,9 @@ func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
 
 // POST /teams/solo: user already in team gets 400 Conflict.
 func TestTeam_CreateSolo_Conflict(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("solo_dup_" + uuid.New().String()[:8])
 	h.CreateSoloTeam(token, http.StatusCreated)

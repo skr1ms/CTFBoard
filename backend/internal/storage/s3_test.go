@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewS3Provider_Error(t *testing.T) {
+	_, err := storage.NewS3Provider("http://localhost:9000", "http://localhost:9000", "", "", "bucket", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credentials")
+}
+
 func TestS3Provider_Workflow(t *testing.T) {
 	endpoint := os.Getenv("S3_ENDPOINT")
 	accessKey := os.Getenv("S3_ACCESS_KEY")

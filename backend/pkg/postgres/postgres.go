@@ -5,42 +5,39 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/config"
 )
 
-const (
-	maxPoolSize  = 10
-	connAttempts = 10
-	connTimeout  = time.Second
-)
+const maxPoolSize = 10
 
 func New(cfg *config.DB) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
 		return nil, fmt.Errorf("postgres - New - pgxpool.ParseConfig: %w", err)
 	}
-
 	config.MaxConns = maxPoolSize
 
 	var pool *pgxpool.Pool
-
-	for i := 0; i < connAttempts; i++ {
-		pool, err = pgxpool.NewWithConfig(context.Background(), config)
-		if err == nil {
-			break
+	operation := func() error {
+		var createErr error
+		pool, createErr = pgxpool.NewWithConfig(context.Background(), config)
+		if createErr != nil {
+			return createErr
 		}
-
-		time.Sleep(connTimeout)
+		if pingErr := pool.Ping(context.Background()); pingErr != nil {
+			pool.Close()
+			pool = nil
+			return pingErr
+		}
+		return nil
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("postgres - New - pgxpool.NewWithConfig: %w", err)
-	}
-
-	err = pool.Ping(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("postgres - New - pool.Ping: %w", err)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 30 * time.Second
+	if err := backoff.Retry(operation, bo); err != nil {
+		return nil, fmt.Errorf("postgres - New: %w", err)
 	}
 
 	return pool, nil

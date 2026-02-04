@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -14,9 +13,7 @@ import (
 // (GET /competition/status)
 func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetCompetitionStatus - Get")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetCompetitionStatus", "Get") {
 		return
 	}
 
@@ -27,9 +24,7 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 // (GET /admin/competition)
 func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.competitionUC.Get(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetAdminCompetition - Get")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetAdminCompetition", "Get") {
 		return
 	}
 
@@ -58,17 +53,15 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 
 	comp := request.UpdateCompetitionRequestToEntity(&req, 1)
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	clientIP := GetClientIP(r)
 
-	if err := h.competitionUC.Update(r.Context(), comp, user.ID, clientIP); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PutAdminCompetition - Update")
-		handleError(w, r, err)
+	err := h.competitionUC.Update(r.Context(), comp, user.ID, clientIP)
+	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {
 		return
 	}
 

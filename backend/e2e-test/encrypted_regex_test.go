@@ -4,13 +4,15 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // POST /challenges/{ID}/submit with is_regex flag: invalid pattern 400; valid pattern 200; duplicate 409 with ALREADY_SOLVED.
 func TestEncryptedRegex_Challenge(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_enc_regex")
 	h.SetCompetitionRegex(tokenAdmin, "^CTF\\{.+\\}$")
@@ -45,8 +47,9 @@ func TestEncryptedRegex_Challenge(t *testing.T) {
 
 // POST /challenges/{ID}/submit with is_regex: flag not matching pattern returns 400 invalid flag format.
 func TestEncryptedRegex_InvalidFlag_Returns400(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_enc_regex_err")
 	h.SetCompetitionRegex(tokenAdmin, "^CTF\\{.+\\}$")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{

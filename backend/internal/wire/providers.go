@@ -24,6 +24,10 @@ import (
 	challenge "github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	competition "github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	email "github.com/skr1ms/CTFBoard/internal/usecase/email"
+	notification "github.com/skr1ms/CTFBoard/internal/usecase/notification"
+	page "github.com/skr1ms/CTFBoard/internal/usecase/page"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
+	field "github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	team "github.com/skr1ms/CTFBoard/internal/usecase/team"
 	user "github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
@@ -87,8 +91,40 @@ func ProvideBackupRepo(pool *pgxpool.Pool) *persistent.BackupRepo {
 	return persistent.NewBackupRepo(pool)
 }
 
+func ProvideSubmissionRepo(pool *pgxpool.Pool) *persistent.SubmissionRepo {
+	return persistent.NewSubmissionRepo(pool)
+}
+
+func ProvideTagRepo(pool *pgxpool.Pool) *persistent.TagRepo {
+	return persistent.NewTagRepo(pool)
+}
+
+func ProvideFieldRepo(pool *pgxpool.Pool) *persistent.FieldRepo {
+	return persistent.NewFieldRepo(pool)
+}
+
+func ProvideFieldValueRepo(pool *pgxpool.Pool) *persistent.FieldValueRepo {
+	return persistent.NewFieldValueRepo(pool)
+}
+
+func ProvideNotificationRepo(pool *pgxpool.Pool) *persistent.NotificationRepo {
+	return persistent.NewNotificationRepo(pool)
+}
+
+func ProvidePageRepo(pool *pgxpool.Pool) *persistent.PageRepo {
+	return persistent.NewPageRepo(pool)
+}
+
+func ProvideCommentRepo(pool *pgxpool.Pool) *persistent.CommentRepo {
+	return persistent.NewCommentRepo(pool)
+}
+
 func ProvideAppSettingsRepo(pool *pgxpool.Pool) *persistent.AppSettingsRepo {
 	return persistent.NewAppSettingsRepo(pool)
+}
+
+func ProvideConfigRepo(pool *pgxpool.Pool) *persistent.ConfigRepo {
+	return persistent.NewConfigRepo(pool)
 }
 
 func ProvideVerificationTokenRepo(pool *pgxpool.Pool) *persistent.VerificationTokenRepo {
@@ -112,8 +148,10 @@ func ProvideUserUseCase(
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	jwtService *jwt.JWTService,
+	fieldValidator *field.FieldValidator,
+	fieldValueRepo repo.FieldValueRepository,
 ) *user.UserUseCase {
-	return user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
+	return user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService, fieldValidator, fieldValueRepo)
 }
 
 func ProvideTeamUseCase(
@@ -136,6 +174,7 @@ func ProvideAwardUseCase(
 
 func ProvideChallengeUseCase(
 	challengeRepo repo.ChallengeRepository,
+	tagRepo repo.TagRepository,
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	compRepo repo.CompetitionRepository,
@@ -145,7 +184,7 @@ func ProvideChallengeUseCase(
 	auditLogRepo repo.AuditLogRepository,
 	cryptoService crypto.Service,
 ) *challenge.ChallengeUseCase {
-	return challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, teamRepo, redis, hub, auditLogRepo, cryptoService)
+	return challenge.NewChallengeUseCase(challengeRepo, tagRepo, solveRepo, txRepo, compRepo, teamRepo, redis, hub, auditLogRepo, cryptoService)
 }
 
 func ProvideHintUseCase(
@@ -172,11 +211,12 @@ func ProvideSolveUseCase(
 	challengeRepo repo.ChallengeRepository,
 	competitionRepo repo.CompetitionRepository,
 	userRepo repo.UserRepository,
+	teamRepo repo.TeamRepository,
 	txRepo repo.TxRepository,
 	redis *redis.Client,
 	hub *pkgWS.Hub,
 ) *competition.SolveUseCase {
-	return competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redis, hub)
+	return competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, redis, hub)
 }
 
 func ProvideStatisticsUseCase(
@@ -184,6 +224,62 @@ func ProvideStatisticsUseCase(
 	redis *redis.Client,
 ) *competition.StatisticsUseCase {
 	return competition.NewStatisticsUseCase(statsRepo, redis)
+}
+
+func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository) *competition.SubmissionUseCase {
+	return competition.NewSubmissionUseCase(submissionRepo)
+}
+
+func ProvideTagUseCase(tagRepo repo.TagRepository) *challenge.TagUseCase {
+	return challenge.NewTagUseCase(tagRepo)
+}
+
+func ProvideFieldUseCase(fieldRepo repo.FieldRepository) *field.FieldUseCase {
+	return field.NewFieldUseCase(fieldRepo)
+}
+
+func ProvideFieldValidator(fieldRepo repo.FieldRepository) *field.FieldValidator {
+	return field.NewFieldValidator(fieldRepo)
+}
+
+func ProvideNotificationUseCase(notifRepo repo.NotificationRepository) *notification.NotificationUseCase {
+	return notification.NewNotificationUseCase(notifRepo)
+}
+
+func ProvidePageUseCase(pageRepo repo.PageRepository) *page.PageUseCase {
+	return page.NewPageUseCase(pageRepo)
+}
+
+func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo repo.ChallengeRepository) *challenge.CommentUseCase {
+	return challenge.NewCommentUseCase(commentRepo, challengeRepo)
+}
+
+func ProvideBracketRepo(pool *pgxpool.Pool) *persistent.BracketRepo {
+	return persistent.NewBracketRepo(pool)
+}
+
+func ProvideBracketUseCase(bracketRepo repo.BracketRepository) *competition.BracketUseCase {
+	return competition.NewBracketUseCase(bracketRepo)
+}
+
+func ProvideRatingRepo(pool *pgxpool.Pool) *persistent.RatingRepo {
+	return persistent.NewRatingRepo(pool)
+}
+
+func ProvideRatingUseCase(
+	ratingRepo repo.RatingRepository,
+	solveRepo repo.SolveRepository,
+	teamRepo repo.TeamRepository,
+) *competition.RatingUseCase {
+	return competition.NewRatingUseCase(ratingRepo, solveRepo, teamRepo)
+}
+
+func ProvideAPITokenRepo(pool *pgxpool.Pool) *persistent.APITokenRepo {
+	return persistent.NewAPITokenRepo(pool)
+}
+
+func ProvideAPITokenUseCase(apiTokenRepo repo.APITokenRepository) *user.APITokenUseCase {
+	return user.NewAPITokenUseCase(apiTokenRepo)
 }
 
 func ProvideFileUseCase(
@@ -215,8 +311,15 @@ func ProvideSettingsUseCase(
 	appSettingsRepo repo.AppSettingsRepository,
 	auditLogRepo repo.AuditLogRepository,
 	redis *redis.Client,
-) *competition.SettingsUseCase {
-	return competition.NewSettingsUseCase(appSettingsRepo, auditLogRepo, redis)
+) *settings.SettingsUseCase {
+	return settings.NewSettingsUseCase(appSettingsRepo, auditLogRepo, redis)
+}
+
+func ProvideDynamicConfigUseCase(
+	configRepo repo.ConfigRepository,
+	auditLogRepo repo.AuditLogRepository,
+) *competition.DynamicConfigUseCase {
+	return competition.NewDynamicConfigUseCase(configRepo, auditLogRepo)
 }
 
 func ProvideEmailUseCase(
@@ -232,9 +335,7 @@ func ProvideWsController(wsHub *pkgWS.Hub, l logger.Logger, cfg *config.Config) 
 	return wsController.NewController(wsHub, l, cfg.CORSOrigins)
 }
 
-func ProvideRouter(
-	cfg *config.Config,
-	l logger.Logger,
+func ProvideServerDeps(
 	userUC *user.UserUseCase,
 	challengeUC *challenge.ChallengeUseCase,
 	solveUC *competition.SolveUseCase,
@@ -245,13 +346,56 @@ func ProvideRouter(
 	fileUC *challenge.FileUseCase,
 	awardUC *team.AwardUseCase,
 	statsUC *competition.StatisticsUseCase,
+	submissionUC *competition.SubmissionUseCase,
+	tagUC *challenge.TagUseCase,
+	fieldUC *field.FieldUseCase,
+	pageUC *page.PageUseCase,
+	bracketUC *competition.BracketUseCase,
+	ratingUC *competition.RatingUseCase,
+	notifUC *notification.NotificationUseCase,
+	apiTokenUC *user.APITokenUseCase,
 	backupUC *competition.BackupUseCase,
-	settingsUC *competition.SettingsUseCase,
+	settingsUC *settings.SettingsUseCase,
+	dynamicConfigUC *competition.DynamicConfigUseCase,
+	commentUC *challenge.CommentUseCase,
 	jwtService *jwt.JWTService,
 	redisClient *redis.Client,
 	wsCtrl *wsController.Controller,
 	v validator.Validator,
-) chi.Router {
+	l logger.Logger,
+) *v1.ServerDeps {
+	return &v1.ServerDeps{
+		UserUC:          userUC,
+		ChallengeUC:     challengeUC,
+		SolveUC:         solveUC,
+		TeamUC:          teamUC,
+		CompetitionUC:   competitionUC,
+		HintUC:          hintUC,
+		EmailUC:         emailUC,
+		FileUC:          fileUC,
+		AwardUC:         awardUC,
+		StatsUC:         statsUC,
+		SubmissionUC:    submissionUC,
+		TagUC:           tagUC,
+		FieldUC:         fieldUC,
+		PageUC:          pageUC,
+		BracketUC:       bracketUC,
+		RatingUC:        ratingUC,
+		NotifUC:         notifUC,
+		APITokenUC:      apiTokenUC,
+		BackupUC:        backupUC,
+		SettingsUC:      settingsUC,
+		DynamicConfigUC: dynamicConfigUC,
+		CommentUC:       commentUC,
+		JWTService:      jwtService,
+		RedisClient:     redisClient,
+		WSController:    wsCtrl,
+		Validator:       v,
+		Logger:          l,
+	}
+}
+
+func ProvideRouter(cfg *config.Config, l logger.Logger, deps *v1.ServerDeps) chi.Router {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -296,12 +440,7 @@ func ProvideRouter(
 	})
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
 	router.Route("/api/v1", func(r chi.Router) {
-		v1.NewRouter(
-			r,
-			userUC, challengeUC, solveUC, teamUC, competitionUC, hintUC, emailUC, fileUC, awardUC, statsUC,
-			backupUC, settingsUC, jwtService, redisClient, wsCtrl, v, l,
-			cfg.SubmitFlag, cfg.SubmitFlagDuration, cfg.VerifyEmails,
-		)
+		v1.NewRouter(r, deps, cfg.SubmitFlag, cfg.SubmitFlagDuration, cfg.VerifyEmails)
 	})
 	return router
 }

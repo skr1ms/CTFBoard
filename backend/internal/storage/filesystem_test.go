@@ -83,3 +83,67 @@ func TestFilesystemProvider_PathTraversal(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestGenerateStoragePath_Success(t *testing.T) {
+	path := storage.GenerateStoragePath("file.txt")
+	assert.NotEmpty(t, path)
+	assert.Contains(t, path, "file.txt")
+}
+
+func TestGenerateStoragePath_SanitizesFilename(t *testing.T) {
+	path := storage.GenerateStoragePath("/etc/passwd")
+	assert.NotContains(t, path, "..")
+	assert.Contains(t, path, "passwd")
+}
+
+func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-nested")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	provider, err := storage.NewFilesystemProvider(tmpDir)
+	require.NoError(t, err)
+	defer func() { _ = provider.Close() }()
+
+	ctx := context.Background()
+	nestedPath := "subdir/nested/file.txt"
+	content := []byte("nested content")
+
+	err = provider.Upload(ctx, nestedPath, bytes.NewReader(content), int64(len(content)), "text/plain")
+	require.NoError(t, err)
+
+	rc, err := provider.Download(ctx, nestedPath)
+	require.NoError(t, err)
+	defer func() { _ = rc.Close() }()
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, content, data)
+
+	err = provider.Delete(ctx, nestedPath)
+	require.NoError(t, err)
+}
+
+func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ctfboard-file-*")
+	require.NoError(t, err)
+	tmpPath := tmpFile.Name()
+	require.NoError(t, tmpFile.Close())
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	_, err = storage.NewFilesystemProvider(tmpPath)
+	assert.Error(t, err)
+}
+
+func TestFilesystemProvider_Download_NotFound(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-download-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	provider, err := storage.NewFilesystemProvider(tmpDir)
+	require.NoError(t, err)
+	defer func() { _ = provider.Close() }()
+
+	_, err = provider.Download(context.Background(), "nonexistent/path.txt")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "file not found")
+}

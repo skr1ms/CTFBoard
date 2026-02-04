@@ -140,6 +140,21 @@ func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
 	tables := []string{
+		"user_notifications",
+		"challenge_tags",
+		"submissions",
+		"comments",
+		"team_ratings",
+		"global_ratings",
+		"field_values",
+		"api_tokens",
+		"tags",
+		"notifications",
+		"fields",
+		"ctf_events",
+		"brackets",
+		"pages",
+		"configs",
 		"hint_unlocks",
 		"awards",
 		"solves",

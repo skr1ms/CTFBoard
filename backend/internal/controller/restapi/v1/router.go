@@ -7,63 +7,39 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
-	ws "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
 func NewRouter(
 	router chi.Router,
-	userUC *user.UserUseCase,
-	challengeUC *challenge.ChallengeUseCase,
-	solveUC *competition.SolveUseCase,
-	teamUC *team.TeamUseCase,
-	competitionUC *competition.CompetitionUseCase,
-	hintUC *challenge.HintUseCase,
-	emailUC *email.EmailUseCase,
-	fileUC *challenge.FileUseCase,
-	awardUC *team.AwardUseCase,
-	statsUC *competition.StatisticsUseCase,
-	backupUC usecase.BackupUseCase,
-	settingsUC *competition.SettingsUseCase,
-	jwtService *jwt.JWTService,
-	redisClient *redis.Client,
-	wsController *ws.Controller,
-	validator validator.Validator,
-	logger logger.Logger,
+	deps *ServerDeps,
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
 ) {
-	// Initialize Server
-	server := NewServer(
-		userUC, challengeUC, solveUC, teamUC, competitionUC, hintUC, emailUC, fileUC, awardUC, statsUC, backupUC,
-		settingsUC, jwtService, redisClient, wsController, validator, logger,
-	)
-
-	// Wrap with OpenAPI handler
+	server := NewServer(deps)
 	wrapper := openapi.ServerInterfaceWrapper{
 		Handler: server,
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			RenderError(w, r, http.StatusBadRequest, err.Error())
 		},
 	}
-
-	setupPublicRoutes(router, server, wrapper)
-	setupAuthOnlyRoutes(router, jwtService, wrapper)
-	setupProtectedRoutes(router, userUC, jwtService, competitionUC, redisClient, wrapper, submitLimit, durationLimit, verifyEmails, logger)
+	setupPublicRoutes(router, server, wrapper, deps.RedisClient, deps.Logger)
+	setupAuthOnlyRoutes(router, deps.JWTService, deps.APITokenUC, deps.UserUC, wrapper)
+	setupProtectedRoutes(router, deps, wrapper, submitLimit, durationLimit, verifyEmails)
 }
 
-func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper) {
-	// Public Routes
+func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, logger logger.Logger) {
+	scoreboardLimit := restapimiddleware.RateLimit(redisClient, "scoreboard:ip", 30, time.Minute, func(r *http.Request) (string, error) {
+		return GetClientIP(r), nil
+	}, logger)
+
 	router.Group(func(r chi.Router) {
 		r.Post("/auth/login", wrapper.PostAuthLogin)
 		r.Post("/auth/register", wrapper.PostAuthRegister)
@@ -72,9 +48,17 @@ func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.Server
 		r.Post("/auth/reset-password", wrapper.PostAuthResetPassword)
 
 		r.Get("/competition/status", wrapper.GetCompetitionStatus)
-		r.Get("/scoreboard", wrapper.GetScoreboard)
+		r.With(scoreboardLimit).Get("/scoreboard", wrapper.GetScoreboard)
 		r.Get("/challenges/{ID}/first-blood", wrapper.GetChallengesIDFirstBlood)
 		r.Get("/users/{ID}", wrapper.GetUsersID)
+		r.Get("/tags", wrapper.GetTags)
+		r.Get("/fields", wrapper.GetFields)
+		r.Get("/brackets", wrapper.GetBrackets)
+		r.Get("/ratings", wrapper.GetRatings)
+		r.Get("/ratings/team/{ID}", wrapper.GetRatingsTeamID)
+		r.Get("/pages", wrapper.GetPages)
+		r.Get("/pages/{slug}", wrapper.GetPagesSlug)
+		r.Get("/notifications", wrapper.GetNotifications)
 		r.Get("/statistics/general", wrapper.GetStatisticsGeneral)
 		r.Get("/statistics/challenges", wrapper.GetStatisticsChallenges)
 		r.Get("/statistics/challenges/{id}", wrapper.GetStatisticsChallengesId)
@@ -89,10 +73,9 @@ func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.Server
 	})
 }
 
-func setupAuthOnlyRoutes(router chi.Router, jwtService *jwt.JWTService, wrapper openapi.ServerInterfaceWrapper) {
-	// Protected Routes (Auth Only)
+func setupAuthOnlyRoutes(router chi.Router, jwtService *jwt.JWTService, apiTokenUC usecase.APITokenUseCase, userUC *user.UserUseCase, wrapper openapi.ServerInterfaceWrapper) {
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(jwtService))
+		r.Use(restapimiddleware.Auth(jwtService, apiTokenUC, userUC))
 
 		r.Post("/auth/resend-verification", wrapper.PostAuthResendVerification)
 	})
@@ -100,27 +83,27 @@ func setupAuthOnlyRoutes(router chi.Router, jwtService *jwt.JWTService, wrapper 
 
 func setupProtectedRoutes(
 	router chi.Router,
-	userUC *user.UserUseCase,
-	jwtService *jwt.JWTService,
-	competitionUC *competition.CompetitionUseCase,
-	redisClient *redis.Client,
+	deps *ServerDeps,
 	wrapper openapi.ServerInterfaceWrapper,
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
-	logger logger.Logger,
 ) {
-	// Protected Routes (Auth + InjectUser)
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(jwtService))
-		r.Use(restapimiddleware.InjectUser(userUC))
+		r.Use(restapimiddleware.Auth(deps.JWTService, deps.APITokenUC, deps.UserUC))
+		r.Use(restapimiddleware.InjectUser(deps.UserUC))
 
 		r.Get("/auth/me", wrapper.GetAuthMe)
 
-		setupTeamRoutes(r, wrapper, verifyEmails)
-		setupChallengeRoutes(r, wrapper, competitionUC, redisClient, submitLimit, durationLimit, verifyEmails, logger)
+		r.Get("/user/notifications", wrapper.GetUserNotifications)
+		r.Patch("/user/notifications/{ID}/read", wrapper.PatchUserNotificationsIDRead)
+		r.Get("/user/tokens", wrapper.GetUserTokens)
+		r.Post("/user/tokens", wrapper.PostUserTokens)
+		r.Delete("/user/tokens/{ID}", wrapper.DeleteUserTokensID)
 
-		// Files Download URL (Protected)
+		setupTeamRoutes(r, wrapper, verifyEmails)
+		setupChallengeRoutes(r, wrapper, deps.CompetitionUC, deps.CommentUC, deps.RedisClient, submitLimit, durationLimit, verifyEmails, deps.Logger)
+
 		r.Get("/files/{ID}/download", wrapper.GetFilesIDDownload)
 
 		setupAdminRoutes(r, wrapper)
@@ -146,16 +129,23 @@ func setupChallengeRoutes(
 	r chi.Router,
 	wrapper openapi.ServerInterfaceWrapper,
 	competitionUC *competition.CompetitionUseCase,
+	_ *challenge.CommentUseCase,
 	redisClient *redis.Client,
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
 	log logger.Logger,
 ) {
-	// Challenges
 	r.Get("/challenges", wrapper.GetChallenges)
 	r.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
 	r.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
+
+	r.Group(func(comments chi.Router) {
+		comments.Use(restapimiddleware.CompetitionEnded(competitionUC))
+		comments.Get("/challenges/{challengeID}/comments", wrapper.GetChallengesChallengeIDComments)
+		comments.Post("/challenges/{challengeID}/comments", wrapper.PostChallengesChallengeIDComments)
+		comments.Delete("/comments/{ID}", wrapper.DeleteCommentsID)
+	})
 
 	// Submit Flag (Rate Limited + Verification + Team)
 	r.Group(func(sub chi.Router) {
@@ -191,6 +181,10 @@ func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 		adm.Put("/admin/competition", wrapper.PutAdminCompetition)
 		adm.Get("/admin/settings", wrapper.GetAdminSettings)
 		adm.Put("/admin/settings", wrapper.PutAdminSettings)
+		adm.Get("/admin/configs", wrapper.GetAdminConfigs)
+		adm.Get("/admin/configs/{key}", wrapper.GetAdminConfigsKey)
+		adm.Put("/admin/configs/{key}", wrapper.PutAdminConfigsKey)
+		adm.Delete("/admin/configs/{key}", wrapper.DeleteAdminConfigsKey)
 
 		// Admin Challenges
 		adm.Post("/admin/challenges", wrapper.PostAdminChallenges)
@@ -214,6 +208,48 @@ func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 		adm.Post("/admin/teams/{ID}/ban", wrapper.PostAdminTeamsIDBan)
 		adm.Delete("/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
 		adm.Patch("/admin/teams/{ID}/hidden", wrapper.PatchAdminTeamsIDHidden)
+		adm.Patch("/admin/teams/{ID}/bracket", wrapper.PatchAdminTeamsIDBracket)
+
+		// Admin Brackets
+		adm.Post("/admin/brackets", wrapper.PostAdminBrackets)
+		adm.Get("/admin/brackets/{ID}", wrapper.GetAdminBracketsID)
+		adm.Put("/admin/brackets/{ID}", wrapper.PutAdminBracketsID)
+		adm.Delete("/admin/brackets/{ID}", wrapper.DeleteAdminBracketsID)
+
+		// Admin CTF Events / Ratings
+		adm.Get("/admin/ctf-events", wrapper.GetAdminCtfEvents)
+		adm.Post("/admin/ctf-events", wrapper.PostAdminCtfEvents)
+		adm.Post("/admin/ctf-events/{ID}/finalize", wrapper.PostAdminCtfEventsIDFinalize)
+
+		// Admin Tags
+		adm.Post("/admin/tags", wrapper.PostAdminTags)
+		adm.Put("/admin/tags/{ID}", wrapper.PutAdminTagsID)
+		adm.Delete("/admin/tags/{ID}", wrapper.DeleteAdminTagsID)
+
+		// Admin Fields
+		adm.Post("/admin/fields", wrapper.PostAdminFields)
+		adm.Put("/admin/fields/{ID}", wrapper.PutAdminFieldsID)
+		adm.Delete("/admin/fields/{ID}", wrapper.DeleteAdminFieldsID)
+
+		// Admin Pages
+		adm.Get("/admin/pages", wrapper.GetAdminPages)
+		adm.Post("/admin/pages", wrapper.PostAdminPages)
+		adm.Get("/admin/pages/{ID}", wrapper.GetAdminPagesID)
+		adm.Put("/admin/pages/{ID}", wrapper.PutAdminPagesID)
+		adm.Delete("/admin/pages/{ID}", wrapper.DeleteAdminPagesID)
+
+		// Admin Notifications
+		adm.Post("/admin/notifications", wrapper.PostAdminNotifications)
+		adm.Post("/admin/notifications/user/{userID}", wrapper.PostAdminNotificationsUserUserID)
+		adm.Put("/admin/notifications/{ID}", wrapper.PutAdminNotificationsID)
+		adm.Delete("/admin/notifications/{ID}", wrapper.DeleteAdminNotificationsID)
+
+		// Admin Submissions
+		adm.Get("/admin/submissions", wrapper.GetAdminSubmissions)
+		adm.Get("/admin/submissions/challenge/{challengeID}", wrapper.GetAdminSubmissionsChallengeChallengeID)
+		adm.Get("/admin/submissions/challenge/{challengeID}/stats", wrapper.GetAdminSubmissionsChallengeChallengeIDStats)
+		adm.Get("/admin/submissions/user/{userID}", wrapper.GetAdminSubmissionsUserUserID)
+		adm.Get("/admin/submissions/team/{teamID}", wrapper.GetAdminSubmissionsTeamTeamID)
 
 		// Admin Backup
 		adm.Get("/admin/export", wrapper.GetAdminExport)

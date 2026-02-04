@@ -140,7 +140,7 @@ func TestSolveRepo_GetByUserID(t *testing.T) {
 	assert.Equal(t, ch1.ID, solves[1].ChallengeID)
 }
 
-func TestSolveRepo_GetByUserID_Empty(t *testing.T) {
+func TestSolveRepo_GetByUserID_Success_Empty(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -151,6 +151,19 @@ func TestSolveRepo_GetByUserID_Empty(t *testing.T) {
 	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, solves, 0)
+}
+
+func TestSolveRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	user := f.CreateUser(t, "get_by_user_err")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
+	assert.Error(t, err)
+	assert.Nil(t, solves)
 }
 
 func TestSolveRepo_GetAll_Success(t *testing.T) {
@@ -185,7 +198,7 @@ func TestSolveRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	assert.Nil(t, solves)
 }
 
-func TestSolveRepo_GetScoreboard(t *testing.T) {
+func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -223,6 +236,18 @@ func TestSolveRepo_GetScoreboard(t *testing.T) {
 	}
 	assert.True(t, t1Found)
 	assert.True(t, t2Found)
+}
+
+func TestSolveRepo_GetScoreboard_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, scoreboard)
 }
 
 func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {

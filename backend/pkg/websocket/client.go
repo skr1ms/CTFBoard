@@ -14,7 +14,10 @@ const (
 	maxMessageSize = 512
 )
 
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(
+	hub *Hub,
+	conn *websocket.Conn,
+) *Client {
 	return &Client{
 		hub:  hub,
 		conn: conn,

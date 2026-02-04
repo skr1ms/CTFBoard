@@ -11,6 +11,7 @@ type Team struct {
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id,omitempty"`
 	IsSolo        bool       `json:"is_solo"`
 	IsAutoCreated bool       `json:"is_auto_created"`
 	IsBanned      bool       `json:"is_banned"`

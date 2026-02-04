@@ -25,6 +25,17 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 	require.GreaterOrEqual(t, stats.ChallengeCount, 1)
 }
 
+func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetChallengeStats(ctx)
+	require.Error(t, err)
+}
+
 func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
@@ -79,6 +90,17 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	require.True(t, found, "history for team1 not found")
 }
 
+func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 10)
+	require.Error(t, err)
+}
+
 func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
@@ -121,7 +143,7 @@ func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
 	assert.Equal(t, team.Name, stats.Solves[0].TeamName)
 }
 
-func TestStatisticsRepo_GetChallengeDetailStats_Error_NotFound(t *testing.T) {
+func TestStatisticsRepo_GetChallengeDetailStats_Success_NotFound(t *testing.T) {
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -130,4 +152,16 @@ func TestStatisticsRepo_GetChallengeDetailStats_Error_NotFound(t *testing.T) {
 	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New())
 	require.NoError(t, err)
 	assert.Nil(t, stats)
+}
+
+func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	chall := f.CreateChallenge(t, uuid.New().String(), 100)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID)
+	require.Error(t, err)
 }

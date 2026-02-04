@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,9 +23,13 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
+	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
 	"github.com/skr1ms/CTFBoard/internal/usecase/email"
+	"github.com/skr1ms/CTFBoard/internal/usecase/notification"
+	"github.com/skr1ms/CTFBoard/internal/usecase/page"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
@@ -52,10 +57,12 @@ func (m *noOpMailer) Send(ctx context.Context, msg mailer.Message) error {
 	return nil
 }
 
-// Entry point
+// TestMain: entry point for e2e test suite.
 func TestMain(m *testing.M) {
+	fmt.Println("E2E TestMain: starting...")
 	ctx := context.Background()
 
+	fmt.Println("E2E TestMain: setting up infrastructure (containers, DB, Redis)...")
 	// Setup Infrastructure
 	cleanup, err := setupInfrastructure(ctx)
 	if err != nil {
@@ -91,10 +98,41 @@ func GetTestBaseURL() string {
 
 func setupE2E(t *testing.T) {
 	t.Helper()
-	if err := TestRedis.FlushAll(context.Background()).Err(); err != nil {
+	ctx := context.Background()
+	if err := TestRedis.FlushAll(ctx).Err(); err != nil {
 		t.Fatalf("failed to flush redis: %v", err)
 	}
+	truncateE2EDB(ctx, t)
+	if err := TestRedis.FlushAll(ctx).Err(); err != nil {
+		t.Fatalf("failed to flush redis after truncate: %v", err)
+	}
 	_ = httpexpect.Default(t, GetTestBaseURL())
+}
+
+func truncateE2EDB(ctx context.Context, t *testing.T) {
+	t.Helper()
+	_, err := TestPool.Exec(ctx, `TRUNCATE TABLE
+		global_ratings, team_ratings, ctf_events, configs, comments, api_tokens,
+		field_values, fields, brackets, pages, user_notifications, notifications,
+		submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
+		files, verification_tokens, awards, hint_unlocks, hints, solves,
+		challenges, teams, users, competition
+		RESTART IDENTITY CASCADE`)
+	if err != nil {
+		t.Fatalf("truncate db: %v", err)
+	}
+	_, err = TestPool.Exec(ctx, `INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
+		VALUES (1, 'CTF Competition', false, true, 'flexible', true, 1, 10, NOW() - INTERVAL '1 hour', NOW() + INTERVAL '24 hours')
+		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+	if err != nil {
+		t.Fatalf("insert competition: %v", err)
+	}
+	_, err = TestPool.Exec(ctx, `INSERT INTO app_settings (id, app_name, verify_emails, frontend_url, cors_origins, resend_enabled, resend_from_email, resend_from_name, verify_ttl_hours, reset_ttl_hours, submit_limit_per_user, submit_limit_duration_min, scoreboard_visible, registration_open, updated_at)
+		VALUES (1, 'CTFBoard', true, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173', false, 'noreply@ctfboard.local', 'CTFBoard', 24, 1, 10, 1, 'public', true, NOW())
+		ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		t.Fatalf("insert app_settings: %v", err)
+	}
 }
 
 // Infrastructure Setup
@@ -194,14 +232,9 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 		return nil, err
 	}
 
-	// Retry Ping DB
-	for i := 0; i < 20; i++ {
-		if err := TestPool.Ping(ctx); err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if err := TestPool.Ping(ctx); err != nil {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 15 * time.Second
+	if err := backoff.Retry(func() error { return TestPool.Ping(ctx) }, backoff.WithContext(bo, ctx)); err != nil {
 		return nil, fmt.Errorf("external db ping failed: %w", err)
 	}
 
@@ -270,20 +303,59 @@ type testDeps struct {
 	crypto    *crypto.CryptoService
 }
 
+type testRepos struct {
+	apiTokenRepo     *persistent.APITokenRepo
+	appSettingsRepo  *persistent.AppSettingsRepo
+	auditLogRepo     *persistent.AuditLogRepo
+	awardRepo        *persistent.AwardRepo
+	backupRepo       *persistent.BackupRepo
+	bracketRepo      *persistent.BracketRepo
+	challengeRepo    *persistent.ChallengeRepo
+	commentRepo      *persistent.CommentRepo
+	compRepo         *persistent.CompetitionRepo
+	configRepo       *persistent.ConfigRepo
+	fieldRepo        *persistent.FieldRepo
+	fieldValueRepo   *persistent.FieldValueRepo
+	fileRepo         *persistent.FileRepository
+	hintRepo         *persistent.HintRepo
+	hintUnlockRepo   *persistent.HintUnlockRepo
+	notificationRepo *persistent.NotificationRepo
+	pageRepo         *persistent.PageRepo
+	ratingRepo       *persistent.RatingRepo
+	solveRepo        *persistent.SolveRepo
+	statsRepo        *persistent.StatisticsRepository
+	submissionRepo   *persistent.SubmissionRepo
+	tagRepo          *persistent.TagRepo
+	teamRepo         *persistent.TeamRepo
+	tokenRepo        *persistent.VerificationTokenRepo
+	txRepo           *persistent.TxRepo
+	userRepo         *persistent.UserRepo
+}
+
 type testUseCases struct {
-	user        *user.UserUseCase
-	team        *team.TeamUseCase
-	award       *team.AwardUseCase
-	email       *email.EmailUseCase
-	challenge   *challenge.ChallengeUseCase
-	hint        *challenge.HintUseCase
-	file        *challenge.FileUseCase
-	solve       *competition.SolveUseCase
-	competition *competition.CompetitionUseCase
-	backup      *competition.BackupUseCase
-	stats       *competition.StatisticsUseCase
-	settings    *competition.SettingsUseCase
-	ws          *wsV1.Controller
+	user            *user.UserUseCase
+	team            *team.TeamUseCase
+	award           *team.AwardUseCase
+	email           *email.EmailUseCase
+	challenge       *challenge.ChallengeUseCase
+	hint            *challenge.HintUseCase
+	file            *challenge.FileUseCase
+	solve           *competition.SolveUseCase
+	competition     *competition.CompetitionUseCase
+	backup          *competition.BackupUseCase
+	stats           *competition.StatisticsUseCase
+	settings        *settings.SettingsUseCase
+	ws              *wsV1.Controller
+	submissionUC    *competition.SubmissionUseCase
+	tagUC           *challenge.TagUseCase
+	fieldUC         *settings.FieldUseCase
+	pageUC          *page.PageUseCase
+	bracketUC       *competition.BracketUseCase
+	ratingUC        *competition.RatingUseCase
+	notifUC         usecase.NotificationUseCase
+	apiTokenUC      usecase.APITokenUseCase
+	dynamicConfigUC *competition.DynamicConfigUseCase
+	commentUC       *challenge.CommentUseCase
 }
 
 func startTestServer() (func(), error) {
@@ -353,72 +425,95 @@ func initTestDeps() (*testDeps, error) {
 	}, nil
 }
 
-// Repositories, storage, hub, usecases
-func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
-	// Repositories
-	userRepo := persistent.NewUserRepo(TestPool)
-	challengeRepo := persistent.NewChallengeRepo(TestPool)
-	solveRepo := persistent.NewSolveRepo(TestPool)
-	teamRepo := persistent.NewTeamRepo(TestPool)
-	compRepo := persistent.NewCompetitionRepo(TestPool)
-	hintRepo := persistent.NewHintRepo(TestPool)
-	hintUnlockRepo := persistent.NewHintUnlockRepo(TestPool)
-	awardRepo := persistent.NewAwardRepo(TestPool)
-	txRepo := persistent.NewTxRepo(TestPool)
-	tokenRepo := persistent.NewVerificationTokenRepo(TestPool)
-	auditLogRepo := persistent.NewAuditLogRepo(TestPool)
-	statsRepo := persistent.NewStatisticsRepository(TestPool)
-	fileRepo := persistent.NewFileRepository(TestPool)
-	backupRepo := persistent.NewBackupRepo(TestPool)
-	appSettingsRepo := persistent.NewAppSettingsRepo(TestPool)
+func initTestRepos() *testRepos {
+	return &testRepos{
+		userRepo:         persistent.NewUserRepo(TestPool),
+		challengeRepo:    persistent.NewChallengeRepo(TestPool),
+		solveRepo:        persistent.NewSolveRepo(TestPool),
+		teamRepo:         persistent.NewTeamRepo(TestPool),
+		compRepo:         persistent.NewCompetitionRepo(TestPool),
+		hintRepo:         persistent.NewHintRepo(TestPool),
+		hintUnlockRepo:   persistent.NewHintUnlockRepo(TestPool),
+		awardRepo:        persistent.NewAwardRepo(TestPool),
+		txRepo:           persistent.NewTxRepo(TestPool),
+		tokenRepo:        persistent.NewVerificationTokenRepo(TestPool),
+		auditLogRepo:     persistent.NewAuditLogRepo(TestPool),
+		statsRepo:        persistent.NewStatisticsRepository(TestPool),
+		fileRepo:         persistent.NewFileRepository(TestPool),
+		backupRepo:       persistent.NewBackupRepo(TestPool),
+		appSettingsRepo:  persistent.NewAppSettingsRepo(TestPool),
+		tagRepo:          persistent.NewTagRepo(TestPool),
+		fieldRepo:        persistent.NewFieldRepo(TestPool),
+		fieldValueRepo:   persistent.NewFieldValueRepo(TestPool),
+		submissionRepo:   persistent.NewSubmissionRepo(TestPool),
+		pageRepo:         persistent.NewPageRepo(TestPool),
+		bracketRepo:      persistent.NewBracketRepo(TestPool),
+		ratingRepo:       persistent.NewRatingRepo(TestPool),
+		notificationRepo: persistent.NewNotificationRepo(TestPool),
+		apiTokenRepo:     persistent.NewAPITokenRepo(TestPool),
+		configRepo:       persistent.NewConfigRepo(TestPool),
+		commentRepo:      persistent.NewCommentRepo(TestPool),
+	}
+}
 
-	// Storage
+func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create temp storage dir: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to create temp storage dir: %w", err)
 	}
 	fileStorage, err := storage.NewFilesystemProvider(tempStorageDir)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create storage provider: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to create storage provider: %w", err)
 	}
-
-	// WebSocket hub
+	ctx := context.Background()
 	hub := websocket.NewHub(TestRedis, "ctfboard:events")
-	go hub.Run()
-	go hub.SubscribeToRedis(context.Background())
+	go hub.Run(ctx)
+	go hub.SubscribeToRedis(ctx)
+	return tempStorageDir, fileStorage, hub, nil
+}
 
-	// Usecases
-	userUC := user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, deps.jwt)
-	compUC := competition.NewCompetitionUseCase(compRepo, auditLogRepo, TestRedis)
-	challengeUC := challenge.NewChallengeUseCase(challengeRepo, solveRepo, txRepo, compRepo, teamRepo, TestRedis, hub, auditLogRepo, deps.crypto)
-	solveUC := competition.NewSolveUseCase(solveRepo, challengeRepo, compRepo, userRepo, txRepo, TestRedis, hub)
-	teamUC := team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo, TestRedis)
-	hintUC := challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, TestRedis)
-	awardUC := team.NewAwardUseCase(awardRepo, txRepo, TestRedis)
-	emailUC := email.NewEmailUseCase(userRepo, tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
-	statsUC := competition.NewStatisticsUseCase(statsRepo, TestRedis)
-	backupUC := competition.NewBackupUseCase(compRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepo, backupRepo, fileStorage, txRepo, deps.logger)
-	settingsUC := competition.NewSettingsUseCase(appSettingsRepo, auditLogRepo, TestRedis)
-
+func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
+	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
+	userUC := user.NewUserUseCase(repos.userRepo, repos.teamRepo, repos.solveRepo, repos.txRepo, deps.jwt, fieldValidator, repos.fieldValueRepo)
+	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, TestRedis)
+	challengeUC := challenge.NewChallengeUseCase(repos.challengeRepo, repos.tagRepo, repos.solveRepo, repos.txRepo, repos.compRepo, repos.teamRepo, TestRedis, hub, repos.auditLogRepo, deps.crypto)
+	solveUC := competition.NewSolveUseCase(repos.solveRepo, repos.challengeRepo, repos.compRepo, repos.userRepo, repos.teamRepo, repos.txRepo, TestRedis, hub)
+	teamUC := team.NewTeamUseCase(repos.teamRepo, repos.userRepo, repos.compRepo, repos.txRepo, TestRedis)
+	hintUC := challenge.NewHintUseCase(repos.hintRepo, repos.hintUnlockRepo, repos.awardRepo, repos.txRepo, repos.solveRepo, TestRedis)
+	awardUC := team.NewAwardUseCase(repos.awardRepo, repos.txRepo, TestRedis)
+	emailUC := email.NewEmailUseCase(repos.userRepo, repos.tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+	statsUC := competition.NewStatisticsUseCase(repos.statsRepo, TestRedis)
+	submissionUC := competition.NewSubmissionUseCase(repos.submissionRepo)
+	tagUC := challenge.NewTagUseCase(repos.tagRepo)
+	fieldUC := settings.NewFieldUseCase(repos.fieldRepo)
+	pageUC := page.NewPageUseCase(repos.pageRepo)
+	bracketUC := competition.NewBracketUseCase(repos.bracketRepo)
+	ratingUC := competition.NewRatingUseCase(repos.ratingRepo, repos.solveRepo, repos.teamRepo)
+	notifUC := notification.NewNotificationUseCase(repos.notificationRepo)
+	apiTokenUC := user.NewAPITokenUseCase(repos.apiTokenRepo)
+	backupUC := competition.NewBackupUseCase(repos.compRepo, repos.challengeRepo, repos.hintRepo, repos.teamRepo, repos.userRepo, repos.awardRepo, repos.solveRepo, repos.fileRepo, repos.backupRepo, fileStorage, repos.txRepo, deps.logger)
+	settingsUC := settings.NewSettingsUseCase(repos.appSettingsRepo, repos.auditLogRepo, TestRedis)
+	dynamicConfigUC := competition.NewDynamicConfigUseCase(repos.configRepo, repos.auditLogRepo)
+	commentUC := challenge.NewCommentUseCase(repos.commentRepo, repos.challengeRepo)
 	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
-
-	fileUC := challenge.NewFileUseCase(fileRepo, fileStorage, 1*time.Hour)
-
+	fileUC := challenge.NewFileUseCase(repos.fileRepo, fileStorage, 1*time.Hour)
 	return &testUseCases{
-		user:        userUC,
-		challenge:   challengeUC,
-		solve:       solveUC,
-		team:        teamUC,
-		competition: compUC,
-		hint:        hintUC,
-		award:       awardUC,
-		email:       emailUC,
-		file:        fileUC,
-		stats:       statsUC,
-		backup:      backupUC,
-		settings:    settingsUC,
-		ws:          ws,
-	}, tempStorageDir, nil
+		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
+		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
+		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
+		pageUC: pageUC, bracketUC: bracketUC, ratingUC: ratingUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
+		dynamicConfigUC: dynamicConfigUC, commentUC: commentUC,
+	}
+}
+
+func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
+	repos := initTestRepos()
+	tempStorageDir, fileStorage, hub, err := initTestStorageAndHub()
+	if err != nil {
+		return nil, "", err
+	}
+	uc := buildTestUseCases(deps, repos, fileStorage, hub)
+	return uc, tempStorageDir, nil
 }
 
 // Router (chi, middleware, api v1 routes)
@@ -432,8 +527,15 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
 	})
 
+	deps := &v1.ServerDeps{
+		UserUC: uc.user, ChallengeUC: uc.challenge, SolveUC: uc.solve, TeamUC: uc.team, CompetitionUC: uc.competition,
+		HintUC: uc.hint, EmailUC: uc.email, FileUC: uc.file, AwardUC: uc.award, StatsUC: uc.stats, SubmissionUC: uc.submissionUC,
+		TagUC: uc.tagUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC,
+		NotifUC: uc.notifUC, APITokenUC: uc.apiTokenUC, BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, CommentUC: uc.commentUC,
+		JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l,
+	}
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, uc.user, uc.challenge, uc.solve, uc.team, uc.competition, uc.hint, uc.email, uc.file, uc.award, uc.stats, uc.backup, uc.settings, jwtService, TestRedis, uc.ws, validatorService, l, 100, 1*time.Minute, false)
+		v1.NewRouter(apiRouter, deps, 100, 1*time.Minute, false)
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

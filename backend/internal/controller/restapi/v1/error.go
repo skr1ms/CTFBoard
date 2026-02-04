@@ -32,3 +32,12 @@ func RenderErrorWithCode(w http.ResponseWriter, r *http.Request, status int, mes
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	httputil.HandleError(w, r, err)
 }
+
+func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, step string) bool {
+	if err == nil {
+		return false
+	}
+	h.logger.WithError(err).Error("restapi - v1 - " + op + " - " + step)
+	handleError(w, r, err)
+	return true
+}

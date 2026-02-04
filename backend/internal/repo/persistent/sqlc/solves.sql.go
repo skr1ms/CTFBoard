@@ -162,6 +162,124 @@ func (q *Queries) GetScoreboard(ctx context.Context) ([]GetScoreboardRow, error)
 	return items, nil
 }
 
+const getScoreboardByBracket = `-- name: GetScoreboardByBracket :many
+SELECT
+    t.id AS team_id,
+    t.name AS team_name,
+    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
+    solve_points.last_solved AS solved_at
+FROM teams t
+LEFT JOIN (
+    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    FROM solves s
+    JOIN challenges c ON c.id = s.challenge_id
+    GROUP BY s.team_id
+) solve_points ON solve_points.team_id = t.id
+LEFT JOIN (
+    SELECT team_id, SUM(value)::int AS total
+    FROM awards
+    GROUP BY team_id
+) award_points ON award_points.team_id = t.id
+WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR t.bracket_id = $1)
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+`
+
+type GetScoreboardByBracketRow struct {
+	TeamID   uuid.UUID   `json:"team_id"`
+	TeamName string      `json:"team_name"`
+	Points   int32       `json:"points"`
+	SolvedAt interface{} `json:"solved_at"`
+}
+
+func (q *Queries) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]GetScoreboardByBracketRow, error) {
+	rows, err := q.db.Query(ctx, getScoreboardByBracket, bracketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScoreboardByBracketRow
+	for rows.Next() {
+		var i GetScoreboardByBracketRow
+		if err := rows.Scan(
+			&i.TeamID,
+			&i.TeamName,
+			&i.Points,
+			&i.SolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getScoreboardByBracketFrozen = `-- name: GetScoreboardByBracketFrozen :many
+SELECT
+    t.id AS team_id,
+    t.name AS team_name,
+    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
+    solve_points.last_solved AS solved_at
+FROM teams t
+LEFT JOIN (
+    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    FROM solves s
+    JOIN challenges c ON c.id = s.challenge_id
+    WHERE s.solved_at <= $1
+    GROUP BY s.team_id
+) solve_points ON solve_points.team_id = t.id
+LEFT JOIN (
+    SELECT team_id, SUM(value)::int AS total
+    FROM awards
+    WHERE awards.created_at <= $2
+    GROUP BY team_id
+) award_points ON award_points.team_id = t.id
+WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR t.bracket_id = $3)
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+`
+
+type GetScoreboardByBracketFrozenParams struct {
+	SolvedAt  *time.Time `json:"solved_at"`
+	CreatedAt *time.Time `json:"created_at"`
+	BracketID *uuid.UUID `json:"bracket_id"`
+}
+
+type GetScoreboardByBracketFrozenRow struct {
+	TeamID   uuid.UUID   `json:"team_id"`
+	TeamName string      `json:"team_name"`
+	Points   int32       `json:"points"`
+	SolvedAt interface{} `json:"solved_at"`
+}
+
+func (q *Queries) GetScoreboardByBracketFrozen(ctx context.Context, arg GetScoreboardByBracketFrozenParams) ([]GetScoreboardByBracketFrozenRow, error) {
+	rows, err := q.db.Query(ctx, getScoreboardByBracketFrozen, arg.SolvedAt, arg.CreatedAt, arg.BracketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScoreboardByBracketFrozenRow
+	for rows.Next() {
+		var i GetScoreboardByBracketFrozenRow
+		if err := rows.Scan(
+			&i.TeamID,
+			&i.TeamName,
+			&i.Points,
+			&i.SolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getScoreboardFrozen = `-- name: GetScoreboardFrozen :many
 SELECT
     t.id AS team_id,

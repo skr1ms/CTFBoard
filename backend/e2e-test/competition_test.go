@@ -5,13 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /competition/status: returns status, start_time, end_time (public, no auth).
 func TestCompetition_Status(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	resp := h.GetCompetitionStatus()
 	require.NotNil(t, resp.JSON200)
@@ -22,8 +24,9 @@ func TestCompetition_Status(t *testing.T) {
 
 // PUT /admin/competition: pause/resume; when paused, POST /challenges/{ID}/submit returns 403; when resumed, submit succeeds.
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
@@ -69,8 +72,9 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 // GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.).
 func TestCompetition_Admin_Get(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_get")
 
@@ -83,8 +87,9 @@ func TestCompetition_Admin_Get(t *testing.T) {
 
 // GET /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_get_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_comp")
@@ -94,8 +99,9 @@ func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
 
 // PUT /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Put_Forbidden(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_put_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put")

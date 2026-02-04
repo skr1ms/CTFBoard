@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestChallengeUseCase_GetAll(t *testing.T) {
+func TestChallengeUseCase_GetAll_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateChallengeUseCase()
@@ -31,9 +31,9 @@ func TestChallengeUseCase_GetAll(t *testing.T) {
 		}, true),
 	}
 
-	deps.challengeRepo.On("GetAll", mock.Anything, &teamID).Return(challenges, nil)
+	deps.challengeRepo.On("GetAll", mock.Anything, &teamID, mock.Anything).Return(challenges, nil)
 
-	result, err := uc.GetAll(context.Background(), &teamID)
+	result, err := uc.GetAll(context.Background(), &teamID, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -56,9 +56,9 @@ func TestChallengeUseCase_GetAll_NoTeamID(t *testing.T) {
 		}, false),
 	}
 
-	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil)).Return(challenges, nil)
+	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil), mock.Anything).Return(challenges, nil)
 
-	result, err := uc.GetAll(context.Background(), nil)
+	result, err := uc.GetAll(context.Background(), nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -72,15 +72,15 @@ func TestChallengeUseCase_GetAll_Error(t *testing.T) {
 
 	teamID := uuid.New()
 	expectedError := assert.AnError
-	deps.challengeRepo.On("GetAll", mock.Anything, &teamID).Return(nil, expectedError)
+	deps.challengeRepo.On("GetAll", mock.Anything, &teamID, mock.Anything).Return(nil, expectedError)
 
-	result, err := uc.GetAll(context.Background(), &teamID)
+	result, err := uc.GetAll(context.Background(), &teamID, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
 
-func TestChallengeUseCase_Create(t *testing.T) {
+func TestChallengeUseCase_Create_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateChallengeUseCase()
@@ -95,7 +95,7 @@ func TestChallengeUseCase_Create(t *testing.T) {
 		c.ID = uuid.New()
 	})
 
-	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false, false, false, nil)
+	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false, false, false, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -112,7 +112,7 @@ func TestChallengeUseCase_Create_Error(t *testing.T) {
 	expectedError := assert.AnError
 	deps.challengeRepo.On("Create", mock.Anything, mock.Anything).Return(expectedError)
 
-	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false, false, false, nil)
+	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false, false, false, nil, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -132,7 +132,7 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	})).Return(nil)
 	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -154,7 +154,7 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	})).Return(nil)
 	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "new_flag", false, false, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "new_flag", false, false, false, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -170,7 +170,7 @@ func TestChallengeUseCase_Update_GetByIDError(t *testing.T) {
 	expectedError := assert.AnError
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -188,13 +188,13 @@ func TestChallengeUseCase_Update_UpdateError(t *testing.T) {
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
 	deps.challengeRepo.On("Update", mock.Anything, mock.Anything).Return(expectedError)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
 }
 
-func TestChallengeUseCase_Delete(t *testing.T) {
+func TestChallengeUseCase_Delete_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateChallengeUseCase()
@@ -586,7 +586,7 @@ func TestChallengeUseCase_Create_Regex_Success(t *testing.T) {
 		c.ID = uuid.New()
 	})
 
-	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil)
+	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -603,7 +603,7 @@ func TestChallengeUseCase_Create_Regex_EncryptionError(t *testing.T) {
 	expectedError := errors.New("encryption failed")
 	deps.crypto.On("Encrypt", flag).Return("", expectedError)
 
-	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil)
+	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -633,7 +633,7 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 	})).Return(nil)
 	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -656,7 +656,7 @@ func TestChallengeUseCase_Update_Regex_EncryptionError(t *testing.T) {
 	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
 	deps.crypto.On("Encrypt", flag).Return("", expectedError)
 
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)

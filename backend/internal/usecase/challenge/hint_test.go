@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestHintUseCase_Create(t *testing.T) {
+func TestHintUseCase_Create_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -50,7 +50,7 @@ func TestHintUseCase_Create_Error(t *testing.T) {
 	assert.Nil(t, hint)
 }
 
-func TestHintUseCase_GetByID(t *testing.T) {
+func TestHintUseCase_GetByID_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -66,7 +66,7 @@ func TestHintUseCase_GetByID(t *testing.T) {
 	assert.Equal(t, "Secret hint", result.Content)
 }
 
-func TestHintUseCase_GetByID_NotFound(t *testing.T) {
+func TestHintUseCase_GetByID_Error(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -81,7 +81,7 @@ func TestHintUseCase_GetByID_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, entityError.ErrHintNotFound))
 }
 
-func TestHintUseCase_GetByChallengeID(t *testing.T) {
+func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -143,7 +143,7 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestHintUseCase_Update(t *testing.T) {
+func TestHintUseCase_Update_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -197,7 +197,7 @@ func TestHintUseCase_Update_RepoError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestHintUseCase_Delete(t *testing.T) {
+func TestHintUseCase_Delete_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	uc, _ := h.CreateHintUseCase()
@@ -372,5 +372,21 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrInsufficientPoints))
+	assert.Nil(t, unlocked)
+}
+
+func TestHintUseCase_UnlockHint_Error(t *testing.T) {
+	h := NewChallengeTestHelper(t)
+	deps := h.Deps()
+	uc, _ := h.CreateHintUseCase()
+
+	teamID := uuid.New()
+	hintID := uuid.New()
+
+	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, errors.New("db error"))
+
+	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
+
+	assert.Error(t, err)
 	assert.Nil(t, unlocked)
 }

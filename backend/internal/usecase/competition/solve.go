@@ -15,6 +15,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
+	"golang.org/x/sync/singleflight"
 )
 
 type SolveUseCase struct {
@@ -22,9 +23,11 @@ type SolveUseCase struct {
 	challengeRepo   repo.ChallengeRepository
 	competitionRepo repo.CompetitionRepository
 	userRepo        repo.UserRepository
+	teamRepo        repo.TeamRepository
 	txRepo          repo.TxRepository
 	redis           *redis.Client
 	hub             *websocket.Hub
+	sf              singleflight.Group
 }
 
 func NewSolveUseCase(
@@ -32,6 +35,7 @@ func NewSolveUseCase(
 	challengeRepo repo.ChallengeRepository,
 	competitionRepo repo.CompetitionRepository,
 	userRepo repo.UserRepository,
+	teamRepo repo.TeamRepository,
 	txRepo repo.TxRepository,
 	redis *redis.Client,
 	hub *websocket.Hub,
@@ -41,6 +45,7 @@ func NewSolveUseCase(
 		challengeRepo:   challengeRepo,
 		competitionRepo: competitionRepo,
 		userRepo:        userRepo,
+		teamRepo:        teamRepo,
 		txRepo:          txRepo,
 		redis:           redis,
 		hub:             hub,
@@ -55,11 +60,11 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if solve.TeamID == uuid.Nil {
 			if err := uc.txRepo.LockUserTx(ctx, tx, solve.UserID); err != nil {
-				return fmt.Errorf("LockUserTx: %w", err)
+				return fmt.Errorf("SolveUseCase - Create - LockUserTx: %w", err)
 			}
 			user, err := uc.userRepo.GetByID(ctx, solve.UserID)
 			if err != nil {
-				return fmt.Errorf("GetByID: %w", err)
+				return fmt.Errorf("SolveUseCase - Create - GetByID: %w", err)
 			}
 
 			if user.TeamID == nil {
@@ -70,7 +75,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 
 		challenge, err := uc.txRepo.GetChallengeByIDTx(ctx, tx, solve.ChallengeID)
 		if err != nil {
-			return fmt.Errorf("GetChallengeByIDTx: %w", err)
+			return fmt.Errorf("SolveUseCase - Create - GetChallengeByIDTx: %w", err)
 		}
 
 		existing, err := uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, solve.TeamID, solve.ChallengeID)
@@ -83,19 +88,19 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		}
 
 		if err := uc.txRepo.CreateSolveTx(ctx, tx, solve); err != nil {
-			return fmt.Errorf("CreateSolveTx: %w", err)
+			return fmt.Errorf("SolveUseCase - Create - CreateSolveTx: %w", err)
 		}
 
 		newCount, err := uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, solve.ChallengeID)
 		if err != nil {
-			return fmt.Errorf("IncrementChallengeSolveCountTx: %w", err)
+			return fmt.Errorf("SolveUseCase - Create - IncrementChallengeSolveCountTx: %w", err)
 		}
 
 		if challenge.Decay > 0 {
 			newPoints := CalculateDynamicScore(challenge.InitialValue, challenge.MinValue, challenge.Decay, newCount)
 			if newPoints != challenge.Points {
 				if err := uc.txRepo.UpdateChallengePointsTx(ctx, tx, challenge.ID, newPoints); err != nil {
-					return fmt.Errorf("UpdateChallengePointsTx: %w", err)
+					return fmt.Errorf("SolveUseCase - Create - UpdateChallengePointsTx: %w", err)
 				}
 				challenge.Points = newPoints
 			}
@@ -111,7 +116,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		return fmt.Errorf("SolveUseCase - Create - Transaction: %w", err)
 	}
 
-	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
+	uc.invalidateScoreboardCache(ctx, solve.TeamID)
 
 	if uc.hub != nil && solvedChallenge != nil {
 		payload := websocket.ScoreboardUpdate{
@@ -146,39 +151,72 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 	return nil
 }
 
-func (uc *SolveUseCase) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEntry, error) {
+func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
 	comp, err := uc.competitionRepo.Get(ctx)
 	if err != nil && !errors.Is(err, entityError.ErrCompetitionNotFound) {
 		return nil, fmt.Errorf("SolveUseCase - GetScoreboard - GetCompetition: %w", err)
 	}
 
-	cacheKey, frozen := uc.getScoreboardCacheKey(comp)
+	cacheKey, frozen := uc.getScoreboardCacheKey(comp, bracketID)
 
 	if entries := uc.tryGetCachedScoreboard(ctx, cacheKey); entries != nil {
 		return entries, nil
 	}
-	var entries []*repo.ScoreboardEntry
-	if frozen {
-		entries, err = uc.solveRepo.GetScoreboardFrozen(ctx, *comp.FreezeTime)
-	} else {
-		entries, err = uc.solveRepo.GetScoreboard(ctx)
-	}
+
+	v, err, _ := uc.sf.Do(cacheKey, func() (any, error) {
+		if entries := uc.tryGetCachedScoreboard(ctx, cacheKey); entries != nil {
+			return entries, nil
+		}
+		var entries []*repo.ScoreboardEntry
+		if frozen {
+			if comp != nil && comp.FreezeTime != nil {
+				entries, err = uc.solveRepo.GetScoreboardByBracketFrozen(ctx, *comp.FreezeTime, bracketID)
+			} else {
+				entries, err = uc.solveRepo.GetScoreboardByBracketFrozen(ctx, time.Time{}, bracketID)
+			}
+		} else {
+			entries, err = uc.solveRepo.GetScoreboardByBracket(ctx, bracketID)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("SolveUseCase - GetScoreboard: %w", err)
+		}
+		if bytes, err := json.Marshal(entries); err == nil {
+			uc.redis.Set(ctx, cacheKey, bytes, 15*time.Second)
+		}
+		return entries, nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("SolveUseCase - GetScoreboard: %w", err)
+		return nil, err
 	}
-
-	if bytes, err := json.Marshal(entries); err == nil {
-		uc.redis.Set(ctx, cacheKey, bytes, 15*time.Second)
-	}
-
-	return entries, nil
+	return v.([]*repo.ScoreboardEntry), nil
 }
 
-func (uc *SolveUseCase) getScoreboardCacheKey(comp *entity.Competition) (string, bool) {
-	if comp != nil && comp.FreezeTime != nil && time.Now().After(*comp.FreezeTime) {
-		return redisKeys.KeyScoreboardFrozen, true
+func (uc *SolveUseCase) getScoreboardCacheKey(comp *entity.Competition, bracketID *uuid.UUID) (string, bool) {
+	frozen := comp != nil && comp.FreezeTime != nil && time.Now().After(*comp.FreezeTime)
+	if bracketID == nil || *bracketID == uuid.Nil {
+		if frozen {
+			return redisKeys.KeyScoreboardFrozen, true
+		}
+		return redisKeys.KeyScoreboard, false
 	}
-	return redisKeys.KeyScoreboard, false
+	idStr := bracketID.String()
+	if frozen {
+		return redisKeys.KeyScoreboardBracketFrozen(idStr), true
+	}
+	return redisKeys.KeyScoreboardBracket(idStr), false
+}
+
+func (uc *SolveUseCase) invalidateScoreboardCache(ctx context.Context, teamID uuid.UUID) {
+	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
+	team, err := uc.teamRepo.GetByID(ctx, teamID)
+	if err != nil || team == nil {
+		return
+	}
+	if team.BracketID != nil {
+		idStr := team.BracketID.String()
+		uc.redis.Del(ctx, redisKeys.KeyScoreboardBracket(idStr), redisKeys.KeyScoreboardBracketFrozen(idStr))
+	}
 }
 
 func (uc *SolveUseCase) tryGetCachedScoreboard(ctx context.Context, cacheKey string) []*repo.ScoreboardEntry {

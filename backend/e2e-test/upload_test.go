@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /files/{ID}/download: non-existent file returns 404.
 func TestFiles_DownloadPublic_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/files/download/nonexistent-file-id", nil)
 	require.NoError(t, err)
@@ -25,8 +27,9 @@ func TestFiles_DownloadPublic_NotFound(t *testing.T) {
 
 // POST /admin/challenges/{ID}/files upload + GET /challenges/{ID}/files + GET /files/{ID}/download: admin uploads file; user lists and downloads; content and sha256 match.
 func TestChallenge_DataUploadFlow(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_up")
 
@@ -81,8 +84,9 @@ func TestChallenge_DataUploadFlow(t *testing.T) {
 
 // DELETE /admin/files/{ID}: admin deletes file; GET /challenges/{ID}/files no longer returns it.
 func TestFile_Delete_Success(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_file_del")
 
@@ -107,8 +111,9 @@ func TestFile_Delete_Success(t *testing.T) {
 
 // DELETE /admin/files/{ID}: non-existent file returns 404.
 func TestFile_Delete_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_file_del_err")
 
@@ -117,8 +122,9 @@ func TestFile_Delete_NotFound(t *testing.T) {
 
 // GET /challenges/{ID}/files: non-existent challenge returns 200 with empty array.
 func TestChallenge_GetChallengeFiles_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("files_404_" + uuid.New().String()[:8])
 	h.CreateSoloTeam(token, http.StatusCreated)
@@ -129,8 +135,9 @@ func TestChallenge_GetChallengeFiles_NotFound(t *testing.T) {
 
 // GET /challenges/{ID}/hints: non-existent challenge returns 200 with empty array.
 func TestChallenge_GetHints_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("hints_404_" + uuid.New().String()[:8])
 	h.CreateSoloTeam(token, http.StatusCreated)
@@ -141,8 +148,9 @@ func TestChallenge_GetHints_NotFound(t *testing.T) {
 
 // GET /files/{ID}/download: non-existent file returns 404.
 func TestFile_GetDownload_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, _, token := h.RegisterUserAndLogin("filedl_404_" + uuid.New().String()[:8])
 	h.CreateSoloTeam(token, http.StatusCreated)
@@ -151,8 +159,9 @@ func TestFile_GetDownload_NotFound(t *testing.T) {
 
 // POST /admin/challenges/{ID}/files: non-existent challenge returns 500.
 func TestChallenge_UploadFile_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_upload_404")
 	h.UploadChallengeFileExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "a.txt", "content", http.StatusInternalServerError)
@@ -160,8 +169,9 @@ func TestChallenge_UploadFile_NotFound(t *testing.T) {
 
 // POST /admin/challenges/{ID}/hints: non-existent challenge returns 500.
 func TestChallenge_CreateHint_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_create_404")
 	h.CreateHintExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "hint", 0, http.StatusInternalServerError)

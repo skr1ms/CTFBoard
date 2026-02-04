@@ -3,8 +3,6 @@ package v1
 import (
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -13,22 +11,18 @@ import (
 // Get hints for challenge
 // (GET /challenges/{challengeID}/hints)
 func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeuuid, err := uuid.Parse(challengeID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	if !ok {
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	hints, err := h.hintUC.GetByChallengeID(r.Context(), challengeuuid, user.TeamID)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetChallengesChallengeIDHints")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetChallengesChallengeIDHints", "GetByChallengeID") {
 		return
 	}
 
@@ -38,15 +32,13 @@ func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Re
 // Unlock hint
 // (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID, hintID string) {
-	hintuuid, err := uuid.Parse(hintID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	hintuuid, ok := ParseUUID(w, r, hintID)
+	if !ok {
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
@@ -56,9 +48,7 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 	}
 
 	hint, err := h.hintUC.UnlockHint(r.Context(), *user.TeamID, hintuuid)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostChallengesChallengeIDHintsHintIDUnlock")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostChallengesChallengeIDHintsHintIDUnlock", "UnlockHint") {
 		return
 	}
 
@@ -68,9 +58,8 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 // Create hint
 // (POST /admin/challenges/{challengeID}/hints)
 func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeuuid, err := uuid.Parse(challengeID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	if !ok {
 		return
 	}
 
@@ -83,9 +72,7 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 
 	content, cost, orderIndex := request.CreateHintRequestToParams(&req)
 	hint, err := h.hintUC.Create(r.Context(), challengeuuid, content, cost, orderIndex)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDHints")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDHints", "Create") {
 		return
 	}
 
@@ -95,9 +82,8 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 // Update hint
 // (PUT /admin/hints/{ID})
 func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
-	hintuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	hintuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -110,9 +96,7 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 
 	content, cost, orderIndex := request.UpdateHintRequestToParams(&req)
 	hint, err := h.hintUC.Update(r.Context(), hintuuid, content, cost, orderIndex)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PutAdminHintsID")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PutAdminHintsID", "Update") {
 		return
 	}
 
@@ -122,15 +106,12 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 // Delete hint
 // (DELETE /admin/hints/{ID})
 func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
-	hintuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	hintuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
-	if err := h.hintUC.Delete(r.Context(), hintuuid); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminHintsID")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.hintUC.Delete(r.Context(), hintuuid), "DeleteAdminHintsID", "Delete") {
 		return
 	}
 

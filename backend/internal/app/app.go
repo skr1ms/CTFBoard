@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -65,10 +64,13 @@ func Run(cfg *config.Config, l logger.Logger) {
 		}()
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	jwtService := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL)
 	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
-	go wsHub.Run()
-	go wsHub.SubscribeToRedis(context.Background())
+	go wsHub.Run(ctx)
+	go wsHub.SubscribeToRedis(ctx)
 
 	resendMailer := mailer.New(mailer.Config{APIKey: cfg.APIKey, FromEmail: cfg.FromEmail, FromName: cfg.FromName})
 	asyncMailer := mailer.NewAsyncMailer(resendMailer, 100, 2, l)
@@ -82,7 +84,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 
 	runSeed(cfg, app, l)
-	runServerUntilShutdown(app.Server, cfg.HTTP.Port, l)
+	runServerUntilShutdown(ctx, app.Server, cfg.HTTP.Port, l)
 }
 
 func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
@@ -96,23 +98,21 @@ func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
 	}
 }
 
-func runServerUntilShutdown(server *http.Server, port string, l logger.Logger) {
+func runServerUntilShutdown(ctx context.Context, server *http.Server, port string, l logger.Logger) {
 	serverErrors := make(chan error, 1)
 	go func() {
 		l.Info("Starting HTTP server", map[string]any{"port": port})
 		serverErrors <- server.ListenAndServe()
 	}()
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case err := <-serverErrors:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			l.WithError(err).Error("HTTP server error")
 		}
-	case <-shutdown:
+	case <-ctx.Done():
 		l.Info("Shutting down server")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if err := server.Shutdown(ctx); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := server.Shutdown(shutdownCtx); err != nil {
 			l.WithError(err).Error("Server forced to shutdown")
 			_ = server.Close()
 		}

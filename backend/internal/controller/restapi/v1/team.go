@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -22,17 +20,14 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	name, confirmReset := request.CreateTeamRequestToParams(&req)
 	team, err := h.teamUC.Create(r.Context(), name, user.ID, false, confirmReset)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostTeams")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostTeams", "Create") {
 		return
 	}
 
@@ -49,23 +44,19 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	inviteToken, confirmReset := request.JoinTeamRequestToParams(&req)
-	inviteTokenuuid, err := uuid.Parse(inviteToken)
-	if err != nil {
-		RenderError(w, r, http.StatusBadRequest, "invalid invite token format")
+	inviteTokenuuid, ok := ParseUUID(w, r, inviteToken)
+	if !ok {
 		return
 	}
 
 	team, err := h.teamUC.Join(r.Context(), inviteTokenuuid, user.ID, confirmReset)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostTeamsJoin")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostTeamsJoin", "Join") {
 		return
 	}
 
@@ -75,15 +66,12 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 // Leave team
 // (POST /teams/leave)
 func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	if err := h.teamUC.Leave(r.Context(), user.ID); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostTeamsLeave")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.Leave(r.Context(), user.ID), "PostTeamsLeave", "Leave") {
 		return
 	}
 
@@ -93,15 +81,12 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 // Disband team
 // (DELETE /teams/me)
 func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	if err := h.teamUC.DisbandTeam(r.Context(), user.ID); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - DeleteTeamsMe")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.DisbandTeam(r.Context(), user.ID), "DeleteTeamsMe", "DisbandTeam") {
 		return
 	}
 
@@ -111,21 +96,17 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 // Kick member
 // (DELETE /teams/members/{ID})
 func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID string) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	targetuserID, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	targetuserID, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
-	if err := h.teamUC.KickMember(r.Context(), user.ID, targetuserID); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - DeleteTeamsMembersID")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.KickMember(r.Context(), user.ID, targetuserID), "DeleteTeamsMembersID", "KickMember") {
 		return
 	}
 
@@ -135,9 +116,8 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 // Get my team
 // (GET /teams/my)
 func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
@@ -147,9 +127,9 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 			RenderError(w, r, http.StatusNotFound, "user is not in a team")
 			return
 		}
-		h.logger.WithError(err).Error("restapi - v1 - GetTeamsMy")
-		handleError(w, r, err)
-		return
+		if h.OnError(w, r, err, "GetTeamsMy", "GetMyTeam") {
+			return
+		}
 	}
 
 	RenderOK(w, r, response.FromTeamWithMembers(team, members))
@@ -158,9 +138,8 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 // Create solo team
 // (POST /teams/solo)
 func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
@@ -173,9 +152,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 
 	_, confirmReset := request.CreateTeamRequestToParams(&req)
 	team, err := h.teamUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostTeamsSolo")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostTeamsSolo", "CreateSoloTeam") {
 		return
 	}
 
@@ -192,22 +169,18 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	newCaptainID := request.TransferCaptainRequestToNewCaptainID(&req)
-	newCaptainuuid, err := uuid.Parse(newCaptainID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	newCaptainuuid, ok := ParseUUID(w, r, newCaptainID)
+	if !ok {
 		return
 	}
 
-	if err := h.teamUC.TransferCaptain(r.Context(), user.ID, newCaptainuuid); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostTeamsTransferCaptain")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.TransferCaptain(r.Context(), user.ID, newCaptainuuid), "PostTeamsTransferCaptain", "TransferCaptain") {
 		return
 	}
 
@@ -217,16 +190,13 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 // Get team by ID
 // (GET /teams/{ID})
 func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	teamuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
 	team, err := h.teamUC.GetByID(r.Context(), teamuuid)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetTeamsID")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetTeamsID", "GetByID") {
 		return
 	}
 
@@ -236,9 +206,8 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 // Ban team
 // (POST /admin/teams/{ID}/ban)
 func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	teamuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -262,15 +231,12 @@ func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID 
 // Unban team
 // (DELETE /admin/teams/{ID}/ban)
 func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	teamuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
-	if err := h.teamUC.UnbanTeam(r.Context(), teamuuid); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminTeamsIDBan")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.UnbanTeam(r.Context(), teamuuid), "DeleteAdminTeamsIDBan", "UnbanTeam") {
 		return
 	}
 
@@ -280,9 +246,8 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 // Set team hidden status
 // (PATCH /admin/teams/{ID}/hidden)
 func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	teamuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -294,9 +259,7 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 	}
 
 	hidden := request.SetHiddenRequestToHidden(&req)
-	if err := h.teamUC.SetHidden(r.Context(), teamuuid, hidden); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PatchAdminTeamsIDHidden")
-		handleError(w, r, err)
+	if h.OnError(w, r, h.teamUC.SetHidden(r.Context(), teamuuid, hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
 		return
 	}
 

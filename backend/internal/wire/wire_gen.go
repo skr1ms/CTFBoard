@@ -16,6 +16,8 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
+	"github.com/skr1ms/CTFBoard/internal/usecase/notification"
+	"github.com/skr1ms/CTFBoard/internal/usecase/user"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
@@ -29,16 +31,20 @@ func InitializeApp(cfg *config.Config, l logger.Logger, pool *pgxpool.Pool, redi
 	teamRepo := ProvideTeamRepo(pool)
 	solveRepo := ProvideSolveRepo(pool)
 	txRepo := ProvideTxRepo(pool)
-	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService)
+	fieldRepo := ProvideFieldRepo(pool)
+	fieldValidator := ProvideFieldValidator(fieldRepo)
+	fieldValueRepo := ProvideFieldValueRepo(pool)
+	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService, fieldValidator, fieldValueRepo)
 	challengeRepo := ProvideChallengeRepo(pool)
+	tagRepo := ProvideTagRepo(pool)
 	competitionRepo := ProvideCompetitionRepo(pool)
 	auditLogRepo := ProvideAuditLogRepo(pool)
 	service, err := ProvideCrypto(cfg)
 	if err != nil {
 		return nil, err
 	}
-	challengeUseCase := ProvideChallengeUseCase(challengeRepo, solveRepo, txRepo, competitionRepo, teamRepo, redisClient, wsHub, auditLogRepo, service)
-	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, txRepo, redisClient, wsHub)
+	challengeUseCase := ProvideChallengeUseCase(challengeRepo, tagRepo, solveRepo, txRepo, competitionRepo, teamRepo, redisClient, wsHub, auditLogRepo, service)
+	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, redisClient, wsHub)
 	teamUseCase := ProvideTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo, redisClient)
 	competitionUseCase := ProvideCompetitionUseCase(competitionRepo, auditLogRepo, redisClient)
 	hintRepo := ProvideHintRepo(pool)
@@ -52,13 +58,32 @@ func InitializeApp(cfg *config.Config, l logger.Logger, pool *pgxpool.Pool, redi
 	awardUseCase := ProvideAwardUseCase(awardRepo, txRepo, redisClient)
 	statisticsRepository := ProvideStatisticsRepo(pool)
 	statisticsUseCase := ProvideStatisticsUseCase(statisticsRepository, redisClient)
+	submissionRepo := ProvideSubmissionRepo(pool)
+	submissionUseCase := ProvideSubmissionUseCase(submissionRepo)
+	tagUseCase := ProvideTagUseCase(tagRepo)
+	fieldUseCase := ProvideFieldUseCase(fieldRepo)
+	pageRepo := ProvidePageRepo(pool)
+	pageUseCase := ProvidePageUseCase(pageRepo)
+	bracketRepo := ProvideBracketRepo(pool)
+	bracketUseCase := ProvideBracketUseCase(bracketRepo)
+	ratingRepo := ProvideRatingRepo(pool)
+	ratingUseCase := ProvideRatingUseCase(ratingRepo, solveRepo, teamRepo)
+	notificationRepo := ProvideNotificationRepo(pool)
+	notificationUseCase := ProvideNotificationUseCase(notificationRepo)
+	apiTokenRepo := ProvideAPITokenRepo(pool)
+	apiTokenUseCase := ProvideAPITokenUseCase(apiTokenRepo)
 	backupRepo := ProvideBackupRepo(pool)
 	backupUseCase := ProvideBackupUseCase(competitionRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepository, backupRepo, storageProvider, txRepo, l)
 	appSettingsRepo := ProvideAppSettingsRepo(pool)
 	settingsUseCase := ProvideSettingsUseCase(appSettingsRepo, auditLogRepo, redisClient)
+	configRepo := ProvideConfigRepo(pool)
+	dynamicConfigUseCase := ProvideDynamicConfigUseCase(configRepo, auditLogRepo)
+	commentRepo := ProvideCommentRepo(pool)
+	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo)
 	controller := ProvideWsController(wsHub, l, cfg)
 	validator := ProvideValidator()
-	router := ProvideRouter(cfg, l, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, backupUseCase, settingsUseCase, jwtService, redisClient, controller, validator)
+	serverDeps := ProvideServerDeps(userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, ratingUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, dynamicConfigUseCase, commentUseCase, jwtService, redisClient, controller, validator, l)
+	router := ProvideRouter(cfg, l, serverDeps)
 	server := ProvideServer(router, cfg)
 	app := ProvideApp(server, userRepo)
 	return app, nil
@@ -80,8 +105,19 @@ var RepoSet = wire.NewSet(
 	ProvideFileRepo,
 	ProvideTxRepo,
 	ProvideBackupRepo,
+	ProvideSubmissionRepo,
+	ProvideTagRepo,
+	ProvideFieldRepo,
+	ProvideFieldValueRepo,
+	ProvideNotificationRepo,
+	ProvidePageRepo,
+	ProvideCommentRepo,
+	ProvideBracketRepo,
+	ProvideRatingRepo,
+	ProvideAPITokenRepo,
 	ProvideAppSettingsRepo,
-	ProvideVerificationTokenRepo, wire.Bind(new(repo.UserRepository), new(*persistent.UserRepo)), wire.Bind(new(repo.TeamRepository), new(*persistent.TeamRepo)), wire.Bind(new(repo.SolveRepository), new(*persistent.SolveRepo)), wire.Bind(new(repo.CompetitionRepository), new(*persistent.CompetitionRepo)), wire.Bind(new(repo.ChallengeRepository), new(*persistent.ChallengeRepo)), wire.Bind(new(repo.HintRepository), new(*persistent.HintRepo)), wire.Bind(new(repo.HintUnlockRepository), new(*persistent.HintUnlockRepo)), wire.Bind(new(repo.AwardRepository), new(*persistent.AwardRepo)), wire.Bind(new(repo.AuditLogRepository), new(*persistent.AuditLogRepo)), wire.Bind(new(repo.StatisticsRepository), new(*persistent.StatisticsRepository)), wire.Bind(new(repo.FileRepository), new(*persistent.FileRepository)), wire.Bind(new(repo.TxRepository), new(*persistent.TxRepo)), wire.Bind(new(repo.BackupRepository), new(*persistent.BackupRepo)), wire.Bind(new(repo.AppSettingsRepository), new(*persistent.AppSettingsRepo)), wire.Bind(new(repo.VerificationTokenRepository), new(*persistent.VerificationTokenRepo)),
+	ProvideConfigRepo,
+	ProvideVerificationTokenRepo, wire.Bind(new(repo.UserRepository), new(*persistent.UserRepo)), wire.Bind(new(repo.TeamRepository), new(*persistent.TeamRepo)), wire.Bind(new(repo.SolveRepository), new(*persistent.SolveRepo)), wire.Bind(new(repo.CompetitionRepository), new(*persistent.CompetitionRepo)), wire.Bind(new(repo.ChallengeRepository), new(*persistent.ChallengeRepo)), wire.Bind(new(repo.HintRepository), new(*persistent.HintRepo)), wire.Bind(new(repo.HintUnlockRepository), new(*persistent.HintUnlockRepo)), wire.Bind(new(repo.AwardRepository), new(*persistent.AwardRepo)), wire.Bind(new(repo.AuditLogRepository), new(*persistent.AuditLogRepo)), wire.Bind(new(repo.StatisticsRepository), new(*persistent.StatisticsRepository)), wire.Bind(new(repo.FileRepository), new(*persistent.FileRepository)), wire.Bind(new(repo.TxRepository), new(*persistent.TxRepo)), wire.Bind(new(repo.BackupRepository), new(*persistent.BackupRepo)), wire.Bind(new(repo.SubmissionRepository), new(*persistent.SubmissionRepo)), wire.Bind(new(repo.TagRepository), new(*persistent.TagRepo)), wire.Bind(new(repo.FieldRepository), new(*persistent.FieldRepo)), wire.Bind(new(repo.FieldValueRepository), new(*persistent.FieldValueRepo)), wire.Bind(new(repo.NotificationRepository), new(*persistent.NotificationRepo)), wire.Bind(new(repo.PageRepository), new(*persistent.PageRepo)), wire.Bind(new(repo.CommentRepository), new(*persistent.CommentRepo)), wire.Bind(new(repo.BracketRepository), new(*persistent.BracketRepo)), wire.Bind(new(repo.RatingRepository), new(*persistent.RatingRepo)), wire.Bind(new(repo.APITokenRepository), new(*persistent.APITokenRepo)), wire.Bind(new(repo.AppSettingsRepository), new(*persistent.AppSettingsRepo)), wire.Bind(new(repo.ConfigRepository), new(*persistent.ConfigRepo)), wire.Bind(new(repo.VerificationTokenRepository), new(*persistent.VerificationTokenRepo)),
 )
 
 var UseCaseSet = wire.NewSet(
@@ -93,16 +129,28 @@ var UseCaseSet = wire.NewSet(
 	ProvideCompetitionUseCase,
 	ProvideSolveUseCase,
 	ProvideStatisticsUseCase,
+	ProvideSubmissionUseCase,
+	ProvideTagUseCase,
+	ProvideFieldUseCase,
+	ProvideFieldValidator,
+	ProvideNotificationUseCase,
+	ProvidePageUseCase,
+	ProvideCommentUseCase,
+	ProvideBracketUseCase,
+	ProvideRatingUseCase,
+	ProvideAPITokenUseCase,
 	ProvideFileUseCase,
 	ProvideBackupUseCase,
 	ProvideSettingsUseCase,
-	ProvideEmailUseCase, wire.Bind(new(usecase.BackupUseCase), new(*competition.BackupUseCase)),
+	ProvideDynamicConfigUseCase,
+	ProvideEmailUseCase, wire.Bind(new(usecase.BackupUseCase), new(*competition.BackupUseCase)), wire.Bind(new(usecase.NotificationUseCase), new(*notification.NotificationUseCase)), wire.Bind(new(usecase.BracketUseCase), new(*competition.BracketUseCase)), wire.Bind(new(usecase.RatingUseCase), new(*competition.RatingUseCase)), wire.Bind(new(usecase.APITokenUseCase), new(*user.APITokenUseCase)),
 )
 
 var InfraSet = wire.NewSet(
 	ProvideValidator,
 	ProvideCrypto,
 	ProvideWsController,
+	ProvideServerDeps,
 	ProvideRouter,
 	ProvideServer,
 	ProvideApp,

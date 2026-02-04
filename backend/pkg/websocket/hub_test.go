@@ -1,10 +1,14 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	websocketlib "github.com/coder/websocket"
 	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +16,7 @@ import (
 
 func TestHub_Run_RegisterUnregister(t *testing.T) {
 	hub := NewHub(nil, "")
-	go hub.Run()
+	go hub.Run(context.Background())
 
 	client := &Client{
 		hub:  hub,
@@ -34,7 +38,7 @@ func TestHub_Run_RegisterUnregister(t *testing.T) {
 
 func TestHub_Broadcast(t *testing.T) {
 	hub := NewHub(nil, "")
-	go hub.Run()
+	go hub.Run(context.Background())
 
 	client := &Client{
 		hub:  hub,
@@ -62,7 +66,7 @@ func TestHub_Broadcast(t *testing.T) {
 func TestHub_BroadcastEvent_Redis(t *testing.T) {
 	db, redisClient := redismock.NewClientMock()
 	hub := NewHub(db, "test-channel")
-	go hub.Run()
+	go hub.Run(context.Background())
 
 	event := Event{
 		Type:      "test",
@@ -80,9 +84,65 @@ func TestHub_BroadcastEvent_Redis(t *testing.T) {
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
+func TestHub_Run_ExitsOnContextCancel(t *testing.T) {
+	hub := NewHub(nil, "")
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		hub.Run(ctx)
+		close(done)
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Run did not exit after context cancel")
+	}
+}
+
+func TestHub_SubscribeToRedis_NilClient(t *testing.T) {
+	hub := NewHub(nil, "")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	hub.SubscribeToRedis(ctx)
+}
+
+func TestNewClient_WritePump_ReadPump_Integration(t *testing.T) {
+	hub := NewHub(nil, "")
+	go hub.Run(context.Background())
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocketlib.Accept(w, r, &websocketlib.AcceptOptions{InsecureSkipVerify: true})
+		require.NoError(t, err)
+		client := NewClient(hub, conn)
+		hub.Register(client)
+		go client.WritePump()
+		go client.ReadPump()
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + srv.URL[4:] + "/"
+	conn, _, err := websocketlib.Dial(context.Background(), wsURL, nil)
+	require.NoError(t, err)
+	defer conn.Close(websocketlib.StatusNormalClosure, "")
+
+	_, data, err := conn.Read(context.Background())
+	require.NoError(t, err)
+	var ev Event
+	require.NoError(t, json.Unmarshal(data, &ev))
+	assert.Equal(t, "connected", ev.Type)
+}
+
+func TestBroadcastEvent_JsonMarshalError(t *testing.T) {
+	hub := NewHub(nil, "")
+	go hub.Run(context.Background())
+
+	hub.BroadcastEvent(func() {})
+}
+
 func TestHub_BroadcastEvent_LocalFallback(t *testing.T) {
 	hub := NewHub(nil, "")
-	go hub.Run()
+	go hub.Run(context.Background())
 
 	client := &Client{
 		hub:  hub,

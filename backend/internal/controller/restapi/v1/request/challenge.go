@@ -1,8 +1,11 @@
 package request
 
-import "github.com/skr1ms/CTFBoard/internal/openapi"
+import (
+	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/openapi"
+)
 
-func CreateChallengeRequestToParams(req *openapi.RequestCreateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string) {
+func CreateChallengeRequestToParams(req *openapi.RequestCreateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) {
 	initialValue, minValue, decay = 500, 100, 20
 	if req.InitialValue != nil {
 		initialValue = *req.InitialValue
@@ -22,14 +25,22 @@ func CreateChallengeRequestToParams(req *openapi.RequestCreateChallengeRequest) 
 	if req.IsCaseInsensitive != nil {
 		isCaseInsensitive = *req.IsCaseInsensitive
 	}
-	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, req.Flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex
+	if req.TagIds != nil {
+		tagIDs = make([]uuid.UUID, 0, len(*req.TagIds))
+		for _, s := range *req.TagIds {
+			if id, err := uuid.Parse(s); err == nil {
+				tagIDs = append(tagIDs, id)
+			}
+		}
+	}
+	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, req.Flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex, tagIDs
 }
 
 func SubmitFlagRequestToFlag(req *openapi.RequestSubmitFlagRequest) string {
 	return req.Flag
 }
 
-func UpdateChallengeRequestToParams(req *openapi.RequestUpdateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string) {
+func UpdateChallengeRequestToParams(req *openapi.RequestUpdateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) {
 	initialValue, minValue, decay = 500, 100, 20
 	if req.InitialValue != nil {
 		initialValue = *req.InitialValue
@@ -52,5 +63,13 @@ func UpdateChallengeRequestToParams(req *openapi.RequestUpdateChallengeRequest) 
 	if req.IsCaseInsensitive != nil {
 		isCaseInsensitive = *req.IsCaseInsensitive
 	}
-	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex
+	if req.TagIds != nil {
+		tagIDs = make([]uuid.UUID, 0, len(*req.TagIds))
+		for _, s := range *req.TagIds {
+			if id, err := uuid.Parse(s); err == nil {
+				tagIDs = append(tagIDs, id)
+			}
+		}
+	}
+	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex, tagIDs
 }

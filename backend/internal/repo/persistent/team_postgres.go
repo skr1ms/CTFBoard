@@ -21,12 +21,13 @@ func NewTeamRepo(db *pgxpool.Pool) *TeamRepo {
 	return &TeamRepo{db: db, q: sqlc.New(db)}
 }
 
-func toEntityTeamFromRow(id uuid.UUID, name string, inviteToken, captainID uuid.UUID, isSolo, isAutoCreated, isBanned, isHidden *bool, bannedAt *time.Time, bannedReason *string, createdAt *time.Time) *entity.Team {
+func toEntityTeamFromRow(id uuid.UUID, name string, inviteToken, captainID uuid.UUID, bracketID *uuid.UUID, isSolo, isAutoCreated, isBanned, isHidden *bool, bannedAt *time.Time, bannedReason *string, createdAt *time.Time) *entity.Team {
 	return &entity.Team{
 		ID:            id,
 		Name:          name,
 		InviteToken:   inviteToken,
 		CaptainID:     captainID,
+		BracketID:     bracketID,
 		IsSolo:        boolPtrToBool(isSolo),
 		IsAutoCreated: boolPtrToBool(isAutoCreated),
 		IsBanned:      boolPtrToBool(isBanned),
@@ -63,7 +64,7 @@ func (r *TeamRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, err
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByID: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error) {
@@ -77,7 +78,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByInviteToken: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, error) {
@@ -88,7 +89,7 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByName: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TeamRepo) Delete(ctx context.Context, id uuid.UUID) error {
@@ -117,7 +118,7 @@ func (r *TeamRepo) GetSoloTeamByUserID(ctx context.Context, userID uuid.UUID) (*
 		}
 		return nil, fmt.Errorf("TeamRepo - GetSoloTeamByUserID: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TeamRepo) CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error) {
@@ -173,7 +174,18 @@ func (r *TeamRepo) GetAll(ctx context.Context) ([]*entity.Team, error) {
 	}
 	out := make([]*entity.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt))
+		out = append(out, toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt))
 	}
 	return out, nil
+}
+
+func (r *TeamRepo) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
+	_, err := r.q.SetTeamBracket(ctx, sqlc.SetTeamBracketParams{ID: teamID, BracketID: bracketID})
+	if err != nil {
+		if isNoRows(err) {
+			return entityError.ErrTeamNotFound
+		}
+		return fmt.Errorf("TeamRepo - SetBracket: %w", err)
+	}
+	return nil
 }

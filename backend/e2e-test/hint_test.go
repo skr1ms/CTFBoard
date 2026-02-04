@@ -5,13 +5,15 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // POST /challenges/{challengeID}/hints/{hintID}/unlock: hint locked until user has points; unlock deducts cost; score reflects deduction.
 func TestHint_Flow(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint")
 
@@ -63,8 +65,9 @@ func TestHint_Flow(t *testing.T) {
 
 // PUT /admin/hints/{ID}: admin updates hint content and cost; GET reflects new values.
 func TestHint_Update_Success(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_update")
 
@@ -87,8 +90,9 @@ func TestHint_Update_Success(t *testing.T) {
 
 // PUT /admin/hints/{ID}: non-existent hint returns 404.
 func TestHint_Update_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_up_err")
 
@@ -97,8 +101,9 @@ func TestHint_Update_NotFound(t *testing.T) {
 
 // DELETE /admin/hints/{ID}: admin deletes hint; GET /challenges/{ID}/hints no longer returns it.
 func TestHint_Delete_Success(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_del")
 
@@ -109,7 +114,7 @@ func TestHint_Delete_Success(t *testing.T) {
 
 	h.DeleteHint(tokenAdmin, hintID, http.StatusNoContent)
 
-	resp, err := h.client.GetChallengesChallengeIDHintsWithResponse(context.Background(), challengeID, WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetChallengesChallengeIDHintsWithResponse(context.Background(), challengeID, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	require.NotNil(t, resp.JSON200)
 	for _, c := range *resp.JSON200 {
@@ -121,8 +126,9 @@ func TestHint_Delete_Success(t *testing.T) {
 
 // DELETE /admin/hints/{ID}: non-existent hint returns 204 (idempotent).
 func TestHint_Delete_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_del_err")
 
@@ -131,8 +137,9 @@ func TestHint_Delete_NotFound(t *testing.T) {
 
 // POST /challenges/{ID}/hints/{hintID}/unlock: non-existent hint returns 404.
 func TestHint_Unlock_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_unlock_404")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Unlock Chal", "flag{u}", 50)

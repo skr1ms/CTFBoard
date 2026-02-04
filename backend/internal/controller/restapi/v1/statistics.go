@@ -19,9 +19,7 @@ const (
 // (GET /statistics/general)
 func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.statsUC.GetGeneralStats(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsGeneral")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetStatisticsGeneral", "GetGeneralStats") {
 		return
 	}
 
@@ -32,9 +30,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 // (GET /statistics/challenges)
 func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.statsUC.GetChallengeStats(r.Context())
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsChallenges")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetStatisticsChallenges", "GetChallengeStats") {
 		return
 	}
 
@@ -72,9 +68,7 @@ func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request)
 	}
 
 	stats, err := h.statsUC.GetScoreboardHistory(r.Context(), limit)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsScoreboard")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetStatisticsScoreboard", "GetScoreboardHistory") {
 		return
 	}
 
@@ -93,9 +87,7 @@ func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, para
 	}
 
 	graph, err := h.statsUC.GetScoreboardGraph(r.Context(), topN)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetScoreboardGraph")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetScoreboardGraph", "GetScoreboardGraph") {
 		return
 	}
 

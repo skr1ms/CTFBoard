@@ -10,6 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
+type ApiToken struct {
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	TokenHash   string     `json:"token_hash"`
+	Description *string    `json:"description"`
+	ExpiresAt   *time.Time `json:"expires_at"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
+	CreatedAt   *time.Time `json:"created_at"`
+}
+
 type AppSetting struct {
 	ID                     int32     `json:"id"`
 	AppName                string    `json:"app_name"`
@@ -48,6 +58,14 @@ type Award struct {
 	CreatedAt   *time.Time `json:"created_at"`
 }
 
+type Bracket struct {
+	ID          uuid.UUID  `json:"id"`
+	Name        string     `json:"name"`
+	Description *string    `json:"description"`
+	IsDefault   *bool      `json:"is_default"`
+	CreatedAt   *time.Time `json:"created_at"`
+}
+
 type Challenge struct {
 	ID                uuid.UUID `json:"id"`
 	Title             string    `json:"title"`
@@ -64,6 +82,20 @@ type Challenge struct {
 	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
 	FlagRegex         *string   `json:"flag_regex"`
 	FlagFormatRegex   *string   `json:"flag_format_regex"`
+}
+
+type ChallengeTag struct {
+	ChallengeID uuid.UUID `json:"challenge_id"`
+	TagID       uuid.UUID `json:"tag_id"`
+}
+
+type Comment struct {
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	ChallengeID uuid.UUID  `json:"challenge_id"`
+	Content     string     `json:"content"`
+	CreatedAt   *time.Time `json:"created_at"`
+	UpdatedAt   *time.Time `json:"updated_at"`
 }
 
 type Competition struct {
@@ -83,6 +115,42 @@ type Competition struct {
 	UpdatedAt       *time.Time `json:"updated_at"`
 }
 
+type Config struct {
+	Key         string     `json:"key"`
+	Value       string     `json:"value"`
+	ValueType   string     `json:"value_type"`
+	Description *string    `json:"description"`
+	UpdatedAt   *time.Time `json:"updated_at"`
+}
+
+type CtfEvent struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	StartTime time.Time  `json:"start_time"`
+	EndTime   time.Time  `json:"end_time"`
+	Weight    float64    `json:"weight"`
+	CreatedAt *time.Time `json:"created_at"`
+}
+
+type Field struct {
+	ID         uuid.UUID  `json:"id"`
+	Name       string     `json:"name"`
+	FieldType  string     `json:"field_type"`
+	EntityType string     `json:"entity_type"`
+	Required   *bool      `json:"required"`
+	Options    []byte     `json:"options"`
+	OrderIndex *int32     `json:"order_index"`
+	CreatedAt  *time.Time `json:"created_at"`
+}
+
+type FieldValue struct {
+	ID        uuid.UUID  `json:"id"`
+	FieldID   uuid.UUID  `json:"field_id"`
+	EntityID  uuid.UUID  `json:"entity_id"`
+	Value     string     `json:"value"`
+	CreatedAt *time.Time `json:"created_at"`
+}
+
 type File struct {
 	ID          uuid.UUID `json:"id"`
 	Type        string    `json:"type"`
@@ -92,6 +160,14 @@ type File struct {
 	Size        int64     `json:"size"`
 	Sha256      string    `json:"sha256"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type GlobalRating struct {
+	TeamID      uuid.UUID  `json:"team_id"`
+	TotalPoints float64    `json:"total_points"`
+	EventsCount int32      `json:"events_count"`
+	BestRank    *int32     `json:"best_rank"`
+	LastUpdated *time.Time `json:"last_updated"`
 }
 
 type Hint struct {
@@ -109,6 +185,27 @@ type HintUnlock struct {
 	UnlockedAt *time.Time `json:"unlocked_at"`
 }
 
+type Notification struct {
+	ID        uuid.UUID  `json:"id"`
+	Title     string     `json:"title"`
+	Content   string     `json:"content"`
+	Type      *string    `json:"type"`
+	IsPinned  *bool      `json:"is_pinned"`
+	IsGlobal  *bool      `json:"is_global"`
+	CreatedAt *time.Time `json:"created_at"`
+}
+
+type Page struct {
+	ID         uuid.UUID  `json:"id"`
+	Title      string     `json:"title"`
+	Slug       string     `json:"slug"`
+	Content    string     `json:"content"`
+	IsDraft    *bool      `json:"is_draft"`
+	OrderIndex *int32     `json:"order_index"`
+	CreatedAt  *time.Time `json:"created_at"`
+	UpdatedAt  *time.Time `json:"updated_at"`
+}
+
 type Solf struct {
 	ID          uuid.UUID  `json:"id"`
 	UserID      uuid.UUID  `json:"user_id"`
@@ -117,11 +214,29 @@ type Solf struct {
 	SolvedAt    *time.Time `json:"solved_at"`
 }
 
+type Submission struct {
+	ID            uuid.UUID  `json:"id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	TeamID        *uuid.UUID `json:"team_id"`
+	ChallengeID   uuid.UUID  `json:"challenge_id"`
+	SubmittedFlag string     `json:"submitted_flag"`
+	IsCorrect     bool       `json:"is_correct"`
+	Ip            *string    `json:"ip"`
+	CreatedAt     *time.Time `json:"created_at"`
+}
+
+type Tag struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Color *string   `json:"color"`
+}
+
 type Team struct {
 	ID            uuid.UUID  `json:"id"`
 	Name          string     `json:"name"`
 	InviteToken   uuid.UUID  `json:"invite_token"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
 	CreatedAt     *time.Time `json:"created_at"`
 	DeletedAt     *time.Time `json:"deleted_at"`
 	IsSolo        *bool      `json:"is_solo"`
@@ -141,6 +256,16 @@ type TeamAuditLog struct {
 	CreatedAt *time.Time `json:"created_at"`
 }
 
+type TeamRating struct {
+	ID           uuid.UUID  `json:"id"`
+	TeamID       uuid.UUID  `json:"team_id"`
+	CtfEventID   uuid.UUID  `json:"ctf_event_id"`
+	Rank         int32      `json:"rank"`
+	Score        int32      `json:"score"`
+	RatingPoints float64    `json:"rating_points"`
+	CreatedAt    *time.Time `json:"created_at"`
+}
+
 type User struct {
 	ID           uuid.UUID  `json:"id"`
 	TeamID       *uuid.UUID `json:"team_id"`
@@ -151,6 +276,17 @@ type User struct {
 	IsVerified   *bool      `json:"is_verified"`
 	VerifiedAt   *time.Time `json:"verified_at"`
 	CreatedAt    *time.Time `json:"created_at"`
+}
+
+type UserNotification struct {
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	NotificationID *uuid.UUID `json:"notification_id"`
+	Title          *string    `json:"title"`
+	Content        *string    `json:"content"`
+	Type           *string    `json:"type"`
+	IsRead         *bool      `json:"is_read"`
+	CreatedAt      *time.Time `json:"created_at"`
 }
 
 type VerificationToken struct {

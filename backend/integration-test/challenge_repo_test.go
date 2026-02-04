@@ -87,7 +87,7 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	err := f.ChallengeRepo.Create(ctx, hiddenChallenge)
 	require.NoError(t, err)
 
-	challenges, err := f.ChallengeRepo.GetAll(ctx, nil)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, challenges, 2)
 	for _, ch := range challenges {
@@ -104,7 +104,7 @@ func TestChallengeRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	challenges, err := f.ChallengeRepo.GetAll(ctx, nil)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, nil, nil)
 	assert.Error(t, err)
 	assert.Nil(t, challenges)
 }
@@ -125,7 +125,7 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 
 	f.CreateSolve(t, user.ID, team.ID, ch1.ID)
 
-	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.ID)
+	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.ID, nil)
 	require.NoError(t, err)
 	assert.Len(t, challenges, 2)
 

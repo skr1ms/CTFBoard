@@ -10,3 +10,9 @@ var ErrAppSettingsNotFound = &HTTPError{
 	StatusCode: http.StatusNotFound,
 	Code:       "APP_SETTINGS_NOT_FOUND",
 }
+
+var ErrConfigNotFound = &HTTPError{
+	Err:        errors.New("config not found"),
+	StatusCode: http.StatusNotFound,
+	Code:       "CONFIG_NOT_FOUND",
+}

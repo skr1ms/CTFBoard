@@ -41,4 +41,9 @@ var (
 		StatusCode: http.StatusUnauthorized,
 		Code:       "USER_NOT_VERIFIED",
 	}
+	ErrNotAuthenticated = &HTTPError{
+		Err:        errors.New("not authenticated"),
+		StatusCode: http.StatusUnauthorized,
+		Code:       "NOT_AUTHENTICATED",
+	}
 )

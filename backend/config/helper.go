@@ -5,7 +5,26 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
+
+type vaultSecretGetter interface {
+	GetSecret(path string) (map[string]any, error)
+}
+
+func vaultFetch(client vaultSecretGetter, l logger.Logger, path, logName, errSuffix string, apply func(map[string]any)) func() error {
+	return func() error {
+		s, err := client.GetSecret(path)
+		if err != nil {
+			l.WithError(err).Warn("Config: failed to load " + logName + " secrets from Vault, " + errSuffix)
+			return nil
+		}
+		l.Info("Config: " + logName + " secrets loaded from Vault")
+		apply(s)
+		return nil
+	}
+}
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {

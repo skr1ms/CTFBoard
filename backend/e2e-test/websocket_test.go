@@ -9,6 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 )
 
 func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
@@ -107,8 +108,9 @@ func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr 
 
 // GET /ws: client receives scoreboard_update event when a solve is submitted.
 func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_ws")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "WS Chall", "flag{ws_event}", 100)
@@ -142,8 +144,9 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 
 // GET /ws on invalid path: connection fails or returns 404.
 func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	_, _ = NewE2EHelper(t, nil, TestPool), TestPool
+	_, _ = helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL()), TestPool
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws-invalid"
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

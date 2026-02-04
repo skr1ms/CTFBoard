@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS field_values;
+DROP TABLE IF EXISTS fields;

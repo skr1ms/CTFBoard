@@ -227,3 +227,29 @@ func TestRenderErrorWithCode(t *testing.T) {
 		t.Errorf("RenderErrorWithCode() code = %v, want %v", response["code"], "INVALID_INPUT")
 	}
 }
+
+func TestRenderOK(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/test", nil)
+	data := map[string]string{"ok": "true"}
+	RenderOK(w, r, data)
+	if w.Code != http.StatusOK {
+		t.Errorf("RenderOK() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+func TestRenderInvalidID(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/test", nil)
+	RenderInvalidID(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("RenderInvalidID() status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+	var response map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+	if response["error"] != "invalid ID" {
+		t.Errorf("RenderInvalidID() error = %v, want invalid ID", response["error"])
+	}
+}

@@ -148,7 +148,7 @@ func (r *TxRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*
 		}
 		return nil, fmt.Errorf("TxRepo - GetTeamByNameTx: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
@@ -159,7 +159,7 @@ func (r *TxRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteTo
 		}
 		return nil, fmt.Errorf("TxRepo - GetTeamByInviteTokenTx: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error) {
@@ -458,7 +458,7 @@ func (r *TxRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*e
 		}
 		return nil, fmt.Errorf("TxRepo - GetTeamByIDTx: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 func (r *TxRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error) {
@@ -469,7 +469,7 @@ func (r *TxRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uu
 		}
 		return nil, fmt.Errorf("TxRepo - GetSoloTeamByUserIDTx: %w", err)
 	}
-	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
 var _ repo.TxRepository = (*TxRepo)(nil)

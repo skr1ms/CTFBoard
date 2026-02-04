@@ -5,13 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /scoreboard with freeze_time: solves after freeze are not counted in public scoreboard (frozen view).
 func TestScoreboard_Freeze(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_freeze")
 
@@ -48,7 +50,7 @@ func TestScoreboard_Freeze(t *testing.T) {
 	h.SubmitFlag(user2, challID, "flag{freeze}", http.StatusOK)
 
 	scoreboard := h.GetScoreboard()
-	require.Equal(t, http.StatusOK, scoreboard.StatusCode())
+	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard freeze")
 	require.NotNil(t, scoreboard.JSON200)
 
 	foundUser2 := false
@@ -72,8 +74,9 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 // GET /scoreboard with freeze_time: when no solves exist, returns 200 and empty array.
 func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_freeze_empty")
 	_ = h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Freeze Empty", "description": "x", "flag": "flag{fe}",
@@ -86,6 +89,6 @@ func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 		"allow_team_switch": true, "mode": "flexible",
 	})
 	resp := h.GetScoreboard()
-	require.Equal(t, http.StatusOK, resp.StatusCode())
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard freeze empty")
 	require.NotNil(t, resp.JSON200)
 }

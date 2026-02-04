@@ -2,27 +2,32 @@ package v1
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
+	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
 // Get challenges list
 // (GET /challenges)
-func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.GetUser(r.Context())
+func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params openapi.GetChallengesParams) {
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
-	challenges, err := h.challengeUC.GetAll(r.Context(), user.TeamID)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetChallenges")
-		handleError(w, r, err)
+	var tagID *uuid.UUID
+	if params.Tag != nil && *params.Tag != "" {
+		if id, err := uuid.Parse(*params.Tag); err == nil {
+			tagID = &id
+		}
+	}
+
+	challenges, err := h.challengeUC.GetAll(r.Context(), user.TeamID, tagID)
+	if h.OnError(w, r, err, "GetChallenges", "GetAll") {
 		return
 	}
 
@@ -32,9 +37,8 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request) {
 // Submit flag
 // (POST /challenges/{ID}/submit)
 func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -45,17 +49,30 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	flag := request.SubmitFlagRequestToFlag(&req)
 	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeuuid, flag, user.ID, user.TeamID)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostChallengesIDSubmit")
-		handleError(w, r, err)
+
+	sub := &entity.Submission{
+		UserID:        user.ID,
+		ChallengeID:   challengeuuid,
+		SubmittedFlag: flag,
+		IsCorrect:     valid,
+		IP:            GetClientIP(r),
+		CreatedAt:     time.Now(),
+	}
+	if user.TeamID != nil {
+		sub.TeamID = user.TeamID
+	}
+	if logErr := h.submissionUC.LogSubmission(r.Context(), sub); logErr != nil {
+		h.logger.WithError(logErr).Error("restapi - v1 - PostChallengesIDSubmit - LogSubmission")
+	}
+
+	if h.OnError(w, r, err, "PostChallengesIDSubmit", "SubmitFlag") {
 		return
 	}
 
@@ -77,15 +94,13 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex := request.CreateChallengeRequestToParams(&req)
+	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex, tagIDs := request.CreateChallengeRequestToParams(&req)
 	challenge, err := h.challengeUC.Create(
 		r.Context(),
 		title, desc, cat, pts, initVal, minVal, decay, flag,
-		isHidden, isRegex, isCaseInsens, flagRegex,
+		isHidden, isRegex, isCaseInsens, flagRegex, tagIDs,
 	)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallenges")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostAdminChallenges", "Create") {
 		return
 	}
 
@@ -95,24 +110,20 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 // Delete challenge
 // (DELETE /admin/challenges/{ID})
 func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
-	user, ok := middleware.GetUser(r.Context())
+	user, ok := RequireUser(w, r)
 	if !ok {
-		RenderError(w, r, http.StatusUnauthorized, "not authenticated")
 		return
 	}
 
 	clientIP := GetClientIP(r)
 
-	err = h.challengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminChallengesID")
-		handleError(w, r, err)
+	err := h.challengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
+	if h.OnError(w, r, err, "DeleteAdminChallengesID", "Delete") {
 		return
 	}
 
@@ -122,9 +133,8 @@ func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request,
 // Update challenge
 // (PUT /admin/challenges/{ID})
 func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -135,16 +145,14 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex := request.UpdateChallengeRequestToParams(&req)
+	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex, tagIDs := request.UpdateChallengeRequestToParams(&req)
 	challenge, err := h.challengeUC.Update(
 		r.Context(),
 		challengeuuid,
 		title, desc, cat, pts, initVal, minVal, decay, flag,
-		isHidden, isRegex, isCaseInsens, flagRegex,
+		isHidden, isRegex, isCaseInsens, flagRegex, tagIDs,
 	)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PutAdminChallengesID")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PutAdminChallengesID", "Update") {
 		return
 	}
 

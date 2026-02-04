@@ -63,12 +63,40 @@ packages:
           pkgname: "mocks"
           structname: "MockBackupRepository"
       
-      AppSettingsRepository:
+      BracketRepository:
         config:
           dir: "internal/usecase/competition/mocks"
-          filename: "AppSettingsRepository.go"
+          filename: "BracketRepository.go"
           pkgname: "mocks"
-          structname: "MockAppSettingsRepository"
+          structname: "MockBracketRepository"
+
+      ConfigRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "ConfigRepository.go"
+          pkgname: "mocks"
+          structname: "MockConfigRepository"
+
+      RatingRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "RatingRepository.go"
+          pkgname: "mocks"
+          structname: "MockRatingRepository"
+
+      SubmissionRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "SubmissionRepository.go"
+          pkgname: "mocks"
+          structname: "MockSubmissionRepository"
+
+      TeamRepository:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "TeamRepository.go"
+          pkgname: "mocks"
+          structname: "MockTeamRepository"
 
   github.com/skr1ms/CTFBoard/pkg/logger:
     interfaces:

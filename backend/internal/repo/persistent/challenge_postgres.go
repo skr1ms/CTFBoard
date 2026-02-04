@@ -101,21 +101,52 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Chal
 	return toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex), nil
 }
 
-func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	if teamID != nil {
-		rows, err := r.q.ListChallengesForTeam(ctx, *teamID)
-		if err != nil {
-			return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
-		}
-		out := make([]*repo.ChallengeWithSolved, 0, len(rows))
-		for _, row := range rows {
-			out = append(out, &repo.ChallengeWithSolved{
-				Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
-				Solved:    row.Solved == 1,
-			})
-		}
-		return out, nil
+func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+	rows, err := r.q.ListChallengesForTeamByTag(ctx, sqlc.ListChallengesForTeamByTagParams{TagID: tagID, TeamID: teamID})
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
 	}
+	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &repo.ChallengeWithSolved{
+			Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
+			Solved:    row.Solved == 1,
+		})
+	}
+	return out, nil
+}
+
+func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+	rows, err := r.q.ListChallengesByTag(ctx, tagID)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
+	}
+	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &repo.ChallengeWithSolved{
+			Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
+			Solved:    false,
+		})
+	}
+	return out, nil
+}
+
+func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+	rows, err := r.q.ListChallengesForTeam(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
+	}
+	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &repo.ChallengeWithSolved{
+			Challenge: toEntityChallengeFromRow(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
+			Solved:    row.Solved == 1,
+		})
+	}
+	return out, nil
+}
+
+func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
 	rows, err := r.q.ListChallenges(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetAll: %w", err)
@@ -128,6 +159,19 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamID *uuid.UUID) ([]*repo.
 		})
 	}
 	return out, nil
+}
+
+func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+	if tagID != nil && teamID != nil {
+		return r.listForTeamByTag(ctx, *teamID, *tagID)
+	}
+	if tagID != nil {
+		return r.listByTag(ctx, *tagID)
+	}
+	if teamID != nil {
+		return r.listForTeam(ctx, *teamID)
+	}
+	return r.listAllChallenges(ctx)
 }
 
 func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {

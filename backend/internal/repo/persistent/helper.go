@@ -57,6 +57,17 @@ func intToInt32Safe(i int) (int32, error) {
 	return int32(i), nil
 }
 
+func intToInt32Ptr(i int) *int32 {
+	if i == 0 {
+		return nil
+	}
+	v, err := intToInt32Safe(i)
+	if err != nil {
+		return nil
+	}
+	return &v
+}
+
 func strPtrOrNil(s string) *string {
 	if s == "" {
 		return nil

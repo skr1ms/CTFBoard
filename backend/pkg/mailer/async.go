@@ -17,7 +17,12 @@ type AsyncMailer struct {
 	l        logger.Logger
 }
 
-func NewAsyncMailer(delegate Mailer, bufferSize, workers int, l logger.Logger) *AsyncMailer {
+func NewAsyncMailer(
+	delegate Mailer,
+	bufferSize int,
+	workers int,
+	l logger.Logger,
+) *AsyncMailer {
 	return &AsyncMailer{
 		delegate: delegate,
 		msgChan:  make(chan Message, bufferSize),

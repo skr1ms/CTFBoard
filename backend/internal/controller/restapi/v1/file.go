@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -15,9 +14,8 @@ import (
 // Upload file to challenge
 // (POST /admin/challenges/{challengeID}/files)
 func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeuuid, err := uuid.Parse(challengeID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	if !ok {
 		return
 	}
 
@@ -47,9 +45,7 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 	}
 
 	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeuuid, fileType, handler.Filename, file, handler.Size, contentType)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Upload") {
 		return
 	}
 
@@ -64,20 +60,20 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 // Delete file
 // (DELETE /admin/files/{ID})
 func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID string) {
-	fileuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	fileuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
-	err = h.fileUC.Delete(r.Context(), fileuuid)
+	err := h.fileUC.Delete(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
 			RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
-		h.logger.WithError(err).Error("restapi - v1 - DeleteAdminFilesID")
-		handleError(w, r, err)
+		if h.OnError(w, r, err, "DeleteAdminFilesID", "Delete") {
+			return
+		}
 		return
 	}
 
@@ -87,9 +83,8 @@ func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID s
 // Get download URL
 // (GET /files/{ID}/download)
 func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID string) {
-	fileuuid, err := uuid.Parse(ID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	fileuuid, ok := ParseUUID(w, r, ID)
+	if !ok {
 		return
 	}
 
@@ -110,9 +105,8 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 // Get challenge files
 // (GET /challenges/{challengeID}/files)
 func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetChallengesChallengeIDFilesParams) {
-	challengeuuid, err := uuid.Parse(challengeID)
-	if err != nil {
-		RenderInvalidID(w, r)
+	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	if !ok {
 		return
 	}
 
@@ -122,9 +116,7 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 	}
 
 	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeuuid, fileType)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetChallengesChallengeIDFiles")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "GetChallengesChallengeIDFiles", "GetByChallengeID") {
 		return
 	}
 
@@ -150,14 +142,12 @@ func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rc, err := h.fileUC.Download(r.Context(), path)
-	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Download")
-		handleError(w, r, err)
+	if h.OnError(w, r, err, "Download", "Download") {
 		return
 	}
 	defer func() { _ = rc.Close() }()
 
 	if _, err := io.Copy(w, rc); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - Download - Copy")
+		h.OnError(w, r, err, "Download", "Copy")
 	}
 }

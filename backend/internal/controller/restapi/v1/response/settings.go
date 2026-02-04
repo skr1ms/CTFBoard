@@ -32,3 +32,18 @@ func FromAppSettings(s *entity.AppSettings) openapi.ResponseAppSettingsResponse 
 		VerifyTTLHours:         &s.VerifyTTLHours,
 	}
 }
+
+func FromConfig(c *entity.Config) openapi.ResponseConfigResponse {
+	res := openapi.ResponseConfigResponse{
+		Key:       c.Key,
+		Value:     c.Value,
+		ValueType: string(c.ValueType),
+	}
+	if c.Description != "" {
+		res.Description = &c.Description
+	}
+	if !c.UpdatedAt.IsZero() {
+		res.UpdatedAt = &c.UpdatedAt
+	}
+	return res
+}

@@ -176,3 +176,47 @@ func TestStatisticsUseCase_GetScoreboardGraph_Error(t *testing.T) {
 	assert.Nil(t, result)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
+
+func TestStatisticsUseCase_GetChallengeDetailStats_Success(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	challengeID := uuid.New()
+	stats := &entity.ChallengeDetailStats{
+		ID:         challengeID,
+		Title:      "Challenge 1",
+		Category:   "Web",
+		Points:     100,
+		SolveCount: 5,
+		TotalTeams: 10,
+	}
+
+	redisClient.ExpectGet("stats:challenge:" + challengeID.String()).SetErr(redis.Nil)
+	deps.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID).Return(stats, nil)
+	redisClient.Regexp().ExpectSet("stats:challenge:"+challengeID.String(), `.*`, time.Minute).SetVal("OK")
+
+	result, err := uc.GetChallengeDetailStats(context.Background(), challengeID.String())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "Challenge 1", result.Title)
+	assert.Equal(t, 5, result.SolveCount)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetChallengeDetailStats_Error(t *testing.T) {
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	challengeID := uuid.New()
+	redisClient.ExpectGet("stats:challenge:" + challengeID.String()).SetErr(redis.Nil)
+	deps.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetChallengeDetailStats(context.Background(), challengeID.String())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}

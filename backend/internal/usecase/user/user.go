@@ -10,16 +10,19 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUseCase struct {
-	userRepo   repo.UserRepository
-	teamRepo   repo.TeamRepository
-	solveRepo  repo.SolveRepository
-	txRepo     repo.TxRepository
-	jwtService jwt.Service
+	userRepo       repo.UserRepository
+	teamRepo       repo.TeamRepository
+	solveRepo      repo.SolveRepository
+	txRepo         repo.TxRepository
+	jwtService     jwt.Service
+	fieldValidator *settings.FieldValidator
+	fieldValueRepo repo.FieldValueRepository
 }
 
 func NewUserUseCase(
@@ -28,17 +31,36 @@ func NewUserUseCase(
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	jwtService jwt.Service,
+	fieldValidator *settings.FieldValidator,
+	fieldValueRepo repo.FieldValueRepository,
 ) *UserUseCase {
 	return &UserUseCase{
-		userRepo:   userRepo,
-		teamRepo:   teamRepo,
-		solveRepo:  solveRepo,
-		txRepo:     txRepo,
-		jwtService: jwtService,
+		userRepo:       userRepo,
+		teamRepo:       teamRepo,
+		solveRepo:      solveRepo,
+		txRepo:         txRepo,
+		jwtService:     jwtService,
+		fieldValidator: fieldValidator,
+		fieldValueRepo: fieldValueRepo,
 	}
 }
 
-func (uc *UserUseCase) Register(ctx context.Context, username, email, password string) (*entity.User, error) {
+//nolint:gocognit,gocyclo // validation, tx, custom fields
+func (uc *UserUseCase) Register(ctx context.Context, username, email, password string, customFields map[string]string) (*entity.User, error) {
+	if len(customFields) > 0 && uc.fieldValidator != nil {
+		fieldValues := make(map[uuid.UUID]string)
+		for k, v := range customFields {
+			id, err := uuid.Parse(k)
+			if err != nil {
+				return nil, fmt.Errorf("invalid field ID %s: %w", k, err)
+			}
+			fieldValues[id] = v
+		}
+		if err := uc.fieldValidator.ValidateValues(ctx, entity.EntityTypeUser, fieldValues); err != nil {
+			return nil, fmt.Errorf("custom fields validation: %w", err)
+		}
+	}
+
 	_, err := uc.userRepo.GetByUsername(ctx, username)
 	if err == nil {
 		return nil, fmt.Errorf("%w: username", entityError.ErrUserAlreadyExists)
@@ -75,6 +97,12 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	})
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - Transaction: %w", err)
+	}
+
+	if len(customFields) > 0 && uc.fieldValueRepo != nil {
+		if err := uc.fieldValueRepo.SetValues(ctx, user.ID, customFields); err != nil {
+			return nil, fmt.Errorf("save custom fields: %w", err)
+		}
 	}
 
 	return user, nil

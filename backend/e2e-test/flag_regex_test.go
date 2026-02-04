@@ -4,13 +4,15 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // Competition flag_regex: invalid format returns 400 INVALID_FLAG_FORMAT; valid format wrong content returns 400 invalid flag; correct flag returns 200.
 func TestFlagRegex_Flow(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_regex")
 
@@ -38,8 +40,9 @@ func TestFlagRegex_Flow(t *testing.T) {
 
 // Competition flag_regex: submit with invalid format returns 400 INVALID_FLAG_FORMAT.
 func TestFlagRegex_InvalidFormat_Returns400(t *testing.T) {
+	t.Helper()
 	setupE2E(t)
-	h := NewE2EHelper(t, nil, TestPool)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_regex_err")
 	_, _, userToken := h.RegisterUserAndLogin("user_regex_err")
 	h.CreateTeam(userToken, "RegexTeamErr", http.StatusCreated)

@@ -11,13 +11,68 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHintRepo_GetByID_NotFound(t *testing.T) {
+func TestHintRepo_GetByID_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	challenge := f.CreateChallenge(t, "hint_get", 100)
+	hint := &entity.Hint{ChallengeID: challenge.ID, Content: "Hint", Cost: 10, OrderIndex: 0}
+	err := f.HintRepo.Create(ctx, hint)
+	require.NoError(t, err)
+
+	got, err := f.HintRepo.GetByID(ctx, hint.ID)
+	require.NoError(t, err)
+	assert.Equal(t, hint.ID, got.ID)
+	assert.Equal(t, "Hint", got.Content)
+}
+
+func TestHintRepo_GetByID_Error(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, err := f.HintRepo.GetByID(ctx, uuid.Nil)
+	assert.Error(t, err)
+}
+
+func TestHintRepo_Create_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	challenge := f.CreateChallenge(t, "hint_create_err", 100)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	hint := &entity.Hint{ChallengeID: challenge.ID, Content: "x", Cost: 0, OrderIndex: 0}
+	err := f.HintRepo.Create(ctx, hint)
+	assert.Error(t, err)
+}
+
+func TestHintRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	hint := f.CreateHint(t, f.CreateChallenge(t, "hint_upd_err", 100).ID, 0, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	hint.Content = "updated"
+	err := f.HintRepo.Update(ctx, hint)
+	assert.Error(t, err)
+}
+
+func TestHintRepo_Delete_Error_CancelledContext(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	hint := f.CreateHint(t, f.CreateChallenge(t, "hint_del_err", 100).ID, 0, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := f.HintRepo.Delete(ctx, hint.ID)
 	assert.Error(t, err)
 }
 

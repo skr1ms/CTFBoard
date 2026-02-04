@@ -49,7 +49,7 @@ func TestBackupUseCase_Export_Error(t *testing.T) {
 
 	expectedErr := errors.New("db error")
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, expectedErr)
-	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil)).Return([]*repo.ChallengeWithSolved{}, nil)
+	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil), (*uuid.UUID)(nil)).Return([]*repo.ChallengeWithSolved{}, nil)
 
 	result, err := uc.Export(context.Background(), entity.ExportOptions{})
 
@@ -108,7 +108,7 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 
 	expectedErr := errors.New("db error")
 	deps.competitionRepo.On("Get", mock.Anything).Return(nil, expectedErr)
-	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil)).Return([]*repo.ChallengeWithSolved{}, nil)
+	deps.challengeRepo.On("GetAll", mock.Anything, (*uuid.UUID)(nil), (*uuid.UUID)(nil)).Return([]*repo.ChallengeWithSolved{}, nil)
 
 	rc, err := uc.ExportZIP(context.Background(), entity.ExportOptions{})
 	assert.NoError(t, err)

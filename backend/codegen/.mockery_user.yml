@@ -42,6 +42,13 @@ packages:
           pkgname: "mocks"
           structname: "MockVerificationTokenRepository"
 
+      APITokenRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "APITokenRepository.go"
+          pkgname: "mocks"
+          structname: "MockAPITokenRepository"
+
   github.com/skr1ms/CTFBoard/pkg/jwt:
     interfaces:
       Service:
