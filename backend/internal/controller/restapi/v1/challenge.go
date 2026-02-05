@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/entity"
@@ -14,7 +15,7 @@ import (
 // Get challenges list
 // (GET /challenges)
 func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params openapi.GetChallengesParams) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -31,25 +32,25 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
-	RenderOK(w, r, response.FromChallengeList(challenges))
+	helper.RenderOK(w, r, response.FromChallengeList(challenges))
 }
 
 // Submit flag
 // (POST /challenges/{ID}/submit)
 func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, ok := ParseUUID(w, r, ID)
+	challengeuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestSubmitFlagRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestSubmitFlagRequest](
 		w, r, h.validator, h.logger, "PostChallengesIDSubmit",
 	)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -62,7 +63,7 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 		ChallengeID:   challengeuuid,
 		SubmittedFlag: flag,
 		IsCorrect:     valid,
-		IP:            GetClientIP(r),
+		IP:            helper.GetClientIP(r),
 		CreatedAt:     time.Now(),
 	}
 	if user.TeamID != nil {
@@ -77,17 +78,17 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	}
 
 	if !valid {
-		RenderError(w, r, http.StatusBadRequest, "invalid flag")
+		helper.RenderError(w, r, http.StatusBadRequest, "invalid flag")
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "flag accepted"})
+	helper.RenderOK(w, r, map[string]string{"message": "flag accepted"})
 }
 
 // Create challenge
 // (POST /admin/challenges)
 func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateChallengeRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateChallengeRequest](
 		w, r, h.validator, h.logger, "PostAdminChallenges",
 	)
 	if !ok {
@@ -104,41 +105,41 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderCreated(w, r, response.FromChallenge(challenge))
+	helper.RenderCreated(w, r, response.FromChallenge(challenge))
 }
 
 // Delete challenge
 // (DELETE /admin/challenges/{ID})
 func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, ok := ParseUUID(w, r, ID)
+	challengeuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	clientIP := GetClientIP(r)
+	clientIP := helper.GetClientIP(r)
 
 	err := h.challengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
 	if h.OnError(w, r, err, "DeleteAdminChallengesID", "Delete") {
 		return
 	}
 
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }
 
 // Update challenge
 // (PUT /admin/challenges/{ID})
 func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, ok := ParseUUID(w, r, ID)
+	challengeuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestUpdateChallengeRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateChallengeRequest](
 		w, r, h.validator, h.logger, "PutAdminChallengesID",
 	)
 	if !ok {
@@ -156,5 +157,5 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	RenderOK(w, r, response.FromChallenge(challenge))
+	helper.RenderOK(w, r, response.FromChallenge(challenge))
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/skr1ms/CTFBoard/config"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	wsController "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/repo"
@@ -363,8 +364,8 @@ func ProvideServerDeps(
 	wsCtrl *wsController.Controller,
 	v validator.Validator,
 	l logger.Logger,
-) *v1.ServerDeps {
-	return &v1.ServerDeps{
+) *helper.ServerDeps {
+	return &helper.ServerDeps{
 		UserUC:          userUC,
 		ChallengeUC:     challengeUC,
 		SolveUC:         solveUC,
@@ -395,7 +396,7 @@ func ProvideServerDeps(
 	}
 }
 
-func ProvideRouter(cfg *config.Config, l logger.Logger, deps *v1.ServerDeps) chi.Router {
+func ProvideRouter(cfg *config.Config, l logger.Logger, deps *helper.ServerDeps) chi.Router {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)

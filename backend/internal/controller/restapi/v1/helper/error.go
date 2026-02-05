@@ -1,4 +1,4 @@
-package v1
+package helper
 
 import (
 	"net/http"
@@ -29,15 +29,6 @@ func RenderErrorWithCode(w http.ResponseWriter, r *http.Request, status int, mes
 	httputil.RenderErrorWithCode(w, r, status, message, code)
 }
 
-func handleError(w http.ResponseWriter, r *http.Request, err error) {
+func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	httputil.HandleError(w, r, err)
-}
-
-func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, step string) bool {
-	if err == nil {
-		return false
-	}
-	h.logger.WithError(err).Error("restapi - v1 - " + op + " - " + step)
-	handleError(w, r, err)
-	return true
 }

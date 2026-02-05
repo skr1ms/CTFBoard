@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -15,13 +16,13 @@ func (h *Server) GetBrackets(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetBrackets", "GetAll") {
 		return
 	}
-	RenderOK(w, r, response.FromBracketList(list))
+	helper.RenderOK(w, r, response.FromBracketList(list))
 }
 
 // Create bracket
 // (POST /admin/brackets)
 func (h *Server) PostAdminBrackets(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateBracketRequest](w, r, h.validator, h.logger, "PostAdminBrackets")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateBracketRequest](w, r, h.validator, h.logger, "PostAdminBrackets")
 	if !ok {
 		return
 	}
@@ -37,13 +38,13 @@ func (h *Server) PostAdminBrackets(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminBrackets", "Create") {
 		return
 	}
-	RenderCreated(w, r, response.FromBracket(bracket))
+	helper.RenderCreated(w, r, response.FromBracket(bracket))
 }
 
 // Get bracket by ID
 // (GET /admin/brackets/{ID})
 func (h *Server) GetAdminBracketsID(w http.ResponseWriter, r *http.Request, id string) {
-	bracketID, ok := ParseUUID(w, r, id)
+	bracketID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -51,17 +52,17 @@ func (h *Server) GetAdminBracketsID(w http.ResponseWriter, r *http.Request, id s
 	if h.OnError(w, r, err, "GetAdminBracketsID", "GetByID") {
 		return
 	}
-	RenderOK(w, r, response.FromBracket(bracket))
+	helper.RenderOK(w, r, response.FromBracket(bracket))
 }
 
 // Update bracket
 // (PUT /admin/brackets/{ID})
 func (h *Server) PutAdminBracketsID(w http.ResponseWriter, r *http.Request, id string) {
-	bracketID, ok := ParseUUID(w, r, id)
+	bracketID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestUpdateBracketRequest](w, r, h.validator, h.logger, "PutAdminBracketsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateBracketRequest](w, r, h.validator, h.logger, "PutAdminBracketsID")
 	if !ok {
 		return
 	}
@@ -77,30 +78,30 @@ func (h *Server) PutAdminBracketsID(w http.ResponseWriter, r *http.Request, id s
 	if h.OnError(w, r, err, "PutAdminBracketsID", "Update") {
 		return
 	}
-	RenderOK(w, r, response.FromBracket(bracket))
+	helper.RenderOK(w, r, response.FromBracket(bracket))
 }
 
 // Delete bracket
 // (DELETE /admin/brackets/{ID})
 func (h *Server) DeleteAdminBracketsID(w http.ResponseWriter, r *http.Request, id string) {
-	bracketID, ok := ParseUUID(w, r, id)
+	bracketID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.bracketUC.Delete(r.Context(), bracketID), "DeleteAdminBracketsID", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }
 
 // Set team bracket
 // (PATCH /admin/teams/{ID}/bracket)
 func (h *Server) PatchAdminTeamsIDBracket(w http.ResponseWriter, r *http.Request, id string) {
-	teamID, ok := ParseUUID(w, r, id)
+	teamID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestSetTeamBracketRequest](w, r, h.validator, h.logger, "PatchAdminTeamsIDBracket")
+	req, ok := helper.DecodeAndValidate[openapi.RequestSetTeamBracketRequest](w, r, h.validator, h.logger, "PatchAdminTeamsIDBracket")
 	if !ok {
 		return
 	}
@@ -116,5 +117,5 @@ func (h *Server) PatchAdminTeamsIDBracket(w http.ResponseWriter, r *http.Request
 	if h.OnError(w, r, err, "PatchAdminTeamsIDBracket", "GetByID") {
 		return
 	}
-	RenderOK(w, r, response.FromTeam(team))
+	helper.RenderOK(w, r, response.FromTeam(team))
 }

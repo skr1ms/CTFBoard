@@ -19,6 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
 	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
@@ -527,7 +528,7 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
 	})
 
-	deps := &v1.ServerDeps{
+	deps := &helper.ServerDeps{
 		UserUC: uc.user, ChallengeUC: uc.challenge, SolveUC: uc.solve, TeamUC: uc.team, CompetitionUC: uc.competition,
 		HintUC: uc.hint, EmailUC: uc.email, FileUC: uc.file, AwardUC: uc.award, StatsUC: uc.stats, SubmissionUC: uc.submissionUC,
 		TagUC: uc.tagUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC,

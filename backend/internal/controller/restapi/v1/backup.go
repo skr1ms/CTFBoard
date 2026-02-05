@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -70,20 +71,20 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 // (POST /admin/import)
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(500 << 20); err != nil {
-		RenderError(w, r, http.StatusBadRequest, "failed to parse form")
+		helper.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		RenderError(w, r, http.StatusBadRequest, "file is required")
+		helper.RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		RenderError(w, r, http.StatusBadRequest, "failed to read file")
+		helper.RenderError(w, r, http.StatusBadRequest, "failed to read file")
 		return
 	}
 
@@ -102,5 +103,5 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderJSON(w, r, http.StatusOK, result)
+	helper.RenderJSON(w, r, http.StatusOK, result)
 }

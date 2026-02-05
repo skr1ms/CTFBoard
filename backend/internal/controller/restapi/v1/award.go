@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -11,7 +12,7 @@ import (
 // Create award
 // (POST /admin/awards)
 func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateAwardRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateAwardRequest](
 		w, r, h.validator, h.logger, "PostAdminAwards",
 	)
 	if !ok {
@@ -20,11 +21,11 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 
 	teamID, value, description, err := request.CreateAwardRequestToParams(&req)
 	if err != nil {
-		RenderError(w, r, http.StatusBadRequest, "invalid team ID")
+		helper.RenderError(w, r, http.StatusBadRequest, "invalid team ID")
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -34,13 +35,13 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderCreated(w, r, response.FromAward(award))
+	helper.RenderCreated(w, r, response.FromAward(award))
 }
 
 // Get awards by team
 // (GET /admin/awards/team/{teamID})
 func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string) {
-	teamuuid, ok := ParseUUID(w, r, teamID)
+	teamuuid, ok := helper.ParseUUID(w, r, teamID)
 	if !ok {
 		return
 	}
@@ -50,5 +51,5 @@ func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	RenderOK(w, r, response.FromAwardList(awards))
+	helper.RenderOK(w, r, response.FromAwardList(awards))
 }

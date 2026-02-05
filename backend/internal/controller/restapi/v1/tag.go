@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -14,13 +15,13 @@ func (h *Server) GetTags(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetTags", "GetAll") {
 		return
 	}
-	RenderOK(w, r, response.FromTagList(tags))
+	helper.RenderOK(w, r, response.FromTagList(tags))
 }
 
 // Create tag
 // (POST /admin/tags)
 func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateTagRequest](w, r, h.validator, h.logger, "PostAdminTags")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTagRequest](w, r, h.validator, h.logger, "PostAdminTags")
 	if !ok {
 		return
 	}
@@ -32,17 +33,17 @@ func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminTags", "Create") {
 		return
 	}
-	RenderCreated(w, r, response.FromTag(tag))
+	helper.RenderCreated(w, r, response.FromTag(tag))
 }
 
 // Update tag
 // (PUT /admin/tags/{ID})
 func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, id string) {
-	tagID, ok := ParseUUID(w, r, id)
+	tagID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestUpdateTagRequest](w, r, h.validator, h.logger, "PutAdminTagsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateTagRequest](w, r, h.validator, h.logger, "PutAdminTagsID")
 	if !ok {
 		return
 	}
@@ -54,18 +55,18 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, id strin
 	if h.OnError(w, r, err, "PutAdminTagsID", "Update") {
 		return
 	}
-	RenderOK(w, r, response.FromTag(tag))
+	helper.RenderOK(w, r, response.FromTag(tag))
 }
 
 // Delete tag
 // (DELETE /admin/tags/{ID})
 func (h *Server) DeleteAdminTagsID(w http.ResponseWriter, r *http.Request, id string) {
-	tagID, ok := ParseUUID(w, r, id)
+	tagID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.tagUC.Delete(r.Context(), tagID), "DeleteAdminTagsID", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

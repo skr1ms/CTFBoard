@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -10,7 +11,7 @@ import (
 // Get comments for challenge
 // (GET /challenges/{challengeID}/comments)
 func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
-	cid, ok := ParseUUID(w, r, challengeID)
+	cid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -18,21 +19,21 @@ func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http
 	if h.OnError(w, r, err, "GetChallengesChallengeIDComments", "GetByChallengeID") {
 		return
 	}
-	RenderOK(w, r, response.FromCommentList(list))
+	helper.RenderOK(w, r, response.FromCommentList(list))
 }
 
 // Create comment
 // (POST /challenges/{challengeID}/comments)
 func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
-	cid, ok := ParseUUID(w, r, challengeID)
+	cid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestCreateCommentRequest](w, r, h.validator, h.logger, "PostChallengesChallengeIDComments")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCommentRequest](w, r, h.validator, h.logger, "PostChallengesChallengeIDComments")
 	if !ok {
 		return
 	}
@@ -40,22 +41,22 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Create") {
 		return
 	}
-	RenderCreated(w, r, response.FromComment(comment))
+	helper.RenderCreated(w, r, response.FromComment(comment))
 }
 
 // Delete comment
 // (DELETE /comments/{ID})
 func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, id string) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
-	commentID, ok := ParseUUID(w, r, id)
+	commentID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.commentUC.Delete(r.Context(), commentID, user.ID), "DeleteCommentsID", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

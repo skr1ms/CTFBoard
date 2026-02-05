@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -30,13 +31,13 @@ func (h *Server) GetRatings(w http.ResponseWriter, r *http.Request, params opena
 	if h.OnError(w, r, err, "GetRatings", "GetGlobalRatings") {
 		return
 	}
-	RenderOK(w, r, response.FromGlobalRatingsList(items, total))
+	helper.RenderOK(w, r, response.FromGlobalRatingsList(items, total))
 }
 
 // Get team rating
 // (GET /ratings/team/{ID})
 func (h *Server) GetRatingsTeamID(w http.ResponseWriter, r *http.Request, id string) {
-	teamID, ok := ParseUUID(w, r, id)
+	teamID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -44,7 +45,7 @@ func (h *Server) GetRatingsTeamID(w http.ResponseWriter, r *http.Request, id str
 	if h.OnError(w, r, err, "GetRatingsTeamID", "GetTeamRating") {
 		return
 	}
-	RenderOK(w, r, response.FromTeamRating(global, eventRatings))
+	helper.RenderOK(w, r, response.FromTeamRating(global, eventRatings))
 }
 
 // Get CTF events list (admin)
@@ -54,13 +55,13 @@ func (h *Server) GetAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetAdminCtfEvents", "GetCTFEvents") {
 		return
 	}
-	RenderOK(w, r, response.FromCTFEventList(list))
+	helper.RenderOK(w, r, response.FromCTFEventList(list))
 }
 
 // Create CTF event (admin)
 // (POST /admin/ctf-events)
 func (h *Server) PostAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateCTFEventRequest](w, r, h.validator, h.logger, "PostAdminCtfEvents")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCTFEventRequest](w, r, h.validator, h.logger, "PostAdminCtfEvents")
 	if !ok {
 		return
 	}
@@ -72,18 +73,18 @@ func (h *Server) PostAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminCtfEvents", "CreateCTFEvent") {
 		return
 	}
-	RenderCreated(w, r, response.FromCTFEvent(event))
+	helper.RenderCreated(w, r, response.FromCTFEvent(event))
 }
 
 // Finalize CTF event (admin)
 // (POST /admin/ctf-events/{ID}/finalize)
 func (h *Server) PostAdminCtfEventsIDFinalize(w http.ResponseWriter, r *http.Request, id string) {
-	eventID, ok := ParseUUID(w, r, id)
+	eventID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.ratingUC.FinalizeCTFEvent(r.Context(), eventID), "PostAdminCtfEventsIDFinalize", "FinalizeCTFEvent") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
@@ -18,7 +19,7 @@ import (
 
 func NewRouter(
 	router chi.Router,
-	deps *ServerDeps,
+	deps *helper.ServerDeps,
 	submitLimit int,
 	durationLimit time.Duration,
 	verifyEmails bool,
@@ -27,7 +28,7 @@ func NewRouter(
 	wrapper := openapi.ServerInterfaceWrapper{
 		Handler: server,
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			RenderError(w, r, http.StatusBadRequest, err.Error())
+			helper.RenderError(w, r, http.StatusBadRequest, err.Error())
 		},
 	}
 	setupPublicRoutes(router, server, wrapper, deps.RedisClient, deps.Logger)
@@ -37,7 +38,7 @@ func NewRouter(
 
 func setupPublicRoutes(router chi.Router, server *Server, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, logger logger.Logger) {
 	scoreboardLimit := restapimiddleware.RateLimit(redisClient, "scoreboard:ip", 30, time.Minute, func(r *http.Request) (string, error) {
-		return GetClientIP(r), nil
+		return helper.GetClientIP(r), nil
 	}, logger)
 
 	router.Group(func(r chi.Router) {
@@ -83,7 +84,7 @@ func setupAuthOnlyRoutes(router chi.Router, jwtService *jwt.JWTService, apiToken
 
 func setupProtectedRoutes(
 	router chi.Router,
-	deps *ServerDeps,
+	deps *helper.ServerDeps,
 	wrapper openapi.ServerInterfaceWrapper,
 	submitLimit int,
 	durationLimit time.Duration,
@@ -154,7 +155,7 @@ func setupChallengeRoutes(
 		sub.Use(restapimiddleware.RequireTeam(""))
 
 		ipLimit := restapimiddleware.RateLimit(redisClient, "submit:ip", int64(submitLimit*3), durationLimit, func(r *http.Request) (string, error) {
-			return GetClientIP(r), nil
+			return helper.GetClientIP(r), nil
 		}, log)
 		userLimit := restapimiddleware.RateLimit(redisClient, "submit:user", int64(submitLimit), durationLimit, func(r *http.Request) (string, error) {
 			user, ok := restapimiddleware.GetUser(r.Context())

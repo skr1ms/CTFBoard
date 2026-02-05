@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -11,12 +12,12 @@ import (
 // Get hints for challenge
 // (GET /challenges/{challengeID}/hints)
 func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	challengeuuid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -26,24 +27,24 @@ func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	RenderOK(w, r, response.FromHintWithUnlockList(hints))
+	helper.RenderOK(w, r, response.FromHintWithUnlockList(hints))
 }
 
 // Unlock hint
 // (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID, hintID string) {
-	hintuuid, ok := ParseUUID(w, r, hintID)
+	hintuuid, ok := helper.ParseUUID(w, r, hintID)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
 	if user.TeamID == nil {
-		RenderError(w, r, http.StatusBadRequest, "user must be in a team")
+		helper.RenderError(w, r, http.StatusBadRequest, "user must be in a team")
 		return
 	}
 
@@ -52,18 +53,18 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 		return
 	}
 
-	RenderOK(w, r, response.FromUnlockedHint(hint))
+	helper.RenderOK(w, r, response.FromUnlockedHint(hint))
 }
 
 // Create hint
 // (POST /admin/challenges/{challengeID}/hints)
 func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeuuid, ok := ParseUUID(w, r, challengeID)
+	challengeuuid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestCreateHintRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateHintRequest](
 		w, r, h.validator, h.logger, "PostAdminChallengesChallengeIDHints",
 	)
 	if !ok {
@@ -76,18 +77,18 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 		return
 	}
 
-	RenderCreated(w, r, response.FromHint(hint))
+	helper.RenderCreated(w, r, response.FromHint(hint))
 }
 
 // Update hint
 // (PUT /admin/hints/{ID})
 func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
-	hintuuid, ok := ParseUUID(w, r, ID)
+	hintuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestUpdateHintRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateHintRequest](
 		w, r, h.validator, h.logger, "PutAdminHintsID",
 	)
 	if !ok {
@@ -100,13 +101,13 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	RenderOK(w, r, response.FromHint(hint))
+	helper.RenderOK(w, r, response.FromHint(hint))
 }
 
 // Delete hint
 // (DELETE /admin/hints/{ID})
 func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
-	hintuuid, ok := ParseUUID(w, r, ID)
+	hintuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -115,5 +116,5 @@ func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

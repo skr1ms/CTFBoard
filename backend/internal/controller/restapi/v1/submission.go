@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -17,13 +18,13 @@ func (h *Server) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, par
 		return
 	}
 
-	RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
+	helper.RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
 }
 
 // Get submissions by challenge (admin)
 // (GET /admin/submissions/challenge/{challengeID})
 func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetAdminSubmissionsChallengeChallengeIDParams) {
-	cid, ok := ParseUUID(w, r, challengeID)
+	cid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -35,13 +36,13 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, 
 		return
 	}
 
-	RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
+	helper.RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
 }
 
 // Get submission stats by challenge (admin)
 // (GET /admin/submissions/challenge/{challengeID}/stats)
 func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, challengeID string) {
-	cid, ok := ParseUUID(w, r, challengeID)
+	cid, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -51,13 +52,13 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWri
 		return
 	}
 
-	RenderOK(w, r, response.FromSubmissionStats(stats))
+	helper.RenderOK(w, r, response.FromSubmissionStats(stats))
 }
 
 // Get submissions by user (admin)
 // (GET /admin/submissions/user/{userID})
 func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Request, userID string, params openapi.GetAdminSubmissionsUserUserIDParams) {
-	uid, ok := ParseUUID(w, r, userID)
+	uid, ok := helper.ParseUUID(w, r, userID)
 	if !ok {
 		return
 	}
@@ -69,13 +70,13 @@ func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
+	helper.RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
 }
 
 // Get submissions by team (admin)
 // (GET /admin/submissions/team/{teamID})
 func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string, params openapi.GetAdminSubmissionsTeamTeamIDParams) {
-	tid, ok := ParseUUID(w, r, teamID)
+	tid, ok := helper.ParseUUID(w, r, teamID)
 	if !ok {
 		return
 	}
@@ -87,7 +88,7 @@ func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
+	helper.RenderOK(w, r, response.FromSubmissionList(items, total, page, perPage))
 }
 
 func getPagePerPage(page, perPage *int) (int, int) {

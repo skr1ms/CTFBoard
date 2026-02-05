@@ -1,7 +1,10 @@
 package v1
 
 import (
+	"net/http"
+
 	"github.com/redis/go-redis/v9"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -16,6 +19,17 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
+
+// OnError logs err, gives the client a response via HandleError, and returns true.
+// The method is declared here, not in helper/error, so as not to create an import loop v1 ↔ helper.
+func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, step string) bool {
+	if err == nil {
+		return false
+	}
+	h.logger.WithError(err).Error("restapi - v1 - " + op + " - " + step)
+	helper.HandleError(w, r, err)
+	return true
+}
 
 type Server struct {
 	openapi.Unimplemented
@@ -48,7 +62,7 @@ type Server struct {
 	logger          logger.Logger
 }
 
-func NewServer(deps *ServerDeps) *Server {
+func NewServer(deps *helper.ServerDeps) *Server {
 	if deps == nil {
 		return nil
 	}

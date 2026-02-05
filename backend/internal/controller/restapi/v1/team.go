@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
@@ -13,14 +14,14 @@ import (
 // Create team
 // (POST /teams)
 func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateTeamRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTeamRequest](
 		w, r, h.validator, h.logger, "PostTeams",
 	)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -31,26 +32,26 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderCreated(w, r, response.FromTeam(team))
+	helper.RenderCreated(w, r, response.FromTeam(team))
 }
 
 // Join team
 // (POST /teams/join)
 func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestJoinTeamRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestJoinTeamRequest](
 		w, r, h.validator, h.logger, "PostTeamsJoin",
 	)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
 	inviteToken, confirmReset := request.JoinTeamRequestToParams(&req)
-	inviteTokenuuid, ok := ParseUUID(w, r, inviteToken)
+	inviteTokenuuid, ok := helper.ParseUUID(w, r, inviteToken)
 	if !ok {
 		return
 	}
@@ -60,13 +61,13 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, response.FromTeam(team))
+	helper.RenderOK(w, r, response.FromTeam(team))
 }
 
 // Leave team
 // (POST /teams/leave)
 func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -75,13 +76,13 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "Successfully left the team"})
+	helper.RenderOK(w, r, map[string]string{"message": "Successfully left the team"})
 }
 
 // Disband team
 // (DELETE /teams/me)
 func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -90,18 +91,18 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "Team disbanded successfully"})
+	helper.RenderOK(w, r, map[string]string{"message": "Team disbanded successfully"})
 }
 
 // Kick member
 // (DELETE /teams/members/{ID})
 func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID string) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	targetuserID, ok := ParseUUID(w, r, ID)
+	targetuserID, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -110,13 +111,13 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "Member kicked successfully"})
+	helper.RenderOK(w, r, map[string]string{"message": "Member kicked successfully"})
 }
 
 // Get my team
 // (GET /teams/my)
 func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -124,7 +125,7 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 	team, members, err := h.teamUC.GetMyTeam(r.Context(), user.ID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrTeamNotFound) {
-			RenderError(w, r, http.StatusNotFound, "user is not in a team")
+			helper.RenderError(w, r, http.StatusNotFound, "user is not in a team")
 			return
 		}
 		if h.OnError(w, r, err, "GetTeamsMy", "GetMyTeam") {
@@ -132,18 +133,18 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	RenderOK(w, r, response.FromTeamWithMembers(team, members))
+	helper.RenderOK(w, r, response.FromTeamWithMembers(team, members))
 }
 
 // Create solo team
 // (POST /teams/solo)
 func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestCreateTeamRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTeamRequest](
 		w, r, h.validator, h.logger, "PostTeamsSolo",
 	)
 	if !ok {
@@ -156,26 +157,26 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderCreated(w, r, response.FromTeam(team))
+	helper.RenderCreated(w, r, response.FromTeam(team))
 }
 
 // Transfer captainship
 // (POST /teams/transfer-captain)
 func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestTransferCaptainRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestTransferCaptainRequest](
 		w, r, h.validator, h.logger, "PostTeamsTransferCaptain",
 	)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
 	newCaptainID := request.TransferCaptainRequestToNewCaptainID(&req)
-	newCaptainuuid, ok := ParseUUID(w, r, newCaptainID)
+	newCaptainuuid, ok := helper.ParseUUID(w, r, newCaptainID)
 	if !ok {
 		return
 	}
@@ -184,13 +185,13 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "Captainship transferred successfully"})
+	helper.RenderOK(w, r, map[string]string{"message": "Captainship transferred successfully"})
 }
 
 // Get team by ID
 // (GET /teams/{ID})
 func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, ok := ParseUUID(w, r, ID)
+	teamuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -200,18 +201,18 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	RenderOK(w, r, response.FromTeamWithoutToken(team))
+	helper.RenderOK(w, r, response.FromTeamWithoutToken(team))
 }
 
 // Ban team
 // (POST /admin/teams/{ID}/ban)
 func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, ok := ParseUUID(w, r, ID)
+	teamuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestBanTeamRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestBanTeamRequest](
 		w, r, h.validator, h.logger, "PostAdminTeamsIDBan",
 	)
 	if !ok {
@@ -221,17 +222,17 @@ func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID 
 	reason := request.BanTeamRequestToReason(&req)
 	if err := h.teamUC.BanTeam(r.Context(), teamuuid, reason); err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - PostAdminTeamsIDBan")
-		handleError(w, r, err)
+		helper.HandleError(w, r, err)
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "team banned"})
+	helper.RenderOK(w, r, map[string]string{"message": "team banned"})
 }
 
 // Unban team
 // (DELETE /admin/teams/{ID}/ban)
 func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, ok := ParseUUID(w, r, ID)
+	teamuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -240,18 +241,18 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "team unbanned"})
+	helper.RenderOK(w, r, map[string]string{"message": "team unbanned"})
 }
 
 // Set team hidden status
 // (PATCH /admin/teams/{ID}/hidden)
 func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, ID string) {
-	teamuuid, ok := ParseUUID(w, r, ID)
+	teamuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestSetHiddenRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestSetHiddenRequest](
 		w, r, h.validator, h.logger, "PatchAdminTeamsIDHidden",
 	)
 	if !ok {
@@ -263,5 +264,5 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	RenderOK(w, r, map[string]bool{"hidden": hidden})
+	helper.RenderOK(w, r, map[string]bool{"hidden": hidden})
 }

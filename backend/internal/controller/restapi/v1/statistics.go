@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -23,7 +24,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, response.FromGeneralStats(stats))
+	helper.RenderOK(w, r, response.FromGeneralStats(stats))
 }
 
 // Get challenge statistics
@@ -34,7 +35,7 @@ func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	RenderOK(w, r, response.FromChallengeStatsList(stats))
+	helper.RenderOK(w, r, response.FromChallengeStatsList(stats))
 }
 
 // Get challenge detail statistics
@@ -43,15 +44,15 @@ func (h *Server) GetStatisticsChallengesId(w http.ResponseWriter, r *http.Reques
 	stats, err := h.statsUC.GetChallengeDetailStats(r.Context(), id.String())
 	if err != nil {
 		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsChallengesId")
-		handleError(w, r, err)
+		helper.HandleError(w, r, err)
 		return
 	}
 	if stats == nil {
-		handleError(w, r, entityError.ErrChallengeNotFound)
+		helper.HandleError(w, r, entityError.ErrChallengeNotFound)
 		return
 	}
 
-	RenderOK(w, r, response.FromChallengeDetailStats(stats))
+	helper.RenderOK(w, r, response.FromChallengeDetailStats(stats))
 }
 
 // Get scoreboard history
@@ -72,7 +73,7 @@ func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	RenderOK(w, r, response.FromScoreboardHistoryList(stats))
+	helper.RenderOK(w, r, response.FromScoreboardHistoryList(stats))
 }
 
 // Get scoreboard graph
@@ -91,5 +92,5 @@ func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, para
 		return
 	}
 
-	RenderOK(w, r, response.FromScoreboardGraph(graph))
+	helper.RenderOK(w, r, response.FromScoreboardGraph(graph))
 }

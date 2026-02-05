@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -19,7 +20,7 @@ func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
 	for i, c := range list {
 		out[i] = response.FromConfig(c)
 	}
-	RenderOK(w, r, out)
+	helper.RenderOK(w, r, out)
 }
 
 // Get config by key (admin)
@@ -29,21 +30,21 @@ func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	if h.OnError(w, r, err, "GetAdminConfigsKey", "Get") {
 		return
 	}
-	RenderOK(w, r, response.FromConfig(cfg))
+	helper.RenderOK(w, r, response.FromConfig(cfg))
 }
 
 // Set config (admin)
 // (PUT /admin/configs/{key})
 func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	req, ok := DecodeAndValidate[openapi.RequestSetConfigRequest](w, r, h.validator, h.logger, "PutAdminConfigsKey")
+	req, ok := helper.DecodeAndValidate[openapi.RequestSetConfigRequest](w, r, h.validator, h.logger, "PutAdminConfigsKey")
 	if !ok {
 		return
 	}
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
-	clientIP := GetClientIP(r)
+	clientIP := helper.GetClientIP(r)
 	valueType := request.SetConfigRequestToValueType(req.ValueType)
 	description := ""
 	if req.Description != nil {
@@ -52,21 +53,21 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	if h.OnError(w, r, h.dynamicConfigUC.Set(r.Context(), key, req.Value, description, valueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
 		return
 	}
-	RenderOK(w, r, map[string]string{"message": "config updated"})
+	helper.RenderOK(w, r, map[string]string{"message": "config updated"})
 }
 
 // Delete config (admin)
 // (DELETE /admin/configs/{key})
 func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
-	clientIP := GetClientIP(r)
+	clientIP := helper.GetClientIP(r)
 	if h.OnError(w, r, h.dynamicConfigUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }
 
 // Get app settings
@@ -77,30 +78,30 @@ func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, response.FromAppSettings(s))
+	helper.RenderOK(w, r, response.FromAppSettings(s))
 }
 
 // Update app settings
 // (PUT /admin/settings)
 func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestUpdateAppSettingsRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateAppSettingsRequest](
 		w, r, h.validator, h.logger, "UpdateAppSettings",
 	)
 	if !ok {
 		return
 	}
 
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	clientIP := GetClientIP(r)
+	clientIP := helper.GetClientIP(r)
 	s := request.UpdateAppSettingsRequestToEntity(&req, 1)
 
 	if h.OnError(w, r, h.settingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "settings updated"})
+	helper.RenderOK(w, r, map[string]string{"message": "settings updated"})
 }

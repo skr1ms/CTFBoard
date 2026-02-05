@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -11,7 +12,7 @@ import (
 // User login
 // (POST /auth/login)
 func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestLoginRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestLoginRequest](
 		w, r, h.validator, h.logger, "PostAuthLogin",
 	)
 	if !ok {
@@ -24,13 +25,13 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderOK(w, r, response.FromTokenPair(tokenPair))
+	helper.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
 // Register new user
 // (POST /auth/register)
 func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestRegisterRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestRegisterRequest](
 		w, r, h.validator, h.logger, "PostAuthRegister",
 	)
 	if !ok {
@@ -47,24 +48,24 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		h.logger.WithError(err).Error("restapi - v1 - PostAuthRegister - SendVerificationEmail")
 	}
 
-	RenderCreated(w, r, response.FromUserForRegister(user))
+	helper.RenderCreated(w, r, response.FromUserForRegister(user))
 }
 
 // Get current user info
 // (GET /auth/me)
 func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	RenderOK(w, r, response.FromUserForMe(user))
+	helper.RenderOK(w, r, response.FromUserForMe(user))
 }
 
 // Get user profile
 // (GET /users/{ID})
 func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
-	useruuid, ok := ParseUUID(w, r, ID)
+	useruuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -74,5 +75,5 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	RenderOK(w, r, response.FromUserProfile(profile))
+	helper.RenderOK(w, r, response.FromUserProfile(profile))
 }

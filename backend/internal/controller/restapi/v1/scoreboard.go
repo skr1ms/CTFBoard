@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -20,13 +21,13 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 	if h.OnError(w, r, err, "GetScoreboard", "GetScoreboard") {
 		return
 	}
-	RenderOK(w, r, response.FromScoreboardList(entries))
+	helper.RenderOK(w, r, response.FromScoreboardList(entries))
 }
 
 // Get first blood
 // (GET /challenges/{ID}/first-blood)
 func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, ok := ParseUUID(w, r, ID)
+	challengeuuid, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -36,5 +37,5 @@ func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	RenderOK(w, r, response.FromFirstBlood(entry))
+	helper.RenderOK(w, r, response.FromFirstBlood(entry))
 }

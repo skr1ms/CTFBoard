@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
@@ -14,7 +15,7 @@ func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetPages", "GetPublishedList") {
 		return
 	}
-	RenderOK(w, r, response.FromPageList(list))
+	helper.RenderOK(w, r, response.FromPageList(list))
 }
 
 // Get page by slug
@@ -24,7 +25,7 @@ func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug strin
 	if h.OnError(w, r, err, "GetPagesSlug", "GetBySlug") {
 		return
 	}
-	RenderOK(w, r, response.FromPage(page))
+	helper.RenderOK(w, r, response.FromPage(page))
 }
 
 // Get all pages (admin)
@@ -34,13 +35,13 @@ func (h *Server) GetAdminPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetAdminPages", "GetAllList") {
 		return
 	}
-	RenderOK(w, r, response.FromPageFullList(list))
+	helper.RenderOK(w, r, response.FromPageFullList(list))
 }
 
 // Create page
 // (POST /admin/pages)
 func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreatePageRequest](w, r, h.validator, h.logger, "PostAdminPages")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreatePageRequest](w, r, h.validator, h.logger, "PostAdminPages")
 	if !ok {
 		return
 	}
@@ -60,13 +61,13 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
 	}
-	RenderCreated(w, r, response.FromPage(page))
+	helper.RenderCreated(w, r, response.FromPage(page))
 }
 
 // Get page by ID (admin)
 // (GET /admin/pages/{ID})
 func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := ParseUUID(w, r, id)
+	pageID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -74,17 +75,17 @@ func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 	if h.OnError(w, r, err, "GetAdminPagesID", "GetByID") {
 		return
 	}
-	RenderOK(w, r, response.FromPage(page))
+	helper.RenderOK(w, r, response.FromPage(page))
 }
 
 // Update page
 // (PUT /admin/pages/{ID})
 func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := ParseUUID(w, r, id)
+	pageID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestUpdatePageRequest](w, r, h.validator, h.logger, "PutAdminPagesID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdatePageRequest](w, r, h.validator, h.logger, "PutAdminPagesID")
 	if !ok {
 		return
 	}
@@ -104,18 +105,18 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return
 	}
-	RenderOK(w, r, response.FromPage(page))
+	helper.RenderOK(w, r, response.FromPage(page))
 }
 
 // Delete page
 // (DELETE /admin/pages/{ID})
 func (h *Server) DeleteAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := ParseUUID(w, r, id)
+	pageID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.pageUC.Delete(r.Context(), pageID), "DeleteAdminPagesID", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

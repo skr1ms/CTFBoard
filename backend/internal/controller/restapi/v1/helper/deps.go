@@ -1,4 +1,4 @@
-package v1
+package helper
 
 import (
 	"github.com/redis/go-redis/v9"
@@ -31,7 +31,7 @@ type ServerDeps struct {
 	TagUC           *challenge.TagUseCase
 	FieldUC         *settings.FieldUseCase
 	PageUC          *page.PageUseCase
-	BracketUC      *competition.BracketUseCase
+	BracketUC       *competition.BracketUseCase
 	NotifUC         usecase.NotificationUseCase
 	APITokenUC      usecase.APITokenUseCase
 	BackupUC        usecase.BackupUseCase

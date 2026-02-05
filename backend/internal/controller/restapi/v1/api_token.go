@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -11,7 +12,7 @@ import (
 // List my API tokens
 // (GET /user/tokens)
 func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
-	userID, ok := ParseAuthUserID(w, r)
+	userID, ok := helper.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
@@ -25,18 +26,18 @@ func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 	for i, t := range tokens {
 		res[i] = response.FromAPIToken(t)
 	}
-	RenderOK(w, r, res)
+	helper.RenderOK(w, r, res)
 }
 
 // Create API token
 // (POST /user/tokens)
 func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
-	userID, ok := ParseAuthUserID(w, r)
+	userID, ok := helper.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestCreateAPITokenRequest](
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateAPITokenRequest](
 		w, r, h.validator, h.logger, "PostUserTokens",
 	)
 	if !ok {
@@ -49,18 +50,18 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RenderCreated(w, r, response.FromAPITokenCreated(plaintext, token))
+	helper.RenderCreated(w, r, response.FromAPITokenCreated(plaintext, token))
 }
 
 // Revoke API token
 // (DELETE /user/tokens/{ID})
 func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, id string) {
-	userID, ok := ParseAuthUserID(w, r)
+	userID, ok := helper.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
 
-	tokenID, ok := ParseUUID(w, r, id)
+	tokenID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -69,5 +70,5 @@ func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

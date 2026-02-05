@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -19,13 +20,13 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 	if h.OnError(w, r, err, "GetFields", "GetByEntityType") {
 		return
 	}
-	RenderOK(w, r, response.FromFieldList(list))
+	helper.RenderOK(w, r, response.FromFieldList(list))
 }
 
 // Create field
 // (POST /admin/fields)
 func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateFieldRequest](w, r, h.validator, h.logger, "PostAdminFields")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateFieldRequest](w, r, h.validator, h.logger, "PostAdminFields")
 	if !ok {
 		return
 	}
@@ -47,17 +48,17 @@ func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminFields", "Create") {
 		return
 	}
-	RenderCreated(w, r, response.FromField(field))
+	helper.RenderCreated(w, r, response.FromField(field))
 }
 
 // Update field
 // (PUT /admin/fields/{ID})
 func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id string) {
-	fieldID, ok := ParseUUID(w, r, id)
+	fieldID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
-	req, ok := DecodeAndValidate[openapi.RequestUpdateFieldRequest](w, r, h.validator, h.logger, "PutAdminFieldsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateFieldRequest](w, r, h.validator, h.logger, "PutAdminFieldsID")
 	if !ok {
 		return
 	}
@@ -78,18 +79,18 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id str
 	if h.OnError(w, r, err, "PutAdminFieldsID", "Update") {
 		return
 	}
-	RenderOK(w, r, response.FromField(field))
+	helper.RenderOK(w, r, response.FromField(field))
 }
 
 // Delete field
 // (DELETE /admin/fields/{ID})
 func (h *Server) DeleteAdminFieldsID(w http.ResponseWriter, r *http.Request, id string) {
-	fieldID, ok := ParseUUID(w, r, id)
+	fieldID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.fieldUC.Delete(r.Context(), fieldID), "DeleteAdminFieldsID", "Delete") {
 		return
 	}
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }

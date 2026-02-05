@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
@@ -29,13 +30,13 @@ func (h *Server) GetNotifications(w http.ResponseWriter, r *http.Request, params
 	for i, n := range notifs {
 		res[i] = response.FromNotification(n)
 	}
-	RenderOK(w, r, res)
+	helper.RenderOK(w, r, res)
 }
 
 // Get user notifications
 // (GET /user/notifications)
 func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, params openapi.GetUserNotificationsParams) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -59,19 +60,19 @@ func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, pa
 	for i, un := range userNotifs {
 		res[i] = response.FromUserNotification(un)
 	}
-	RenderOK(w, r, res)
+	helper.RenderOK(w, r, res)
 }
 
 // Mark notification as read
 // (PATCH /user/notifications/{ID}/read)
 func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Request, id string) {
-	user, ok := RequireUser(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 	userID := user.ID
 
-	notifID, ok := ParseUUID(w, r, id)
+	notifID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -80,13 +81,13 @@ func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	RenderOK(w, r, map[string]string{"message": "marked as read"})
+	helper.RenderOK(w, r, map[string]string{"message": "marked as read"})
 }
 
 // Create global notification
 // (POST /admin/notifications)
 func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) {
-	req, ok := DecodeAndValidate[openapi.RequestCreateNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotifications")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotifications")
 	if !ok {
 		return
 	}
@@ -107,18 +108,18 @@ func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	RenderCreated(w, r, response.FromNotification(notif))
+	helper.RenderCreated(w, r, response.FromNotification(notif))
 }
 
 // Create personal notification
 // (POST /admin/notifications/user/{userID})
 func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http.Request, userIDStr string) {
-	userID, ok := ParseUUID(w, r, userIDStr)
+	userID, ok := helper.ParseUUID(w, r, userIDStr)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestCreateUserNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotificationsUserUserID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateUserNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotificationsUserUserID")
 	if !ok {
 		return
 	}
@@ -135,18 +136,18 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 		return
 	}
 
-	RenderCreated(w, r, response.FromUserNotification(userNotif))
+	helper.RenderCreated(w, r, response.FromUserNotification(userNotif))
 }
 
 // Update notification
 // (PUT /admin/notifications/{ID})
 func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request, id string) {
-	notifID, ok := ParseUUID(w, r, id)
+	notifID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
 
-	req, ok := DecodeAndValidate[openapi.RequestUpdateNotificationRequest](w, r, h.validator, h.logger, "PutAdminNotificationsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateNotificationRequest](w, r, h.validator, h.logger, "PutAdminNotificationsID")
 	if !ok {
 		return
 	}
@@ -167,13 +168,13 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	RenderOK(w, r, response.FromNotification(notif))
+	helper.RenderOK(w, r, response.FromNotification(notif))
 }
 
 // Delete notification
 // (DELETE /admin/notifications/{ID})
 func (h *Server) DeleteAdminNotificationsID(w http.ResponseWriter, r *http.Request, id string) {
-	notifID, ok := ParseUUID(w, r, id)
+	notifID, ok := helper.ParseUUID(w, r, id)
 	if !ok {
 		return
 	}
@@ -182,5 +183,5 @@ func (h *Server) DeleteAdminNotificationsID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	RenderNoContent(w, r)
+	helper.RenderNoContent(w, r)
 }
