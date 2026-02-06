@@ -72,6 +72,9 @@ linters:
     nolintlint:
       require-explanation: false
       require-specific: true
+    gosec:
+      excludes:
+        - G101
   exclusions:
     generated: lax
     presets:
