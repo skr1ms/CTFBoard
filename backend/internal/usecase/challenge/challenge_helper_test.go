@@ -79,15 +79,12 @@ func (h *ChallengeTestHelper) createChallengeUseCase(cryptoSvc crypto.Service) (
 	client, redis := redismock.NewClientMock()
 	return NewChallengeUseCase(
 		h.deps.challengeRepo,
-		nil,
-		h.deps.solveRepo,
-		h.deps.txRepo,
-		h.deps.compRepo,
-		h.deps.teamRepo,
-		client,
-		nil,
-		nil,
-		cryptoSvc,
+		WithSolveRepo(h.deps.solveRepo),
+		WithTxRepo(h.deps.txRepo),
+		WithCompetitionRepo(h.deps.compRepo),
+		WithTeamRepo(h.deps.teamRepo),
+		WithRedis(client),
+		WithCrypto(cryptoSvc),
 	), redis
 }
 

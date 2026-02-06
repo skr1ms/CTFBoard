@@ -13,7 +13,7 @@ import (
 // (POST /admin/awards)
 func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateAwardRequest](
-		w, r, h.validator, h.logger, "PostAdminAwards",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminAwards",
 	)
 	if !ok {
 		return
@@ -30,7 +30,7 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	award, err := h.awardUC.Create(r.Context(), teamID, value, description, user.ID)
+	award, err := h.team.AwardUC.Create(r.Context(), teamID, value, description, user.ID)
 	if h.OnError(w, r, err, "PostAdminAwards", "Create") {
 		return
 	}
@@ -46,7 +46,7 @@ func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	awards, err := h.awardUC.GetByTeamID(r.Context(), teamuuid)
+	awards, err := h.team.AwardUC.GetByTeamID(r.Context(), teamuuid)
 	if h.OnError(w, r, err, "GetAdminAwardsTeamTeamID", "GetByTeamID") {
 		return
 	}

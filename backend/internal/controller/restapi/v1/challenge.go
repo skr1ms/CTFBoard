@@ -27,7 +27,7 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 		}
 	}
 
-	challenges, err := h.challengeUC.GetAll(r.Context(), user.TeamID, tagID)
+	challenges, err := h.challenge.ChallengeUC.GetAll(r.Context(), user.TeamID, tagID)
 	if h.OnError(w, r, err, "GetChallenges", "GetAll") {
 		return
 	}
@@ -44,7 +44,7 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestSubmitFlagRequest](
-		w, r, h.validator, h.logger, "PostChallengesIDSubmit",
+		w, r, h.infra.Validator, h.infra.Logger, "PostChallengesIDSubmit",
 	)
 	if !ok {
 		return
@@ -56,7 +56,7 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	}
 
 	flag := request.SubmitFlagRequestToFlag(&req)
-	valid, err := h.challengeUC.SubmitFlag(r.Context(), challengeuuid, flag, user.ID, user.TeamID)
+	valid, err := h.challenge.ChallengeUC.SubmitFlag(r.Context(), challengeuuid, flag, user.ID, user.TeamID)
 
 	sub := &entity.Submission{
 		UserID:        user.ID,
@@ -69,8 +69,8 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	if user.TeamID != nil {
 		sub.TeamID = user.TeamID
 	}
-	if logErr := h.submissionUC.LogSubmission(r.Context(), sub); logErr != nil {
-		h.logger.WithError(logErr).Error("restapi - v1 - PostChallengesIDSubmit - LogSubmission")
+	if logErr := h.comp.SubmissionUC.LogSubmission(r.Context(), sub); logErr != nil {
+		h.infra.Logger.WithError(logErr).Error("restapi - v1 - PostChallengesIDSubmit - LogSubmission")
 	}
 
 	if h.OnError(w, r, err, "PostChallengesIDSubmit", "SubmitFlag") {
@@ -89,14 +89,14 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 // (POST /admin/challenges)
 func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateChallengeRequest](
-		w, r, h.validator, h.logger, "PostAdminChallenges",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminChallenges",
 	)
 	if !ok {
 		return
 	}
 
 	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex, tagIDs := request.CreateChallengeRequestToParams(&req)
-	challenge, err := h.challengeUC.Create(
+	challenge, err := h.challenge.ChallengeUC.Create(
 		r.Context(),
 		title, desc, cat, pts, initVal, minVal, decay, flag,
 		isHidden, isRegex, isCaseInsens, flagRegex, tagIDs,
@@ -123,7 +123,7 @@ func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request,
 
 	clientIP := helper.GetClientIP(r)
 
-	err := h.challengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
+	err := h.challenge.ChallengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
 	if h.OnError(w, r, err, "DeleteAdminChallengesID", "Delete") {
 		return
 	}
@@ -140,14 +140,14 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateChallengeRequest](
-		w, r, h.validator, h.logger, "PutAdminChallengesID",
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminChallengesID",
 	)
 	if !ok {
 		return
 	}
 
 	title, desc, cat, pts, initVal, minVal, decay, flag, isHidden, isRegex, isCaseInsens, flagRegex, tagIDs := request.UpdateChallengeRequestToParams(&req)
-	challenge, err := h.challengeUC.Update(
+	challenge, err := h.challenge.ChallengeUC.Update(
 		r.Context(),
 		challengeuuid,
 		title, desc, cat, pts, initVal, minVal, decay, flag,

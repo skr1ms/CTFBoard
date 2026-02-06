@@ -13,7 +13,7 @@ import (
 func (h *Server) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params openapi.GetAdminSubmissionsParams) {
 	page, perPage := getPagePerPage(params.Page, params.PerPage)
 
-	items, total, err := h.submissionUC.GetAll(r.Context(), page, perPage)
+	items, total, err := h.comp.SubmissionUC.GetAll(r.Context(), page, perPage)
 	if h.OnError(w, r, err, "GetAdminSubmissions", "GetAll") {
 		return
 	}
@@ -31,7 +31,7 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, 
 
 	page, perPage := getPagePerPage(params.Page, params.PerPage)
 
-	items, total, err := h.submissionUC.GetByChallenge(r.Context(), cid, page, perPage)
+	items, total, err := h.comp.SubmissionUC.GetByChallenge(r.Context(), cid, page, perPage)
 	if h.OnError(w, r, err, "GetAdminSubmissionsChallengeChallengeID", "GetByChallenge") {
 		return
 	}
@@ -47,7 +47,7 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWri
 		return
 	}
 
-	stats, err := h.submissionUC.GetStats(r.Context(), cid)
+	stats, err := h.comp.SubmissionUC.GetStats(r.Context(), cid)
 	if h.OnError(w, r, err, "GetAdminSubmissionsChallengeChallengeIDStats", "GetStats") {
 		return
 	}
@@ -65,7 +65,7 @@ func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Re
 
 	page, perPage := getPagePerPage(params.Page, params.PerPage)
 
-	items, total, err := h.submissionUC.GetByUser(r.Context(), uid, page, perPage)
+	items, total, err := h.comp.SubmissionUC.GetByUser(r.Context(), uid, page, perPage)
 	if h.OnError(w, r, err, "GetAdminSubmissionsUserUserID", "GetByUser") {
 		return
 	}
@@ -83,7 +83,7 @@ func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Re
 
 	page, perPage := getPagePerPage(params.Page, params.PerPage)
 
-	items, total, err := h.submissionUC.GetByTeam(r.Context(), tid, page, perPage)
+	items, total, err := h.comp.SubmissionUC.GetByTeam(r.Context(), tid, page, perPage)
 	if h.OnError(w, r, err, "GetAdminSubmissionsTeamTeamID", "GetByTeam") {
 		return
 	}

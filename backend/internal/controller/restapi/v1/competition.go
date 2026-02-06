@@ -13,7 +13,7 @@ import (
 // Get competition status
 // (GET /competition/status)
 func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
-	comp, err := h.competitionUC.Get(r.Context())
+	comp, err := h.comp.CompetitionUC.Get(r.Context())
 	if h.OnError(w, r, err, "GetCompetitionStatus", "Get") {
 		return
 	}
@@ -24,7 +24,7 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 // Get competition
 // (GET /admin/competition)
 func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
-	comp, err := h.competitionUC.Get(r.Context())
+	comp, err := h.comp.CompetitionUC.Get(r.Context())
 	if h.OnError(w, r, err, "GetAdminCompetition", "Get") {
 		return
 	}
@@ -36,7 +36,7 @@ func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 // (PUT /admin/competition)
 func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateCompetitionRequest](
-		w, r, h.validator, h.logger, "UpdateCompetition",
+		w, r, h.infra.Validator, h.infra.Logger, "UpdateCompetition",
 	)
 	if !ok {
 		return
@@ -61,7 +61,7 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 
 	clientIP := helper.GetClientIP(r)
 
-	err := h.competitionUC.Update(r.Context(), comp, user.ID, clientIP)
+	err := h.comp.CompetitionUC.Update(r.Context(), comp, user.ID, clientIP)
 	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {
 		return
 	}

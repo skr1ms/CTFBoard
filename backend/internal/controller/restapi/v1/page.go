@@ -11,7 +11,7 @@ import (
 // Get published pages list
 // (GET /pages)
 func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
-	list, err := h.pageUC.GetPublishedList(r.Context())
+	list, err := h.admin.PageUC.GetPublishedList(r.Context())
 	if h.OnError(w, r, err, "GetPages", "GetPublishedList") {
 		return
 	}
@@ -21,7 +21,7 @@ func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
 // Get page by slug
 // (GET /pages/{slug})
 func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug string) {
-	page, err := h.pageUC.GetBySlug(r.Context(), slug)
+	page, err := h.admin.PageUC.GetBySlug(r.Context(), slug)
 	if h.OnError(w, r, err, "GetPagesSlug", "GetBySlug") {
 		return
 	}
@@ -31,7 +31,7 @@ func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug strin
 // Get all pages (admin)
 // (GET /admin/pages)
 func (h *Server) GetAdminPages(w http.ResponseWriter, r *http.Request) {
-	list, err := h.pageUC.GetAllList(r.Context())
+	list, err := h.admin.PageUC.GetAllList(r.Context())
 	if h.OnError(w, r, err, "GetAdminPages", "GetAllList") {
 		return
 	}
@@ -41,7 +41,7 @@ func (h *Server) GetAdminPages(w http.ResponseWriter, r *http.Request) {
 // Create page
 // (POST /admin/pages)
 func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreatePageRequest](w, r, h.validator, h.logger, "PostAdminPages")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreatePageRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminPages")
 	if !ok {
 		return
 	}
@@ -57,7 +57,7 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 	if req.OrderIndex != nil {
 		orderIndex = *req.OrderIndex
 	}
-	page, err := h.pageUC.Create(r.Context(), req.Title, req.Slug, content, isDraft, orderIndex)
+	page, err := h.admin.PageUC.Create(r.Context(), req.Title, req.Slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
 	}
@@ -71,7 +71,7 @@ func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 	if !ok {
 		return
 	}
-	page, err := h.pageUC.GetByID(r.Context(), pageID)
+	page, err := h.admin.PageUC.GetByID(r.Context(), pageID)
 	if h.OnError(w, r, err, "GetAdminPagesID", "GetByID") {
 		return
 	}
@@ -85,7 +85,7 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdatePageRequest](w, r, h.validator, h.logger, "PutAdminPagesID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdatePageRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminPagesID")
 	if !ok {
 		return
 	}
@@ -101,7 +101,7 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 	if req.OrderIndex != nil {
 		orderIndex = *req.OrderIndex
 	}
-	page, err := h.pageUC.Update(r.Context(), pageID, req.Title, req.Slug, content, isDraft, orderIndex)
+	page, err := h.admin.PageUC.Update(r.Context(), pageID, req.Title, req.Slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return
 	}
@@ -115,7 +115,7 @@ func (h *Server) DeleteAdminPagesID(w http.ResponseWriter, r *http.Request, id s
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.pageUC.Delete(r.Context(), pageID), "DeleteAdminPagesID", "Delete") {
+	if h.OnError(w, r, h.admin.PageUC.Delete(r.Context(), pageID), "DeleteAdminPagesID", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)

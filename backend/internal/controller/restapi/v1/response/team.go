@@ -7,6 +7,16 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
+type ConfirmationRequired struct {
+	Reason       string        `json:"reason"`
+	AffectedData *AffectedData `json:"affected_data,omitempty"`
+}
+
+type AffectedData struct {
+	SolveCount int `json:"solve_count"`
+	Points     int `json:"points"`
+}
+
 func FromTeam(t *entity.Team) openapi.ResponseTeamResponse {
 	return openapi.ResponseTeamResponse{
 		ID:          ptr(t.ID.String()),

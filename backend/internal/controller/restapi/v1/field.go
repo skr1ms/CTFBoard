@@ -16,7 +16,7 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 	if params.EntityType == openapi.Team {
 		entityType = entity.EntityTypeTeam
 	}
-	list, err := h.fieldUC.GetByEntityType(r.Context(), entityType)
+	list, err := h.admin.FieldUC.GetByEntityType(r.Context(), entityType)
 	if h.OnError(w, r, err, "GetFields", "GetByEntityType") {
 		return
 	}
@@ -26,7 +26,7 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 // Create field
 // (POST /admin/fields)
 func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateFieldRequest](w, r, h.validator, h.logger, "PostAdminFields")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateFieldRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminFields")
 	if !ok {
 		return
 	}
@@ -44,7 +44,7 @@ func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 	if req.OrderIndex != nil {
 		orderIndex = *req.OrderIndex
 	}
-	field, err := h.fieldUC.Create(r.Context(), req.Name, fieldType, entityType, required, options, orderIndex)
+	field, err := h.admin.FieldUC.Create(r.Context(), req.Name, fieldType, entityType, required, options, orderIndex)
 	if h.OnError(w, r, err, "PostAdminFields", "Create") {
 		return
 	}
@@ -58,7 +58,7 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id str
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateFieldRequest](w, r, h.validator, h.logger, "PutAdminFieldsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateFieldRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminFieldsID")
 	if !ok {
 		return
 	}
@@ -75,7 +75,7 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id str
 	if req.OrderIndex != nil {
 		orderIndex = *req.OrderIndex
 	}
-	field, err := h.fieldUC.Update(r.Context(), fieldID, req.Name, fieldType, required, options, orderIndex)
+	field, err := h.admin.FieldUC.Update(r.Context(), fieldID, req.Name, fieldType, required, options, orderIndex)
 	if h.OnError(w, r, err, "PutAdminFieldsID", "Update") {
 		return
 	}
@@ -89,7 +89,7 @@ func (h *Server) DeleteAdminFieldsID(w http.ResponseWriter, r *http.Request, id 
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.fieldUC.Delete(r.Context(), fieldID), "DeleteAdminFieldsID", "Delete") {
+	if h.OnError(w, r, h.admin.FieldUC.Delete(r.Context(), fieldID), "DeleteAdminFieldsID", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)

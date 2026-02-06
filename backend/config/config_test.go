@@ -9,6 +9,7 @@ import (
 )
 
 func setupEnv(t *testing.T, env map[string]string) {
+	t.Helper()
 	for k, v := range env {
 		os.Setenv(k, v)
 	}
@@ -39,11 +40,11 @@ func TestNew_Success(t *testing.T) {
 
 	cfg, err := New()
 	require.NoError(t, err)
-	assert.Contains(t, cfg.DB.URL, "u")
-	assert.Contains(t, cfg.DB.URL, "d")
-	assert.Equal(t, "jwt_acc", cfg.JWT.AccessSecret)
+	assert.Contains(t, cfg.URL, "u")
+	assert.Contains(t, cfg.URL, "d")
+	assert.Equal(t, "jwt_acc", cfg.AccessSecret)
 	assert.Equal(t, "redis_pwd", cfg.Redis.Password)
-	assert.Equal(t, "flagkey", cfg.App.FlagEncryptionKey)
+	assert.Equal(t, "flagkey", cfg.FlagEncryptionKey)
 }
 
 func TestNew_Error_MissingPostgres(t *testing.T) {

@@ -27,7 +27,7 @@ func getPagePerPageRatings(page, perPage *int) (int, int) {
 // (GET /ratings)
 func (h *Server) GetRatings(w http.ResponseWriter, r *http.Request, params openapi.GetRatingsParams) {
 	page, perPage := getPagePerPageRatings(params.Page, params.PerPage)
-	items, total, err := h.ratingUC.GetGlobalRatings(r.Context(), page, perPage)
+	items, total, err := h.comp.RatingUC.GetGlobalRatings(r.Context(), page, perPage)
 	if h.OnError(w, r, err, "GetRatings", "GetGlobalRatings") {
 		return
 	}
@@ -41,7 +41,7 @@ func (h *Server) GetRatingsTeamID(w http.ResponseWriter, r *http.Request, id str
 	if !ok {
 		return
 	}
-	global, eventRatings, err := h.ratingUC.GetTeamRating(r.Context(), teamID)
+	global, eventRatings, err := h.comp.RatingUC.GetTeamRating(r.Context(), teamID)
 	if h.OnError(w, r, err, "GetRatingsTeamID", "GetTeamRating") {
 		return
 	}
@@ -51,7 +51,7 @@ func (h *Server) GetRatingsTeamID(w http.ResponseWriter, r *http.Request, id str
 // Get CTF events list (admin)
 // (GET /admin/ctf-events)
 func (h *Server) GetAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
-	list, err := h.ratingUC.GetCTFEvents(r.Context())
+	list, err := h.comp.RatingUC.GetCTFEvents(r.Context())
 	if h.OnError(w, r, err, "GetAdminCtfEvents", "GetCTFEvents") {
 		return
 	}
@@ -61,7 +61,7 @@ func (h *Server) GetAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
 // Create CTF event (admin)
 // (POST /admin/ctf-events)
 func (h *Server) PostAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCTFEventRequest](w, r, h.validator, h.logger, "PostAdminCtfEvents")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCTFEventRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminCtfEvents")
 	if !ok {
 		return
 	}
@@ -69,7 +69,7 @@ func (h *Server) PostAdminCtfEvents(w http.ResponseWriter, r *http.Request) {
 	if req.Weight != nil {
 		weight = float64(*req.Weight)
 	}
-	event, err := h.ratingUC.CreateCTFEvent(r.Context(), req.Name, req.StartTime, req.EndTime, weight)
+	event, err := h.comp.RatingUC.CreateCTFEvent(r.Context(), req.Name, req.StartTime, req.EndTime, weight)
 	if h.OnError(w, r, err, "PostAdminCtfEvents", "CreateCTFEvent") {
 		return
 	}
@@ -83,7 +83,7 @@ func (h *Server) PostAdminCtfEventsIDFinalize(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.ratingUC.FinalizeCTFEvent(r.Context(), eventID), "PostAdminCtfEventsIDFinalize", "FinalizeCTFEvent") {
+	if h.OnError(w, r, h.comp.RatingUC.FinalizeCTFEvent(r.Context(), eventID), "PostAdminCtfEventsIDFinalize", "FinalizeCTFEvent") {
 		return
 	}
 	helper.RenderNoContent(w, r)

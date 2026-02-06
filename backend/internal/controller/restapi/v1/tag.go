@@ -11,17 +11,21 @@ import (
 // Get tags list
 // (GET /tags)
 func (h *Server) GetTags(w http.ResponseWriter, r *http.Request) {
-	tags, err := h.tagUC.GetAll(r.Context())
-	if h.OnError(w, r, err, "GetTags", "GetAll") {
-		return
+	h.Handle("GetTags", h.handleGetTags)(w, r)
+}
+
+func (h *Server) handleGetTags(w http.ResponseWriter, r *http.Request) (HandlerResult, error) {
+	tags, err := h.challenge.TagUC.GetAll(r.Context())
+	if err != nil {
+		return HandlerResult{}, err
 	}
-	helper.RenderOK(w, r, response.FromTagList(tags))
+	return OK(response.FromTagList(tags)), nil
 }
 
 // Create tag
 // (POST /admin/tags)
 func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTagRequest](w, r, h.validator, h.logger, "PostAdminTags")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTagRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminTags")
 	if !ok {
 		return
 	}
@@ -29,7 +33,7 @@ func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 	if req.Color != nil {
 		color = *req.Color
 	}
-	tag, err := h.tagUC.Create(r.Context(), req.Name, color)
+	tag, err := h.challenge.TagUC.Create(r.Context(), req.Name, color)
 	if h.OnError(w, r, err, "PostAdminTags", "Create") {
 		return
 	}
@@ -43,7 +47,7 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, id strin
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateTagRequest](w, r, h.validator, h.logger, "PutAdminTagsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateTagRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminTagsID")
 	if !ok {
 		return
 	}
@@ -51,7 +55,7 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, id strin
 	if req.Color != nil {
 		color = *req.Color
 	}
-	tag, err := h.tagUC.Update(r.Context(), tagID, req.Name, color)
+	tag, err := h.challenge.TagUC.Update(r.Context(), tagID, req.Name, color)
 	if h.OnError(w, r, err, "PutAdminTagsID", "Update") {
 		return
 	}
@@ -65,7 +69,7 @@ func (h *Server) DeleteAdminTagsID(w http.ResponseWriter, r *http.Request, id st
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.tagUC.Delete(r.Context(), tagID), "DeleteAdminTagsID", "Delete") {
+	if h.OnError(w, r, h.challenge.TagUC.Delete(r.Context(), tagID), "DeleteAdminTagsID", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)

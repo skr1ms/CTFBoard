@@ -19,7 +19,7 @@ const (
 // Get general statistics
 // (GET /statistics/general)
 func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.statsUC.GetGeneralStats(r.Context())
+	stats, err := h.comp.StatsUC.GetGeneralStats(r.Context())
 	if h.OnError(w, r, err, "GetStatisticsGeneral", "GetGeneralStats") {
 		return
 	}
@@ -30,7 +30,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 // Get challenge statistics
 // (GET /statistics/challenges)
 func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.statsUC.GetChallengeStats(r.Context())
+	stats, err := h.comp.StatsUC.GetChallengeStats(r.Context())
 	if h.OnError(w, r, err, "GetStatisticsChallenges", "GetChallengeStats") {
 		return
 	}
@@ -41,9 +41,9 @@ func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request)
 // Get challenge detail statistics
 // (GET /statistics/challenges/{id})
 func (h *Server) GetStatisticsChallengesId(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
-	stats, err := h.statsUC.GetChallengeDetailStats(r.Context(), id.String())
+	stats, err := h.comp.StatsUC.GetChallengeDetailStats(r.Context(), id.String())
 	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetStatisticsChallengesId")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - GetStatisticsChallengesId")
 		helper.HandleError(w, r, err)
 		return
 	}
@@ -68,7 +68,7 @@ func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	stats, err := h.statsUC.GetScoreboardHistory(r.Context(), limit)
+	stats, err := h.comp.StatsUC.GetScoreboardHistory(r.Context(), limit)
 	if h.OnError(w, r, err, "GetStatisticsScoreboard", "GetScoreboardHistory") {
 		return
 	}
@@ -87,7 +87,7 @@ func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, para
 		}
 	}
 
-	graph, err := h.statsUC.GetScoreboardGraph(r.Context(), topN)
+	graph, err := h.comp.StatsUC.GetScoreboardGraph(r.Context(), topN)
 	if h.OnError(w, r, err, "GetScoreboardGraph", "GetScoreboardGraph") {
 		return
 	}

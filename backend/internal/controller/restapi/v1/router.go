@@ -31,8 +31,8 @@ func NewRouter(
 			helper.RenderError(w, r, http.StatusBadRequest, err.Error())
 		},
 	}
-	setupPublicRoutes(router, server, wrapper, deps.RedisClient, deps.Logger)
-	setupAuthOnlyRoutes(router, deps.JWTService, deps.APITokenUC, deps.UserUC, wrapper)
+	setupPublicRoutes(router, server, wrapper, deps.Infra.RedisClient, deps.Infra.Logger)
+	setupAuthOnlyRoutes(router, deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, wrapper)
 	setupProtectedRoutes(router, deps, wrapper, submitLimit, durationLimit, verifyEmails)
 }
 
@@ -91,8 +91,8 @@ func setupProtectedRoutes(
 	verifyEmails bool,
 ) {
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.JWTService, deps.APITokenUC, deps.UserUC))
-		r.Use(restapimiddleware.InjectUser(deps.UserUC))
+		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC))
+		r.Use(restapimiddleware.InjectUser(deps.User.UserUC))
 
 		r.Get("/auth/me", wrapper.GetAuthMe)
 
@@ -103,7 +103,7 @@ func setupProtectedRoutes(
 		r.Delete("/user/tokens/{ID}", wrapper.DeleteUserTokensID)
 
 		setupTeamRoutes(r, wrapper, verifyEmails)
-		setupChallengeRoutes(r, wrapper, deps.CompetitionUC, deps.CommentUC, deps.RedisClient, submitLimit, durationLimit, verifyEmails, deps.Logger)
+		setupChallengeRoutes(r, wrapper, deps.Comp.CompetitionUC, deps.Challenge.CommentUC, deps.Infra.RedisClient, submitLimit, durationLimit, verifyEmails, deps.Infra.Logger)
 
 		r.Get("/files/{ID}/download", wrapper.GetFilesIDDownload)
 

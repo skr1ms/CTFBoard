@@ -13,14 +13,14 @@ import (
 // (POST /auth/login)
 func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestLoginRequest](
-		w, r, h.validator, h.logger, "PostAuthLogin",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAuthLogin",
 	)
 	if !ok {
 		return
 	}
 
 	email, password := request.LoginRequestCredentials(&req)
-	tokenPair, err := h.userUC.Login(r.Context(), email, password)
+	tokenPair, err := h.user.UserUC.Login(r.Context(), email, password)
 	if h.OnError(w, r, err, "PostAuthLogin", "Login") {
 		return
 	}
@@ -32,20 +32,20 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 // (POST /auth/register)
 func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestRegisterRequest](
-		w, r, h.validator, h.logger, "PostAuthRegister",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAuthRegister",
 	)
 	if !ok {
 		return
 	}
 
 	username, email, password, customFields := request.RegisterRequestCredentials(&req)
-	user, err := h.userUC.Register(r.Context(), username, email, password, customFields)
+	user, err := h.user.UserUC.Register(r.Context(), username, email, password, customFields)
 	if h.OnError(w, r, err, "PostAuthRegister", "Register") {
 		return
 	}
 
-	if err := h.emailUC.SendVerificationEmail(r.Context(), user); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAuthRegister - SendVerificationEmail")
+	if err := h.user.EmailUC.SendVerificationEmail(r.Context(), user); err != nil {
+		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthRegister - SendVerificationEmail")
 	}
 
 	helper.RenderCreated(w, r, response.FromUserForRegister(user))
@@ -70,7 +70,7 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	profile, err := h.userUC.GetProfile(r.Context(), useruuid)
+	profile, err := h.user.UserUC.GetProfile(r.Context(), useruuid)
 	if h.OnError(w, r, err, "GetUsersID", "GetProfile") {
 		return
 	}

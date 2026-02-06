@@ -258,7 +258,9 @@ func New() (*Config, error) {
 				}
 			}))
 
-			_ = g.Wait()
+			if err := g.Wait(); err != nil {
+				l.WithError(err).Warn("Config: vault goroutine error")
+			}
 		} else {
 			l.WithError(err).Error("Config: failed to initialize vault client")
 		}

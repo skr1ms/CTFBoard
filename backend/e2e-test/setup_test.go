@@ -33,6 +33,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
@@ -475,15 +476,28 @@ func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 
 func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
+	broadcaster := websocket.NewBroadcaster(hub)
 	userUC := user.NewUserUseCase(repos.userRepo, repos.teamRepo, repos.solveRepo, repos.txRepo, deps.jwt, fieldValidator, repos.fieldValueRepo)
 	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, TestRedis)
-	challengeUC := challenge.NewChallengeUseCase(repos.challengeRepo, repos.tagRepo, repos.solveRepo, repos.txRepo, repos.compRepo, repos.teamRepo, TestRedis, hub, repos.auditLogRepo, deps.crypto)
-	solveUC := competition.NewSolveUseCase(repos.solveRepo, repos.challengeRepo, repos.compRepo, repos.userRepo, repos.teamRepo, repos.txRepo, TestRedis, hub)
+	challengeUC := challenge.NewChallengeUseCase(
+		repos.challengeRepo,
+		challenge.WithTagRepo(repos.tagRepo),
+		challenge.WithSolveRepo(repos.solveRepo),
+		challenge.WithTxRepo(repos.txRepo),
+		challenge.WithCompetitionRepo(repos.compRepo),
+		challenge.WithTeamRepo(repos.teamRepo),
+		challenge.WithRedis(TestRedis),
+		challenge.WithBroadcaster(broadcaster),
+		challenge.WithAuditLogRepo(repos.auditLogRepo),
+		challenge.WithCrypto(deps.crypto),
+	)
+	testCache := cache.New(TestRedis)
+	solveUC := competition.NewSolveUseCase(repos.solveRepo, repos.challengeRepo, repos.compRepo, repos.userRepo, repos.teamRepo, repos.txRepo, testCache, broadcaster)
 	teamUC := team.NewTeamUseCase(repos.teamRepo, repos.userRepo, repos.compRepo, repos.txRepo, TestRedis)
 	hintUC := challenge.NewHintUseCase(repos.hintRepo, repos.hintUnlockRepo, repos.awardRepo, repos.txRepo, repos.solveRepo, TestRedis)
 	awardUC := team.NewAwardUseCase(repos.awardRepo, repos.txRepo, TestRedis)
 	emailUC := email.NewEmailUseCase(repos.userRepo, repos.tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
-	statsUC := competition.NewStatisticsUseCase(repos.statsRepo, TestRedis)
+	statsUC := competition.NewStatisticsUseCase(repos.statsRepo, testCache)
 	submissionUC := competition.NewSubmissionUseCase(repos.submissionRepo)
 	tagUC := challenge.NewTagUseCase(repos.tagRepo)
 	fieldUC := settings.NewFieldUseCase(repos.fieldRepo)
@@ -529,11 +543,14 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 	})
 
 	deps := &helper.ServerDeps{
-		UserUC: uc.user, ChallengeUC: uc.challenge, SolveUC: uc.solve, TeamUC: uc.team, CompetitionUC: uc.competition,
-		HintUC: uc.hint, EmailUC: uc.email, FileUC: uc.file, AwardUC: uc.award, StatsUC: uc.stats, SubmissionUC: uc.submissionUC,
-		TagUC: uc.tagUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC,
-		NotifUC: uc.notifUC, APITokenUC: uc.apiTokenUC, BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, CommentUC: uc.commentUC,
-		JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l,
+		Challenge: helper.ChallengeDeps{
+			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC,
+		},
+		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
+		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC},
+		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC},
+		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
+		Infra: helper.InfraDeps{JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l},
 	}
 	r.Route("/api/v1", func(apiRouter chi.Router) {
 		v1.NewRouter(apiRouter, deps, 100, 1*time.Minute, false)

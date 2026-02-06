@@ -10,10 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
@@ -24,6 +22,7 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/websocket"
+	"golang.org/x/sync/singleflight"
 )
 
 type ChallengeUseCase struct {
@@ -34,37 +33,21 @@ type ChallengeUseCase struct {
 	compRepo      repo.CompetitionRepository
 	teamRepo      repo.TeamRepository
 	redis         *redis.Client
-	hub           *websocket.Hub
+	broadcaster   *websocket.Broadcaster
 	auditLogRepo  repo.AuditLogRepository
 	crypto        crypto.Service
 	regexCache    sync.Map
 	regexSf       singleflight.Group
 }
 
-func NewChallengeUseCase(
-	challengeRepo repo.ChallengeRepository,
-	tagRepo repo.TagRepository,
-	solveRepo repo.SolveRepository,
-	txRepo repo.TxRepository,
-	compRepo repo.CompetitionRepository,
-	teamRepo repo.TeamRepository,
-	redis *redis.Client,
-	hub *websocket.Hub,
-	auditLogRepo repo.AuditLogRepository,
-	crypto crypto.Service,
-) *ChallengeUseCase {
-	return &ChallengeUseCase{
+func NewChallengeUseCase(challengeRepo repo.ChallengeRepository, opts ...ChallengeUCOption) *ChallengeUseCase {
+	uc := &ChallengeUseCase{
 		challengeRepo: challengeRepo,
-		tagRepo:       tagRepo,
-		solveRepo:     solveRepo,
-		teamRepo:      teamRepo,
-		txRepo:        txRepo,
-		compRepo:      compRepo,
-		redis:         redis,
-		hub:           hub,
-		auditLogRepo:  auditLogRepo,
-		crypto:        crypto,
 	}
+	for _, opt := range opts {
+		opt(uc)
+	}
+	return uc
 }
 
 func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*usecase.ChallengeWithTags, error) {
@@ -252,7 +235,10 @@ func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, er
 	}
 	v, err, _ := uc.regexSf.Do(pattern, func() (any, error) {
 		if v, ok := uc.regexCache.Load(pattern); ok {
-			return v.(*regexp.Regexp), nil
+			if re, ok := v.(*regexp.Regexp); ok {
+				return re, nil
+			}
+			return nil, fmt.Errorf("ChallengeUseCase - getCompiledRegex: invalid cached regex type")
 		}
 		compiled, err := regexp.Compile(pattern)
 		if err != nil {
@@ -264,174 +250,186 @@ func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, er
 	if err != nil {
 		return nil, err
 	}
-	return v.(*regexp.Regexp), nil
+	re, ok := v.(*regexp.Regexp)
+	if !ok {
+		return nil, fmt.Errorf("ChallengeUseCase - getCompiledRegex: invalid type from singleflight")
+	}
+	return re, nil
 }
 
-//nolint:gocognit,gocyclo,funlen
+type submitContext struct {
+	ctx         context.Context
+	challengeID uuid.UUID
+	flag        string
+	userID      uuid.UUID
+	teamID      uuid.UUID
+}
+
 func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID) (bool, error) {
 	if teamID == nil {
 		return false, entityError.ErrUserMustBeInTeam
 	}
+	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: strings.TrimSpace(flag), userID: userID, teamID: *teamID}
 
-	if uc.teamRepo != nil {
-		team, err := uc.teamRepo.GetByID(ctx, *teamID)
-		if err != nil {
-			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetTeam: %w", err)
-		}
-		if team.IsBanned {
-			return false, entityError.ErrTeamBanned
-		}
+	if err := uc.submitValidateTeam(sc); err != nil {
+		return false, err
 	}
+	challenge, err := uc.submitGetChallenge(sc)
+	if err != nil {
+		return false, err
+	}
+	if err := uc.submitValidateFlagFormat(sc, challenge); err != nil {
+		return false, err
+	}
+	if !uc.submitCheckFlag(sc, challenge) {
+		return false, nil
+	}
+	solvedChallenge, solveCount, err := uc.submitRecordSolve(sc, challenge)
+	if err != nil {
+		return errors.Is(err, entityError.ErrAlreadySolved), err
+	}
+	uc.submitInvalidateCache(sc.ctx)
+	uc.submitNotifySolve(sc.teamID, solvedChallenge, solveCount == 1)
+	return true, nil
+}
 
-	challenge, err := uc.challengeRepo.GetByID(ctx, challengeID)
+func (uc *ChallengeUseCase) submitValidateTeam(sc *submitContext) error {
+	if uc.teamRepo == nil {
+		return nil
+	}
+	team, err := uc.teamRepo.GetByID(sc.ctx, sc.teamID)
+	if err != nil {
+		return fmt.Errorf("ChallengeUseCase - SubmitFlag - GetTeam: %w", err)
+	}
+	if team.IsBanned {
+		return entityError.ErrTeamBanned
+	}
+	return nil
+}
+
+func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*entity.Challenge, error) {
+	challenge, err := uc.challengeRepo.GetByID(sc.ctx, sc.challengeID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrChallengeNotFound) {
-			return false, entityError.ErrChallengeNotFound
+			return nil, entityError.ErrChallengeNotFound
 		}
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByID: %w", err)
+		return nil, fmt.Errorf("ChallengeUseCase - SubmitFlag - GetByID: %w", err)
 	}
+	return challenge, nil
+}
 
+func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challenge *entity.Challenge) error {
 	formatRegex := ""
 	if challenge.FlagFormatRegex != nil && *challenge.FlagFormatRegex != "" {
 		formatRegex = *challenge.FlagFormatRegex
 	} else if uc.compRepo != nil {
-		comp, err := uc.compRepo.Get(ctx)
+		comp, err := uc.compRepo.Get(sc.ctx)
 		if err == nil && comp.FlagRegex != nil && *comp.FlagRegex != "" {
 			formatRegex = *comp.FlagRegex
 		}
 	}
-	if formatRegex != "" {
-		matched, err := regexp.MatchString(formatRegex, flag)
-		if err != nil {
-			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - MatchString: %w", err)
-		}
-		if !matched {
-			return false, entityError.ErrInvalidFlagFormat
-		}
+	if formatRegex == "" {
+		return nil
 	}
+	matched, err := regexp.MatchString(formatRegex, sc.flag)
+	if err != nil {
+		return fmt.Errorf("ChallengeUseCase - SubmitFlag - MatchString: %w", err)
+	}
+	if !matched {
+		return entityError.ErrInvalidFlagFormat
+	}
+	return nil
+}
 
-	var isvalid bool
-	flag = strings.TrimSpace(flag)
-
+func (uc *ChallengeUseCase) submitCheckFlag(sc *submitContext, challenge *entity.Challenge) bool {
 	if challenge.IsRegex {
-		if uc.crypto == nil {
-			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag: %w", crypto.ErrServiceNotConfigured)
-		}
-		pattern, err := uc.crypto.Decrypt(challenge.FlagRegex)
-		if err != nil {
-			return false, nil
-		}
-
-		if challenge.IsCaseInsensitive {
-			pattern = "(?i)" + pattern
-		}
-
-		compiledRegex, err := uc.getCompiledRegex(pattern)
-		if err != nil {
-			return false, err
-		}
-
-		if compiledRegex.MatchString(flag) {
-			isvalid = true
-		}
-	} else {
-		userInput := flag
-		if challenge.IsCaseInsensitive {
-			userInput = strings.ToLower(userInput)
-		}
-
-		hash := sha256.Sum256([]byte(userInput))
-		hashStr := hex.EncodeToString(hash[:])
-		if subtle.ConstantTimeCompare([]byte(hashStr), []byte(challenge.FlagHash)) == 1 {
-			isvalid = true
-		}
+		return uc.submitCheckRegexFlag(sc, challenge)
 	}
+	return uc.submitCheckHashFlag(sc, challenge)
+}
 
-	if !isvalid {
-		return false, nil
+func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *entity.Challenge) bool {
+	if uc.crypto == nil {
+		return false
 	}
+	pattern, err := uc.crypto.Decrypt(challenge.FlagRegex)
+	if err != nil {
+		return false
+	}
+	if challenge.IsCaseInsensitive {
+		pattern = "(?i)" + pattern
+	}
+	compiled, err := uc.getCompiledRegex(pattern)
+	if err != nil {
+		return false
+	}
+	return compiled.MatchString(sc.flag)
+}
 
+func (uc *ChallengeUseCase) submitCheckHashFlag(sc *submitContext, challenge *entity.Challenge) bool {
+	userInput := sc.flag
+	if challenge.IsCaseInsensitive {
+		userInput = strings.ToLower(userInput)
+	}
+	hash := sha256.Sum256([]byte(userInput))
+	hashStr := hex.EncodeToString(hash[:])
+	return subtle.ConstantTimeCompare([]byte(hashStr), []byte(challenge.FlagHash)) == 1
+}
+
+//nolint:gocognit
+func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *entity.Challenge) (*entity.Challenge, int, error) {
 	var solveCount int
 	var solvedChallenge *entity.Challenge
-
-	err = uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		_, err := uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, *teamID, challengeID)
+	err := uc.txRepo.RunTransaction(sc.ctx, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := uc.txRepo.GetSolveByTeamAndChallengeTx(ctx, tx, sc.teamID, sc.challengeID)
 		if err == nil {
 			return entityError.ErrAlreadySolved
 		}
 		if !errors.Is(err, entityError.ErrSolveNotFound) {
 			return fmt.Errorf("GetSolveByTeamAndChallengeTx: %w", err)
 		}
-
-		solvedChallenge, err = uc.txRepo.GetChallengeByIDTx(ctx, tx, challengeID)
-		if err != nil {
-			return fmt.Errorf("GetChallengeByIDTx: %w", err)
+		var err2 error
+		solvedChallenge, err2 = uc.txRepo.GetChallengeByIDTx(ctx, tx, sc.challengeID)
+		if err2 != nil {
+			return fmt.Errorf("GetChallengeByIDTx: %w", err2)
 		}
-
 		solve := &entity.Solve{
-			UserID:      userID,
-			TeamID:      *teamID,
-			ChallengeID: challengeID,
+			UserID:      sc.userID,
+			TeamID:      sc.teamID,
+			ChallengeID: sc.challengeID,
 		}
-
-		if err := uc.txRepo.CreateSolveTx(ctx, tx, solve); err != nil {
-			return fmt.Errorf("CreateSolveTx: %w", err)
+		if err2 = uc.txRepo.CreateSolveTx(ctx, tx, solve); err2 != nil {
+			return fmt.Errorf("CreateSolveTx: %w", err2)
 		}
-
-		solveCount, err = uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, challengeID)
-		if err != nil {
-			return fmt.Errorf("IncrementChallengeSolveCountTx: %w", err)
+		solveCount, err2 = uc.txRepo.IncrementChallengeSolveCountTx(ctx, tx, sc.challengeID)
+		if err2 != nil {
+			return fmt.Errorf("IncrementChallengeSolveCountTx: %w", err2)
 		}
-
 		if solvedChallenge.InitialValue > 0 && solvedChallenge.Decay > 0 {
 			newPoints := competition.CalculateDynamicScore(solvedChallenge.InitialValue, solvedChallenge.MinValue, solvedChallenge.Decay, solveCount)
 			if newPoints != solvedChallenge.Points {
-				if err = uc.txRepo.UpdateChallengePointsTx(ctx, tx, challengeID, newPoints); err != nil {
-					return fmt.Errorf("UpdateChallengePointsTx: %w", err)
+				if err2 = uc.txRepo.UpdateChallengePointsTx(ctx, tx, sc.challengeID, newPoints); err2 != nil {
+					return fmt.Errorf("UpdateChallengePointsTx: %w", err2)
 				}
 				solvedChallenge.Points = newPoints
 			}
 		}
-
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, entityError.ErrAlreadySolved) {
-			return true, entityError.ErrAlreadySolved
-		}
-		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - Transaction: %w", err)
+		return nil, 0, err
 	}
-	uc.redis.Del(ctx, redisKeys.KeyScoreboard)
+	return solvedChallenge, solveCount, nil
+}
 
-	if uc.hub != nil && solvedChallenge != nil {
-		payload := websocket.ScoreboardUpdate{
-			Type:      websocket.EventTypeSolve,
-			TeamID:    teamID.String(),
-			Challenge: solvedChallenge.Title,
-			Points:    solvedChallenge.Points,
-			Timestamp: time.Now(),
-		}
-		uc.hub.BroadcastEvent(websocket.Event{
-			Type:      "scoreboard_update",
-			Payload:   payload,
-			Timestamp: time.Now(),
-		})
-
-		if solveCount == 1 {
-			fbPayload := websocket.ScoreboardUpdate{
-				Type:      websocket.EventTypeFirstBlood,
-				TeamID:    teamID.String(),
-				Challenge: solvedChallenge.Title,
-				Points:    solvedChallenge.Points,
-				Timestamp: time.Now(),
-			}
-			uc.hub.BroadcastEvent(websocket.Event{
-				Type:      "scoreboard_update",
-				Payload:   fbPayload,
-				Timestamp: time.Now(),
-			})
-		}
+func (uc *ChallengeUseCase) submitInvalidateCache(ctx context.Context) {
+	if uc.redis != nil {
+		uc.redis.Del(ctx, redisKeys.KeyScoreboard)
 	}
+}
 
-	return true, nil
+func (uc *ChallengeUseCase) submitNotifySolve(teamID uuid.UUID, challenge *entity.Challenge, isFirstBlood bool) {
+	if uc.broadcaster != nil && challenge != nil {
+		uc.broadcaster.NotifySolve(teamID, challenge.Title, challenge.Points, isFirstBlood)
+	}
 }

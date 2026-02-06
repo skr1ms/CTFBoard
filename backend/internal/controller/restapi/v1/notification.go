@@ -21,7 +21,7 @@ func (h *Server) GetNotifications(w http.ResponseWriter, r *http.Request, params
 		perPage = *params.PerPage
 	}
 
-	notifs, err := h.notifUC.GetGlobal(r.Context(), page, perPage)
+	notifs, err := h.admin.NotifUC.GetGlobal(r.Context(), page, perPage)
 	if h.OnError(w, r, err, "GetNotifications", "GetGlobal") {
 		return
 	}
@@ -51,7 +51,7 @@ func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, pa
 		perPage = *params.PerPage
 	}
 
-	userNotifs, err := h.notifUC.GetUserNotifications(r.Context(), userID, page, perPage)
+	userNotifs, err := h.admin.NotifUC.GetUserNotifications(r.Context(), userID, page, perPage)
 	if h.OnError(w, r, err, "GetUserNotifications", "GetUserNotifications") {
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if h.OnError(w, r, h.notifUC.MarkAsRead(r.Context(), notifID, userID), "PatchUserNotificationsIDRead", "MarkAsRead") {
+	if h.OnError(w, r, h.admin.NotifUC.MarkAsRead(r.Context(), notifID, userID), "PatchUserNotificationsIDRead", "MarkAsRead") {
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Req
 // Create global notification
 // (POST /admin/notifications)
 func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotifications")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotifications")
 	if !ok {
 		return
 	}
@@ -103,7 +103,7 @@ func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) 
 		isPinned = *req.IsPinned
 	}
 
-	notif, err := h.notifUC.CreateGlobal(r.Context(), title, content, notifType, isPinned)
+	notif, err := h.admin.NotifUC.CreateGlobal(r.Context(), title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PostAdminNotifications", "CreateGlobal") {
 		return
 	}
@@ -119,7 +119,7 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateUserNotificationRequest](w, r, h.validator, h.logger, "PostAdminNotificationsUserUserID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateUserNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotificationsUserUserID")
 	if !ok {
 		return
 	}
@@ -131,7 +131,7 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 		notifType = entity.NotificationType(*req.Type)
 	}
 
-	userNotif, err := h.notifUC.CreatePersonal(r.Context(), userID, title, content, notifType)
+	userNotif, err := h.admin.NotifUC.CreatePersonal(r.Context(), userID, title, content, notifType)
 	if h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "CreatePersonal") {
 		return
 	}
@@ -147,7 +147,7 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateNotificationRequest](w, r, h.validator, h.logger, "PutAdminNotificationsID")
+	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminNotificationsID")
 	if !ok {
 		return
 	}
@@ -163,7 +163,7 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 		isPinned = *req.IsPinned
 	}
 
-	notif, err := h.notifUC.Update(r.Context(), notifID, title, content, notifType, isPinned)
+	notif, err := h.admin.NotifUC.Update(r.Context(), notifID, title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PutAdminNotificationsID", "Update") {
 		return
 	}
@@ -179,7 +179,7 @@ func (h *Server) DeleteAdminNotificationsID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if h.OnError(w, r, h.notifUC.Delete(r.Context(), notifID), "DeleteAdminNotificationsID", "Delete") {
+	if h.OnError(w, r, h.admin.NotifUC.Delete(r.Context(), notifID), "DeleteAdminNotificationsID", "Delete") {
 		return
 	}
 

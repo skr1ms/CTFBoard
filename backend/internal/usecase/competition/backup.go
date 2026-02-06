@@ -481,7 +481,7 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 
 const maxConcurrentFileUploads = 5
 
-//nolint:gocognit
+//nolint:gocognit,gocyclo,funlen
 func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reader, files []entity.File, opts entity.ImportOptions) []string {
 	var mu sync.Mutex
 	var errors []string
@@ -517,7 +517,7 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 				defer func() { <-sem }()
 			case <-ctx.Done():
 				mu.Lock()
-				errors = append(errors, fmt.Sprintf("cancelled: %s", zf.Name))
+				errors = append(errors, fmt.Sprintf("canceled: %s", zf.Name))
 				mu.Unlock()
 				return
 			}

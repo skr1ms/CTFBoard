@@ -17,7 +17,7 @@ func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.apiTokenUC.List(r.Context(), userID)
+	tokens, err := h.user.APITokenUC.List(r.Context(), userID)
 	if h.OnError(w, r, err, "GetUserTokens", "List") {
 		return
 	}
@@ -38,14 +38,14 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateAPITokenRequest](
-		w, r, h.validator, h.logger, "PostUserTokens",
+		w, r, h.infra.Validator, h.infra.Logger, "PostUserTokens",
 	)
 	if !ok {
 		return
 	}
 
 	description, expiresAt := request.CreateAPITokenParams(&req)
-	plaintext, token, err := h.apiTokenUC.Create(r.Context(), userID, description, expiresAt)
+	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), userID, description, expiresAt)
 	if h.OnError(w, r, err, "PostUserTokens", "Create") {
 		return
 	}
@@ -66,7 +66,7 @@ func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	if h.OnError(w, r, h.apiTokenUC.Delete(r.Context(), tokenID, userID), "DeleteUserTokensID", "Delete") {
+	if h.OnError(w, r, h.user.APITokenUC.Delete(r.Context(), tokenID, userID), "DeleteUserTokensID", "Delete") {
 		return
 	}
 

@@ -15,7 +15,7 @@ func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http
 	if !ok {
 		return
 	}
-	list, err := h.commentUC.GetByChallengeID(r.Context(), cid)
+	list, err := h.challenge.CommentUC.GetByChallengeID(r.Context(), cid)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDComments", "GetByChallengeID") {
 		return
 	}
@@ -33,11 +33,11 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCommentRequest](w, r, h.validator, h.logger, "PostChallengesChallengeIDComments")
+	req, ok := helper.DecodeAndValidate[openapi.RequestCreateCommentRequest](w, r, h.infra.Validator, h.infra.Logger, "PostChallengesChallengeIDComments")
 	if !ok {
 		return
 	}
-	comment, err := h.commentUC.Create(r.Context(), user.ID, cid, req.Content)
+	comment, err := h.challenge.CommentUC.Create(r.Context(), user.ID, cid, req.Content)
 	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Create") {
 		return
 	}
@@ -55,7 +55,7 @@ func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, id str
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.commentUC.Delete(r.Context(), commentID, user.ID), "DeleteCommentsID", "Delete") {
+	if h.OnError(w, r, h.challenge.CommentUC.Delete(r.Context(), commentID, user.ID), "DeleteCommentsID", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)

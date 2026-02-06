@@ -23,7 +23,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 		IncludeAwards: params.IncludeAwards == nil || *params.IncludeAwards,
 	}
 
-	data, err := h.backupUC.Export(r.Context(), opts)
+	data, err := h.admin.BackupUC.Export(r.Context(), opts)
 	if h.OnError(w, r, err, "GetAdminExport", "Export") {
 		return
 	}
@@ -34,7 +34,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetAdminExport - encode")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExport - encode")
 	}
 }
 
@@ -51,7 +51,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 		IncludeFiles:  includeFiles,
 	}
 
-	rc, err := h.backupUC.ExportZIP(r.Context(), opts)
+	rc, err := h.admin.BackupUC.ExportZIP(r.Context(), opts)
 	if h.OnError(w, r, err, "GetAdminExportZip", "ExportZIP") {
 		return
 	}
@@ -63,7 +63,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	w.WriteHeader(http.StatusOK)
 
 	if _, err := io.Copy(w, rc); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - GetAdminExportZip - copy")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExportZip - copy")
 	}
 }
 
@@ -98,7 +98,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reader := bytes.NewReader(data)
-	result, err := h.backupUC.ImportZIP(r.Context(), reader, header.Size, opts)
+	result, err := h.admin.BackupUC.ImportZIP(r.Context(), reader, header.Size, opts)
 	if h.OnError(w, r, err, "PostAdminImport", "ImportZIP") {
 		return
 	}

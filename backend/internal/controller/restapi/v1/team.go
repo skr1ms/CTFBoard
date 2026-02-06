@@ -15,7 +15,7 @@ import (
 // (POST /teams)
 func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTeamRequest](
-		w, r, h.validator, h.logger, "PostTeams",
+		w, r, h.infra.Validator, h.infra.Logger, "PostTeams",
 	)
 	if !ok {
 		return
@@ -27,19 +27,40 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name, confirmReset := request.CreateTeamRequestToParams(&req)
-	team, err := h.teamUC.Create(r.Context(), name, user.ID, false, confirmReset)
-	if h.OnError(w, r, err, "PostTeams", "Create") {
+	if confirmReset {
+		team, err := h.team.TeamUC.ConfirmCreate(r.Context(), name, user.ID, false)
+		if h.OnError(w, r, err, "PostTeams", "ConfirmCreate") {
+			return
+		}
+		helper.RenderCreated(w, r, response.FromTeam(team))
 		return
 	}
-
-	helper.RenderCreated(w, r, response.FromTeam(team))
+	result, err := h.team.TeamUC.TryCreate(r.Context(), name, user.ID, false)
+	if h.OnError(w, r, err, "PostTeams", "TryCreate") {
+		return
+	}
+	if result.RequiresConfirm {
+		affected := (*response.AffectedData)(nil)
+		if result.AffectedData != nil {
+			affected = &response.AffectedData{
+				SolveCount: result.AffectedData.SolveCount,
+				Points:     result.AffectedData.Points,
+			}
+		}
+		helper.RenderOK(w, r, response.ConfirmationRequired{
+			Reason:       string(result.ConfirmationReason),
+			AffectedData: affected,
+		})
+		return
+	}
+	helper.RenderCreated(w, r, response.FromTeam(result.Team))
 }
 
 // Join team
 // (POST /teams/join)
 func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestJoinTeamRequest](
-		w, r, h.validator, h.logger, "PostTeamsJoin",
+		w, r, h.infra.Validator, h.infra.Logger, "PostTeamsJoin",
 	)
 	if !ok {
 		return
@@ -56,7 +77,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.teamUC.Join(r.Context(), inviteTokenuuid, user.ID, confirmReset)
+	team, err := h.team.TeamUC.Join(r.Context(), inviteTokenuuid, user.ID, confirmReset)
 	if h.OnError(w, r, err, "PostTeamsJoin", "Join") {
 		return
 	}
@@ -72,7 +93,7 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.OnError(w, r, h.teamUC.Leave(r.Context(), user.ID), "PostTeamsLeave", "Leave") {
+	if h.OnError(w, r, h.team.TeamUC.Leave(r.Context(), user.ID), "PostTeamsLeave", "Leave") {
 		return
 	}
 
@@ -87,7 +108,7 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.OnError(w, r, h.teamUC.DisbandTeam(r.Context(), user.ID), "DeleteTeamsMe", "DisbandTeam") {
+	if h.OnError(w, r, h.team.TeamUC.DisbandTeam(r.Context(), user.ID), "DeleteTeamsMe", "DisbandTeam") {
 		return
 	}
 
@@ -107,7 +128,7 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	if h.OnError(w, r, h.teamUC.KickMember(r.Context(), user.ID, targetuserID), "DeleteTeamsMembersID", "KickMember") {
+	if h.OnError(w, r, h.team.TeamUC.KickMember(r.Context(), user.ID, targetuserID), "DeleteTeamsMembersID", "KickMember") {
 		return
 	}
 
@@ -122,7 +143,7 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, members, err := h.teamUC.GetMyTeam(r.Context(), user.ID)
+	team, members, err := h.team.TeamUC.GetMyTeam(r.Context(), user.ID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrTeamNotFound) {
 			helper.RenderError(w, r, http.StatusNotFound, "user is not in a team")
@@ -145,14 +166,14 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateTeamRequest](
-		w, r, h.validator, h.logger, "PostTeamsSolo",
+		w, r, h.infra.Validator, h.infra.Logger, "PostTeamsSolo",
 	)
 	if !ok {
 		return
 	}
 
 	_, confirmReset := request.CreateTeamRequestToParams(&req)
-	team, err := h.teamUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
+	team, err := h.team.TeamUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
 	if h.OnError(w, r, err, "PostTeamsSolo", "CreateSoloTeam") {
 		return
 	}
@@ -164,7 +185,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 // (POST /teams/transfer-captain)
 func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestTransferCaptainRequest](
-		w, r, h.validator, h.logger, "PostTeamsTransferCaptain",
+		w, r, h.infra.Validator, h.infra.Logger, "PostTeamsTransferCaptain",
 	)
 	if !ok {
 		return
@@ -181,7 +202,7 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if h.OnError(w, r, h.teamUC.TransferCaptain(r.Context(), user.ID, newCaptainuuid), "PostTeamsTransferCaptain", "TransferCaptain") {
+	if h.OnError(w, r, h.team.TeamUC.TransferCaptain(r.Context(), user.ID, newCaptainuuid), "PostTeamsTransferCaptain", "TransferCaptain") {
 		return
 	}
 
@@ -196,7 +217,7 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	team, err := h.teamUC.GetByID(r.Context(), teamuuid)
+	team, err := h.team.TeamUC.GetByID(r.Context(), teamuuid)
 	if h.OnError(w, r, err, "GetTeamsID", "GetByID") {
 		return
 	}
@@ -213,15 +234,15 @@ func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID 
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestBanTeamRequest](
-		w, r, h.validator, h.logger, "PostAdminTeamsIDBan",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminTeamsIDBan",
 	)
 	if !ok {
 		return
 	}
 
 	reason := request.BanTeamRequestToReason(&req)
-	if err := h.teamUC.BanTeam(r.Context(), teamuuid, reason); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminTeamsIDBan")
+	if err := h.team.TeamUC.BanTeam(r.Context(), teamuuid, reason); err != nil {
+		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAdminTeamsIDBan")
 		helper.HandleError(w, r, err)
 		return
 	}
@@ -237,7 +258,7 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	if h.OnError(w, r, h.teamUC.UnbanTeam(r.Context(), teamuuid), "DeleteAdminTeamsIDBan", "UnbanTeam") {
+	if h.OnError(w, r, h.team.TeamUC.UnbanTeam(r.Context(), teamuuid), "DeleteAdminTeamsIDBan", "UnbanTeam") {
 		return
 	}
 
@@ -253,14 +274,14 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestSetHiddenRequest](
-		w, r, h.validator, h.logger, "PatchAdminTeamsIDHidden",
+		w, r, h.infra.Validator, h.infra.Logger, "PatchAdminTeamsIDHidden",
 	)
 	if !ok {
 		return
 	}
 
 	hidden := request.SetHiddenRequestToHidden(&req)
-	if h.OnError(w, r, h.teamUC.SetHidden(r.Context(), teamuuid, hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
+	if h.OnError(w, r, h.team.TeamUC.SetHidden(r.Context(), teamuuid, hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
 		return
 	}
 

@@ -12,7 +12,7 @@ import (
 // Get all configs (admin)
 // (GET /admin/configs)
 func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
-	list, err := h.dynamicConfigUC.GetAll(r.Context())
+	list, err := h.admin.DynamicConfigUC.GetAll(r.Context())
 	if h.OnError(w, r, err, "GetAdminConfigs", "GetAll") {
 		return
 	}
@@ -26,7 +26,7 @@ func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
 // Get config by key (admin)
 // (GET /admin/configs/{key})
 func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	cfg, err := h.dynamicConfigUC.Get(r.Context(), key)
+	cfg, err := h.admin.DynamicConfigUC.Get(r.Context(), key)
 	if h.OnError(w, r, err, "GetAdminConfigsKey", "Get") {
 		return
 	}
@@ -36,7 +36,7 @@ func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 // Set config (admin)
 // (PUT /admin/configs/{key})
 func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestSetConfigRequest](w, r, h.validator, h.logger, "PutAdminConfigsKey")
+	req, ok := helper.DecodeAndValidate[openapi.RequestSetConfigRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminConfigsKey")
 	if !ok {
 		return
 	}
@@ -50,7 +50,7 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	if req.Description != nil {
 		description = *req.Description
 	}
-	if h.OnError(w, r, h.dynamicConfigUC.Set(r.Context(), key, req.Value, description, valueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
+	if h.OnError(w, r, h.admin.DynamicConfigUC.Set(r.Context(), key, req.Value, description, valueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
 		return
 	}
 	helper.RenderOK(w, r, map[string]string{"message": "config updated"})
@@ -64,7 +64,7 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 		return
 	}
 	clientIP := helper.GetClientIP(r)
-	if h.OnError(w, r, h.dynamicConfigUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
+	if h.OnError(w, r, h.admin.DynamicConfigUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)
@@ -73,7 +73,7 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 // Get app settings
 // (GET /admin/settings)
 func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
-	s, err := h.settingsUC.Get(r.Context())
+	s, err := h.admin.SettingsUC.Get(r.Context())
 	if h.OnError(w, r, err, "GetAdminSettings", "Get") {
 		return
 	}
@@ -85,7 +85,7 @@ func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 // (PUT /admin/settings)
 func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateAppSettingsRequest](
-		w, r, h.validator, h.logger, "UpdateAppSettings",
+		w, r, h.infra.Validator, h.infra.Logger, "UpdateAppSettings",
 	)
 	if !ok {
 		return
@@ -99,7 +99,7 @@ func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 	clientIP := helper.GetClientIP(r)
 	s := request.UpdateAppSettingsRequestToEntity(&req, 1)
 
-	if h.OnError(w, r, h.settingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
+	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return
 	}
 

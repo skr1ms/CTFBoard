@@ -17,7 +17,7 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 		u := *params.Bracket
 		bracketID = &u
 	}
-	entries, err := h.solveUC.GetScoreboard(r.Context(), bracketID)
+	entries, err := h.comp.SolveUC.GetScoreboard(r.Context(), bracketID)
 	if h.OnError(w, r, err, "GetScoreboard", "GetScoreboard") {
 		return
 	}
@@ -32,7 +32,7 @@ func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	entry, err := h.solveUC.GetFirstBlood(r.Context(), challengeuuid)
+	entry, err := h.comp.SolveUC.GetFirstBlood(r.Context(), challengeuuid)
 	if h.OnError(w, r, err, "GetChallengesIDFirstBlood", "GetFirstBlood") {
 		return
 	}

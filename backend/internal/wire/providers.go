@@ -28,9 +28,9 @@ import (
 	notification "github.com/skr1ms/CTFBoard/internal/usecase/notification"
 	page "github.com/skr1ms/CTFBoard/internal/usecase/page"
 	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
-	field "github.com/skr1ms/CTFBoard/internal/usecase/settings"
 	team "github.com/skr1ms/CTFBoard/internal/usecase/team"
 	user "github.com/skr1ms/CTFBoard/internal/usecase/user"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
@@ -149,7 +149,7 @@ func ProvideUserUseCase(
 	solveRepo repo.SolveRepository,
 	txRepo repo.TxRepository,
 	jwtService *jwt.JWTService,
-	fieldValidator *field.FieldValidator,
+	fieldValidator *settings.FieldValidator,
 	fieldValueRepo repo.FieldValueRepository,
 ) *user.UserUseCase {
 	return user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService, fieldValidator, fieldValueRepo)
@@ -181,11 +181,22 @@ func ProvideChallengeUseCase(
 	compRepo repo.CompetitionRepository,
 	teamRepo repo.TeamRepository,
 	redis *redis.Client,
-	hub *pkgWS.Hub,
+	broadcaster *pkgWS.Broadcaster,
 	auditLogRepo repo.AuditLogRepository,
 	cryptoService crypto.Service,
 ) *challenge.ChallengeUseCase {
-	return challenge.NewChallengeUseCase(challengeRepo, tagRepo, solveRepo, txRepo, compRepo, teamRepo, redis, hub, auditLogRepo, cryptoService)
+	return challenge.NewChallengeUseCase(
+		challengeRepo,
+		challenge.WithTagRepo(tagRepo),
+		challenge.WithSolveRepo(solveRepo),
+		challenge.WithTxRepo(txRepo),
+		challenge.WithCompetitionRepo(compRepo),
+		challenge.WithTeamRepo(teamRepo),
+		challenge.WithRedis(redis),
+		challenge.WithBroadcaster(broadcaster),
+		challenge.WithAuditLogRepo(auditLogRepo),
+		challenge.WithCrypto(cryptoService),
+	)
 }
 
 func ProvideHintUseCase(
@@ -214,17 +225,25 @@ func ProvideSolveUseCase(
 	userRepo repo.UserRepository,
 	teamRepo repo.TeamRepository,
 	txRepo repo.TxRepository,
-	redis *redis.Client,
-	hub *pkgWS.Hub,
+	c *cache.Cache,
+	broadcaster *pkgWS.Broadcaster,
 ) *competition.SolveUseCase {
-	return competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, redis, hub)
+	return competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, c, broadcaster)
+}
+
+func ProvideBroadcaster(hub *pkgWS.Hub) *pkgWS.Broadcaster {
+	return pkgWS.NewBroadcaster(hub)
+}
+
+func ProvideCache(r *redis.Client) *cache.Cache {
+	return cache.New(r)
 }
 
 func ProvideStatisticsUseCase(
 	statsRepo repo.StatisticsRepository,
-	redis *redis.Client,
+	c *cache.Cache,
 ) *competition.StatisticsUseCase {
-	return competition.NewStatisticsUseCase(statsRepo, redis)
+	return competition.NewStatisticsUseCase(statsRepo, c)
 }
 
 func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository) *competition.SubmissionUseCase {
@@ -235,12 +254,12 @@ func ProvideTagUseCase(tagRepo repo.TagRepository) *challenge.TagUseCase {
 	return challenge.NewTagUseCase(tagRepo)
 }
 
-func ProvideFieldUseCase(fieldRepo repo.FieldRepository) *field.FieldUseCase {
-	return field.NewFieldUseCase(fieldRepo)
+func ProvideFieldUseCase(fieldRepo repo.FieldRepository) *settings.FieldUseCase {
+	return settings.NewFieldUseCase(fieldRepo)
 }
 
-func ProvideFieldValidator(fieldRepo repo.FieldRepository) *field.FieldValidator {
-	return field.NewFieldValidator(fieldRepo)
+func ProvideFieldValidator(fieldRepo repo.FieldRepository) *settings.FieldValidator {
+	return settings.NewFieldValidator(fieldRepo)
 }
 
 func ProvideNotificationUseCase(notifRepo repo.NotificationRepository) *notification.NotificationUseCase {
@@ -349,7 +368,7 @@ func ProvideServerDeps(
 	statsUC *competition.StatisticsUseCase,
 	submissionUC *competition.SubmissionUseCase,
 	tagUC *challenge.TagUseCase,
-	fieldUC *field.FieldUseCase,
+	fieldUC *settings.FieldUseCase,
 	pageUC *page.PageUseCase,
 	bracketUC *competition.BracketUseCase,
 	ratingUC *competition.RatingUseCase,
@@ -366,33 +385,45 @@ func ProvideServerDeps(
 	l logger.Logger,
 ) *helper.ServerDeps {
 	return &helper.ServerDeps{
-		UserUC:          userUC,
-		ChallengeUC:     challengeUC,
-		SolveUC:         solveUC,
-		TeamUC:          teamUC,
-		CompetitionUC:   competitionUC,
-		HintUC:          hintUC,
-		EmailUC:         emailUC,
-		FileUC:          fileUC,
-		AwardUC:         awardUC,
-		StatsUC:         statsUC,
-		SubmissionUC:    submissionUC,
-		TagUC:           tagUC,
-		FieldUC:         fieldUC,
-		PageUC:          pageUC,
-		BracketUC:       bracketUC,
-		RatingUC:        ratingUC,
-		NotifUC:         notifUC,
-		APITokenUC:      apiTokenUC,
-		BackupUC:        backupUC,
-		SettingsUC:      settingsUC,
-		DynamicConfigUC: dynamicConfigUC,
-		CommentUC:       commentUC,
-		JWTService:      jwtService,
-		RedisClient:     redisClient,
-		WSController:    wsCtrl,
-		Validator:       v,
-		Logger:          l,
+		Challenge: helper.ChallengeDeps{
+			ChallengeUC: challengeUC,
+			HintUC:      hintUC,
+			FileUC:      fileUC,
+			TagUC:       tagUC,
+			CommentUC:   commentUC,
+		},
+		Team: helper.TeamDeps{
+			TeamUC:  teamUC,
+			AwardUC: awardUC,
+		},
+		User: helper.UserDeps{
+			UserUC:     userUC,
+			EmailUC:    emailUC,
+			APITokenUC: apiTokenUC,
+		},
+		Comp: helper.CompetitionDeps{
+			CompetitionUC: competitionUC,
+			SolveUC:       solveUC,
+			StatsUC:       statsUC,
+			SubmissionUC:  submissionUC,
+			BracketUC:     bracketUC,
+			RatingUC:      ratingUC,
+		},
+		Admin: helper.AdminDeps{
+			BackupUC:        backupUC,
+			SettingsUC:      settingsUC,
+			DynamicConfigUC: dynamicConfigUC,
+			FieldUC:         fieldUC,
+			PageUC:          pageUC,
+			NotifUC:         notifUC,
+		},
+		Infra: helper.InfraDeps{
+			JWTService:   jwtService,
+			RedisClient:  redisClient,
+			WSController: wsCtrl,
+			Validator:    v,
+			Logger:       l,
+		},
 	}
 }
 

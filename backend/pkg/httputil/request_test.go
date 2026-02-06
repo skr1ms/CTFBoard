@@ -15,10 +15,11 @@ import (
 
 func TestDecodeJSON_Success(t *testing.T) {
 	body := map[string]string{"key": "value"}
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(body)
+	require.NoError(t, err)
 	r := httptest.NewRequest("POST", "/", bytes.NewReader(jsonBody))
 	var result map[string]string
-	err := DecodeJSON(r, &result)
+	err = DecodeJSON(r, &result)
 	require.NoError(t, err)
 	assert.Equal(t, "value", result["key"])
 }
@@ -35,7 +36,8 @@ func TestDecodeAndValidate_Success(t *testing.T) {
 		Name string `validate:"not_empty"`
 	}
 	body := Req{Name: "test"}
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(body)
+	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader(jsonBody))
 	v := validator.New()
@@ -62,7 +64,8 @@ func TestDecodeAndValidate_ValidationError(t *testing.T) {
 		Name string `validate:"not_empty"`
 	}
 	body := Req{Name: ""}
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(body)
+	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader(jsonBody))
 	v := validator.New()

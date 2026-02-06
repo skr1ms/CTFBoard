@@ -1,0 +1,189 @@
+package persistent
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/skr1ms/CTFBoard/internal/entity"
+	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
+)
+
+type TxTeamRepo struct {
+	base *TxBase
+}
+
+func (r *TxTeamRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error {
+	team.CreatedAt = time.Now()
+	id, err := r.base.q.WithTx(tx).CreateTeamReturningID(ctx, sqlc.CreateTeamReturningIDParams{
+		Name:          team.Name,
+		InviteToken:   team.InviteToken,
+		CaptainID:     team.CaptainID,
+		IsSolo:        &team.IsSolo,
+		IsAutoCreated: &team.IsAutoCreated,
+		CreatedAt:     &team.CreatedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - CreateTeamTx: %w", err)
+	}
+	team.ID = id
+	return nil
+}
+
+func (r *TxTeamRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error) {
+	row, err := r.base.q.WithTx(tx).GetTeamByName(ctx, name)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxTeamRepo - GetTeamByNameTx: %w", err)
+	}
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+}
+
+func (r *TxTeamRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
+	row, err := r.base.q.WithTx(tx).GetTeamByInviteToken(ctx, inviteToken)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxTeamRepo - GetTeamByInviteTokenTx: %w", err)
+	}
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+}
+
+func (r *TxTeamRepo) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error) {
+	rows, err := r.base.q.WithTx(tx).ListUsersByTeamID(ctx, &teamID)
+	if err != nil {
+		return nil, fmt.Errorf("TxTeamRepo - GetUsersByTeamIDTx: %w", err)
+	}
+	out := make([]*entity.User, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, toEntityUser(u))
+	}
+	return out, nil
+}
+
+func (r *TxTeamRepo) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+	query := squirrel.Update("teams").
+		Set("deleted_at", time.Now()).
+		Where(squirrel.Eq{"id": teamID}).
+		Where(squirrel.Eq{"deleted_at": nil}).
+		PlaceholderFormat(squirrel.Dollar)
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - DeleteTeamTx - BuildQuery: %w", err)
+	}
+	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - DeleteTeamTx - Exec: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return entityError.ErrTeamNotFound
+	}
+	return nil
+}
+
+func (r *TxTeamRepo) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID, newCaptainID uuid.UUID) error {
+	query := squirrel.Update("teams").
+		Set("captain_id", newCaptainID).
+		Where(squirrel.Eq{"id": teamID}).
+		PlaceholderFormat(squirrel.Dollar)
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - UpdateTeamCaptainTx - BuildQuery: %w", err)
+	}
+	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - UpdateTeamCaptainTx - Exec: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return entityError.ErrTeamNotFound
+	}
+	return nil
+}
+
+func (r *TxTeamRepo) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+	_, err := r.base.q.WithTx(tx).SoftDeleteTeam(ctx, teamID)
+	if err != nil {
+		if isNoRows(err) {
+			return entityError.ErrTeamNotFound
+		}
+		return fmt.Errorf("TxTeamRepo - SoftDeleteTeamTx: %w", err)
+	}
+	return nil
+}
+
+func (r *TxTeamRepo) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error {
+	log.ID = uuid.New()
+	log.CreatedAt = time.Now()
+	detailsJSON := []byte("{}")
+	if log.Details != nil {
+		var err error
+		detailsJSON, err = json.Marshal(log.Details)
+		if err != nil {
+			return fmt.Errorf("TxTeamRepo - CreateTeamAuditLogTx - MarshalDetails: %w", err)
+		}
+	}
+	query := squirrel.Insert("team_audit_log").
+		Columns("id", "team_id", "user_id", "action", "details", "created_at").
+		Values(log.ID, log.TeamID, log.UserID, log.Action, detailsJSON, log.CreatedAt).
+		PlaceholderFormat(squirrel.Dollar)
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - CreateTeamAuditLogTx - BuildQuery: %w", err)
+	}
+	_, err = tx.Exec(ctx, sqlQuery, args...)
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - CreateTeamAuditLogTx - Exec: %w", err)
+	}
+	return nil
+}
+
+func (r *TxTeamRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+	query := squirrel.Select("id").
+		From("teams").
+		Where(squirrel.Eq{"id": teamID}).
+		Suffix("FOR UPDATE").
+		PlaceholderFormat(squirrel.Dollar)
+	sqlQuery, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("TxTeamRepo - LockTeamTx - BuildQuery: %w", err)
+	}
+	var id uuid.UUID
+	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&id)
+	if err != nil {
+		if isNoRows(err) {
+			return entityError.ErrTeamNotFound
+		}
+		return fmt.Errorf("TxTeamRepo - LockTeamTx - Scan: %w", err)
+	}
+	return nil
+}
+
+func (r *TxTeamRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error) {
+	row, err := r.base.q.WithTx(tx).GetTeamByID(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxTeamRepo - GetTeamByIDTx: %w", err)
+	}
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+}
+
+func (r *TxTeamRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error) {
+	row, err := r.base.q.WithTx(tx).GetSoloTeamByUserID(ctx, userID)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrTeamNotFound
+		}
+		return nil, fmt.Errorf("TxTeamRepo - GetSoloTeamByUserIDTx: %w", err)
+	}
+	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+}

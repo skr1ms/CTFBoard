@@ -22,7 +22,7 @@ func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	hints, err := h.hintUC.GetByChallengeID(r.Context(), challengeuuid, user.TeamID)
+	hints, err := h.challenge.HintUC.GetByChallengeID(r.Context(), challengeuuid, user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDHints", "GetByChallengeID") {
 		return
 	}
@@ -48,7 +48,7 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 		return
 	}
 
-	hint, err := h.hintUC.UnlockHint(r.Context(), *user.TeamID, hintuuid)
+	hint, err := h.challenge.HintUC.UnlockHint(r.Context(), *user.TeamID, hintuuid)
 	if h.OnError(w, r, err, "PostChallengesChallengeIDHintsHintIDUnlock", "UnlockHint") {
 		return
 	}
@@ -65,14 +65,14 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestCreateHintRequest](
-		w, r, h.validator, h.logger, "PostAdminChallengesChallengeIDHints",
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminChallengesChallengeIDHints",
 	)
 	if !ok {
 		return
 	}
 
 	content, cost, orderIndex := request.CreateHintRequestToParams(&req)
-	hint, err := h.hintUC.Create(r.Context(), challengeuuid, content, cost, orderIndex)
+	hint, err := h.challenge.HintUC.Create(r.Context(), challengeuuid, content, cost, orderIndex)
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDHints", "Create") {
 		return
 	}
@@ -89,14 +89,14 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateHintRequest](
-		w, r, h.validator, h.logger, "PutAdminHintsID",
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminHintsID",
 	)
 	if !ok {
 		return
 	}
 
 	content, cost, orderIndex := request.UpdateHintRequestToParams(&req)
-	hint, err := h.hintUC.Update(r.Context(), hintuuid, content, cost, orderIndex)
+	hint, err := h.challenge.HintUC.Update(r.Context(), hintuuid, content, cost, orderIndex)
 	if h.OnError(w, r, err, "PutAdminHintsID", "Update") {
 		return
 	}
@@ -112,7 +112,7 @@ func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	if h.OnError(w, r, h.hintUC.Delete(r.Context(), hintuuid), "DeleteAdminHintsID", "Delete") {
+	if h.OnError(w, r, h.challenge.HintUC.Delete(r.Context(), hintuuid), "DeleteAdminHintsID", "Delete") {
 		return
 	}
 

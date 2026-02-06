@@ -12,6 +12,7 @@ import (
 )
 
 // Full E2E: admin setup, challenges, teams, solves, scoreboard, statistics, awards, kick/transfer, hidden team.
+//
 //nolint:funlen
 func TestFullCTFFlow(t *testing.T) {
 	t.Helper()
@@ -295,6 +296,7 @@ func TestFullCTFFlow(t *testing.T) {
 }
 
 // PUT /admin/settings: invalid values (submit_limit_per_user 0, verify_ttl out of range, etc.) return 400.
+//
 //nolint:funlen
 func TestSettingsValidationErrors(t *testing.T) {
 	t.Helper()

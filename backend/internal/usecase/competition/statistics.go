@@ -2,76 +2,32 @@ package competition
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	"golang.org/x/sync/singleflight"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 )
 
 type StatisticsUseCase struct {
 	statsRepo repo.StatisticsRepository
-	redis     *redis.Client
-	sf        singleflight.Group
+	cache     *cache.Cache
 }
 
 func NewStatisticsUseCase(
 	statsRepo repo.StatisticsRepository,
-	redis *redis.Client,
+	cache *cache.Cache,
 ) *StatisticsUseCase {
 	return &StatisticsUseCase{
 		statsRepo: statsRepo,
-		redis:     redis,
+		cache:     cache,
 	}
-}
-
-func getWithCache[T any](
-	ctx context.Context,
-	uc *StatisticsUseCase,
-	key string,
-	ttl time.Duration,
-	fetchFn func() (T, error),
-) (T, error) {
-	var result T
-
-	val, err := uc.redis.Get(ctx, key).Result()
-	if err == nil {
-		if err := json.Unmarshal([]byte(val), &result); err == nil {
-			return result, nil
-		}
-	}
-
-	v, err, _ := uc.sf.Do(key, func() (any, error) {
-		data, err := fetchFn()
-		if err != nil {
-			return nil, err
-		}
-
-		if bytes, err := json.Marshal(data); err == nil {
-			uc.redis.Set(ctx, key, bytes, ttl)
-		}
-		return data, nil
-	})
-
-	if err != nil {
-		var zero T
-		return zero, err
-	}
-
-	typed, ok := v.(T)
-	if !ok {
-		var zero T
-		return zero, fmt.Errorf("StatisticsUseCase - getWithCache: unexpected type")
-	}
-	return typed, nil
 }
 
 func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error) {
-	return getWithCache(ctx, uc, "stats:general", 5*time.Minute, func() (*entity.GeneralStats, error) {
+	return cache.GetOrLoad(uc.cache, ctx, "stats:general", 5*time.Minute, func() (*entity.GeneralStats, error) {
 		stats, err := uc.statsRepo.GetGeneralStats(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetGeneralStats: %w", err)
@@ -81,7 +37,7 @@ func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context) (*entity.Gener
 }
 
 func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error) {
-	return getWithCache(ctx, uc, "stats:challenges", 5*time.Minute, func() ([]*entity.ChallengeStats, error) {
+	return cache.GetOrLoad(uc.cache, ctx, "stats:challenges", 5*time.Minute, func() ([]*entity.ChallengeStats, error) {
 		stats, err := uc.statsRepo.GetChallengeStats(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeStats: %w", err)
@@ -92,7 +48,7 @@ func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context) ([]*entity.C
 
 func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challengeID string) (*entity.ChallengeDetailStats, error) {
 	key := fmt.Sprintf("stats:challenge:%s", challengeID)
-	return getWithCache(ctx, uc, key, 1*time.Minute, func() (*entity.ChallengeDetailStats, error) {
+	return cache.GetOrLoad(uc.cache, ctx, key, 1*time.Minute, func() (*entity.ChallengeDetailStats, error) {
 		id, err := uuid.Parse(challengeID)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeDetailStats: invalid id: %w", err)
@@ -114,7 +70,7 @@ func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int
 
 	key := fmt.Sprintf("stats:history:%d", limit)
 
-	return getWithCache(ctx, uc, key, 30*time.Second, func() ([]*entity.ScoreboardHistoryEntry, error) {
+	return cache.GetOrLoad(uc.cache, ctx, key, 30*time.Second, func() ([]*entity.ScoreboardHistoryEntry, error) {
 		history, err := uc.statsRepo.GetScoreboardHistory(ctx, limit)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetScoreboardHistory: %w", err)
@@ -132,7 +88,7 @@ func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int) (
 
 	key := fmt.Sprintf("stats:graph:%d", topN)
 
-	return getWithCache(ctx, uc, key, 30*time.Second, func() (*entity.ScoreboardGraph, error) {
+	return cache.GetOrLoad(uc.cache, ctx, key, 30*time.Second, func() (*entity.ScoreboardGraph, error) {
 		history, err := uc.statsRepo.GetScoreboardHistory(ctx, topN)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetScoreboardGraph: %w", err)

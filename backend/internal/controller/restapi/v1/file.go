@@ -21,14 +21,14 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 	}
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - ParseMultipartForm")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - ParseMultipartForm")
 		helper.RenderError(w, r, http.StatusBadRequest, "failed to parse form")
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		h.logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - FormFile")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAdminChallengesChallengeIDFiles - FormFile")
 		helper.RenderError(w, r, http.StatusBadRequest, "file is required")
 		return
 	}
@@ -45,7 +45,7 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		contentType = "application/octet-stream"
 	}
 
-	uploadedFile, err := h.fileUC.Upload(r.Context(), challengeuuid, fileType, handler.Filename, file, handler.Size, contentType)
+	uploadedFile, err := h.challenge.FileUC.Upload(r.Context(), challengeuuid, fileType, handler.Filename, file, handler.Size, contentType)
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Upload") {
 		return
 	}
@@ -66,7 +66,7 @@ func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	err := h.fileUC.Delete(r.Context(), fileuuid)
+	err := h.challenge.FileUC.Delete(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
 			helper.RenderError(w, r, http.StatusNotFound, "file not found")
@@ -89,13 +89,13 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	url, err := h.fileUC.GetDownloadURL(r.Context(), fileuuid)
+	url, err := h.challenge.FileUC.GetDownloadURL(r.Context(), fileuuid)
 	if err != nil {
 		if errors.Is(err, entityError.ErrFileNotFound) {
 			helper.RenderError(w, r, http.StatusNotFound, "file not found")
 			return
 		}
-		h.logger.WithError(err).Error("restapi - v1 - GetFilesIDDownload")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - GetFilesIDDownload")
 		helper.HandleError(w, r, err)
 		return
 	}
@@ -116,7 +116,7 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 		fileType = entity.FileTypeWriteup
 	}
 
-	files, err := h.fileUC.GetByChallengeID(r.Context(), challengeuuid, fileType)
+	files, err := h.challenge.FileUC.GetByChallengeID(r.Context(), challengeuuid, fileType)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDFiles", "GetByChallengeID") {
 		return
 	}
@@ -142,7 +142,7 @@ func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, err := h.fileUC.Download(r.Context(), path)
+	rc, err := h.challenge.FileUC.Download(r.Context(), path)
 	if h.OnError(w, r, err, "Download", "Download") {
 		return
 	}

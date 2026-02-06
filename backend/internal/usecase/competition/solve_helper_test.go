@@ -2,6 +2,7 @@ package competition
 
 import (
 	"github.com/go-redis/redismock/v9"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 )
 
 func (h *CompetitionTestHelper) CreateSolveUseCase() (*SolveUseCase, redismock.ClientMock) {
@@ -14,7 +15,7 @@ func (h *CompetitionTestHelper) CreateSolveUseCase() (*SolveUseCase, redismock.C
 		h.deps.userRepo,
 		h.deps.teamRepo,
 		h.deps.txRepo,
-		client,
+		cache.New(client),
 		nil,
 	), redis
 }

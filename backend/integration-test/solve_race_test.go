@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
-	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TeamRepo, f.TxRepo, db, nil)
+	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TeamRepo, f.TxRepo, cache.New(db), nil)
 
 	captain, team := f.CreateUserWithTeam(t, "solve_racer")
 	u2 := f.CreateUser(t, "solve_racer_2")
@@ -75,7 +76,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
-	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TeamRepo, f.TxRepo, db, nil)
+	uc := competition.NewSolveUseCase(f.SolveRepo, f.ChallengeRepo, f.CompetitionRepo, f.UserRepo, f.TeamRepo, f.TxRepo, cache.New(db), nil)
 
 	challenge := f.CreateDynamicChallenge(t, "DecayRace", 1000, 100, 10)
 

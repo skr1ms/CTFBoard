@@ -16,32 +16,56 @@ import (
 	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
-type ServerDeps struct {
-	UserUC          *user.UserUseCase
-	ChallengeUC     *challenge.ChallengeUseCase
-	SolveUC         *competition.SolveUseCase
-	TeamUC          *team.TeamUseCase
-	CompetitionUC   *competition.CompetitionUseCase
-	HintUC          *challenge.HintUseCase
-	EmailUC         *email.EmailUseCase
-	FileUC          *challenge.FileUseCase
-	AwardUC         *team.AwardUseCase
-	StatsUC         *competition.StatisticsUseCase
-	SubmissionUC    *competition.SubmissionUseCase
-	TagUC           *challenge.TagUseCase
-	FieldUC         *settings.FieldUseCase
-	PageUC          *page.PageUseCase
-	BracketUC       *competition.BracketUseCase
-	NotifUC         usecase.NotificationUseCase
-	APITokenUC      usecase.APITokenUseCase
+type ChallengeDeps struct {
+	ChallengeUC *challenge.ChallengeUseCase
+	HintUC      *challenge.HintUseCase
+	FileUC      *challenge.FileUseCase
+	TagUC       *challenge.TagUseCase
+	CommentUC   *challenge.CommentUseCase
+}
+
+type TeamDeps struct {
+	TeamUC  *team.TeamUseCase
+	AwardUC *team.AwardUseCase
+}
+
+type UserDeps struct {
+	UserUC     *user.UserUseCase
+	EmailUC    *email.EmailUseCase
+	APITokenUC usecase.APITokenUseCase
+}
+
+type CompetitionDeps struct {
+	CompetitionUC *competition.CompetitionUseCase
+	SolveUC       *competition.SolveUseCase
+	StatsUC       *competition.StatisticsUseCase
+	SubmissionUC  *competition.SubmissionUseCase
+	BracketUC     *competition.BracketUseCase
+	RatingUC      *competition.RatingUseCase
+}
+
+type AdminDeps struct {
 	BackupUC        usecase.BackupUseCase
 	SettingsUC      *settings.SettingsUseCase
 	DynamicConfigUC *competition.DynamicConfigUseCase
-	CommentUC       *challenge.CommentUseCase
-	RatingUC        *competition.RatingUseCase
-	JWTService      *jwt.JWTService
-	RedisClient     *redis.Client
-	WSController    *wsV1.Controller
-	Validator       validator.Validator
-	Logger          logger.Logger
+	FieldUC         *settings.FieldUseCase
+	PageUC          *page.PageUseCase
+	NotifUC         usecase.NotificationUseCase
+}
+
+type InfraDeps struct {
+	JWTService   *jwt.JWTService
+	RedisClient  *redis.Client
+	WSController *wsV1.Controller
+	Validator    validator.Validator
+	Logger       logger.Logger
+}
+
+type ServerDeps struct {
+	Challenge ChallengeDeps
+	Team      TeamDeps
+	User      UserDeps
+	Comp      CompetitionDeps
+	Admin     AdminDeps
+	Infra     InfraDeps
 }
