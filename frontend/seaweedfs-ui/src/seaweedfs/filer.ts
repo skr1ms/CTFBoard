@@ -3,9 +3,12 @@ import { getName } from './file'
 import { getFullPath } from './file'
 import type { FileEntry } from '../types/models'
 
+const filerProxyPath = import.meta.env.VITE_FILER_PROXY_PATH as string | undefined
 const host = import.meta.env.VITE_HOST ?? ''
 const port = import.meta.env.VITE_FILER_PORT ?? ''
-const connectionString = `http://${host}:${port}`
+const connectionString = filerProxyPath
+  ? (filerProxyPath.startsWith('/') ? filerProxyPath : `/${filerProxyPath}`).replace(/\/$/, '')
+  : `http://${host}:${port}`
 
 export async function getFiles(path: string): Promise<FileEntry[]> {
   const folder = new Folder(path)

@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_FILER_PORT?: string
   readonly VITE_MASTER_PORT?: string
   readonly VITE_MASTER_PROXY_PATH?: string
+  readonly VITE_FILER_PROXY_PATH?: string
 }
 
 interface ImportMeta {

@@ -113,6 +113,7 @@ services:
         VITE_FILER_PORT: ${VITE_FILER_PORT:-8888}
         VITE_MASTER_PORT: ${VITE_MASTER_PORT:-9333}
         VITE_MASTER_PROXY_PATH: ${VITE_MASTER_PROXY_PATH:-master}
+        VITE_FILER_PROXY_PATH: ${VITE_FILER_PROXY_PATH:-filer}
     image: ${SEAWEEDFS_UI_IMAGE:-ctfboard-seaweedfs-ui}
     container_name: seaweedfs-ui
     ports:
