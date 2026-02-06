@@ -124,8 +124,13 @@ func TestNewClient_WritePump_ReadPump_Integration(t *testing.T) {
 	wsURL := "ws" + srv.URL[4:] + "/"
 	conn, resp, err := websocketlib.Dial(context.Background(), wsURL, nil)
 	require.NoError(t, err)
-	if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
-		t.Fatalf("expected 101 Switching Protocols, got %d %s", resp.StatusCode, resp.Status)
+	if resp != nil {
+		if resp.Body != nil {
+			defer resp.Body.Close()
+		}
+		if resp.StatusCode != http.StatusSwitchingProtocols {
+			t.Fatalf("expected 101 Switching Protocols, got %d %s", resp.StatusCode, resp.Status)
+		}
 	}
 	require.NotNil(t, conn)
 	defer conn.Close(websocketlib.StatusNormalClosure, "")

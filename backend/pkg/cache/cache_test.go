@@ -97,7 +97,7 @@ func TestCache_Del_EmptyKeys(t *testing.T) {
 	c := New(client)
 	ctx := context.Background()
 	c.Del(ctx)
-	mock.ExpectationsWereMet()
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestCache_Del_WithKeys(t *testing.T) {
