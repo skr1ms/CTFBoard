@@ -15,6 +15,7 @@ import (
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
@@ -22,6 +23,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
 	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
@@ -45,6 +47,18 @@ import (
 	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+type teamBracketGetter struct {
+	r repo.TeamRepository
+}
+
+func (g *teamBracketGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UUID) (*uuid.UUID, error) {
+	team, err := g.r.GetByID(ctx, teamID)
+	if err != nil || team == nil {
+		return nil, err
+	}
+	return team.BracketID, nil
+}
 
 var (
 	TestPool  *pgxpool.Pool
@@ -477,8 +491,13 @@ func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
-	userUC := user.NewUserUseCase(repos.userRepo, repos.teamRepo, repos.solveRepo, repos.txRepo, deps.jwt, fieldValidator, repos.fieldValueRepo)
+	userUC := user.NewUserUseCase(user.UserDeps{
+		UserRepo: repos.userRepo, TeamRepo: repos.teamRepo, SolveRepo: repos.solveRepo, TxRepo: repos.txRepo,
+		JWTService: deps.jwt, FieldValidator: fieldValidator, FieldValueRepo: repos.fieldValueRepo,
+	})
 	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, TestRedis)
+	testCache := cache.New(TestRedis)
+	scoreboardCache := cache.NewScoreboardCacheService(testCache, &teamBracketGetter{repos.teamRepo})
 	challengeUC := challenge.NewChallengeUseCase(
 		repos.challengeRepo,
 		challenge.WithTagRepo(repos.tagRepo),
@@ -487,16 +506,26 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		challenge.WithCompetitionRepo(repos.compRepo),
 		challenge.WithTeamRepo(repos.teamRepo),
 		challenge.WithRedis(TestRedis),
+		challenge.WithScoreboardCache(scoreboardCache),
 		challenge.WithBroadcaster(broadcaster),
 		challenge.WithAuditLogRepo(repos.auditLogRepo),
 		challenge.WithCrypto(deps.crypto),
 	)
-	testCache := cache.New(TestRedis)
-	solveUC := competition.NewSolveUseCase(repos.solveRepo, repos.challengeRepo, repos.compRepo, repos.userRepo, repos.teamRepo, repos.txRepo, testCache, broadcaster)
-	teamUC := team.NewTeamUseCase(repos.teamRepo, repos.userRepo, repos.compRepo, repos.txRepo, TestRedis)
-	hintUC := challenge.NewHintUseCase(repos.hintRepo, repos.hintUnlockRepo, repos.awardRepo, repos.txRepo, repos.solveRepo, TestRedis)
-	awardUC := team.NewAwardUseCase(repos.awardRepo, repos.txRepo, TestRedis)
-	emailUC := email.NewEmailUseCase(repos.userRepo, repos.tokenRepo, &noOpMailer{}, 24*time.Hour, 1*time.Hour, "http://localhost:3000", true)
+	solveUC := competition.NewSolveUseCase(competition.SolveDeps{
+		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo, CompetitionRepo: repos.compRepo,
+		UserRepo: repos.userRepo, TeamRepo: repos.teamRepo, TxRepo: repos.txRepo,
+		Cache: testCache, ScoreboardCache: scoreboardCache, Broadcaster: broadcaster,
+	})
+	teamUC := team.NewTeamUseCase(repos.teamRepo, repos.userRepo, repos.compRepo, repos.txRepo, scoreboardCache)
+	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: repos.hintRepo, HintUnlockRepo: repos.hintUnlockRepo, AwardRepo: repos.awardRepo,
+		TxRepo: repos.txRepo, SolveRepo: repos.solveRepo, ScoreboardCache: scoreboardCache,
+	})
+	awardUC := team.NewAwardUseCase(repos.awardRepo, repos.txRepo, scoreboardCache)
+	emailUC := email.NewEmailUseCase(email.EmailDeps{
+		UserRepo: repos.userRepo, TokenRepo: repos.tokenRepo, Mailer: &noOpMailer{},
+		VerifyTTL: 24 * time.Hour, ResetTTL: 1 * time.Hour, FrontendURL: "http://localhost:3000", Enabled: true,
+	})
 	statsUC := competition.NewStatisticsUseCase(repos.statsRepo, testCache)
 	submissionUC := competition.NewSubmissionUseCase(repos.submissionRepo)
 	tagUC := challenge.NewTagUseCase(repos.tagRepo)
@@ -506,7 +535,12 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	ratingUC := competition.NewRatingUseCase(repos.ratingRepo, repos.solveRepo, repos.teamRepo)
 	notifUC := notification.NewNotificationUseCase(repos.notificationRepo)
 	apiTokenUC := user.NewAPITokenUseCase(repos.apiTokenRepo)
-	backupUC := competition.NewBackupUseCase(repos.compRepo, repos.challengeRepo, repos.hintRepo, repos.teamRepo, repos.userRepo, repos.awardRepo, repos.solveRepo, repos.fileRepo, repos.backupRepo, fileStorage, repos.txRepo, deps.logger)
+	backupUC := competition.NewBackupUseCase(competition.BackupDeps{
+		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, HintRepo: repos.hintRepo,
+		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, AwardRepo: repos.awardRepo,
+		SolveRepo: repos.solveRepo, FileRepo: repos.fileRepo, BackupRepo: repos.backupRepo,
+		Storage: fileStorage, TxRepo: repos.txRepo, Logger: deps.logger,
+	})
 	settingsUC := settings.NewSettingsUseCase(repos.appSettingsRepo, repos.auditLogRepo, TestRedis)
 	dynamicConfigUC := competition.NewDynamicConfigUseCase(repos.configRepo, repos.auditLogRepo)
 	commentUC := challenge.NewCommentUseCase(repos.commentRepo, repos.challengeRepo)

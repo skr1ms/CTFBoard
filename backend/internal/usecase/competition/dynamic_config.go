@@ -10,11 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
+	"golang.org/x/sync/singleflight"
 )
 
 const configCacheTTL = 30 * time.Second
+
+const loadAllKey = "dynamic_config:loadAll"
 
 type DynamicConfigUseCase struct {
 	repo         repo.ConfigRepository
@@ -22,6 +25,7 @@ type DynamicConfigUseCase struct {
 	mu           sync.RWMutex
 	lastLoad     time.Time
 	auditLogRepo repo.AuditLogRepository
+	sf           singleflight.Group
 }
 
 func NewDynamicConfigUseCase(
@@ -58,60 +62,44 @@ func (uc *DynamicConfigUseCase) loadAll(ctx context.Context) error {
 
 func (uc *DynamicConfigUseCase) Get(ctx context.Context, key string) (*entity.Config, error) {
 	uc.mu.RLock()
-	if time.Since(uc.lastLoad) < configCacheTTL {
+	cacheValid := time.Since(uc.lastLoad) < configCacheTTL
+	if cacheValid {
 		if cfg, ok := uc.cache[key]; ok {
 			uc.mu.RUnlock()
 			return cfg, nil
 		}
-		uc.mu.RUnlock()
-		cfg, err := uc.repo.GetByKey(ctx, key)
-		if err != nil {
-			return nil, err
-		}
-		uc.mu.Lock()
-		uc.cache[key] = cfg
-		uc.mu.Unlock()
-		return cfg, nil
 	}
 	uc.mu.RUnlock()
 
-	uc.mu.Lock()
-	if time.Since(uc.lastLoad) < configCacheTTL {
-		if cfg, ok := uc.cache[key]; ok {
-			uc.mu.Unlock()
-			return cfg, nil
-		}
-		uc.mu.Unlock()
-		cfg, err := uc.repo.GetByKey(ctx, key)
-		if err != nil {
+	if !cacheValid {
+		if _, err, _ := uc.sf.Do(loadAllKey, func() (any, error) {
+			return nil, uc.loadAll(ctx)
+		}); err != nil {
 			return nil, err
 		}
-		uc.mu.Lock()
-		if existing, ok := uc.cache[key]; ok {
-			uc.mu.Unlock()
-			return existing, nil
-		}
-		uc.cache[key] = cfg
-		uc.mu.Unlock()
-		return cfg, nil
 	}
-	uc.mu.Unlock()
 
-	if err := uc.loadAll(ctx); err != nil {
-		return nil, err
-	}
 	uc.mu.RLock()
 	cfg, ok := uc.cache[key]
 	uc.mu.RUnlock()
 	if ok {
 		return cfg, nil
 	}
-	return nil, entityError.ErrConfigNotFound
+
+	cfg, err := uc.repo.GetByKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	uc.mu.Lock()
+	uc.cache[key] = cfg
+	uc.mu.Unlock()
+	return cfg, nil
 }
 
 func (uc *DynamicConfigUseCase) GetAll(ctx context.Context) ([]*entity.Config, error) {
 	uc.mu.RLock()
-	if time.Since(uc.lastLoad) < configCacheTTL {
+	cacheValid := time.Since(uc.lastLoad) < configCacheTTL
+	if cacheValid {
 		list := make([]*entity.Config, 0, len(uc.cache))
 		for _, cfg := range uc.cache {
 			list = append(list, cfg)
@@ -121,20 +109,12 @@ func (uc *DynamicConfigUseCase) GetAll(ctx context.Context) ([]*entity.Config, e
 	}
 	uc.mu.RUnlock()
 
-	uc.mu.Lock()
-	if time.Since(uc.lastLoad) < configCacheTTL {
-		list := make([]*entity.Config, 0, len(uc.cache))
-		for _, cfg := range uc.cache {
-			list = append(list, cfg)
-		}
-		uc.mu.Unlock()
-		return list, nil
-	}
-	uc.mu.Unlock()
-
-	if err := uc.loadAll(ctx); err != nil {
+	if _, err, _ := uc.sf.Do(loadAllKey, func() (any, error) {
+		return nil, uc.loadAll(ctx)
+	}); err != nil {
 		return nil, err
 	}
+
 	uc.mu.RLock()
 	list := make([]*entity.Config, 0, len(uc.cache))
 	for _, cfg := range uc.cache {
@@ -159,7 +139,7 @@ func (uc *DynamicConfigUseCase) Set(ctx context.Context, key, value, description
 		Description: description,
 	}
 	if err := uc.repo.Upsert(ctx, cfg); err != nil {
-		return fmt.Errorf("DynamicConfigUseCase - Set: %w", err)
+		return usecaseutil.Wrap(err, "DynamicConfigUseCase - Set")
 	}
 	uc.invalidate()
 
@@ -175,7 +155,7 @@ func (uc *DynamicConfigUseCase) Set(ctx context.Context, key, value, description
 		},
 	}
 	if err := uc.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("DynamicConfigUseCase - Set - Create audit: %w", err)
+		return usecaseutil.Wrap(err, "DynamicConfigUseCase - Set - Create audit")
 	}
 	return nil
 }
@@ -189,7 +169,7 @@ func (uc *DynamicConfigUseCase) Delete(ctx context.Context, key string, actorID 
 		return err
 	}
 	if err := uc.repo.Delete(ctx, key); err != nil {
-		return fmt.Errorf("DynamicConfigUseCase - Delete: %w", err)
+		return usecaseutil.Wrap(err, "DynamicConfigUseCase - Delete")
 	}
 	uc.invalidate()
 
@@ -205,7 +185,7 @@ func (uc *DynamicConfigUseCase) Delete(ctx context.Context, key string, actorID 
 		},
 	}
 	if err := uc.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("DynamicConfigUseCase - Delete - Create audit: %w", err)
+		return usecaseutil.Wrap(err, "DynamicConfigUseCase - Delete - Create audit")
 	}
 	return nil
 }

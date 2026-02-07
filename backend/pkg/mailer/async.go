@@ -2,11 +2,15 @@ package mailer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 )
+
+var ErrMailerStopped = errors.New("mailer stopped")
 
 type AsyncMailer struct {
 	delegate Mailer
@@ -15,6 +19,8 @@ type AsyncMailer struct {
 	quit     chan struct{}
 	workers  int
 	l        logger.Logger
+	stopped  atomic.Bool
+	stopOnce sync.Once
 }
 
 func NewAsyncMailer(
@@ -40,11 +46,17 @@ func (m *AsyncMailer) Start() {
 }
 
 func (m *AsyncMailer) Stop() {
-	close(m.quit)
-	m.wg.Wait()
+	m.stopOnce.Do(func() {
+		m.stopped.Store(true)
+		close(m.quit)
+		m.wg.Wait()
+	})
 }
 
 func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
+	if m.stopped.Load() {
+		return ErrMailerStopped
+	}
 	select {
 	case m.msgChan <- msg:
 		return nil

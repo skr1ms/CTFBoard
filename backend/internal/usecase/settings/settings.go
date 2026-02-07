@@ -10,7 +10,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
+	"golang.org/x/sync/singleflight"
 )
 
 const cacheTTL = 5 * time.Minute
@@ -19,6 +21,7 @@ type SettingsUseCase struct {
 	repo         repo.AppSettingsRepository
 	auditLogRepo repo.AuditLogRepository
 	redis        *redis.Client
+	sf           singleflight.Group
 }
 
 func NewSettingsUseCase(
@@ -34,7 +37,7 @@ func NewSettingsUseCase(
 }
 
 func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.AppSettings, error) {
-	val, err := uc.redis.Get(ctx, redisKeys.KeyAppSettings).Result()
+	val, err := uc.redis.Get(ctx, cache.KeyAppSettings).Result()
 	if err == nil {
 		var s entity.AppSettings
 		if err := json.Unmarshal([]byte(val), &s); err == nil {
@@ -42,15 +45,23 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.AppSettings, error)
 		}
 	}
 
-	s, err := uc.repo.Get(ctx)
+	v, err, _ := uc.sf.Do(cache.KeyAppSettings, func() (any, error) {
+		s, err := uc.repo.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if bytes, err := json.Marshal(s); err == nil {
+			uc.redis.Set(context.Background(), cache.KeyAppSettings, bytes, cacheTTL)
+		}
+		return s, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("SettingsUseCase - Get: %w", err)
+		return nil, usecaseutil.Wrap(err, "SettingsUseCase - Get")
 	}
-
-	if bytes, err := json.Marshal(s); err == nil {
-		uc.redis.Set(ctx, redisKeys.KeyAppSettings, bytes, cacheTTL)
+	s, ok := v.(*entity.AppSettings)
+	if !ok {
+		return nil, fmt.Errorf("SettingsUseCase - Get: unexpected type")
 	}
-
 	return s, nil
 }
 
@@ -60,10 +71,10 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.AppSettings, ac
 	}
 
 	if err := uc.repo.Update(ctx, s); err != nil {
-		return fmt.Errorf("SettingsUseCase - Update: %w", err)
+		return usecaseutil.Wrap(err, "SettingsUseCase - Update")
 	}
 
-	uc.redis.Del(ctx, redisKeys.KeyAppSettings)
+	uc.redis.Del(ctx, cache.KeyAppSettings)
 
 	auditLog := &entity.AuditLog{
 		UserID:     &actorID,
@@ -76,7 +87,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.AppSettings, ac
 		},
 	}
 	if err := uc.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("SettingsUseCase - Update - Create audit: %w", err)
+		return usecaseutil.Wrap(err, "SettingsUseCase - Update - Create audit")
 	}
 
 	return nil

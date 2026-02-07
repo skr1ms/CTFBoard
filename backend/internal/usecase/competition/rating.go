@@ -10,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 func CalculateRatingPoints(rank, totalTeams int, weight float64) float64 {
@@ -51,11 +52,11 @@ func (uc *RatingUseCase) GetGlobalRatings(ctx context.Context, page, perPage int
 	}
 	list, err := uc.ratingRepo.GetGlobalRatings(ctx, perPage, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("RatingUseCase - GetGlobalRatings: %w", err)
+		return nil, 0, usecaseutil.Wrap(err, "RatingUseCase - GetGlobalRatings")
 	}
 	total, err := uc.ratingRepo.CountGlobalRatings(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("RatingUseCase - GetGlobalRatings count: %w", err)
+		return nil, 0, usecaseutil.Wrap(err, "RatingUseCase - GetGlobalRatings count")
 	}
 	return list, total, nil
 }
@@ -66,11 +67,11 @@ func (uc *RatingUseCase) GetTeamRating(ctx context.Context, teamID uuid.UUID) (*
 		if errors.Is(err, entityError.ErrGlobalRatingNotFound) {
 			return nil, nil, err
 		}
-		return nil, nil, fmt.Errorf("RatingUseCase - GetTeamRating: %w", err)
+		return nil, nil, usecaseutil.Wrap(err, "RatingUseCase - GetTeamRating")
 	}
 	teamRatings, err := uc.ratingRepo.GetTeamRatingsByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("RatingUseCase - GetTeamRating team ratings: %w", err)
+		return nil, nil, usecaseutil.Wrap(err, "RatingUseCase - GetTeamRating team ratings")
 	}
 	return global, teamRatings, nil
 }
@@ -78,7 +79,7 @@ func (uc *RatingUseCase) GetTeamRating(ctx context.Context, teamID uuid.UUID) (*
 func (uc *RatingUseCase) GetCTFEvents(ctx context.Context) ([]*entity.CTFEvent, error) {
 	list, err := uc.ratingRepo.GetAllCTFEvents(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("RatingUseCase - GetCTFEvents: %w", err)
+		return nil, usecaseutil.Wrap(err, "RatingUseCase - GetCTFEvents")
 	}
 	return list, nil
 }
@@ -101,7 +102,7 @@ func (uc *RatingUseCase) CreateCTFEvent(ctx context.Context, name string, startT
 		Weight:    weight,
 	}
 	if err := uc.ratingRepo.CreateCTFEvent(ctx, event); err != nil {
-		return nil, fmt.Errorf("RatingUseCase - CreateCTFEvent: %w", err)
+		return nil, usecaseutil.Wrap(err, "RatingUseCase - CreateCTFEvent")
 	}
 	return event, nil
 }
@@ -112,11 +113,11 @@ func (uc *RatingUseCase) FinalizeCTFEvent(ctx context.Context, eventID uuid.UUID
 		if errors.Is(err, entityError.ErrCTFEventNotFound) {
 			return err
 		}
-		return fmt.Errorf("RatingUseCase - FinalizeCTFEvent get event: %w", err)
+		return usecaseutil.Wrap(err, "RatingUseCase - FinalizeCTFEvent get event")
 	}
 	scoreboard, err := uc.solveRepo.GetScoreboard(ctx)
 	if err != nil {
-		return fmt.Errorf("RatingUseCase - FinalizeCTFEvent get scoreboard: %w", err)
+		return usecaseutil.Wrap(err, "RatingUseCase - FinalizeCTFEvent get scoreboard")
 	}
 	totalTeams := len(scoreboard)
 	for rank, entry := range scoreboard {
@@ -129,7 +130,7 @@ func (uc *RatingUseCase) FinalizeCTFEvent(ctx context.Context, eventID uuid.UUID
 			RatingPoints: ratingPoints,
 		}
 		if err := uc.ratingRepo.CreateTeamRating(ctx, tr); err != nil {
-			return fmt.Errorf("RatingUseCase - FinalizeCTFEvent create team rating: %w", err)
+			return usecaseutil.Wrap(err, "RatingUseCase - FinalizeCTFEvent create team rating")
 		}
 	}
 	return uc.recalculateGlobalRatings(ctx)
@@ -138,12 +139,12 @@ func (uc *RatingUseCase) FinalizeCTFEvent(ctx context.Context, eventID uuid.UUID
 func (uc *RatingUseCase) recalculateGlobalRatings(ctx context.Context) error {
 	teams, err := uc.teamRepo.GetAll(ctx)
 	if err != nil {
-		return fmt.Errorf("RatingUseCase - recalculateGlobalRatings get teams: %w", err)
+		return usecaseutil.Wrap(err, "RatingUseCase - recalculateGlobalRatings get teams")
 	}
 	for _, team := range teams {
 		ratings, err := uc.ratingRepo.GetTeamRatingsByTeamID(ctx, team.ID)
 		if err != nil {
-			return fmt.Errorf("RatingUseCase - recalculateGlobalRatings get team ratings: %w", err)
+			return usecaseutil.Wrap(err, "RatingUseCase - recalculateGlobalRatings get team ratings")
 		}
 		var totalPoints float64
 		var bestRank *int
@@ -162,7 +163,7 @@ func (uc *RatingUseCase) recalculateGlobalRatings(ctx context.Context) error {
 			LastUpdated: time.Now(),
 		}
 		if err := uc.ratingRepo.UpsertGlobalRating(ctx, gr); err != nil {
-			return fmt.Errorf("RatingUseCase - recalculateGlobalRatings upsert: %w", err)
+			return usecaseutil.Wrap(err, "RatingUseCase - recalculateGlobalRatings upsert")
 		}
 	}
 	return nil

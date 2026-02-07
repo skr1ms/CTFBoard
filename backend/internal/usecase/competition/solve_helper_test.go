@@ -8,14 +8,15 @@ import (
 func (h *CompetitionTestHelper) CreateSolveUseCase() (*SolveUseCase, redismock.ClientMock) {
 	h.t.Helper()
 	client, redis := redismock.NewClientMock()
-	return NewSolveUseCase(
-		h.deps.solveRepo,
-		h.deps.challengeRepo,
-		h.deps.competitionRepo,
-		h.deps.userRepo,
-		h.deps.teamRepo,
-		h.deps.txRepo,
-		cache.New(client),
-		nil,
-	), redis
+	return NewSolveUseCase(SolveDeps{
+		SolveRepo:       h.deps.solveRepo,
+		ChallengeRepo:   h.deps.challengeRepo,
+		CompetitionRepo: h.deps.competitionRepo,
+		UserRepo:        h.deps.userRepo,
+		TeamRepo:        h.deps.teamRepo,
+		TxRepo:          h.deps.txRepo,
+		Cache:           cache.New(client),
+		ScoreboardCache: nil,
+		Broadcaster:     nil,
+	}), redis
 }

@@ -8,8 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -41,23 +41,23 @@ func (_m *MockTxRepository) EXPECT() *MockTxRepository_Expecter {
 }
 
 // BeginSerializableTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) BeginSerializableTx(ctx context.Context) (pgx.Tx, error) {
+func (_mock *MockTxRepository) BeginSerializableTx(ctx context.Context) (repo.Transaction, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginSerializableTx")
 	}
 
-	var r0 pgx.Tx
+	var r0 repo.Transaction
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (repo.Transaction, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) pgx.Tx); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) repo.Transaction); ok {
 		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(pgx.Tx)
+			r0 = ret.Get(0).(repo.Transaction)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
@@ -92,34 +92,34 @@ func (_c *MockTxRepository_BeginSerializableTx_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockTxRepository_BeginSerializableTx_Call) Return(tx pgx.Tx, err error) *MockTxRepository_BeginSerializableTx_Call {
-	_c.Call.Return(tx, err)
+func (_c *MockTxRepository_BeginSerializableTx_Call) Return(transaction repo.Transaction, err error) *MockTxRepository_BeginSerializableTx_Call {
+	_c.Call.Return(transaction, err)
 	return _c
 }
 
-func (_c *MockTxRepository_BeginSerializableTx_Call) RunAndReturn(run func(ctx context.Context) (pgx.Tx, error)) *MockTxRepository_BeginSerializableTx_Call {
+func (_c *MockTxRepository_BeginSerializableTx_Call) RunAndReturn(run func(ctx context.Context) (repo.Transaction, error)) *MockTxRepository_BeginSerializableTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // BeginTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) BeginTx(ctx context.Context) (pgx.Tx, error) {
+func (_mock *MockTxRepository) BeginTx(ctx context.Context) (repo.Transaction, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginTx")
 	}
 
-	var r0 pgx.Tx
+	var r0 repo.Transaction
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (repo.Transaction, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) pgx.Tx); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) repo.Transaction); ok {
 		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(pgx.Tx)
+			r0 = ret.Get(0).(repo.Transaction)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
@@ -154,18 +154,18 @@ func (_c *MockTxRepository_BeginTx_Call) Run(run func(ctx context.Context)) *Moc
 	return _c
 }
 
-func (_c *MockTxRepository_BeginTx_Call) Return(tx pgx.Tx, err error) *MockTxRepository_BeginTx_Call {
-	_c.Call.Return(tx, err)
+func (_c *MockTxRepository_BeginTx_Call) Return(transaction repo.Transaction, err error) *MockTxRepository_BeginTx_Call {
+	_c.Call.Return(transaction, err)
 	return _c
 }
 
-func (_c *MockTxRepository_BeginTx_Call) RunAndReturn(run func(ctx context.Context) (pgx.Tx, error)) *MockTxRepository_BeginTx_Call {
+func (_c *MockTxRepository_BeginTx_Call) RunAndReturn(run func(ctx context.Context) (repo.Transaction, error)) *MockTxRepository_BeginTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateAuditLogTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error {
+func (_mock *MockTxRepository) CreateAuditLogTx(ctx context.Context, tx repo.Transaction, log *entity.AuditLog) error {
 	ret := _mock.Called(ctx, tx, log)
 
 	if len(ret) == 0 {
@@ -173,7 +173,7 @@ func (_mock *MockTxRepository) CreateAuditLogTx(ctx context.Context, tx pgx.Tx, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.AuditLog) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.AuditLog) error); ok {
 		r0 = returnFunc(ctx, tx, log)
 	} else {
 		r0 = ret.Error(0)
@@ -188,21 +188,21 @@ type MockTxRepository_CreateAuditLogTx_Call struct {
 
 // CreateAuditLogTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - log *entity.AuditLog
 func (_e *MockTxRepository_Expecter) CreateAuditLogTx(ctx interface{}, tx interface{}, log interface{}) *MockTxRepository_CreateAuditLogTx_Call {
 	return &MockTxRepository_CreateAuditLogTx_Call{Call: _e.mock.On("CreateAuditLogTx", ctx, tx, log)}
 }
 
-func (_c *MockTxRepository_CreateAuditLogTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, log *entity.AuditLog)) *MockTxRepository_CreateAuditLogTx_Call {
+func (_c *MockTxRepository_CreateAuditLogTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, log *entity.AuditLog)) *MockTxRepository_CreateAuditLogTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.AuditLog
 		if args[2] != nil {
@@ -222,13 +222,13 @@ func (_c *MockTxRepository_CreateAuditLogTx_Call) Return(err error) *MockTxRepos
 	return _c
 }
 
-func (_c *MockTxRepository_CreateAuditLogTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error) *MockTxRepository_CreateAuditLogTx_Call {
+func (_c *MockTxRepository_CreateAuditLogTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, log *entity.AuditLog) error) *MockTxRepository_CreateAuditLogTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateAwardTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateAwardTx(ctx context.Context, tx pgx.Tx, award *entity.Award) error {
+func (_mock *MockTxRepository) CreateAwardTx(ctx context.Context, tx repo.Transaction, award *entity.Award) error {
 	ret := _mock.Called(ctx, tx, award)
 
 	if len(ret) == 0 {
@@ -236,7 +236,7 @@ func (_mock *MockTxRepository) CreateAwardTx(ctx context.Context, tx pgx.Tx, awa
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.Award) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.Award) error); ok {
 		r0 = returnFunc(ctx, tx, award)
 	} else {
 		r0 = ret.Error(0)
@@ -251,21 +251,21 @@ type MockTxRepository_CreateAwardTx_Call struct {
 
 // CreateAwardTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - award *entity.Award
 func (_e *MockTxRepository_Expecter) CreateAwardTx(ctx interface{}, tx interface{}, award interface{}) *MockTxRepository_CreateAwardTx_Call {
 	return &MockTxRepository_CreateAwardTx_Call{Call: _e.mock.On("CreateAwardTx", ctx, tx, award)}
 }
 
-func (_c *MockTxRepository_CreateAwardTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, award *entity.Award)) *MockTxRepository_CreateAwardTx_Call {
+func (_c *MockTxRepository_CreateAwardTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, award *entity.Award)) *MockTxRepository_CreateAwardTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.Award
 		if args[2] != nil {
@@ -285,13 +285,13 @@ func (_c *MockTxRepository_CreateAwardTx_Call) Return(err error) *MockTxReposito
 	return _c
 }
 
-func (_c *MockTxRepository_CreateAwardTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, award *entity.Award) error) *MockTxRepository_CreateAwardTx_Call {
+func (_c *MockTxRepository_CreateAwardTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, award *entity.Award) error) *MockTxRepository_CreateAwardTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateHintUnlockTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateHintUnlockTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID) error {
+func (_mock *MockTxRepository) CreateHintUnlockTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID, hintID)
 
 	if len(ret) == 0 {
@@ -299,7 +299,7 @@ func (_mock *MockTxRepository) CreateHintUnlockTx(ctx context.Context, tx pgx.Tx
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID, hintID)
 	} else {
 		r0 = ret.Error(0)
@@ -314,22 +314,22 @@ type MockTxRepository_CreateHintUnlockTx_Call struct {
 
 // CreateHintUnlockTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 //   - hintID uuid.UUID
 func (_e *MockTxRepository_Expecter) CreateHintUnlockTx(ctx interface{}, tx interface{}, teamID interface{}, hintID interface{}) *MockTxRepository_CreateHintUnlockTx_Call {
 	return &MockTxRepository_CreateHintUnlockTx_Call{Call: _e.mock.On("CreateHintUnlockTx", ctx, tx, teamID, hintID)}
 }
 
-func (_c *MockTxRepository_CreateHintUnlockTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID)) *MockTxRepository_CreateHintUnlockTx_Call {
+func (_c *MockTxRepository_CreateHintUnlockTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID)) *MockTxRepository_CreateHintUnlockTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -354,13 +354,13 @@ func (_c *MockTxRepository_CreateHintUnlockTx_Call) Return(err error) *MockTxRep
 	return _c
 }
 
-func (_c *MockTxRepository_CreateHintUnlockTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID) error) *MockTxRepository_CreateHintUnlockTx_Call {
+func (_c *MockTxRepository_CreateHintUnlockTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID) error) *MockTxRepository_CreateHintUnlockTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateSolveTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateSolveTx(ctx context.Context, tx pgx.Tx, solve *entity.Solve) error {
+func (_mock *MockTxRepository) CreateSolveTx(ctx context.Context, tx repo.Transaction, solve *entity.Solve) error {
 	ret := _mock.Called(ctx, tx, solve)
 
 	if len(ret) == 0 {
@@ -368,7 +368,7 @@ func (_mock *MockTxRepository) CreateSolveTx(ctx context.Context, tx pgx.Tx, sol
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.Solve) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.Solve) error); ok {
 		r0 = returnFunc(ctx, tx, solve)
 	} else {
 		r0 = ret.Error(0)
@@ -383,21 +383,21 @@ type MockTxRepository_CreateSolveTx_Call struct {
 
 // CreateSolveTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - solve *entity.Solve
 func (_e *MockTxRepository_Expecter) CreateSolveTx(ctx interface{}, tx interface{}, solve interface{}) *MockTxRepository_CreateSolveTx_Call {
 	return &MockTxRepository_CreateSolveTx_Call{Call: _e.mock.On("CreateSolveTx", ctx, tx, solve)}
 }
 
-func (_c *MockTxRepository_CreateSolveTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, solve *entity.Solve)) *MockTxRepository_CreateSolveTx_Call {
+func (_c *MockTxRepository_CreateSolveTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, solve *entity.Solve)) *MockTxRepository_CreateSolveTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.Solve
 		if args[2] != nil {
@@ -417,13 +417,13 @@ func (_c *MockTxRepository_CreateSolveTx_Call) Return(err error) *MockTxReposito
 	return _c
 }
 
-func (_c *MockTxRepository_CreateSolveTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, solve *entity.Solve) error) *MockTxRepository_CreateSolveTx_Call {
+func (_c *MockTxRepository_CreateSolveTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, solve *entity.Solve) error) *MockTxRepository_CreateSolveTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateTeamAuditLogTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error {
+func (_mock *MockTxRepository) CreateTeamAuditLogTx(ctx context.Context, tx repo.Transaction, log *entity.TeamAuditLog) error {
 	ret := _mock.Called(ctx, tx, log)
 
 	if len(ret) == 0 {
@@ -431,7 +431,7 @@ func (_mock *MockTxRepository) CreateTeamAuditLogTx(ctx context.Context, tx pgx.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.TeamAuditLog) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.TeamAuditLog) error); ok {
 		r0 = returnFunc(ctx, tx, log)
 	} else {
 		r0 = ret.Error(0)
@@ -446,21 +446,21 @@ type MockTxRepository_CreateTeamAuditLogTx_Call struct {
 
 // CreateTeamAuditLogTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - log *entity.TeamAuditLog
 func (_e *MockTxRepository_Expecter) CreateTeamAuditLogTx(ctx interface{}, tx interface{}, log interface{}) *MockTxRepository_CreateTeamAuditLogTx_Call {
 	return &MockTxRepository_CreateTeamAuditLogTx_Call{Call: _e.mock.On("CreateTeamAuditLogTx", ctx, tx, log)}
 }
 
-func (_c *MockTxRepository_CreateTeamAuditLogTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog)) *MockTxRepository_CreateTeamAuditLogTx_Call {
+func (_c *MockTxRepository_CreateTeamAuditLogTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, log *entity.TeamAuditLog)) *MockTxRepository_CreateTeamAuditLogTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.TeamAuditLog
 		if args[2] != nil {
@@ -480,13 +480,13 @@ func (_c *MockTxRepository_CreateTeamAuditLogTx_Call) Return(err error) *MockTxR
 	return _c
 }
 
-func (_c *MockTxRepository_CreateTeamAuditLogTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error) *MockTxRepository_CreateTeamAuditLogTx_Call {
+func (_c *MockTxRepository_CreateTeamAuditLogTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, log *entity.TeamAuditLog) error) *MockTxRepository_CreateTeamAuditLogTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateTeamTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error {
+func (_mock *MockTxRepository) CreateTeamTx(ctx context.Context, tx repo.Transaction, team *entity.Team) error {
 	ret := _mock.Called(ctx, tx, team)
 
 	if len(ret) == 0 {
@@ -494,7 +494,7 @@ func (_mock *MockTxRepository) CreateTeamTx(ctx context.Context, tx pgx.Tx, team
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.Team) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.Team) error); ok {
 		r0 = returnFunc(ctx, tx, team)
 	} else {
 		r0 = ret.Error(0)
@@ -509,21 +509,21 @@ type MockTxRepository_CreateTeamTx_Call struct {
 
 // CreateTeamTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - team *entity.Team
 func (_e *MockTxRepository_Expecter) CreateTeamTx(ctx interface{}, tx interface{}, team interface{}) *MockTxRepository_CreateTeamTx_Call {
 	return &MockTxRepository_CreateTeamTx_Call{Call: _e.mock.On("CreateTeamTx", ctx, tx, team)}
 }
 
-func (_c *MockTxRepository_CreateTeamTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, team *entity.Team)) *MockTxRepository_CreateTeamTx_Call {
+func (_c *MockTxRepository_CreateTeamTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, team *entity.Team)) *MockTxRepository_CreateTeamTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.Team
 		if args[2] != nil {
@@ -543,13 +543,13 @@ func (_c *MockTxRepository_CreateTeamTx_Call) Return(err error) *MockTxRepositor
 	return _c
 }
 
-func (_c *MockTxRepository_CreateTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, team *entity.Team) error) *MockTxRepository_CreateTeamTx_Call {
+func (_c *MockTxRepository_CreateTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, team *entity.Team) error) *MockTxRepository_CreateTeamTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateUserTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) CreateUserTx(ctx context.Context, tx pgx.Tx, user *entity.User) error {
+func (_mock *MockTxRepository) CreateUserTx(ctx context.Context, tx repo.Transaction, user *entity.User) error {
 	ret := _mock.Called(ctx, tx, user)
 
 	if len(ret) == 0 {
@@ -557,7 +557,7 @@ func (_mock *MockTxRepository) CreateUserTx(ctx context.Context, tx pgx.Tx, user
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.User) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.User) error); ok {
 		r0 = returnFunc(ctx, tx, user)
 	} else {
 		r0 = ret.Error(0)
@@ -572,21 +572,21 @@ type MockTxRepository_CreateUserTx_Call struct {
 
 // CreateUserTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - user *entity.User
 func (_e *MockTxRepository_Expecter) CreateUserTx(ctx interface{}, tx interface{}, user interface{}) *MockTxRepository_CreateUserTx_Call {
 	return &MockTxRepository_CreateUserTx_Call{Call: _e.mock.On("CreateUserTx", ctx, tx, user)}
 }
 
-func (_c *MockTxRepository_CreateUserTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, user *entity.User)) *MockTxRepository_CreateUserTx_Call {
+func (_c *MockTxRepository_CreateUserTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, user *entity.User)) *MockTxRepository_CreateUserTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.User
 		if args[2] != nil {
@@ -606,13 +606,13 @@ func (_c *MockTxRepository_CreateUserTx_Call) Return(err error) *MockTxRepositor
 	return _c
 }
 
-func (_c *MockTxRepository_CreateUserTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, user *entity.User) error) *MockTxRepository_CreateUserTx_Call {
+func (_c *MockTxRepository_CreateUserTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, user *entity.User) error) *MockTxRepository_CreateUserTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteChallengeTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) DeleteChallengeTx(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error {
+func (_mock *MockTxRepository) DeleteChallengeTx(ctx context.Context, tx repo.Transaction, challengeID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, challengeID)
 
 	if len(ret) == 0 {
@@ -620,7 +620,7 @@ func (_mock *MockTxRepository) DeleteChallengeTx(ctx context.Context, tx pgx.Tx,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, challengeID)
 	} else {
 		r0 = ret.Error(0)
@@ -635,21 +635,21 @@ type MockTxRepository_DeleteChallengeTx_Call struct {
 
 // DeleteChallengeTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - challengeID uuid.UUID
 func (_e *MockTxRepository_Expecter) DeleteChallengeTx(ctx interface{}, tx interface{}, challengeID interface{}) *MockTxRepository_DeleteChallengeTx_Call {
 	return &MockTxRepository_DeleteChallengeTx_Call{Call: _e.mock.On("DeleteChallengeTx", ctx, tx, challengeID)}
 }
 
-func (_c *MockTxRepository_DeleteChallengeTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID)) *MockTxRepository_DeleteChallengeTx_Call {
+func (_c *MockTxRepository_DeleteChallengeTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, challengeID uuid.UUID)) *MockTxRepository_DeleteChallengeTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -669,13 +669,13 @@ func (_c *MockTxRepository_DeleteChallengeTx_Call) Return(err error) *MockTxRepo
 	return _c
 }
 
-func (_c *MockTxRepository_DeleteChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error) *MockTxRepository_DeleteChallengeTx_Call {
+func (_c *MockTxRepository_DeleteChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, challengeID uuid.UUID) error) *MockTxRepository_DeleteChallengeTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteSolvesByTeamIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (_mock *MockTxRepository) DeleteSolvesByTeamIDTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -683,7 +683,7 @@ func (_mock *MockTxRepository) DeleteSolvesByTeamIDTx(ctx context.Context, tx pg
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		r0 = ret.Error(0)
@@ -698,21 +698,21 @@ type MockTxRepository_DeleteSolvesByTeamIDTx_Call struct {
 
 // DeleteSolvesByTeamIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) DeleteSolvesByTeamIDTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
 	return &MockTxRepository_DeleteSolvesByTeamIDTx_Call{Call: _e.mock.On("DeleteSolvesByTeamIDTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -732,13 +732,13 @@ func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) Return(err error) *MockT
 	return _c
 }
 
-func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
+func (_c *MockTxRepository_DeleteSolvesByTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error) *MockTxRepository_DeleteSolvesByTeamIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteTeamTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (_mock *MockTxRepository) DeleteTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -746,7 +746,7 @@ func (_mock *MockTxRepository) DeleteTeamTx(ctx context.Context, tx pgx.Tx, team
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		r0 = ret.Error(0)
@@ -761,21 +761,21 @@ type MockTxRepository_DeleteTeamTx_Call struct {
 
 // DeleteTeamTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) DeleteTeamTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_DeleteTeamTx_Call {
 	return &MockTxRepository_DeleteTeamTx_Call{Call: _e.mock.On("DeleteTeamTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_DeleteTeamTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_DeleteTeamTx_Call {
+func (_c *MockTxRepository_DeleteTeamTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_DeleteTeamTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -795,13 +795,13 @@ func (_c *MockTxRepository_DeleteTeamTx_Call) Return(err error) *MockTxRepositor
 	return _c
 }
 
-func (_c *MockTxRepository_DeleteTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error) *MockTxRepository_DeleteTeamTx_Call {
+func (_c *MockTxRepository_DeleteTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error) *MockTxRepository_DeleteTeamTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetChallengeByIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Challenge, error) {
+func (_mock *MockTxRepository) GetChallengeByIDTx(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (*entity.Challenge, error) {
 	ret := _mock.Called(ctx, tx, ID)
 
 	if len(ret) == 0 {
@@ -810,17 +810,17 @@ func (_mock *MockTxRepository) GetChallengeByIDTx(ctx context.Context, tx pgx.Tx
 
 	var r0 *entity.Challenge
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Challenge, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (*entity.Challenge, error)); ok {
 		return returnFunc(ctx, tx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Challenge); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) *entity.Challenge); ok {
 		r0 = returnFunc(ctx, tx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Challenge)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, ID)
 	} else {
 		r1 = ret.Error(1)
@@ -835,21 +835,21 @@ type MockTxRepository_GetChallengeByIDTx_Call struct {
 
 // GetChallengeByIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - ID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetChallengeByIDTx(ctx interface{}, tx interface{}, ID interface{}) *MockTxRepository_GetChallengeByIDTx_Call {
 	return &MockTxRepository_GetChallengeByIDTx_Call{Call: _e.mock.On("GetChallengeByIDTx", ctx, tx, ID)}
 }
 
-func (_c *MockTxRepository_GetChallengeByIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID)) *MockTxRepository_GetChallengeByIDTx_Call {
+func (_c *MockTxRepository_GetChallengeByIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID)) *MockTxRepository_GetChallengeByIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -869,13 +869,13 @@ func (_c *MockTxRepository_GetChallengeByIDTx_Call) Return(challenge *entity.Cha
 	return _c
 }
 
-func (_c *MockTxRepository_GetChallengeByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Challenge, error)) *MockTxRepository_GetChallengeByIDTx_Call {
+func (_c *MockTxRepository_GetChallengeByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (*entity.Challenge, error)) *MockTxRepository_GetChallengeByIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetHintUnlockByTeamAndHintTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetHintUnlockByTeamAndHintTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID) (*entity.HintUnlock, error) {
+func (_mock *MockTxRepository) GetHintUnlockByTeamAndHintTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID) (*entity.HintUnlock, error) {
 	ret := _mock.Called(ctx, tx, teamID, hintID)
 
 	if len(ret) == 0 {
@@ -884,17 +884,17 @@ func (_mock *MockTxRepository) GetHintUnlockByTeamAndHintTx(ctx context.Context,
 
 	var r0 *entity.HintUnlock
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) (*entity.HintUnlock, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) (*entity.HintUnlock, error)); ok {
 		return returnFunc(ctx, tx, teamID, hintID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) *entity.HintUnlock); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) *entity.HintUnlock); ok {
 		r0 = returnFunc(ctx, tx, teamID, hintID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.HintUnlock)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, teamID, hintID)
 	} else {
 		r1 = ret.Error(1)
@@ -909,22 +909,22 @@ type MockTxRepository_GetHintUnlockByTeamAndHintTx_Call struct {
 
 // GetHintUnlockByTeamAndHintTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 //   - hintID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetHintUnlockByTeamAndHintTx(ctx interface{}, tx interface{}, teamID interface{}, hintID interface{}) *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call {
 	return &MockTxRepository_GetHintUnlockByTeamAndHintTx_Call{Call: _e.mock.On("GetHintUnlockByTeamAndHintTx", ctx, tx, teamID, hintID)}
 }
 
-func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID)) *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call {
+func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID)) *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -949,13 +949,13 @@ func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) Return(hintUnlock 
 	return _c
 }
 
-func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, hintID uuid.UUID) (*entity.HintUnlock, error)) *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call {
+func (_c *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID) (*entity.HintUnlock, error)) *MockTxRepository_GetHintUnlockByTeamAndHintTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetSoloTeamByUserIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error) {
+func (_mock *MockTxRepository) GetSoloTeamByUserIDTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID) (*entity.Team, error) {
 	ret := _mock.Called(ctx, tx, userID)
 
 	if len(ret) == 0 {
@@ -964,17 +964,17 @@ func (_mock *MockTxRepository) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (*entity.Team, error)); ok {
 		return returnFunc(ctx, tx, userID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) *entity.Team); ok {
 		r0 = returnFunc(ctx, tx, userID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, userID)
 	} else {
 		r1 = ret.Error(1)
@@ -989,21 +989,21 @@ type MockTxRepository_GetSoloTeamByUserIDTx_Call struct {
 
 // GetSoloTeamByUserIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - userID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetSoloTeamByUserIDTx(ctx interface{}, tx interface{}, userID interface{}) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
 	return &MockTxRepository_GetSoloTeamByUserIDTx_Call{Call: _e.mock.On("GetSoloTeamByUserIDTx", ctx, tx, userID)}
 }
 
-func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1023,13 +1023,13 @@ func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) Return(team *entity.Team,
 	return _c
 }
 
-func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
+func (_c *MockTxRepository_GetSoloTeamByUserIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetSoloTeamByUserIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetSolveByTeamAndChallengeTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, challengeID uuid.UUID) (*entity.Solve, error) {
+func (_mock *MockTxRepository) GetSolveByTeamAndChallengeTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, challengeID uuid.UUID) (*entity.Solve, error) {
 	ret := _mock.Called(ctx, tx, teamID, challengeID)
 
 	if len(ret) == 0 {
@@ -1038,17 +1038,17 @@ func (_mock *MockTxRepository) GetSolveByTeamAndChallengeTx(ctx context.Context,
 
 	var r0 *entity.Solve
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) (*entity.Solve, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) (*entity.Solve, error)); ok {
 		return returnFunc(ctx, tx, teamID, challengeID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) *entity.Solve); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) *entity.Solve); ok {
 		r0 = returnFunc(ctx, tx, teamID, challengeID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Solve)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, teamID, challengeID)
 	} else {
 		r1 = ret.Error(1)
@@ -1063,22 +1063,22 @@ type MockTxRepository_GetSolveByTeamAndChallengeTx_Call struct {
 
 // GetSolveByTeamAndChallengeTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 //   - challengeID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetSolveByTeamAndChallengeTx(ctx interface{}, tx interface{}, teamID interface{}, challengeID interface{}) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
 	return &MockTxRepository_GetSolveByTeamAndChallengeTx_Call{Call: _e.mock.On("GetSolveByTeamAndChallengeTx", ctx, tx, teamID, challengeID)}
 }
 
-func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, challengeID uuid.UUID)) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
+func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, challengeID uuid.UUID)) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1103,13 +1103,13 @@ func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) Return(solve *enti
 	return _c
 }
 
-func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, challengeID uuid.UUID) (*entity.Solve, error)) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
+func (_c *MockTxRepository_GetSolveByTeamAndChallengeTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, challengeID uuid.UUID) (*entity.Solve, error)) *MockTxRepository_GetSolveByTeamAndChallengeTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTeamByIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Team, error) {
+func (_mock *MockTxRepository) GetTeamByIDTx(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (*entity.Team, error) {
 	ret := _mock.Called(ctx, tx, ID)
 
 	if len(ret) == 0 {
@@ -1118,17 +1118,17 @@ func (_mock *MockTxRepository) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, ID 
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (*entity.Team, error)); ok {
 		return returnFunc(ctx, tx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) *entity.Team); ok {
 		r0 = returnFunc(ctx, tx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, ID)
 	} else {
 		r1 = ret.Error(1)
@@ -1143,21 +1143,21 @@ type MockTxRepository_GetTeamByIDTx_Call struct {
 
 // GetTeamByIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - ID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetTeamByIDTx(ctx interface{}, tx interface{}, ID interface{}) *MockTxRepository_GetTeamByIDTx_Call {
 	return &MockTxRepository_GetTeamByIDTx_Call{Call: _e.mock.On("GetTeamByIDTx", ctx, tx, ID)}
 }
 
-func (_c *MockTxRepository_GetTeamByIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID)) *MockTxRepository_GetTeamByIDTx_Call {
+func (_c *MockTxRepository_GetTeamByIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID)) *MockTxRepository_GetTeamByIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1177,13 +1177,13 @@ func (_c *MockTxRepository_GetTeamByIDTx_Call) Return(team *entity.Team, err err
 	return _c
 }
 
-func (_c *MockTxRepository_GetTeamByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetTeamByIDTx_Call {
+func (_c *MockTxRepository_GetTeamByIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetTeamByIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTeamByInviteTokenTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
+func (_mock *MockTxRepository) GetTeamByInviteTokenTx(ctx context.Context, tx repo.Transaction, inviteToken uuid.UUID) (*entity.Team, error) {
 	ret := _mock.Called(ctx, tx, inviteToken)
 
 	if len(ret) == 0 {
@@ -1192,17 +1192,17 @@ func (_mock *MockTxRepository) GetTeamByInviteTokenTx(ctx context.Context, tx pg
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (*entity.Team, error)); ok {
 		return returnFunc(ctx, tx, inviteToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) *entity.Team); ok {
 		r0 = returnFunc(ctx, tx, inviteToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, inviteToken)
 	} else {
 		r1 = ret.Error(1)
@@ -1217,21 +1217,21 @@ type MockTxRepository_GetTeamByInviteTokenTx_Call struct {
 
 // GetTeamByInviteTokenTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - inviteToken uuid.UUID
 func (_e *MockTxRepository_Expecter) GetTeamByInviteTokenTx(ctx interface{}, tx interface{}, inviteToken interface{}) *MockTxRepository_GetTeamByInviteTokenTx_Call {
 	return &MockTxRepository_GetTeamByInviteTokenTx_Call{Call: _e.mock.On("GetTeamByInviteTokenTx", ctx, tx, inviteToken)}
 }
 
-func (_c *MockTxRepository_GetTeamByInviteTokenTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID)) *MockTxRepository_GetTeamByInviteTokenTx_Call {
+func (_c *MockTxRepository_GetTeamByInviteTokenTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, inviteToken uuid.UUID)) *MockTxRepository_GetTeamByInviteTokenTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1251,13 +1251,13 @@ func (_c *MockTxRepository_GetTeamByInviteTokenTx_Call) Return(team *entity.Team
 	return _c
 }
 
-func (_c *MockTxRepository_GetTeamByInviteTokenTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetTeamByInviteTokenTx_Call {
+func (_c *MockTxRepository_GetTeamByInviteTokenTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, inviteToken uuid.UUID) (*entity.Team, error)) *MockTxRepository_GetTeamByInviteTokenTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTeamByNameTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error) {
+func (_mock *MockTxRepository) GetTeamByNameTx(ctx context.Context, tx repo.Transaction, name string) (*entity.Team, error) {
 	ret := _mock.Called(ctx, tx, name)
 
 	if len(ret) == 0 {
@@ -1266,17 +1266,17 @@ func (_mock *MockTxRepository) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, n
 
 	var r0 *entity.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, string) (*entity.Team, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) (*entity.Team, error)); ok {
 		return returnFunc(ctx, tx, name)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, string) *entity.Team); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) *entity.Team); ok {
 		r0 = returnFunc(ctx, tx, name)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, string) error); ok {
 		r1 = returnFunc(ctx, tx, name)
 	} else {
 		r1 = ret.Error(1)
@@ -1291,21 +1291,21 @@ type MockTxRepository_GetTeamByNameTx_Call struct {
 
 // GetTeamByNameTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - name string
 func (_e *MockTxRepository_Expecter) GetTeamByNameTx(ctx interface{}, tx interface{}, name interface{}) *MockTxRepository_GetTeamByNameTx_Call {
 	return &MockTxRepository_GetTeamByNameTx_Call{Call: _e.mock.On("GetTeamByNameTx", ctx, tx, name)}
 }
 
-func (_c *MockTxRepository_GetTeamByNameTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, name string)) *MockTxRepository_GetTeamByNameTx_Call {
+func (_c *MockTxRepository_GetTeamByNameTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, name string)) *MockTxRepository_GetTeamByNameTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -1325,13 +1325,13 @@ func (_c *MockTxRepository_GetTeamByNameTx_Call) Return(team *entity.Team, err e
 	return _c
 }
 
-func (_c *MockTxRepository_GetTeamByNameTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error)) *MockTxRepository_GetTeamByNameTx_Call {
+func (_c *MockTxRepository_GetTeamByNameTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, name string) (*entity.Team, error)) *MockTxRepository_GetTeamByNameTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTeamScoreTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetTeamScoreTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) (int, error) {
+func (_mock *MockTxRepository) GetTeamScoreTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -1340,15 +1340,15 @@ func (_mock *MockTxRepository) GetTeamScoreTx(ctx context.Context, tx pgx.Tx, te
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (int, error)); ok {
 		return returnFunc(ctx, tx, teamID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) int); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, teamID)
 	} else {
 		r1 = ret.Error(1)
@@ -1363,21 +1363,21 @@ type MockTxRepository_GetTeamScoreTx_Call struct {
 
 // GetTeamScoreTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetTeamScoreTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_GetTeamScoreTx_Call {
 	return &MockTxRepository_GetTeamScoreTx_Call{Call: _e.mock.On("GetTeamScoreTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_GetTeamScoreTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_GetTeamScoreTx_Call {
+func (_c *MockTxRepository_GetTeamScoreTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_GetTeamScoreTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1397,13 +1397,13 @@ func (_c *MockTxRepository_GetTeamScoreTx_Call) Return(n int, err error) *MockTx
 	return _c
 }
 
-func (_c *MockTxRepository_GetTeamScoreTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) (int, error)) *MockTxRepository_GetTeamScoreTx_Call {
+func (_c *MockTxRepository_GetTeamScoreTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) (int, error)) *MockTxRepository_GetTeamScoreTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUsersByTeamIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error) {
+func (_mock *MockTxRepository) GetUsersByTeamIDTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) ([]*entity.User, error) {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -1412,17 +1412,17 @@ func (_mock *MockTxRepository) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx
 
 	var r0 []*entity.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) ([]*entity.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) ([]*entity.User, error)); ok {
 		return returnFunc(ctx, tx, teamID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) []*entity.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) []*entity.User); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*entity.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, teamID)
 	} else {
 		r1 = ret.Error(1)
@@ -1437,21 +1437,21 @@ type MockTxRepository_GetUsersByTeamIDTx_Call struct {
 
 // GetUsersByTeamIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) GetUsersByTeamIDTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_GetUsersByTeamIDTx_Call {
 	return &MockTxRepository_GetUsersByTeamIDTx_Call{Call: _e.mock.On("GetUsersByTeamIDTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_GetUsersByTeamIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_GetUsersByTeamIDTx_Call {
+func (_c *MockTxRepository_GetUsersByTeamIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_GetUsersByTeamIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1471,13 +1471,13 @@ func (_c *MockTxRepository_GetUsersByTeamIDTx_Call) Return(users []*entity.User,
 	return _c
 }
 
-func (_c *MockTxRepository_GetUsersByTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error)) *MockTxRepository_GetUsersByTeamIDTx_Call {
+func (_c *MockTxRepository_GetUsersByTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) ([]*entity.User, error)) *MockTxRepository_GetUsersByTeamIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IncrementChallengeSolveCountTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) IncrementChallengeSolveCountTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (int, error) {
+func (_mock *MockTxRepository) IncrementChallengeSolveCountTx(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, tx, ID)
 
 	if len(ret) == 0 {
@@ -1486,15 +1486,15 @@ func (_mock *MockTxRepository) IncrementChallengeSolveCountTx(ctx context.Contex
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) (int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) (int, error)); ok {
 		return returnFunc(ctx, tx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) int); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) int); ok {
 		r0 = returnFunc(ctx, tx, ID)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, tx, ID)
 	} else {
 		r1 = ret.Error(1)
@@ -1509,21 +1509,21 @@ type MockTxRepository_IncrementChallengeSolveCountTx_Call struct {
 
 // IncrementChallengeSolveCountTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - ID uuid.UUID
 func (_e *MockTxRepository_Expecter) IncrementChallengeSolveCountTx(ctx interface{}, tx interface{}, ID interface{}) *MockTxRepository_IncrementChallengeSolveCountTx_Call {
 	return &MockTxRepository_IncrementChallengeSolveCountTx_Call{Call: _e.mock.On("IncrementChallengeSolveCountTx", ctx, tx, ID)}
 }
 
-func (_c *MockTxRepository_IncrementChallengeSolveCountTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID)) *MockTxRepository_IncrementChallengeSolveCountTx_Call {
+func (_c *MockTxRepository_IncrementChallengeSolveCountTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID)) *MockTxRepository_IncrementChallengeSolveCountTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1543,13 +1543,13 @@ func (_c *MockTxRepository_IncrementChallengeSolveCountTx_Call) Return(n int, er
 	return _c
 }
 
-func (_c *MockTxRepository_IncrementChallengeSolveCountTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (int, error)) *MockTxRepository_IncrementChallengeSolveCountTx_Call {
+func (_c *MockTxRepository_IncrementChallengeSolveCountTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID) (int, error)) *MockTxRepository_IncrementChallengeSolveCountTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LockTeamTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (_mock *MockTxRepository) LockTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -1557,7 +1557,7 @@ func (_mock *MockTxRepository) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		r0 = ret.Error(0)
@@ -1572,21 +1572,21 @@ type MockTxRepository_LockTeamTx_Call struct {
 
 // LockTeamTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) LockTeamTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_LockTeamTx_Call {
 	return &MockTxRepository_LockTeamTx_Call{Call: _e.mock.On("LockTeamTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_LockTeamTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_LockTeamTx_Call {
+func (_c *MockTxRepository_LockTeamTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_LockTeamTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1606,13 +1606,13 @@ func (_c *MockTxRepository_LockTeamTx_Call) Return(err error) *MockTxRepository_
 	return _c
 }
 
-func (_c *MockTxRepository_LockTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error) *MockTxRepository_LockTeamTx_Call {
+func (_c *MockTxRepository_LockTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error) *MockTxRepository_LockTeamTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LockUserTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) LockUserTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+func (_mock *MockTxRepository) LockUserTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, userID)
 
 	if len(ret) == 0 {
@@ -1620,7 +1620,7 @@ func (_mock *MockTxRepository) LockUserTx(ctx context.Context, tx pgx.Tx, userID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, userID)
 	} else {
 		r0 = ret.Error(0)
@@ -1635,21 +1635,21 @@ type MockTxRepository_LockUserTx_Call struct {
 
 // LockUserTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - userID uuid.UUID
 func (_e *MockTxRepository_Expecter) LockUserTx(ctx interface{}, tx interface{}, userID interface{}) *MockTxRepository_LockUserTx_Call {
 	return &MockTxRepository_LockUserTx_Call{Call: _e.mock.On("LockUserTx", ctx, tx, userID)}
 }
 
-func (_c *MockTxRepository_LockUserTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID)) *MockTxRepository_LockUserTx_Call {
+func (_c *MockTxRepository_LockUserTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID)) *MockTxRepository_LockUserTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1669,13 +1669,13 @@ func (_c *MockTxRepository_LockUserTx_Call) Return(err error) *MockTxRepository_
 	return _c
 }
 
-func (_c *MockTxRepository_LockUserTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error) *MockTxRepository_LockUserTx_Call {
+func (_c *MockTxRepository_LockUserTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID) error) *MockTxRepository_LockUserTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RunTransaction provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) RunTransaction(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+func (_mock *MockTxRepository) RunTransaction(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 	ret := _mock.Called(ctx, fn)
 
 	if len(ret) == 0 {
@@ -1683,7 +1683,7 @@ func (_mock *MockTxRepository) RunTransaction(ctx context.Context, fn func(conte
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, func(context.Context, pgx.Tx) error) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, func(context.Context, repo.Transaction) error) error); ok {
 		r0 = returnFunc(ctx, fn)
 	} else {
 		r0 = ret.Error(0)
@@ -1698,20 +1698,20 @@ type MockTxRepository_RunTransaction_Call struct {
 
 // RunTransaction is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fn func(context.Context, pgx.Tx) error
+//   - fn func(context.Context, repo.Transaction) error
 func (_e *MockTxRepository_Expecter) RunTransaction(ctx interface{}, fn interface{}) *MockTxRepository_RunTransaction_Call {
 	return &MockTxRepository_RunTransaction_Call{Call: _e.mock.On("RunTransaction", ctx, fn)}
 }
 
-func (_c *MockTxRepository_RunTransaction_Call) Run(run func(ctx context.Context, fn func(context.Context, pgx.Tx) error)) *MockTxRepository_RunTransaction_Call {
+func (_c *MockTxRepository_RunTransaction_Call) Run(run func(ctx context.Context, fn func(context.Context, repo.Transaction) error)) *MockTxRepository_RunTransaction_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 func(context.Context, pgx.Tx) error
+		var arg1 func(context.Context, repo.Transaction) error
 		if args[1] != nil {
-			arg1 = args[1].(func(context.Context, pgx.Tx) error)
+			arg1 = args[1].(func(context.Context, repo.Transaction) error)
 		}
 		run(
 			arg0,
@@ -1726,13 +1726,13 @@ func (_c *MockTxRepository_RunTransaction_Call) Return(err error) *MockTxReposit
 	return _c
 }
 
-func (_c *MockTxRepository_RunTransaction_Call) RunAndReturn(run func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error) *MockTxRepository_RunTransaction_Call {
+func (_c *MockTxRepository_RunTransaction_Call) RunAndReturn(run func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error) *MockTxRepository_RunTransaction_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SoftDeleteTeamTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (_mock *MockTxRepository) SoftDeleteTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)
 
 	if len(ret) == 0 {
@@ -1740,7 +1740,7 @@ func (_mock *MockTxRepository) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID)
 	} else {
 		r0 = ret.Error(0)
@@ -1755,21 +1755,21 @@ type MockTxRepository_SoftDeleteTeamTx_Call struct {
 
 // SoftDeleteTeamTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 func (_e *MockTxRepository_Expecter) SoftDeleteTeamTx(ctx interface{}, tx interface{}, teamID interface{}) *MockTxRepository_SoftDeleteTeamTx_Call {
 	return &MockTxRepository_SoftDeleteTeamTx_Call{Call: _e.mock.On("SoftDeleteTeamTx", ctx, tx, teamID)}
 }
 
-func (_c *MockTxRepository_SoftDeleteTeamTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID)) *MockTxRepository_SoftDeleteTeamTx_Call {
+func (_c *MockTxRepository_SoftDeleteTeamTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID)) *MockTxRepository_SoftDeleteTeamTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1789,13 +1789,13 @@ func (_c *MockTxRepository_SoftDeleteTeamTx_Call) Return(err error) *MockTxRepos
 	return _c
 }
 
-func (_c *MockTxRepository_SoftDeleteTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error) *MockTxRepository_SoftDeleteTeamTx_Call {
+func (_c *MockTxRepository_SoftDeleteTeamTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error) *MockTxRepository_SoftDeleteTeamTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateChallengePointsTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) UpdateChallengePointsTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int) error {
+func (_mock *MockTxRepository) UpdateChallengePointsTx(ctx context.Context, tx repo.Transaction, ID uuid.UUID, points int) error {
 	ret := _mock.Called(ctx, tx, ID, points)
 
 	if len(ret) == 0 {
@@ -1803,7 +1803,7 @@ func (_mock *MockTxRepository) UpdateChallengePointsTx(ctx context.Context, tx p
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, int) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, int) error); ok {
 		r0 = returnFunc(ctx, tx, ID, points)
 	} else {
 		r0 = ret.Error(0)
@@ -1818,22 +1818,22 @@ type MockTxRepository_UpdateChallengePointsTx_Call struct {
 
 // UpdateChallengePointsTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - ID uuid.UUID
 //   - points int
 func (_e *MockTxRepository_Expecter) UpdateChallengePointsTx(ctx interface{}, tx interface{}, ID interface{}, points interface{}) *MockTxRepository_UpdateChallengePointsTx_Call {
 	return &MockTxRepository_UpdateChallengePointsTx_Call{Call: _e.mock.On("UpdateChallengePointsTx", ctx, tx, ID, points)}
 }
 
-func (_c *MockTxRepository_UpdateChallengePointsTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int)) *MockTxRepository_UpdateChallengePointsTx_Call {
+func (_c *MockTxRepository_UpdateChallengePointsTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID, points int)) *MockTxRepository_UpdateChallengePointsTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1858,13 +1858,13 @@ func (_c *MockTxRepository_UpdateChallengePointsTx_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockTxRepository_UpdateChallengePointsTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int) error) *MockTxRepository_UpdateChallengePointsTx_Call {
+func (_c *MockTxRepository_UpdateChallengePointsTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID, points int) error) *MockTxRepository_UpdateChallengePointsTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateTeamCaptainTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, newCaptainID uuid.UUID) error {
+func (_mock *MockTxRepository) UpdateTeamCaptainTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, newCaptainID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID, newCaptainID)
 
 	if len(ret) == 0 {
@@ -1872,7 +1872,7 @@ func (_mock *MockTxRepository) UpdateTeamCaptainTx(ctx context.Context, tx pgx.T
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, teamID, newCaptainID)
 	} else {
 		r0 = ret.Error(0)
@@ -1887,22 +1887,22 @@ type MockTxRepository_UpdateTeamCaptainTx_Call struct {
 
 // UpdateTeamCaptainTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - teamID uuid.UUID
 //   - newCaptainID uuid.UUID
 func (_e *MockTxRepository_Expecter) UpdateTeamCaptainTx(ctx interface{}, tx interface{}, teamID interface{}, newCaptainID interface{}) *MockTxRepository_UpdateTeamCaptainTx_Call {
 	return &MockTxRepository_UpdateTeamCaptainTx_Call{Call: _e.mock.On("UpdateTeamCaptainTx", ctx, tx, teamID, newCaptainID)}
 }
 
-func (_c *MockTxRepository_UpdateTeamCaptainTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, newCaptainID uuid.UUID)) *MockTxRepository_UpdateTeamCaptainTx_Call {
+func (_c *MockTxRepository_UpdateTeamCaptainTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, newCaptainID uuid.UUID)) *MockTxRepository_UpdateTeamCaptainTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1927,13 +1927,13 @@ func (_c *MockTxRepository_UpdateTeamCaptainTx_Call) Return(err error) *MockTxRe
 	return _c
 }
 
-func (_c *MockTxRepository_UpdateTeamCaptainTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, teamID uuid.UUID, newCaptainID uuid.UUID) error) *MockTxRepository_UpdateTeamCaptainTx_Call {
+func (_c *MockTxRepository_UpdateTeamCaptainTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, newCaptainID uuid.UUID) error) *MockTxRepository_UpdateTeamCaptainTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateUserTeamIDTx provides a mock function for the type MockTxRepository
-func (_mock *MockTxRepository) UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID) error {
+func (_mock *MockTxRepository) UpdateUserTeamIDTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID, teamID *uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, userID, teamID)
 
 	if len(ret) == 0 {
@@ -1941,7 +1941,7 @@ func (_mock *MockTxRepository) UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, uuid.UUID, *uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, *uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, tx, userID, teamID)
 	} else {
 		r0 = ret.Error(0)
@@ -1956,22 +1956,22 @@ type MockTxRepository_UpdateUserTeamIDTx_Call struct {
 
 // UpdateUserTeamIDTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - userID uuid.UUID
 //   - teamID *uuid.UUID
 func (_e *MockTxRepository_Expecter) UpdateUserTeamIDTx(ctx interface{}, tx interface{}, userID interface{}, teamID interface{}) *MockTxRepository_UpdateUserTeamIDTx_Call {
 	return &MockTxRepository_UpdateUserTeamIDTx_Call{Call: _e.mock.On("UpdateUserTeamIDTx", ctx, tx, userID, teamID)}
 }
 
-func (_c *MockTxRepository_UpdateUserTeamIDTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID)) *MockTxRepository_UpdateUserTeamIDTx_Call {
+func (_c *MockTxRepository_UpdateUserTeamIDTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID, teamID *uuid.UUID)) *MockTxRepository_UpdateUserTeamIDTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -1996,7 +1996,7 @@ func (_c *MockTxRepository_UpdateUserTeamIDTx_Call) Return(err error) *MockTxRep
 	return _c
 }
 
-func (_c *MockTxRepository_UpdateUserTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID) error) *MockTxRepository_UpdateUserTeamIDTx_Call {
+func (_c *MockTxRepository_UpdateUserTeamIDTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, userID uuid.UUID, teamID *uuid.UUID) error) *MockTxRepository_UpdateUserTeamIDTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

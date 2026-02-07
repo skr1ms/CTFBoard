@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
@@ -129,9 +128,9 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	zipBytes, zipSize := h.BuildBackupZip(data)
 
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		ctx := args.Get(0).(context.Context)                    //nolint:errcheck
-		fn := args.Get(1).(func(context.Context, pgx.Tx) error) //nolint:errcheck
-		_ = fn(ctx, nil)                                        //nolint:errcheck
+		ctx := args.Get(0).(context.Context)                              //nolint:errcheck
+		fn := args.Get(1).(func(context.Context, repo.Transaction) error) //nolint:errcheck
+		_ = fn(ctx, nil)                                                  //nolint:errcheck
 	})
 	deps.backupRepo.On("ImportCompetitionTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	deps.backupRepo.On("ImportChallengesTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)

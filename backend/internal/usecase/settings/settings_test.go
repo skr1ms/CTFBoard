@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -22,9 +22,9 @@ func TestSettingsUseCase_Get_Success(t *testing.T) {
 
 	settings := h.NewAppSettings()
 
-	redisClient.ExpectGet(redisKeys.KeyAppSettings).SetErr(redis.Nil)
+	redisClient.ExpectGet(cache.KeyAppSettings).SetErr(redis.Nil)
 	deps.appSettingsRepo.On("Get", mock.Anything).Return(settings, nil)
-	redisClient.Regexp().ExpectSet(redisKeys.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
+	redisClient.Regexp().ExpectSet(cache.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
 
 	result, err := uc.Get(context.Background())
 
@@ -44,7 +44,7 @@ func TestSettingsUseCase_Get_Cached_Success(t *testing.T) {
 	bytes, err := json.Marshal(settings)
 	require.NoError(t, err)
 
-	redisClient.ExpectGet(redisKeys.KeyAppSettings).SetVal(string(bytes))
+	redisClient.ExpectGet(cache.KeyAppSettings).SetVal(string(bytes))
 
 	result, err := uc.Get(context.Background())
 
@@ -59,7 +59,7 @@ func TestSettingsUseCase_Get_Error(t *testing.T) {
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
-	redisClient.ExpectGet(redisKeys.KeyAppSettings).SetErr(redis.Nil)
+	redisClient.ExpectGet(cache.KeyAppSettings).SetErr(redis.Nil)
 	deps.appSettingsRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.Get(context.Background())
@@ -82,7 +82,7 @@ func TestSettingsUseCase_Update_Success(t *testing.T) {
 	deps.appSettingsRepo.On("Update", mock.Anything, mock.MatchedBy(func(s *entity.AppSettings) bool {
 		return s.ID == settings.ID && s.AppName == settings.AppName
 	})).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyAppSettings).SetVal(1)
+	redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 	deps.auditLogRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
 		return a.Action == entity.AuditActionUpdate &&
 			a.EntityType == entity.AuditEntityAppSettings &&
@@ -121,7 +121,7 @@ func TestSettingsUseCase_Update_AuditLogError(t *testing.T) {
 	settings := h.NewAppSettings()
 
 	deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyAppSettings).SetVal(1)
+	redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 	deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("audit error"))
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
@@ -238,7 +238,7 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
 			settings := h.NewAppSettingsWithValues(10, 1, 24, 1, visibility)
 
 			deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
-			redisClient.ExpectDel(redisKeys.KeyAppSettings).SetVal(1)
+			redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 			deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
 			err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
@@ -256,9 +256,9 @@ func TestSettingsUseCase_Get_InvalidCachedJSON(t *testing.T) {
 
 	settings := h.NewAppSettings()
 
-	redisClient.ExpectGet(redisKeys.KeyAppSettings).SetVal("invalid json")
+	redisClient.ExpectGet(cache.KeyAppSettings).SetVal("invalid json")
 	deps.appSettingsRepo.On("Get", mock.Anything).Return(settings, nil)
-	redisClient.Regexp().ExpectSet(redisKeys.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
+	redisClient.Regexp().ExpectSet(cache.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
 
 	result, err := uc.Get(context.Background())
 
@@ -295,7 +295,7 @@ func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
 
 			if !tt.wantErr {
 				deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
-				redisClient.ExpectDel(redisKeys.KeyAppSettings).SetVal(1)
+				redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 				deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 			}
 

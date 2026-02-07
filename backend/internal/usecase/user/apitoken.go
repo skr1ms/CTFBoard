@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type APITokenUseCase struct {
@@ -30,7 +30,7 @@ func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*entit
 func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *entity.APIToken, err error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return "", nil, fmt.Errorf("APITokenUseCase - Create - rand: %w", err)
+		return "", nil, usecaseutil.Wrap(err, "APITokenUseCase - Create - rand")
 	}
 	plaintext = hex.EncodeToString(b)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -44,7 +44,7 @@ func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, descrip
 		CreatedAt:   time.Now(),
 	}
 	if err := uc.repo.Create(ctx, token); err != nil {
-		return "", nil, fmt.Errorf("APITokenUseCase - Create: %w", err)
+		return "", nil, usecaseutil.Wrap(err, "APITokenUseCase - Create")
 	}
 	return plaintext, token, nil
 }

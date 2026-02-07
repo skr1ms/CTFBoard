@@ -35,7 +35,7 @@ func GetOrLoad[T any](c *Cache, ctx context.Context, key string, ttl time.Durati
 			return nil, err
 		}
 		if bytes, err := json.Marshal(data); err == nil {
-			c.redis.Set(ctx, key, bytes, ttl)
+			c.redis.Set(context.Background(), key, bytes, ttl)
 		}
 		return data, nil
 	})

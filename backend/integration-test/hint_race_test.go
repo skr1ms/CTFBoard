@@ -19,9 +19,12 @@ func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	db, redisClient := redismock.NewClientMock()
+	_, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("hint:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
-	uc := challenge.NewHintUseCase(f.HintRepo, f.HintUnlockRepo, f.AwardRepo, f.TxRepo, f.SolveRepo, db)
+	uc := challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: f.HintRepo, HintUnlockRepo: f.HintUnlockRepo, AwardRepo: f.AwardRepo,
+		TxRepo: f.TxRepo, SolveRepo: f.SolveRepo, ScoreboardCache: nil,
+	})
 
 	team, challenge, hint := setupHintRaceTest(t, f, ctx)
 

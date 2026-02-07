@@ -7,8 +7,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,7 +40,7 @@ func (_m *MockBackupRepository) EXPECT() *MockBackupRepository_Expecter {
 }
 
 // EraseAllTablesTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) EraseAllTablesTx(ctx context.Context, tx pgx.Tx) error {
+func (_mock *MockBackupRepository) EraseAllTablesTx(ctx context.Context, tx repo.Transaction) error {
 	ret := _mock.Called(ctx, tx)
 
 	if len(ret) == 0 {
@@ -48,7 +48,7 @@ func (_mock *MockBackupRepository) EraseAllTablesTx(ctx context.Context, tx pgx.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction) error); ok {
 		r0 = returnFunc(ctx, tx)
 	} else {
 		r0 = ret.Error(0)
@@ -63,20 +63,20 @@ type MockBackupRepository_EraseAllTablesTx_Call struct {
 
 // EraseAllTablesTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 func (_e *MockBackupRepository_Expecter) EraseAllTablesTx(ctx interface{}, tx interface{}) *MockBackupRepository_EraseAllTablesTx_Call {
 	return &MockBackupRepository_EraseAllTablesTx_Call{Call: _e.mock.On("EraseAllTablesTx", ctx, tx)}
 }
 
-func (_c *MockBackupRepository_EraseAllTablesTx_Call) Run(run func(ctx context.Context, tx pgx.Tx)) *MockBackupRepository_EraseAllTablesTx_Call {
+func (_c *MockBackupRepository_EraseAllTablesTx_Call) Run(run func(ctx context.Context, tx repo.Transaction)) *MockBackupRepository_EraseAllTablesTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		run(
 			arg0,
@@ -91,13 +91,13 @@ func (_c *MockBackupRepository_EraseAllTablesTx_Call) Return(err error) *MockBac
 	return _c
 }
 
-func (_c *MockBackupRepository_EraseAllTablesTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx) error) *MockBackupRepository_EraseAllTablesTx_Call {
+func (_c *MockBackupRepository_EraseAllTablesTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction) error) *MockBackupRepository_EraseAllTablesTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportAwardsTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportAwardsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (_mock *MockBackupRepository) ImportAwardsTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, tx, data)
 
 	if len(ret) == 0 {
@@ -105,7 +105,7 @@ func (_mock *MockBackupRepository) ImportAwardsTx(ctx context.Context, tx pgx.Tx
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData) error); ok {
 		r0 = returnFunc(ctx, tx, data)
 	} else {
 		r0 = ret.Error(0)
@@ -120,21 +120,21 @@ type MockBackupRepository_ImportAwardsTx_Call struct {
 
 // ImportAwardsTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 func (_e *MockBackupRepository_Expecter) ImportAwardsTx(ctx interface{}, tx interface{}, data interface{}) *MockBackupRepository_ImportAwardsTx_Call {
 	return &MockBackupRepository_ImportAwardsTx_Call{Call: _e.mock.On("ImportAwardsTx", ctx, tx, data)}
 }
 
-func (_c *MockBackupRepository_ImportAwardsTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData)) *MockBackupRepository_ImportAwardsTx_Call {
+func (_c *MockBackupRepository_ImportAwardsTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData)) *MockBackupRepository_ImportAwardsTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -154,13 +154,13 @@ func (_c *MockBackupRepository_ImportAwardsTx_Call) Return(err error) *MockBacku
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportAwardsTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error) *MockBackupRepository_ImportAwardsTx_Call {
+func (_c *MockBackupRepository_ImportAwardsTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error) *MockBackupRepository_ImportAwardsTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportChallengesTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportChallengesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (_mock *MockBackupRepository) ImportChallengesTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, tx, data)
 
 	if len(ret) == 0 {
@@ -168,7 +168,7 @@ func (_mock *MockBackupRepository) ImportChallengesTx(ctx context.Context, tx pg
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData) error); ok {
 		r0 = returnFunc(ctx, tx, data)
 	} else {
 		r0 = ret.Error(0)
@@ -183,21 +183,21 @@ type MockBackupRepository_ImportChallengesTx_Call struct {
 
 // ImportChallengesTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 func (_e *MockBackupRepository_Expecter) ImportChallengesTx(ctx interface{}, tx interface{}, data interface{}) *MockBackupRepository_ImportChallengesTx_Call {
 	return &MockBackupRepository_ImportChallengesTx_Call{Call: _e.mock.On("ImportChallengesTx", ctx, tx, data)}
 }
 
-func (_c *MockBackupRepository_ImportChallengesTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData)) *MockBackupRepository_ImportChallengesTx_Call {
+func (_c *MockBackupRepository_ImportChallengesTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData)) *MockBackupRepository_ImportChallengesTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -217,13 +217,13 @@ func (_c *MockBackupRepository_ImportChallengesTx_Call) Return(err error) *MockB
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportChallengesTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error) *MockBackupRepository_ImportChallengesTx_Call {
+func (_c *MockBackupRepository_ImportChallengesTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error) *MockBackupRepository_ImportChallengesTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportCompetitionTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportCompetitionTx(ctx context.Context, tx pgx.Tx, comp *entity.Competition) error {
+func (_mock *MockBackupRepository) ImportCompetitionTx(ctx context.Context, tx repo.Transaction, comp *entity.Competition) error {
 	ret := _mock.Called(ctx, tx, comp)
 
 	if len(ret) == 0 {
@@ -231,7 +231,7 @@ func (_mock *MockBackupRepository) ImportCompetitionTx(ctx context.Context, tx p
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.Competition) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.Competition) error); ok {
 		r0 = returnFunc(ctx, tx, comp)
 	} else {
 		r0 = ret.Error(0)
@@ -246,21 +246,21 @@ type MockBackupRepository_ImportCompetitionTx_Call struct {
 
 // ImportCompetitionTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - comp *entity.Competition
 func (_e *MockBackupRepository_Expecter) ImportCompetitionTx(ctx interface{}, tx interface{}, comp interface{}) *MockBackupRepository_ImportCompetitionTx_Call {
 	return &MockBackupRepository_ImportCompetitionTx_Call{Call: _e.mock.On("ImportCompetitionTx", ctx, tx, comp)}
 }
 
-func (_c *MockBackupRepository_ImportCompetitionTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, comp *entity.Competition)) *MockBackupRepository_ImportCompetitionTx_Call {
+func (_c *MockBackupRepository_ImportCompetitionTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, comp *entity.Competition)) *MockBackupRepository_ImportCompetitionTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.Competition
 		if args[2] != nil {
@@ -280,13 +280,13 @@ func (_c *MockBackupRepository_ImportCompetitionTx_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportCompetitionTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, comp *entity.Competition) error) *MockBackupRepository_ImportCompetitionTx_Call {
+func (_c *MockBackupRepository_ImportCompetitionTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, comp *entity.Competition) error) *MockBackupRepository_ImportCompetitionTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportFileMetadataTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportFileMetadataTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (_mock *MockBackupRepository) ImportFileMetadataTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, tx, data)
 
 	if len(ret) == 0 {
@@ -294,7 +294,7 @@ func (_mock *MockBackupRepository) ImportFileMetadataTx(ctx context.Context, tx 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData) error); ok {
 		r0 = returnFunc(ctx, tx, data)
 	} else {
 		r0 = ret.Error(0)
@@ -309,21 +309,21 @@ type MockBackupRepository_ImportFileMetadataTx_Call struct {
 
 // ImportFileMetadataTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 func (_e *MockBackupRepository_Expecter) ImportFileMetadataTx(ctx interface{}, tx interface{}, data interface{}) *MockBackupRepository_ImportFileMetadataTx_Call {
 	return &MockBackupRepository_ImportFileMetadataTx_Call{Call: _e.mock.On("ImportFileMetadataTx", ctx, tx, data)}
 }
 
-func (_c *MockBackupRepository_ImportFileMetadataTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData)) *MockBackupRepository_ImportFileMetadataTx_Call {
+func (_c *MockBackupRepository_ImportFileMetadataTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData)) *MockBackupRepository_ImportFileMetadataTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -343,13 +343,13 @@ func (_c *MockBackupRepository_ImportFileMetadataTx_Call) Return(err error) *Moc
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportFileMetadataTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error) *MockBackupRepository_ImportFileMetadataTx_Call {
+func (_c *MockBackupRepository_ImportFileMetadataTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error) *MockBackupRepository_ImportFileMetadataTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportSolvesTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportSolvesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (_mock *MockBackupRepository) ImportSolvesTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, tx, data)
 
 	if len(ret) == 0 {
@@ -357,7 +357,7 @@ func (_mock *MockBackupRepository) ImportSolvesTx(ctx context.Context, tx pgx.Tx
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData) error); ok {
 		r0 = returnFunc(ctx, tx, data)
 	} else {
 		r0 = ret.Error(0)
@@ -372,21 +372,21 @@ type MockBackupRepository_ImportSolvesTx_Call struct {
 
 // ImportSolvesTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 func (_e *MockBackupRepository_Expecter) ImportSolvesTx(ctx interface{}, tx interface{}, data interface{}) *MockBackupRepository_ImportSolvesTx_Call {
 	return &MockBackupRepository_ImportSolvesTx_Call{Call: _e.mock.On("ImportSolvesTx", ctx, tx, data)}
 }
 
-func (_c *MockBackupRepository_ImportSolvesTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData)) *MockBackupRepository_ImportSolvesTx_Call {
+func (_c *MockBackupRepository_ImportSolvesTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData)) *MockBackupRepository_ImportSolvesTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -406,13 +406,13 @@ func (_c *MockBackupRepository_ImportSolvesTx_Call) Return(err error) *MockBacku
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportSolvesTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error) *MockBackupRepository_ImportSolvesTx_Call {
+func (_c *MockBackupRepository_ImportSolvesTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error) *MockBackupRepository_ImportSolvesTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportTeamsTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportTeamsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error {
+func (_mock *MockBackupRepository) ImportTeamsTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error {
 	ret := _mock.Called(ctx, tx, data, opts)
 
 	if len(ret) == 0 {
@@ -420,7 +420,7 @@ func (_mock *MockBackupRepository) ImportTeamsTx(ctx context.Context, tx pgx.Tx,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData, entity.ImportOptions) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData, entity.ImportOptions) error); ok {
 		r0 = returnFunc(ctx, tx, data, opts)
 	} else {
 		r0 = ret.Error(0)
@@ -435,22 +435,22 @@ type MockBackupRepository_ImportTeamsTx_Call struct {
 
 // ImportTeamsTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 //   - opts entity.ImportOptions
 func (_e *MockBackupRepository_Expecter) ImportTeamsTx(ctx interface{}, tx interface{}, data interface{}, opts interface{}) *MockBackupRepository_ImportTeamsTx_Call {
 	return &MockBackupRepository_ImportTeamsTx_Call{Call: _e.mock.On("ImportTeamsTx", ctx, tx, data, opts)}
 }
 
-func (_c *MockBackupRepository_ImportTeamsTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions)) *MockBackupRepository_ImportTeamsTx_Call {
+func (_c *MockBackupRepository_ImportTeamsTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions)) *MockBackupRepository_ImportTeamsTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -475,13 +475,13 @@ func (_c *MockBackupRepository_ImportTeamsTx_Call) Return(err error) *MockBackup
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportTeamsTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error) *MockBackupRepository_ImportTeamsTx_Call {
+func (_c *MockBackupRepository_ImportTeamsTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error) *MockBackupRepository_ImportTeamsTx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ImportUsersTx provides a mock function for the type MockBackupRepository
-func (_mock *MockBackupRepository) ImportUsersTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error {
+func (_mock *MockBackupRepository) ImportUsersTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error {
 	ret := _mock.Called(ctx, tx, data, opts)
 
 	if len(ret) == 0 {
@@ -489,7 +489,7 @@ func (_mock *MockBackupRepository) ImportUsersTx(ctx context.Context, tx pgx.Tx,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, pgx.Tx, *entity.BackupData, entity.ImportOptions) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.BackupData, entity.ImportOptions) error); ok {
 		r0 = returnFunc(ctx, tx, data, opts)
 	} else {
 		r0 = ret.Error(0)
@@ -504,22 +504,22 @@ type MockBackupRepository_ImportUsersTx_Call struct {
 
 // ImportUsersTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tx pgx.Tx
+//   - tx repo.Transaction
 //   - data *entity.BackupData
 //   - opts entity.ImportOptions
 func (_e *MockBackupRepository_Expecter) ImportUsersTx(ctx interface{}, tx interface{}, data interface{}, opts interface{}) *MockBackupRepository_ImportUsersTx_Call {
 	return &MockBackupRepository_ImportUsersTx_Call{Call: _e.mock.On("ImportUsersTx", ctx, tx, data, opts)}
 }
 
-func (_c *MockBackupRepository_ImportUsersTx_Call) Run(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions)) *MockBackupRepository_ImportUsersTx_Call {
+func (_c *MockBackupRepository_ImportUsersTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions)) *MockBackupRepository_ImportUsersTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 pgx.Tx
+		var arg1 repo.Transaction
 		if args[1] != nil {
-			arg1 = args[1].(pgx.Tx)
+			arg1 = args[1].(repo.Transaction)
 		}
 		var arg2 *entity.BackupData
 		if args[2] != nil {
@@ -544,7 +544,7 @@ func (_c *MockBackupRepository_ImportUsersTx_Call) Return(err error) *MockBackup
 	return _c
 }
 
-func (_c *MockBackupRepository_ImportUsersTx_Call) RunAndReturn(run func(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error) *MockBackupRepository_ImportUsersTx_Call {
+func (_c *MockBackupRepository_ImportUsersTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error) *MockBackupRepository_ImportUsersTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

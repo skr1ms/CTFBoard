@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -457,7 +457,7 @@ func TestBackupRepo_RunTransaction_FullImport_Success(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	err = f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+	err = f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
 		if err := f.BackupRepo.ImportCompetitionTx(txCtx, tx, data.Competition); err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func TestBackupRepo_RunTransaction_EraseAndImportChallenges_Success(t *testing.T
 		{Challenge: entity.Challenge{ID: challengeID, Title: "Restored Chall", Description: challenge.Description, Category: challenge.Category, Points: 400, FlagHash: challenge.FlagHash, InitialValue: 400, MinValue: 400, Decay: 0, SolveCount: 0}, Hints: []entity.Hint{}},
 	}
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
 		if err := f.BackupRepo.EraseAllTablesTx(txCtx, tx); err != nil {
 			return err
 		}

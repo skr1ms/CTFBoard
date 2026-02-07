@@ -10,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type BracketUseCase struct {
@@ -34,7 +35,7 @@ func (uc *BracketUseCase) Create(ctx context.Context, name, description string, 
 		IsDefault:   isDefault,
 	}
 	if err := uc.bracketRepo.Create(ctx, bracket); err != nil {
-		return nil, fmt.Errorf("BracketUseCase - Create: %w", err)
+		return nil, usecaseutil.Wrap(err, "BracketUseCase - Create")
 	}
 	return bracket, nil
 }
@@ -42,7 +43,7 @@ func (uc *BracketUseCase) Create(ctx context.Context, name, description string, 
 func (uc *BracketUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Bracket, error) {
 	bracket, err := uc.bracketRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("BracketUseCase - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "BracketUseCase - GetByID")
 	}
 	return bracket, nil
 }
@@ -50,7 +51,7 @@ func (uc *BracketUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Br
 func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*entity.Bracket, error) {
 	list, err := uc.bracketRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("BracketUseCase - GetAll: %w", err)
+		return nil, usecaseutil.Wrap(err, "BracketUseCase - GetAll")
 	}
 	return list, nil
 }
@@ -58,7 +59,7 @@ func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*entity.Bracket, error)
 func (uc *BracketUseCase) Update(ctx context.Context, id uuid.UUID, name, description string, isDefault bool) (*entity.Bracket, error) {
 	bracket, err := uc.bracketRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("BracketUseCase - Update - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "BracketUseCase - Update - GetByID")
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -71,14 +72,14 @@ func (uc *BracketUseCase) Update(ctx context.Context, id uuid.UUID, name, descri
 		if errors.Is(err, entityError.ErrBracketNameConflict) {
 			return nil, err
 		}
-		return nil, fmt.Errorf("BracketUseCase - Update: %w", err)
+		return nil, usecaseutil.Wrap(err, "BracketUseCase - Update")
 	}
 	return bracket, nil
 }
 
 func (uc *BracketUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := uc.bracketRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("BracketUseCase - Delete: %w", err)
+		return usecaseutil.Wrap(err, "BracketUseCase - Delete")
 	}
 	return nil
 }

@@ -6,38 +6,28 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
-type HintUseCase struct {
-	hintRepo       repo.HintRepository
-	hintUnlockRepo repo.HintUnlockRepository
-	awardRepo      repo.AwardRepository
-	txRepo         repo.TxRepository
-	solveRepo      repo.SolveRepository
-	redis          *redis.Client
+type HintDeps struct {
+	HintRepo        repo.HintRepository
+	HintUnlockRepo  repo.HintUnlockRepository
+	AwardRepo       repo.AwardRepository
+	TxRepo          repo.TxRepository
+	SolveRepo       repo.SolveRepository
+	ScoreboardCache cache.ScoreboardCacheInvalidator
 }
 
-func NewHintUseCase(
-	hintRepo repo.HintRepository,
-	hintUnlockRepo repo.HintUnlockRepository,
-	awardRepo repo.AwardRepository,
-	txRepo repo.TxRepository,
-	solveRepo repo.SolveRepository,
-	redis *redis.Client,
-) *HintUseCase {
-	return &HintUseCase{
-		hintRepo:       hintRepo,
-		hintUnlockRepo: hintUnlockRepo,
-		awardRepo:      awardRepo,
-		txRepo:         txRepo,
-		solveRepo:      solveRepo,
-		redis:          redis,
-	}
+type HintUseCase struct {
+	deps HintDeps
+}
+
+func NewHintUseCase(deps HintDeps) *HintUseCase {
+	return &HintUseCase{deps: deps}
 }
 
 func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
@@ -48,32 +38,32 @@ func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, conten
 		OrderIndex:  orderIndex,
 	}
 
-	if err := uc.hintRepo.Create(ctx, hint); err != nil {
-		return nil, fmt.Errorf("HintUseCase - Create: %w", err)
+	if err := uc.deps.HintRepo.Create(ctx, hint); err != nil {
+		return nil, usecaseutil.Wrap(err, "HintUseCase - Create")
 	}
 
 	return hint, nil
 }
 
 func (uc *HintUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
-	hint, err := uc.hintRepo.GetByID(ctx, ID)
+	hint, err := uc.deps.HintRepo.GetByID(ctx, ID)
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - GetByID")
 	}
 	return hint, nil
 }
 
 func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*HintWithUnlockStatus, error) {
-	hints, err := uc.hintRepo.GetByChallengeID(ctx, challengeID)
+	hints, err := uc.deps.HintRepo.GetByChallengeID(ctx, challengeID)
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - GetByChallengeID: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - GetByChallengeID")
 	}
 
 	unlockedMap := make(map[uuid.UUID]bool)
 	if teamID != nil {
-		unlockedIDs, err := uc.hintUnlockRepo.GetUnlockedHintIDs(ctx, *teamID, challengeID)
+		unlockedIDs, err := uc.deps.HintUnlockRepo.GetUnlockedHintIDs(ctx, *teamID, challengeID)
 		if err != nil {
-			return nil, fmt.Errorf("HintUseCase - GetByChallengeID - GetUnlockedHintIDs: %w", err)
+			return nil, usecaseutil.Wrap(err, "HintUseCase - GetByChallengeID - GetUnlockedHintIDs")
 		}
 		for _, ID := range unlockedIDs {
 			unlockedMap[ID] = true
@@ -106,44 +96,41 @@ type HintWithUnlockStatus struct {
 }
 
 func (uc *HintUseCase) Update(ctx context.Context, ID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
-	hint, err := uc.hintRepo.GetByID(ctx, ID)
+	hint, err := uc.deps.HintRepo.GetByID(ctx, ID)
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - Update - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - Update - GetByID")
 	}
 
 	hint.Content = content
 	hint.Cost = cost
 	hint.OrderIndex = orderIndex
 
-	if err := uc.hintRepo.Update(ctx, hint); err != nil {
-		return nil, fmt.Errorf("HintUseCase - Update: %w", err)
+	if err := uc.deps.HintRepo.Update(ctx, hint); err != nil {
+		return nil, usecaseutil.Wrap(err, "HintUseCase - Update")
 	}
 
 	return hint, nil
 }
 
 func (uc *HintUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := uc.hintRepo.Delete(ctx, ID); err != nil {
-		return fmt.Errorf("HintUseCase - Delete: %w", err)
+	if err := uc.deps.HintRepo.Delete(ctx, ID); err != nil {
+		return usecaseutil.Wrap(err, "HintUseCase - Delete")
 	}
 	return nil
 }
 
-//nolint:gocognit,gocyclo
 func (uc *HintUseCase) UnlockHint(ctx context.Context, teamID, hintID uuid.UUID) (*entity.Hint, error) {
-	hint, err := uc.hintRepo.GetByID(ctx, hintID)
+	hint, err := uc.deps.HintRepo.GetByID(ctx, hintID)
 	if err != nil {
 		if errors.Is(err, entityError.ErrHintNotFound) {
 			return nil, entityError.ErrHintNotFound
 		}
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - UnlockHint - GetByID")
 	}
-
-	tx, err := uc.txRepo.BeginTx(ctx)
+	tx, err := uc.deps.TxRepo.BeginTx(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - BeginTx: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - UnlockHint - BeginTx")
 	}
-
 	defer func() {
 		if err != nil {
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
@@ -151,51 +138,57 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, teamID, hintID uuid.UUID)
 			}
 		}
 	}()
-
-	if err := uc.txRepo.LockTeamTx(ctx, tx, teamID); err != nil {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - LockTeamTx: %w", err)
-	}
-
-	_, err = uc.txRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, teamID, hintID)
-	if err == nil {
-		err = entityError.ErrHintAlreadyUnlocked
+	if err = uc.unlockHintInTx(ctx, tx, teamID, hintID, hint); err != nil {
 		return nil, err
 	}
-	if !errors.Is(err, entityError.ErrHintNotFound) {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - GetByTeamAndHintTx: %w", err)
-	}
-
-	if hint.Cost > 0 {
-		teamScore, err := uc.txRepo.GetTeamScoreTx(ctx, tx, teamID)
-		if err != nil {
-			return nil, fmt.Errorf("HintUseCase - UnlockHint - GetTeamScoreTx: %w", err)
-		}
-
-		if teamScore < hint.Cost {
-			err = entityError.ErrInsufficientPoints
-			return nil, err
-		}
-
-		award := &entity.Award{
-			TeamID:      teamID,
-			Value:       -hint.Cost,
-			Description: fmt.Sprintf("Hint unlock: %s", hint.ID),
-		}
-
-		if err = uc.txRepo.CreateAwardTx(ctx, tx, award); err != nil {
-			return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateAwardTx: %w", err)
-		}
-	}
-
-	if err = uc.txRepo.CreateHintUnlockTx(ctx, tx, teamID, hintID); err != nil {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - CreateUnlockTx: %w", err)
-	}
-
 	if err = tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("HintUseCase - UnlockHint - Commit: %w", err)
+		return nil, usecaseutil.Wrap(err, "HintUseCase - UnlockHint - Commit")
 	}
-
-	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
-
+	if uc.deps.ScoreboardCache != nil {
+		uc.deps.ScoreboardCache.InvalidateAll(ctx)
+	}
 	return hint, nil
+}
+
+func (uc *HintUseCase) unlockHintInTx(ctx context.Context, tx repo.Transaction, teamID, hintID uuid.UUID, hint *entity.Hint) error {
+	if err := uc.deps.TxRepo.LockTeamTx(ctx, tx, teamID); err != nil {
+		return usecaseutil.Wrap(err, "HintUseCase - UnlockHint - LockTeamTx")
+	}
+	if err := uc.unlockHintCheckAlreadyUnlocked(ctx, tx, teamID, hintID); err != nil {
+		return err
+	}
+	if err := uc.unlockHintChargeIfNeeded(ctx, tx, teamID, hint); err != nil {
+		return err
+	}
+	return uc.deps.TxRepo.CreateHintUnlockTx(ctx, tx, teamID, hintID)
+}
+
+func (uc *HintUseCase) unlockHintCheckAlreadyUnlocked(ctx context.Context, tx repo.Transaction, teamID, hintID uuid.UUID) error {
+	_, err := uc.deps.TxRepo.GetHintUnlockByTeamAndHintTx(ctx, tx, teamID, hintID)
+	if err == nil {
+		return entityError.ErrHintAlreadyUnlocked
+	}
+	if !errors.Is(err, entityError.ErrHintNotFound) {
+		return usecaseutil.Wrap(err, "HintUseCase - UnlockHint - GetByTeamAndHintTx")
+	}
+	return nil
+}
+
+func (uc *HintUseCase) unlockHintChargeIfNeeded(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hint *entity.Hint) error {
+	if hint.Cost <= 0 {
+		return nil
+	}
+	teamScore, err := uc.deps.TxRepo.GetTeamScoreTx(ctx, tx, teamID)
+	if err != nil {
+		return usecaseutil.Wrap(err, "HintUseCase - UnlockHint - GetTeamScoreTx")
+	}
+	if teamScore < hint.Cost {
+		return entityError.ErrInsufficientPoints
+	}
+	award := &entity.Award{
+		TeamID:      teamID,
+		Value:       -hint.Cost,
+		Description: fmt.Sprintf("Hint unlock: %s", hint.ID),
+	}
+	return uc.deps.TxRepo.CreateAwardTx(ctx, tx, award)
 }

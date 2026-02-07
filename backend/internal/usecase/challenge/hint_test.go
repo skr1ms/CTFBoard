@@ -9,7 +9,6 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge/mocks"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -228,14 +227,14 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateHintUseCase()
+	uc, _ := h.CreateHintUseCase()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, Content: "Secret hint", Cost: 50}
 
-	mockTx := mocks.NewMockPgxTx(t)
+	mockTx := mocks.NewMockTransaction(t)
 	mockTx.On("Commit", mock.Anything).Return(nil)
 
 	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
@@ -247,7 +246,6 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 		return a.Value == -50 && a.TeamID == teamID
 	})).Return(nil)
 	deps.txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -255,20 +253,19 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	assert.NotNil(t, unlocked)
 	assert.Equal(t, hintID, unlocked.ID)
 	assert.Equal(t, "Secret hint", unlocked.Content)
-	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateHintUseCase()
+	uc, _ := h.CreateHintUseCase()
 
 	teamID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, Content: "Free hint", Cost: 0}
 
-	mockTx := mocks.NewMockPgxTx(t)
+	mockTx := mocks.NewMockTransaction(t)
 	mockTx.On("Commit", mock.Anything).Return(nil)
 
 	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
@@ -276,7 +273,6 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	deps.txRepo.On("LockTeamTx", mock.Anything, mock.Anything, teamID).Return(nil)
 	deps.txRepo.On("GetHintUnlockByTeamAndHintTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil, entityError.ErrHintNotFound)
 	deps.txRepo.On("CreateHintUnlockTx", mock.Anything, mock.Anything, teamID, hintID).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	unlocked, err := uc.UnlockHint(context.Background(), teamID, hintID)
 
@@ -285,7 +281,6 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	assert.Equal(t, "Free hint", unlocked.Content)
 	deps.txRepo.AssertNotCalled(t, "CreateAwardTx", mock.Anything, mock.Anything, mock.Anything)
 	deps.txRepo.AssertNotCalled(t, "GetTeamScoreTx", mock.Anything, mock.Anything, mock.Anything)
-	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
@@ -334,7 +329,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 
 	hint := &entity.Hint{ID: hintID, Cost: 50}
 
-	mockTx := mocks.NewMockPgxTx(t)
+	mockTx := mocks.NewMockTransaction(t)
 	mockTx.On("Rollback", mock.Anything).Return(nil)
 
 	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
@@ -359,7 +354,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 
 	hint := &entity.Hint{ID: hintID, Cost: 100}
 
-	mockTx := mocks.NewMockPgxTx(t)
+	mockTx := mocks.NewMockTransaction(t)
 	mockTx.On("Rollback", mock.Anything).Return(nil)
 
 	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)

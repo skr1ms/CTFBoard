@@ -6,11 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -121,7 +119,7 @@ func TestChallengeUseCase_Create_Error(t *testing.T) {
 func TestChallengeUseCase_Update(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCase()
+	uc, _ := h.CreateChallengeUseCase()
 
 	challengeID := uuid.New()
 	existingChallenge := h.NewChallenge(challengeID, "Old Title", "Web", 100, "old_hash")
@@ -130,8 +128,6 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.ID == challengeID && c.Title == "Updated Title" && c.Points == 150
 	})).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "", false, false, false, nil, nil)
 
 	assert.NoError(t, err)
@@ -143,7 +139,7 @@ func TestChallengeUseCase_Update(t *testing.T) {
 func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCase()
+	uc, _ := h.CreateChallengeUseCase()
 
 	challengeID := uuid.New()
 	existingChallenge := h.NewChallenge(challengeID, "Old Title", "Web", 100, "old_hash")
@@ -152,8 +148,6 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.ID == challengeID && c.FlagHash != "old_hash"
 	})).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, 500, 100, 20, "new_flag", false, false, false, nil, nil)
 
 	assert.NoError(t, err)
@@ -197,13 +191,12 @@ func TestChallengeUseCase_Update_UpdateError(t *testing.T) {
 func TestChallengeUseCase_Delete_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCase()
+	uc, _ := h.CreateChallengeUseCase()
 
 	challengeID := uuid.New()
 	challenge := &entity.Challenge{ID: challengeID, Title: "ToDelete"}
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
 	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -237,7 +230,7 @@ func TestChallengeUseCase_Delete_Error(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCase()
+	uc, _ := h.CreateChallengeUseCase()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -254,7 +247,7 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -266,8 +259,6 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		return s.ChallengeID == challengeID && s.TeamID == teamID && s.UserID == userID
 	})).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.NoError(t, err)
@@ -402,7 +393,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -478,7 +469,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -522,7 +513,7 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -614,7 +605,7 @@ func TestChallengeUseCase_Create_Regex_EncryptionError(t *testing.T) {
 func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCaseWithCompAndCrypto()
+	uc, _ := h.CreateChallengeUseCaseWithCompAndCrypto()
 
 	challengeID := uuid.New()
 	existingChallenge := &entity.Challenge{
@@ -631,8 +622,6 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 	deps.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Challenge) bool {
 		return c.IsRegex && c.FlagRegex == encryptedFlag && c.FlagHash == "REGEX_CHALLENGE"
 	})).Return(nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, 0, 0, 0, flag, false, true, false, nil, nil)
 
 	assert.NoError(t, err)
@@ -665,7 +654,7 @@ func TestChallengeUseCase_Update_Regex_EncryptionError(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCaseWithCompAndCrypto()
+	uc, _ := h.CreateChallengeUseCaseWithCompAndCrypto()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -692,7 +681,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -702,8 +691,6 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.NoError(t, err)
@@ -742,7 +729,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_DecryptionError(t *testing.T) {
 func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
-	uc, redisClient := h.CreateChallengeUseCase()
+	uc, _ := h.CreateChallengeUseCase()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -768,7 +755,7 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		if !ok {
 			return
 		}
-		fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+		fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 		if !ok {
 			return
 		}
@@ -779,8 +766,6 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 	deps.txRepo.On("GetChallengeByIDTx", mock.Anything, mock.Anything, challengeID).Return(challenge, nil)
 	deps.txRepo.On("CreateSolveTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	deps.txRepo.On("IncrementChallengeSolveCountTx", mock.Anything, mock.Anything, challengeID).Return(1, nil)
-	redisClient.ExpectDel(redisKeys.KeyScoreboard).SetVal(1)
-
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID)
 
 	assert.NoError(t, err)

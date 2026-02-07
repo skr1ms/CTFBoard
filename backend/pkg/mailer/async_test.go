@@ -37,4 +37,8 @@ func TestAsyncMailer(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for mailer Send")
 	}
+
+	asyncMailer.Stop()
+	err = asyncMailer.Send(context.Background(), msg)
+	assert.ErrorIs(t, err, mailer.ErrMailerStopped)
 }

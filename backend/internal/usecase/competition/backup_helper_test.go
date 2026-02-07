@@ -15,20 +15,20 @@ import (
 
 func (h *CompetitionTestHelper) CreateBackupUseCase() *BackupUseCase {
 	h.t.Helper()
-	return NewBackupUseCase(
-		h.deps.competitionRepo,
-		h.deps.challengeRepo,
-		h.deps.hintRepo,
-		h.deps.teamRepo,
-		h.deps.userRepo,
-		h.deps.awardRepo,
-		h.deps.solveRepo,
-		nil,
-		h.deps.backupRepo,
-		nil,
-		h.deps.txRepo,
-		h.deps.logger,
-	)
+	return NewBackupUseCase(BackupDeps{
+		CompetitionRepo: h.deps.competitionRepo,
+		ChallengeRepo:   h.deps.challengeRepo,
+		HintRepo:        h.deps.hintRepo,
+		TeamRepo:        h.deps.teamRepo,
+		UserRepo:        h.deps.userRepo,
+		AwardRepo:       h.deps.awardRepo,
+		SolveRepo:       h.deps.solveRepo,
+		FileRepo:        nil,
+		BackupRepo:      h.deps.backupRepo,
+		Storage:         nil,
+		TxRepo:          h.deps.txRepo,
+		Logger:          h.deps.logger,
+	})
 }
 
 func (h *CompetitionTestHelper) SetupBackupExportMocks(comp *entity.Competition, challenges []*repo.ChallengeWithSolved, challengeID uuid.UUID) {

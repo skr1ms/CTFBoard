@@ -1,4 +1,4 @@
-package redis
+package cache
 
 import (
 	"testing"
@@ -17,8 +17,8 @@ func TestKeyScoreboardBracketFrozen_Success(t *testing.T) {
 	assert.Equal(t, "scoreboard:frozen:bracket:bracket-id", got)
 }
 
-func TestNew_Error(t *testing.T) {
-	_, err := New("localhost", "1", "")
+func TestNewRedisClient_Error(t *testing.T) {
+	_, err := NewRedisClient("localhost", "1", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "redis connection failed")
 }

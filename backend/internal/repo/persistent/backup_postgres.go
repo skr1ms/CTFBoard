@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 )
 
 var backupEraseTables = []string{
@@ -43,12 +43,13 @@ const (
 	backupFileUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, location = EXCLUDED.location, filename = EXCLUDED.filename, size = EXCLUDED.size, sha256 = EXCLUDED.sha256`
 )
 
-func execTx(ctx context.Context, tx pgx.Tx, b squirrel.Sqlizer) error {
+func execTx(ctx context.Context, tx repo.Transaction, b squirrel.Sqlizer) error {
+	pgxTx := mustPgxTx(tx)
 	sqlStr, args, err := b.ToSql()
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, sqlStr, args...)
+	_, err = pgxTx.Exec(ctx, sqlStr, args...)
 	return err
 }
 
@@ -60,7 +61,7 @@ func NewBackupRepo(pool *pgxpool.Pool) *BackupRepo {
 	return &BackupRepo{pool: pool}
 }
 
-func (r *BackupRepo) EraseAllTablesTx(ctx context.Context, tx pgx.Tx) error {
+func (r *BackupRepo) EraseAllTablesTx(ctx context.Context, tx repo.Transaction) error {
 	for _, table := range backupEraseTables {
 		query := squirrel.Delete(table).PlaceholderFormat(squirrel.Dollar)
 		if err := execTx(ctx, tx, query); err != nil {
@@ -70,7 +71,7 @@ func (r *BackupRepo) EraseAllTablesTx(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func (r *BackupRepo) ImportCompetitionTx(ctx context.Context, tx pgx.Tx, comp *entity.Competition) error {
+func (r *BackupRepo) ImportCompetitionTx(ctx context.Context, tx repo.Transaction, comp *entity.Competition) error {
 	if comp == nil {
 		return nil
 	}
@@ -91,7 +92,7 @@ func (r *BackupRepo) ImportCompetitionTx(ctx context.Context, tx pgx.Tx, comp *e
 	return nil
 }
 
-func (r *BackupRepo) ImportChallengesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (r *BackupRepo) ImportChallengesTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	for _, ch := range data.Challenges {
 		query := squirrel.Insert("challenges").
 			Columns(backupChallengeImportCols...).
@@ -119,7 +120,7 @@ func (r *BackupRepo) ImportChallengesTx(ctx context.Context, tx pgx.Tx, data *en
 	return nil
 }
 
-func (r *BackupRepo) ImportTeamsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error {
+func (r *BackupRepo) ImportTeamsTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error {
 	for _, t := range data.Teams {
 		base := squirrel.Insert("teams").
 			Columns(backupTeamImportCols...).
@@ -140,7 +141,7 @@ func (r *BackupRepo) ImportTeamsTx(ctx context.Context, tx pgx.Tx, data *entity.
 	return nil
 }
 
-func (r *BackupRepo) ImportUsersTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error {
+func (r *BackupRepo) ImportUsersTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData, opts entity.ImportOptions) error {
 	for _, u := range data.Users {
 		base := squirrel.Insert("users").
 			Columns(backupUserImportCols...).
@@ -161,7 +162,7 @@ func (r *BackupRepo) ImportUsersTx(ctx context.Context, tx pgx.Tx, data *entity.
 	return nil
 }
 
-func (r *BackupRepo) ImportAwardsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (r *BackupRepo) ImportAwardsTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	for _, a := range data.Awards {
 		query := squirrel.Insert("awards").
 			Columns(backupAwardImportCols...).
@@ -176,7 +177,7 @@ func (r *BackupRepo) ImportAwardsTx(ctx context.Context, tx pgx.Tx, data *entity
 	return nil
 }
 
-func (r *BackupRepo) ImportSolvesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (r *BackupRepo) ImportSolvesTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	for _, s := range data.Solves {
 		query := squirrel.Insert("solves").
 			Columns(backupSolveImportCols...).
@@ -191,7 +192,7 @@ func (r *BackupRepo) ImportSolvesTx(ctx context.Context, tx pgx.Tx, data *entity
 	return nil
 }
 
-func (r *BackupRepo) ImportFileMetadataTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error {
+func (r *BackupRepo) ImportFileMetadataTx(ctx context.Context, tx repo.Transaction, data *entity.BackupData) error {
 	for _, f := range data.Files {
 		query := squirrel.Insert("files").
 			Columns(backupFileImportCols...).

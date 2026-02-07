@@ -167,6 +167,7 @@ func TestDynamicConfigUseCase_GetString_Error(t *testing.T) {
 	defaultVal := "def"
 
 	deps.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.Config{}, nil)
+	deps.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, assert.AnError)
 
 	uc := h.CreateDynamicConfigUseCase()
 	got := uc.GetString(ctx, key, defaultVal)

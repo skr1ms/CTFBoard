@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -23,7 +22,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 			if !ok {
 				return
 			}
-			fn, ok := args.Get(1).(func(context.Context, pgx.Tx) error)
+			fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
 			if !ok {
 				return
 			}
@@ -33,15 +32,12 @@ func TestAwardUseCase_Create(t *testing.T) {
 			return a.TeamID == h.TeamID() && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == h.AdminID()
 		})).Return(nil).Once()
 
-		h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
-
 		award, err := h.CreateUseCase().Create(ctx, h.TeamID(), 100, "Bonus", h.AdminID())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, award)
 		assert.Equal(t, 100, award.Value)
 		assert.Equal(t, h.AdminID(), *award.CreatedBy)
-		assert.NoError(t, h.Redis().ExpectationsWereMet())
 	})
 
 	t.Run("ZeroValue", func(t *testing.T) {

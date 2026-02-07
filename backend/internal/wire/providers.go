@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -152,7 +154,26 @@ func ProvideUserUseCase(
 	fieldValidator *settings.FieldValidator,
 	fieldValueRepo repo.FieldValueRepository,
 ) *user.UserUseCase {
-	return user.NewUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService, fieldValidator, fieldValueRepo)
+	return user.NewUserUseCase(user.UserDeps{
+		UserRepo: userRepo, TeamRepo: teamRepo, SolveRepo: solveRepo, TxRepo: txRepo,
+		JWTService: jwtService, FieldValidator: fieldValidator, FieldValueRepo: fieldValueRepo,
+	})
+}
+
+type teamBracketIDGetter struct {
+	r repo.TeamRepository
+}
+
+func (g *teamBracketIDGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UUID) (*uuid.UUID, error) {
+	team, err := g.r.GetByID(ctx, teamID)
+	if err != nil || team == nil {
+		return nil, err
+	}
+	return team.BracketID, nil
+}
+
+func ProvideScoreboardCacheService(c *cache.Cache, teamRepo repo.TeamRepository) *cache.ScoreboardCacheService {
+	return cache.NewScoreboardCacheService(c, &teamBracketIDGetter{r: teamRepo})
 }
 
 func ProvideTeamUseCase(
@@ -160,17 +181,17 @@ func ProvideTeamUseCase(
 	userRepo repo.UserRepository,
 	compRepo repo.CompetitionRepository,
 	txRepo repo.TxRepository,
-	redis *redis.Client,
+	scoreboardCache *cache.ScoreboardCacheService,
 ) *team.TeamUseCase {
-	return team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo, redis)
+	return team.NewTeamUseCase(teamRepo, userRepo, compRepo, txRepo, scoreboardCache)
 }
 
 func ProvideAwardUseCase(
 	awardRepo repo.AwardRepository,
 	txRepo repo.TxRepository,
-	redis *redis.Client,
+	scoreboardCache *cache.ScoreboardCacheService,
 ) *team.AwardUseCase {
-	return team.NewAwardUseCase(awardRepo, txRepo, redis)
+	return team.NewAwardUseCase(awardRepo, txRepo, scoreboardCache)
 }
 
 func ProvideChallengeUseCase(
@@ -181,6 +202,7 @@ func ProvideChallengeUseCase(
 	compRepo repo.CompetitionRepository,
 	teamRepo repo.TeamRepository,
 	redis *redis.Client,
+	scoreboardCache *cache.ScoreboardCacheService,
 	broadcaster *pkgWS.Broadcaster,
 	auditLogRepo repo.AuditLogRepository,
 	cryptoService crypto.Service,
@@ -193,6 +215,7 @@ func ProvideChallengeUseCase(
 		challenge.WithCompetitionRepo(compRepo),
 		challenge.WithTeamRepo(teamRepo),
 		challenge.WithRedis(redis),
+		challenge.WithScoreboardCache(scoreboardCache),
 		challenge.WithBroadcaster(broadcaster),
 		challenge.WithAuditLogRepo(auditLogRepo),
 		challenge.WithCrypto(cryptoService),
@@ -205,9 +228,12 @@ func ProvideHintUseCase(
 	awardRepo repo.AwardRepository,
 	txRepo repo.TxRepository,
 	solveRepo repo.SolveRepository,
-	redis *redis.Client,
+	scoreboardCache *cache.ScoreboardCacheService,
 ) *challenge.HintUseCase {
-	return challenge.NewHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, redis)
+	return challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: hintRepo, HintUnlockRepo: hintUnlockRepo, AwardRepo: awardRepo,
+		TxRepo: txRepo, SolveRepo: solveRepo, ScoreboardCache: scoreboardCache,
+	})
 }
 
 func ProvideCompetitionUseCase(
@@ -226,9 +252,20 @@ func ProvideSolveUseCase(
 	teamRepo repo.TeamRepository,
 	txRepo repo.TxRepository,
 	c *cache.Cache,
+	scoreboardCache *cache.ScoreboardCacheService,
 	broadcaster *pkgWS.Broadcaster,
 ) *competition.SolveUseCase {
-	return competition.NewSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, c, broadcaster)
+	return competition.NewSolveUseCase(competition.SolveDeps{
+		SolveRepo:       solveRepo,
+		ChallengeRepo:   challengeRepo,
+		CompetitionRepo: competitionRepo,
+		UserRepo:        userRepo,
+		TeamRepo:        teamRepo,
+		TxRepo:          txRepo,
+		Cache:           c,
+		ScoreboardCache: scoreboardCache,
+		Broadcaster:     broadcaster,
+	})
 }
 
 func ProvideBroadcaster(hub *pkgWS.Hub) *pkgWS.Broadcaster {
@@ -324,7 +361,20 @@ func ProvideBackupUseCase(
 	txRepo repo.TxRepository,
 	l logger.Logger,
 ) *competition.BackupUseCase {
-	return competition.NewBackupUseCase(competitionRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepo, backupRepo, storageProvider, txRepo, l)
+	return competition.NewBackupUseCase(competition.BackupDeps{
+		CompetitionRepo: competitionRepo,
+		ChallengeRepo:   challengeRepo,
+		HintRepo:        hintRepo,
+		TeamRepo:        teamRepo,
+		UserRepo:        userRepo,
+		AwardRepo:       awardRepo,
+		SolveRepo:       solveRepo,
+		FileRepo:        fileRepo,
+		BackupRepo:      backupRepo,
+		Storage:         storageProvider,
+		TxRepo:          txRepo,
+		Logger:          l,
+	})
 }
 
 func ProvideSettingsUseCase(
@@ -348,7 +398,10 @@ func ProvideEmailUseCase(
 	mailer mailer.Mailer,
 	cfg *config.Config,
 ) *email.EmailUseCase {
-	return email.NewEmailUseCase(userRepo, tokenRepo, mailer, cfg.VerifyTTL, cfg.ResetTTL, cfg.FrontendURL, cfg.Enabled)
+	return email.NewEmailUseCase(email.EmailDeps{
+		UserRepo: userRepo, TokenRepo: tokenRepo, Mailer: mailer,
+		VerifyTTL: cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
+	})
 }
 
 func ProvideWsController(wsHub *pkgWS.Hub, l logger.Logger, cfg *config.Config) *wsController.Controller {

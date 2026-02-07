@@ -107,8 +107,15 @@ func (h *Hub) BroadcastEvent(event any) {
 		return
 	}
 	done := make(chan struct{})
-	h.broadcast <- broadcastItem{data: data, done: done}
-	<-done
+	select {
+	case h.broadcast <- broadcastItem{data: data, done: done}:
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+		}
+	case <-time.After(100 * time.Millisecond):
+		return
+	}
 	if h.redisClient != nil {
 		h.redisClient.Publish(context.Background(), h.redisChannel, data)
 	}
@@ -122,8 +129,16 @@ func (h *Hub) SubscribeToRedis(ctx context.Context) {
 	defer func() { _ = pubsub.Close() }()
 
 	ch := pubsub.Channel()
-	for msg := range ch {
-		h.Broadcast([]byte(msg.Payload))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
+			h.Broadcast([]byte(msg.Payload))
+		}
 	}
 }
 

@@ -11,12 +11,12 @@ import (
 	"github.com/skr1ms/CTFBoard/config"
 	"github.com/skr1ms/CTFBoard/internal/storage"
 	"github.com/skr1ms/CTFBoard/internal/wire"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/skr1ms/CTFBoard/pkg/logger"
 	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/skr1ms/CTFBoard/pkg/migrator"
 	"github.com/skr1ms/CTFBoard/pkg/postgres"
-	"github.com/skr1ms/CTFBoard/pkg/redis"
 	"github.com/skr1ms/CTFBoard/pkg/seed"
 	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
 )
@@ -35,7 +35,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 	defer pool.Close()
 
-	redisClient, err := redis.New(cfg.Host, cfg.Redis.Port, cfg.Redis.Password)
+	redisClient, err := cache.NewRedisClient(cfg.Host, cfg.Redis.Port, cfg.Redis.Password)
 	if err != nil {
 		l.WithError(err).Error("failed to connect to redis")
 		return

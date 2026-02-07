@@ -2,10 +2,10 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type CleanupUseCase struct {
@@ -23,7 +23,7 @@ func NewCleanupUseCase(
 func (uc *CleanupUseCase) CleanupDeletedTeams(ctx context.Context, olderThan time.Duration) error {
 	cutoffDate := time.Now().Add(-olderThan)
 	if err := uc.teamRepo.HardDeleteTeams(ctx, cutoffDate); err != nil {
-		return fmt.Errorf("CleanupUseCase - CleanupDeletedTeams: %w", err)
+		return usecaseutil.Wrap(err, "CleanupUseCase - CleanupDeletedTeams")
 	}
 	return nil
 }

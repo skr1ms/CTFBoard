@@ -8,7 +8,16 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 )
+
+func mustPgxTx(tx repo.Transaction) pgx.Tx {
+	pgxTx, ok := tx.(pgx.Tx)
+	if !ok {
+		panic("mustPgxTx: invalid transaction type")
+	}
+	return pgxTx
+}
 
 func isNoRows(err error) bool {
 	return err != nil && errors.Is(err, pgx.ErrNoRows)

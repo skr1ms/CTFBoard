@@ -3,6 +3,7 @@ package challenge
 import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/skr1ms/CTFBoard/pkg/crypto"
 	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
 )
@@ -33,7 +34,7 @@ func WithRedis(r *redis.Client) ChallengeUCOption {
 	return func(uc *ChallengeUseCase) { uc.redis = r }
 }
 
-func WithBroadcaster(b *pkgWS.Broadcaster) ChallengeUCOption {
+func WithBroadcaster(b pkgWS.SolveBroadcaster) ChallengeUCOption {
 	return func(uc *ChallengeUseCase) { uc.broadcaster = b }
 }
 
@@ -43,4 +44,8 @@ func WithAuditLogRepo(r repo.AuditLogRepository) ChallengeUCOption {
 
 func WithCrypto(c crypto.Service) ChallengeUCOption {
 	return func(uc *ChallengeUseCase) { uc.crypto = c }
+}
+
+func WithScoreboardCache(inv cache.ScoreboardCacheInvalidator) ChallengeUCOption {
+	return func(uc *ChallengeUseCase) { uc.scoreboardCache = inv }
 }

@@ -66,6 +66,7 @@ var RepoSet = wire.NewSet(
 )
 
 var UseCaseSet = wire.NewSet(
+	ProvideScoreboardCacheService,
 	ProvideUserUseCase,
 	ProvideTeamUseCase,
 	ProvideAwardUseCase,

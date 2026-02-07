@@ -10,6 +10,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type FieldUseCase struct {
@@ -25,7 +26,7 @@ func NewFieldUseCase(
 func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType entity.EntityType) ([]*entity.Field, error) {
 	list, err := uc.fieldRepo.GetByEntityType(ctx, entityType)
 	if err != nil {
-		return nil, fmt.Errorf("FieldUseCase - GetByEntityType: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetByEntityType")
 	}
 	return list, nil
 }
@@ -45,7 +46,7 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entit
 		OrderIndex: orderIndex,
 	}
 	if err := uc.fieldRepo.Create(ctx, field); err != nil {
-		return nil, fmt.Errorf("FieldUseCase - Create: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - Create")
 	}
 	return field, nil
 }
@@ -53,7 +54,7 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entit
 func (uc *FieldUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Field, error) {
 	field, err := uc.fieldRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("FieldUseCase - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetByID")
 	}
 	return field, nil
 }
@@ -61,7 +62,7 @@ func (uc *FieldUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Fiel
 func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*entity.Field, error) {
 	list, err := uc.fieldRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("FieldUseCase - GetAll: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetAll")
 	}
 	return list, nil
 }
@@ -72,11 +73,11 @@ func (uc *FieldUseCase) Update(ctx context.Context, id uuid.UUID, name string, f
 		if errors.Is(err, entityError.ErrFieldNotFound) {
 			return nil, err
 		}
-		return nil, fmt.Errorf("FieldUseCase - Update - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update - GetByID")
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, fmt.Errorf("FieldUseCase - Update: name is required")
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update: name is required")
 	}
 	field.Name = name
 	field.FieldType = fieldType
@@ -84,14 +85,14 @@ func (uc *FieldUseCase) Update(ctx context.Context, id uuid.UUID, name string, f
 	field.Options = options
 	field.OrderIndex = orderIndex
 	if err := uc.fieldRepo.Update(ctx, field); err != nil {
-		return nil, fmt.Errorf("FieldUseCase - Update: %w", err)
+		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update")
 	}
 	return field, nil
 }
 
 func (uc *FieldUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := uc.fieldRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("FieldUseCase - Delete: %w", err)
+		return usecaseutil.Wrap(err, "FieldUseCase - Delete")
 	}
 	return nil
 }

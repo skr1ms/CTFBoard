@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type FieldValidator struct {
@@ -35,7 +36,7 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 			return fmt.Errorf("unknown field: %s", fieldID)
 		}
 		if err := v.validateValue(field, value); err != nil {
-			return fmt.Errorf("field %s: %w", field.Name, err)
+			return usecaseutil.Wrap(err, "field "+field.Name)
 		}
 	}
 	for _, field := range fields {
@@ -48,34 +49,49 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 	return nil
 }
 
-//nolint:gocognit,gocyclo // switch over field types
 func (v *FieldValidator) validateValue(field *entity.Field, value string) error {
 	switch field.FieldType {
 	case entity.FieldTypeNumber:
-		if _, err := strconv.Atoi(value); err != nil {
-			return fmt.Errorf("must be a number")
-		}
+		return v.validateNumber(value)
 	case entity.FieldTypeBoolean:
-		if value != "true" && value != "false" {
-			return fmt.Errorf("must be true or false")
-		}
+		return v.validateBoolean(value)
 	case entity.FieldTypeSelect:
-		if len(field.Options) > 0 {
-			valid := false
-			for _, opt := range field.Options {
-				if opt == value {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				return fmt.Errorf("invalid option: %s", value)
-			}
-		}
+		return v.validateSelect(value, field.Options)
 	case entity.FieldTypeText:
-		if len(value) > 500 {
-			return fmt.Errorf("text too long (max 500)")
+		return v.validateText(value)
+	}
+	return nil
+}
+
+func (v *FieldValidator) validateNumber(value string) error {
+	if _, err := strconv.Atoi(value); err != nil {
+		return fmt.Errorf("must be a number")
+	}
+	return nil
+}
+
+func (v *FieldValidator) validateBoolean(value string) error {
+	if value != "true" && value != "false" {
+		return fmt.Errorf("must be true or false")
+	}
+	return nil
+}
+
+func (v *FieldValidator) validateSelect(value string, options []string) error {
+	if len(options) == 0 {
+		return nil
+	}
+	for _, opt := range options {
+		if opt == value {
+			return nil
 		}
+	}
+	return fmt.Errorf("invalid option: %s", value)
+}
+
+func (v *FieldValidator) validateText(value string) error {
+	if len(value) > 500 {
+		return fmt.Errorf("text too long (max 500)")
 	}
 	return nil
 }

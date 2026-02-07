@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/usecase/user/mocks"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/stretchr/testify/mock"
@@ -46,15 +46,10 @@ func NewUserTestHelper(t *testing.T) *UserTestHelper {
 
 func (h *UserTestHelper) CreateUseCase() *UserUseCase {
 	h.t.Helper()
-	return NewUserUseCase(
-		h.deps.userRepo,
-		h.deps.teamRepo,
-		h.deps.solveRepo,
-		h.deps.txRepo,
-		h.deps.jwtService,
-		nil,
-		nil,
-	)
+	return NewUserUseCase(UserDeps{
+		UserRepo: h.deps.userRepo, TeamRepo: h.deps.teamRepo, SolveRepo: h.deps.solveRepo,
+		TxRepo: h.deps.txRepo, JWTService: h.deps.jwtService, FieldValidator: nil, FieldValueRepo: nil,
+	})
 }
 
 func (h *UserTestHelper) Deps() *testDependencies {
@@ -129,10 +124,10 @@ func (h *UserTestHelper) SetupRegisterSuccessMocks(username, email string) {
 	h.t.Helper()
 	h.deps.userRepo.EXPECT().GetByUsername(mock.Anything, username).Return(nil, entityError.ErrUserNotFound)
 	h.deps.userRepo.EXPECT().GetByEmail(mock.Anything, email).Return(nil, entityError.ErrUserNotFound)
-	h.deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	h.deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
-	h.deps.txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ pgx.Tx, u *entity.User) {
+	h.deps.txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ repo.Transaction, u *entity.User) {
 		u.ID = uuid.New()
 	}).Once()
 }

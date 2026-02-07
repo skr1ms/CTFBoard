@@ -7,9 +7,9 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
@@ -17,10 +17,11 @@ type TxUserRepo struct {
 	base *TxBase
 }
 
-func (r *TxUserRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, user *entity.User) error {
+func (r *TxUserRepo) CreateUserTx(ctx context.Context, tx repo.Transaction, user *entity.User) error {
+	pgxTx := mustPgxTx(tx)
 	user.CreatedAt = time.Now()
 	isVerified := false
-	id, err := r.base.q.WithTx(tx).CreateUserReturningID(ctx, sqlc.CreateUserReturningIDParams{
+	id, err := r.base.q.WithTx(pgxTx).CreateUserReturningID(ctx, sqlc.CreateUserReturningIDParams{
 		Username:     user.Username,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
@@ -35,8 +36,9 @@ func (r *TxUserRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, user *entity.U
 	return nil
 }
 
-func (r *TxUserRepo) UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID) error {
-	_, err := r.base.q.WithTx(tx).UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{
+func (r *TxUserRepo) UpdateUserTeamIDTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID, teamID *uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
+	_, err := r.base.q.WithTx(pgxTx).UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{
 		ID:     userID,
 		TeamID: teamID,
 	})
@@ -49,7 +51,8 @@ func (r *TxUserRepo) UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userID u
 	return nil
 }
 
-func (r *TxUserRepo) LockUserTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+func (r *TxUserRepo) LockUserTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
 	query := squirrel.Select("id").
 		From("users").
 		Where(squirrel.Eq{"id": userID}).
@@ -60,7 +63,7 @@ func (r *TxUserRepo) LockUserTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID
 		return fmt.Errorf("TxUserRepo - LockUserTx - BuildQuery: %w", err)
 	}
 	var id uuid.UUID
-	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&id)
+	err = pgxTx.QueryRow(ctx, sqlQuery, args...).Scan(&id)
 	if err != nil {
 		if isNoRows(err) {
 			return entityError.ErrUserNotFound

@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -21,7 +20,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	captainID := uuid.New()
 	user := h.NewUser(captainID, nil, "captain", "captain@example.com")
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -30,7 +29,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	deps.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
 	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.MatchedBy(func(t *entity.Team) bool {
 		return t.Name == "TestTeam" && t.CaptainID == captainID
-	})).Return(nil).Run(func(_ context.Context, _ pgx.Tx, team *entity.Team) {
+	})).Return(nil).Run(func(_ context.Context, _ repo.Transaction, team *entity.Team) {
 		team.ID = uuid.New()
 		team.InviteToken = uuid.New()
 	}).Once()
@@ -56,7 +55,7 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 	oldTeamID := uuid.New()
 	user := h.NewUser(captainID, &oldTeamID, "captain", "captain@example.com")
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -70,7 +69,7 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 	deps.txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.MatchedBy(func(log *entity.TeamAuditLog) bool {
 		return log.Action == entity.TeamActionDeleted
 	})).Return(nil).Once()
-	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ pgx.Tx, team *entity.Team) {
+	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ repo.Transaction, team *entity.Team) {
 		team.ID = uuid.New()
 		team.InviteToken = uuid.New()
 	}).Once()
@@ -98,7 +97,7 @@ func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 		Name: "TestTeam",
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -129,7 +128,7 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 		TeamID: &teamID,
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -167,7 +166,7 @@ func TestTeamUseCase_Join_Success(t *testing.T) {
 		TeamID: nil,
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
@@ -210,7 +209,7 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 		existingMembers[i] = &entity.User{ID: uuid.New()}
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
@@ -248,7 +247,7 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 		TeamID: &oldTeamID,
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
@@ -298,7 +297,7 @@ func TestTeamUseCase_Leave_Success(t *testing.T) {
 
 	members := []*entity.User{user, {ID: captainID, TeamID: &teamID}}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
@@ -338,7 +337,7 @@ func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 
 	members := []*entity.User{captain, {ID: uuid.New(), TeamID: &teamID}}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
@@ -379,7 +378,7 @@ func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
 		CaptainID: captainID,
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
@@ -419,13 +418,15 @@ func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 		CaptainID: realCaptainID,
 	}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, userID).Return(nil).Once()
 	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	deps.txRepo.EXPECT().LockTeamTx(mock.Anything, mock.Anything, teamID).Return(nil).Once()
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	newCaptain := &entity.User{ID: newCaptainID, TeamID: &teamID}
+	deps.userRepo.EXPECT().GetByID(mock.Anything, newCaptainID).Return(newCaptain, nil).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
 
 	uc := h.CreateUseCase()
@@ -533,7 +534,7 @@ func TestTeamUseCase_CreateSoloTeam_Success(t *testing.T) {
 	userID := uuid.New()
 	user := &entity.User{ID: userID, Username: "solo_user"}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -544,7 +545,7 @@ func TestTeamUseCase_CreateSoloTeam_Success(t *testing.T) {
 
 	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.MatchedBy(func(tm *entity.Team) bool {
 		return tm.IsSolo == true && tm.CaptainID == userID && tm.Name == "solo_user"
-	})).Return(nil).Run(func(ctx context.Context, tx pgx.Tx, tm *entity.Team) {
+	})).Return(nil).Run(func(ctx context.Context, tx repo.Transaction, tm *entity.Team) {
 		tm.ID = uuid.New()
 	}).Once()
 
@@ -570,7 +571,7 @@ func TestTeamUseCase_CreateSoloTeam_Error_AlreadyInTeam(t *testing.T) {
 	teamID := uuid.New()
 	user := &entity.User{ID: userID, TeamID: &teamID}
 
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
@@ -587,72 +588,39 @@ func TestTeamUseCase_CreateSoloTeam_Error_AlreadyInTeam(t *testing.T) {
 	assert.Nil(t, team)
 }
 
-func TestTeamUseCase_Create_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	team, err := uc.Create(context.Background(), "test_team", uuid.New(), false, false)
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
-	assert.Nil(t, team)
-}
-
-func TestTeamUseCase_Join_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	team, err := uc.Join(context.Background(), uuid.New(), uuid.New(), false)
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
-	assert.Nil(t, team)
-}
-
-func TestTeamUseCase_CreateSoloTeam_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	team, err := uc.CreateSoloTeam(context.Background(), uuid.New(), false)
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
-	assert.Nil(t, team)
-}
-
-func TestTeamUseCase_Leave_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	err := uc.Leave(context.Background(), uuid.New())
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
-}
-
-func TestTeamUseCase_TransferCaptain_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	err := uc.TransferCaptain(context.Background(), uuid.New(), uuid.New())
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
+	tests := []struct {
+		name   string
+		action func(uc *TeamUseCase) error
+	}{
+		{"Create", func(uc *TeamUseCase) error {
+			_, err := uc.Create(context.Background(), "test_team", uuid.New(), false, false)
+			return err
+		}},
+		{"Join", func(uc *TeamUseCase) error {
+			_, err := uc.Join(context.Background(), uuid.New(), uuid.New(), false)
+			return err
+		}},
+		{"CreateSoloTeam", func(uc *TeamUseCase) error {
+			_, err := uc.CreateSoloTeam(context.Background(), uuid.New(), false)
+			return err
+		}},
+		{"Leave", func(uc *TeamUseCase) error { return uc.Leave(context.Background(), uuid.New()) }},
+		{"TransferCaptain", func(uc *TeamUseCase) error { return uc.TransferCaptain(context.Background(), uuid.New(), uuid.New()) }},
+		{"DisbandTeam", func(uc *TeamUseCase) error { return uc.DisbandTeam(context.Background(), uuid.New()) }},
+		{"KickMember", func(uc *TeamUseCase) error { return uc.KickMember(context.Background(), uuid.New(), uuid.New()) }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewTeamTestHelper(t)
+			deps := h.Deps()
+			deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
+			uc := h.CreateUseCase()
+			err := tc.action(uc)
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+		})
+	}
 }
 
 func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
@@ -664,7 +632,7 @@ func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
 	captain := &entity.User{ID: captainID, TeamID: &teamID}
 
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: true}, nil).Once()
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 
@@ -686,19 +654,6 @@ func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTeamUseCase_DisbandTeam_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	err := uc.DisbandTeam(context.Background(), uuid.New())
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
-}
-
 func TestTeamUseCase_KickMember_Success(t *testing.T) {
 	h := NewTeamTestHelper(t)
 	deps := h.Deps()
@@ -710,7 +665,7 @@ func TestTeamUseCase_KickMember_Success(t *testing.T) {
 	target := &entity.User{ID: targetID, TeamID: &teamID}
 
 	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: true}, nil).Once()
-	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 		return fn(ctx, nil)
 	}).Once()
 
@@ -736,19 +691,6 @@ func TestTeamUseCase_KickMember_Success(t *testing.T) {
 	err := uc.KickMember(context.Background(), captainID, targetID)
 
 	assert.NoError(t, err)
-}
-
-func TestTeamUseCase_KickMember_Error_RosterFrozen(t *testing.T) {
-	h := NewTeamTestHelper(t)
-	deps := h.Deps()
-
-	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{AllowTeamSwitch: false}, nil).Once()
-
-	uc := h.CreateUseCase()
-	err := uc.KickMember(context.Background(), uuid.New(), uuid.New())
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
 }
 
 func TestTeamUseCase_GetByID_Error(t *testing.T) {
@@ -807,7 +749,6 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
-	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 
@@ -839,7 +780,6 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().Unban(mock.Anything, teamID).Return(nil).Once()
-	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 
@@ -870,7 +810,6 @@ func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 	team := &entity.Team{ID: teamID, Name: "Team"}
 	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	deps.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
-	h.Redis().ExpectDel(redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen).SetVal(0)
 
 	uc := h.CreateUseCase()
 

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type NotificationUseCase struct {
@@ -34,7 +35,7 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 		CreatedAt: time.Now(),
 	}
 	if err := uc.notifRepo.Create(ctx, notif); err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - CreateGlobal: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - CreateGlobal")
 	}
 	return notif, nil
 }
@@ -54,7 +55,7 @@ func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.U
 		CreatedAt:      time.Now(),
 	}
 	if err := uc.notifRepo.CreateUserNotification(ctx, userNotif); err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - CreatePersonal: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - CreatePersonal")
 	}
 	return userNotif, nil
 }
@@ -69,7 +70,7 @@ func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int)
 	offset := (page - 1) * perPage
 	notifs, err := uc.notifRepo.GetAll(ctx, perPage, offset)
 	if err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - GetGlobal: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - GetGlobal")
 	}
 	return notifs, nil
 }
@@ -84,14 +85,14 @@ func (uc *NotificationUseCase) GetUserNotifications(ctx context.Context, userID 
 	offset := (page - 1) * perPage
 	userNotifs, err := uc.notifRepo.GetUserNotifications(ctx, userID, perPage, offset)
 	if err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - GetUserNotifications: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - GetUserNotifications")
 	}
 	return userNotifs, nil
 }
 
 func (uc *NotificationUseCase) MarkAsRead(ctx context.Context, id, userID uuid.UUID) error {
 	if err := uc.notifRepo.MarkAsRead(ctx, id, userID); err != nil {
-		return fmt.Errorf("NotificationUseCase - MarkAsRead: %w", err)
+		return usecaseutil.Wrap(err, "NotificationUseCase - MarkAsRead")
 	}
 	return nil
 }
@@ -99,7 +100,7 @@ func (uc *NotificationUseCase) MarkAsRead(ctx context.Context, id, userID uuid.U
 func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
 	count, err := uc.notifRepo.CountUnread(ctx, userID)
 	if err != nil {
-		return 0, fmt.Errorf("NotificationUseCase - CountUnread: %w", err)
+		return 0, usecaseutil.Wrap(err, "NotificationUseCase - CountUnread")
 	}
 	return count, nil
 }
@@ -107,21 +108,21 @@ func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID
 func (uc *NotificationUseCase) Update(ctx context.Context, id uuid.UUID, title, content string, notifType entity.NotificationType, isPinned bool) (*entity.Notification, error) {
 	notif, err := uc.notifRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - Update - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - Update - GetByID")
 	}
 	notif.Title = title
 	notif.Content = content
 	notif.Type = notifType
 	notif.IsPinned = isPinned
 	if err := uc.notifRepo.Update(ctx, notif); err != nil {
-		return nil, fmt.Errorf("NotificationUseCase - Update: %w", err)
+		return nil, usecaseutil.Wrap(err, "NotificationUseCase - Update")
 	}
 	return notif, nil
 }
 
 func (uc *NotificationUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := uc.notifRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("NotificationUseCase - Delete: %w", err)
+		return usecaseutil.Wrap(err, "NotificationUseCase - Delete")
 	}
 	return nil
 }

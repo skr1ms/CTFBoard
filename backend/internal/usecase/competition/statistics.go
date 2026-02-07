@@ -9,6 +9,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/pkg/cache"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type StatisticsUseCase struct {
@@ -30,7 +31,7 @@ func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context) (*entity.Gener
 	return cache.GetOrLoad(uc.cache, ctx, "stats:general", 5*time.Minute, func() (*entity.GeneralStats, error) {
 		stats, err := uc.statsRepo.GetGeneralStats(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetGeneralStats: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetGeneralStats")
 		}
 		return stats, nil
 	})
@@ -40,7 +41,7 @@ func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context) ([]*entity.C
 	return cache.GetOrLoad(uc.cache, ctx, "stats:challenges", 5*time.Minute, func() ([]*entity.ChallengeStats, error) {
 		stats, err := uc.statsRepo.GetChallengeStats(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeStats: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetChallengeStats")
 		}
 		return stats, nil
 	})
@@ -51,11 +52,11 @@ func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challe
 	return cache.GetOrLoad(uc.cache, ctx, key, 1*time.Minute, func() (*entity.ChallengeDetailStats, error) {
 		id, err := uuid.Parse(challengeID)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeDetailStats: invalid id: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetChallengeDetailStats: invalid id")
 		}
 		stats, err := uc.statsRepo.GetChallengeDetailStats(ctx, id)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeDetailStats: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetChallengeDetailStats")
 		}
 		return stats, nil
 	})
@@ -73,7 +74,7 @@ func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int
 	return cache.GetOrLoad(uc.cache, ctx, key, 30*time.Second, func() ([]*entity.ScoreboardHistoryEntry, error) {
 		history, err := uc.statsRepo.GetScoreboardHistory(ctx, limit)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetScoreboardHistory: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetScoreboardHistory")
 		}
 		return history, nil
 	})
@@ -91,7 +92,7 @@ func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int) (
 	return cache.GetOrLoad(uc.cache, ctx, key, 30*time.Second, func() (*entity.ScoreboardGraph, error) {
 		history, err := uc.statsRepo.GetScoreboardHistory(ctx, topN)
 		if err != nil {
-			return nil, fmt.Errorf("StatisticsUseCase - GetScoreboardGraph: %w", err)
+			return nil, usecaseutil.Wrap(err, "StatisticsUseCase - GetScoreboardGraph")
 		}
 
 		return buildScoreboardGraph(history), nil

@@ -6,6 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type SolveBroadcaster interface {
+	NotifySolve(teamID uuid.UUID, challengeTitle string, points int, isFirstBlood bool)
+	NotifyNotification(message, level string)
+}
+
 type Broadcaster struct {
 	hub *Hub
 }
@@ -64,3 +69,5 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		Timestamp: now,
 	})
 }
+
+var _ SolveBroadcaster = (*Broadcaster)(nil)

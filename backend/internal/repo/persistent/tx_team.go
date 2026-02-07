@@ -8,9 +8,9 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
@@ -18,9 +18,10 @@ type TxTeamRepo struct {
 	base *TxBase
 }
 
-func (r *TxTeamRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error {
+func (r *TxTeamRepo) CreateTeamTx(ctx context.Context, tx repo.Transaction, team *entity.Team) error {
+	pgxTx := mustPgxTx(tx)
 	team.CreatedAt = time.Now()
-	id, err := r.base.q.WithTx(tx).CreateTeamReturningID(ctx, sqlc.CreateTeamReturningIDParams{
+	id, err := r.base.q.WithTx(pgxTx).CreateTeamReturningID(ctx, sqlc.CreateTeamReturningIDParams{
 		Name:          team.Name,
 		InviteToken:   team.InviteToken,
 		CaptainID:     team.CaptainID,
@@ -35,8 +36,9 @@ func (r *TxTeamRepo) CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.T
 	return nil
 }
 
-func (r *TxTeamRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error) {
-	row, err := r.base.q.WithTx(tx).GetTeamByName(ctx, name)
+func (r *TxTeamRepo) GetTeamByNameTx(ctx context.Context, tx repo.Transaction, name string) (*entity.Team, error) {
+	pgxTx := mustPgxTx(tx)
+	row, err := r.base.q.WithTx(pgxTx).GetTeamByName(ctx, name)
 	if err != nil {
 		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
@@ -46,8 +48,9 @@ func (r *TxTeamRepo) GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string
 	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
-func (r *TxTeamRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error) {
-	row, err := r.base.q.WithTx(tx).GetTeamByInviteToken(ctx, inviteToken)
+func (r *TxTeamRepo) GetTeamByInviteTokenTx(ctx context.Context, tx repo.Transaction, inviteToken uuid.UUID) (*entity.Team, error) {
+	pgxTx := mustPgxTx(tx)
+	row, err := r.base.q.WithTx(pgxTx).GetTeamByInviteToken(ctx, inviteToken)
 	if err != nil {
 		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
@@ -57,8 +60,9 @@ func (r *TxTeamRepo) GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, invi
 	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
-func (r *TxTeamRepo) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error) {
-	rows, err := r.base.q.WithTx(tx).ListUsersByTeamID(ctx, &teamID)
+func (r *TxTeamRepo) GetUsersByTeamIDTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) ([]*entity.User, error) {
+	pgxTx := mustPgxTx(tx)
+	rows, err := r.base.q.WithTx(pgxTx).ListUsersByTeamID(ctx, &teamID)
 	if err != nil {
 		return nil, fmt.Errorf("TxTeamRepo - GetUsersByTeamIDTx: %w", err)
 	}
@@ -69,7 +73,8 @@ func (r *TxTeamRepo) GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID u
 	return out, nil
 }
 
-func (r *TxTeamRepo) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (r *TxTeamRepo) DeleteTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
 	query := squirrel.Update("teams").
 		Set("deleted_at", time.Now()).
 		Where(squirrel.Eq{"id": teamID}).
@@ -79,7 +84,7 @@ func (r *TxTeamRepo) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UU
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - DeleteTeamTx - BuildQuery: %w", err)
 	}
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
+	cmdTag, err := pgxTx.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - DeleteTeamTx - Exec: %w", err)
 	}
@@ -89,7 +94,8 @@ func (r *TxTeamRepo) DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UU
 	return nil
 }
 
-func (r *TxTeamRepo) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID, newCaptainID uuid.UUID) error {
+func (r *TxTeamRepo) UpdateTeamCaptainTx(ctx context.Context, tx repo.Transaction, teamID, newCaptainID uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
 	query := squirrel.Update("teams").
 		Set("captain_id", newCaptainID).
 		Where(squirrel.Eq{"id": teamID}).
@@ -98,7 +104,7 @@ func (r *TxTeamRepo) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID,
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - UpdateTeamCaptainTx - BuildQuery: %w", err)
 	}
-	cmdTag, err := tx.Exec(ctx, sqlQuery, args...)
+	cmdTag, err := pgxTx.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - UpdateTeamCaptainTx - Exec: %w", err)
 	}
@@ -108,8 +114,9 @@ func (r *TxTeamRepo) UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID,
 	return nil
 }
 
-func (r *TxTeamRepo) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
-	_, err := r.base.q.WithTx(tx).SoftDeleteTeam(ctx, teamID)
+func (r *TxTeamRepo) SoftDeleteTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
+	_, err := r.base.q.WithTx(pgxTx).SoftDeleteTeam(ctx, teamID)
 	if err != nil {
 		if isNoRows(err) {
 			return entityError.ErrTeamNotFound
@@ -119,7 +126,8 @@ func (r *TxTeamRepo) SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uui
 	return nil
 }
 
-func (r *TxTeamRepo) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error {
+func (r *TxTeamRepo) CreateTeamAuditLogTx(ctx context.Context, tx repo.Transaction, log *entity.TeamAuditLog) error {
+	pgxTx := mustPgxTx(tx)
 	log.ID = uuid.New()
 	log.CreatedAt = time.Now()
 	detailsJSON := []byte("{}")
@@ -138,14 +146,15 @@ func (r *TxTeamRepo) CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *e
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - CreateTeamAuditLogTx - BuildQuery: %w", err)
 	}
-	_, err = tx.Exec(ctx, sqlQuery, args...)
+	_, err = pgxTx.Exec(ctx, sqlQuery, args...)
 	if err != nil {
 		return fmt.Errorf("TxTeamRepo - CreateTeamAuditLogTx - Exec: %w", err)
 	}
 	return nil
 }
 
-func (r *TxTeamRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error {
+func (r *TxTeamRepo) LockTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
+	pgxTx := mustPgxTx(tx)
 	query := squirrel.Select("id").
 		From("teams").
 		Where(squirrel.Eq{"id": teamID}).
@@ -156,7 +165,7 @@ func (r *TxTeamRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID
 		return fmt.Errorf("TxTeamRepo - LockTeamTx - BuildQuery: %w", err)
 	}
 	var id uuid.UUID
-	err = tx.QueryRow(ctx, sqlQuery, args...).Scan(&id)
+	err = pgxTx.QueryRow(ctx, sqlQuery, args...).Scan(&id)
 	if err != nil {
 		if isNoRows(err) {
 			return entityError.ErrTeamNotFound
@@ -166,8 +175,9 @@ func (r *TxTeamRepo) LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID
 	return nil
 }
 
-func (r *TxTeamRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*entity.Team, error) {
-	row, err := r.base.q.WithTx(tx).GetTeamByID(ctx, id)
+func (r *TxTeamRepo) GetTeamByIDTx(ctx context.Context, tx repo.Transaction, id uuid.UUID) (*entity.Team, error) {
+	pgxTx := mustPgxTx(tx)
+	row, err := r.base.q.WithTx(pgxTx).GetTeamByID(ctx, id)
 	if err != nil {
 		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound
@@ -177,8 +187,9 @@ func (r *TxTeamRepo) GetTeamByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID)
 	return toEntityTeamFromRow(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
 }
 
-func (r *TxTeamRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error) {
-	row, err := r.base.q.WithTx(tx).GetSoloTeamByUserID(ctx, userID)
+func (r *TxTeamRepo) GetSoloTeamByUserIDTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID) (*entity.Team, error) {
+	pgxTx := mustPgxTx(tx)
+	row, err := r.base.q.WithTx(pgxTx).GetSoloTeamByUserID(ctx, userID)
 	if err != nil {
 		if isNoRows(err) {
 			return nil, entityError.ErrTeamNotFound

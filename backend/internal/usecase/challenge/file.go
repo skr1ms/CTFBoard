@@ -13,6 +13,7 @@ import (
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/storage"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type FileUseCase struct {
@@ -36,7 +37,7 @@ func NewFileUseCase(
 func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType, filename string, reader io.Reader, size int64, contentType string) (*entity.File, error) {
 	tempFile, err := os.CreateTemp("", "upload-*")
 	if err != nil {
-		return nil, fmt.Errorf("FileUseCase - Upload - CreateTemp: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - Upload - CreateTemp")
 	}
 	defer func() {
 		_ = tempFile.Close()
@@ -47,18 +48,18 @@ func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileTy
 	multiWriter := io.MultiWriter(tempFile, hash)
 
 	if _, err := io.Copy(multiWriter, reader); err != nil {
-		return nil, fmt.Errorf("FileUseCase - Upload - Copy: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - Upload - Copy")
 	}
 
 	if _, err := tempFile.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("FileUseCase - Upload - Seek: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - Upload - Seek")
 	}
 
 	sha256Hash := hex.EncodeToString(hash.Sum(nil))
 	storagePath := storage.GenerateStoragePath(filename)
 
 	if err := uc.storage.Upload(ctx, storagePath, tempFile, size, contentType); err != nil {
-		return nil, fmt.Errorf("FileUseCase - Upload - Storage: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - Upload - Storage")
 	}
 
 	file := &entity.File{
@@ -75,7 +76,7 @@ func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileTy
 		if delErr := uc.storage.Delete(ctx, storagePath); delErr != nil {
 			return nil, fmt.Errorf("FileUseCase - Upload - Create: %w, cleanup delete: %w", err, delErr)
 		}
-		return nil, fmt.Errorf("FileUseCase - Upload - Create: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - Upload - Create")
 	}
 
 	return file, nil
@@ -88,12 +89,12 @@ func (uc *FileUseCase) Download(ctx context.Context, path string) (io.ReadCloser
 func (uc *FileUseCase) GetDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error) {
 	file, err := uc.fileRepo.GetByID(ctx, fileID)
 	if err != nil {
-		return "", fmt.Errorf("FileUseCase - GetDownloadURL - GetByID: %w", err)
+		return "", usecaseutil.Wrap(err, "FileUseCase - GetDownloadURL - GetByID")
 	}
 
 	url, err := uc.storage.GetPresignedURL(ctx, file.Location, uc.expiry)
 	if err != nil {
-		return "", fmt.Errorf("FileUseCase - GetDownloadURL - Presign: %w", err)
+		return "", usecaseutil.Wrap(err, "FileUseCase - GetDownloadURL - Presign")
 	}
 
 	return url, nil
@@ -102,7 +103,7 @@ func (uc *FileUseCase) GetDownloadURL(ctx context.Context, fileID uuid.UUID) (st
 func (uc *FileUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
 	files, err := uc.fileRepo.GetByChallengeID(ctx, challengeID, fileType)
 	if err != nil {
-		return nil, fmt.Errorf("FileUseCase - GetByChallengeID: %w", err)
+		return nil, usecaseutil.Wrap(err, "FileUseCase - GetByChallengeID")
 	}
 	return files, nil
 }
@@ -110,15 +111,15 @@ func (uc *FileUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 func (uc *FileUseCase) Delete(ctx context.Context, fileID uuid.UUID) error {
 	file, err := uc.fileRepo.GetByID(ctx, fileID)
 	if err != nil {
-		return fmt.Errorf("FileUseCase - Delete - GetByID: %w", err)
+		return usecaseutil.Wrap(err, "FileUseCase - Delete - GetByID")
 	}
 
 	if err := uc.storage.Delete(ctx, file.Location); err != nil {
-		return fmt.Errorf("FileUseCase - Delete - Storage: %w", err)
+		return usecaseutil.Wrap(err, "FileUseCase - Delete - Storage")
 	}
 
 	if err := uc.fileRepo.Delete(ctx, fileID); err != nil {
-		return fmt.Errorf("FileUseCase - Delete - Delete: %w", err)
+		return usecaseutil.Wrap(err, "FileUseCase - Delete - Delete")
 	}
 
 	return nil

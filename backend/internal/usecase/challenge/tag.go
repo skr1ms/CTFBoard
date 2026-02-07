@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type TagUseCase struct {
@@ -32,7 +33,7 @@ func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*entity.T
 		tag.Color = "#6b7280"
 	}
 	if err := uc.tagRepo.Create(ctx, tag); err != nil {
-		return nil, fmt.Errorf("TagUseCase - Create: %w", err)
+		return nil, usecaseutil.Wrap(err, "TagUseCase - Create")
 	}
 	return tag, nil
 }
@@ -40,7 +41,7 @@ func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*entity.T
 func (uc *TagUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tag, error) {
 	tag, err := uc.tagRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("TagUseCase - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "TagUseCase - GetByID")
 	}
 	return tag, nil
 }
@@ -48,7 +49,7 @@ func (uc *TagUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tag, e
 func (uc *TagUseCase) GetAll(ctx context.Context) ([]*entity.Tag, error) {
 	tags, err := uc.tagRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("TagUseCase - GetAll: %w", err)
+		return nil, usecaseutil.Wrap(err, "TagUseCase - GetAll")
 	}
 	return tags, nil
 }
@@ -56,7 +57,7 @@ func (uc *TagUseCase) GetAll(ctx context.Context) ([]*entity.Tag, error) {
 func (uc *TagUseCase) Update(ctx context.Context, id uuid.UUID, name, color string) (*entity.Tag, error) {
 	tag, err := uc.tagRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("TagUseCase - Update - GetByID: %w", err)
+		return nil, usecaseutil.Wrap(err, "TagUseCase - Update - GetByID")
 	}
 	tag.Name = name
 	if color != "" {
@@ -65,14 +66,14 @@ func (uc *TagUseCase) Update(ctx context.Context, id uuid.UUID, name, color stri
 		tag.Color = "#6b7280"
 	}
 	if err := uc.tagRepo.Update(ctx, tag); err != nil {
-		return nil, fmt.Errorf("TagUseCase - Update: %w", err)
+		return nil, usecaseutil.Wrap(err, "TagUseCase - Update")
 	}
 	return tag, nil
 }
 
 func (uc *TagUseCase) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := uc.tagRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("TagUseCase - Delete: %w", err)
+		return usecaseutil.Wrap(err, "TagUseCase - Delete")
 	}
 	return nil
 }

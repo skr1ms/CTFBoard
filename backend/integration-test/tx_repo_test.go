@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +49,7 @@ func TestTxRepo_RunTransaction_Success(t *testing.T) {
 	user := f.CreateUser(t, "tx_run_user")
 	executed := false
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
 		err := f.TxRepo.UpdateUserTeamIDTx(txCtx, tx, user.ID, nil)
 		executed = true
 		return err
@@ -67,7 +67,7 @@ func TestTxRepo_RunTransaction_Error(t *testing.T) {
 
 	user := f.CreateUser(t, "tx_run_err_user")
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
 		err := f.TxRepo.UpdateUserTeamIDTx(txCtx, tx, user.ID, nil)
 		require.NoError(t, err)
 		return errors.New("forced error")

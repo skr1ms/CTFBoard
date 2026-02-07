@@ -36,15 +36,10 @@ func NewEmailTestHelper(t *testing.T) *EmailTestHelper {
 
 func (h *EmailTestHelper) CreateUseCase() *EmailUseCase {
 	h.t.Helper()
-	return NewEmailUseCase(
-		h.deps.userRepo,
-		h.deps.tokenRepo,
-		h.deps.mailer,
-		24*time.Hour,
-		1*time.Hour,
-		"http://localhost:3000",
-		true,
-	)
+	return NewEmailUseCase(EmailDeps{
+		UserRepo: h.deps.userRepo, TokenRepo: h.deps.tokenRepo, Mailer: h.deps.mailer,
+		VerifyTTL: 24 * time.Hour, ResetTTL: 1 * time.Hour, FrontendURL: "http://localhost:3000", Enabled: true,
+	})
 }
 
 func (h *EmailTestHelper) Deps() *emailTestDeps {

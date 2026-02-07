@@ -5,28 +5,27 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/skr1ms/CTFBoard/internal/repo"
-	redisKeys "github.com/skr1ms/CTFBoard/pkg/redis"
+	"github.com/skr1ms/CTFBoard/pkg/cache"
+	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type AwardUseCase struct {
-	awardRepo repo.AwardRepository
-	txRepo    repo.TxRepository
-	redis     *redis.Client
+	awardRepo       repo.AwardRepository
+	txRepo          repo.TxRepository
+	scoreboardCache cache.ScoreboardCacheInvalidator
 }
 
 func NewAwardUseCase(
 	awardRepo repo.AwardRepository,
 	txRepo repo.TxRepository,
-	redis *redis.Client,
+	scoreboardCache cache.ScoreboardCacheInvalidator,
 ) *AwardUseCase {
 	return &AwardUseCase{
-		awardRepo: awardRepo,
-		txRepo:    txRepo,
-		redis:     redis,
+		awardRepo:       awardRepo,
+		txRepo:          txRepo,
+		scoreboardCache: scoreboardCache,
 	}
 }
 
@@ -42,21 +41,22 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		CreatedBy:   &createdBy,
 	}
 
-	if err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	if err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
 		return uc.txRepo.CreateAwardTx(ctx, tx, award)
 	}); err != nil {
-		return nil, fmt.Errorf("AwardUseCase - Create: %w", err)
+		return nil, usecaseutil.Wrap(err, "AwardUseCase - Create")
 	}
 
-	uc.redis.Del(ctx, redisKeys.KeyScoreboard, redisKeys.KeyScoreboardFrozen)
-
+	if uc.scoreboardCache != nil {
+		uc.scoreboardCache.InvalidateAll(ctx)
+	}
 	return award, nil
 }
 
 func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
 	awards, err := uc.awardRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, fmt.Errorf("AwardUseCase - GetByTeamID: %w", err)
+		return nil, usecaseutil.Wrap(err, "AwardUseCase - GetByTeamID")
 	}
 	return awards, nil
 }

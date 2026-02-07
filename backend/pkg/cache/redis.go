@@ -1,4 +1,4 @@
-package redis
+package cache
 
 import (
 	"context"
@@ -8,22 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	KeyScoreboard       = "scoreboard"
-	KeyScoreboardFrozen = "scoreboard:frozen"
-	KeyCompetition      = "competition"
-	KeyAppSettings      = "app_settings"
-)
-
-func KeyScoreboardBracket(bracketID string) string {
-	return "scoreboard:bracket:" + bracketID
-}
-
-func KeyScoreboardBracketFrozen(bracketID string) string {
-	return "scoreboard:frozen:bracket:" + bracketID
-}
-
-func New(host, port, password string) (*redis.Client, error) {
+func NewRedisClient(host, port, password string) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:        fmt.Sprintf("%s:%s", host, port),
 		Password:    password,

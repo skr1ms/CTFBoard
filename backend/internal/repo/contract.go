@@ -5,24 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 type (
-	PgxTx interface {
-		Begin(ctx context.Context) (pgx.Tx, error)
+	Transaction interface {
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
-		Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
-		Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-		QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-		Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error)
-		CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
-		SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
-		LargeObjects() pgx.LargeObjects
-		Conn() *pgx.Conn
 	}
 
 	UserRepository interface {
@@ -140,44 +129,44 @@ type (
 	}
 
 	TxRepository interface {
-		BeginTx(ctx context.Context) (pgx.Tx, error)
-		BeginSerializableTx(ctx context.Context) (pgx.Tx, error)
-		RunTransaction(ctx context.Context, fn func(context.Context, pgx.Tx) error) error
+		BeginTx(ctx context.Context) (Transaction, error)
+		BeginSerializableTx(ctx context.Context) (Transaction, error)
+		RunTransaction(ctx context.Context, fn func(context.Context, Transaction) error) error
 
-		GetChallengeByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Challenge, error)
-		DeleteChallengeTx(ctx context.Context, tx pgx.Tx, challengeID uuid.UUID) error
-		IncrementChallengeSolveCountTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (int, error)
-		UpdateChallengePointsTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID, points int) error
+		GetChallengeByIDTx(ctx context.Context, tx Transaction, ID uuid.UUID) (*entity.Challenge, error)
+		DeleteChallengeTx(ctx context.Context, tx Transaction, challengeID uuid.UUID) error
+		IncrementChallengeSolveCountTx(ctx context.Context, tx Transaction, ID uuid.UUID) (int, error)
+		UpdateChallengePointsTx(ctx context.Context, tx Transaction, ID uuid.UUID, points int) error
 
-		CreateUserTx(ctx context.Context, tx pgx.Tx, user *entity.User) error
-		UpdateUserTeamIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID, teamID *uuid.UUID) error
+		CreateUserTx(ctx context.Context, tx Transaction, user *entity.User) error
+		UpdateUserTeamIDTx(ctx context.Context, tx Transaction, userID uuid.UUID, teamID *uuid.UUID) error
 
-		CreateTeamTx(ctx context.Context, tx pgx.Tx, team *entity.Team) error
-		GetTeamByIDTx(ctx context.Context, tx pgx.Tx, ID uuid.UUID) (*entity.Team, error)
-		GetSoloTeamByUserIDTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*entity.Team, error)
+		CreateTeamTx(ctx context.Context, tx Transaction, team *entity.Team) error
+		GetTeamByIDTx(ctx context.Context, tx Transaction, ID uuid.UUID) (*entity.Team, error)
+		GetSoloTeamByUserIDTx(ctx context.Context, tx Transaction, userID uuid.UUID) (*entity.Team, error)
 
-		CreateSolveTx(ctx context.Context, tx pgx.Tx, solve *entity.Solve) error
-		GetSolveByTeamAndChallengeTx(ctx context.Context, tx pgx.Tx, teamID, challengeID uuid.UUID) (*entity.Solve, error)
-		GetTeamScoreTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) (int, error)
+		CreateSolveTx(ctx context.Context, tx Transaction, solve *entity.Solve) error
+		GetSolveByTeamAndChallengeTx(ctx context.Context, tx Transaction, teamID, challengeID uuid.UUID) (*entity.Solve, error)
+		GetTeamScoreTx(ctx context.Context, tx Transaction, teamID uuid.UUID) (int, error)
 
-		CreateHintUnlockTx(ctx context.Context, tx pgx.Tx, teamID, hintID uuid.UUID) error
-		GetHintUnlockByTeamAndHintTx(ctx context.Context, tx pgx.Tx, teamID, hintID uuid.UUID) (*entity.HintUnlock, error)
+		CreateHintUnlockTx(ctx context.Context, tx Transaction, teamID, hintID uuid.UUID) error
+		GetHintUnlockByTeamAndHintTx(ctx context.Context, tx Transaction, teamID, hintID uuid.UUID) (*entity.HintUnlock, error)
 
-		CreateAwardTx(ctx context.Context, tx pgx.Tx, award *entity.Award) error
+		CreateAwardTx(ctx context.Context, tx Transaction, award *entity.Award) error
 
-		LockTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error
-		LockUserTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error
+		LockTeamTx(ctx context.Context, tx Transaction, teamID uuid.UUID) error
+		LockUserTx(ctx context.Context, tx Transaction, userID uuid.UUID) error
 
-		DeleteSolvesByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error
+		DeleteSolvesByTeamIDTx(ctx context.Context, tx Transaction, teamID uuid.UUID) error
 
-		GetTeamByNameTx(ctx context.Context, tx pgx.Tx, name string) (*entity.Team, error)
-		GetTeamByInviteTokenTx(ctx context.Context, tx pgx.Tx, inviteToken uuid.UUID) (*entity.Team, error)
-		GetUsersByTeamIDTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) ([]*entity.User, error)
-		DeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error
-		SoftDeleteTeamTx(ctx context.Context, tx pgx.Tx, teamID uuid.UUID) error
-		UpdateTeamCaptainTx(ctx context.Context, tx pgx.Tx, teamID, newCaptainID uuid.UUID) error
-		CreateTeamAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.TeamAuditLog) error
-		CreateAuditLogTx(ctx context.Context, tx pgx.Tx, log *entity.AuditLog) error
+		GetTeamByNameTx(ctx context.Context, tx Transaction, name string) (*entity.Team, error)
+		GetTeamByInviteTokenTx(ctx context.Context, tx Transaction, inviteToken uuid.UUID) (*entity.Team, error)
+		GetUsersByTeamIDTx(ctx context.Context, tx Transaction, teamID uuid.UUID) ([]*entity.User, error)
+		DeleteTeamTx(ctx context.Context, tx Transaction, teamID uuid.UUID) error
+		SoftDeleteTeamTx(ctx context.Context, tx Transaction, teamID uuid.UUID) error
+		UpdateTeamCaptainTx(ctx context.Context, tx Transaction, teamID, newCaptainID uuid.UUID) error
+		CreateTeamAuditLogTx(ctx context.Context, tx Transaction, log *entity.TeamAuditLog) error
+		CreateAuditLogTx(ctx context.Context, tx Transaction, log *entity.AuditLog) error
 	}
 
 	VerificationTokenRepository interface {
@@ -303,13 +292,13 @@ type (
 	}
 
 	BackupRepository interface {
-		EraseAllTablesTx(ctx context.Context, tx pgx.Tx) error
-		ImportCompetitionTx(ctx context.Context, tx pgx.Tx, comp *entity.Competition) error
-		ImportChallengesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
-		ImportTeamsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error
-		ImportUsersTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData, opts entity.ImportOptions) error
-		ImportAwardsTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
-		ImportSolvesTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
-		ImportFileMetadataTx(ctx context.Context, tx pgx.Tx, data *entity.BackupData) error
+		EraseAllTablesTx(ctx context.Context, tx Transaction) error
+		ImportCompetitionTx(ctx context.Context, tx Transaction, comp *entity.Competition) error
+		ImportChallengesTx(ctx context.Context, tx Transaction, data *entity.BackupData) error
+		ImportTeamsTx(ctx context.Context, tx Transaction, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportUsersTx(ctx context.Context, tx Transaction, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportAwardsTx(ctx context.Context, tx Transaction, data *entity.BackupData) error
+		ImportSolvesTx(ctx context.Context, tx Transaction, data *entity.BackupData) error
+		ImportFileMetadataTx(ctx context.Context, tx Transaction, data *entity.BackupData) error
 	}
 )

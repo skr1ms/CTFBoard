@@ -70,13 +70,13 @@ packages:
           pkgname: "mocks"
           structname: "MockCompetitionRepository"
 
-      PgxTx:
+      Transaction:
         config:
           dir: "internal/usecase/challenge/mocks"
-          filename: "PgxTx.go"
+          filename: "Transaction.go"
           pkgname: "mocks"
-          structname: "MockPgxTx"
-      
+          structname: "MockTransaction"
+
       AuditLogRepository:
         config:
           dir: "internal/usecase/challenge/mocks"

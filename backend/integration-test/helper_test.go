@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/require"
 )
@@ -186,7 +186,7 @@ func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid
 	return solve
 }
 
-func (f *TestFixture) CreateAwardTx(t *testing.T, tx pgx.Tx, teamID uuid.UUID, value int, desc string) *entity.Award {
+func (f *TestFixture) CreateAwardTx(t *testing.T, tx repo.Transaction, teamID uuid.UUID, value int, desc string) *entity.Award {
 	t.Helper()
 	ctx := context.Background()
 	award := &entity.Award{

@@ -8,15 +8,11 @@ import (
 
 func (h *ChallengeTestHelper) CreateHintUseCase() (*HintUseCase, redismock.ClientMock) {
 	h.t.Helper()
-	client, redis := redismock.NewClientMock()
-	return NewHintUseCase(
-		h.deps.hintRepo,
-		h.deps.hintUnlockRepo,
-		h.deps.awardRepo,
-		h.deps.txRepo,
-		h.deps.solveRepo,
-		client,
-	), redis
+	_, redis := redismock.NewClientMock()
+	return NewHintUseCase(HintDeps{
+		HintRepo: h.deps.hintRepo, HintUnlockRepo: h.deps.hintUnlockRepo, AwardRepo: h.deps.awardRepo,
+		TxRepo: h.deps.txRepo, SolveRepo: h.deps.solveRepo, ScoreboardCache: nil,
+	}), redis
 }
 
 func (h *ChallengeTestHelper) NewHint(id, challengeID uuid.UUID, content string, cost, orderIndex int) *entity.Hint {
