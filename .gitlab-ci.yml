@@ -241,7 +241,8 @@ deploy:
       sed -i '/^BACKEND_IMAGE=/d' .env || true
       echo "BACKEND_IMAGE=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA" >> .env
 
-      docker compose --env-file .env -f deployment/docker/docker-compose.yml pull
+      docker compose --env-file .env -f deployment/docker/docker-compose.yml pull --ignore-pull-failures
+      docker compose --env-file .env -f deployment/docker/docker-compose.yml build seaweedfs-ui
       docker compose --env-file .env -f deployment/docker/docker-compose.yml up -d
 
       echo "Waiting for backend..."
