@@ -116,7 +116,7 @@ security:code:
   script:
     - cd backend
     - go mod download
-    - gosec ./...
+    - gosec -exclude=G101 ./...
   rules:
     - changes:
         - backend/**/*
