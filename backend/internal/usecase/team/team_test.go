@@ -832,3 +832,130 @@ func TestTeamUseCase_SetHidden_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
 }
+
+func TestTeamUseCase_SetBracket_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	bracketID := uuid.New()
+	team := &entity.Team{ID: teamID, Name: "Team"}
+
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	deps.teamRepo.EXPECT().SetBracket(mock.Anything, teamID, &bracketID).Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.SetBracket(context.Background(), teamID, &bracketID)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_SetBracket_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	teamID := uuid.New()
+	deps.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, entityError.ErrTeamNotFound).Once()
+
+	uc := h.CreateUseCase()
+
+	err := uc.SetBracket(context.Background(), teamID, nil)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, entityError.ErrTeamNotFound))
+}
+
+func TestTeamUseCase_TryCreate_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	captainID := uuid.New()
+	user := h.NewUser(captainID, nil, "captain", "captain@example.com")
+
+	comp := &entity.Competition{Mode: "flexible", AllowTeamSwitch: true}
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Twice()
+	deps.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Twice()
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+		return fn(ctx, nil)
+	}).Once()
+	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
+	deps.txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "TestTeam").Return(nil, entityError.ErrTeamNotFound).Once()
+	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.MatchedBy(func(t *entity.Team) bool {
+		return t.Name == "TestTeam" && t.CaptainID == captainID
+	})).Return(nil).Run(func(_ context.Context, _ repo.Transaction, team *entity.Team) {
+		team.ID = uuid.New()
+		team.InviteToken = uuid.New()
+	}).Once()
+	deps.txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, captainID, mock.Anything).Return(nil).Once()
+	deps.txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	result, err := uc.TryCreate(context.Background(), "TestTeam", captainID, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.Team)
+	assert.Equal(t, "TestTeam", result.Team.Name)
+}
+
+func TestTeamUseCase_TryCreate_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(nil, assert.AnError).Once()
+
+	uc := h.CreateUseCase()
+
+	result, err := uc.TryCreate(context.Background(), "Team", uuid.New(), false)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestTeamUseCase_ConfirmCreate_Success(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	captainID := uuid.New()
+	user := h.NewUser(captainID, nil, "captain", "captain@example.com")
+
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(&entity.Competition{Mode: "flexible", AllowTeamSwitch: true}, nil).Once()
+	deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+		return fn(ctx, nil)
+	}).Once()
+	deps.txRepo.EXPECT().LockUserTx(mock.Anything, mock.Anything, captainID).Return(nil).Once()
+	deps.txRepo.EXPECT().GetTeamByNameTx(mock.Anything, mock.Anything, "ConfirmTeam").Return(nil, entityError.ErrTeamNotFound).Once()
+	deps.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
+	deps.txRepo.EXPECT().CreateTeamTx(mock.Anything, mock.Anything, mock.MatchedBy(func(t *entity.Team) bool {
+		return t.Name == "ConfirmTeam" && t.CaptainID == captainID
+	})).Return(nil).Run(func(_ context.Context, _ repo.Transaction, team *entity.Team) {
+		team.ID = uuid.New()
+		team.InviteToken = uuid.New()
+	}).Once()
+	deps.txRepo.EXPECT().UpdateUserTeamIDTx(mock.Anything, mock.Anything, captainID, mock.Anything).Return(nil).Once()
+	deps.txRepo.EXPECT().CreateTeamAuditLogTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	uc := h.CreateUseCase()
+
+	team, err := uc.ConfirmCreate(context.Background(), "ConfirmTeam", captainID, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, team)
+	assert.Equal(t, "ConfirmTeam", team.Name)
+}
+
+func TestTeamUseCase_ConfirmCreate_Error(t *testing.T) {
+	h := NewTeamTestHelper(t)
+	deps := h.Deps()
+
+	deps.compRepo.EXPECT().Get(mock.Anything).Return(nil, assert.AnError).Once()
+
+	uc := h.CreateUseCase()
+
+	team, err := uc.ConfirmCreate(context.Background(), "Team", uuid.New(), false)
+
+	assert.Error(t, err)
+	assert.Nil(t, team)
+}

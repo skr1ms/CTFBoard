@@ -15,6 +15,22 @@ func (h *E2EHelper) GetPages(expectStatus int) *openapi.GetPagesResponse {
 	return resp
 }
 
+func (h *E2EHelper) GetAdminPages(token string, expectStatus int) *openapi.GetAdminPagesResponse {
+	h.t.Helper()
+	resp, err := h.client.GetAdminPagesWithResponse(context.Background(), WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get admin pages")
+	return resp
+}
+
+func (h *E2EHelper) GetAdminPageByID(token, id string, expectStatus int) *openapi.GetAdminPagesIDResponse {
+	h.t.Helper()
+	resp, err := h.client.GetAdminPagesIDWithResponse(context.Background(), id, WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get admin page by id")
+	return resp
+}
+
 func (h *E2EHelper) GetPageBySlug(slug string, expectStatus int) *openapi.GetPagesSlugResponse {
 	h.t.Helper()
 	resp, err := h.client.GetPagesSlugWithResponse(context.Background(), slug)

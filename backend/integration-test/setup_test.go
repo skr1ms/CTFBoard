@@ -190,3 +190,78 @@ func isIgnorableError(err error) bool {
 	s := err.Error()
 	return strings.Contains(s, "already exists") || strings.Contains(s, "duplicate")
 }
+
+const (
+	seaweedS3Port    = "8333"
+	seaweedAccessKey = "admin"
+	seaweedSecretKey = "admin"
+	seaweedBucket    = "ctfboard"
+)
+
+var (
+	seaweedContainer testcontainers.Container
+	seaweedOnce      sync.Once
+	seaweedErr       error
+	seaweedEndpoint  string
+)
+
+func SetupSeaweedFS(t *testing.T) (endpoint, accessKey, secretKey, bucket string) {
+	t.Helper()
+	ctx := context.Background()
+
+	seaweedOnce.Do(func() {
+		s3ConfigPath := findS3ConfigPath(t)
+		req := testcontainers.ContainerRequest{
+			Image:        "chrislusf/seaweedfs:latest",
+			Cmd:          []string{"server", "-s3", "-s3.config=/etc/seaweedfs/s3.json"},
+			ExposedPorts: []string{seaweedS3Port + "/tcp"},
+			WaitingFor:   wait.ForListeningPort(seaweedS3Port + "/tcp").WithStartupTimeout(30 * time.Second),
+			Files: []testcontainers.ContainerFile{
+				{HostFilePath: s3ConfigPath, ContainerFilePath: "/etc/seaweedfs/s3.json", FileMode: 0o644},
+			},
+		}
+		seaweedContainer, seaweedErr = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+		if seaweedErr != nil {
+			return
+		}
+		host, err := seaweedContainer.Host(ctx)
+		if err != nil {
+			seaweedErr = err
+			return
+		}
+		port, err := seaweedContainer.MappedPort(ctx, seaweedS3Port)
+		if err != nil {
+			seaweedErr = err
+			return
+		}
+		seaweedEndpoint = host + ":" + port.Port()
+	})
+
+	if seaweedErr != nil {
+		t.Fatalf("seaweedfs container: %v", seaweedErr)
+	}
+	return seaweedEndpoint, seaweedAccessKey, seaweedSecretKey, seaweedBucket
+}
+
+func findS3ConfigPath(t *testing.T) string {
+	t.Helper()
+	candidates := []string{
+		filepath.Join("..", "deployment", "seaweedfs", "s3.json"),
+		filepath.Join("deployment", "seaweedfs", "s3.json"),
+		filepath.Join("..", "..", "deployment", "seaweedfs", "s3.json"),
+	}
+	for _, p := range candidates {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			continue
+		}
+		if _, err := os.Stat(abs); err == nil {
+			return abs
+		}
+	}
+	t.Fatal("s3.json not found (run tests from backend or repo root)")
+	return ""
+}

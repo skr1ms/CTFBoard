@@ -13,8 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewS3Provider_Error(t *testing.T) {
+func TestNewS3Provider_EmptyCredentials_Error(t *testing.T) {
 	_, err := storage.NewS3Provider("http://localhost:9000", "http://localhost:9000", "", "", "bucket", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credentials")
+}
+
+func TestNewS3Provider_EmptyAccessKey_Error(t *testing.T) {
+	_, err := storage.NewS3Provider("http://localhost:9000", "", "", "secret", "bucket", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credentials")
+}
+
+func TestNewS3Provider_EmptySecretKey_Error(t *testing.T) {
+	_, err := storage.NewS3Provider("http://localhost:9000", "", "access", "", "bucket", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials")
 }

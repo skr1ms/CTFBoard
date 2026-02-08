@@ -16,6 +16,14 @@ func (h *E2EHelper) GetBrackets(expectStatus int) *openapi.GetBracketsResponse {
 	return resp
 }
 
+func (h *E2EHelper) GetAdminBracketByID(token, id string, expectStatus int) *openapi.GetAdminBracketsIDResponse {
+	h.t.Helper()
+	resp, err := h.client.GetAdminBracketsIDWithResponse(context.Background(), id, WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get admin bracket by id")
+	return resp
+}
+
 func (h *E2EHelper) CreateBracket(token, name, desc string, isDefault bool, expectStatus int) *openapi.PostAdminBracketsResponse {
 	h.t.Helper()
 	d := desc

@@ -1,90 +1,93 @@
 # Monitoring
 
-The monitoring stack is based on Prometheus, Grafana, and Loki. It provides metrics collection, log aggregation, and visualization.
+This document specifies the monitoring stack for the CTFBoard platform. The stack is used for metrics collection, log aggregation, and visualisation.
 
-## Architecture
+## 1. Architecture
 
-The following components are used:
+The monitoring stack SHALL comprise the following components:
 
-- **Prometheus** — Metrics collection and time-series storage.
-- **Grafana** — Dashboards and visualization.
-- **Loki** — Log aggregation and storage.
-- **Promtail** — Log collection and shipment to Loki.
-- **Alertmanager** — Alert routing and management.
-- **Exporters** — Metrics export for external services (PostgreSQL, Redis, cAdvisor, etc.).
+| Component   | Role                                      |
+|-------------|-------------------------------------------|
+| Prometheus  | Metrics collection and time-series storage|
+| Grafana     | Dashboards and visualisation              |
+| Loki        | Log aggregation and storage               |
+| Promtail    | Log collection and shipment to Loki       |
+| Alertmanager| Alert routing and management              |
+| Exporters   | Metrics export for external services      |
 
-## Components
+## 2. Components
 
-### Prometheus
+### 2.1 Prometheus
 
-**Purpose:** Collect metrics from targets at a configured interval.
+**Purpose:** Collect metrics from configured targets at a fixed interval.
 
 - **Port:** `9090`
-- **Configuration:** `monitoring/prometheus/prometheus.yml`
-- **Scrape targets:**
-  - `backend` (application)
-  - `postgres-exporter` or equivalent (database)
-  - `redis-exporter` (Redis)
-  - `cadvisor` (containers)
-  - `prometheus` (self)
+- **Configuration file:** `monitoring/prometheus/prometheus.yml`
+- **Alerts:** `monitoring/prometheus/alerts.yml`
+- **Scrape targets:** Backend application, PostgreSQL exporter, Redis exporter, cAdvisor (containers), Prometheus (self).
 
-### Grafana
+### 2.2 Grafana
 
-**Purpose:** Visualization of metrics and logs.
+**Purpose:** Visualisation of metrics and logs.
 
 - **Port:** `3000`
-- **URL:** `http://localhost:3000`
+- **Base URL:** `http://localhost:3000` (or the configured host)
 - **Provisioning:**
-  - **Datasources:** Prometheus and Loki are configured automatically.
-  - **Dashboards:** Dashboards are loaded from `monitoring/grafana/dashboards/`.
+  - **Datasources:** Prometheus and Loki SHALL be provisioned via `monitoring/grafana/provisioning/datasources/`.
+  - **Dashboards:** Dashboards SHALL be loaded from `monitoring/grafana/dashboards/`. Subdirectories SHALL be used by component: `backend/`, `postgres/`, `redis/`, `root/`, `seaweedfs/`, `ui/`, `vault/`.
 
-### Loki
+### 2.3 Loki
 
-**Purpose:** Horizontally scalable log aggregation system.
+**Purpose:** Log aggregation system.
 
 - **Port:** `3100`
-- **Configuration:** `monitoring/loki/loki-config.yml`
+- **Configuration file:** `monitoring/loki/loki-config.yml`
 
-### Promtail
+### 2.4 Promtail
 
 **Purpose:** Agent that collects logs from Docker containers and sends them to Loki.
 
-- **Configuration:** `monitoring/promtail/promtail-config.yml`
-- **Labels:** Labels such as `container` and `compose_service` are attached to log streams.
+- **Configuration file:** `monitoring/promtail/promtail-config.yml`
+- **Labels:** Labels such as `container` and `compose_service` SHALL be attached to log streams.
 
-### Alertmanager
+### 2.5 Alertmanager
 
-**Purpose:** Handles alerts from Prometheus (deduplication, grouping, routing).
+**Purpose:** Receives alerts from Prometheus; performs deduplication, grouping, and routing.
 
 - **Port:** `9093`
-- **Configuration:** `monitoring/alertmanager/alertmanager.yml`
+- **Configuration file:** `monitoring/alertmanager/alertmanager.yml`
 
-### Exporters
+### 2.6 Exporters
 
-- **PostgreSQL Exporter:** Database metrics.
-- **Redis Exporter:** Redis metrics.
-- **cAdvisor:** Container resource usage (CPU, memory, network).
+| Exporter           | Purpose                    |
+|--------------------|----------------------------|
+| PostgreSQL Exporter| Database metrics           |
+| Redis Exporter     | Redis metrics              |
+| cAdvisor           | Container resource usage   |
 
-## Application Metrics
+## 3. Application metrics
 
-The backend exposes Prometheus metrics at the `/metrics` endpoint.
+The backend SHALL expose Prometheus metrics at the `/metrics` HTTP endpoint.
 
-### Main metrics
+### 3.1 HTTP metrics
 
-- **HTTP:**
-  - `http_requests_total` — Request count (counter).
-  - `http_request_duration_seconds` — Request duration (histogram).
-- **Go runtime:**
-  - `go_goroutines` — Number of goroutines.
-  - `go_memstats_alloc_bytes` — Allocated memory.
-- **Business:**
-  - `flag_submissions_total` — Flag submission count.
+- `http_requests_total` — Total number of HTTP requests (counter).
+- `http_request_duration_seconds` — Request duration (histogram).
 
-## Logging
+### 3.2 Go runtime
 
-The application uses structured JSON logging.
+- `go_goroutines` — Number of goroutines.
+- `go_memstats_alloc_bytes` — Allocated memory.
 
-### Log format
+### 3.3 Business metrics
+
+- `flag_submissions_total` — Total flag submissions (counter).
+
+## 4. Logging
+
+The application SHALL emit structured logs (e.g. JSON or key-value). The format SHALL include at least: level, timestamp, caller, message, and optional fields.
+
+### 4.1 Example log entry
 
 ```json
 {
@@ -96,15 +99,15 @@ The application uses structured JSON logging.
 }
 ```
 
-### LogQL examples (Grafana)
+### 4.2 LogQL examples (Grafana Explore)
 
-**Filter backend errors:**
+Filter backend errors:
 
 ```logql
 {compose_service="backend"} |= "error"
 ```
 
-**Filter by trace ID:**
+Filter by trace ID:
 
 ```logql
 {compose_service="backend"} |= "trace_id=12345"

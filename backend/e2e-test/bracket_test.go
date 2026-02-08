@@ -86,6 +86,25 @@ func TestBracket_Delete_Success(t *testing.T) {
 	h.DeleteBracket(tokenAdmin, *createResp.JSON201.ID, http.StatusNoContent)
 }
 
+// PATCH /admin/teams/{id}/bracket: admin sets team bracket; returns 200.
+func TestBracket_SetTeamBracket_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_bracket_set")
+	suffix := uuid.New().String()[:8]
+	bracketResp := h.CreateBracket(tokenAdmin, "br_set_"+suffix, "desc", false, http.StatusCreated)
+	require.NotNil(t, bracketResp.JSON201)
+	require.NotNil(t, bracketResp.JSON201.ID)
+	_, _, tokenUser := h.RegisterUserAndLogin("bracket_team_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+
+	h.SetTeamBracket(tokenAdmin, *team.JSON200.ID, *bracketResp.JSON201.ID, http.StatusOK)
+}
+
 // PATCH /admin/teams/{id}/bracket: non-admin gets 403.
 func TestBracket_SetTeamBracket_Forbidden(t *testing.T) {
 	t.Helper()
@@ -102,4 +121,24 @@ func TestBracket_SetTeamBracket_Forbidden(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 
 	h.SetTeamBracket(tokenUser, *team.JSON200.ID, *bracketResp.JSON201.ID, http.StatusForbidden)
+}
+
+// GET /admin/brackets/{ID}: admin gets bracket by ID; returns 200 and bracket data.
+func TestBracket_GetAdminBracketByID_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_bracket_get_id")
+	suffix := uuid.New().String()[:8]
+	name := "bracket_byid_" + suffix
+	createResp := h.CreateBracket(tokenAdmin, name, "description", true, http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+	require.NotNil(t, createResp.JSON201.ID)
+
+	got := h.GetAdminBracketByID(tokenAdmin, *createResp.JSON201.ID, http.StatusOK)
+	require.NotNil(t, got.JSON200)
+	require.Equal(t, *createResp.JSON201.ID, *got.JSON200.ID)
+	require.NotNil(t, got.JSON200.Name)
+	require.Equal(t, name, *got.JSON200.Name)
 }

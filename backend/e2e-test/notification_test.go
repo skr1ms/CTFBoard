@@ -46,6 +46,32 @@ func TestNotification_List_Success(t *testing.T) {
 	require.GreaterOrEqual(t, len(*userList.JSON200), 1)
 }
 
+// POST /admin/notifications/user/{userID}: admin creates personal notification; user sees it in GET /user/notifications.
+func TestNotification_CreateUserNotification_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_notif_user")
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("notif_target_" + suffix)
+	userID := h.GetUserIDByEmail(email)
+
+	createResp := h.CreateUserNotification(tokenAdmin, userID, "Personal "+suffix, "Hello user", "info", http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+
+	userList := h.GetUserNotifications(tokenUser, 1, 50, http.StatusOK)
+	require.NotNil(t, userList.JSON200)
+	found := false
+	for _, n := range *userList.JSON200 {
+		if n.Title != nil && *n.Title == "Personal "+suffix {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "user must see personal notification in GET /user/notifications")
+}
+
 // POST /admin/notifications: non-admin gets 403.
 func TestNotification_Create_Forbidden(t *testing.T) {
 	t.Helper()

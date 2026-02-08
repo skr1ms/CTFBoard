@@ -1,204 +1,171 @@
-# Project Structure
+# Project structure
 
-The project is implemented in Go using a clean architecture. The application is split into presentation, application, domain, and data layers.
+This document specifies the layout and responsibilities of the CTFBoard codebase. The backend is implemented in Go and follows a layered (clean) architecture with separate presentation, application, domain, and data layers.
 
-## Architecture
+## 1. Architecture
 
-The codebase follows clean architecture with clear separation of concerns:
+The codebase SHALL be organised as follows:
 
-- **Presentation layer** (`internal/controller/restapi`, `internal/controller/websocket`) — HTTP and WebSocket handlers, request handling.
-- **Application layer** (`internal/usecase`) — Business logic and use cases.
-- **Domain layer** (`internal/entity`) — Domain entities and business rules.
-- **Data layer** (`internal/repo`) — Data access and repositories.
+| Layer          | Location                                                       | Responsibility                                    |
+|----------------|----------------------------------------------------------------|---------------------------------------------------|
+| Presentation   | `internal/controller/restapi`, `internal/controller/websocket` | HTTP/WebSocket handlers, request/response mapping |
+| Application    | `internal/usecase`                                             | Business logic and use cases                      |
+| Domain         | `internal/entity`                                              | Domain entities and rules                         |
+| Data           | `internal/repo`                                                | Data access and repositories                      |
 
-## Directory Layout
+Shared utilities SHALL reside in `pkg/`. Dependency wiring SHALL be defined in `internal/wire/` and generated where applicable.
 
-### Backend
+## 2. Directory layout
 
-```
+### 2.1 Backend
+
+```text
 backend/
-├── cmd/app/                 # Application entry point
-├── config/                  # Configuration loading
-├── internal/                # Private application packages
-│   ├── app/                 # Application bootstrap and wiring
-│   ├── controller/          # Presentation layer
-│   │   ├── restapi/         # REST API (v1)
-│   │   │   ├── middleware/  # HTTP middleware
-│   │   │   └── v1/          # API v1 handlers and request/response types
-│   │   └── websocket/v1/    # WebSocket handlers
-│   ├── entity/              # Domain layer
-│   │   └── error/           # Domain errors
-│   ├── openapi/             # OpenAPI spec and generated types
-│   ├── repo/                # Data layer
-│   │   ├── contract.go      # Repository interfaces
-│   │   └── persistent/      # Repository implementations
-│   └── usecase/             # Application layer
-│       └── .../mocks/       # Mocks for tests
-├── pkg/                     # Shared packages
-│   ├── crypto/              # Encryption (e.g. AES)
-│   ├── httputil/            # HTTP helpers
-│   ├── jwt/                 # JWT service
-│   ├── logger/              # Logging
-│   ├── mailer/              # Email sending
-│   ├── migrator/            # Database migrations
-│   ├── postgres/            # PostgreSQL client
-│   ├── redis/               # Redis client
-│   ├── seed/                # Database seeding
-│   ├── validator/           # Request validation
-│   ├── vault/               # HashiCorp Vault client
-│   └── websocket/           # WebSocket hub and client
-├── migrations/              # SQL migrations
-├── schema/                  # Full SQL schema (reference)
-├── e2e-test/                # End-to-end tests
-└── integration-test/        # Integration tests (repositories, DB)
+├── cmd/
+│   ├── app/                    # Application entry point (HTTP server)
+│   └── cleanup/               # Cleanup job entry point (e.g. soft-deleted teams)
+├── codegen/                   # Code generation configuration
+│   ├── .mockery_*.yml         # Mockery configs per package
+│   ├── oapi-codegen-*.yml     # OpenAPI client/server/types
+│   └── sqlc.yaml              # sqlc (SQL → Go) config
+├── config/                     # Configuration loading (env, Vault)
+├── internal/
+│   ├── app/                    # Application bootstrap and wiring
+│   ├── controller/
+│   │   ├── restapi/
+│   │   │   ├── middleware/    # Auth, logging, metrics, rate limit, etc.
+│   │   │   └── v1/            # Handlers, request/response helpers
+│   │   └── websocket/v1/      # WebSocket handler
+│   ├── entity/                 # Domain layer
+│   │   └── error/              # Domain error types
+│   ├── openapi/                # Generated OpenAPI client, server, types
+│   ├── repo/
+│   │   ├── contract.go         # Repository interfaces
+│   │   └── persistent/       # PostgreSQL implementations (sqlc + adapters)
+│   ├── storage/               # File storage interface (S3, filesystem)
+│   ├── usecase/                # Application layer (per-domain packages)
+│   │   └── .../mocks/          # Generated mocks for tests
+│   └── wire/                   # Dependency injection (Wire)
+├── pkg/                        # Shared packages
+│   ├── cache/                  # Redis-backed cache, scoreboard cache
+│   ├── crypto/                 # Encryption (e.g. AES)
+│   ├── httputil/               # HTTP helpers (render, decode, error)
+│   ├── jwt/                    # JWT service
+│   ├── logger/                 # Logging interface and implementation
+│   ├── mailer/                 # Email (e.g. Resend)
+│   ├── migrator/               # SQL migrations runner
+│   ├── postgres/               # PostgreSQL connection and pool
+│   ├── seed/                   # Database seeding (e.g. admin user)
+│   ├── usecaseutil/            # Use-case helpers (e.g. error wrapping)
+│   ├── validator/              # Request validation
+│   ├── vault/                  # HashiCorp Vault client
+│   └── websocket/              # WebSocket hub and client
+├── migrations/                 # SQL migrations (versioned)
+├── queries/                    # SQL queries for sqlc
+├── schema/                     # Full SQL schema (reference)
+├── e2e-test/                   # End-to-end tests and helpers
+└── integration-test/           # Integration tests (repositories, DB)
 ```
 
-### Deployment
+### 2.2 Deployment
 
-```
+```text
 deployment/
-├── docker/                  # Docker and Compose
+├── docker/                     # Docker and Compose
 │   ├── docker-compose.yml
-│   └── docker-compose.local.yml
-├── nginx/                   # Nginx configuration
-├── vault/                   # Vault configuration
-├── cron-jobs/               # Cron job definitions
-├── scripts/                 # Deployment scripts
-└── seaweedfs/               # S3-compatible storage config (if used)
+│   ├── docker-compose.local.yml
+│   └── init-vault.sh
+├── nginx/                       # Nginx configuration
+├── vault/                       # Vault configuration
+├── cron-jobs/                   # Cron job definitions (e.g. cleanup)
+├── scripts/                     # Deployment scripts
+└── seaweedfs/                   # S3-compatible storage config (optional)
 ```
 
-### Monitoring
+### 2.3 Monitoring
 
-```
+```text
 monitoring/
-├── grafana/                 # Grafana dashboards and provisioning
-├── loki/                    # Loki configuration
-├── prometheus/              # Prometheus configuration and alerts
-├── promtail/                # Promtail configuration
-└── alertmanager/            # Alertmanager configuration
+├── grafana/
+│   ├── dashboards/              # JSON dashboards by component
+│   │   ├── backend/
+│   │   ├── postgres/
+│   │   ├── redis/
+│   │   ├── root/
+│   │   ├── seaweedfs/
+│   │   ├── ui/
+│   │   └── vault/
+│   └── provisioning/           # Datasources and dashboard provisioning
+├── loki/                        # Loki configuration
+├── prometheus/                  # Prometheus config and alerts
+├── promtail/                    # Promtail configuration
+└── alertmanager/                # Alertmanager configuration
 ```
 
-## Main Components
+## 3. Main components
 
-### Entry point
+### 3.1 Entry points
 
-**File:** `cmd/app/main.go`
+- **`cmd/app/main.go`** — Loads configuration, initialises logger and dependencies, starts the HTTP server.
+- **`cmd/cleanup/main.go`** — Standalone job for cleanup operations (e.g. hard-delete of soft-deleted teams).
 
-Loads configuration, creates the logger, and starts the application.
+### 3.2 Application bootstrap
 
-### Application initialization
+- **`internal/app/app.go`** — Wires dependencies: PostgreSQL, Redis, migrations, repositories, use cases, router, middleware, HTTP server.
 
-**File:** `internal/app/app.go`
+### 3.3 Controllers
 
-Wires dependencies:
+- **`internal/controller/restapi/v1/`** — REST handlers: user, challenge, competition, scoreboard, statistics, team, award, email, hint, file, backup, settings, notification, page, bracket, tag, field, config, rating, submission; WebSocket upgrade.
+- **`internal/controller/restapi/middleware/`** — Authentication (JWT/API token), logging, metrics, rate limiting, competition guards, require team/verified.
+- **`internal/controller/websocket/v1/`** — WebSocket connection handling and real-time updates.
 
-- PostgreSQL and Redis connections
-- Migrations
-- Repositories
-- Use cases
-- HTTP router and middleware
-- HTTP server
+### 3.4 Use cases
 
-### Controllers
+- **`internal/usecase/`** — Business logic by domain: `user` (auth, profile, API tokens), `challenge` (challenges, hints, files, tags, comments), `competition` (competition state, solve, scoreboard, statistics, backup, bracket, dynamic config, rating, submission), `team` (teams, awards), `email`, `settings` (app settings, fields, validator), `notification`, `page`, `cleanup`.
 
-**Directory:** `internal/controller`
+### 3.5 Entities and domain errors
 
-**REST API (`restapi/v1`):**
+- **`internal/entity/`** — Domain types: user, challenge, team, solve, hint, competition, app_settings, verification_token, audit_log, and related; **`internal/entity/error/`** — Domain error definitions used by use cases and controllers.
 
-- `user.go` — Authentication and user management
-- `challenge.go` — Challenge (task) management
-- `competition.go` — Competition settings
-- `scoreboard.go` — Scoreboard
-- `statistics.go` — Statistics
-- `team.go` — Team management
-- `award.go` — Awards
-- `email.go` — Email (verification, password reset)
-- `hint.go` — Hints
-- `file.go` — File upload/download
-- `backup.go` — Backup
-- `settings.go` — Admin settings
-- `websocket.go` — WebSocket upgrade
+### 3.6 Repositories
 
-**WebSocket (`websocket/v1`):**
+- **`internal/repo/contract.go`** — Repository interfaces. Implementations in **`internal/repo/persistent/`** (PostgreSQL via sqlc and adapter layer). Repositories SHALL exist for users, teams, challenges, solves, hints, competition, brackets, awards, settings, audit log, backup, notifications, pages, tags, fields, configs, ratings, statistics, submissions, API tokens, verification tokens, and app settings.
 
-- `controller.go` — WebSocket connections and real-time updates
+### 3.7 Configuration
 
-### Use cases
+- **`config/config.go`** — Loads configuration from environment variables and optionally from HashiCorp Vault.
 
-**Directory:** `internal/usecase`
+### 3.8 Shared packages (`pkg/`)
 
-Business logic is grouped by domain:
-
-- `user/` — Registration, authentication, profile
-- `challenge/` — Challenges, hints, files
-- `competition/` — Competition state, scoring, solve, statistics, backup
-- `team/` — Teams, awards
-- `email/` — Verification and password reset emails
-- `settings/` — Application settings (admin)
-
-### Entities
-
-**Directory:** `internal/entity`
-
-Domain entities include:
-
-- `user.go` — User
-- `challenge.go` — Challenge
-- `team.go` — Team
-- `solve` (in competition flow) — Solve
-- `hint.go` — Hint
-- `competition.go` — Competition
-- `app_settings.go` — Application settings
-- `verification_token.go` — Verification tokens
-- `audit_log.go` — Audit log entries
-- Others as used by the API and use cases
-
-### Repositories
-
-**Directory:** `internal/repo`
-
-Interfaces are defined in `contract.go`. Implementations live in `persistent/` (e.g. PostgreSQL). Repositories are used for users, challenges, teams, solves, hints, competition, settings, audit log, backup, and related entities.
-
-### Middleware
-
-**Directory:** `internal/controller/restapi/middleware`
-
-- Authentication (JWT)
-- Request logging
-- Metrics (Prometheus)
-
-### Configuration
-
-**File:** `config/config.go` (or equivalent)
-
-Configuration is loaded from environment variables and optionally from HashiCorp Vault.
-
-### Shared packages
-
+- **`pkg/cache`** — Redis-backed cache, scoreboard cache service.
 - **`pkg/mailer`** — Transactional email (e.g. Resend).
 - **`pkg/websocket`** — WebSocket hub and client handling.
 - **`pkg/postgres`** — PostgreSQL connection and pool.
-- **`pkg/redis`** — Redis client.
 - **`pkg/jwt`** — JWT creation and validation.
 - **`pkg/validator`** — Request validation.
-- **`pkg/migrator`** — Running SQL migrations.
+- **`pkg/migrator`** — Execution of SQL migrations.
+- **`pkg/httputil`** — HTTP rendering, decoding, error handling.
+- **`pkg/usecaseutil`** — Cross-cutting helpers (e.g. error wrapping).
 
-## Testing
+## 4. Testing
 
-### End-to-end tests
+### 4.1 End-to-end tests
 
-**Directory:** `backend/e2e-test/`
+- **Directory:** `backend/e2e-test/`
+- **Purpose:** Exercise the system via the HTTP API (and WebSocket) against a running or in-process backend. Test helpers SHALL reside in `backend/e2e-test/helper/` and SHALL be used for setup, API calls, and assertions. Each test file SHALL target a specific area (auth, challenges, teams, scoreboard, etc.).
 
-Tests exercise the system via the HTTP API (and optionally WebSocket) against a running or in-process backend.
+### 4.2 Integration tests
 
-### Integration tests
+- **Directory:** `backend/integration-test/`
+- **Purpose:** Run against a real database (e.g. Testcontainers). Repository behaviour, transactions, and race conditions (where applicable) SHALL be verified. One test file per repository or cross-repo scenario is RECOMMENDED.
 
-**Directory:** `backend/integration-test/`
+### 4.3 Unit tests
 
-Tests run against a real database and verify repository behaviour and data consistency.
+- **Locations:** Unit tests SHALL accompany production code in the same package. The following SHALL have unit tests:
+  - **`config/`** — Configuration and helpers.
+  - **`internal/entity/`** — Domain logic (e.g. competition status, modes).
+  - **`internal/usecase/*/`** — Use cases with mocked repositories (and helpers in `*_helper_test.go`).
+  - **`internal/repo/persistent/`** — Pure helper functions where applicable.
+  - **`pkg/*`** — Cache, crypto, httputil, jwt, logger (if applicable), mailer, validator, vault, websocket, usecaseutil.
 
-### Unit tests
-
-**Locations:** e.g. `internal/usecase/*/**_test.go`
-
-Business logic is tested with mocked repositories and services.
+Test file names SHALL follow the pattern `*_test.go`. Mocks SHALL be generated (e.g. via mockery) and SHALL NOT be edited by hand except when regenerated.

@@ -36,6 +36,21 @@ func TestSubmission_AdminListByChallenge_Success(t *testing.T) {
 	require.GreaterOrEqual(t, *statsResp.JSON200.Total, 1)
 }
 
+// GET /admin/submissions/challenge/{challengeID}/stats: admin gets submission stats for challenge; returns 200 (total, etc.).
+func TestSubmission_AdminStatsByChallenge_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_subs_stats")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Stats Challenge", "FLAG{stats}", 100)
+
+	statsResp := h.GetAdminSubmissionStatsByChallenge(tokenAdmin, challengeID, http.StatusOK)
+	require.NotNil(t, statsResp.JSON200)
+	require.NotNil(t, statsResp.JSON200.Total)
+	require.GreaterOrEqual(t, *statsResp.JSON200.Total, 0)
+}
+
 // GET /admin/submissions: non-admin gets 403.
 func TestSubmission_AdminList_Forbidden(t *testing.T) {
 	t.Helper()

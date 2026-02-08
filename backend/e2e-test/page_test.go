@@ -9,6 +9,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// GET /admin/pages: admin gets list of all pages (including drafts).
+func TestPage_AdminList_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_pages_list")
+	suffix := uuid.New().String()[:8]
+	h.CreatePage(tokenAdmin, "Title", "slug-list-"+suffix, "content", false, 0, http.StatusCreated)
+
+	listResp := h.GetAdminPages(tokenAdmin, http.StatusOK)
+	require.NotNil(t, listResp.JSON200)
+	require.GreaterOrEqual(t, len(*listResp.JSON200), 1)
+}
+
+// GET /admin/pages/{ID}: admin gets page by ID; returns 200 and page data.
+func TestPage_AdminGetByID_Success(t *testing.T) {
+	t.Helper()
+	setupE2E(t)
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_pages_get_id")
+	suffix := uuid.New().String()[:8]
+	slug := "page-byid-" + suffix
+	title := "Page By ID " + suffix
+	createResp := h.CreatePage(tokenAdmin, title, slug, "body", false, 1, http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+	require.NotNil(t, createResp.JSON201.ID)
+
+	got := h.GetAdminPageByID(tokenAdmin, *createResp.JSON201.ID, http.StatusOK)
+	require.NotNil(t, got.JSON200)
+	require.Equal(t, *createResp.JSON201.ID, *got.JSON200.ID)
+	require.NotNil(t, got.JSON200.Title)
+	require.Equal(t, title, *got.JSON200.Title)
+	require.NotNil(t, got.JSON200.Slug)
+	require.Equal(t, slug, *got.JSON200.Slug)
+}
+
 // GET /pages/{slug}: returns created page.
 func TestPage_GetBySlug_Success(t *testing.T) {
 	t.Helper()
