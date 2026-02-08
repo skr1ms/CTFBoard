@@ -42,10 +42,12 @@ variables:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
 
 # Build stage
+
 build:backend:
   stage: build
   image: $DOCKER_CLI_IMAGE
   <<: *docker_login
+  allow_failure: false
   script:
     - docker pull "$CI_REGISTRY_IMAGE/backend:latest" || true
     - |
@@ -69,6 +71,7 @@ build:backend:
 build:cleanup:
   stage: build
   image: $GOLANG_IMAGE
+  allow_failure: false
   script:
     - cd backend
     - apk add --no-cache make
@@ -88,10 +91,11 @@ build:cleanup:
 
 # Security stage
 
-# Lint job 
+# Lint job
 lint:backend:
   stage: security
   image: golang:alpine
+  allow_failure: false
   variables:
     CGO_ENABLED: "0"
   script:
@@ -110,6 +114,7 @@ lint:backend:
 # Security code job
 security:code:
   stage: security
+  allow_failure: false
   image:
     name: $GOSEC_IMAGE
     entrypoint: [""]
@@ -127,6 +132,7 @@ security:code:
 # Security container job
 security:container:
   stage: security
+  allow_failure: false
   needs:
     - build:backend
   image:
@@ -147,6 +153,7 @@ security:container:
       when: always
 
 # Test stage
+
 test:backend:
   stage: test
   image: $GOLANG_IMAGE
