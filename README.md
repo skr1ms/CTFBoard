@@ -28,16 +28,16 @@
 
 Система должна поддерживать следующие роли пользователей с разграничением прав доступа:
 
-1.  **Гость (Unauthenticated User):**
+1. **Гость (Unauthenticated User):**
     - Просмотр главной страницы и информации о соревновании.
     - Регистрация новой учетной записи (Команды).
     - Аутентификация (Вход в систему).
     - Просмотр публичной турнирной таблицы (Scoreboard).
-2.  **Участник (User/Team):**
+2. **Участник (User/Team):**
     - Просмотр списка доступных задач (Challenges).
     - Отправка решения (флага) на проверку.
     - Просмотр статистики собственного профиля.
-3.  **Администратор (Admin):**
+3. **Администратор (Admin):**
     - Создание, редактирование и удаление задач.
     - Управление видимостью задач (публикация/скрытие).
     - Мониторинг журнала действий пользователей.
@@ -63,39 +63,111 @@
 
 ## 4. Описание API интерфейса (REST)
 
-Полная документация в SwaggerUI по адресу `https://api.ctfleague.ru/swagger/index.html`.
+**Документация и интерактивная проверка запросов:** [Swagger UI](https://api.ctfleague.ru/swagger/index.html#/)
 
-| Метод      | Эндпоинт                           | Описание                                            | Уровень доступа |
-| :--------- | :--------------------------------- | :-------------------------------------------------- | :-------------- |
-| **POST**   | `/api/v1/auth/register`            | Регистрация нового участника                        | Public          |
-| **POST**   | `/api/v1/auth/login`               | Аутентификация и выдача JWT                         | Public          |
-| **POST**   | `/api/v1/auth/forgot-password` | Отправка письма для сброса пароля                   | Public          |
-| **POST**   | `/api/v1/auth/reset-password`  | Сброс пароля по токену                              | Public          |
-| **GET**    | `/api/v1/auth/me`                  | Получение информации о текущем пользователе         | User            |
-| **POST**   | `/api/v1/auth/resend-verification` | Повторная отправка письма подтверждения             | User            |
-| **GET**    | `/api/v1/ws`                       | WebSocket соединение для лайв-апдейтов скорборда    | Public          |
-| **GET**    | `/api/v1/events`                   | Поток событий SSE (обновление скорборда)            | Public          |
-| **GET**    | `/api/v1/scoreboard`               | Получение текущего состояния рейтинга               | Public          |
-| **GET**    | `/api/v1/challenges`               | Получение списка задач со статусами решений         | User            |
-| **GET**    | `/api/v1/challenges/{id}/first-blood` | Получение информации о First Blood              | Public          |
-| **POST**   | `/api/v1/challenges/{id}/submit`   | Отправка флага на проверку. Тело: `{"flag": "..."}` | User            |
-| **POST**   | `/api/v1/teams`                    | Создание команды (капитан)                          | User            |
-| **POST**   | `/api/v1/teams/join`               | Вступление в команду по токену                      | User            |
-| **GET**    | `/api/v1/teams/my`                 | Информация о моей команде (состав, токен)           | User            |
-| **GET**    | `/api/v1/teams/{id}`               | Получение информации о команде                      | User            |
-| **GET**    | `/api/v1/users/{id}`               | Просмотр публичного профиля игрока                  | Public          |
-| **POST**   | `/api/v1/admin/challenges`         | Создание новой задачи                               | Admin           |
-| **PUT**    | `/api/v1/admin/challenges/{id}`    | Редактирование задачи                               | Admin           |
-| **DELETE** | `/api/v1/admin/challenges/{id}`    | Удаление задачи                                     | Admin           |
-| **GET**    | `/api/v1/competition/status`       | Статус соревнования                                 | Public          |
-| **GET**    | `/api/v1/admin/competition`        | Настройки соревнования                              | Admin           |
-| **PUT**    | `/api/v1/admin/competition`        | Обновление настроек соревнования                    | Admin           |
-| **GET**    | `/api/v1/challenges/{challengeId}/hints`    | Список подсказок                                    | User            |
-| **POST**   | `/api/v1/challenges/{challengeId}/hints/{hintId}/unlock` | Открытие подсказки                                | User            |
-| **POST**   | `/api/v1/admin/challenges/{challengeId}/hints` | Создание подсказки                                  | Admin           |
-| **PUT**    | `/api/v1/admin/hints/{id}`         | Редактирование подсказки                            | Admin           |
-| **DELETE** | `/api/v1/admin/hints/{id}`         | Удаление подсказки                                  | Admin           |
-| **GET**    | `/health`                          | Проверка состояния сервиса                          | Public          |
-| **GET**    | `/metrics`                         | Метрики Prometheus                                  | Public          |
-| **GET**    | `/swagger/*`                       | Swagger документация                                | Public          |
-
+| Метод | Эндпоинт | Уровень доступа |
+| :---- | :------- | :-------------- |
+| **POST** | `/api/v1/auth/login` | Public |
+| **POST** | `/api/v1/auth/register` | Public |
+| **GET** | `/api/v1/auth/verify-email` | Public |
+| **POST** | `/api/v1/auth/forgot-password` | Public |
+| **POST** | `/api/v1/auth/reset-password` | Public |
+| **GET** | `/api/v1/competition/status` | Public |
+| **GET** | `/api/v1/scoreboard` | Public |
+| **GET** | `/api/v1/challenges/{ID}/first-blood` | Public |
+| **GET** | `/api/v1/users/{ID}` | Public |
+| **GET** | `/api/v1/tags` | Public |
+| **GET** | `/api/v1/fields` | Public |
+| **GET** | `/api/v1/brackets` | Public |
+| **GET** | `/api/v1/ratings` | Public |
+| **GET** | `/api/v1/ratings/team/{ID}` | Public |
+| **GET** | `/api/v1/pages` | Public |
+| **GET** | `/api/v1/pages/{slug}` | Public |
+| **GET** | `/api/v1/notifications` | Public |
+| **GET** | `/api/v1/statistics/general` | Public |
+| **GET** | `/api/v1/statistics/challenges` | Public |
+| **GET** | `/api/v1/statistics/challenges/{id}` | Public |
+| **GET** | `/api/v1/statistics/scoreboard` | Public |
+| **GET** | `/api/v1/scoreboard/graph` | Public |
+| **GET** | `/api/v1/ws` | Public |
+| **GET** | `/api/v1/files/download/*` | Public |
+| **POST** | `/api/v1/auth/resend-verification` | User |
+| **GET** | `/api/v1/auth/me` | User |
+| **GET** | `/api/v1/user/notifications` | User |
+| **PATCH** | `/api/v1/user/notifications/{ID}/read` | User |
+| **GET** | `/api/v1/user/tokens` | User |
+| **POST** | `/api/v1/user/tokens` | User |
+| **DELETE** | `/api/v1/user/tokens/{ID}` | User |
+| **GET** | `/api/v1/files/{ID}/download` | User |
+| **GET** | `/api/v1/teams/my` | User |
+| **GET** | `/api/v1/teams/{ID}` | User |
+| **POST** | `/api/v1/teams/leave` | User |
+| **DELETE** | `/api/v1/teams/me` | User |
+| **DELETE** | `/api/v1/teams/members/{ID}` | User |
+| **POST** | `/api/v1/teams/transfer-captain` | User |
+| **POST** | `/api/v1/teams` | User (verified) |
+| **POST** | `/api/v1/teams/join` | User (verified) |
+| **POST** | `/api/v1/teams/solo` | User (verified) |
+| **GET** | `/api/v1/challenges` | User |
+| **GET** | `/api/v1/challenges/{challengeID}/files` | User |
+| **GET** | `/api/v1/challenges/{challengeID}/hints` | User |
+| **GET** | `/api/v1/challenges/{challengeID}/comments` | User |
+| **POST** | `/api/v1/challenges/{challengeID}/comments` | User |
+| **DELETE** | `/api/v1/comments/{ID}` | User |
+| **POST** | `/api/v1/challenges/{ID}/submit` | User |
+| **POST** | `/api/v1/challenges/{challengeID}/hints/{hintID}/unlock` | User |
+| **GET** | `/api/v1/admin/competition` | Admin |
+| **PUT** | `/api/v1/admin/competition` | Admin |
+| **GET** | `/api/v1/admin/settings` | Admin |
+| **PUT** | `/api/v1/admin/settings` | Admin |
+| **GET** | `/api/v1/admin/configs` | Admin |
+| **GET** | `/api/v1/admin/configs/{key}` | Admin |
+| **PUT** | `/api/v1/admin/configs/{key}` | Admin |
+| **DELETE** | `/api/v1/admin/configs/{key}` | Admin |
+| **POST** | `/api/v1/admin/challenges` | Admin |
+| **PUT** | `/api/v1/admin/challenges/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/challenges/{ID}` | Admin |
+| **POST** | `/api/v1/admin/challenges/{challengeID}/files` | Admin |
+| **POST** | `/api/v1/admin/challenges/{challengeID}/hints` | Admin |
+| **PUT** | `/api/v1/admin/hints/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/hints/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/files/{ID}` | Admin |
+| **POST** | `/api/v1/admin/awards` | Admin |
+| **GET** | `/api/v1/admin/awards/team/{teamID}` | Admin |
+| **POST** | `/api/v1/admin/teams/{ID}/ban` | Admin |
+| **DELETE** | `/api/v1/admin/teams/{ID}/ban` | Admin |
+| **PATCH** | `/api/v1/admin/teams/{ID}/hidden` | Admin |
+| **PATCH** | `/api/v1/admin/teams/{ID}/bracket` | Admin |
+| **POST** | `/api/v1/admin/brackets` | Admin |
+| **GET** | `/api/v1/admin/brackets/{ID}` | Admin |
+| **PUT** | `/api/v1/admin/brackets/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/brackets/{ID}` | Admin |
+| **GET** | `/api/v1/admin/ctf-events` | Admin |
+| **POST** | `/api/v1/admin/ctf-events` | Admin |
+| **POST** | `/api/v1/admin/ctf-events/{ID}/finalize` | Admin |
+| **POST** | `/api/v1/admin/tags` | Admin |
+| **PUT** | `/api/v1/admin/tags/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/tags/{ID}` | Admin |
+| **POST** | `/api/v1/admin/fields` | Admin |
+| **PUT** | `/api/v1/admin/fields/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/fields/{ID}` | Admin |
+| **GET** | `/api/v1/admin/pages` | Admin |
+| **POST** | `/api/v1/admin/pages` | Admin |
+| **GET** | `/api/v1/admin/pages/{ID}` | Admin |
+| **PUT** | `/api/v1/admin/pages/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/pages/{ID}` | Admin |
+| **POST** | `/api/v1/admin/notifications` | Admin |
+| **POST** | `/api/v1/admin/notifications/user/{userID}` | Admin |
+| **PUT** | `/api/v1/admin/notifications/{ID}` | Admin |
+| **DELETE** | `/api/v1/admin/notifications/{ID}` | Admin |
+| **GET** | `/api/v1/admin/submissions` | Admin |
+| **GET** | `/api/v1/admin/submissions/challenge/{challengeID}` | Admin |
+| **GET** | `/api/v1/admin/submissions/challenge/{challengeID}/stats` | Admin |
+| **GET** | `/api/v1/admin/submissions/user/{userID}` | Admin |
+| **GET** | `/api/v1/admin/submissions/team/{teamID}` | Admin |
+| **GET** | `/api/v1/admin/export` | Admin |
+| **GET** | `/api/v1/admin/export/zip` | Admin |
+| **POST** | `/api/v1/admin/import` | Admin |
+| **GET** | `/health` | Public |
+| **GET** | `/metrics` | Public |
+| **GET** | `/swagger/*` | Public |
