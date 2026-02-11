@@ -23,7 +23,7 @@ func TestStatistics_General(t *testing.T) {
 	_, _, tokenUser := h.RegisterUserAndLogin("statsuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
-	resp := h.GetStatisticsGeneral()
+	resp := h.GetStatisticsGeneral(tokenUser)
 	require.NotNil(t, resp.JSON200)
 	require.NotNil(t, resp.JSON200.UserCount)
 	require.NotNil(t, resp.JSON200.TeamCount)
@@ -45,7 +45,7 @@ func TestStatistics_Challenges(t *testing.T) {
 	h.CreateBasicChallenge(tokenAdmin, "Chall A", "flag{a}", 50)
 	h.CreateBasicChallenge(tokenAdmin, "Chall B", "flag{b}", 100)
 
-	resp := h.GetStatisticsChallenges()
+	resp := h.GetStatisticsChallenges(tokenAdmin)
 	require.NotNil(t, resp.JSON200)
 	require.GreaterOrEqual(t, len(*resp.JSON200), 2)
 	foundA, foundB := false, false
@@ -76,7 +76,7 @@ func TestStatistics_Scoreboard(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{sb}", http.StatusOK)
 
-	resp := h.GetStatisticsScoreboard(5)
+	resp := h.GetStatisticsScoreboard(tokenUser, 5)
 	require.NotNil(t, resp.JSON200)
 	require.GreaterOrEqual(t, len(*resp.JSON200), 0)
 }
@@ -95,7 +95,7 @@ func TestStatistics_ScoreboardGraph(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{graph}", http.StatusOK)
 
-	resp := h.GetScoreboardGraph(10)
+	resp := h.GetScoreboardGraph(tokenUser, 10)
 	require.NotNil(t, resp.JSON200)
 	require.NotNil(t, resp.JSON200.Range)
 	require.NotNil(t, resp.JSON200.Teams)
@@ -125,7 +125,7 @@ func TestStatistics_ChallengeDetail_Success(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{detail}", http.StatusOK)
 
-	resp := h.GetStatisticsChallengesId(challengeID)
+	resp := h.GetStatisticsChallengesId(tokenUser, challengeID)
 	require.NotNil(t, resp.JSON200)
 	require.Equal(t, challengeID, *resp.JSON200.ID)
 	require.Equal(t, "Detail Chall", *resp.JSON200.Title)
@@ -152,18 +152,20 @@ func TestStatistics_ChallengeDetail_NotFound(t *testing.T) {
 	setupE2E(t)
 	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
-	h.SetupCompetition("admin_detail_404")
-	h.GetStatisticsChallengesIdExpectStatus(uuid.New().String(), http.StatusNotFound)
+	_, token := h.SetupCompetition("admin_detail_404")
+	h.GetStatisticsChallengesIdExpectStatus(token, uuid.New().String(), http.StatusNotFound)
 }
 
 // GET /statistics/challenges/{id}: invalid UUID returns 400.
 func TestStatistics_ChallengeDetail_InvalidID_Returns400(t *testing.T) {
 	t.Helper()
 	setupE2E(t)
-	_ = helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	_, token := h.SetupCompetition("admin_invalid_id")
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/statistics/challenges/not-a-uuid", nil)
 	require.NoError(t, err)
+	req.Header.Set("Authorization", token)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()

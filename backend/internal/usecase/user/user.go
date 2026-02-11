@@ -37,12 +37,6 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	if err := uc.registerValidateCustomFields(ctx, customFields); err != nil {
 		return nil, err
 	}
-	if err := uc.registerCheckUsernameAvailable(ctx, username); err != nil {
-		return nil, err
-	}
-	if err := uc.registerCheckEmailAvailable(ctx, email); err != nil {
-		return nil, err
-	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, usecaseutil.Wrap(err, "UserUseCase - Register - GenerateFromPassword")
@@ -53,13 +47,36 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 		PasswordHash: string(passwordHash),
 		Role:         entity.RoleUser,
 	}
-	if err := uc.deps.TxRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
-		return uc.deps.TxRepo.CreateUserTx(ctx, tx, user)
-	}); err != nil {
+	err = uc.deps.TxRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
+		existing, err := uc.deps.TxRepo.GetUserByUsernameTx(ctx, tx, username)
+		if err == nil && existing != nil {
+			return fmt.Errorf("%w: username", entityError.ErrUserAlreadyExists)
+		}
+		if err != nil && !errors.Is(err, entityError.ErrUserNotFound) {
+			return err
+		}
+		existing, err = uc.deps.TxRepo.GetUserByEmailTx(ctx, tx, email)
+		if err == nil && existing != nil {
+			return fmt.Errorf("%w: email", entityError.ErrUserAlreadyExists)
+		}
+		if err != nil && !errors.Is(err, entityError.ErrUserNotFound) {
+			return err
+		}
+		if err := uc.deps.TxRepo.CreateUserTx(ctx, tx, user); err != nil {
+			return err
+		}
+		if uc.deps.FieldValueRepo != nil && len(customFields) > 0 {
+			if err := uc.deps.TxRepo.SetFieldValuesTx(ctx, tx, user.ID, customFields); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, entityError.ErrUserAlreadyExists) {
+			return nil, err
+		}
 		return nil, usecaseutil.Wrap(err, "UserUseCase - Register - Transaction")
-	}
-	if err := uc.registerSetCustomFields(ctx, user.ID, customFields); err != nil {
-		return nil, err
 	}
 	return user, nil
 }

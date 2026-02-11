@@ -82,7 +82,7 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 
 	h.SubmitFlag(tokenCap, challengeID, "flag{team_work_makes_dream_work}", http.StatusOK)
 
-	h.AssertTeamScore(teamName, challengePoints)
+	h.AssertTeamScore(tokenCap, teamName, challengePoints)
 }
 
 // POST /teams: creating team with name that already exists returns 409 Conflict.
@@ -168,7 +168,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 	h.CreateSoloTeam(tokenSolo, http.StatusCreated)
 	h.SubmitFlag(tokenSolo, challengeID, "flag{ez}", http.StatusOK)
 
-	h.AssertTeamScore(soloName, 100)
+	h.AssertTeamScore(tokenSolo, soloName, 100)
 
 	targetCapName := "target_cap_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(targetCapName)
@@ -179,7 +179,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 	h.JoinTeam(tokenSolo, inviteToken, true, http.StatusOK)
 
-	scoreboard := h.GetScoreboard()
+	scoreboard := h.GetScoreboard(tokenCap)
 	require.NotNil(t, scoreboard.JSON200)
 	teamPoints := -1
 	for _, entry := range *scoreboard.JSON200 {

@@ -30,6 +30,9 @@ func (r *TxUserRepo) CreateUserTx(ctx context.Context, tx repo.Transaction, user
 		CreatedAt:    &user.CreatedAt,
 	})
 	if err != nil {
+		if isPgUniqueViolation(err) {
+			return entityError.ErrUserAlreadyExists
+		}
 		return fmt.Errorf("TxUserRepo - CreateUserTx: %w", err)
 	}
 	user.ID = id
@@ -49,6 +52,30 @@ func (r *TxUserRepo) UpdateUserTeamIDTx(ctx context.Context, tx repo.Transaction
 		return fmt.Errorf("TxUserRepo - UpdateUserTeamIDTx: %w", err)
 	}
 	return nil
+}
+
+func (r *TxUserRepo) GetUserByUsernameTx(ctx context.Context, tx repo.Transaction, username string) (*entity.User, error) {
+	pgxTx := mustPgxTx(tx)
+	u, err := r.base.q.WithTx(pgxTx).GetUserByUsername(ctx, username)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("TxUserRepo - GetUserByUsernameTx: %w", err)
+	}
+	return toEntityUser(u), nil
+}
+
+func (r *TxUserRepo) GetUserByEmailTx(ctx context.Context, tx repo.Transaction, email string) (*entity.User, error) {
+	pgxTx := mustPgxTx(tx)
+	u, err := r.base.q.WithTx(pgxTx).GetUserByEmail(ctx, email)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, entityError.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("TxUserRepo - GetUserByEmailTx: %w", err)
+	}
+	return toEntityUser(u), nil
 }
 
 func (r *TxUserRepo) LockUserTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID) error {

@@ -43,8 +43,9 @@ type (
 	}
 
 	HTTP struct {
-		Port        string
-		CORSOrigins []string
+		Port              string
+		CORSOrigins       []string
+		TrustedProxyCIDRs []string
 	}
 
 	DB struct {
@@ -126,6 +127,7 @@ func New() (*Config, error) {
 	backendPort := getEnv("BACKEND_PORT", "8080")
 	migrationsPath := getEnv("MIGRATIONS_PATH", "migrations")
 	corsOrigins := parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5000"))
+	trustedProxyCIDRs := parseTrustedProxyCIDRs(getEnv("TRUSTED_PROXY_CIDRS", ""))
 
 	postgresHost := getEnv("POSTGRES_HOST", "postgres")
 	postgresPort := getEnv("POSTGRES_PORT", "5432")
@@ -297,8 +299,9 @@ func New() (*Config, error) {
 			Password: adminPassword,
 		},
 		HTTP: HTTP{
-			Port:        backendPort,
-			CORSOrigins: corsOrigins,
+			Port:              backendPort,
+			CORSOrigins:       corsOrigins,
+			TrustedProxyCIDRs: trustedProxyCIDRs,
 		},
 		DB: DB{
 			URL:            dbURL,

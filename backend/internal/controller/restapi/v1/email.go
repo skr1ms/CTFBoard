@@ -43,7 +43,7 @@ func (h *Server) GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request, para
 // (POST /auth/forgot-password)
 func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Rate Limit: 10 requests per day per IP (forgot password)
-	ip := helper.GetClientIP(r)
+	ip := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 	allowed, err := middleware.CheckRateLimit(r.Context(), h.infra.RedisClient, "forgot", ip, 10, 24*time.Hour)
 	if err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthForgotPassword - CheckRateLimit")

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
@@ -76,4 +77,19 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 	}
 
 	helper.RenderOK(w, r, response.FromUserProfile(profile))
+}
+
+func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.RefreshToken == "" {
+		helper.RenderError(w, r, http.StatusBadRequest, "refresh_token required")
+		return
+	}
+	if err := h.infra.JWTService.RevokeRefreshToken(r.Context(), body.RefreshToken); err != nil {
+		helper.RenderError(w, r, http.StatusUnauthorized, "invalid or expired refresh token")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

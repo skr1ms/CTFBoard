@@ -37,7 +37,7 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	h.AssertFirstBlood(challengeID, "fbuser1", "fbuser1")
+	h.AssertFirstBlood(tokenUser1, challengeID, "fbuser1", "fbuser1")
 }
 
 // GET /challenges/{ID}/first-blood: unsolved challenge returns 404 with "solve not found".
@@ -56,7 +56,7 @@ func TestFirstBlood_NotFound(t *testing.T) {
 		"points":      100,
 	})
 
-	resp := h.GetFirstBlood(challengeID, http.StatusNotFound)
+	resp := h.GetFirstBlood(tokenAdmin, challengeID, http.StatusNotFound)
 	require.NotNil(t, resp.JSON404)
 	require.NotNil(t, resp.JSON404.Error)
 	require.Equal(t, "solve not found", *resp.JSON404.Error)
@@ -67,6 +67,6 @@ func TestFirstBlood_InvalidID(t *testing.T) {
 	t.Helper()
 	setupE2E(t)
 	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
-	_, _ = h.SetupCompetition("adminfb3")
-	h.GetFirstBlood("not-a-uuid", http.StatusBadRequest)
+	_, token := h.SetupCompetition("adminfb3")
+	h.GetFirstBlood(token, "not-a-uuid", http.StatusBadRequest)
 }

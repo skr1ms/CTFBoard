@@ -31,6 +31,9 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 }
 
 func (s *ScoreboardCacheService) InvalidateForTeam(ctx context.Context, teamID uuid.UUID) {
+	if s == nil || s.cache == nil {
+		return
+	}
 	s.InvalidateAll(ctx)
 	if s.getter == nil {
 		return

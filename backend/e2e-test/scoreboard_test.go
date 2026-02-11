@@ -56,8 +56,8 @@ func TestScoreboard_Display(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
-	h.AssertTeamScore(nameUser1, 300)
-	h.AssertTeamScore(nameUser2, 100)
+	h.AssertTeamScore(tokenUser1, nameUser1, 300)
+	h.AssertTeamScore(tokenUser2, nameUser2, 100)
 }
 
 // GET /scoreboard: returns 200 and array even when no teams/solves.
@@ -66,7 +66,8 @@ func TestScoreboard_Empty(t *testing.T) {
 	setupE2E(t)
 	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
 
-	resp := h.GetScoreboard()
+	_, token := h.SetupCompetition("admin_empty_sb")
+	resp := h.GetScoreboard(token)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard empty")
 	require.NotNil(t, resp.JSON200)
 }

@@ -80,7 +80,7 @@ func (h *CompetitionTestHelper) Deps() *competitionTestDeps {
 func (h *CompetitionTestHelper) CreateCompetitionUseCase() (*CompetitionUseCase, redismock.ClientMock) {
 	h.t.Helper()
 	client, redis := redismock.NewClientMock()
-	return NewCompetitionUseCase(h.deps.competitionRepo, h.deps.auditLogRepo, client), redis
+	return NewCompetitionUseCase(h.deps.competitionRepo, h.deps.auditLogRepo, h.deps.txRepo, client), redis
 }
 
 func (h *CompetitionTestHelper) NewCompetition(name, mode string, allowTeamSwitch bool) *entity.Competition {

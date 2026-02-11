@@ -58,8 +58,8 @@ func ParseAuthUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	return httputil.ParseAuthUserID(w, r)
 }
 
-func GetClientIP(r *http.Request) string {
-	return httputil.GetClientIP(r)
+func GetClientIP(r *http.Request, trustedProxyCIDRs []string) string {
+	return httputil.GetClientIP(r, trustedProxyCIDRs)
 }
 
 func ParseUUID(w http.ResponseWriter, r *http.Request, id string) (uuid.UUID, bool) {

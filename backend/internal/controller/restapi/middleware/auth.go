@@ -96,8 +96,8 @@ func Auth(jwtService *jwt.JWTService, apiTokenUC APITokenAuther, userUC UserByID
 
 func Admin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value(UserRoleKey).(string)
-		if !ok || role != entity.RoleAdmin {
+		user, ok := GetUser(r.Context())
+		if !ok || user.Role != entity.RoleAdmin {
 			httputil.RenderError(w, r, http.StatusForbidden, "admin access required")
 			return
 		}

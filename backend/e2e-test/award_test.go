@@ -23,12 +23,12 @@ func TestAward_CreateBonus_ScoreboardReflects(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	h.SubmitFlag(tokenUser, challengeID, "flag{award}", http.StatusOK)
-	h.AssertTeamScore(teamName, 100)
+	h.AssertTeamScore(tokenUser, teamName, 100)
 
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
 
 	h.CreateAward(tokenAdmin, teamID, 50, "bonus for style", http.StatusCreated)
-	h.AssertTeamScore(teamName, 150)
+	h.AssertTeamScore(tokenUser, teamName, 150)
 }
 
 // POST /admin/awards: create penalty (negative value); GET /scoreboard reflects reduced score.
@@ -46,12 +46,12 @@ func TestAward_CreatePenalty_ScoreboardReflects(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	h.SubmitFlag(tokenUser, challengeID, "flag{penalty}", http.StatusOK)
-	h.AssertTeamScore(teamName, 100)
+	h.AssertTeamScore(tokenUser, teamName, 100)
 
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
 
 	h.CreateAward(tokenAdmin, teamID, -30, "rule violation", http.StatusCreated)
-	h.AssertTeamScore(teamName, 70)
+	h.AssertTeamScore(tokenUser, teamName, 70)
 }
 
 // GET /admin/awards/team/{teamID}: returns list of awards for team; admin only.

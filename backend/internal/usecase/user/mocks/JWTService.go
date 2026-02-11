@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	mock "github.com/stretchr/testify/mock"
@@ -175,6 +177,63 @@ func (_c *MockJWTService_RefreshTokens_Call) Return(tokenPair *jwt.TokenPair, er
 }
 
 func (_c *MockJWTService_RefreshTokens_Call) RunAndReturn(run func(refreshTokenString string) (*jwt.TokenPair, error)) *MockJWTService_RefreshTokens_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeRefreshToken provides a mock function for the type MockJWTService
+func (_mock *MockJWTService) RevokeRefreshToken(ctx context.Context, refreshTokenString string) error {
+	ret := _mock.Called(ctx, refreshTokenString)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeRefreshToken")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, refreshTokenString)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJWTService_RevokeRefreshToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeRefreshToken'
+type MockJWTService_RevokeRefreshToken_Call struct {
+	*mock.Call
+}
+
+// RevokeRefreshToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - refreshTokenString string
+func (_e *MockJWTService_Expecter) RevokeRefreshToken(ctx interface{}, refreshTokenString interface{}) *MockJWTService_RevokeRefreshToken_Call {
+	return &MockJWTService_RevokeRefreshToken_Call{Call: _e.mock.On("RevokeRefreshToken", ctx, refreshTokenString)}
+}
+
+func (_c *MockJWTService_RevokeRefreshToken_Call) Run(run func(ctx context.Context, refreshTokenString string)) *MockJWTService_RevokeRefreshToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJWTService_RevokeRefreshToken_Call) Return(err error) *MockJWTService_RevokeRefreshToken_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJWTService_RevokeRefreshToken_Call) RunAndReturn(run func(ctx context.Context, refreshTokenString string) error) *MockJWTService_RevokeRefreshToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

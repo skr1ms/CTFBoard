@@ -44,7 +44,7 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	if !ok {
 		return
 	}
-	clientIP := helper.GetClientIP(r)
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 	valueType := request.SetConfigRequestToValueType(req.ValueType)
 	description := ""
 	if req.Description != nil {
@@ -63,7 +63,7 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 	if !ok {
 		return
 	}
-	clientIP := helper.GetClientIP(r)
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 	if h.OnError(w, r, h.admin.DynamicConfigUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
 		return
 	}
@@ -96,7 +96,7 @@ func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientIP := helper.GetClientIP(r)
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 	s := request.UpdateAppSettingsRequestToEntity(&req, 1)
 
 	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {

@@ -239,9 +239,10 @@ func ProvideHintUseCase(
 func ProvideCompetitionUseCase(
 	competitionRepo repo.CompetitionRepository,
 	auditLogRepo repo.AuditLogRepository,
+	txRepo repo.TxRepository,
 	redis *redis.Client,
 ) *competition.CompetitionUseCase {
-	return competition.NewCompetitionUseCase(competitionRepo, auditLogRepo, redis)
+	return competition.NewCompetitionUseCase(competitionRepo, auditLogRepo, txRepo, redis)
 }
 
 func ProvideSolveUseCase(
@@ -409,6 +410,7 @@ func ProvideWsController(wsHub *pkgWS.Hub, l logger.Logger, cfg *config.Config) 
 }
 
 func ProvideServerDeps(
+	cfg *config.Config,
 	userUC *user.UserUseCase,
 	challengeUC *challenge.ChallengeUseCase,
 	solveUC *competition.SolveUseCase,
@@ -471,11 +473,12 @@ func ProvideServerDeps(
 			NotifUC:         notifUC,
 		},
 		Infra: helper.InfraDeps{
-			JWTService:   jwtService,
-			RedisClient:  redisClient,
-			WSController: wsCtrl,
-			Validator:    v,
-			Logger:       l,
+			JWTService:        jwtService,
+			RedisClient:       redisClient,
+			WSController:      wsCtrl,
+			Validator:         v,
+			Logger:            l,
+			TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
 		},
 	}
 }
@@ -525,7 +528,7 @@ func ProvideRouter(cfg *config.Config, l logger.Logger, deps *helper.ServerDeps)
 	})
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
 	router.Route("/api/v1", func(r chi.Router) {
-		v1.NewRouter(r, deps, cfg.SubmitFlag, cfg.SubmitFlagDuration, cfg.VerifyEmails)
+		v1.NewRouter(r, deps, cfg.SubmitFlag, cfg.SubmitFlagDuration, cfg.VerifyEmails, cfg.Mode)
 	})
 	return router
 }

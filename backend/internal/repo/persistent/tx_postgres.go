@@ -14,19 +14,23 @@ type TxRepo struct {
 	*TxHintRepo
 	*TxAwardRepo
 	*TxAuditRepo
+	*TxCompetitionRepo
+	*TxFieldValueRepo
 }
 
 func NewTxRepo(pool *pgxpool.Pool) *TxRepo {
 	base := NewTxBase(pool)
 	return &TxRepo{
-		TxBase:          base,
-		TxUserRepo:      &TxUserRepo{base: base},
-		TxTeamRepo:      &TxTeamRepo{base: base},
-		TxChallengeRepo: &TxChallengeRepo{base: base},
-		TxSolveRepo:     &TxSolveRepo{base: base},
-		TxHintRepo:      &TxHintRepo{base: base},
-		TxAwardRepo:     &TxAwardRepo{base: base},
-		TxAuditRepo:     &TxAuditRepo{base: base},
+		TxBase:            base,
+		TxUserRepo:        &TxUserRepo{base: base},
+		TxTeamRepo:        &TxTeamRepo{base: base},
+		TxChallengeRepo:   &TxChallengeRepo{base: base},
+		TxSolveRepo:       &TxSolveRepo{base: base},
+		TxHintRepo:        &TxHintRepo{base: base},
+		TxAwardRepo:       &TxAwardRepo{base: base},
+		TxAuditRepo:       &TxAuditRepo{base: base},
+		TxCompetitionRepo: &TxCompetitionRepo{base: base},
+		TxFieldValueRepo:  &TxFieldValueRepo{base: base},
 	}
 }
 

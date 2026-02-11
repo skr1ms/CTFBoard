@@ -3,6 +3,7 @@ package helper
 import (
 	"github.com/redis/go-redis/v9"
 	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/internal/usecase"
 	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
@@ -51,14 +52,16 @@ type AdminDeps struct {
 	FieldUC         *settings.FieldUseCase
 	PageUC          *page.PageUseCase
 	NotifUC         usecase.NotificationUseCase
+	AppSettingsRepo repo.AppSettingsRepository
 }
 
 type InfraDeps struct {
-	JWTService   *jwt.JWTService
-	RedisClient  *redis.Client
-	WSController *wsV1.Controller
-	Validator    validator.Validator
-	Logger       logger.Logger
+	JWTService        *jwt.JWTService
+	RedisClient       *redis.Client
+	WSController      *wsV1.Controller
+	Validator         validator.Validator
+	Logger            logger.Logger
+	TrustedProxyCIDRs []string
 }
 
 type ServerDeps struct {

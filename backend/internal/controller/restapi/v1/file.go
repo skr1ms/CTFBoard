@@ -3,7 +3,11 @@ package v1
 import (
 	"errors"
 	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
@@ -11,6 +15,35 @@ import (
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
+
+var validPathPattern = regexp.MustCompile(`^[a-f0-9]{16}/.+$`)
+
+func validateDownloadPath(path string) bool {
+	if strings.Contains(path, "..") {
+		return false
+	}
+	return validPathPattern.MatchString(path)
+}
+
+func extractFilename(path string) string {
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) == 2 {
+		return filepath.Base(parts[1])
+	}
+	return "download"
+}
+
+func detectContentType(filename string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return "application/octet-stream"
+	}
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		return "application/octet-stream"
+	}
+	return contentType
+}
 
 // Upload file to challenge
 // (POST /admin/challenges/{challengeID}/files)
@@ -142,11 +175,22 @@ func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !validateDownloadPath(path) {
+		helper.RenderError(w, r, http.StatusBadRequest, "invalid file path")
+		return
+	}
+
 	rc, err := h.challenge.FileUC.Download(r.Context(), path)
 	if h.OnError(w, r, err, "Download", "Download") {
 		return
 	}
 	defer func() { _ = rc.Close() }()
+
+	filename := extractFilename(path)
+
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", detectContentType(filename))
 
 	if _, err := io.Copy(w, rc); err != nil {
 		h.OnError(w, r, err, "Download", "Copy")

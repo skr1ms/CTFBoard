@@ -18,7 +18,7 @@ import (
 )
 
 func TestAuth_NoHeader_Error(t *testing.T) {
-	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour)
+	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour, nil)
 	r := chi.NewRouter()
 	r.Use(Auth(svc, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -31,7 +31,7 @@ func TestAuth_NoHeader_Error(t *testing.T) {
 }
 
 func TestAuth_BearerSuccess(t *testing.T) {
-	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour)
+	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 	token, err := svc.GenerateTokenPair(userID, "a@b.c", "Name", entity.RoleAdmin)
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestAuth_BearerSuccess(t *testing.T) {
 }
 
 func TestAuth_BearerInvalid_Error(t *testing.T) {
-	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour)
+	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour, nil)
 	r := chi.NewRouter()
 	r.Use(Auth(svc, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -67,7 +67,7 @@ func TestAuth_BearerInvalid_Error(t *testing.T) {
 }
 
 func TestAuth_InvalidFormat_Error(t *testing.T) {
-	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour)
+	svc := jwt.NewJWTService("access-secret-min-32-chars-long", "refresh-secret-min-32-chars-long", time.Hour, time.Hour, nil)
 	r := chi.NewRouter()
 	r.Use(Auth(svc, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -84,8 +84,8 @@ func TestAdmin_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), UserRoleKey, entity.RoleAdmin)
-			ctx = context.WithValue(ctx, httputil.UserIDKey, uuid.New().String())
+			adminUser := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin}
+			ctx := context.WithValue(r.Context(), userContextKey, adminUser)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})

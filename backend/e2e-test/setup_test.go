@@ -372,6 +372,7 @@ type testUseCases struct {
 	apiTokenUC      usecase.APITokenUseCase
 	dynamicConfigUC *competition.DynamicConfigUseCase
 	commentUC       *challenge.CommentUseCase
+	appSettingsRepo repo.AppSettingsRepository
 }
 
 func startTestServer() (func(), error) {
@@ -427,7 +428,8 @@ func initTestDeps() (*testDeps, error) {
 		Output: logger.ConsoleOutput,
 	})
 	validatorService := validator.New()
-	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour)
+	jwtRevoker := jwt.NewRedisRevocationStore(TestRedis)
+	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour, jwtRevoker)
 	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
 	if err != nil {
 		return nil, fmt.Errorf("failed to init crypto service: %w", err)
@@ -495,7 +497,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		UserRepo: repos.userRepo, TeamRepo: repos.teamRepo, SolveRepo: repos.solveRepo, TxRepo: repos.txRepo,
 		JWTService: deps.jwt, FieldValidator: fieldValidator, FieldValueRepo: repos.fieldValueRepo,
 	})
-	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, TestRedis)
+	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, repos.txRepo, TestRedis)
 	testCache := cache.New(TestRedis)
 	scoreboardCache := cache.NewScoreboardCacheService(testCache, &teamBracketGetter{repos.teamRepo})
 	challengeUC := challenge.NewChallengeUseCase(
@@ -552,6 +554,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
 		pageUC: pageUC, bracketUC: bracketUC, ratingUC: ratingUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
 		dynamicConfigUC: dynamicConfigUC, commentUC: commentUC,
+		appSettingsRepo: repos.appSettingsRepo,
 	}
 }
 
@@ -583,11 +586,11 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
 		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC},
 		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC},
-		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
-		Infra: helper.InfraDeps{JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l},
+		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC, AppSettingsRepo: uc.appSettingsRepo},
+		Infra: helper.InfraDeps{JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l, TrustedProxyCIDRs: nil},
 	}
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, deps, 100, 1*time.Minute, false)
+		v1.NewRouter(apiRouter, deps, 100, 1*time.Minute, false, "flexible")
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

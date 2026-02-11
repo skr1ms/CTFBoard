@@ -123,7 +123,10 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	dialOpts := &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": []string{tokenUser}},
+	}
+	conn, resp, err := websocket.Dial(ctx, wsURL, dialOpts)
 	if err != nil {
 		t.Fatalf("ws dial failed (url=%s): %v", wsURL, err)
 	}
@@ -138,6 +141,7 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	waitWSConnected(t, received, readErr, done)
 	t.Logf("ws connected, submitting flag challengeID=%s", challengeID)
 	h.SubmitFlag(tokenUser, challengeID, "flag{ws_event}", http.StatusOK)
+	time.Sleep(200 * time.Millisecond)
 	t.Logf("ws submit done, waiting for scoreboard_update")
 	waitScoreboardUpdate(t, received, readErr, done)
 }

@@ -28,12 +28,12 @@ func registerTestCases() []registerTestCase {
 	return []registerTestCase{
 		{
 			name: "successful registration", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
 				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
 					return fn(ctx, nil)
 				}).Once()
+				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
+				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
 				txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ repo.Transaction, u *entity.User) {
 					u.ID = uuid.New()
 				}).Once()
@@ -42,39 +42,49 @@ func registerTestCases() []registerTestCase {
 		},
 		{
 			name: "username already exists", username: "existinguser", email: "test@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, _ *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "existinguser").Return(&entity.User{}, nil)
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
+				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+					return fn(ctx, nil)
+				}).Once()
+				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "existinguser").Return(&entity.User{}, nil).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "email already exists", username: "testuser", email: "existing@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, _ *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound)
-				userRepo.EXPECT().GetByEmail(mock.Anything, "existing@example.com").Return(&entity.User{}, nil)
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
+				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+					return fn(ctx, nil)
+				}).Once()
+				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
+				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "existing@example.com").Return(&entity.User{}, nil).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "GetByUsername returns unexpected error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, _ *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, assert.AnError)
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
+				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+					return fn(ctx, nil)
+				}).Once()
+				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "GetByEmail returns unexpected error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, _ *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound)
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, assert.AnError)
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
+				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
+					return fn(ctx, nil)
+				}).Once()
+				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
+				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "test@example.com").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "Transaction returns error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(userRepo *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound)
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound)
+			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
 				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).Return(assert.AnError).Once()
 			},
 			expectedError: true,
