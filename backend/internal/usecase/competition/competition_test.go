@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/skr1ms/CTFBoard/internal/entity"
 	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -81,18 +82,22 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	comp.MinTeamSize = 1
 	comp.MaxTeamSize = 5
 
-	deps.competitionRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(context.Context, repo.Transaction) error)
+		_ = fn(args.Get(0).(context.Context), nil)
+	}).Return(nil).Once()
+	deps.txRepo.On("UpdateCompetitionTx", mock.Anything, mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
 		return c.ID == comp.ID &&
 			c.Name == comp.Name &&
 			c.Mode == comp.Mode &&
 			c.AllowTeamSwitch == comp.AllowTeamSwitch &&
 			c.MinTeamSize == comp.MinTeamSize &&
 			c.MaxTeamSize == comp.MaxTeamSize
-	})).Return(nil)
-	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
-	deps.auditLogRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
+	})).Return(nil).Once()
+	deps.txRepo.On("CreateAuditLogTx", mock.Anything, mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
 		return a.Action == entity.AuditActionUpdate && a.EntityType == entity.AuditEntityCompetition
-	})).Return(nil)
+	})).Return(nil).Once()
+	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
 	err := uc.Update(context.Background(), comp, uuid.New(), "127.0.0.1")
 
@@ -107,7 +112,7 @@ func TestCompetitionUseCase_Update_Error(t *testing.T) {
 
 	comp := h.NewCompetition("Updated CTF", "flexible", true)
 
-	deps.competitionRepo.On("Update", mock.Anything, comp).Return(errors.New("db error"))
+	deps.txRepo.On("RunTransaction", mock.Anything, mock.Anything).Return(errors.New("db error")).Once()
 
 	err := uc.Update(context.Background(), comp, uuid.New(), "127.0.0.1")
 

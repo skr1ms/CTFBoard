@@ -139,7 +139,10 @@ type (
 		UpdateChallengePointsTx(ctx context.Context, tx Transaction, ID uuid.UUID, points int) error
 
 		CreateUserTx(ctx context.Context, tx Transaction, user *entity.User) error
+		GetUserByUsernameTx(ctx context.Context, tx Transaction, username string) (*entity.User, error)
+		GetUserByEmailTx(ctx context.Context, tx Transaction, email string) (*entity.User, error)
 		UpdateUserTeamIDTx(ctx context.Context, tx Transaction, userID uuid.UUID, teamID *uuid.UUID) error
+		SetFieldValuesTx(ctx context.Context, tx Transaction, entityID uuid.UUID, values map[string]string) error
 
 		CreateTeamTx(ctx context.Context, tx Transaction, team *entity.Team) error
 		GetTeamByIDTx(ctx context.Context, tx Transaction, ID uuid.UUID) (*entity.Team, error)
@@ -167,6 +170,8 @@ type (
 		UpdateTeamCaptainTx(ctx context.Context, tx Transaction, teamID, newCaptainID uuid.UUID) error
 		CreateTeamAuditLogTx(ctx context.Context, tx Transaction, log *entity.TeamAuditLog) error
 		CreateAuditLogTx(ctx context.Context, tx Transaction, log *entity.AuditLog) error
+		GetCompetitionTx(ctx context.Context, tx Transaction) (*entity.Competition, error)
+		UpdateCompetitionTx(ctx context.Context, tx Transaction, comp *entity.Competition) error
 	}
 
 	VerificationTokenRepository interface {

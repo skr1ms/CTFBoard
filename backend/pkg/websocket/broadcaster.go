@@ -23,9 +23,8 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 	if b == nil || b.hub == nil {
 		return
 	}
-
 	now := time.Now()
-	b.hub.BroadcastEvent(Event{
+	solveEv := Event{
 		Type: "scoreboard_update",
 		Payload: ScoreboardUpdate{
 			Type:      EventTypeSolve,
@@ -35,30 +34,32 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 			Timestamp: now,
 		},
 		Timestamp: now,
-	})
-
-	if isFirstBlood {
-		b.hub.BroadcastEvent(Event{
-			Type: "scoreboard_update",
-			Payload: ScoreboardUpdate{
-				Type:      EventTypeFirstBlood,
-				TeamID:    teamID.String(),
-				Challenge: challengeTitle,
-				Points:    points,
-				Timestamp: now,
-			},
-			Timestamp: now,
-		})
 	}
+	firstBloodEv := Event{
+		Type: "scoreboard_update",
+		Payload: ScoreboardUpdate{
+			Type:      EventTypeFirstBlood,
+			TeamID:    teamID.String(),
+			Challenge: challengeTitle,
+			Points:    points,
+			Timestamp: now,
+		},
+		Timestamp: now,
+	}
+	go func() {
+		b.hub.BroadcastEvent(solveEv)
+		if isFirstBlood {
+			b.hub.BroadcastEvent(firstBloodEv)
+		}
+	}()
 }
 
 func (b *Broadcaster) NotifyNotification(message, level string) {
 	if b == nil || b.hub == nil {
 		return
 	}
-
 	now := time.Now()
-	b.hub.BroadcastEvent(Event{
+	ev := Event{
 		Type: "notification",
 		Payload: Notification{
 			Type:      EventTypeNotification,
@@ -67,7 +68,8 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 			Timestamp: now,
 		},
 		Timestamp: now,
-	})
+	}
+	go func() { b.hub.BroadcastEvent(ev) }()
 }
 
 var _ SolveBroadcaster = (*Broadcaster)(nil)

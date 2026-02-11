@@ -67,7 +67,8 @@ func Run(cfg *config.Config, l logger.Logger) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	jwtService := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL)
+	jwtRevoker := jwt.NewRedisRevocationStore(redisClient)
+	jwtService := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker)
 	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
 	go wsHub.Run(ctx)
 	go wsHub.SubscribeToRedis(ctx)

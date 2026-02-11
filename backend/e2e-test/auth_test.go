@@ -156,7 +156,7 @@ func TestAuth_PasswordReset_Flow(t *testing.T) {
 	h.Login(email, newPassword, http.StatusOK)
 }
 
-// POST /auth/forgot-password: after N requests rate limit returns 429 Too Many Requests.
+// POST /auth/forgot-password: after 3 requests (limit) rate limit returns 429 Too Many Requests.
 func TestAuth_RateLimiting_Exists(t *testing.T) {
 	t.Helper()
 	setupE2E(t)
@@ -164,7 +164,7 @@ func TestAuth_RateLimiting_Exists(t *testing.T) {
 
 	email := "spam@example.com"
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		h.ForgotPassword(email, http.StatusOK)
 	}
 

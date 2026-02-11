@@ -11,7 +11,12 @@ import (
 	"io"
 )
 
-var ErrServiceNotConfigured = errors.New("encryption service not configured")
+const keyVersionByte = 0
+
+var (
+	ErrServiceNotConfigured = errors.New("encryption service not configured")
+	ErrUnknownKeyVersion    = errors.New("unknown key version")
+)
 
 type Service interface {
 	Encrypt(plaintext string) (string, error)
@@ -53,14 +58,25 @@ func (s *CryptoService) Encrypt(plaintext string) (string, error) {
 		return "", err
 	}
 
-	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	payload := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+	withVersion := make([]byte, 0, 1+len(payload))
+	withVersion = append(withVersion, keyVersionByte)
+	withVersion = append(withVersion, payload...)
+	return base64.StdEncoding.EncodeToString(withVersion), nil
 }
 
 func (s *CryptoService) Decrypt(ciphertext64 string) (string, error) {
 	data, err := base64.StdEncoding.DecodeString(ciphertext64)
 	if err != nil {
 		return "", err
+	}
+
+	if len(data) < 1 {
+		return "", errors.New("ciphertext too short")
+	}
+
+	if data[0] == keyVersionByte {
+		data = data[1:]
 	}
 
 	block, err := aes.NewCipher(s.key)

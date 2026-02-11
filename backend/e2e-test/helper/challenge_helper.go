@@ -142,17 +142,17 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
 	}
 }
 
-func (h *E2EHelper) GetFirstBlood(challengeID string, expectStatus int) *openapi.GetChallengesIDFirstBloodResponse {
+func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *openapi.GetChallengesIDFirstBloodResponse {
 	h.t.Helper()
-	resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID)
+	resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "first-blood")
 	return resp
 }
 
-func (h *E2EHelper) AssertFirstBlood(challengeID, expectedUsername, expectedTeamName string) {
+func (h *E2EHelper) AssertFirstBlood(token, challengeID, expectedUsername, expectedTeamName string) {
 	h.t.Helper()
-	resp := h.GetFirstBlood(challengeID, http.StatusOK)
+	resp := h.GetFirstBlood(token, challengeID, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
 	require.NotNil(h.t, resp.JSON200.Username, "username")
 	require.Equal(h.t, expectedUsername, *resp.JSON200.Username)

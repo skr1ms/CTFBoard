@@ -18,6 +18,7 @@ import (
 type CompetitionUseCase struct {
 	competitionRepo repo.CompetitionRepository
 	auditLogRepo    repo.AuditLogRepository
+	txRepo          repo.TxRepository
 	redis           *redis.Client
 	sf              singleflight.Group
 }
@@ -25,11 +26,13 @@ type CompetitionUseCase struct {
 func NewCompetitionUseCase(
 	competitionRepo repo.CompetitionRepository,
 	auditLogRepo repo.AuditLogRepository,
+	txRepo repo.TxRepository,
 	redis *redis.Client,
 ) *CompetitionUseCase {
 	return &CompetitionUseCase{
 		competitionRepo: competitionRepo,
 		auditLogRepo:    auditLogRepo,
+		txRepo:          txRepo,
 		redis:           redis,
 	}
 }
@@ -64,13 +67,6 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 }
 
 func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition, actorID uuid.UUID, clientIP string) error {
-	err := uc.competitionRepo.Update(ctx, comp)
-	if err != nil {
-		return usecaseutil.Wrap(err, "CompetitionUseCase - Update")
-	}
-
-	uc.redis.Del(ctx, cache.KeyCompetition)
-
 	auditLog := &entity.AuditLog{
 		UserID:     &actorID,
 		Action:     entity.AuditActionUpdate,
@@ -81,9 +77,16 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 			"message": "competition settings updated",
 		},
 	}
-	if err := uc.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return usecaseutil.Wrap(err, "CompetitionUseCase - Update - Create")
+	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
+		if err := uc.txRepo.UpdateCompetitionTx(ctx, tx, comp); err != nil {
+			return err
+		}
+		return uc.txRepo.CreateAuditLogTx(ctx, tx, auditLog)
+	})
+	if err != nil {
+		return usecaseutil.Wrap(err, "CompetitionUseCase - Update")
 	}
+	uc.redis.Del(ctx, cache.KeyCompetition)
 	return nil
 }
 

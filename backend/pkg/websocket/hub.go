@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan []byte
+	hub       *Hub
+	conn      *websocket.Conn
+	send      chan []byte
+	closeOnce sync.Once
 }
 
 type broadcastItem struct {
@@ -26,6 +28,8 @@ type Hub struct {
 	broadcast    chan broadcastItem
 	register     chan *Client
 	unregister   chan *Client
+	done         chan struct{}
+	doneOnce     sync.Once
 	clientCount  int64
 	redisClient  *redis.Client
 	redisChannel string
@@ -40,15 +44,24 @@ func NewHub(
 		broadcast:    make(chan broadcastItem, 256),
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
+		done:         make(chan struct{}),
 		redisClient:  redisClient,
 		redisChannel: redisChannel,
 	}
 }
 
+func (h *Hub) closeDone() {
+	h.doneOnce.Do(func() { close(h.done) })
+}
+
 func (h *Hub) Run(ctx context.Context) {
+	defer h.closeDone()
 	for {
 		select {
 		case <-ctx.Done():
+			for client := range h.clients {
+				close(client.send)
+			}
 			return
 		case client := <-h.register:
 			h.clients[client] = true
@@ -90,15 +103,26 @@ func (h *Hub) broadcastToClients(item broadcastItem) {
 }
 
 func (h *Hub) Register(client *Client) {
-	h.register <- client
+	select {
+	case h.register <- client:
+	case <-h.done:
+	}
 }
 
 func (h *Hub) Unregister(client *Client) {
-	h.unregister <- client
+	select {
+	case h.unregister <- client:
+	case <-h.done:
+	}
 }
 
 func (h *Hub) Broadcast(data []byte) {
-	h.broadcast <- broadcastItem{data: data}
+	select {
+	case h.broadcast <- broadcastItem{data: data}:
+	case <-h.done:
+	case <-time.After(5 * time.Second):
+		return
+	}
 }
 
 func (h *Hub) BroadcastEvent(event any) {
@@ -107,13 +131,22 @@ func (h *Hub) BroadcastEvent(event any) {
 		return
 	}
 	done := make(chan struct{})
+	sendTimer := time.NewTimer(100 * time.Millisecond)
 	select {
 	case h.broadcast <- broadcastItem{data: data, done: done}:
+		if !sendTimer.Stop() {
+			<-sendTimer.C
+		}
+		waitTimer := time.NewTimer(5 * time.Second)
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+			waitTimer.Stop()
+		case <-waitTimer.C:
 		}
-	case <-time.After(100 * time.Millisecond):
+	case <-h.done:
+		sendTimer.Stop()
+		return
+	case <-sendTimer.C:
 		return
 	}
 	if h.redisClient != nil {

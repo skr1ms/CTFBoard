@@ -99,8 +99,9 @@ func TestParseUUID_Valid(t *testing.T) {
 func TestGetClientIP(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.RemoteAddr = "192.168.1.1:12345"
-	assert.Equal(t, "192.168.1.1", GetClientIP(r))
+	assert.Equal(t, "192.168.1.1", GetClientIP(r, nil))
 
 	r.Header.Set("X-Real-IP", "10.0.0.1")
-	assert.Equal(t, "10.0.0.1", GetClientIP(r))
+	r.RemoteAddr = "127.0.0.1:80"
+	assert.Equal(t, "10.0.0.1", GetClientIP(r, []string{"127.0.0.0/8"}))
 }

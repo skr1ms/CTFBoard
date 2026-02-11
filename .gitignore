@@ -58,6 +58,4 @@ out/
 *.local
 backend/cmd/app/app
 backend/app
-FUTURES.md
-backend.resolved
 CTFd/

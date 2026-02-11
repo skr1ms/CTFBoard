@@ -52,7 +52,7 @@ func TestRequireTeam_NoTeam_Error(t *testing.T) {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
-	r.Use(RequireTeam(string(entity.ModeFlexible)))
+	r.Use(RequireTeam(string(entity.ModeTeamsOnly)))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

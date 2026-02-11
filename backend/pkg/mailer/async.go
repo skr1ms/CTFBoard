@@ -50,6 +50,14 @@ func (m *AsyncMailer) Stop() {
 		m.stopped.Store(true)
 		close(m.quit)
 		m.wg.Wait()
+		for {
+			select {
+			case msg := <-m.msgChan:
+				m.send(msg)
+			default:
+				return
+			}
+		}
 	})
 }
 

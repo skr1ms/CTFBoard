@@ -89,7 +89,6 @@ func (uc *SolveUseCase) solveCreateUpsertInTx(ctx context.Context, tx repo.Trans
 	if err == nil && existing != nil {
 		return nil, false, entityError.ErrAlreadySolved
 	}
-	isFirstBlood := challenge.SolveCount == 0
 	if err := uc.deps.TxRepo.CreateSolveTx(ctx, tx, solve); err != nil {
 		return nil, false, usecaseutil.Wrap(err, "SolveUseCase - Create - CreateSolveTx")
 	}
@@ -97,6 +96,7 @@ func (uc *SolveUseCase) solveCreateUpsertInTx(ctx context.Context, tx repo.Trans
 	if err != nil {
 		return nil, false, usecaseutil.Wrap(err, "SolveUseCase - Create - IncrementChallengeSolveCountTx")
 	}
+	isFirstBlood := newCount == 1
 	if challenge.Decay > 0 {
 		newPoints := CalculateDynamicScore(challenge.InitialValue, challenge.MinValue, challenge.Decay, newCount)
 		if newPoints != challenge.Points {

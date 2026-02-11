@@ -60,7 +60,7 @@ func TestHint_Flow(t *testing.T) {
 	require.NotNil(t, hintObjUnlocked.Content)
 	require.Equal(t, hintContent, *hintObjUnlocked.Content)
 
-	h.AssertTeamScore(userName, 90)
+	h.AssertTeamScore(tokenUser, userName, 90)
 }
 
 // PUT /admin/hints/{ID}: admin updates hint content and cost; GET reflects new values.

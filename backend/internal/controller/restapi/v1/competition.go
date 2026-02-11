@@ -59,7 +59,7 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientIP := helper.GetClientIP(r)
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 
 	err := h.comp.CompetitionUC.Update(r.Context(), comp, user.ID, clientIP)
 	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {

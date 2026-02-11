@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,6 +14,7 @@ const (
 	TokenTypeRefresh = "refresh"
 	AccessMethod     = "HS256"
 	RefreshMethod    = "HS256"
+	IssuerCTFBoard   = "ctfboard"
 )
 
 type Service interface {
@@ -20,6 +22,7 @@ type Service interface {
 	ValidateAccessToken(tokenString string) (*CustomClaims, error)
 	ValidateRefreshToken(tokenString string) (*CustomClaims, error)
 	RefreshTokens(refreshTokenString string) (*TokenPair, error)
+	RevokeRefreshToken(ctx context.Context, refreshTokenString string) error
 }
 
 type JWTService struct {
@@ -27,6 +30,7 @@ type JWTService struct {
 	refreshSecret []byte
 	accessTTL     time.Duration
 	refreshTTL    time.Duration
+	revoker       RevocationStore
 }
 
 type CustomClaims struct {
@@ -50,12 +54,14 @@ func NewJWTService(
 	refreshSecret string,
 	accessTTL time.Duration,
 	refreshTTL time.Duration,
+	revoker RevocationStore,
 ) *JWTService {
 	return &JWTService{
 		accessSecret:  []byte(accessSecret),
 		refreshSecret: []byte(refreshSecret),
 		accessTTL:     accessTTL,
 		refreshTTL:    refreshTTL,
+		revoker:       revoker,
 	}
 }
 
@@ -64,6 +70,9 @@ func (j *JWTService) GenerateTokenPair(userID uuid.UUID, email, name, role strin
 	accessExpiry := now.Add(j.accessTTL)
 	refreshExpiry := now.Add(j.refreshTTL)
 
+	accessJTI := uuid.New().String()
+	refreshJTI := uuid.New().String()
+
 	accessClaims := &CustomClaims{
 		UserID:    userID.String(),
 		Email:     email,
@@ -71,10 +80,11 @@ func (j *JWTService) GenerateTokenPair(userID uuid.UUID, email, name, role strin
 		Role:      role,
 		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        accessJTI,
 			ExpiresAt: jwt.NewNumericDate(accessExpiry),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "skypost-delivery-orchestrator",
+			Issuer:    IssuerCTFBoard,
 		},
 	}
 
@@ -85,10 +95,11 @@ func (j *JWTService) GenerateTokenPair(userID uuid.UUID, email, name, role strin
 		Role:      role,
 		TokenType: TokenTypeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        refreshJTI,
 			ExpiresAt: jwt.NewNumericDate(refreshExpiry),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "skypost-delivery-orchestrator",
+			Issuer:    IssuerCTFBoard,
 		},
 	}
 
@@ -118,7 +129,7 @@ func (j *JWTService) ValidateAccessToken(tokenString string) (*CustomClaims, err
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.accessSecret, nil
-	})
+	}, jwt.WithIssuer(IssuerCTFBoard))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate access token: %w", err)
 	}
@@ -126,6 +137,15 @@ func (j *JWTService) ValidateAccessToken(tokenString string) (*CustomClaims, err
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		if claims.TokenType != TokenTypeAccess {
 			return nil, fmt.Errorf("invalid token type")
+		}
+		if j.revoker != nil && claims.ID != "" {
+			revoked, err := j.revoker.IsRevoked(context.Background(), claims.ID)
+			if err != nil {
+				return nil, fmt.Errorf("revocation check: %w", err)
+			}
+			if revoked {
+				return nil, fmt.Errorf("token revoked")
+			}
 		}
 		return claims, nil
 	}
@@ -139,7 +159,7 @@ func (j *JWTService) ValidateRefreshToken(tokenString string) (*CustomClaims, er
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.refreshSecret, nil
-	})
+	}, jwt.WithIssuer(IssuerCTFBoard))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate refresh token: %w", err)
 	}
@@ -148,10 +168,41 @@ func (j *JWTService) ValidateRefreshToken(tokenString string) (*CustomClaims, er
 		if claims.TokenType != TokenTypeRefresh {
 			return nil, fmt.Errorf("invalid token type")
 		}
+		if j.revoker != nil && claims.ID != "" {
+			revoked, err := j.revoker.IsRevoked(context.Background(), claims.ID)
+			if err != nil {
+				return nil, fmt.Errorf("revocation check: %w", err)
+			}
+			if revoked {
+				return nil, fmt.Errorf("token revoked")
+			}
+		}
 		return claims, nil
 	}
 
 	return nil, fmt.Errorf("invalid refresh token")
+}
+
+func (j *JWTService) RevokeRefreshToken(ctx context.Context, refreshTokenString string) error {
+	claims, err := j.ValidateRefreshToken(refreshTokenString)
+	if err != nil {
+		return err
+	}
+	if claims.ID == "" {
+		return nil
+	}
+	if j.revoker == nil {
+		return nil
+	}
+	exp := claims.ExpiresAt
+	var ttl time.Duration
+	if exp != nil {
+		ttl = time.Until(exp.Time)
+	}
+	if ttl <= 0 {
+		ttl = j.refreshTTL
+	}
+	return j.revoker.Revoke(ctx, claims.ID, ttl)
 }
 
 func (j *JWTService) RefreshTokens(refreshTokenString string) (*TokenPair, error) {

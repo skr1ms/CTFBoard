@@ -14,10 +14,7 @@ const (
 	maxMessageSize = 512
 )
 
-func NewClient(
-	hub *Hub,
-	conn *websocket.Conn,
-) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
 		hub:  hub,
 		conn: conn,
@@ -25,10 +22,16 @@ func NewClient(
 	}
 }
 
+func (c *Client) closeConn() {
+	c.closeOnce.Do(func() {
+		_ = c.conn.Close(websocket.StatusNormalClosure, "")
+	})
+}
+
 func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.Unregister(c)
-		_ = c.conn.Close(websocket.StatusNormalClosure, "")
+		c.closeConn()
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
@@ -54,7 +57,7 @@ func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		_ = c.conn.Close(websocket.StatusNormalClosure, "")
+		c.closeConn()
 	}()
 
 	for {
@@ -63,7 +66,7 @@ func (c *Client) WritePump() {
 			ctx, cancel := context.WithTimeout(context.Background(), writeWait)
 
 			if !ok {
-				_ = c.conn.Close(websocket.StatusNormalClosure, "")
+				c.closeConn()
 				cancel()
 				return
 			}

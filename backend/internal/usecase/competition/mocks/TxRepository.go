@@ -874,6 +874,74 @@ func (_c *MockTxRepository_GetChallengeByIDTx_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// GetCompetitionTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) GetCompetitionTx(ctx context.Context, tx repo.Transaction) (*entity.Competition, error) {
+	ret := _mock.Called(ctx, tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCompetitionTx")
+	}
+
+	var r0 *entity.Competition
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction) (*entity.Competition, error)); ok {
+		return returnFunc(ctx, tx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction) *entity.Competition); ok {
+		r0 = returnFunc(ctx, tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Competition)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction) error); ok {
+		r1 = returnFunc(ctx, tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTxRepository_GetCompetitionTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCompetitionTx'
+type MockTxRepository_GetCompetitionTx_Call struct {
+	*mock.Call
+}
+
+// GetCompetitionTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx repo.Transaction
+func (_e *MockTxRepository_Expecter) GetCompetitionTx(ctx interface{}, tx interface{}) *MockTxRepository_GetCompetitionTx_Call {
+	return &MockTxRepository_GetCompetitionTx_Call{Call: _e.mock.On("GetCompetitionTx", ctx, tx)}
+}
+
+func (_c *MockTxRepository_GetCompetitionTx_Call) Run(run func(ctx context.Context, tx repo.Transaction)) *MockTxRepository_GetCompetitionTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.Transaction
+		if args[1] != nil {
+			arg1 = args[1].(repo.Transaction)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_GetCompetitionTx_Call) Return(competition *entity.Competition, err error) *MockTxRepository_GetCompetitionTx_Call {
+	_c.Call.Return(competition, err)
+	return _c
+}
+
+func (_c *MockTxRepository_GetCompetitionTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction) (*entity.Competition, error)) *MockTxRepository_GetCompetitionTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHintUnlockByTeamAndHintTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) GetHintUnlockByTeamAndHintTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID, hintID uuid.UUID) (*entity.HintUnlock, error) {
 	ret := _mock.Called(ctx, tx, teamID, hintID)
@@ -1402,6 +1470,154 @@ func (_c *MockTxRepository_GetTeamScoreTx_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// GetUserByEmailTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) GetUserByEmailTx(ctx context.Context, tx repo.Transaction, email string) (*entity.User, error) {
+	ret := _mock.Called(ctx, tx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserByEmailTx")
+	}
+
+	var r0 *entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) (*entity.User, error)); ok {
+		return returnFunc(ctx, tx, email)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) *entity.User); ok {
+		r0 = returnFunc(ctx, tx, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, string) error); ok {
+		r1 = returnFunc(ctx, tx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTxRepository_GetUserByEmailTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserByEmailTx'
+type MockTxRepository_GetUserByEmailTx_Call struct {
+	*mock.Call
+}
+
+// GetUserByEmailTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx repo.Transaction
+//   - email string
+func (_e *MockTxRepository_Expecter) GetUserByEmailTx(ctx interface{}, tx interface{}, email interface{}) *MockTxRepository_GetUserByEmailTx_Call {
+	return &MockTxRepository_GetUserByEmailTx_Call{Call: _e.mock.On("GetUserByEmailTx", ctx, tx, email)}
+}
+
+func (_c *MockTxRepository_GetUserByEmailTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, email string)) *MockTxRepository_GetUserByEmailTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.Transaction
+		if args[1] != nil {
+			arg1 = args[1].(repo.Transaction)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_GetUserByEmailTx_Call) Return(user *entity.User, err error) *MockTxRepository_GetUserByEmailTx_Call {
+	_c.Call.Return(user, err)
+	return _c
+}
+
+func (_c *MockTxRepository_GetUserByEmailTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, email string) (*entity.User, error)) *MockTxRepository_GetUserByEmailTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetUserByUsernameTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) GetUserByUsernameTx(ctx context.Context, tx repo.Transaction, username string) (*entity.User, error) {
+	ret := _mock.Called(ctx, tx, username)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserByUsernameTx")
+	}
+
+	var r0 *entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) (*entity.User, error)); ok {
+		return returnFunc(ctx, tx, username)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, string) *entity.User); ok {
+		r0 = returnFunc(ctx, tx, username)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.Transaction, string) error); ok {
+		r1 = returnFunc(ctx, tx, username)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTxRepository_GetUserByUsernameTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserByUsernameTx'
+type MockTxRepository_GetUserByUsernameTx_Call struct {
+	*mock.Call
+}
+
+// GetUserByUsernameTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx repo.Transaction
+//   - username string
+func (_e *MockTxRepository_Expecter) GetUserByUsernameTx(ctx interface{}, tx interface{}, username interface{}) *MockTxRepository_GetUserByUsernameTx_Call {
+	return &MockTxRepository_GetUserByUsernameTx_Call{Call: _e.mock.On("GetUserByUsernameTx", ctx, tx, username)}
+}
+
+func (_c *MockTxRepository_GetUserByUsernameTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, username string)) *MockTxRepository_GetUserByUsernameTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.Transaction
+		if args[1] != nil {
+			arg1 = args[1].(repo.Transaction)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_GetUserByUsernameTx_Call) Return(user *entity.User, err error) *MockTxRepository_GetUserByUsernameTx_Call {
+	_c.Call.Return(user, err)
+	return _c
+}
+
+func (_c *MockTxRepository_GetUserByUsernameTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, username string) (*entity.User, error)) *MockTxRepository_GetUserByUsernameTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetUsersByTeamIDTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) GetUsersByTeamIDTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) ([]*entity.User, error) {
 	ret := _mock.Called(ctx, tx, teamID)
@@ -1731,6 +1947,75 @@ func (_c *MockTxRepository_RunTransaction_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// SetFieldValuesTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) SetFieldValuesTx(ctx context.Context, tx repo.Transaction, entityID uuid.UUID, values map[string]string) error {
+	ret := _mock.Called(ctx, tx, entityID, values)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetFieldValuesTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, uuid.UUID, map[string]string) error); ok {
+		r0 = returnFunc(ctx, tx, entityID, values)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxRepository_SetFieldValuesTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetFieldValuesTx'
+type MockTxRepository_SetFieldValuesTx_Call struct {
+	*mock.Call
+}
+
+// SetFieldValuesTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx repo.Transaction
+//   - entityID uuid.UUID
+//   - values map[string]string
+func (_e *MockTxRepository_Expecter) SetFieldValuesTx(ctx interface{}, tx interface{}, entityID interface{}, values interface{}) *MockTxRepository_SetFieldValuesTx_Call {
+	return &MockTxRepository_SetFieldValuesTx_Call{Call: _e.mock.On("SetFieldValuesTx", ctx, tx, entityID, values)}
+}
+
+func (_c *MockTxRepository_SetFieldValuesTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, entityID uuid.UUID, values map[string]string)) *MockTxRepository_SetFieldValuesTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.Transaction
+		if args[1] != nil {
+			arg1 = args[1].(repo.Transaction)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 map[string]string
+		if args[3] != nil {
+			arg3 = args[3].(map[string]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_SetFieldValuesTx_Call) Return(err error) *MockTxRepository_SetFieldValuesTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxRepository_SetFieldValuesTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, entityID uuid.UUID, values map[string]string) error) *MockTxRepository_SetFieldValuesTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SoftDeleteTeamTx provides a mock function for the type MockTxRepository
 func (_mock *MockTxRepository) SoftDeleteTeamTx(ctx context.Context, tx repo.Transaction, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, tx, teamID)
@@ -1859,6 +2144,69 @@ func (_c *MockTxRepository_UpdateChallengePointsTx_Call) Return(err error) *Mock
 }
 
 func (_c *MockTxRepository_UpdateChallengePointsTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, ID uuid.UUID, points int) error) *MockTxRepository_UpdateChallengePointsTx_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCompetitionTx provides a mock function for the type MockTxRepository
+func (_mock *MockTxRepository) UpdateCompetitionTx(ctx context.Context, tx repo.Transaction, comp *entity.Competition) error {
+	ret := _mock.Called(ctx, tx, comp)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCompetitionTx")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.Transaction, *entity.Competition) error); ok {
+		r0 = returnFunc(ctx, tx, comp)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxRepository_UpdateCompetitionTx_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCompetitionTx'
+type MockTxRepository_UpdateCompetitionTx_Call struct {
+	*mock.Call
+}
+
+// UpdateCompetitionTx is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx repo.Transaction
+//   - comp *entity.Competition
+func (_e *MockTxRepository_Expecter) UpdateCompetitionTx(ctx interface{}, tx interface{}, comp interface{}) *MockTxRepository_UpdateCompetitionTx_Call {
+	return &MockTxRepository_UpdateCompetitionTx_Call{Call: _e.mock.On("UpdateCompetitionTx", ctx, tx, comp)}
+}
+
+func (_c *MockTxRepository_UpdateCompetitionTx_Call) Run(run func(ctx context.Context, tx repo.Transaction, comp *entity.Competition)) *MockTxRepository_UpdateCompetitionTx_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.Transaction
+		if args[1] != nil {
+			arg1 = args[1].(repo.Transaction)
+		}
+		var arg2 *entity.Competition
+		if args[2] != nil {
+			arg2 = args[2].(*entity.Competition)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxRepository_UpdateCompetitionTx_Call) Return(err error) *MockTxRepository_UpdateCompetitionTx_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxRepository_UpdateCompetitionTx_Call) RunAndReturn(run func(ctx context.Context, tx repo.Transaction, comp *entity.Competition) error) *MockTxRepository_UpdateCompetitionTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

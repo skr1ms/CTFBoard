@@ -44,6 +44,39 @@ func NewTeamUseCase(
 	}
 }
 
+func (uc *TeamUseCase) requireTeamSwitchInTx(ctx context.Context, tx repo.Transaction) (*entity.Competition, error) {
+	comp, err := uc.txRepo.GetCompetitionTx(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if !comp.AllowTeamSwitch {
+		return nil, entityError.ErrRosterFrozen
+	}
+	return comp, nil
+}
+
+func (uc *TeamUseCase) requireTeamSwitchAndTeamsModeInTx(ctx context.Context, tx repo.Transaction) error {
+	comp, err := uc.requireTeamSwitchInTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if !entity.CompetitionMode(comp.Mode).AllowsTeams() {
+		return entityError.ErrSoloModeNotAllowed
+	}
+	return nil
+}
+
+func (uc *TeamUseCase) requireTeamSwitchAndSoloModeInTx(ctx context.Context, tx repo.Transaction) error {
+	comp, err := uc.requireTeamSwitchInTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if !entity.CompetitionMode(comp.Mode).AllowsSolo() {
+		return entityError.ErrSoloModeNotAllowed
+	}
+	return nil
+}
+
 func NewTeamUseCaseWithSize(
 	teamRepo repo.TeamRepository,
 	userRepo repo.UserRepository,
@@ -81,6 +114,9 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.U
 }
 
 func (uc *TeamUseCase) createTx(ctx context.Context, tx repo.Transaction, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*entity.Team, error) {
+	if err := uc.requireTeamSwitchAndTeamsModeInTx(ctx, tx); err != nil {
+		return nil, err
+	}
 	if err := uc.txRepo.LockUserTx(ctx, tx, captainID); err != nil {
 		return nil, usecaseutil.Wrap(err, "LockUserTx")
 	}
@@ -148,6 +184,9 @@ func (uc *TeamUseCase) TryCreate(ctx context.Context, name string, captainID uui
 func (uc *TeamUseCase) tryCreateWhenInTeam(ctx context.Context, user *entity.User, _ string, captainID uuid.UUID, _ bool) (*OperationResult, error) {
 	var result *OperationResult
 	err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
+		if err := uc.requireTeamSwitchAndTeamsModeInTx(ctx, tx); err != nil {
+			return err
+		}
 		if err := uc.txRepo.LockUserTx(ctx, tx, captainID); err != nil {
 			return err
 		}
@@ -201,6 +240,9 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, 
 }
 
 func (uc *TeamUseCase) joinTx(ctx context.Context, tx repo.Transaction, inviteToken, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
+	if _, err := uc.requireTeamSwitchInTx(ctx, tx); err != nil {
+		return nil, err
+	}
 	if err := uc.txRepo.LockUserTx(ctx, tx, userID); err != nil {
 		return nil, usecaseutil.Wrap(err, "LockUserTx")
 	}
@@ -247,6 +289,9 @@ func (uc *TeamUseCase) Leave(ctx context.Context, userID uuid.UUID) error {
 
 func (uc *TeamUseCase) leaveTx(userID uuid.UUID) func(ctx context.Context, tx repo.Transaction) error {
 	return func(ctx context.Context, tx repo.Transaction) error {
+		if _, err := uc.requireTeamSwitchInTx(ctx, tx); err != nil {
+			return err
+		}
 		user, team, members, err := uc.leavePrepare(ctx, tx, userID)
 		if err != nil {
 			return err
@@ -317,6 +362,9 @@ func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainID, newCaptai
 
 func (uc *TeamUseCase) transferCaptainTx(captainID, newCaptainID uuid.UUID) func(ctx context.Context, tx repo.Transaction) error {
 	return func(ctx context.Context, tx repo.Transaction) error {
+		if _, err := uc.requireTeamSwitchInTx(ctx, tx); err != nil {
+			return err
+		}
 		captain, team, newCaptain, err := uc.transferCaptainPrepare(ctx, tx, captainID, newCaptainID)
 		if err != nil {
 			return err
@@ -434,6 +482,9 @@ func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, con
 }
 
 func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, tx repo.Transaction, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
+	if err := uc.requireTeamSwitchAndSoloModeInTx(ctx, tx); err != nil {
+		return nil, err
+	}
 	if err := uc.txRepo.LockUserTx(ctx, tx, userID); err != nil {
 		return nil, usecaseutil.Wrap(err, "LockUserTx")
 	}
@@ -525,6 +576,9 @@ func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) err
 
 func (uc *TeamUseCase) disbandTeamTx(captainID uuid.UUID) func(ctx context.Context, tx repo.Transaction) error {
 	return func(ctx context.Context, tx repo.Transaction) error {
+		if _, err := uc.requireTeamSwitchInTx(ctx, tx); err != nil {
+			return err
+		}
 		_, team, members, err := uc.disbandPrepare(ctx, tx, captainID)
 		if err != nil {
 			return err
@@ -597,6 +651,9 @@ func (uc *TeamUseCase) KickMember(ctx context.Context, captainID, targetUserID u
 
 func (uc *TeamUseCase) kickMemberTx(captainID, targetUserID uuid.UUID) func(ctx context.Context, tx repo.Transaction) error {
 	return func(ctx context.Context, tx repo.Transaction) error {
+		if _, err := uc.requireTeamSwitchInTx(ctx, tx); err != nil {
+			return err
+		}
 		captain, team, targetUser, err := uc.kickMemberPrepare(ctx, tx, captainID, targetUserID)
 		if err != nil {
 			return err

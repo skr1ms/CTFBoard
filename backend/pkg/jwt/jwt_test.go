@@ -1,6 +1,7 @@
 package jwt_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func TestJWTService_GenerateTokenPair_Success(t *testing.T) {
-	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
+	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 
 	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
@@ -23,7 +24,7 @@ func TestJWTService_GenerateTokenPair_Success(t *testing.T) {
 }
 
 func TestJWTService_ValidateAccessToken_Success(t *testing.T) {
-	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
+	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 
 	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
@@ -37,8 +38,8 @@ func TestJWTService_ValidateAccessToken_Success(t *testing.T) {
 }
 
 func TestJWTService_ValidateAccessToken_InvalidSignature(t *testing.T) {
-	service1 := jwt.NewJWTService("secret-1", "refresh-1", time.Hour, time.Hour)
-	service2 := jwt.NewJWTService("secret-2", "refresh-2", time.Hour, time.Hour)
+	service1 := jwt.NewJWTService("secret-1", "refresh-1", time.Hour, time.Hour, nil)
+	service2 := jwt.NewJWTService("secret-2", "refresh-2", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 
 	pair, err := service1.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
@@ -50,7 +51,7 @@ func TestJWTService_ValidateAccessToken_InvalidSignature(t *testing.T) {
 }
 
 func TestJWTService_ValidateRefreshToken_Success(t *testing.T) {
-	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
+	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 
 	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
@@ -63,7 +64,7 @@ func TestJWTService_ValidateRefreshToken_Success(t *testing.T) {
 }
 
 func TestJWTService_RefreshTokens_Success(t *testing.T) {
-	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour)
+	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour, nil)
 	userID := uuid.New()
 
 	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
@@ -76,4 +77,39 @@ func TestJWTService_RefreshTokens_Success(t *testing.T) {
 	assert.NotEmpty(t, newPair.AccessToken)
 	assert.NotEmpty(t, newPair.RefreshToken)
 	assert.NotEqual(t, pair.AccessToken, newPair.AccessToken)
+}
+
+type memRevoker struct {
+	revoked map[string]bool
+}
+
+func (m *memRevoker) Revoke(_ context.Context, jti string, _ time.Duration) error {
+	if m.revoked == nil {
+		m.revoked = make(map[string]bool)
+	}
+	m.revoked[jti] = true
+	return nil
+}
+
+func (m *memRevoker) IsRevoked(_ context.Context, jti string) (bool, error) {
+	return m.revoked != nil && m.revoked[jti], nil
+}
+
+func TestJWTService_RevokeRefreshToken_ThenValidateFails(t *testing.T) {
+	revoker := &memRevoker{}
+	service := jwt.NewJWTService("access-secret", "refresh-secret", time.Hour, time.Hour, revoker)
+	userID := uuid.New()
+
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	require.NoError(t, err)
+
+	_, err = service.ValidateRefreshToken(pair.RefreshToken)
+	assert.NoError(t, err)
+
+	err = service.RevokeRefreshToken(context.Background(), pair.RefreshToken)
+	assert.NoError(t, err)
+
+	_, err = service.ValidateRefreshToken(pair.RefreshToken)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "revoked")
 }

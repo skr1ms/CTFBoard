@@ -34,11 +34,11 @@ func TestDynamicScoring_Flow(t *testing.T) {
 	h.CreateSoloTeam(user2, http.StatusCreated)
 
 	h.SubmitFlag(user1, challID, "flag{dyn}", http.StatusOK)
-	h.AssertTeamScore("user_dyn_1", 500)
+	h.AssertTeamScore(user1, "user_dyn_1", 500)
 
 	h.SubmitFlag(user2, challID, "flag{dyn}", http.StatusOK)
 
-	scoreboard := h.GetScoreboard()
+	scoreboard := h.GetScoreboard(user1)
 	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard dynamic")
 	require.NotNil(t, scoreboard.JSON200)
 	var user2Points int

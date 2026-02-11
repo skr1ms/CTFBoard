@@ -148,7 +148,7 @@ func TestFullCTFFlow(t *testing.T) {
 	h.SubmitFlag(tokenAlphaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
 	t.Log("Team Alpha solved Easy Challenge - First Blood!")
 
-	h.AssertFirstBlood(challEasy, alphaCaptain, "Team Alpha "+suffix)
+	h.AssertFirstBlood(tokenAdmin, challEasy, alphaCaptain, "Team Alpha "+suffix)
 
 	time.Sleep(100 * time.Millisecond)
 	h.SubmitFlag(tokenBetaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
@@ -174,19 +174,19 @@ func TestFullCTFFlow(t *testing.T) {
 
 	t.Log("=== Phase 6: Scoreboard Check ===")
 
-	h.AssertTeamScoreAtLeast("Team Alpha "+suffix, 100+300-50)
-	h.AssertTeamScoreAtLeast("Team Beta "+suffix, 100+500)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Alpha "+suffix, 100+300-50)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Beta "+suffix, 100+500)
 
 	subsByChall := h.GetAdminSubmissionsByChallenge(tokenAdmin, challEasy, 1, 50, http.StatusOK)
 	require.NotNil(t, subsByChall.JSON200)
 	require.NotNil(t, subsByChall.JSON200.Items)
 	require.GreaterOrEqual(t, len(*subsByChall.JSON200.Items), 1)
 
-	scoreboardByBracket := h.GetScoreboardWithBracket(bracketID)
+	scoreboardByBracket := h.GetScoreboardWithBracket(tokenAdmin, bracketID)
 	helper.RequireStatus(t, http.StatusOK, scoreboardByBracket.StatusCode(), scoreboardByBracket.Body, "scoreboard by bracket")
 	require.NotNil(t, scoreboardByBracket.JSON200)
 
-	scoreboardResp := h.GetScoreboard()
+	scoreboardResp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardResp.StatusCode(), scoreboardResp.Body, "scoreboard")
 	require.NotNil(t, scoreboardResp.JSON200)
 	require.GreaterOrEqual(t, len(*scoreboardResp.JSON200), 2)
@@ -199,17 +199,17 @@ func TestFullCTFFlow(t *testing.T) {
 
 	t.Log("=== Phase 7: Statistics Check ===")
 
-	generalStats := h.GetStatisticsGeneral()
+	generalStats := h.GetStatisticsGeneral(tokenAdmin)
 	require.NotNil(t, generalStats.JSON200)
 	require.GreaterOrEqual(t, *generalStats.JSON200.TeamCount, 2)
 	require.GreaterOrEqual(t, *generalStats.JSON200.UserCount, 4)
 	require.GreaterOrEqual(t, *generalStats.JSON200.ChallengeCount, 3)
 
-	challengeStats := h.GetStatisticsChallenges()
+	challengeStats := h.GetStatisticsChallenges(tokenAdmin)
 	require.NotNil(t, challengeStats.JSON200)
 	require.GreaterOrEqual(t, len(*challengeStats.JSON200), 3)
 
-	graphData := h.GetScoreboardGraph(5)
+	graphData := h.GetScoreboardGraph(tokenAdmin, 5)
 	require.NotNil(t, graphData.JSON200)
 	require.NotNil(t, graphData.JSON200.Teams)
 	require.NotNil(t, graphData.JSON200.Range)
@@ -222,8 +222,8 @@ func TestFullCTFFlow(t *testing.T) {
 	h.CreateAward(tokenAdmin, betaTeamID, -50, "Penalty for rule violation", http.StatusCreated)
 	t.Log("Admin penalized Team Beta 50 points")
 
-	h.AssertTeamScoreAtLeast("Team Alpha "+suffix, 100+300-50+100)
-	h.AssertTeamScoreAtLeast("Team Beta "+suffix, 100+500-50)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Alpha "+suffix, 100+300-50+100)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Beta "+suffix, 100+500-50)
 
 	awardsResp := h.GetAwardsByTeam(tokenAdmin, alphaTeamID, http.StatusOK)
 	require.NotNil(t, awardsResp.JSON200)
@@ -277,7 +277,7 @@ func TestFullCTFFlow(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	scoreboardAfterHide := h.GetScoreboard()
+	scoreboardAfterHide := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardAfterHide.StatusCode(), scoreboardAfterHide.Body, "scoreboard after hide")
 	require.NotNil(t, scoreboardAfterHide.JSON200)
 	teamAlphaFound := false
@@ -508,7 +508,7 @@ func TestBannedTeamBehavior(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "flag{ban_test}", http.StatusOK)
 	t.Log("Unbanned team can submit correct flag - OK")
 
-	h.AssertTeamScore(userName, 100)
+	h.AssertTeamScore(tokenUser, userName, 100)
 	t.Log("Team score updated correctly after unban")
 }
 
@@ -542,14 +542,14 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 
 	h.SubmitFlag(tokenUser, challengeID, "flag{scoreboard_ban}", http.StatusOK)
 
-	h.AssertTeamScore(userName, 200)
+	h.AssertTeamScore(tokenUser, userName, 200)
 	t.Log("Team appears in scoreboard with points")
 
 	h.BanTeam(tokenAdmin, teamID, "Ban for scoreboard test", http.StatusOK)
 
 	time.Sleep(100 * time.Millisecond)
 
-	scoreboardResp := h.GetScoreboard()
+	scoreboardResp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardResp.StatusCode(), scoreboardResp.Body, "scoreboard after ban")
 	require.NotNil(t, scoreboardResp.JSON200)
 	bannedTeamFound := false
@@ -564,6 +564,6 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 
 	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
 
-	h.AssertTeamScore(userName, 200)
+	h.AssertTeamScore(tokenUser, userName, 200)
 	t.Log("Unbanned team appears in scoreboard again - OK")
 }

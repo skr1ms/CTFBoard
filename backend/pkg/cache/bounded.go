@@ -50,7 +50,8 @@ func (c *BoundedCache[K, V]) Set(key K, value V) {
 	if len(c.entries) >= c.maxSize {
 		oldest := c.entries[0]
 		delete(c.index, oldest.key)
-		c.entries = c.entries[1:]
+		newEntries := make([]boundedEntry[K, V], 0, c.maxSize)
+		c.entries = append(newEntries, c.entries[1:]...)
 		for k, idx := range c.index {
 			c.index[k] = idx - 1
 		}

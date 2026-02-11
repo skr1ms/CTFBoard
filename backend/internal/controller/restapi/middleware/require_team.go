@@ -22,6 +22,10 @@ func RequireTeam(competitionMode string) func(http.Handler) http.Handler {
 				return
 			}
 
+			if competitionMode == "solo" || competitionMode == "flexible" {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if user.TeamID == nil {
 				httputil.RenderErrorWithCode(w, r, http.StatusForbidden, entityError.ErrNoTeamSelected.Error(), "no_team_selected")
 				return

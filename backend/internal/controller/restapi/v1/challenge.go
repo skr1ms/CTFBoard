@@ -63,7 +63,7 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 		ChallengeID:   challengeuuid,
 		SubmittedFlag: flag,
 		IsCorrect:     valid,
-		IP:            helper.GetClientIP(r),
+		IP:            helper.GetClientIP(r, h.infra.TrustedProxyCIDRs),
 		CreatedAt:     time.Now(),
 	}
 	if user.TeamID != nil {
@@ -121,7 +121,7 @@ func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	clientIP := helper.GetClientIP(r)
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 
 	err := h.challenge.ChallengeUC.Delete(r.Context(), challengeuuid, user.ID, clientIP)
 	if h.OnError(w, r, err, "DeleteAdminChallengesID", "Delete") {

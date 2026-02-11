@@ -49,7 +49,7 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 	h.SubmitFlag(user2, challID, "flag{freeze}", http.StatusOK)
 
-	scoreboard := h.GetScoreboard()
+	scoreboard := h.GetScoreboard(user2)
 	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard freeze")
 	require.NotNil(t, scoreboard.JSON200)
 
@@ -88,7 +88,7 @@ func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 		"end_time": now.Add(24 * time.Hour), "freeze_time": now.Add(1 * time.Hour),
 		"allow_team_switch": true, "mode": "flexible",
 	})
-	resp := h.GetScoreboard()
+	resp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard freeze empty")
 	require.NotNil(t, resp.JSON200)
 }
