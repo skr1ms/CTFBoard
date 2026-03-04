@@ -11,4 +11,5 @@ type Provider interface {
 	Download(ctx context.Context, path string) (io.ReadCloser, error)
 	Delete(ctx context.Context, path string) error
 	GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error)
+	Ping(ctx context.Context) error
 }

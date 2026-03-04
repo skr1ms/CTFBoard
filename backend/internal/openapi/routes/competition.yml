@@ -1,0 +1,55 @@
+/competition/status:
+  get:
+    description: Returns competition status (public, no auth)
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/CompetitionStatusResponse'
+    summary: Get competition status
+    tags:
+      - Competition
+
+/admin/competition:
+  get:
+    description: Returns full competition config. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/CompetitionResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get admin competition
+    tags:
+      - Admin
+  put:
+    description: Updates competition. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdateCompetitionRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Update competition
+    tags:
+      - Admin

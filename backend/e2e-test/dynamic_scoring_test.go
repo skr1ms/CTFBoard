@@ -4,15 +4,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
-// Dynamic scoring: first solver gets initial_value; second solver gets decayed score (min_value) and scoreboard reflects it.
+// POST /challenges/{ID}/submit (dynamic scoring): first solver gets initial_value; second solver gets decayed score; GET /scoreboard reflects correct points.
 func TestDynamicScoring_Flow(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
@@ -53,11 +53,11 @@ func TestDynamicScoring_Flow(t *testing.T) {
 	require.Equal(t, 100, user2Points, "Dynamic scoring: user2 should get 100 points")
 }
 
-// POST /challenges/{ID}/submit: wrong flag returns 400 Bad Request.
-func TestDynamicScoring_InvalidFlag_Returns400(t *testing.T) {
+// POST /challenges/{ID}/submit: wrong flag returns 200 with correct=false.
+func TestDynamicScoring_InvalidFlag_Returns200(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic_err")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Dyn Err", "description": "x", "flag": "flag{dyn_err}",
@@ -66,8 +66,6 @@ func TestDynamicScoring_InvalidFlag_Returns400(t *testing.T) {
 	})
 	_, _, tokenUser := h.RegisterUserAndLogin("user_dyn_err")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
-	resp := h.SubmitFlag(tokenUser, challID, "wrong_flag", http.StatusBadRequest)
-	require.NotNil(t, resp.JSON400)
-	require.NotNil(t, resp.JSON400.Error)
-	require.Equal(t, "invalid flag", *resp.JSON400.Error)
+	resp := h.SubmitFlag(tokenUser, challID, "wrong_flag", http.StatusOK)
+	require.Contains(t, string(resp.Body), "incorrect flag")
 }

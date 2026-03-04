@@ -3,35 +3,52 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
-func RequireTeam(competitionMode string) func(http.Handler) http.Handler {
+func RequireTeam() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := GetUser(r.Context())
-			if !ok {
-				httputil.RenderError(w, r, http.StatusUnauthorized, "unauthorized")
+			allowed, err := requireTeamAllowed(user, ok)
+			if err != nil {
+				httputil.HandleError(w, r, err)
 				return
 			}
-
-			if user.Role == entity.RoleAdmin {
-				next.ServeHTTP(w, r)
+			if !allowed {
+				httputil.HandleError(w, r, httperr.ErrTeamModeRequired)
 				return
 			}
-
-			if competitionMode == "solo" || competitionMode == "flexible" {
-				next.ServeHTTP(w, r)
-				return
-			}
-			if user.TeamID == nil {
-				httputil.RenderErrorWithCode(w, r, http.StatusForbidden, entityError.ErrNoTeamSelected.Error(), "no_team_selected")
-				return
-			}
-
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func RequireTeamOrNotFound() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, ok := GetUser(r.Context())
+			if !ok || user == nil {
+				httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
+				return
+			}
+			if user.Role != entity.RoleAdmin && user.TeamID == nil {
+				httputil.HandleError(w, r, httperr.ErrUserNotInTeam)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func requireTeamAllowed(user *entity.User, hasUser bool) (bool, error) {
+	if !hasUser || user == nil {
+		return false, httperr.ErrNotAuthenticated
+	}
+	if user.Role == entity.RoleAdmin {
+		return true, nil
+	}
+	return user.TeamID != nil, nil
 }

@@ -4,23 +4,26 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
 type TagRepo struct {
 	pool *pgxpool.Pool
-	q    *sqlc.Queries
 }
 
+var _ repo.TagRepository = (*TagRepo)(nil)
+
 func NewTagRepo(pool *pgxpool.Pool) *TagRepo {
-	return &TagRepo{
-		pool: pool,
-		q:    sqlc.New(pool),
-	}
+	return &TagRepo{pool: pool}
+}
+
+func (r *TagRepo) q(ctx context.Context) *sqlc.Queries {
+	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
 func (r *TagRepo) Create(ctx context.Context, tag *entity.Tag) error {
@@ -32,18 +35,21 @@ func (r *TagRepo) Create(ctx context.Context, tag *entity.Tag) error {
 		def := "#6b7280"
 		color = &def
 	}
-	return r.q.CreateTag(ctx, sqlc.CreateTagParams{
+	if err := r.q(ctx).CreateTag(ctx, sqlc.CreateTagParams{
 		ID:    tag.ID,
 		Name:  tag.Name,
 		Color: color,
-	})
+	}); err != nil {
+		return fmt.Errorf("TagRepo - Create: %w", err)
+	}
+	return nil
 }
 
-func (r *TagRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tag, error) {
-	row, err := r.q.GetTagByID(ctx, id)
+func (r *TagRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Tag, error) {
+	row, err := r.q(ctx).GetTagByID(ctx, ID)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, entityError.ErrTagNotFound
+			return nil, httperr.ErrTagNotFound
 		}
 		return nil, fmt.Errorf("TagRepo - GetByID: %w", err)
 	}
@@ -55,10 +61,10 @@ func (r *TagRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tag, error
 }
 
 func (r *TagRepo) GetByName(ctx context.Context, name string) (*entity.Tag, error) {
-	row, err := r.q.GetTagByName(ctx, name)
+	row, err := r.q(ctx).GetTagByName(ctx, name)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, entityError.ErrTagNotFound
+			return nil, httperr.ErrTagNotFound
 		}
 		return nil, fmt.Errorf("TagRepo - GetByName: %w", err)
 	}
@@ -70,7 +76,7 @@ func (r *TagRepo) GetByName(ctx context.Context, name string) (*entity.Tag, erro
 }
 
 func (r *TagRepo) GetAll(ctx context.Context) ([]*entity.Tag, error) {
-	rows, err := r.q.GetAllTags(ctx)
+	rows, err := r.q(ctx).GetAllTags(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TagRepo - GetAll: %w", err)
 	}
@@ -91,19 +97,26 @@ func (r *TagRepo) Update(ctx context.Context, tag *entity.Tag) error {
 		def := "#6b7280"
 		color = &def
 	}
-	return r.q.UpdateTag(ctx, sqlc.UpdateTagParams{
+	if err := r.q(ctx).UpdateTag(ctx, sqlc.UpdateTagParams{
 		ID:    tag.ID,
 		Name:  tag.Name,
 		Color: color,
-	})
+	}); err != nil {
+		return fmt.Errorf("TagRepo - Update: %w", err)
+	}
+	return nil
 }
 
-func (r *TagRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.q.DeleteTag(ctx, id)
+// Delete removes a tag by ID. Idempotent: returns nil if the tag does not exist.
+func (r *TagRepo) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := r.q(ctx).DeleteTag(ctx, ID); err != nil {
+		return fmt.Errorf("TagRepo - Delete: %w", err)
+	}
+	return nil
 }
 
 func (r *TagRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Tag, error) {
-	rows, err := r.q.GetTagsByChallengeID(ctx, challengeID)
+	rows, err := r.q(ctx).GetTagsByChallengeID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("TagRepo - GetByChallengeID: %w", err)
 	}
@@ -122,7 +135,7 @@ func (r *TagRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUI
 	if len(challengeIDs) == 0 {
 		return map[uuid.UUID][]*entity.Tag{}, nil
 	}
-	rows, err := r.q.GetTagsByChallengeIDs(ctx, challengeIDs)
+	rows, err := r.q(ctx).GetTagsByChallengeIDs(ctx, challengeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("TagRepo - GetByChallengeIDs: %w", err)
 	}
@@ -136,19 +149,4 @@ func (r *TagRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUI
 		out[row.ChallengeID] = append(out[row.ChallengeID], tag)
 	}
 	return out, nil
-}
-
-func (r *TagRepo) SetChallengeTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {
-	if err := r.q.DeleteChallengeTags(ctx, challengeID); err != nil {
-		return fmt.Errorf("TagRepo - SetChallengeTags - Delete: %w", err)
-	}
-	for _, tagID := range tagIDs {
-		if err := r.q.AddChallengeTag(ctx, sqlc.AddChallengeTagParams{
-			ChallengeID: challengeID,
-			TagID:       tagID,
-		}); err != nil {
-			return fmt.Errorf("TagRepo - SetChallengeTags - Add: %w", err)
-		}
-	}
-	return nil
 }

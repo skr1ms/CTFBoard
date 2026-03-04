@@ -5,15 +5,16 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUserRepo_Create(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -35,16 +36,17 @@ func TestUserRepo_Create(t *testing.T) {
 }
 
 func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f.CreateUser(t, "duplicate")
+	u1 := f.CreateUser(t, "duplicate")
 
 	user2 := &entity.User{
-		Username:     "user_duplicate",
-		Email:        "test2@example.com",
+		Username:     u1.Username,
+		Email:        "other@example.com",
 		PasswordHash: "hash456",
 	}
 
@@ -53,16 +55,17 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 }
 
 func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f.CreateUser(t, "user1")
+	u1 := f.CreateUser(t, "user1")
 
 	user2 := &entity.User{
-		Username:     "user2",
-		Email:        "user_user1@x.com",
+		Username:     "otheruser",
+		Email:        u1.Email,
 		PasswordHash: "hash456",
 	}
 
@@ -71,6 +74,7 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 }
 
 func TestUserRepo_GetByID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -87,6 +91,7 @@ func TestUserRepo_GetByID(t *testing.T) {
 }
 
 func TestUserRepo_GetByID_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -95,10 +100,11 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.UserRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
 }
 
 func TestUserRepo_GetByEmail(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -114,6 +120,7 @@ func TestUserRepo_GetByEmail(t *testing.T) {
 }
 
 func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -121,10 +128,11 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByEmail(ctx, "nonexistent@example.com")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
 }
 
 func TestUserRepo_GetByUsername(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -139,6 +147,7 @@ func TestUserRepo_GetByUsername(t *testing.T) {
 }
 
 func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -146,10 +155,11 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByUsername(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrUserNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
 }
 
 func TestUserRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -160,8 +170,6 @@ func TestUserRepo_GetAll_Success(t *testing.T) {
 
 	users, err := f.UserRepo.GetAll(ctx)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(users), 2)
-
 	ids := make(map[uuid.UUID]bool)
 	for _, u := range users {
 		ids[u.ID] = true
@@ -171,6 +179,7 @@ func TestUserRepo_GetAll_Success(t *testing.T) {
 }
 
 func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -184,6 +193,7 @@ func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestUserRepo_GetByTeamID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -205,12 +215,14 @@ func TestUserRepo_GetByTeamID(t *testing.T) {
 }
 
 func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	_, team := f.CreateUserWithTeam(t, "empty_team")
+	user := f.CreateUser(t, "empty")
+	team := f.CreateTeam(t, "empty", user.ID)
 
 	members, err := f.UserRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
@@ -218,6 +230,7 @@ func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
 }
 
 func TestUserRepo_UpdateTeamID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -235,6 +248,7 @@ func TestUserRepo_UpdateTeamID(t *testing.T) {
 }
 
 func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -254,6 +268,7 @@ func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
 }
 
 func TestUserRepo_Role_Persistence(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	repo := persistent.NewUserRepo(testPool.Pool)
@@ -272,4 +287,33 @@ func TestUserRepo_Role_Persistence(t *testing.T) {
 	gotUser, err := repo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
 	assert.Equal(t, entity.RoleAdmin, gotUser.Role)
+}
+
+func TestUserRepo_Lock_Success(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "lock_success")
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.UserRepo.Lock(txCtx, user.ID)
+	})
+	require.NoError(t, err)
+}
+
+func TestUserRepo_Lock_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	user := f.CreateUser(t, "lock_cancel")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := f.UserRepo.Lock(ctx, user.ID)
+	require.Error(t, err)
 }

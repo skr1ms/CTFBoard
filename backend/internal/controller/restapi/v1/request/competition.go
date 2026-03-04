@@ -1,35 +1,43 @@
 package request
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func UpdateCompetitionRequestToEntity(req *openapi.RequestUpdateCompetitionRequest, id int) *entity.Competition {
-	var isPaused, isPublic, allowTeamSwitch bool
-	if req.IsPaused != nil {
-		isPaused = *req.IsPaused
+// singletonCompetitionID is the fixed ID for the one competition row in the DB.
+const singletonCompetitionID = 1
+
+func ValidateCompetitionTimes(req *openapi.UpdateCompetitionRequest) error {
+	startTime, endTime, freezeTime := req.StartTime, req.EndTime, req.FreezeTime
+	if endTime != nil && startTime != nil && endTime.Before(*startTime) {
+		return helper.NewValidationErrorf("end_time must be after start_time")
 	}
-	if req.IsPublic != nil {
-		isPublic = *req.IsPublic
+	if freezeTime != nil && endTime != nil && freezeTime.After(*endTime) {
+		return helper.NewValidationErrorf("freeze_time must be before end_time")
 	}
-	if req.AllowTeamSwitch != nil {
-		allowTeamSwitch = *req.AllowTeamSwitch
+	if freezeTime != nil && startTime != nil && freezeTime.Before(*startTime) {
+		return helper.NewValidationErrorf("freeze_time must be after start_time")
 	}
-	var mode string
+	return nil
+}
+
+func UpdateCompetitionRequestToEntity(req *openapi.UpdateCompetitionRequest) *entity.Competition {
+	var mode entity.CompetitionMode
 	if req.Mode != nil {
-		mode = *req.Mode
+		mode = entity.CompetitionMode(*req.Mode)
 	}
 	return &entity.Competition{
-		ID:              id,
+		ID:              singletonCompetitionID,
 		Name:            req.Name,
 		StartTime:       req.StartTime,
 		EndTime:         req.EndTime,
 		FreezeTime:      req.FreezeTime,
-		IsPaused:        isPaused,
-		IsPublic:        isPublic,
+		IsPaused:        derefOr(req.IsPaused, false),
+		IsPublic:        derefOr(req.IsPublic, false),
 		FlagRegex:       req.FlagRegex,
-		AllowTeamSwitch: allowTeamSwitch,
+		AllowTeamSwitch: derefOr(req.AllowTeamSwitch, false),
 		Mode:            mode,
 	}
 }

@@ -1,0 +1,83 @@
+schemas:
+  jwt.TokenPair:
+    properties:
+      access_expires_at:
+        type: integer
+      access_token:
+        type: string
+      refresh_expires_at:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  request.LoginRequest:
+    properties:
+      email:
+        example: player1@example.com
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,custom_email"
+      password:
+        example: SecurePassword123!
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required"
+    required:
+      - password
+    type: object
+  request.RegisterRequest:
+    properties:
+      email:
+        example: player1@example.com
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_email"
+      password:
+        example: SecurePassword123!
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,strong_password"
+      username:
+        example: player1
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_username"
+      custom_fields:
+        description: Custom field values (field_id -> value)
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  response.MeResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+        description: user role (admin, user)
+      team_id:
+        type: string
+      username:
+        type: string
+    type: object
+  response.RegisterResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  request.LogoutRequest:
+    description: Optional body for logout. The refresh token can also be passed via Authorization header.
+    properties:
+      refresh_token:
+        type: string
+    type: object

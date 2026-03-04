@@ -12,24 +12,28 @@ import (
 )
 
 func TestNewBroadcaster(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	b := NewBroadcaster(hub)
 	require.NotNil(t, b)
 }
 
 func TestBroadcaster_NotifySolve_NilBroadcaster(t *testing.T) {
+	t.Parallel()
 	var b *Broadcaster
 	b.NotifySolve(uuid.New(), "ch", 100, false)
 	b.NotifySolve(uuid.New(), "ch", 100, true)
 }
 
 func TestBroadcaster_NotifySolve_NilHub(t *testing.T) {
+	t.Parallel()
 	b := NewBroadcaster(nil)
 	b.NotifySolve(uuid.New(), "ch", 100, false)
 	b.NotifySolve(uuid.New(), "ch", 100, true)
 }
 
 func TestBroadcaster_NotifySolve_WithHub_NoFirstBlood(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
@@ -66,6 +70,7 @@ func TestBroadcaster_NotifySolve_WithHub_NoFirstBlood(t *testing.T) {
 }
 
 func TestBroadcaster_NotifySolve_WithHub_FirstBlood(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
@@ -106,16 +111,19 @@ func TestBroadcaster_NotifySolve_WithHub_FirstBlood(t *testing.T) {
 }
 
 func TestBroadcaster_NotifyNotification_NilBroadcaster(t *testing.T) {
+	t.Parallel()
 	var b *Broadcaster
 	b.NotifyNotification("msg", "info")
 }
 
 func TestBroadcaster_NotifyNotification_NilHub(t *testing.T) {
+	t.Parallel()
 	b := NewBroadcaster(nil)
 	b.NotifyNotification("msg", "warning")
 }
 
 func TestBroadcaster_NotifyNotification_WithHub(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 

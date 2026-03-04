@@ -1,32 +1,22 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/pkg/logger"
+	configmocks "github.com/TakuyaYagam1/AstroCTFb/config/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-type mockVaultClient struct {
-	secrets map[string]map[string]any
-	err     error
-}
-
-func (m *mockVaultClient) GetSecret(path string) (map[string]any, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.secrets[path], nil
-}
 
 func TestGetEnv_Success(t *testing.T) {
 	key := "TEST_GETENV_SUCCESS"
 	os.Setenv(key, "  value  ")
 	t.Cleanup(func() { os.Unsetenv(key) })
-
 	got := getEnv(key, "default")
 	assert.Equal(t, "value", got)
 }
@@ -40,7 +30,6 @@ func TestGetEnvInt_Success(t *testing.T) {
 	key := "TEST_GETENVINT_SUCCESS"
 	os.Setenv(key, "42")
 	t.Cleanup(func() { os.Unsetenv(key) })
-
 	got := getEnvInt(key, 0)
 	assert.Equal(t, 42, got)
 }
@@ -58,7 +47,6 @@ func TestGetEnvBool_Success(t *testing.T) {
 	key := "TEST_GETENVBOOL_SUCCESS"
 	os.Setenv(key, "true")
 	t.Cleanup(func() { os.Unsetenv(key) })
-
 	got := getEnvBool(key, false)
 	assert.True(t, got)
 }
@@ -67,7 +55,6 @@ func TestGetEnvBool_Invalid(t *testing.T) {
 	key := "TEST_GETENVBOOL_INVALID"
 	os.Setenv(key, "notabool")
 	t.Cleanup(func() { os.Unsetenv(key) })
-
 	got := getEnvBool(key, true)
 	assert.True(t, got)
 }
@@ -84,13 +71,10 @@ func TestParseCORSOrigins_Empty(t *testing.T) {
 
 func TestVaultFetch_Success(t *testing.T) {
 	applied := false
-	client := &mockVaultClient{
-		secrets: map[string]map[string]any{
-			"test/path": {"key": "value"},
-		},
-	}
+	client := configmocks.NewMockVaultSecretGetter(t)
+	client.EXPECT().GetSecret(mock.Anything, "test/path").Return(map[string]any{"key": "value"}, nil)
 	l := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
-	fn := vaultFetch(client, l, "test/path", "test", "fallback", func(s map[string]any) {
+	fn := vaultFetch(context.Background(), client, l, "test/path", "test", "fallback", func(s map[string]any) {
 		applied = true
 		assert.Equal(t, "value", s["key"])
 	})
@@ -101,9 +85,10 @@ func TestVaultFetch_Success(t *testing.T) {
 
 func TestVaultFetch_Error(t *testing.T) {
 	applied := false
-	client := &mockVaultClient{err: errors.New("vault error")}
+	client := configmocks.NewMockVaultSecretGetter(t)
+	client.EXPECT().GetSecret(mock.Anything, mock.Anything).Return(nil, errors.New("vault error"))
 	l := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
-	fn := vaultFetch(client, l, "test/path", "test", "fallback", func(map[string]any) {
+	fn := vaultFetch(context.Background(), client, l, "test/path", "test", "fallback", func(map[string]any) {
 		applied = true
 	})
 	err := fn()

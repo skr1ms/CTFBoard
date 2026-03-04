@@ -3,9 +3,10 @@ package v1
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Get published pages list
@@ -41,23 +42,14 @@ func (h *Server) GetAdminPages(w http.ResponseWriter, r *http.Request) {
 // Create page
 // (POST /admin/pages)
 func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreatePageRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminPages")
+	req, ok := helper.DecodeAndValidate[openapi.CreatePageRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminPages",
+	)
 	if !ok {
 		return
 	}
-	content := ""
-	if req.Content != nil {
-		content = *req.Content
-	}
-	isDraft := true
-	if req.IsDraft != nil {
-		isDraft = *req.IsDraft
-	}
-	orderIndex := 0
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	page, err := h.admin.PageUC.Create(r.Context(), req.Title, req.Slug, content, isDraft, orderIndex)
+	title, slug, content, isDraft, orderIndex := request.CreatePageRequestToParams(&req)
+	page, err := h.admin.PageUC.Create(r.Context(), title, slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
 	}
@@ -66,8 +58,8 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 
 // Get page by ID (admin)
 // (GET /admin/pages/{ID})
-func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
+	pageID, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -80,28 +72,19 @@ func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 
 // Update page
 // (PUT /admin/pages/{ID})
-func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
+	pageID, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdatePageRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminPagesID")
+	req, ok := helper.DecodeAndValidate[openapi.UpdatePageRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminPagesID",
+	)
 	if !ok {
 		return
 	}
-	content := ""
-	if req.Content != nil {
-		content = *req.Content
-	}
-	isDraft := false
-	if req.IsDraft != nil {
-		isDraft = *req.IsDraft
-	}
-	orderIndex := 0
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	page, err := h.admin.PageUC.Update(r.Context(), pageID, req.Title, req.Slug, content, isDraft, orderIndex)
+	title, slug, content, isDraft, orderIndex := request.UpdatePageRequestToParams(&req)
+	page, err := h.admin.PageUC.Update(r.Context(), pageID, title, slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return
 	}
@@ -110,8 +93,8 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, id stri
 
 // Delete page
 // (DELETE /admin/pages/{ID})
-func (h *Server) DeleteAdminPagesID(w http.ResponseWriter, r *http.Request, id string) {
-	pageID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) DeleteAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
+	pageID, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}

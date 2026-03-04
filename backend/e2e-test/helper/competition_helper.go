@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,6 +55,13 @@ func (h *E2EHelper) GetCompetitionStatus() *openapi.GetCompetitionStatusResponse
 
 func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 	h.t.Helper()
+	statusResp := h.GetCompetitionStatus()
+	if statusResp.JSON200 != nil && statusResp.JSON200.Status != nil {
+		switch *statusResp.JSON200.Status {
+		case "active", "paused", "frozen":
+			return
+		}
+	}
 	h.PutAdminCompetitionExpectStatus(token, data, http.StatusOK)
 }
 
@@ -83,6 +90,13 @@ func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
 
 func (h *E2EHelper) StartCompetition(adminToken string) {
 	h.t.Helper()
+	statusResp := h.GetCompetitionStatus()
+	if statusResp.JSON200 != nil && statusResp.JSON200.Status != nil {
+		switch *statusResp.JSON200.Status {
+		case "active", "paused", "frozen":
+			return
+		}
+	}
 	now := time.Now().UTC()
 	h.UpdateCompetition(adminToken, map[string]any{
 		"name":              "Test CTF",
@@ -92,6 +106,23 @@ func (h *E2EHelper) StartCompetition(adminToken string) {
 		"allow_team_switch": true,
 		"mode":              "flexible",
 	})
+}
+
+func (h *E2EHelper) SetupCompetitionEnded(adminNamePrefix string) (string, string) {
+	h.t.Helper()
+	suffix := UID()
+	username := adminNamePrefix + "_" + suffix
+	_, _, token := h.RegisterAdmin(username)
+	now := time.Now().UTC()
+	h.PutAdminCompetitionExpectStatus(token, map[string]any{
+		"name":              "Test CTF",
+		"start_time":        now.Add(-2 * time.Hour).Format(time.RFC3339),
+		"end_time":          now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"is_paused":         false,
+		"allow_team_switch": true,
+		"mode":              "flexible",
+	}, http.StatusOK)
+	return username, token
 }
 
 func (h *E2EHelper) GetAdminCompetition(token string) *openapi.GetAdminCompetitionResponse {

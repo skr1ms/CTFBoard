@@ -3,29 +3,30 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
-func ChallengeVisibility(competitionUC *competition.CompetitionUseCase) func(http.Handler) http.Handler {
+func ChallengeVisibility(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, hasUser := GetUser(r.Context())
-			if hasUser && user.Role == entity.RoleAdmin {
+			user, ok := GetUser(r.Context())
+			if ok && user != nil && user.Role == entity.RoleAdmin {
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get competition status")
+				httputil.HandleError(w, r, err)
 				return
 			}
 
 			status := comp.GetStatus()
 			if status == entity.CompetitionStatusNotStarted {
-				httputil.RenderError(w, r, http.StatusForbidden, "challenges are not yet available")
+				httputil.HandleError(w, r, httperr.ErrCompetitionNotStarted)
 				return
 			}
 

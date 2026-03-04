@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification/mocks"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/notification/mocks"
 )
 
 type NotificationTestHelper struct {
@@ -35,7 +35,7 @@ func (h *NotificationTestHelper) Deps() *notificationTestDeps {
 
 func (h *NotificationTestHelper) CreateUseCase() *NotificationUseCase {
 	h.t.Helper()
-	return NewNotificationUseCase(h.deps.notifRepo)
+	return NewNotificationUseCase(NotificationDeps{NotifRepo: h.deps.notifRepo})
 }
 
 func (h *NotificationTestHelper) NewNotification(title, content string, notifType entity.NotificationType, isPinned, isGlobal bool) *entity.Notification {

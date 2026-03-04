@@ -3,17 +3,17 @@ package helper
 import (
 	"testing"
 
-	"github.com/gavv/httpexpect/v2"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
 type E2EHelper struct {
 	t       *testing.T
-	e       *httpexpect.Expect
 	client  *openapi.ClientWithResponses
 	pool    *pgxpool.Pool
+	redis   *redis.Client
 	baseURL string
 }
 
@@ -21,15 +21,15 @@ func (h *E2EHelper) Pool() *pgxpool.Pool {
 	return h.pool
 }
 
-func NewE2EHelper(t *testing.T, e *httpexpect.Expect, pool *pgxpool.Pool, baseURL string) *E2EHelper {
+func NewE2EHelper(t *testing.T, _ any, pool *pgxpool.Pool, redisClient *redis.Client, baseURL string) *E2EHelper {
 	t.Helper()
 	client, err := openapi.NewClientWithResponses(baseURL + "/api/v1")
 	require.NoError(t, err)
 	return &E2EHelper{
 		t:       t,
-		e:       e,
 		client:  client,
 		pool:    pool,
+		redis:   redisClient,
 		baseURL: baseURL,
 	}
 }

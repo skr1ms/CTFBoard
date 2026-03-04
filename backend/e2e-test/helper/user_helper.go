@@ -3,13 +3,12 @@ package helper
 import (
 	"context"
 	"net/http"
-	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
-func (h *E2EHelper) RegisterLoginAndGetMe(ctx context.Context, username, email, password string) *openapi.ResponseMeResponse {
+func (h *E2EHelper) RegisterLoginAndGetMe(ctx context.Context, username, email, password string) *openapi.MeResponse {
 	h.t.Helper()
 	regResp := h.RegisterWithClient(ctx, h.client, username, email, password)
 	RequireStatus(h.t, http.StatusCreated, regResp.StatusCode(), regResp.Body, "register")
@@ -73,7 +72,7 @@ func (h *E2EHelper) Login(email, password string, expectStatus int) *openapi.Pos
 func (h *E2EHelper) ForgotPassword(email string, expectStatus int) {
 	h.t.Helper()
 	resp, err := h.client.PostAuthForgotPasswordWithResponse(context.Background(), openapi.PostAuthForgotPasswordJSONRequestBody{
-		Email: &email,
+		Email: email,
 	})
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "forgot-password")
@@ -88,7 +87,7 @@ func (h *E2EHelper) ResetPasswordExpectStatus(token, newPassword string, expectS
 	h.t.Helper()
 	resp, err := h.client.PostAuthResetPasswordWithResponse(context.Background(), openapi.PostAuthResetPasswordJSONRequestBody{
 		Token:       token,
-		NewPassword: &newPassword,
+		NewPassword: newPassword,
 	})
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "reset-password")
@@ -113,9 +112,26 @@ func (h *E2EHelper) ResendVerification(token string, expectStatus int) {
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "resend-verification")
 }
 
+func (h *E2EHelper) Refresh(refreshToken string, expectStatus int) *openapi.PostAuthRefreshResponse {
+	h.t.Helper()
+	params := &openapi.PostAuthRefreshParams{Authorization: refreshToken}
+	resp, err := h.client.PostAuthRefreshWithResponse(context.Background(), params)
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "refresh")
+	return resp
+}
+
 func (h *E2EHelper) GetPublicProfile(userID string, expectStatus int) *openapi.GetUsersIDResponse {
 	h.t.Helper()
 	resp, err := h.client.GetUsersIDWithResponse(context.Background(), userID)
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get user profile")
+	return resp
+}
+
+func (h *E2EHelper) GetProfileWithAuth(token, userID string, expectStatus int) *openapi.GetUsersIDResponse {
+	h.t.Helper()
+	resp, err := h.client.GetUsersIDWithResponse(context.Background(), userID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get user profile")
 	return resp
@@ -151,7 +167,7 @@ func (h *E2EHelper) DeleteUserToken(token, id string, expectStatus int) *openapi
 func (h *E2EHelper) RegisterUserAndLogin(username string) (email, password, token string) {
 	h.t.Helper()
 	email = username + "@example.com"
-	password = "password123"
+	password = "ValidPass1"
 	h.Register(username, email, password)
 	token = RequireLoginOK(h.t, h.Login(email, password, http.StatusOK))
 	return email, password, "Bearer " + token
@@ -160,7 +176,7 @@ func (h *E2EHelper) RegisterUserAndLogin(username string) (email, password, toke
 func (h *E2EHelper) RegisterUser(username string) (email, password string) {
 	h.t.Helper()
 	email = username + "@example.com"
-	password = "password123"
+	password = "ValidPass1"
 	h.Register(username, email, password)
 	return email, password
 }
@@ -175,6 +191,21 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 	userID := *meResp.JSON200.ID
 	_, err := h.pool.Exec(context.Background(), "UPDATE users SET role = 'admin' WHERE ID = $1", userID)
 	require.NoError(h.t, err)
+	if h.redis != nil {
+		// Invalidate user cache so InjectUser loads fresh role from DB. Del by prefix in case key format differs.
+		var cursor uint64
+		for {
+			keys, next, err := h.redis.Scan(context.Background(), cursor, "user:*", 100).Result()
+			require.NoError(h.t, err)
+			if len(keys) > 0 {
+				require.NoError(h.t, h.redis.Del(context.Background(), keys...).Err())
+			}
+			cursor = next
+			if cursor == 0 {
+				break
+			}
+		}
+	}
 	resp := h.Login(email, password, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
 	token = "Bearer " + *resp.JSON200.AccessToken
@@ -183,7 +214,7 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 
 func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
 	h.t.Helper()
-	suffix := time.Now().Format("150405")
+	suffix := UID()
 	username := adminNamePrefix + "_" + suffix
 	_, _, token := h.RegisterAdmin(username)
 	h.StartCompetition(token)

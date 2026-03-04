@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,9 +48,11 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		Timestamp: now,
 	}
 	go func() {
-		b.hub.BroadcastEvent(solveEv)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		b.hub.BroadcastEvent(ctx, solveEv)
 		if isFirstBlood {
-			b.hub.BroadcastEvent(firstBloodEv)
+			b.hub.BroadcastEvent(ctx, firstBloodEv)
 		}
 	}()
 }
@@ -69,7 +72,11 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		},
 		Timestamp: now,
 	}
-	go func() { b.hub.BroadcastEvent(ev) }()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		b.hub.BroadcastEvent(ctx, ev)
+	}()
 }
 
 var _ SolveBroadcaster = (*Broadcaster)(nil)

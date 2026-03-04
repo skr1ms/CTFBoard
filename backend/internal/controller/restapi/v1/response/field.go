@@ -1,42 +1,42 @@
 package response
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromField(f *entity.Field) openapi.ResponseFieldResponse {
+func FromField(f *entity.Field) openapi.FieldResponse {
 	var opts *[]string
 	if len(f.Options) > 0 {
 		opts = &f.Options
 	}
-	var fieldType openapi.ResponseFieldResponseFieldType
+	var fieldType openapi.FieldResponseFieldType
 	switch f.FieldType {
 	case entity.FieldTypeText:
-		fieldType = openapi.Text
+		fieldType = openapi.FieldResponseFieldTypeText
 	case entity.FieldTypeNumber:
-		fieldType = openapi.Number
+		fieldType = openapi.FieldResponseFieldTypeNumber
 	case entity.FieldTypeSelect:
-		fieldType = openapi.Select
+		fieldType = openapi.FieldResponseFieldTypeSelect
 	case entity.FieldTypeBoolean:
-		fieldType = openapi.Boolean
+		fieldType = openapi.FieldResponseFieldTypeBoolean
 	default:
-		fieldType = openapi.Text
+		fieldType = openapi.FieldResponseFieldTypeText
 	}
-	var entityType openapi.ResponseFieldResponseEntityType
+	var entityType openapi.FieldResponseEntityType
 	switch f.EntityType {
 	case entity.EntityTypeUser:
-		entityType = openapi.ResponseFieldResponseEntityTypeUser
+		entityType = openapi.FieldResponseEntityTypeUser
 	case entity.EntityTypeTeam:
-		entityType = openapi.ResponseFieldResponseEntityTypeTeam
+		entityType = openapi.FieldResponseEntityTypeTeam
 	default:
-		entityType = openapi.ResponseFieldResponseEntityTypeUser
+		entityType = openapi.FieldResponseEntityTypeUser
 	}
-	return openapi.ResponseFieldResponse{
+	return openapi.FieldResponse{
 		ID:         ptr(f.ID.String()),
 		Name:       ptr(f.Name),
-		FieldType:  &fieldType,
-		EntityType: &entityType,
+		FieldType:  ptr(fieldType),
+		EntityType: ptr(entityType),
 		Required:   ptr(f.Required),
 		Options:    opts,
 		OrderIndex: ptr(f.OrderIndex),
@@ -44,8 +44,8 @@ func FromField(f *entity.Field) openapi.ResponseFieldResponse {
 	}
 }
 
-func FromFieldList(items []*entity.Field) []openapi.ResponseFieldResponse {
-	res := make([]openapi.ResponseFieldResponse, len(items))
+func FromFieldList(items []*entity.Field) []openapi.FieldResponse {
+	res := make([]openapi.FieldResponse, len(items))
 	for i, item := range items {
 		res[i] = FromField(item)
 	}

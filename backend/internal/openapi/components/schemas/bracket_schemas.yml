@@ -1,0 +1,47 @@
+schemas:
+  response.BracketResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      description:
+        type: string
+      is_default:
+        type: boolean
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  request.CreateBracketRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+      description:
+        type: string
+      is_default:
+        type: boolean
+        default: false
+    required:
+      - name
+    type: object
+  request.UpdateBracketRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+      description:
+        type: string
+      is_default:
+        type: boolean
+    required:
+      - name
+    type: object
+  request.SetTeamBracketRequest:
+    properties:
+      bracket_id:
+        type: string
+        format: uuid
+        nullable: true
+    type: object

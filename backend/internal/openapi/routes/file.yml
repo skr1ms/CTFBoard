@@ -1,0 +1,58 @@
+/files/{ID}/download:
+  get:
+    description: Returns presigned URL for file download
+    parameters:
+      - description: File ID
+        in: path
+        name: ID
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/FileDownloadURLResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get download URL
+    tags:
+      - Challenges
+
+/admin/files/{ID}:
+  delete:
+    description: Deletes file from storage. Admin only
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete file
+    tags:
+      - Admin

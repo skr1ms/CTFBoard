@@ -1,0 +1,5 @@
+BearerAuth:
+  description: 'JWT access token. Format: "Bearer {token}"'
+  in: header
+  name: Authorization
+  type: apiKey

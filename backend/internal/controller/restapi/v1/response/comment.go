@@ -1,12 +1,12 @@
 package response
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromComment(c *entity.Comment) openapi.ResponseCommentResponse {
-	return openapi.ResponseCommentResponse{
+func FromComment(c *entity.Comment) openapi.CommentResponse {
+	return openapi.CommentResponse{
 		ID:          ptr(c.ID.String()),
 		UserID:      ptr(c.UserID.String()),
 		ChallengeID: ptr(c.ChallengeID.String()),
@@ -16,8 +16,8 @@ func FromComment(c *entity.Comment) openapi.ResponseCommentResponse {
 	}
 }
 
-func FromCommentList(items []*entity.Comment) []openapi.ResponseCommentResponse {
-	res := make([]openapi.ResponseCommentResponse, len(items))
+func FromCommentList(items []*entity.Comment) []openapi.CommentResponse {
+	res := make([]openapi.CommentResponse, len(items))
 	for i, item := range items {
 		res[i] = FromComment(item)
 	}

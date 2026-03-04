@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 )
 
 // NewMockJWTService creates a new instance of MockJWTService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -120,8 +121,8 @@ func (_c *MockJWTService_GenerateTokenPair_Call) RunAndReturn(run func(userID uu
 }
 
 // RefreshTokens provides a mock function for the type MockJWTService
-func (_mock *MockJWTService) RefreshTokens(refreshTokenString string) (*jwt.TokenPair, error) {
-	ret := _mock.Called(refreshTokenString)
+func (_mock *MockJWTService) RefreshTokens(ctx context.Context, refreshTokenString string) (*jwt.TokenPair, error) {
+	ret := _mock.Called(ctx, refreshTokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RefreshTokens")
@@ -129,18 +130,18 @@ func (_mock *MockJWTService) RefreshTokens(refreshTokenString string) (*jwt.Toke
 
 	var r0 *jwt.TokenPair
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*jwt.TokenPair, error)); ok {
-		return returnFunc(refreshTokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*jwt.TokenPair, error)); ok {
+		return returnFunc(ctx, refreshTokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *jwt.TokenPair); ok {
-		r0 = returnFunc(refreshTokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *jwt.TokenPair); ok {
+		r0 = returnFunc(ctx, refreshTokenString)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*jwt.TokenPair)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(refreshTokenString)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, refreshTokenString)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -153,19 +154,25 @@ type MockJWTService_RefreshTokens_Call struct {
 }
 
 // RefreshTokens is a helper method to define mock.On call
+//   - ctx context.Context
 //   - refreshTokenString string
-func (_e *MockJWTService_Expecter) RefreshTokens(refreshTokenString interface{}) *MockJWTService_RefreshTokens_Call {
-	return &MockJWTService_RefreshTokens_Call{Call: _e.mock.On("RefreshTokens", refreshTokenString)}
+func (_e *MockJWTService_Expecter) RefreshTokens(ctx interface{}, refreshTokenString interface{}) *MockJWTService_RefreshTokens_Call {
+	return &MockJWTService_RefreshTokens_Call{Call: _e.mock.On("RefreshTokens", ctx, refreshTokenString)}
 }
 
-func (_c *MockJWTService_RefreshTokens_Call) Run(run func(refreshTokenString string)) *MockJWTService_RefreshTokens_Call {
+func (_c *MockJWTService_RefreshTokens_Call) Run(run func(ctx context.Context, refreshTokenString string)) *MockJWTService_RefreshTokens_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -176,7 +183,64 @@ func (_c *MockJWTService_RefreshTokens_Call) Return(tokenPair *jwt.TokenPair, er
 	return _c
 }
 
-func (_c *MockJWTService_RefreshTokens_Call) RunAndReturn(run func(refreshTokenString string) (*jwt.TokenPair, error)) *MockJWTService_RefreshTokens_Call {
+func (_c *MockJWTService_RefreshTokens_Call) RunAndReturn(run func(ctx context.Context, refreshTokenString string) (*jwt.TokenPair, error)) *MockJWTService_RefreshTokens_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeAccessToken provides a mock function for the type MockJWTService
+func (_mock *MockJWTService) RevokeAccessToken(ctx context.Context, accessTokenString string) error {
+	ret := _mock.Called(ctx, accessTokenString)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeAccessToken")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accessTokenString)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJWTService_RevokeAccessToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeAccessToken'
+type MockJWTService_RevokeAccessToken_Call struct {
+	*mock.Call
+}
+
+// RevokeAccessToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accessTokenString string
+func (_e *MockJWTService_Expecter) RevokeAccessToken(ctx interface{}, accessTokenString interface{}) *MockJWTService_RevokeAccessToken_Call {
+	return &MockJWTService_RevokeAccessToken_Call{Call: _e.mock.On("RevokeAccessToken", ctx, accessTokenString)}
+}
+
+func (_c *MockJWTService_RevokeAccessToken_Call) Run(run func(ctx context.Context, accessTokenString string)) *MockJWTService_RevokeAccessToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJWTService_RevokeAccessToken_Call) Return(err error) *MockJWTService_RevokeAccessToken_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJWTService_RevokeAccessToken_Call) RunAndReturn(run func(ctx context.Context, accessTokenString string) error) *MockJWTService_RevokeAccessToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -239,8 +303,8 @@ func (_c *MockJWTService_RevokeRefreshToken_Call) RunAndReturn(run func(ctx cont
 }
 
 // ValidateAccessToken provides a mock function for the type MockJWTService
-func (_mock *MockJWTService) ValidateAccessToken(tokenString string) (*jwt.CustomClaims, error) {
-	ret := _mock.Called(tokenString)
+func (_mock *MockJWTService) ValidateAccessToken(ctx context.Context, tokenString string) (*jwt.CustomClaims, error) {
+	ret := _mock.Called(ctx, tokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ValidateAccessToken")
@@ -248,18 +312,18 @@ func (_mock *MockJWTService) ValidateAccessToken(tokenString string) (*jwt.Custo
 
 	var r0 *jwt.CustomClaims
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*jwt.CustomClaims, error)); ok {
-		return returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*jwt.CustomClaims, error)); ok {
+		return returnFunc(ctx, tokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *jwt.CustomClaims); ok {
-		r0 = returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *jwt.CustomClaims); ok {
+		r0 = returnFunc(ctx, tokenString)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*jwt.CustomClaims)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, tokenString)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -272,19 +336,25 @@ type MockJWTService_ValidateAccessToken_Call struct {
 }
 
 // ValidateAccessToken is a helper method to define mock.On call
+//   - ctx context.Context
 //   - tokenString string
-func (_e *MockJWTService_Expecter) ValidateAccessToken(tokenString interface{}) *MockJWTService_ValidateAccessToken_Call {
-	return &MockJWTService_ValidateAccessToken_Call{Call: _e.mock.On("ValidateAccessToken", tokenString)}
+func (_e *MockJWTService_Expecter) ValidateAccessToken(ctx interface{}, tokenString interface{}) *MockJWTService_ValidateAccessToken_Call {
+	return &MockJWTService_ValidateAccessToken_Call{Call: _e.mock.On("ValidateAccessToken", ctx, tokenString)}
 }
 
-func (_c *MockJWTService_ValidateAccessToken_Call) Run(run func(tokenString string)) *MockJWTService_ValidateAccessToken_Call {
+func (_c *MockJWTService_ValidateAccessToken_Call) Run(run func(ctx context.Context, tokenString string)) *MockJWTService_ValidateAccessToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -295,14 +365,14 @@ func (_c *MockJWTService_ValidateAccessToken_Call) Return(customClaims *jwt.Cust
 	return _c
 }
 
-func (_c *MockJWTService_ValidateAccessToken_Call) RunAndReturn(run func(tokenString string) (*jwt.CustomClaims, error)) *MockJWTService_ValidateAccessToken_Call {
+func (_c *MockJWTService_ValidateAccessToken_Call) RunAndReturn(run func(ctx context.Context, tokenString string) (*jwt.CustomClaims, error)) *MockJWTService_ValidateAccessToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ValidateRefreshToken provides a mock function for the type MockJWTService
-func (_mock *MockJWTService) ValidateRefreshToken(tokenString string) (*jwt.CustomClaims, error) {
-	ret := _mock.Called(tokenString)
+func (_mock *MockJWTService) ValidateRefreshToken(ctx context.Context, tokenString string) (*jwt.CustomClaims, error) {
+	ret := _mock.Called(ctx, tokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ValidateRefreshToken")
@@ -310,18 +380,18 @@ func (_mock *MockJWTService) ValidateRefreshToken(tokenString string) (*jwt.Cust
 
 	var r0 *jwt.CustomClaims
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*jwt.CustomClaims, error)); ok {
-		return returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*jwt.CustomClaims, error)); ok {
+		return returnFunc(ctx, tokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *jwt.CustomClaims); ok {
-		r0 = returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *jwt.CustomClaims); ok {
+		r0 = returnFunc(ctx, tokenString)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*jwt.CustomClaims)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(tokenString)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, tokenString)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -334,19 +404,25 @@ type MockJWTService_ValidateRefreshToken_Call struct {
 }
 
 // ValidateRefreshToken is a helper method to define mock.On call
+//   - ctx context.Context
 //   - tokenString string
-func (_e *MockJWTService_Expecter) ValidateRefreshToken(tokenString interface{}) *MockJWTService_ValidateRefreshToken_Call {
-	return &MockJWTService_ValidateRefreshToken_Call{Call: _e.mock.On("ValidateRefreshToken", tokenString)}
+func (_e *MockJWTService_Expecter) ValidateRefreshToken(ctx interface{}, tokenString interface{}) *MockJWTService_ValidateRefreshToken_Call {
+	return &MockJWTService_ValidateRefreshToken_Call{Call: _e.mock.On("ValidateRefreshToken", ctx, tokenString)}
 }
 
-func (_c *MockJWTService_ValidateRefreshToken_Call) Run(run func(tokenString string)) *MockJWTService_ValidateRefreshToken_Call {
+func (_c *MockJWTService_ValidateRefreshToken_Call) Run(run func(ctx context.Context, tokenString string)) *MockJWTService_ValidateRefreshToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -357,7 +433,7 @@ func (_c *MockJWTService_ValidateRefreshToken_Call) Return(customClaims *jwt.Cus
 	return _c
 }
 
-func (_c *MockJWTService_ValidateRefreshToken_Call) RunAndReturn(run func(tokenString string) (*jwt.CustomClaims, error)) *MockJWTService_ValidateRefreshToken_Call {
+func (_c *MockJWTService_ValidateRefreshToken_Call) RunAndReturn(run func(ctx context.Context, tokenString string) (*jwt.CustomClaims, error)) *MockJWTService_ValidateRefreshToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -6,29 +6,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestAwardUseCase_Create(t *testing.T) {
-	h := NewAwardTestHelper(t)
+	t.Parallel()
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
-		h.TxRepo().On("RunTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-			ctx, ok := args.Get(0).(context.Context)
-			if !ok {
-				return
-			}
-			fn, ok := args.Get(1).(func(context.Context, repo.Transaction) error)
-			if !ok {
-				return
-			}
-			assert.NoError(t, fn(ctx, nil))
-		}).Return(nil).Once()
-		h.TxRepo().On("CreateAwardTx", mock.Anything, mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
+		t.Parallel()
+		h := NewAwardTestHelper(t)
+		h.TM().EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(ctx)
+		})
+		h.Repo().On("Create", mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
 			return a.TeamID == h.TeamID() && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == h.AdminID()
 		})).Return(nil).Once()
 
@@ -41,6 +34,8 @@ func TestAwardUseCase_Create(t *testing.T) {
 	})
 
 	t.Run("ZeroValue", func(t *testing.T) {
+		t.Parallel()
+		h := NewAwardTestHelper(t)
 		award, err := h.CreateUseCase().Create(ctx, h.TeamID(), 0, "Zero", h.AdminID())
 
 		assert.Error(t, err)
@@ -49,7 +44,9 @@ func TestAwardUseCase_Create(t *testing.T) {
 	})
 
 	t.Run("RepoError", func(t *testing.T) {
-		h.TxRepo().On("RunTransaction", mock.Anything, mock.Anything).Return(errors.New("db error")).Once()
+		t.Parallel()
+		h := NewAwardTestHelper(t)
+		h.TM().On("Run", mock.Anything, mock.Anything).Return(errors.New("db error")).Once()
 
 		award, err := h.CreateUseCase().Create(ctx, h.TeamID(), 50, "Error", h.AdminID())
 
@@ -60,11 +57,13 @@ func TestAwardUseCase_Create(t *testing.T) {
 }
 
 func TestAwardUseCase_GetByTeamID(t *testing.T) {
-	h := NewAwardTestHelper(t)
+	t.Parallel()
 	ctx := context.Background()
-	teamID := h.TeamID()
 
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+		h := NewAwardTestHelper(t)
+		teamID := h.TeamID()
 		expectedAwards := []*entity.Award{
 			h.NewAward(teamID, 100, time.Now()),
 			h.NewAward(teamID, -50, time.Now()),
@@ -80,6 +79,9 @@ func TestAwardUseCase_GetByTeamID(t *testing.T) {
 	})
 
 	t.Run("RepoError", func(t *testing.T) {
+		t.Parallel()
+		h := NewAwardTestHelper(t)
+		teamID := h.TeamID()
 		h.Repo().On("GetByTeamID", ctx, teamID).Return(nil, errors.New("db error")).Once()
 
 		awards, err := h.CreateUseCase().GetByTeamID(ctx, teamID)

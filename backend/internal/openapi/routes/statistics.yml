@@ -1,0 +1,305 @@
+/statistics/challenges:
+  get:
+    description: Returns statistics for all challenges including solve counts
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/ChallengeStats'
+              type: array
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get challenge statistics
+    tags:
+      - Statistics
+
+/statistics/challenges/{ID}:
+  get:
+    description: Returns detailed statistics for a single challenge (solves, first blood, percentage)
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ChallengeDetailStats'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Challenge not found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get challenge detail statistics
+    tags:
+      - Statistics
+
+/statistics/general:
+  get:
+    description: Returns general platform statistics (counts of users, teams, challenges, solves)
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/GeneralStats'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get general statistics
+    tags:
+      - Statistics
+
+/statistics/scoreboard:
+  get:
+    description: Returns scoreboard history for graph visualization. Default limit 10 (max 50)
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        description: Number of teams to include in history (default 10, max 50)
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/ScoreboardHistoryEntry'
+              type: array
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get scoreboard history
+    tags:
+      - Statistics
+
+/statistics/challenges/solves/percentages:
+  get:
+    description: Returns solve percentage for each challenge
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/ChallengeSolvePercentage'
+              type: array
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get challenge solve percentages
+    tags:
+      - Statistics
+
+/statistics/scores/distribution:
+  get:
+    description: Returns distribution of team scores across ranges
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/ScoreDistributionBucket'
+              type: array
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get score distribution
+    tags:
+      - Statistics
+
+/statistics/submissions:
+  get:
+    description: Returns aggregated submission statistics per day
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionTimeSeriesResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get submission statistics
+    tags:
+      - Statistics
+
+/statistics/submissions/{type}:
+  get:
+    description: Returns submission statistics per day filtered by type (correct or incorrect)
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [correct, incorrect]
+        description: Submission type filter
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/RegistrationTimePoint'
+              type: array
+      "400":
+        description: Bad Request (invalid type)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get submission statistics by type
+    tags:
+      - Statistics
+
+/statistics/teams:
+  get:
+    description: Returns team registration statistics per day. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/RegistrationTimePoint'
+              type: array
+      "403":
+        description: Forbidden
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get team registration statistics
+    tags:
+      - Statistics
+
+/statistics/users:
+  get:
+    description: Returns user registration statistics per day. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/RegistrationTimePoint'
+              type: array
+      "403":
+        description: Forbidden
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get user registration statistics
+    tags:
+      - Statistics
+
+/admin/statistics/solve-matrix:
+  get:
+    description: Returns solve matrix showing which teams solved which challenges. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/SolveMatrixRow'
+              type: array
+      "403":
+        description: Forbidden
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get solve matrix
+    tags:
+      - Statistics

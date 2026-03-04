@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,30 +19,30 @@ type TestFixture struct {
 	ChallengeRepo         *persistent.ChallengeRepo
 	SolveRepo             *persistent.SolveRepo
 	HintRepo              *persistent.HintRepo
-	HintUnlockRepo        *persistent.HintUnlockRepo
 	AwardRepo             *persistent.AwardRepo
-	TxRepo                *persistent.TxRepo
+	TM                    *persistent.TransactionManager
 	CompetitionRepo       *persistent.CompetitionRepo
 	VerificationTokenRepo *persistent.VerificationTokenRepo
-	FileRepo              *persistent.FileRepository
+	FileRepo              *persistent.FileRepo
 	AuditLogRepo          *persistent.AuditLogRepo
-	StatisticsRepo        *persistent.StatisticsRepository
+	StatisticsRepo        *persistent.StatisticsRepo
 	BackupRepo            *persistent.BackupRepo
-	AppSettingsRepo       *persistent.AppSettingsRepo
+	SettingsRepo          *persistent.SettingsRepo
 	TagRepo               *persistent.TagRepo
 	CommentRepo           *persistent.CommentRepo
 	BracketRepo           *persistent.BracketRepo
-	ConfigRepo            *persistent.ConfigRepo
+	CompetitionParamRepo  *persistent.CompetitionParamRepo
 	FieldRepo             *persistent.FieldRepo
 	FieldValueRepo        *persistent.FieldValueRepo
 	NotificationRepo      *persistent.NotificationRepo
 	PageRepo              *persistent.PageRepo
-	RatingRepo            *persistent.RatingRepo
 	SubmissionRepo        *persistent.SubmissionRepo
 	APITokenRepo          *persistent.APITokenRepo
+	OAuthRepo             *persistent.OAuthRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
+	tm := persistent.NewTransactionManager(Pool)
 	return &TestFixture{
 		Pool:                  Pool,
 		UserRepo:              persistent.NewUserRepo(Pool),
@@ -51,36 +50,40 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		ChallengeRepo:         persistent.NewChallengeRepo(Pool),
 		SolveRepo:             persistent.NewSolveRepo(Pool),
 		HintRepo:              persistent.NewHintRepo(Pool),
-		HintUnlockRepo:        persistent.NewHintUnlockRepo(Pool),
 		AwardRepo:             persistent.NewAwardRepo(Pool),
-		TxRepo:                persistent.NewTxRepo(Pool),
+		TM:                    tm,
 		CompetitionRepo:       persistent.NewCompetitionRepo(Pool),
 		VerificationTokenRepo: persistent.NewVerificationTokenRepo(Pool),
-		FileRepo:              persistent.NewFileRepository(Pool),
+		FileRepo:              persistent.NewFileRepo(Pool),
 		AuditLogRepo:          persistent.NewAuditLogRepo(Pool),
-		StatisticsRepo:        persistent.NewStatisticsRepository(Pool),
+		StatisticsRepo:        persistent.NewStatisticsRepo(Pool),
 		BackupRepo:            persistent.NewBackupRepo(Pool),
-		AppSettingsRepo:       persistent.NewAppSettingsRepo(Pool),
+		SettingsRepo:          persistent.NewSettingsRepo(Pool),
 		TagRepo:               persistent.NewTagRepo(Pool),
 		CommentRepo:           persistent.NewCommentRepo(Pool),
 		BracketRepo:           persistent.NewBracketRepo(Pool),
-		ConfigRepo:            persistent.NewConfigRepo(Pool),
+		CompetitionParamRepo:  persistent.NewCompetitionParamRepo(Pool),
 		FieldRepo:             persistent.NewFieldRepo(Pool),
 		FieldValueRepo:        persistent.NewFieldValueRepo(Pool),
 		NotificationRepo:      persistent.NewNotificationRepo(Pool),
 		PageRepo:              persistent.NewPageRepo(Pool),
-		RatingRepo:            persistent.NewRatingRepo(Pool),
 		SubmissionRepo:        persistent.NewSubmissionRepo(Pool),
 		APITokenRepo:          persistent.NewAPITokenRepo(Pool),
+		OAuthRepo:             persistent.NewOAuthRepo(Pool),
 	}
 }
 
 func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 	t.Helper()
+	// Username and email must fit varchar(50): "user_" = 5, "@x.com" = 6, so unique at most 39.
+	unique := suffix + "_" + uuid.NewString()[:8]
+	if len(unique) > 39 {
+		unique = unique[:39]
+	}
 	ctx := context.Background()
 	user := &entity.User{
-		Username:     "user_" + suffix,
-		Email:        "user_" + suffix + "@x.com",
+		Username:     "user_" + unique,
+		Email:        "user_" + unique + "@x.com",
 		PasswordHash: "hash123",
 	}
 	err := f.UserRepo.Create(ctx, user)
@@ -94,18 +97,17 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 
 func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUID) *entity.Team {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	team := &entity.Team{
-		Name:        "team_" + suffix,
+		Name:        "team_" + unique,
 		InviteToken: uuid.New(),
 		CaptainID:   captainID,
 	}
-	err := f.TeamRepo.Create(ctx, team)
+	err := f.TM.Run(ctx, func(ctx context.Context) error {
+		return f.TeamRepo.Create(ctx, team)
+	})
 	require.NoError(t, err)
-
-	gotTeam, err := f.TeamRepo.GetByName(ctx, team.Name)
-	require.NoError(t, err)
-	team.ID = gotTeam.ID
 	return team
 }
 
@@ -113,43 +115,54 @@ func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*entity.U
 	t.Helper()
 	user := f.CreateUser(t, suffix)
 	team := f.CreateTeam(t, suffix, user.ID)
+	err := f.UserRepo.UpdateTeamID(context.Background(), user.ID, &team.ID)
+	require.NoError(t, err)
+	user.TeamID = &team.ID
 	return user, team
 }
 
 func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *entity.Challenge {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	challenge := &entity.Challenge{
-		Title:        "Challenge " + suffix,
-		Description:  "Description " + suffix,
+		Title:        "Challenge " + unique,
+		Description:  "Description " + unique,
 		Category:     "Web",
 		Points:       points,
-		FlagHash:     "hash_" + suffix,
+		FlagHash:     "hash_" + unique,
 		IsHidden:     false,
 		InitialValue: points,
 		MinValue:     points,
 		Decay:        0,
 	}
-	err := f.ChallengeRepo.Create(ctx, challenge)
+	challenge.ID = uuid.New()
+	err := f.TM.Run(ctx, func(ctx context.Context) error {
+		return f.ChallengeRepo.Create(ctx, challenge)
+	})
 	require.NoError(t, err)
 	return challenge
 }
 
 func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, minValue, decay int) *entity.Challenge {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	challenge := &entity.Challenge{
-		Title:        "Dynamic " + suffix,
-		Description:  "Description " + suffix,
+		Title:        "Dynamic " + unique,
+		Description:  "Description " + unique,
 		Category:     "Pwn",
 		Points:       initial,
-		FlagHash:     "hash_" + suffix,
+		FlagHash:     "hash_" + unique,
 		IsHidden:     false,
 		InitialValue: initial,
 		MinValue:     minValue,
 		Decay:        decay,
 	}
-	err := f.ChallengeRepo.Create(ctx, challenge)
+	challenge.ID = uuid.New()
+	err := f.TM.Run(ctx, func(ctx context.Context) error {
+		return f.ChallengeRepo.Create(ctx, challenge)
+	})
 	require.NoError(t, err)
 	return challenge
 }
@@ -171,12 +184,17 @@ func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, orde
 func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid.UUID) *entity.Solve {
 	t.Helper()
 	ctx := context.Background()
+	challenge, err := f.ChallengeRepo.GetByID(ctx, challengeID)
+	require.NoError(t, err)
 	solve := &entity.Solve{
-		UserID:      userID,
-		TeamID:      teamID,
-		ChallengeID: challengeID,
+		UserID:        userID,
+		TeamID:        teamID,
+		ChallengeID:   challengeID,
+		PointsAtSolve: challenge.Points,
 	}
-	err := f.SolveRepo.Create(ctx, solve)
+	err = f.TM.Run(ctx, func(ctx context.Context) error {
+		return f.SolveRepo.Create(ctx, solve)
+	})
 	require.NoError(t, err)
 
 	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, teamID, challengeID)
@@ -186,15 +204,31 @@ func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid
 	return solve
 }
 
-func (f *TestFixture) CreateAwardTx(t *testing.T, tx repo.Transaction, teamID uuid.UUID, value int, desc string) *entity.Award {
+func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uuid.UUID, value int, desc string) *entity.Award {
+	t.Helper()
+	award := &entity.Award{
+		TeamID:      teamID,
+		Value:       value,
+		Description: desc,
+	}
+	err := f.AwardRepo.Create(ctx, award)
+	require.NoError(t, err)
+	return award
+}
+
+// CreateAward creates an award inside a transaction (production path). Use in tests.
+func (f *TestFixture) CreateAward(t *testing.T, teamID uuid.UUID, value int, desc string, createdBy *uuid.UUID) *entity.Award {
 	t.Helper()
 	ctx := context.Background()
 	award := &entity.Award{
 		TeamID:      teamID,
 		Value:       value,
 		Description: desc,
+		CreatedBy:   createdBy,
 	}
-	err := f.TxRepo.CreateAwardTx(ctx, tx, award)
+	err := f.TM.Run(ctx, func(ctx context.Context) error {
+		return f.AwardRepo.Create(ctx, award)
+	})
 	require.NoError(t, err)
 	return award
 }
@@ -230,19 +264,20 @@ func (f *TestFixture) NewMinimalBackupData(t *testing.T) *entity.BackupData {
 	}
 }
 
-func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.AppSettings {
+func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.Settings {
 	t.Helper()
 	ctx := context.Background()
-	settings, err := f.AppSettingsRepo.Get(ctx)
+	settings, err := f.SettingsRepo.Get(ctx)
 	require.NoError(t, err)
 	return settings
 }
 
 func (f *TestFixture) CreateTag(t *testing.T, suffix string) *entity.Tag {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	tag := &entity.Tag{
-		Name:  "tag_" + suffix,
+		Name:  "tag_" + unique,
 		Color: "#ff0000",
 	}
 	err := f.TagRepo.Create(ctx, tag)
@@ -268,9 +303,10 @@ func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID,
 
 func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *entity.Bracket {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	bracket := &entity.Bracket{
-		Name:        "bracket_" + suffix,
+		Name:        "bracket_" + unique,
 		Description: "desc",
 		IsDefault:   false,
 	}
@@ -284,10 +320,11 @@ func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *entity.Bracket
 
 func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *entity.Page {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	page := &entity.Page{
-		Title:      "Page " + suffix,
-		Slug:       "page-" + suffix,
+		Title:      "Page " + unique,
+		Slug:       "page-" + unique,
 		Content:    "content",
 		IsDraft:    isDraft,
 		OrderIndex: 0,
@@ -302,9 +339,10 @@ func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *ent
 
 func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *entity.Notification {
 	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	notif := &entity.Notification{
-		Title:    "Notif " + suffix,
+		Title:    "Notif " + unique,
 		Content:  "content",
 		Type:     entity.NotificationInfo,
 		IsPinned: false,
@@ -315,11 +353,26 @@ func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *entity.No
 	return notif
 }
 
-func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType entity.EntityType) *entity.Field {
+func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, tokenType entity.TokenType) *entity.VerificationToken {
 	t.Helper()
 	ctx := context.Background()
+	tok := &entity.VerificationToken{
+		UserID:    userID,
+		Token:     "token_" + uuid.New().String(),
+		Type:      tokenType,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+	err := f.VerificationTokenRepo.Create(ctx, tok)
+	require.NoError(t, err)
+	return tok
+}
+
+func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType entity.EntityType) *entity.Field {
+	t.Helper()
+	unique := suffix + "_" + uuid.NewString()[:8]
+	ctx := context.Background()
 	field := &entity.Field{
-		Name:       "field_" + suffix,
+		Name:       "field_" + unique,
 		FieldType:  entity.FieldTypeText,
 		EntityType: entityType,
 		Required:   false,
@@ -335,19 +388,20 @@ func (f *TestFixture) ResetAppSettings(t *testing.T) {
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, `
 		UPDATE app_settings SET 
-			app_name = 'CTFBoard',
+			app_name = 'AstroCTFb',
 			verify_emails = TRUE,
 			frontend_url = 'http://localhost:3000',
 			cors_origins = 'http://localhost:3000,http://localhost:5173',
 			resend_enabled = FALSE,
-			resend_from_email = 'noreply@ctfboard.local',
-			resend_from_name = 'CTFBoard',
+			resend_from_email = 'noreply@astroctfb.local',
+			resend_from_name = 'AstroCTFb',
 			verify_ttl_hours = 24,
 			reset_ttl_hours = 1,
 			submit_limit_per_user = 10,
 			submit_limit_duration_min = 1,
 			scoreboard_visible = 'public',
 			registration_open = TRUE,
+			writeup_enabled = TRUE,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = 1
 	`)

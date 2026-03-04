@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,37 +12,38 @@ import (
 	"testing"
 	"time"
 
+	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
+	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	backup "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/gavv/httpexpect/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	restapimiddleware "github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
-	v1 "github.com/skr1ms/CTFBoard/internal/controller/restapi/v1"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
-	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
-	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/notification"
-	"github.com/skr1ms/CTFBoard/internal/usecase/page"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
-	"github.com/skr1ms/CTFBoard/internal/usecase/team"
-	"github.com/skr1ms/CTFBoard/internal/usecase/user"
-	"github.com/skr1ms/CTFBoard/pkg/cache"
-	"github.com/skr1ms/CTFBoard/pkg/crypto"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	"github.com/skr1ms/CTFBoard/pkg/validator"
-	"github.com/skr1ms/CTFBoard/pkg/websocket"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
@@ -93,6 +95,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	// One-time clean slate for parallel tests (no per-test truncation).
+	if err := truncateE2EDB(ctx, nil); err != nil {
+		fmt.Printf("Initial truncate failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Start Application Server
 	shutdownServer, err := startTestServer()
 	if err != nil {
@@ -112,43 +120,114 @@ func GetTestBaseURL() string {
 	return fmt.Sprintf("http://localhost:%s", testPort)
 }
 
-func setupE2E(t *testing.T) {
-	t.Helper()
-	ctx := context.Background()
-	if err := TestRedis.FlushAll(ctx).Err(); err != nil {
-		t.Fatalf("failed to flush redis: %v", err)
+//nolint:gocognit,thelper // test helper: truncates and re-seeds all tables; t can be nil so t.Helper() is guarded
+func truncateE2EDB(ctx context.Context, t *testing.T) error {
+	if t != nil {
+		t.Helper()
 	}
-	truncateE2EDB(ctx, t)
-	if err := TestRedis.FlushAll(ctx).Err(); err != nil {
-		t.Fatalf("failed to flush redis after truncate: %v", err)
+	truncateAndSeed := func() error {
+		if TestPool == nil {
+			return fmt.Errorf("TestPool is not initialized")
+		}
+		_, err := TestPool.Exec(ctx, `TRUNCATE TABLE
+			configs, comments, api_tokens,
+			field_values, fields, brackets, pages, user_notifications, notifications,
+			submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
+			solutions, files, verification_tokens, awards, hint_unlocks, hints, solves,
+			challenges, teams, users, competition
+			RESTART IDENTITY CASCADE`)
+		if err != nil {
+			return err
+		}
+		_, err = TestPool.Exec(ctx, `INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
+			VALUES (1, 'CTF Competition', false, true, 'flexible', true, 1, 10, NULL, NULL)
+			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+		if err != nil {
+			return err
+		}
+		_, err = TestPool.Exec(ctx, `INSERT INTO app_settings (
+				id, app_name, verify_emails, frontend_url, cors_origins,
+				resend_enabled, resend_from_email, resend_from_name,
+				verify_ttl_hours, reset_ttl_hours, submit_limit_per_user, submit_limit_duration_min,
+				scoreboard_visible, registration_open,
+				rate_limit_login_per_minute, rate_limit_register_per_minute,
+				rate_limit_forgot_password_per_minute, rate_limit_reset_password_per_minute,
+				rate_limit_logout_per_minute, rate_limit_refresh_per_minute,
+				rate_limit_scoreboard_per_minute, rate_limit_general_ip_per_minute,
+				rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
+				updated_at
+			) VALUES (
+				1, 'AstroCTFb', true, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
+				false, 'noreply@astroctfb.local', 'AstroCTFb',
+				24, 1, 10, 1,
+				'public', true,
+				1000, 1000,
+				1000, 1000,
+				1000, 1000,
+				1000, 1000,
+				1000, 1000,
+				NOW()
+			) ON CONFLICT (id) DO UPDATE SET
+				rate_limit_login_per_minute = 1000,
+				rate_limit_register_per_minute = 1000,
+				rate_limit_forgot_password_per_minute = 1000,
+				rate_limit_reset_password_per_minute = 1000,
+				rate_limit_logout_per_minute = 1000,
+				rate_limit_refresh_per_minute = 1000,
+				rate_limit_scoreboard_per_minute = 1000,
+				rate_limit_general_ip_per_minute = 1000,
+				rate_limit_verify_email_per_minute = 1000,
+				rate_limit_oauth_callback_per_minute = 1000,
+				updated_at = NOW()`)
+		return err
 	}
-	_ = httpexpect.Default(t, GetTestBaseURL())
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = 50 * time.Millisecond
+	bo.MaxElapsedTime = 10 * time.Second
+	err := backoff.Retry(func() error {
+		err := truncateAndSeed()
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "40P01" {
+				return err // retry on deadlock
+			}
+			return backoff.Permanent(err)
+		}
+		return nil
+	}, backoff.WithContext(bo, ctx))
+	if err != nil {
+		if t != nil {
+			t.Fatalf("truncate db: %v", err)
+		}
+		return err
+	}
+	return nil
 }
 
-func truncateE2EDB(ctx context.Context, t *testing.T) {
-	t.Helper()
-	_, err := TestPool.Exec(ctx, `TRUNCATE TABLE
-		global_ratings, team_ratings, ctf_events, configs, comments, api_tokens,
-		field_values, fields, brackets, pages, user_notifications, notifications,
-		submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
-		files, verification_tokens, awards, hint_unlocks, hints, solves,
-		challenges, teams, users, competition
-		RESTART IDENTITY CASCADE`)
+// resetCompetitionToActive sets competition id=1 to active (start in past, end in future, not paused, no freeze).
+// Use in t.Cleanup for tests that mutate global competition state.
+func resetCompetitionToActive() {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	_, err := TestPool.Exec(ctx, `UPDATE competition SET is_paused = false, start_time = $1, end_time = $2, freeze_time = NULL, updated_at = NOW() WHERE id = 1`,
+		now.Add(-1*time.Hour), now.Add(24*time.Hour))
 	if err != nil {
-		t.Fatalf("truncate db: %v", err)
+		panic("resetCompetitionToActive: " + err.Error())
 	}
-	_, err = TestPool.Exec(ctx, `INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
-		VALUES (1, 'CTF Competition', false, true, 'flexible', true, 1, 10, NOW() - INTERVAL '1 hour', NOW() + INTERVAL '24 hours')
-		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+	_ = TestRedis.Del(ctx, "competition")
+}
+
+// setCompetitionTimes sets competition id=1 times directly in DB, bypassing API restrictions.
+// Use when parallel tests may have activated the competition between resetCompetitionToNotStarted
+// and the API PUT call. Pass nil for freezeTime to clear it.
+func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
+	ctx := context.Background()
+	_, err := TestPool.Exec(ctx, `UPDATE competition SET start_time = $1, end_time = $2, freeze_time = $3, is_paused = false, updated_at = NOW() WHERE id = 1`,
+		startTime, endTime, freezeTime)
 	if err != nil {
-		t.Fatalf("insert competition: %v", err)
+		panic("setCompetitionTimes: " + err.Error())
 	}
-	_, err = TestPool.Exec(ctx, `INSERT INTO app_settings (id, app_name, verify_emails, frontend_url, cors_origins, resend_enabled, resend_from_email, resend_from_name, verify_ttl_hours, reset_ttl_hours, submit_limit_per_user, submit_limit_duration_min, scoreboard_visible, registration_open, updated_at)
-		VALUES (1, 'CTFBoard', true, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173', false, 'noreply@ctfboard.local', 'CTFBoard', 24, 1, 10, 1, 'public', true, NOW())
-		ON CONFLICT (id) DO NOTHING`)
-	if err != nil {
-		t.Fatalf("insert app_settings: %v", err)
-	}
+	_ = TestRedis.Del(ctx, "competition")
 }
 
 // Infrastructure Setup
@@ -287,17 +366,16 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	fmt.Printf("Running migrations from %s...\n", migrationsDir)
 
 	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".up.sql") {
+		if !strings.HasSuffix(f.Name(), ".sql") {
 			continue
 		}
 
-		path := filepath.Join(migrationsDir, f.Name())
-		content, err := os.ReadFile(path)
+		raw, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
 		if err != nil {
 			return err
 		}
 
-		if _, err := pool.Exec(ctx, string(content)); err != nil {
+		if _, err := pool.Exec(ctx, extractGooseUp(string(raw))); err != nil {
 			if !isIgnorableDBError(err) {
 				fmt.Printf("Warn: migration error in %s: %v\n", f.Name(), err)
 			}
@@ -308,6 +386,29 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("update competition start_time: %w", err)
 	}
 	return nil
+}
+
+func extractGooseUp(content string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inUp := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "-- +goose Up" {
+			inUp = true
+			continue
+		}
+		if trimmed == "-- +goose Down" {
+			break
+		}
+		if strings.HasPrefix(trimmed, "-- +goose") {
+			continue
+		}
+		if inUp {
+			result = append(result, strings.ReplaceAll(line, " CONCURRENTLY", ""))
+		}
+	}
+	return strings.Join(result, "\n")
 }
 
 // Server setup
@@ -321,7 +422,7 @@ type testDeps struct {
 
 type testRepos struct {
 	apiTokenRepo     *persistent.APITokenRepo
-	appSettingsRepo  *persistent.AppSettingsRepo
+	SettingsRepo     *persistent.SettingsRepo
 	auditLogRepo     *persistent.AuditLogRepo
 	awardRepo        *persistent.AwardRepo
 	backupRepo       *persistent.BackupRepo
@@ -329,50 +430,49 @@ type testRepos struct {
 	challengeRepo    *persistent.ChallengeRepo
 	commentRepo      *persistent.CommentRepo
 	compRepo         *persistent.CompetitionRepo
-	configRepo       *persistent.ConfigRepo
+	paramRepo        *persistent.CompetitionParamRepo
 	fieldRepo        *persistent.FieldRepo
 	fieldValueRepo   *persistent.FieldValueRepo
-	fileRepo         *persistent.FileRepository
+	fileRepo         *persistent.FileRepo
 	hintRepo         *persistent.HintRepo
-	hintUnlockRepo   *persistent.HintUnlockRepo
 	notificationRepo *persistent.NotificationRepo
 	pageRepo         *persistent.PageRepo
-	ratingRepo       *persistent.RatingRepo
 	solveRepo        *persistent.SolveRepo
-	statsRepo        *persistent.StatisticsRepository
+	statsRepo        *persistent.StatisticsRepo
 	submissionRepo   *persistent.SubmissionRepo
 	tagRepo          *persistent.TagRepo
 	teamRepo         *persistent.TeamRepo
 	tokenRepo        *persistent.VerificationTokenRepo
-	txRepo           *persistent.TxRepo
+	trackingRepo     *persistent.TrackingRepo
+	tm               repo.TransactionManager
 	userRepo         *persistent.UserRepo
 }
 
 type testUseCases struct {
-	user            *user.UserUseCase
-	team            *team.TeamUseCase
-	award           *team.AwardUseCase
-	email           *email.EmailUseCase
-	challenge       *challenge.ChallengeUseCase
-	hint            *challenge.HintUseCase
-	file            *challenge.FileUseCase
-	solve           *competition.SolveUseCase
-	competition     *competition.CompetitionUseCase
-	backup          *competition.BackupUseCase
-	stats           *competition.StatisticsUseCase
-	settings        *settings.SettingsUseCase
-	ws              *wsV1.Controller
-	submissionUC    *competition.SubmissionUseCase
-	tagUC           *challenge.TagUseCase
-	fieldUC         *settings.FieldUseCase
-	pageUC          *page.PageUseCase
-	bracketUC       *competition.BracketUseCase
-	ratingUC        *competition.RatingUseCase
-	notifUC         usecase.NotificationUseCase
-	apiTokenUC      usecase.APITokenUseCase
-	dynamicConfigUC *competition.DynamicConfigUseCase
-	commentUC       *challenge.CommentUseCase
-	appSettingsRepo repo.AppSettingsRepository
+	user               *user.UserUseCase
+	team               *team.TeamUseCase
+	award              *team.AwardUseCase
+	email              *email.EmailUseCase
+	challenge          *challenge.ChallengeUseCase
+	hint               *challenge.HintUseCase
+	file               *challenge.FileUseCase
+	solve              *competition.SolveUseCase
+	competition        *competition.CompetitionUseCase
+	backup             *backup.BackupUseCase
+	stats              *competition.StatisticsUseCase
+	settings           *settings.SettingsUseCase
+	ws                 *wsV1.Controller
+	submissionUC       *competition.SubmissionUseCase
+	tagUC              *challenge.TagUseCase
+	fieldUC            *settings.FieldUseCase
+	pageUC             *page.PageUseCase
+	bracketUC          *competition.BracketUseCase
+	notifUC            usecase.NotificationUseCase
+	apiTokenUC         usecase.APITokenUseCase
+	competitionParamUC *competition.CompetitionParamUseCase
+	commentUC          *challenge.CommentUseCase
+	trackingUC         *user.TrackingUseCase
+	SettingsRepo       repo.SettingsRepository
 }
 
 func startTestServer() (func(), error) {
@@ -386,9 +486,9 @@ func startTestServer() (func(), error) {
 		return nil, err
 	}
 
-	r := setupTestRouter(deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
-
 	ctx := context.Background()
+	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
+
 	ls := net.ListenConfig{}
 	listener, err := ls.Listen(ctx, "tcp", ":0")
 	if err != nil {
@@ -427,9 +527,15 @@ func initTestDeps() (*testDeps, error) {
 		Level:  logger.ErrorLevel,
 		Output: logger.ConsoleOutput,
 	})
-	validatorService := validator.New()
+	validatorService, err := validator.New()
+	if err != nil {
+		panic("e2e: failed to create validator: " + err.Error())
+	}
 	jwtRevoker := jwt.NewRedisRevocationStore(TestRedis)
-	jwtService := jwt.NewJWTService("test-access-secret", "test-refresh-secret", 24*time.Hour, 72*time.Hour, jwtRevoker)
+	jwtService, err := jwt.NewJWTService("test-access-secret-min-32-bytes!", "test-refresh-secret-min32-bytes!", 24*time.Hour, 72*time.Hour, jwtRevoker, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init JWT service: %w", err)
+	}
 	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
 	if err != nil {
 		return nil, fmt.Errorf("failed to init crypto service: %w", err)
@@ -444,6 +550,7 @@ func initTestDeps() (*testDeps, error) {
 }
 
 func initTestRepos() *testRepos {
+	tm := persistent.NewTransactionManager(TestPool)
 	return &testRepos{
 		userRepo:         persistent.NewUserRepo(TestPool),
 		challengeRepo:    persistent.NewChallengeRepo(TestPool),
@@ -451,31 +558,30 @@ func initTestRepos() *testRepos {
 		teamRepo:         persistent.NewTeamRepo(TestPool),
 		compRepo:         persistent.NewCompetitionRepo(TestPool),
 		hintRepo:         persistent.NewHintRepo(TestPool),
-		hintUnlockRepo:   persistent.NewHintUnlockRepo(TestPool),
 		awardRepo:        persistent.NewAwardRepo(TestPool),
-		txRepo:           persistent.NewTxRepo(TestPool),
+		tm:               tm,
 		tokenRepo:        persistent.NewVerificationTokenRepo(TestPool),
 		auditLogRepo:     persistent.NewAuditLogRepo(TestPool),
-		statsRepo:        persistent.NewStatisticsRepository(TestPool),
-		fileRepo:         persistent.NewFileRepository(TestPool),
+		statsRepo:        persistent.NewStatisticsRepo(TestPool),
+		fileRepo:         persistent.NewFileRepo(TestPool),
 		backupRepo:       persistent.NewBackupRepo(TestPool),
-		appSettingsRepo:  persistent.NewAppSettingsRepo(TestPool),
+		SettingsRepo:     persistent.NewSettingsRepo(TestPool),
 		tagRepo:          persistent.NewTagRepo(TestPool),
 		fieldRepo:        persistent.NewFieldRepo(TestPool),
 		fieldValueRepo:   persistent.NewFieldValueRepo(TestPool),
 		submissionRepo:   persistent.NewSubmissionRepo(TestPool),
 		pageRepo:         persistent.NewPageRepo(TestPool),
 		bracketRepo:      persistent.NewBracketRepo(TestPool),
-		ratingRepo:       persistent.NewRatingRepo(TestPool),
 		notificationRepo: persistent.NewNotificationRepo(TestPool),
 		apiTokenRepo:     persistent.NewAPITokenRepo(TestPool),
-		configRepo:       persistent.NewConfigRepo(TestPool),
+		paramRepo:        persistent.NewCompetitionParamRepo(TestPool),
 		commentRepo:      persistent.NewCommentRepo(TestPool),
+		trackingRepo:     persistent.NewTrackingRepo(TestPool),
 	}
 }
 
 func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
-	tempStorageDir, err := os.MkdirTemp("", "ctfboard-e2e-storage")
+	tempStorageDir, err := os.MkdirTemp("", "astroctfb-e2e-storage")
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("failed to create temp storage dir: %w", err)
 	}
@@ -484,77 +590,138 @@ func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 		return "", nil, nil, fmt.Errorf("failed to create storage provider: %w", err)
 	}
 	ctx := context.Background()
-	hub := websocket.NewHub(TestRedis, "ctfboard:events")
+	hub := websocket.NewHub(TestRedis, "astroctfb:events")
 	go hub.Run(ctx)
 	go hub.SubscribeToRedis(ctx)
 	return tempStorageDir, fileStorage, hub, nil
 }
 
+//nolint:funlen // test wiring: all use-case constructors must be called here
 func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
-	userUC := user.NewUserUseCase(user.UserDeps{
-		UserRepo: repos.userRepo, TeamRepo: repos.teamRepo, SolveRepo: repos.solveRepo, TxRepo: repos.txRepo,
-		JWTService: deps.jwt, FieldValidator: fieldValidator, FieldValueRepo: repos.fieldValueRepo,
-	})
-	compUC := competition.NewCompetitionUseCase(repos.compRepo, repos.auditLogRepo, repos.txRepo, TestRedis)
 	testCache := cache.New(TestRedis)
 	scoreboardCache := cache.NewScoreboardCacheService(testCache, &teamBracketGetter{repos.teamRepo})
-	challengeUC := challenge.NewChallengeUseCase(
-		repos.challengeRepo,
-		challenge.WithTagRepo(repos.tagRepo),
-		challenge.WithSolveRepo(repos.solveRepo),
-		challenge.WithTxRepo(repos.txRepo),
-		challenge.WithCompetitionRepo(repos.compRepo),
-		challenge.WithTeamRepo(repos.teamRepo),
-		challenge.WithRedis(TestRedis),
-		challenge.WithScoreboardCache(scoreboardCache),
-		challenge.WithBroadcaster(broadcaster),
-		challenge.WithAuditLogRepo(repos.auditLogRepo),
-		challenge.WithCrypto(deps.crypto),
-	)
-	solveUC := competition.NewSolveUseCase(competition.SolveDeps{
-		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo, CompetitionRepo: repos.compRepo,
-		UserRepo: repos.userRepo, TeamRepo: repos.teamRepo, TxRepo: repos.txRepo,
-		Cache: testCache, ScoreboardCache: scoreboardCache, Broadcaster: broadcaster,
+	competitionGuard := competition.NewGuard(repos.compRepo)
+	userCacheSvc := cache.NewUserCacheService(testCache)
+	teamUC := team.NewTeamUseCase(team.TeamDeps{
+		TeamRepo:           repos.teamRepo,
+		UserRepo:           repos.userRepo,
+		SolveRepo:          repos.solveRepo,
+		SubmissionRepo:     repos.submissionRepo,
+		AwardRepo:          repos.awardRepo,
+		CompRepo:           repos.compRepo,
+		SettingsGetter:     repos.SettingsRepo,
+		ChallengeRepo:      repos.challengeRepo,
+		TM:                 repos.tm,
+		Guard:              competitionGuard,
+		ScoreboardCache:    scoreboardCache,
+		UserCache:          userCacheSvc,
+		HintRepo:           repos.hintRepo,
+		DefaultMaxTeamSize: 10,
 	})
-	teamUC := team.NewTeamUseCase(repos.teamRepo, repos.userRepo, repos.compRepo, repos.txRepo, scoreboardCache)
-	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
-		HintRepo: repos.hintRepo, HintUnlockRepo: repos.hintUnlockRepo, AwardRepo: repos.awardRepo,
-		TxRepo: repos.txRepo, SolveRepo: repos.solveRepo, ScoreboardCache: scoreboardCache,
-	})
-	awardUC := team.NewAwardUseCase(repos.awardRepo, repos.txRepo, scoreboardCache)
 	emailUC := email.NewEmailUseCase(email.EmailDeps{
-		UserRepo: repos.userRepo, TokenRepo: repos.tokenRepo, Mailer: &noOpMailer{},
+		UserRepo: repos.userRepo, TokenRepo: repos.tokenRepo, TM: repos.tm, Mailer: &noOpMailer{},
 		VerifyTTL: 24 * time.Hour, ResetTTL: 1 * time.Hour, FrontendURL: "http://localhost:3000", Enabled: true,
 	})
-	statsUC := competition.NewStatisticsUseCase(repos.statsRepo, testCache)
-	submissionUC := competition.NewSubmissionUseCase(repos.submissionRepo)
-	tagUC := challenge.NewTagUseCase(repos.tagRepo)
-	fieldUC := settings.NewFieldUseCase(repos.fieldRepo)
-	pageUC := page.NewPageUseCase(repos.pageRepo)
-	bracketUC := competition.NewBracketUseCase(repos.bracketRepo)
-	ratingUC := competition.NewRatingUseCase(repos.ratingRepo, repos.solveRepo, repos.teamRepo)
-	notifUC := notification.NewNotificationUseCase(repos.notificationRepo)
-	apiTokenUC := user.NewAPITokenUseCase(repos.apiTokenRepo)
-	backupUC := competition.NewBackupUseCase(competition.BackupDeps{
+
+	userUC := user.NewUserUseCase(user.UserDeps{
+		UserRepo:        repos.userRepo,
+		TeamRepo:        repos.teamRepo,
+		SolveRepo:       repos.solveRepo,
+		SubmissionRepo:  repos.submissionRepo,
+		AwardRepo:       repos.awardRepo,
+		TM:              repos.tm,
+		JWTService:      deps.jwt,
+		FieldValidator:  fieldValidator,
+		FieldValueRepo:  repos.fieldValueRepo,
+		SettingsRepo:    repos.SettingsRepo,
+		EmailSender:     emailUC,
+		FailedLogin:     nil,
+		CompRepo:        repos.compRepo,
+		SoloTeamCreator: teamUC,
+		UserCache:       userCacheSvc,
+	})
+	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{
+		CompetitionRepo: repos.compRepo,
+		AuditLogRepo:    repos.auditLogRepo,
+		TM:              repos.tm,
+		Redis:           &cache.RedisKeyValueStore{Client: TestRedis},
+		Logger:          deps.logger,
+	})
+	challengeUC := challenge.NewChallengeUseCase(challenge.ChallengeDeps{
+		ChallengeRepo:   repos.challengeRepo,
+		TagRepo:         repos.tagRepo,
+		SolveRepo:       repos.solveRepo,
+		TM:              repos.tm,
+		CompRepo:        repos.compRepo,
+		TeamRepo:        repos.teamRepo,
+		ScoreboardCache: scoreboardCache,
+		Broadcaster:     broadcaster,
+		AuditLogRepo:    repos.auditLogRepo,
+		Crypto:          deps.crypto,
+	})
+	solveUC := competition.NewSolveUseCase(competition.SolveDeps{
+		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo, CompetitionRepo: repos.compRepo,
+		CompetitionUC: compUC,
+		UserRepo:      repos.userRepo, TeamRepo: repos.teamRepo, TM: repos.tm,
+		Cache: testCache, ScoreboardCache: scoreboardCache, Broadcaster: broadcaster,
+	})
+	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: repos.hintRepo, AwardRepo: repos.awardRepo,
+		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo, TeamRepo: repos.teamRepo,
+		UserRepo:        repos.userRepo,
+		ChallengeRepo:   repos.challengeRepo,
+		ScoreboardCache: scoreboardCache,
+	})
+	awardUC := team.NewAwardUseCase(team.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache})
+	statsUC := competition.NewStatisticsUseCase(competition.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: testCache})
+	submissionUC := competition.NewSubmissionUseCase(competition.SubmissionDeps{SubmissionRepo: repos.submissionRepo})
+	tagUC := challenge.NewTagUseCase(challenge.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
+	fieldUC := settings.NewFieldUseCase(settings.FieldDeps{FieldRepo: repos.fieldRepo})
+	pageUC := page.NewPageUseCase(page.PageDeps{PageRepo: repos.pageRepo})
+	bracketUC := competition.NewBracketUseCase(competition.BracketDeps{BracketRepo: repos.bracketRepo, TM: repos.tm})
+	notifUC := notification.NewNotificationUseCase(notification.NotificationDeps{NotifRepo: repos.notificationRepo, Broadcaster: broadcaster})
+	apiTokenUC := user.NewAPITokenUseCase(user.APITokenDeps{Repo: repos.apiTokenRepo})
+	backupUC := backup.NewBackupUseCase(backup.BackupDeps{
 		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, HintRepo: repos.hintRepo,
 		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, AwardRepo: repos.awardRepo,
-		SolveRepo: repos.solveRepo, FileRepo: repos.fileRepo, BackupRepo: repos.backupRepo,
-		Storage: fileStorage, TxRepo: repos.txRepo, Logger: deps.logger,
+		SolveRepo: repos.solveRepo, SubmissionRepo: repos.submissionRepo, FileRepo: repos.fileRepo,
+		BackupRepo: repos.backupRepo, SettingsRepo: repos.SettingsRepo, Storage: fileStorage, TM: repos.tm, Logger: deps.logger,
 	})
-	settingsUC := settings.NewSettingsUseCase(repos.appSettingsRepo, repos.auditLogRepo, TestRedis)
-	dynamicConfigUC := competition.NewDynamicConfigUseCase(repos.configRepo, repos.auditLogRepo)
-	commentUC := challenge.NewCommentUseCase(repos.commentRepo, repos.challengeRepo)
+	settingsUC := settings.NewSettingsUseCase(settings.SettingsDeps{
+		Repo:         repos.SettingsRepo,
+		AuditLogRepo: repos.auditLogRepo,
+		TM:           repos.tm,
+		Redis:        &cache.RedisKeyValueStore{Client: TestRedis},
+		CompRepo:     repos.compRepo,
+		Logger:       deps.logger,
+	})
+	competitionParamUC := competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
+		Repo:         repos.paramRepo,
+		AuditLogRepo: repos.auditLogRepo,
+		TM:           repos.tm,
+		Logger:       deps.logger,
+	})
+	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
+	trackingUC := user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: repos.trackingRepo})
 	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
-	fileUC := challenge.NewFileUseCase(repos.fileRepo, fileStorage, 1*time.Hour)
+	fileUC := challenge.NewFileUseCase(challenge.FileDeps{
+		FileRepo:       repos.fileRepo,
+		ChallengeRepo:  repos.challengeRepo,
+		SolveRepo:      repos.solveRepo,
+		Storage:        fileStorage,
+		Expiry:         1 * time.Hour,
+		DownloadSecret: "test-download-secret",
+		BaseURL:        "http://localhost:3000",
+	})
 	return &testUseCases{
 		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
-		pageUC: pageUC, bracketUC: bracketUC, ratingUC: ratingUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
-		dynamicConfigUC: dynamicConfigUC, commentUC: commentUC,
-		appSettingsRepo: repos.appSettingsRepo,
+		pageUC: pageUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
+		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC,
+		SettingsRepo: repos.SettingsRepo,
 	}
 }
 
@@ -569,7 +736,7 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 }
 
 // Router (chi, middleware, api v1 routes)
-func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
+func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
 	r.Use(restapimiddleware.Logger(l))
@@ -579,18 +746,37 @@ func setupTestRouter(l logger.Logger, uc *testUseCases, validatorService validat
 		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
 	})
 
+	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:forgot", 3, 24*time.Hour)
+	if err != nil {
+		panic("e2e: failed to create forgot-password rate limiter: " + err.Error())
+	}
+	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:resend", 10, 24*time.Hour)
+	if err != nil {
+		panic("e2e: failed to create resend-verification rate limiter: " + err.Error())
+	}
+
 	deps := &helper.ServerDeps{
 		Challenge: helper.ChallengeDeps{
 			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC,
 		},
 		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
-		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC},
-		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC, RatingUC: uc.ratingUC},
-		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, DynamicConfigUC: uc.dynamicConfigUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC, AppSettingsRepo: uc.appSettingsRepo},
-		Infra: helper.InfraDeps{JWTService: jwtService, RedisClient: TestRedis, WSController: uc.ws, Validator: validatorService, Logger: l, TrustedProxyCIDRs: nil},
+		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
+		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC},
+		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC, SettingsRepo: uc.SettingsRepo},
+		Infra: helper.InfraDeps{
+			JWTService:                    jwtService,
+			RedisClient:                   TestRedis,
+			WSController:                  uc.ws,
+			Validator:                     validatorService,
+			Logger:                        l,
+			TrustedProxyCIDRs:             nil,
+			ForgotPasswordRateLimiter:     forgotLimiter,
+			ResendVerificationRateLimiter: resendLimiter,
+		},
 	}
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		v1.NewRouter(apiRouter, deps, 100, 1*time.Minute, false, "flexible")
+		rateLimitCache := helper.NewRateLimitConfigCache(30 * time.Second)
+		v1.NewRouter(ctx, apiRouter, deps, false, rateLimitCache)
 
 		// Static routes for E2E Filesystem
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {

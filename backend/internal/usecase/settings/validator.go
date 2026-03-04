@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
+
+const maxFieldTextLen = 500
 
 type FieldValidator struct {
 	fieldRepo repo.FieldRepository
@@ -24,7 +26,7 @@ func NewFieldValidator(
 func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.EntityType, values map[uuid.UUID]string) error {
 	fields, err := v.fieldRepo.GetByEntityType(ctx, entityType)
 	if err != nil {
-		return err
+		return fmt.Errorf("FieldValidator - ValidateValues - FieldRepo.GetByEntityType: %w", err)
 	}
 	fieldMap := make(map[uuid.UUID]*entity.Field)
 	for _, f := range fields {
@@ -33,16 +35,16 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 	for fieldID, value := range values {
 		field, ok := fieldMap[fieldID]
 		if !ok {
-			return fmt.Errorf("unknown field: %s", fieldID)
+			return httperr.NewValidationErrorf("unknown field")
 		}
 		if err := v.validateValue(field, value); err != nil {
-			return usecaseutil.Wrap(err, "field "+field.Name)
+			return fmt.Errorf("FieldValidator - ValidateValues - validateValue: %w", err)
 		}
 	}
 	for _, field := range fields {
 		if field.Required {
 			if _, ok := values[field.ID]; !ok {
-				return fmt.Errorf("field %s is required", field.Name)
+				return httperr.NewValidationErrorf("required field missing")
 			}
 		}
 	}
@@ -59,39 +61,40 @@ func (v *FieldValidator) validateValue(field *entity.Field, value string) error 
 		return v.validateSelect(value, field.Options)
 	case entity.FieldTypeText:
 		return v.validateText(value)
+	default:
+		return httperr.NewValidationErrorf("unsupported field type: %s", string(field.FieldType))
 	}
-	return nil
 }
 
 func (v *FieldValidator) validateNumber(value string) error {
 	if _, err := strconv.Atoi(value); err != nil {
-		return fmt.Errorf("must be a number")
+		return httperr.ErrFieldInvalidNumber
 	}
 	return nil
 }
 
 func (v *FieldValidator) validateBoolean(value string) error {
 	if value != "true" && value != "false" {
-		return fmt.Errorf("must be true or false")
+		return httperr.ErrFieldInvalidBoolean
 	}
 	return nil
 }
 
 func (v *FieldValidator) validateSelect(value string, options []string) error {
 	if len(options) == 0 {
-		return nil
+		return httperr.NewValidationErrorf("select field has no options configured")
 	}
 	for _, opt := range options {
 		if opt == value {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid option: %s", value)
+	return httperr.NewValidationErrorf("invalid option")
 }
 
 func (v *FieldValidator) validateText(value string) error {
-	if len(value) > 500 {
-		return fmt.Errorf("text too long (max 500)")
+	if len(value) > maxFieldTextLen {
+		return httperr.ErrFieldTextTooLong
 	}
 	return nil
 }

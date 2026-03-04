@@ -48,7 +48,7 @@ function AboutDialog(props: DialogProps): React.ReactElement {
                                 marginTop: theme.spacing(1)
                             }}
                         >
-                            SeaweedFS UI — web interface for viewing and managing files in SeaweedFS Filer.
+                            SeaweedFS UI - web interface for viewing and managing files in SeaweedFS Filer.
                         </DialogContentText>
                         <DialogContentText>
                             React {React.version}

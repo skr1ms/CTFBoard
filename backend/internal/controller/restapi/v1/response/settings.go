@@ -3,47 +3,66 @@ package response
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromAppSettings(s *entity.AppSettings) openapi.ResponseAppSettingsResponse {
-	appName := s.AppName
-	corsOrigins := s.CORSOrigins
-	frontendURL := s.FrontendURL
-	resendFromEmail := s.ResendFromEmail
-	resendFromName := s.ResendFromName
-	scoreboardVisible := s.ScoreboardVisible
+func FromAppSettings(s *entity.Settings) openapi.AppSettingsResponse {
 	updatedAt := s.UpdatedAt.Format(time.RFC3339)
-	return openapi.ResponseAppSettingsResponse{
-		AppName:                &appName,
-		CorsOrigins:            &corsOrigins,
-		FrontendURL:            &frontendURL,
-		RegistrationOpen:       &s.RegistrationOpen,
-		ResendEnabled:          &s.ResendEnabled,
-		ResendFromEmail:        &resendFromEmail,
-		ResendFromName:         &resendFromName,
-		ResetTTLHours:          &s.ResetTTLHours,
-		ScoreboardVisible:      &scoreboardVisible,
-		SubmitLimitDurationMin: &s.SubmitLimitDurationMin,
-		SubmitLimitPerUser:     &s.SubmitLimitPerUser,
-		UpdatedAt:              &updatedAt,
-		VerifyEmails:           &s.VerifyEmails,
-		VerifyTTLHours:         &s.VerifyTTLHours,
+	return openapi.AppSettingsResponse{
+		AppName:                          ptr(s.AppName),
+		CorsOrigins:                      ptr(s.CORSOrigins),
+		CsvExportMaxRows:                 ptr(s.CSVExportMaxRows),
+		DefaultPerPage:                   ptr(s.DefaultPerPage),
+		FrontendURL:                      ptr(s.FrontendURL),
+		MaxPerPage:                       ptr(s.MaxPerPage),
+		MaxTeams:                         ptr(s.MaxTeams),
+		RateLimitForgotPasswordPerMinute: ptr(s.RateLimitForgotPasswordPerMinute),
+		RateLimitGeneralIPPerMinute:      ptr(s.RateLimitGeneralIPPerMinute),
+		RateLimitLoginPerMinute:          ptr(s.RateLimitLoginPerMinute),
+		RateLimitLogoutPerMinute:         ptr(s.RateLimitLogoutPerMinute),
+		RateLimitRefreshPerMinute:        ptr(s.RateLimitRefreshPerMinute),
+		RateLimitRegisterPerMinute:       ptr(s.RateLimitRegisterPerMinute),
+		RateLimitResetPasswordPerMinute:  ptr(s.RateLimitResetPasswordPerMinute),
+		RateLimitScoreboardPerMinute:     ptr(s.RateLimitScoreboardPerMinute),
+		RateLimitVerifyEmailPerMinute:    ptr(s.RateLimitVerifyEmailPerMinute),
+		RateLimitOauthCallbackPerMinute:  ptr(s.RateLimitOAuthCallbackPerMinute),
+		RegistrationOpen:                 ptr(s.RegistrationOpen),
+		ResendEnabled:                    ptr(s.ResendEnabled),
+		ResendFromEmail:                  ptr(s.ResendFromEmail),
+		ResendFromName:                   ptr(s.ResendFromName),
+		ResetTTLHours:                    ptr(s.ResetTTLHours),
+		ScoreboardVisible:                ptr(s.ScoreboardVisible),
+		SubmitLimitDurationMin:           ptr(s.SubmitLimitDurationMin),
+		SubmitLimitPerUser:               ptr(s.SubmitLimitPerUser),
+		UpdatedAt:                        &updatedAt,
+		VerifyEmails:                     ptr(s.VerifyEmails),
+		VerifyTTLHours:                   ptr(s.VerifyTTLHours),
+		WriteupEnabled:                   ptr(s.WriteupEnabled),
+		OauthGithubEnabled:               ptr(s.OAuthGithubEnabled),
+		OauthGoogleEnabled:               ptr(s.OAuthGoogleEnabled),
 	}
 }
 
-func FromConfig(c *entity.Config) openapi.ResponseConfigResponse {
-	res := openapi.ResponseConfigResponse{
+func FromConfig(c *entity.CompetitionParam) openapi.ConfigResponse {
+	res := openapi.ConfigResponse{
 		Key:       c.Key,
 		Value:     c.Value,
 		ValueType: string(c.ValueType),
 	}
 	if c.Description != "" {
-		res.Description = &c.Description
+		res.Description = ptr(c.Description)
 	}
 	if !c.UpdatedAt.IsZero() {
-		res.UpdatedAt = &c.UpdatedAt
+		res.UpdatedAt = ptr(c.UpdatedAt)
+	}
+	return res
+}
+
+func FromConfigList(items []*entity.CompetitionParam) []openapi.ConfigResponse {
+	res := make([]openapi.ConfigResponse, len(items))
+	for i, c := range items {
+		res[i] = FromConfig(c)
 	}
 	return res
 }

@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/skr1ms/CTFBoard/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       CompetitionRepository:
         config:
@@ -35,13 +35,6 @@ packages:
           pkgname: "mocks"
           structname: "MockChallengeRepository"
 
-      TxRepository:
-        config:
-          dir: "internal/usecase/competition/mocks"
-          filename: "TxRepository.go"
-          pkgname: "mocks"
-          structname: "MockTxRepository"
-
       UserRepository:
         config:
           dir: "internal/usecase/competition/mocks"
@@ -56,13 +49,6 @@ packages:
           pkgname: "mocks"
           structname: "MockStatisticsRepository"
 
-      BackupRepository:
-        config:
-          dir: "internal/usecase/competition/mocks"
-          filename: "BackupRepository.go"
-          pkgname: "mocks"
-          structname: "MockBackupRepository"
-      
       BracketRepository:
         config:
           dir: "internal/usecase/competition/mocks"
@@ -70,19 +56,12 @@ packages:
           pkgname: "mocks"
           structname: "MockBracketRepository"
 
-      ConfigRepository:
+      CompetitionParamRepository:
         config:
           dir: "internal/usecase/competition/mocks"
-          filename: "ConfigRepository.go"
+          filename: "CompetitionParamRepo.go"
           pkgname: "mocks"
-          structname: "MockConfigRepository"
-
-      RatingRepository:
-        config:
-          dir: "internal/usecase/competition/mocks"
-          filename: "RatingRepository.go"
-          pkgname: "mocks"
-          structname: "MockRatingRepository"
+          structname: "MockCompetitionParamRepo"
 
       SubmissionRepository:
         config:
@@ -98,7 +77,14 @@ packages:
           pkgname: "mocks"
           structname: "MockTeamRepository"
 
-  github.com/skr1ms/CTFBoard/pkg/logger:
+      TransactionManager:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "TransactionManager.go"
+          pkgname: "mocks"
+          structname: "MockTransactionManager"
+
+  github.com/TakuyaYagam1/AstroCTFb/pkg/logger:
     interfaces:
       Logger:
         config:

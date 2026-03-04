@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestPageUseCase_GetPublishedList_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -27,6 +28,7 @@ func TestPageUseCase_GetPublishedList_Success(t *testing.T) {
 }
 
 func TestPageUseCase_GetPublishedList_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -41,6 +43,7 @@ func TestPageUseCase_GetPublishedList_Error(t *testing.T) {
 }
 
 func TestPageUseCase_GetBySlug_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -58,6 +61,7 @@ func TestPageUseCase_GetBySlug_Success(t *testing.T) {
 }
 
 func TestPageUseCase_GetBySlug_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -73,6 +77,7 @@ func TestPageUseCase_GetBySlug_Error(t *testing.T) {
 }
 
 func TestPageUseCase_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -90,6 +95,7 @@ func TestPageUseCase_GetByID_Success(t *testing.T) {
 }
 
 func TestPageUseCase_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -105,6 +111,7 @@ func TestPageUseCase_GetByID_Error(t *testing.T) {
 }
 
 func TestPageUseCase_GetAllList_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -120,6 +127,7 @@ func TestPageUseCase_GetAllList_Success(t *testing.T) {
 }
 
 func TestPageUseCase_GetAllList_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -134,6 +142,7 @@ func TestPageUseCase_GetAllList_Error(t *testing.T) {
 }
 
 func TestPageUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -158,6 +167,7 @@ func TestPageUseCase_Create_Success(t *testing.T) {
 }
 
 func TestPageUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -172,6 +182,7 @@ func TestPageUseCase_Create_Error(t *testing.T) {
 }
 
 func TestPageUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -197,6 +208,7 @@ func TestPageUseCase_Update_Success(t *testing.T) {
 }
 
 func TestPageUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -212,6 +224,7 @@ func TestPageUseCase_Update_Error(t *testing.T) {
 }
 
 func TestPageUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -226,6 +239,7 @@ func TestPageUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestPageUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewPageTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()

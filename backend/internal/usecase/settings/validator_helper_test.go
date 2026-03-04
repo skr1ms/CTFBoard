@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/stretchr/testify/mock"
 )
 

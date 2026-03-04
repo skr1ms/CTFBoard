@@ -1,0 +1,16 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/config:
+    interfaces:
+      vaultSecretGetter:
+        config:
+          dir: "config/mocks"
+          filename: "vault_secret_getter.go"
+          pkgname: "config"
+          structname: "MockVaultSecretGetter"
+          inpackage: true

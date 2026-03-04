@@ -1,0 +1,2 @@
+# Empty schema, because WebSocket endpoint does not use request/response 
+schemas:

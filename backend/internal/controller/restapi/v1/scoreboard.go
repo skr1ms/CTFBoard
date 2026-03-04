@@ -3,10 +3,10 @@ package v1
 import (
 	"net/http"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
 // Get scoreboard
@@ -27,12 +27,12 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 // Get first blood
 // (GET /challenges/{ID}/first-blood)
 func (h *Server) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeuuid, ok := helper.ParseUUID(w, r, ID)
+	challengeIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	entry, err := h.comp.SolveUC.GetFirstBlood(r.Context(), challengeuuid)
+	entry, err := h.comp.SolveUC.GetFirstBlood(r.Context(), challengeIDParsed)
 	if h.OnError(w, r, err, "GetChallengesIDFirstBlood", "GetFirstBlood") {
 		return
 	}

@@ -4,13 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
+	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/usecase/challenge/mocks"
-	"github.com/skr1ms/CTFBoard/pkg/crypto"
 )
 
 type ChallengeTestHelper struct {
@@ -19,20 +20,19 @@ type ChallengeTestHelper struct {
 }
 
 type challengeTestDeps struct {
-	challengeRepo  *mocks.MockChallengeRepository
-	solveRepo      *mocks.MockSolveRepository
-	txRepo         *mocks.MockTxRepository
-	teamRepo       *mocks.MockTeamRepository
-	compRepo       *mocks.MockCompetitionRepository
-	auditLogRepo   *mocks.MockAuditLogRepository
-	crypto         *mocks.MockCryptoService
-	hintRepo       *mocks.MockHintRepository
-	hintUnlockRepo *mocks.MockHintUnlockRepository
-	awardRepo      *mocks.MockAwardRepository
-	fileRepo       *mocks.MockFileRepository
-	s3Provider     *mocks.MockS3Provider
-	commentRepo    *mocks.MockCommentRepository
-	tagRepo        *mocks.MockTagRepository
+	challengeRepo *mocks.MockChallengeRepository
+	solveRepo     *mocks.MockSolveRepository
+	tm            *mocks.MockTransactionManager
+	teamRepo      *mocks.MockTeamRepository
+	compRepo      *mocks.MockCompetitionRepository
+	auditLogRepo  *mocks.MockAuditLogRepository
+	crypto        *mocks.MockCryptoService
+	hintRepo      *mocks.MockHintRepository
+	awardRepo     *mocks.MockAwardRepository
+	fileRepo      *mocks.MockFileRepository
+	s3Provider    *mocks.MockS3Provider
+	commentRepo   *mocks.MockCommentRepository
+	tagRepo       *mocks.MockTagRepository
 }
 
 func NewChallengeTestHelper(t *testing.T) *ChallengeTestHelper {
@@ -41,20 +41,19 @@ func NewChallengeTestHelper(t *testing.T) *ChallengeTestHelper {
 	return &ChallengeTestHelper{
 		t: t,
 		deps: &challengeTestDeps{
-			challengeRepo:  mocks.NewMockChallengeRepository(t),
-			solveRepo:      mocks.NewMockSolveRepository(t),
-			txRepo:         mocks.NewMockTxRepository(t),
-			teamRepo:       mocks.NewMockTeamRepository(t),
-			compRepo:       mocks.NewMockCompetitionRepository(t),
-			auditLogRepo:   mocks.NewMockAuditLogRepository(t),
-			crypto:         mocks.NewMockCryptoService(t),
-			hintRepo:       mocks.NewMockHintRepository(t),
-			hintUnlockRepo: mocks.NewMockHintUnlockRepository(t),
-			awardRepo:      mocks.NewMockAwardRepository(t),
-			fileRepo:       mocks.NewMockFileRepository(t),
-			s3Provider:     mocks.NewMockS3Provider(t),
-			commentRepo:    mocks.NewMockCommentRepository(t),
-			tagRepo:        mocks.NewMockTagRepository(t),
+			challengeRepo: mocks.NewMockChallengeRepository(t),
+			solveRepo:     mocks.NewMockSolveRepository(t),
+			tm:            mocks.NewMockTransactionManager(t),
+			teamRepo:      mocks.NewMockTeamRepository(t),
+			compRepo:      mocks.NewMockCompetitionRepository(t),
+			auditLogRepo:  mocks.NewMockAuditLogRepository(t),
+			crypto:        mocks.NewMockCryptoService(t),
+			hintRepo:      mocks.NewMockHintRepository(t),
+			awardRepo:     mocks.NewMockAwardRepository(t),
+			fileRepo:      mocks.NewMockFileRepository(t),
+			s3Provider:    mocks.NewMockS3Provider(t),
+			commentRepo:   mocks.NewMockCommentRepository(t),
+			tagRepo:       mocks.NewMockTagRepository(t),
 		},
 	}
 }
@@ -76,16 +75,17 @@ func (h *ChallengeTestHelper) CreateChallengeUseCaseWithCompAndCrypto() (*Challe
 
 func (h *ChallengeTestHelper) createChallengeUseCase(cryptoSvc crypto.Service) (*ChallengeUseCase, redismock.ClientMock) {
 	h.t.Helper()
-	client, redis := redismock.NewClientMock()
-	return NewChallengeUseCase(
-		h.deps.challengeRepo,
-		WithSolveRepo(h.deps.solveRepo),
-		WithTxRepo(h.deps.txRepo),
-		WithCompetitionRepo(h.deps.compRepo),
-		WithTeamRepo(h.deps.teamRepo),
-		WithRedis(client),
-		WithCrypto(cryptoSvc),
-	), redis
+	_, redis := redismock.NewClientMock()
+	return NewChallengeUseCase(ChallengeDeps{
+		ChallengeRepo: h.deps.challengeRepo,
+		SolveRepo:     h.deps.solveRepo,
+		TM:            h.deps.tm,
+		CompRepo:      h.deps.compRepo,
+		TeamRepo:      h.deps.teamRepo,
+		AuditLogRepo:  h.deps.auditLogRepo,
+		TagRepo:       h.deps.tagRepo,
+		Crypto:        cryptoSvc,
+	}), redis
 }
 
 func (h *ChallengeTestHelper) Sha256Hash(text string) string {
@@ -129,4 +129,14 @@ func (h *ChallengeTestHelper) NewBannedTeam(id uuid.UUID) *entity.Team {
 	team := h.NewTeam(id)
 	team.IsBanned = true
 	return team
+}
+
+func (h *ChallengeTestHelper) NewActiveCompetition() *entity.Competition {
+	h.t.Helper()
+	start := time.Now().Add(-1 * time.Hour)
+	end := time.Now().Add(24 * time.Hour)
+	return &entity.Competition{
+		StartTime: &start,
+		EndTime:   &end,
+	}
 }

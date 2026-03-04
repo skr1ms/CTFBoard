@@ -1,0 +1,105 @@
+/ws:
+  get:
+    summary: WebSocket connection
+    description: |
+      Establishes a WebSocket connection for real-time scoreboard updates and notifications.
+
+      ## Connection Protocol
+
+      1. Client sends `GET /ws` with `Upgrade: websocket` headers
+      2. Server upgrades the connection and sends a `connected` event
+      3. Server pushes events as JSON messages
+      4. Server sends WebSocket ping frames every ~54 seconds; client must respond with pong
+
+      ## Keep-Alive
+
+      - Ping interval: 54 seconds
+      - Pong timeout: 60 seconds (connection closed if no pong received)
+      - Max incoming message size: 512 bytes
+
+      ## Reconnection
+
+      No session state is maintained between connections. Clients should implement
+      reconnection with exponential backoff. A fresh `connected` event is sent on each connection.
+
+      ## Event Envelope
+
+      All messages use this JSON structure:
+
+      ```json
+      {
+        "type": "<event_type>",
+        "payload": { ... },
+        "timestamp": "2025-01-15T14:30:00Z"
+      }
+      ```
+
+      ## Event Types
+
+      ### `connected`
+      Sent once upon successful WebSocket connection.
+
+      ```json
+      {
+        "type": "connected",
+        "payload": null,
+        "timestamp": "2025-01-15T14:30:00Z"
+      }
+      ```
+
+      ### `scoreboard_update` (solve)
+      Sent when a team solves a challenge.
+
+      ```json
+      {
+        "type": "scoreboard_update",
+        "payload": {
+          "type": "solve",
+          "team_id": "550e8400-e29b-41d4-a716-446655440000",
+          "challenge": "SQL Injection 101",
+          "points": 500,
+          "timestamp": "2025-01-15T14:30:00Z"
+        },
+        "timestamp": "2025-01-15T14:30:00Z"
+      }
+      ```
+
+      ### `scoreboard_update` (first_blood)
+      Sent when a team is the first to solve a challenge.
+
+      ```json
+      {
+        "type": "scoreboard_update",
+        "payload": {
+          "type": "first_blood",
+          "team_id": "550e8400-e29b-41d4-a716-446655440000",
+          "challenge": "Binary Exploitation",
+          "points": 1000,
+          "timestamp": "2025-01-15T14:30:00Z"
+        },
+        "timestamp": "2025-01-15T14:30:00Z"
+      }
+      ```
+
+      ### `notification`
+      Sent when an admin broadcasts a notification.
+
+      ```json
+      {
+        "type": "notification",
+        "payload": {
+          "type": "notification",
+          "message": "New hint released for challenge 'Crypto 101'",
+          "level": "info",
+          "timestamp": "2025-01-15T15:00:00Z"
+        },
+        "timestamp": "2025-01-15T15:00:00Z"
+      }
+      ```
+
+      Notification levels: `info`, `warning`, `error`, `success`
+    tags:
+      - Events
+    responses:
+      "101":
+        description: Switching Protocols - WebSocket connection established

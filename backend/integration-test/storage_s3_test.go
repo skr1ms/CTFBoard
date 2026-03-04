@@ -7,15 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:tparallel // subtests are sequential S3 operations (upload → verify → delete)
 func TestStorageS3_Workflow(t *testing.T) {
+	t.Parallel()
 	endpoint, accessKey, secretKey, bucket := SetupSeaweedFS(t)
 
-	provider, err := storage.NewS3Provider(endpoint, "http://"+endpoint, accessKey, secretKey, bucket, false)
+	provider, err := storage.NewS3Provider(endpoint, "http://"+endpoint, accessKey, secretKey, bucket, "us-east-1", false)
 	require.NoError(t, err)
 
 	ctx := context.Background()

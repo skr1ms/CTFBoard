@@ -3,13 +3,13 @@ package user
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/usecase/user/mocks"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ type registerTestCase struct {
 	username      string
 	email         string
 	password      string
-	setupMocks    func(*mocks.MockUserRepository, *mocks.MockTxRepository)
+	setupMocks    func(*mocks.MockUserRepository, *mocks.MockTransactionManager)
 	expectedError bool
 }
 
@@ -28,13 +28,13 @@ func registerTestCases() []registerTestCase {
 	return []registerTestCase{
 		{
 			name: "successful registration", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-					return fn(ctx, nil)
+			setupMocks: func(userRepo *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+					return fn(ctx)
 				}).Once()
-				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
-				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "test@example.com").Return(nil, entityError.ErrUserNotFound).Once()
-				txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ repo.Transaction, u *entity.User) {
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *entity.User) {
 					u.ID = uuid.New()
 				}).Once()
 			},
@@ -42,50 +42,50 @@ func registerTestCases() []registerTestCase {
 		},
 		{
 			name: "username already exists", username: "existinguser", email: "test@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-					return fn(ctx, nil)
+			setupMocks: func(userRepo *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+					return fn(ctx)
 				}).Once()
-				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "existinguser").Return(&entity.User{}, nil).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "existinguser").Return(&entity.User{}, nil).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "email already exists", username: "testuser", email: "existing@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-					return fn(ctx, nil)
+			setupMocks: func(userRepo *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+					return fn(ctx)
 				}).Once()
-				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
-				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "existing@example.com").Return(&entity.User{}, nil).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByEmail(mock.Anything, "existing@example.com").Return(&entity.User{}, nil).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "GetByUsername returns unexpected error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-					return fn(ctx, nil)
+			setupMocks: func(userRepo *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+					return fn(ctx)
 				}).Once()
-				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, assert.AnError).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "GetByEmail returns unexpected error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-					return fn(ctx, nil)
+			setupMocks: func(userRepo *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+					return fn(ctx)
 				}).Once()
-				txRepo.EXPECT().GetUserByUsernameTx(mock.Anything, mock.Anything, "testuser").Return(nil, entityError.ErrUserNotFound).Once()
-				txRepo.EXPECT().GetUserByEmailTx(mock.Anything, mock.Anything, "test@example.com").Return(nil, assert.AnError).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
 		},
 		{
 			name: "Transaction returns error", username: "testuser", email: "test@example.com", password: "password123",
-			setupMocks: func(_ *mocks.MockUserRepository, txRepo *mocks.MockTxRepository) {
-				txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).Return(assert.AnError).Once()
+			setupMocks: func(_ *mocks.MockUserRepository, tm *mocks.MockTransactionManager) {
+				tm.EXPECT().Run(mock.Anything, mock.Anything).Return(assert.AnError).Once()
 			},
 			expectedError: true,
 		},
@@ -95,7 +95,7 @@ func registerTestCases() []registerTestCase {
 func runRegisterTest(t *testing.T, tt registerTestCase) {
 	t.Helper()
 	h := NewUserTestHelper(t)
-	tt.setupMocks(h.Deps().userRepo, h.Deps().txRepo)
+	tt.setupMocks(h.Deps().userRepo, h.Deps().tm)
 	uc := h.CreateUseCase()
 	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password, nil)
 	if tt.expectedError {
@@ -110,9 +110,29 @@ func runRegisterTest(t *testing.T, tt registerTestCase) {
 }
 
 func TestUserUseCase_Register(t *testing.T) {
+	t.Parallel()
 	for _, tt := range registerTestCases() {
-		t.Run(tt.name, func(t *testing.T) { runRegisterTest(t, tt) })
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			runRegisterTest(t, tt)
+		})
 	}
+}
+
+func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
+	t.Parallel()
+	h := NewUserTestHelper(t)
+	settingsRepo := mocks.NewMockSettingsRepository(t)
+	settingsRepo.EXPECT().Get(mock.Anything).Return(&entity.Settings{RegistrationOpen: false}, nil).Once()
+	uc := NewUserUseCase(UserDeps{
+		UserRepo: h.Deps().userRepo, TeamRepo: h.Deps().teamRepo, SolveRepo: h.Deps().solveRepo,
+		TM: h.Deps().tm, JWTService: h.Deps().jwtService, FieldValidator: nil, FieldValueRepo: nil,
+		SettingsRepo: settingsRepo,
+	})
+	user, err := uc.Register(context.Background(), "testuser", "test@example.com", "password123", nil)
+	assert.Error(t, err)
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, httperr.ErrRegistrationClosed)
 }
 
 type loginTestCase struct {
@@ -133,7 +153,7 @@ func loginTestCases() []loginTestCase {
 		{
 			name: "user not found", email: "notfound@example.com", password: "password123",
 			setupMocks: func(_ *testing.T, userRepo *mocks.MockUserRepository, _ *mocks.MockJWTService) {
-				userRepo.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(nil, entityError.ErrUserNotFound)
+				userRepo.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(nil, httperr.ErrUserNotFound)
 			},
 			expectedError: true,
 		},
@@ -202,12 +222,17 @@ func runLoginTest(t *testing.T, tt loginTestCase) {
 }
 
 func TestUserUseCase_Login(t *testing.T) {
+	t.Parallel()
 	for _, tt := range loginTestCases() {
-		t.Run(tt.name, func(t *testing.T) { runLoginTest(t, tt) })
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			runLoginTest(t, tt)
+		})
 	}
 }
 
 func TestUserUseCase_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
@@ -231,6 +256,7 @@ func TestUserUseCase_GetByID_Success(t *testing.T) {
 }
 
 func TestUserUseCase_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
@@ -248,6 +274,7 @@ func TestUserUseCase_GetByID_Error(t *testing.T) {
 }
 
 func TestUserUseCase_GetProfile_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
@@ -275,13 +302,17 @@ func TestUserUseCase_GetProfile_Success(t *testing.T) {
 }
 
 func TestUserUseCase_GetProfile_GetByIDError(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
 	userID := uuid.New()
 	expectedError := assert.AnError
 
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, expectedError)
+	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return([]*entity.Solve{}, nil)
+	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
+		time.Sleep(50 * time.Millisecond)
+	}).Return(nil, expectedError)
 
 	uc := h.CreateUseCase()
 
@@ -292,6 +323,7 @@ func TestUserUseCase_GetProfile_GetByIDError(t *testing.T) {
 }
 
 func TestUserUseCase_GetProfile_GetByUserIDError(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 
@@ -303,8 +335,11 @@ func TestUserUseCase_GetProfile_GetByUserIDError(t *testing.T) {
 	}
 	expectedError := assert.AnError
 
+	// Delay GetByUserID so GetByID completes first; avoids testify mock/context cancellation race.
 	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(nil, expectedError)
+	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
+		time.Sleep(50 * time.Millisecond)
+	}).Return(nil, expectedError)
 
 	uc := h.CreateUseCase()
 

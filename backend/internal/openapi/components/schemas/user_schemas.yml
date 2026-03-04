@@ -1,0 +1,216 @@
+schemas:
+  request.BanUserRequest:
+    properties:
+      reason:
+        type: string
+        example: Violation of rules
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=500"
+    required:
+      - reason
+    type: object
+  response.AdminUserResponse:
+    properties:
+      id:
+        type: string
+      username:
+        type: string
+      email:
+        type: string
+      role:
+        type: string
+      team_id:
+        type: string
+      is_verified:
+        type: boolean
+      is_banned:
+        type: boolean
+      banned_at:
+        type: string
+        format: date-time
+      banned_reason:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  response.AdminUserListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/schemas/response.AdminUserResponse"
+        type: array
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object
+  request.AdminCreateUserRequest:
+    properties:
+      username:
+        type: string
+        example: newuser
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_username"
+      email:
+        type: string
+        example: user@example.com
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_email"
+      password:
+        type: string
+        example: password123
+        x-oapi-codegen-extra-tags:
+          validate: "required,strong_password"
+      role:
+        type: string
+        example: user
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=user admin"
+    required:
+      - username
+      - email
+      - password
+    type: object
+  request.AdminUpdateUserRequest:
+    properties:
+      username:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,custom_username"
+      email:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,custom_email"
+      role:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=user admin"
+      is_verified:
+        type: boolean
+      password:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,strong_password"
+    type: object
+  request.UpdateProfileRequest:
+    properties:
+      username:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,custom_username"
+      email:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,custom_email"
+      password:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,strong_password"
+      current_password:
+        type: string
+    type: object
+  response.UserResponse:
+    properties:
+      id:
+        type: string
+      role:
+        type: string
+      team_id:
+        type: string
+      username:
+        type: string
+    type: object
+  response.UserListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/schemas/response.UserResponse"
+        type: array
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object
+  response.UserProfileResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      solves:
+        items:
+          $ref: "#/schemas/response.SolveResponse"
+        type: array
+      team_id:
+        type: string
+      username:
+        type: string
+    type: object
+  response.SolveResponse:
+    properties:
+      id:
+        type: string
+      challenge_id:
+        type: string
+      solved_at:
+        type: string
+        format: date-time
+    type: object
+  response.SolveWithDetailsResponse:
+    properties:
+      id:
+        type: string
+      user_id:
+        type: string
+      team_id:
+        type: string
+      challenge_id:
+        type: string
+      solved_at:
+        type: string
+        format: date-time
+      username:
+        type: string
+      team_name:
+        type: string
+      challenge_title:
+        type: string
+      challenge_category:
+        type: string
+      challenge_points:
+        type: integer
+    type: object
+  entity.UserExport:
+    properties:
+      id:
+        type: string
+      username:
+        type: string
+      email:
+        type: string
+      role:
+        type: string
+      team_id:
+        type: string
+    type: object
+  entity.TrackingEntry:
+    properties:
+      id:
+        type: string
+      user_id:
+        type: string
+      ip:
+        type: string
+      user_agent:
+        type: string
+      tracked_at:
+        type: string
+        format: date-time
+    type: object
+  response.TrackingListResponse:
+    properties:
+      data:
+        type: array
+        items:
+          $ref: "#/schemas/entity.TrackingEntry"
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object

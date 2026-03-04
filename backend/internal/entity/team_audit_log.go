@@ -15,6 +15,8 @@ const (
 	TeamActionCaptainTransfer TeamAuditAction = "captain_transferred"
 	TeamActionDeleted         TeamAuditAction = "deleted"
 	TeamActionMemberKicked    TeamAuditAction = "member_kicked"
+	TeamActionBanned          TeamAuditAction = "banned"
+	TeamActionUnbanned        TeamAuditAction = "unbanned"
 )
 
 type TeamAuditLog struct {

@@ -1,0 +1,120 @@
+/auth/verify-email:
+  get:
+    description: Verifies user email using token from query parameter
+    parameters:
+      - description: Verification token
+        in: query
+        name: token
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "410":
+        description: Gone
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Verify email
+    tags:
+      - Authentication
+
+/auth/forgot-password:
+  post:
+    description: Sends password reset email to specified address
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ForgotPasswordRequest'
+      description: Email address
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Request password reset
+    tags:
+      - Authentication
+
+/auth/reset-password:
+  post:
+    description: Resets password using token
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ResetPasswordRequest'
+      description: Token and new password
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "410":
+        description: Gone
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Reset password
+    tags:
+      - Authentication
+
+/auth/resend-verification:
+  post:
+    description: Resends verification email to authenticated user
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Resend verification email
+    tags:
+      - Authentication

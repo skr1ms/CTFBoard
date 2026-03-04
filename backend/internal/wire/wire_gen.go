@@ -7,80 +7,96 @@
 package wire
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/skr1ms/CTFBoard/config"
-	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	"github.com/skr1ms/CTFBoard/pkg/websocket"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 // Injectors from wire.go:
 
-func InitializeApp(cfg *config.Config, l logger.Logger, pool *pgxpool.Pool, redisClient *redis.Client, storageProvider storage.Provider, jwtService *jwt.JWTService, wsHub *websocket.Hub, mailer2 mailer.Mailer) (*App, error) {
+func InitializeApp(ctx context.Context, cfg *config.Config, l logger.Logger, pool *pgxpool.Pool, redisClient *redis.Client, storageProvider storage.Provider, jwtService *jwt.JWTService, wsHub *websocket.Hub, mailer2 mailer.Mailer) (*App, error) {
 	userRepo := ProvideUserRepo(pool)
 	teamRepo := ProvideTeamRepo(pool)
 	solveRepo := ProvideSolveRepo(pool)
-	txRepo := ProvideTxRepo(pool)
+	submissionRepo := ProvideSubmissionRepo(pool)
+	awardRepo := ProvideAwardRepo(pool)
+	transactionManager := ProvideTransactionManager(pool)
 	fieldRepo := ProvideFieldRepo(pool)
 	fieldValidator := ProvideFieldValidator(fieldRepo)
-	fieldValueRepo := ProvideFieldValueRepo(pool)
-	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, txRepo, jwtService, fieldValidator, fieldValueRepo)
-	challengeRepo := ProvideChallengeRepo(pool)
-	tagRepo := ProvideTagRepo(pool)
+	fieldValueRepo := ProvideFieldValueRepo(pool, transactionManager)
+	settingsRepo := ProvideSettingsRepo(pool)
+	verificationTokenRepo := ProvideVerificationTokenRepo(pool)
+	emailUseCase := ProvideEmailUseCase(userRepo, verificationTokenRepo, transactionManager, mailer2, cfg)
+	tracker := ProvideFailedLoginTracker(redisClient)
 	competitionRepo := ProvideCompetitionRepo(pool)
+	auditLogRepo := ProvideAuditLogRepo(pool)
+	keyValueStore := ProvideKeyValueStore(redisClient)
+	settingsUseCase := ProvideSettingsUseCase(settingsRepo, auditLogRepo, transactionManager, keyValueStore, competitionRepo)
+	challengeRepo := ProvideChallengeRepo(pool)
+	competitionUseCase := ProvideCompetitionUseCase(competitionRepo, auditLogRepo, transactionManager, keyValueStore, l)
+	guard := ProvideCompetitionGuard(competitionUseCase)
 	cache := ProvideCache(redisClient)
 	scoreboardCacheService := ProvideScoreboardCacheService(cache, teamRepo)
+	userCacheService := ProvideUserCacheService(cache)
+	hintRepo := ProvideHintRepo(pool)
+	teamUseCase := ProvideTeamUseCase(cfg, teamRepo, userRepo, solveRepo, submissionRepo, awardRepo, competitionRepo, settingsUseCase, challengeRepo, transactionManager, guard, scoreboardCacheService, userCacheService, cache, hintRepo)
+	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, submissionRepo, awardRepo, transactionManager, jwtService, fieldValidator, fieldValueRepo, settingsRepo, emailUseCase, tracker, competitionRepo, teamUseCase, userCacheService, scoreboardCacheService, l)
+	tagRepo := ProvideTagRepo(pool)
 	broadcaster := ProvideBroadcaster(wsHub)
-	auditLogRepo := ProvideAuditLogRepo(pool)
 	service, err := ProvideCrypto(cfg)
 	if err != nil {
 		return nil, err
 	}
-	challengeUseCase := ProvideChallengeUseCase(challengeRepo, tagRepo, solveRepo, txRepo, competitionRepo, teamRepo, redisClient, scoreboardCacheService, broadcaster, auditLogRepo, service)
-	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, userRepo, teamRepo, txRepo, cache, scoreboardCacheService, broadcaster)
-	teamUseCase := ProvideTeamUseCase(teamRepo, userRepo, competitionRepo, txRepo, scoreboardCacheService)
-	competitionUseCase := ProvideCompetitionUseCase(competitionRepo, auditLogRepo, txRepo, redisClient)
-	hintRepo := ProvideHintRepo(pool)
-	hintUnlockRepo := ProvideHintUnlockRepo(pool)
-	awardRepo := ProvideAwardRepo(pool)
-	hintUseCase := ProvideHintUseCase(hintRepo, hintUnlockRepo, awardRepo, txRepo, solveRepo, scoreboardCacheService)
-	verificationTokenRepo := ProvideVerificationTokenRepo(pool)
-	emailUseCase := ProvideEmailUseCase(userRepo, verificationTokenRepo, mailer2, cfg)
-	fileRepository := ProvideFileRepo(pool)
-	fileUseCase := ProvideFileUseCase(fileRepository, storageProvider, cfg)
-	awardUseCase := ProvideAwardUseCase(awardRepo, txRepo, scoreboardCacheService)
-	statisticsRepository := ProvideStatisticsRepo(pool)
-	statisticsUseCase := ProvideStatisticsUseCase(statisticsRepository, cache)
-	submissionRepo := ProvideSubmissionRepo(pool)
-	submissionUseCase := ProvideSubmissionUseCase(submissionRepo)
-	tagUseCase := ProvideTagUseCase(tagRepo)
+	fileRepo := ProvideFileRepo(pool)
+	challengeUseCase := ProvideChallengeUseCase(challengeRepo, tagRepo, solveRepo, transactionManager, competitionRepo, competitionUseCase, teamRepo, userRepo, scoreboardCacheService, cache, broadcaster, auditLogRepo, service, fileRepo, storageProvider)
+	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, competitionUseCase, userRepo, teamRepo, transactionManager, cache, scoreboardCacheService, challengeUseCase, broadcaster)
+	hintUseCase := ProvideHintUseCase(hintRepo, awardRepo, transactionManager, solveRepo, competitionRepo, teamRepo, userRepo, challengeRepo, scoreboardCacheService)
+	fileUseCase := ProvideFileUseCase(fileRepo, challengeRepo, solveRepo, storageProvider, cfg)
+	awardUseCase := ProvideAwardUseCase(awardRepo, teamRepo, transactionManager, scoreboardCacheService)
+	statisticsRepo := ProvideStatisticsRepo(pool)
+	statisticsUseCase := ProvideStatisticsUseCase(statisticsRepo, cache, competitionUseCase)
+	submissionUseCase := ProvideSubmissionUseCase(submissionRepo, transactionManager, challengeUseCase, l)
+	submissionBatcher := ProvideSubmissionBatcher(submissionRepo, l)
+	tagUseCase := ProvideTagUseCase(tagRepo, challengeRepo)
 	fieldUseCase := ProvideFieldUseCase(fieldRepo)
 	pageRepo := ProvidePageRepo(pool)
 	pageUseCase := ProvidePageUseCase(pageRepo)
 	bracketRepo := ProvideBracketRepo(pool)
-	bracketUseCase := ProvideBracketUseCase(bracketRepo)
-	ratingRepo := ProvideRatingRepo(pool)
-	ratingUseCase := ProvideRatingUseCase(ratingRepo, solveRepo, teamRepo)
+	bracketUseCase := ProvideBracketUseCase(bracketRepo, transactionManager)
 	notificationRepo := ProvideNotificationRepo(pool)
-	notificationUseCase := ProvideNotificationUseCase(notificationRepo)
+	notificationUseCase := ProvideNotificationUseCase(notificationRepo, broadcaster)
 	apiTokenRepo := ProvideAPITokenRepo(pool)
 	apiTokenUseCase := ProvideAPITokenUseCase(apiTokenRepo)
 	backupRepo := ProvideBackupRepo(pool)
-	backupUseCase := ProvideBackupUseCase(competitionRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, fileRepository, backupRepo, storageProvider, txRepo, l)
-	appSettingsRepo := ProvideAppSettingsRepo(pool)
-	settingsUseCase := ProvideSettingsUseCase(appSettingsRepo, auditLogRepo, redisClient)
-	configRepo := ProvideConfigRepo(pool)
-	dynamicConfigUseCase := ProvideDynamicConfigUseCase(configRepo, auditLogRepo)
+	backupUseCase := ProvideBackupUseCase(competitionRepo, challengeRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, submissionRepo, fileRepo, backupRepo, settingsRepo, storageProvider, transactionManager, l)
+	competitionParamRepo := ProvideCompetitionParamRepo(pool)
+	competitionParamUseCase := ProvideCompetitionParamUseCase(competitionParamRepo, auditLogRepo, transactionManager, l)
 	commentRepo := ProvideCommentRepo(pool)
-	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo)
+	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo, userRepo, transactionManager)
+	trackingRepo := ProvideTrackingRepo(pool)
+	trackingUseCase := ProvideTrackingUseCase(trackingRepo)
+	oAuthRepo := ProvideOAuthRepo(pool)
+	v := ProvideOAuthProviders()
+	oAuthUseCase := ProvideOAuthUseCase(userRepo, oAuthRepo, transactionManager, settingsRepo, jwtService, v, cfg, competitionRepo, teamUseCase, l)
 	controller := ProvideWsController(wsHub, l, cfg)
-	validator := ProvideValidator()
-	serverDeps := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, ratingUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, dynamicConfigUseCase, commentUseCase, jwtService, redisClient, controller, validator, l)
-	router := ProvideRouter(cfg, l, serverDeps)
+	validator, err := ProvideValidator()
+	if err != nil {
+		return nil, err
+	}
+	serverDeps, err := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, submissionBatcher, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, competitionParamUseCase, commentUseCase, trackingUseCase, oAuthUseCase, jwtService, redisClient, settingsRepo, storageProvider, controller, validator, l)
+	if err != nil {
+		return nil, err
+	}
+	router := ProvideRouter(ctx, cfg, l, serverDeps)
 	server := ProvideServer(router, cfg)
-	app := ProvideApp(server, userRepo)
+	app := ProvideApp(server, userRepo, submissionBatcher)
 	return app, nil
 }

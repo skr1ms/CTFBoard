@@ -53,7 +53,7 @@ const baseLayout = `<!DOCTYPE html>
             {{template "body" .}}
         </div>
         <div class="footer">
-            <p>&copy; {{.AppName}} Team. If you dIDn't request this, please ignore it.</p>
+            <p>&copy; {{.AppName}} Team. If you didn't request this, please ignore it.</p>
         </div>
     </div>
 </body>
@@ -81,7 +81,7 @@ const resetBodyHTML = `{{define "body"}}
 </div>
 <p>Or paste this link into your browser:<br>
 <a href="{{.ActionURL}}" class="link-text">{{.ActionURL}}</a></p>
-<p style="color: #8898aa; font-size: 14px;">This link expires in 1 hour. If you dIDn't request a password reset, you can safely ignore this email.</p>
+<p style="color: #8898aa; font-size: 14px;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
 {{end}}`
 
 const verificationTextTemplate = `Verify your email address
@@ -95,7 +95,7 @@ Please confirm your account by visiting the link below:
 
 This link expires in 24 hours.
 
-If you dIDn't create an account, please ignore this email.
+If you didn't create an account, please ignore this email.
 
 --
 {{.AppName}} Team`
@@ -111,7 +111,7 @@ To reset your password, visit the link below:
 
 This link expires in 1 hour.
 
-If you dIDn't request a password reset, you can safely ignore this email.
+If you didn't request a password reset, you can safely ignore this email.
 
 --
 {{.AppName}} Team`
@@ -131,7 +131,7 @@ func RenderVerificationEmail(data VerificationData, html bool) (string, error) {
 	getTemplates()
 
 	if data.AppName == "" {
-		data.AppName = "CTFBoard"
+		data.AppName = "AstroCTFb"
 	}
 
 	var buf bytes.Buffer
@@ -153,7 +153,7 @@ func RenderPasswordResetEmail(data PasswordResetData, html bool) (string, error)
 	getTemplates()
 
 	if data.AppName == "" {
-		data.AppName = "CTFBoard"
+		data.AppName = "AstroCTFb"
 	}
 
 	var buf bytes.Buffer

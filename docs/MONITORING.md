@@ -1,19 +1,21 @@
 # Monitoring
 
-This document specifies the monitoring stack for the CTFBoard platform. The stack is used for metrics collection, log aggregation, and visualisation.
+<!-- markdownlint-disable MD060 -->
+
+This document specifies the monitoring stack for the AstroCTFb platform. The stack is used for metrics collection, log aggregation, and visualisation.
 
 ## 1. Architecture
 
 The monitoring stack SHALL comprise the following components:
 
-| Component   | Role                                      |
-|-------------|-------------------------------------------|
-| Prometheus  | Metrics collection and time-series storage|
-| Grafana     | Dashboards and visualisation              |
-| Loki        | Log aggregation and storage               |
-| Promtail    | Log collection and shipment to Loki       |
-| Alertmanager| Alert routing and management              |
-| Exporters   | Metrics export for external services      |
+| Component | Role |
+|-----------|------|
+| Prometheus | Metrics storage |
+| Grafana | Dashboards |
+| Loki | Log aggregation |
+| Promtail | Log shipping |
+| Alertmanager | Alerts |
+| Exporters | Service metrics |
 
 ## 2. Components
 
@@ -59,11 +61,11 @@ The monitoring stack SHALL comprise the following components:
 
 ### 2.6 Exporters
 
-| Exporter           | Purpose                    |
-|--------------------|----------------------------|
-| PostgreSQL Exporter| Database metrics           |
-| Redis Exporter     | Redis metrics              |
-| cAdvisor           | Container resource usage   |
+| Exporter | Purpose |
+|----------|---------|
+| PostgreSQL | DB metrics |
+| Redis | Redis metrics |
+| cAdvisor | Containers |
 
 ## 3. Application metrics
 
@@ -71,17 +73,17 @@ The backend SHALL expose Prometheus metrics at the `/metrics` HTTP endpoint.
 
 ### 3.1 HTTP metrics
 
-- `http_requests_total` — Total number of HTTP requests (counter).
-- `http_request_duration_seconds` — Request duration (histogram).
+- `http_requests_total` - Total number of HTTP requests (counter).
+- `http_request_duration_seconds` - Request duration (histogram).
 
 ### 3.2 Go runtime
 
-- `go_goroutines` — Number of goroutines.
-- `go_memstats_alloc_bytes` — Allocated memory.
+- `go_goroutines` - Number of goroutines.
+- `go_memstats_alloc_bytes` - Allocated memory.
 
 ### 3.3 Business metrics
 
-- `flag_submissions_total` — Total flag submissions (counter).
+- `flag_submissions_total` - Total flag submissions (counter).
 
 ## 4. Logging
 

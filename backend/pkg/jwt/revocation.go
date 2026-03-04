@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 )
 
 const revokedKeyPrefix = "jwt:revoked:"
+
+// ErrEmptyJTI is returned when Revoke is called with an empty jti.
+var ErrEmptyJTI = errors.New("jwt: jti is required for revocation")
 
 type RevocationStore interface {
 	Revoke(ctx context.Context, jti string, ttl time.Duration) error
@@ -24,7 +28,10 @@ func NewRedisRevocationStore(client *redis.Client) *RedisRevocationStore {
 }
 
 func (s *RedisRevocationStore) Revoke(ctx context.Context, jti string, ttl time.Duration) error {
-	if s == nil || s.client == nil || jti == "" {
+	if jti == "" {
+		return ErrEmptyJTI
+	}
+	if s == nil || s.client == nil {
 		return nil
 	}
 	key := revokedKeyPrefix + jti

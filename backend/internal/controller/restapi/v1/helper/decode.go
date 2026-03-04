@@ -1,43 +1,16 @@
 package helper
 
 import (
-	"encoding/json"
 	"net/http"
 
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
 func DecodeAndValidateE[T any](r *http.Request, v validator.Validator) (T, error) {
-	var req T
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return req, &entityError.HTTPError{
-			Err:        err,
-			StatusCode: http.StatusBadRequest,
-			Code:       "INVALID_REQUEST",
-		}
-	}
-	if err := v.Validate(req); err != nil {
-		return req, &entityError.HTTPError{
-			Err:        err,
-			StatusCode: http.StatusBadRequest,
-			Code:       "VALIDATION_ERROR",
-		}
-	}
-	return req, nil
-}
-
-func RequireUserE(r *http.Request) (*entity.User, error) {
-	user, ok := middleware.GetUser(r.Context())
-	if !ok {
-		return nil, entityError.ErrNotAuthenticated
-	}
-	return user, nil
+	return httputil.DecodeAndValidateE[T](r, v)
 }
 
 func DecodeAndValidate[T any](
@@ -63,14 +36,9 @@ func GetClientIP(r *http.Request, trustedProxyCIDRs []string) string {
 }
 
 func ParseUUID(w http.ResponseWriter, r *http.Request, id string) (uuid.UUID, bool) {
-	if id == "" {
-		RenderInvalidID(w, r)
-		return uuid.Nil, false
-	}
-	parsed, err := uuid.Parse(id)
-	if err != nil {
-		RenderInvalidID(w, r)
-		return uuid.Nil, false
-	}
-	return parsed, true
+	return httputil.ParseUUID(w, r, id)
+}
+
+func ParseUUIDField(w http.ResponseWriter, r *http.Request, value, field string) (uuid.UUID, bool) {
+	return httputil.ParseUUIDField(w, r, value, field)
 }

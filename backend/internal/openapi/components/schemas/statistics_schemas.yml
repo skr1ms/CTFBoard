@@ -1,0 +1,130 @@
+schemas:
+  entity.GeneralStats:
+    properties:
+      challenge_count:
+        type: integer
+      solve_count:
+        type: integer
+      team_count:
+        type: integer
+      user_count:
+        type: integer
+    type: object
+  entity.ChallengeStats:
+    properties:
+      category:
+        type: string
+      id:
+        type: string
+      points:
+        type: integer
+      solve_count:
+        type: integer
+      title:
+        type: string
+    type: object
+  entity.ChallengeSolveEntry:
+    properties:
+      team_id:
+        type: string
+      team_name:
+        type: string
+      solved_at:
+        type: string
+        format: date-time
+    type: object
+  entity.ChallengeDetailStats:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      category:
+        type: string
+      points:
+        type: integer
+      solve_count:
+        type: integer
+      total_teams:
+        type: integer
+      percentage_solved:
+        type: number
+      first_blood:
+        $ref: "#/schemas/entity.ChallengeSolveEntry"
+      solves:
+        type: array
+        items:
+          $ref: "#/schemas/entity.ChallengeSolveEntry"
+    type: object
+  entity.ChallengeSolvePercentage:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      category:
+        type: string
+      solve_count:
+        type: integer
+      total_teams:
+        type: integer
+      percentage:
+        type: number
+    type: object
+  entity.ScoreDistributionBucket:
+    properties:
+      bucket:
+        type: string
+      count:
+        type: integer
+    type: object
+  entity.SubmissionTimeSeries:
+    properties:
+      date:
+        type: string
+        format: date
+      correct:
+        type: integer
+      incorrect:
+        type: integer
+    type: object
+  response.SubmissionTimeSeriesResponse:
+    properties:
+      items:
+        type: array
+        items:
+          $ref: "#/schemas/entity.SubmissionTimeSeries"
+      total_correct:
+        type: integer
+      total_incorrect:
+        type: integer
+    type: object
+  entity.RegistrationTimePoint:
+    properties:
+      date:
+        type: string
+        format: date
+      count:
+        type: integer
+    type: object
+  entity.SolveMatrixRow:
+    properties:
+      team_id:
+        type: string
+        format: uuid
+      team_name:
+        type: string
+      challenge_id:
+        type: string
+        format: uuid
+      challenge_title:
+        type: string
+      challenge_category:
+        type: string
+      solved:
+        type: boolean
+      solved_at:
+        type: string
+        format: date-time
+        nullable: true
+    type: object

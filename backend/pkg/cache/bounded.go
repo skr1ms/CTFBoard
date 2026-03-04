@@ -39,6 +39,12 @@ func (c *BoundedCache[K, V]) Get(key K) (V, bool) {
 	return zero, false
 }
 
+// Set inserts key/value only if the key is not already present (SetIfAbsent
+// semantics). Existing entries are never overwritten; call Delete first if an
+// update is required.
+//
+// Eviction is FIFO: when the cache is full the oldest entry is removed.
+// The underlying shift is O(n) - keep maxSize small (≤ a few hundred).
 func (c *BoundedCache[K, V]) Set(key K, value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -48,12 +54,13 @@ func (c *BoundedCache[K, V]) Set(key K, value V) {
 	}
 
 	if len(c.entries) >= c.maxSize {
-		oldest := c.entries[0]
-		delete(c.index, oldest.key)
-		newEntries := make([]boundedEntry[K, V], 0, c.maxSize)
-		c.entries = append(newEntries, c.entries[1:]...)
+		delete(c.index, c.entries[0].key)
+		copy(c.entries, c.entries[1:])
+		c.entries = c.entries[:len(c.entries)-1]
 		for k, idx := range c.index {
-			c.index[k] = idx - 1
+			if idx > 0 {
+				c.index[k] = idx - 1
+			}
 		}
 	}
 

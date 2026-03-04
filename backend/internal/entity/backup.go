@@ -25,6 +25,7 @@ type BackupData struct {
 	Users       []UserExport      `json:"users,omitempty"`
 	Awards      []Award           `json:"awards,omitempty"`
 	Solves      []Solve           `json:"solves,omitempty"`
+	HintUnlocks []HintUnlock      `json:"hint_unlocks,omitempty"`
 	Files       []File            `json:"files,omitempty"`
 }
 
@@ -55,13 +56,22 @@ type ExportOptions struct {
 }
 
 type ImportOptions struct {
-	EraseExisting bool         `json:"erase_existing"`
-	ConflictMode  ConflictMode `json:"conflict_mode"`
-	ValidateFiles bool         `json:"validate_files"`
+	EraseExisting      bool         `json:"erase_existing"`
+	ConflictMode       ConflictMode `json:"conflict_mode"`
+	ValidateFiles      bool         `json:"validate_files"`
+	PreserveAdminRoles bool         `json:"preserve_admin_roles"`
 }
 
 type ImportResult struct {
 	Success      bool     `json:"success"`
 	Errors       []string `json:"errors,omitempty"`
 	SkippedCount int      `json:"skipped_count,omitempty"`
+}
+
+type AdminResetOptions struct {
+	Pages         bool
+	Notifications bool
+	Challenges    bool
+	Accounts      bool
+	Submissions   bool
 }

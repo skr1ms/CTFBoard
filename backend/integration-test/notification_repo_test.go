@@ -5,14 +5,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNotificationRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -31,6 +32,7 @@ func TestNotificationRepo_Create_Success(t *testing.T) {
 }
 
 func TestNotificationRepo_Create_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -43,6 +45,7 @@ func TestNotificationRepo_Create_Error_CancelledContext(t *testing.T) {
 }
 
 func TestNotificationRepo_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -56,6 +59,7 @@ func TestNotificationRepo_GetByID_Success(t *testing.T) {
 }
 
 func TestNotificationRepo_GetByID_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -63,22 +67,28 @@ func TestNotificationRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.NotificationRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrNotificationNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrNotificationNotFound))
 }
 
 func TestNotificationRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f.CreateNotification(t, "ga1")
+	notif := f.CreateNotification(t, "ga1")
 	list, err := f.NotificationRepo.GetAll(ctx, 10, 0)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(list), 1)
+	ids := make(map[uuid.UUID]bool)
+	for _, n := range list {
+		ids[n.ID] = true
+	}
+	assert.True(t, ids[notif.ID], "notification should be in GetAll result")
 }
 
 func TestNotificationRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -90,6 +100,7 @@ func TestNotificationRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestNotificationRepo_Update_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -105,6 +116,7 @@ func TestNotificationRepo_Update_Success(t *testing.T) {
 }
 
 func TestNotificationRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -117,6 +129,7 @@ func TestNotificationRepo_Update_Error_CancelledContext(t *testing.T) {
 }
 
 func TestNotificationRepo_Delete_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -127,10 +140,11 @@ func TestNotificationRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.NotificationRepo.GetByID(ctx, notif.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrNotificationNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrNotificationNotFound))
 }
 
 func TestNotificationRepo_Delete_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

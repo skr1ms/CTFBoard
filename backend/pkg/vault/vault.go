@@ -3,8 +3,12 @@ package vault
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	vault "github.com/hashicorp/vault/api"
 )
 
@@ -60,22 +64,65 @@ func NewFromEnv() (*Client, error) {
 	return NewWithMount(addr, token, mountPath)
 }
 
-func (c *Client) GetSecret(secretPath string) (map[string]any, error) {
+func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]any, error) {
 	kv := c.client.KVv2(c.mountPath)
-	secret, err := kv.Get(context.Background(), secretPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read secret from vault: %w", err)
+
+	var data map[string]any
+	operation := func() error {
+		secret, err := kv.Get(ctx, secretPath)
+		if err != nil {
+			if isVaultPermanentError(err) {
+				return backoff.Permanent(fmt.Errorf("failed to read secret from vault: %w", err))
+			}
+			return fmt.Errorf("failed to read secret from vault: %w", err)
+		}
+		if secret == nil || secret.Data == nil {
+			return backoff.Permanent(fmt.Errorf("secret not found at path: %s/%s", c.mountPath, secretPath))
+		}
+		data = secret.Data
+		return nil
 	}
 
-	if secret == nil || secret.Data == nil {
-		return nil, fmt.Errorf("secret not found at path: %s/%s", c.mountPath, secretPath)
-	}
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 30 * time.Second
+	bo.InitialInterval = 500 * time.Millisecond
 
-	return secret.Data, nil
+	if err := backoff.Retry(operation, backoff.WithContext(bo, ctx)); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-func (c *Client) GetString(secretPath, key string) (string, error) {
-	data, err := c.GetSecret(secretPath)
+func isVaultPermanentError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, code := range []string{"403", "404", "400"} {
+		if strings.Contains(msg, "* "+code) || strings.Contains(msg, code+" ") {
+			return true
+		}
+	}
+	var re *vault.ResponseError
+	if asErr := asVaultResponseError(err, &re); asErr && re != nil {
+		return re.StatusCode == http.StatusForbidden ||
+			re.StatusCode == http.StatusUnauthorized ||
+			re.StatusCode == http.StatusNotFound ||
+			re.StatusCode == http.StatusBadRequest
+	}
+	return false
+}
+
+func asVaultResponseError(err error, target **vault.ResponseError) bool {
+	if re, ok := err.(*vault.ResponseError); ok { //nolint:errorlint
+		*target = re
+		return true
+	}
+	return false
+}
+
+func (c *Client) GetString(ctx context.Context, secretPath, key string) (string, error) {
+	data, err := c.GetSecret(ctx, secretPath)
 	if err != nil {
 		return "", err
 	}

@@ -3,34 +3,21 @@ package v1
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Get global notifications
 // (GET /notifications)
 func (h *Server) GetNotifications(w http.ResponseWriter, r *http.Request, params openapi.GetNotificationsParams) {
-	page := 1
-	if params.Page != nil {
-		page = *params.Page
-	}
-	perPage := 20
-	if params.PerPage != nil {
-		perPage = *params.PerPage
-	}
-
+	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 	notifs, err := h.admin.NotifUC.GetGlobal(r.Context(), page, perPage)
 	if h.OnError(w, r, err, "GetNotifications", "GetGlobal") {
 		return
 	}
-
-	res := make([]openapi.ResponseNotificationResponse, len(notifs))
-	for i, n := range notifs {
-		res[i] = response.FromNotification(n)
-	}
-	helper.RenderOK(w, r, res)
+	helper.RenderOK(w, r, response.FromNotificationList(notifs))
 }
 
 // Get user notifications
@@ -42,67 +29,47 @@ func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, pa
 	}
 	userID := user.ID
 
-	page := 1
-	if params.Page != nil {
-		page = *params.Page
-	}
-	perPage := 20
-	if params.PerPage != nil {
-		perPage = *params.PerPage
-	}
+	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
 	userNotifs, err := h.admin.NotifUC.GetUserNotifications(r.Context(), userID, page, perPage)
 	if h.OnError(w, r, err, "GetUserNotifications", "GetUserNotifications") {
 		return
 	}
-
-	res := make([]openapi.ResponseUserNotificationResponse, len(userNotifs))
-	for i, un := range userNotifs {
-		res[i] = response.FromUserNotification(un)
-	}
-	helper.RenderOK(w, r, res)
+	helper.RenderOK(w, r, response.FromUserNotificationList(userNotifs))
 }
 
 // Mark notification as read
 // (PATCH /user/notifications/{ID}/read)
-func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Server) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Request, ID string) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 	userID := user.ID
 
-	notifID, ok := helper.ParseUUID(w, r, id)
+	notifIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	if h.OnError(w, r, h.admin.NotifUC.MarkAsRead(r.Context(), notifID, userID), "PatchUserNotificationsIDRead", "MarkAsRead") {
+	if h.OnError(w, r, h.admin.NotifUC.MarkAsRead(r.Context(), notifIDParsed, userID), "PatchUserNotificationsIDRead", "MarkAsRead") {
 		return
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "marked as read"})
+	helper.RenderOK(w, r, response.Message("marked as read"))
 }
 
 // Create global notification
 // (POST /admin/notifications)
 func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotifications")
+	req, ok := helper.DecodeAndValidate[openapi.CreateNotificationRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotifications",
+	)
 	if !ok {
 		return
 	}
 
-	title := req.Title
-	content := req.Content
-	notifType := entity.NotificationInfo
-	if req.Type != nil {
-		notifType = entity.NotificationType(*req.Type)
-	}
-	isPinned := false
-	if req.IsPinned != nil {
-		isPinned = *req.IsPinned
-	}
-
+	title, content, notifType, isPinned := request.CreateNotificationRequestToParams(&req)
 	notif, err := h.admin.NotifUC.CreateGlobal(r.Context(), title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PostAdminNotifications", "CreateGlobal") {
 		return
@@ -113,25 +80,21 @@ func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) 
 
 // Create personal notification
 // (POST /admin/notifications/user/{userID})
-func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http.Request, userIDStr string) {
-	userID, ok := helper.ParseUUID(w, r, userIDStr)
+func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http.Request, userIDString string) {
+	userIDParsed, ok := helper.ParseUUID(w, r, userIDString)
 	if !ok {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateUserNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotificationsUserUserID")
+	req, ok := helper.DecodeAndValidate[openapi.CreateUserNotificationRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminNotificationsUserUserID",
+	)
 	if !ok {
 		return
 	}
 
-	title := req.Title
-	content := req.Content
-	notifType := entity.NotificationInfo
-	if req.Type != nil {
-		notifType = entity.NotificationType(*req.Type)
-	}
-
-	userNotif, err := h.admin.NotifUC.CreatePersonal(r.Context(), userID, title, content, notifType)
+	title, content, notifType := request.CreateUserNotificationRequestToParams(&req)
+	userNotif, err := h.admin.NotifUC.CreatePersonal(r.Context(), userIDParsed, title, content, notifType)
 	if h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "CreatePersonal") {
 		return
 	}
@@ -141,29 +104,21 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 
 // Update notification
 // (PUT /admin/notifications/{ID})
-func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request, id string) {
-	notifID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request, ID string) {
+	notifIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateNotificationRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminNotificationsID")
+	req, ok := helper.DecodeAndValidate[openapi.UpdateNotificationRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminNotificationsID",
+	)
 	if !ok {
 		return
 	}
 
-	title := req.Title
-	content := req.Content
-	notifType := entity.NotificationInfo
-	if req.Type != nil {
-		notifType = entity.NotificationType(*req.Type)
-	}
-	isPinned := false
-	if req.IsPinned != nil {
-		isPinned = *req.IsPinned
-	}
-
-	notif, err := h.admin.NotifUC.Update(r.Context(), notifID, title, content, notifType, isPinned)
+	title, content, notifType, isPinned := request.UpdateNotificationRequestToParams(&req)
+	notif, err := h.admin.NotifUC.Update(r.Context(), notifIDParsed, title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PutAdminNotificationsID", "Update") {
 		return
 	}
@@ -173,13 +128,13 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 
 // Delete notification
 // (DELETE /admin/notifications/{ID})
-func (h *Server) DeleteAdminNotificationsID(w http.ResponseWriter, r *http.Request, id string) {
-	notifID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) DeleteAdminNotificationsID(w http.ResponseWriter, r *http.Request, ID string) {
+	notifIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	if h.OnError(w, r, h.admin.NotifUC.Delete(r.Context(), notifID), "DeleteAdminNotificationsID", "Delete") {
+	if h.OnError(w, r, h.admin.NotifUC.Delete(r.Context(), notifIDParsed), "DeleteAdminNotificationsID", "Delete") {
 		return
 	}
 

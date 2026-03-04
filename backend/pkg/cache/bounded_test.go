@@ -8,6 +8,7 @@ import (
 )
 
 func TestBoundedCache_GetSet(t *testing.T) {
+	t.Parallel()
 	cache := NewBoundedCache[string, int](10)
 
 	val, ok := cache.Get("test")
@@ -22,6 +23,7 @@ func TestBoundedCache_GetSet(t *testing.T) {
 }
 
 func TestBoundedCache_Eviction(t *testing.T) {
+	t.Parallel()
 	maxSize := 10
 	cache := NewBoundedCache[string, int](maxSize)
 
@@ -40,6 +42,7 @@ func TestBoundedCache_Eviction(t *testing.T) {
 }
 
 func TestBoundedCache_NoDuplicates(t *testing.T) {
+	t.Parallel()
 	cache := NewBoundedCache[string, int](10)
 
 	cache.Set("test", 1)
@@ -53,6 +56,7 @@ func TestBoundedCache_NoDuplicates(t *testing.T) {
 }
 
 func TestBoundedCache_Concurrent(t *testing.T) {
+	t.Parallel()
 	cache := NewBoundedCache[int, int](50)
 
 	done := make(chan bool)
@@ -75,6 +79,7 @@ func TestBoundedCache_Concurrent(t *testing.T) {
 }
 
 func TestBoundedCache_DefaultSize(t *testing.T) {
+	t.Parallel()
 	cache := NewBoundedCache[string, int](0)
 	assert.Equal(t, DefaultBoundedCacheSize, cache.maxSize)
 }

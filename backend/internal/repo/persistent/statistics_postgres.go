@@ -3,39 +3,72 @@ package persistent
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
+	"golang.org/x/sync/errgroup"
 )
 
-type StatisticsRepository struct {
-	db *pgxpool.Pool
-	q  *sqlc.Queries
+const dateFormatISO = "2006-01-02"
+
+type StatisticsRepo struct {
+	pool *pgxpool.Pool
 }
 
-func NewStatisticsRepository(db *pgxpool.Pool) *StatisticsRepository {
-	return &StatisticsRepository{db: db, q: sqlc.New(db)}
+var _ repo.StatisticsRepository = (*StatisticsRepo)(nil)
+
+func NewStatisticsRepo(pool *pgxpool.Pool) *StatisticsRepo {
+	return &StatisticsRepo{pool: pool}
 }
 
-func (r *StatisticsRepository) GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error) {
-	users, err := r.q.CountUsers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetGeneralStats - CountUsers: %w", err)
-	}
-	teams, err := r.q.CountTeams(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetGeneralStats - CountTeams: %w", err)
-	}
-	challenges, err := r.q.CountChallenges(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetGeneralStats - CountChallenges: %w", err)
-	}
-	solves, err := r.q.CountSolves(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetGeneralStats - CountSolves: %w", err)
+func (r *StatisticsRepo) q(ctx context.Context) *sqlc.Queries {
+	return sqlc.New(ExtractDB(ctx, r.pool))
+}
+
+func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error) {
+	var users, teams, challenges, solves int32
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		v, err := r.q(gCtx).CountUsers(gCtx)
+		if err != nil {
+			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountUsers: %w", err)
+		}
+		users = v
+		return nil
+	})
+	g.Go(func() error {
+		v, err := r.q(gCtx).CountTeams(gCtx)
+		if err != nil {
+			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountTeams: %w", err)
+		}
+		teams = v
+		return nil
+	})
+	g.Go(func() error {
+		v, err := r.q(gCtx).CountChallenges(gCtx)
+		if err != nil {
+			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountChallenges: %w", err)
+		}
+		challenges = v
+		return nil
+	})
+	g.Go(func() error {
+		v, err := r.q(gCtx).CountSolves(gCtx)
+		if err != nil {
+			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountSolves: %w", err)
+		}
+		solves = v
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetGeneralStats - Wait: %w", err)
 	}
 	return &entity.GeneralStats{
 		UserCount:      int(users),
@@ -45,10 +78,10 @@ func (r *StatisticsRepository) GetGeneralStats(ctx context.Context) (*entity.Gen
 	}, nil
 }
 
-func (r *StatisticsRepository) GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error) {
-	rows, err := r.q.GetChallengeStats(ctx)
+func (r *StatisticsRepo) GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error) {
+	rows, err := r.q(ctx).GetChallengeStats(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetChallengeStats: %w", err)
+		return nil, fmt.Errorf("StatisticsRepo - GetChallengeStats: %w", err)
 	}
 	out := make([]*entity.ChallengeStats, 0, len(rows))
 	for _, row := range rows {
@@ -63,21 +96,21 @@ func (r *StatisticsRepository) GetChallengeStats(ctx context.Context) ([]*entity
 	return out, nil
 }
 
-func (r *StatisticsRepository) GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error) {
-	chRow, err := r.q.GetChallengeDetailChallenge(ctx, challengeID)
+func (r *StatisticsRepo) GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error) {
+	chRow, err := r.q(ctx).GetChallengeDetailChallenge(ctx, challengeID)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, nil
+			return nil, httperr.ErrChallengeNotFound
 		}
-		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - Challenge: %w", err)
+		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStats - Challenge: %w", err)
 	}
 	percentageSolved := 0.0
 	if chRow.TotalTeams > 0 {
 		percentageSolved = float64(chRow.SolveCount) / float64(chRow.TotalTeams) * 100
 	}
-	solveRows, err := r.q.GetChallengeDetailSolves(ctx, challengeID)
+	solveRows, err := r.q(ctx).GetChallengeDetailSolves(ctx, challengeID)
 	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetChallengeDetailStats - Solves: %w", err)
+		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStats - Solves: %w", err)
 	}
 	solves := make([]entity.ChallengeSolveEntry, 0, len(solveRows))
 	for _, row := range solveRows {
@@ -104,14 +137,29 @@ func (r *StatisticsRepository) GetChallengeDetailStats(ctx context.Context, chal
 	}, nil
 }
 
-func (r *StatisticsRepository) GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error) {
+func (r *StatisticsRepo) GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error) {
 	limit32, err := intToInt32Safe(limit)
 	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetScoreboardHistory limit: %w", err)
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistory - limit: %w", err)
 	}
-	rows, err := r.q.GetScoreboardHistory(ctx, limit32)
+	rows, err := r.q(ctx).GetScoreboardHistory(ctx, limit32)
 	if err != nil {
-		return nil, fmt.Errorf("StatisticsRepository - GetScoreboardHistory: %w", err)
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistory: %w", err)
+	}
+	return mapScoreboardHistoryRows(rows), nil
+}
+
+func (r *StatisticsRepo) GetScoreboardHistoryFrozen(ctx context.Context, freezeTime time.Time, limit int) ([]*entity.ScoreboardHistoryEntry, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistoryFrozen - limit: %w", err)
+	}
+	rows, err := r.q(ctx).GetScoreboardHistoryFrozen(ctx, sqlc.GetScoreboardHistoryFrozenParams{
+		Limit:    limit32,
+		SolvedAt: &freezeTime,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistoryFrozen: %w", err)
 	}
 	out := make([]*entity.ScoreboardHistoryEntry, 0, len(rows))
 	for _, row := range rows {
@@ -125,4 +173,256 @@ func (r *StatisticsRepository) GetScoreboardHistory(ctx context.Context, limit i
 	return out, nil
 }
 
-var _ repo.StatisticsRepository = (*StatisticsRepository)(nil)
+func mapScoreboardHistoryRows(rows []sqlc.GetScoreboardHistoryRow) []*entity.ScoreboardHistoryEntry {
+	out := make([]*entity.ScoreboardHistoryEntry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &entity.ScoreboardHistoryEntry{
+			TeamID:    row.TeamID,
+			TeamName:  row.TeamName,
+			Points:    int(row.Points),
+			Timestamp: ptrTimeToTime(row.Timestamp),
+		})
+	}
+	return out
+}
+
+func (r *StatisticsRepo) GetChallengeSolvePercentages(ctx context.Context) ([]*entity.ChallengeSolvePercentage, error) {
+	rows, err := r.q(ctx).GetChallengeSolvePercentages(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetChallengeSolvePercentages: %w", err)
+	}
+	return mapChallengeSolvePercentageRows(rows), nil
+}
+
+func (r *StatisticsRepo) GetChallengeSolvePercentagesFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.ChallengeSolvePercentage, error) {
+	rows, err := r.q(ctx).GetChallengeSolvePercentagesFrozen(ctx, &freezeTime)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetChallengeSolvePercentagesFrozen: %w", err)
+	}
+	out := make([]*entity.ChallengeSolvePercentage, 0, len(rows))
+	for _, row := range rows {
+		pct := 0.0
+		if row.Percentage != nil {
+			if v, ok := row.Percentage.(float64); ok {
+				pct = v
+			}
+		}
+		out = append(out, &entity.ChallengeSolvePercentage{
+			ID:         row.ID,
+			Title:      row.Title,
+			Category:   ptrStrToStr(row.Category),
+			SolveCount: int(row.SolveCount),
+			TotalTeams: int(row.TotalTeams),
+			Percentage: pct,
+		})
+	}
+	return out, nil
+}
+
+func mapChallengeSolvePercentageRows(rows []sqlc.GetChallengeSolvePercentagesRow) []*entity.ChallengeSolvePercentage {
+	out := make([]*entity.ChallengeSolvePercentage, 0, len(rows))
+	for _, row := range rows {
+		pct := 0.0
+		if row.Percentage != nil {
+			if v, ok := row.Percentage.(float64); ok {
+				pct = v
+			}
+		}
+		out = append(out, &entity.ChallengeSolvePercentage{
+			ID:         row.ID,
+			Title:      row.Title,
+			Category:   ptrStrToStr(row.Category),
+			SolveCount: int(row.SolveCount),
+			TotalTeams: int(row.TotalTeams),
+			Percentage: pct,
+		})
+	}
+	return out
+}
+
+func (r *StatisticsRepo) GetScoreDistribution(ctx context.Context) ([]*entity.ScoreDistributionBucket, error) {
+	rows, err := r.q(ctx).GetScoreDistribution(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreDistribution: %w", err)
+	}
+	out := make([]*entity.ScoreDistributionBucket, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &entity.ScoreDistributionBucket{
+			Bucket: row.Bucket,
+			Count:  int(row.Count),
+		})
+	}
+	return out, nil
+}
+
+func (r *StatisticsRepo) GetScoreDistributionFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.ScoreDistributionBucket, error) {
+	rows, err := r.q(ctx).GetScoreDistributionFrozen(ctx, &freezeTime)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetScoreDistributionFrozen: %w", err)
+	}
+	out := make([]*entity.ScoreDistributionBucket, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &entity.ScoreDistributionBucket{
+			Bucket: row.Bucket,
+			Count:  int(row.Count),
+		})
+	}
+	return out, nil
+}
+
+func (r *StatisticsRepo) GetSubmissionTimeSeries(ctx context.Context) (*entity.SubmissionTimeSeriesStats, error) {
+	rows, err := r.q(ctx).GetSubmissionTimeSeries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeries: %w", err)
+	}
+	items := make([]*entity.SubmissionTimeSeries, 0, len(rows))
+	totalCorrect, totalIncorrect := 0, 0
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format(dateFormatISO)
+		}
+		items = append(items, &entity.SubmissionTimeSeries{
+			Date:      dateStr,
+			Correct:   int(row.Correct),
+			Incorrect: int(row.Incorrect),
+		})
+		totalCorrect += int(row.Correct)
+		totalIncorrect += int(row.Incorrect)
+	}
+	return &entity.SubmissionTimeSeriesStats{
+		Items:          items,
+		TotalCorrect:   totalCorrect,
+		TotalIncorrect: totalIncorrect,
+	}, nil
+}
+
+func (r *StatisticsRepo) GetSubmissionTimeSeriesFrozen(ctx context.Context, freezeTime time.Time) (*entity.SubmissionTimeSeriesStats, error) {
+	rows, err := r.q(ctx).GetSubmissionTimeSeriesFrozen(ctx, &freezeTime)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesFrozen: %w", err)
+	}
+	items := make([]*entity.SubmissionTimeSeries, 0, len(rows))
+	totalCorrect, totalIncorrect := 0, 0
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format(dateFormatISO)
+		}
+		items = append(items, &entity.SubmissionTimeSeries{
+			Date:      dateStr,
+			Correct:   int(row.Correct),
+			Incorrect: int(row.Incorrect),
+		})
+		totalCorrect += int(row.Correct)
+		totalIncorrect += int(row.Incorrect)
+	}
+	return &entity.SubmissionTimeSeriesStats{
+		Items:          items,
+		TotalCorrect:   totalCorrect,
+		TotalIncorrect: totalIncorrect,
+	}, nil
+}
+
+func (r *StatisticsRepo) GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect bool) ([]*entity.RegistrationTimePoint, error) {
+	rows, err := r.q(ctx).GetSubmissionTimeSeriesByType(ctx, isCorrect)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesByType: %w", err)
+	}
+	return mapRegistrationTimePointRows(rows), nil
+}
+
+func (r *StatisticsRepo) GetSubmissionTimeSeriesByTypeFrozen(ctx context.Context, isCorrect bool, freezeTime time.Time) ([]*entity.RegistrationTimePoint, error) {
+	rows, err := r.q(ctx).GetSubmissionTimeSeriesByTypeFrozen(ctx, sqlc.GetSubmissionTimeSeriesByTypeFrozenParams{
+		IsCorrect: isCorrect,
+		CreatedAt: &freezeTime,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesByTypeFrozen: %w", err)
+	}
+	out := make([]*entity.RegistrationTimePoint, 0, len(rows))
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format("2006-01-02")
+		}
+		out = append(out, &entity.RegistrationTimePoint{
+			Date:  dateStr,
+			Count: int(row.Count),
+		})
+	}
+	return out, nil
+}
+
+func mapRegistrationTimePointRows(rows []sqlc.GetSubmissionTimeSeriesByTypeRow) []*entity.RegistrationTimePoint {
+	out := make([]*entity.RegistrationTimePoint, 0, len(rows))
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format("2006-01-02")
+		}
+		out = append(out, &entity.RegistrationTimePoint{
+			Date:  dateStr,
+			Count: int(row.Count),
+		})
+	}
+	return out
+}
+
+func (r *StatisticsRepo) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error) {
+	rows, err := r.q(ctx).GetTeamRegistrationTimeSeries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetTeamRegistrationTimeSeries: %w", err)
+	}
+	out := make([]*entity.RegistrationTimePoint, 0, len(rows))
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format("2006-01-02")
+		}
+		out = append(out, &entity.RegistrationTimePoint{
+			Date:  dateStr,
+			Count: int(row.Count),
+		})
+	}
+	return out, nil
+}
+
+func (r *StatisticsRepo) GetUserRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error) {
+	rows, err := r.q(ctx).GetUserRegistrationTimeSeries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetUserRegistrationTimeSeries: %w", err)
+	}
+	out := make([]*entity.RegistrationTimePoint, 0, len(rows))
+	for _, row := range rows {
+		dateStr := ""
+		if row.Date.Valid {
+			dateStr = row.Date.Time.Format("2006-01-02")
+		}
+		out = append(out, &entity.RegistrationTimePoint{
+			Date:  dateStr,
+			Count: int(row.Count),
+		})
+	}
+	return out, nil
+}
+
+func (r *StatisticsRepo) GetSolveMatrix(ctx context.Context) ([]*entity.SolveMatrixRow, error) {
+	rows, err := r.q(ctx).GetSolveMatrix(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetSolveMatrix: %w", err)
+	}
+	out := make([]*entity.SolveMatrixRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &entity.SolveMatrixRow{
+			TeamID:            row.TeamID,
+			TeamName:          row.TeamName,
+			ChallengeID:       row.ChallengeID,
+			ChallengeTitle:    row.ChallengeTitle,
+			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
+			Solved:            row.Solved,
+			SolvedAt:          row.SolvedAt,
+		})
+	}
+	return out, nil
+}

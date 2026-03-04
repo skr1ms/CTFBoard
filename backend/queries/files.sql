@@ -7,6 +7,11 @@ SELECT id, type, challenge_id, location, filename, size, sha256, created_at
 FROM files
 WHERE id = $1;
 
+-- name: GetFileByLocation :one
+SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+FROM files
+WHERE location = $1;
+
 -- name: GetFilesByChallengeIDAndType :many
 SELECT id, type, challenge_id, location, filename, size, sha256, created_at
 FROM files

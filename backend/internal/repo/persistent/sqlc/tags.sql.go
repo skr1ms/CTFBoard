@@ -11,22 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const addChallengeTag = `-- name: AddChallengeTag :exec
-INSERT INTO challenge_tags (challenge_id, tag_id)
-VALUES ($1, $2)
-ON CONFLICT (challenge_id, tag_id) DO NOTHING
-`
-
-type AddChallengeTagParams struct {
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	TagID       uuid.UUID `json:"tag_id"`
-}
-
-func (q *Queries) AddChallengeTag(ctx context.Context, arg AddChallengeTagParams) error {
-	_, err := q.db.Exec(ctx, addChallengeTag, arg.ChallengeID, arg.TagID)
-	return err
-}
-
 const createTag = `-- name: CreateTag :exec
 INSERT INTO tags (id, name, color)
 VALUES ($1, $2, $3)

@@ -1,0 +1,50 @@
+/scoreboard:
+  get:
+    description: Returns current scoreboard state sorted by points descending. Optional bracket_id filters by team category.
+    parameters:
+      - name: bracket
+        in: query
+        description: Filter scoreboard by bracket (category) ID
+        required: false
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/ScoreboardEntryResponse'
+              type: array
+    summary: Get scoreboard
+    tags:
+      - Scoreboard
+
+/scoreboard/graph:
+  get:
+    description: Returns scoreboard graph data with team timelines for visualization
+    parameters:
+      - description: Number of top teams to include
+        in: query
+        name: top
+        schema:
+          type: integer
+          default: 10
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ScoreboardGraph'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Get scoreboard graph
+    tags:
+      - Scoreboard

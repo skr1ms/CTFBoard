@@ -3,11 +3,20 @@ package logger
 import (
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+var timeFormatOnce sync.Once
+
+func initTimeFormat() {
+	timeFormatOnce.Do(func() {
+		zerolog.TimeFieldFormat = time.RFC3339
+	})
+}
 
 type zerologLogger struct {
 	zl zerolog.Logger
@@ -41,7 +50,7 @@ func New(opts *Options) Logger {
 		output = os.Stdout
 	}
 
-	zerolog.TimeFieldFormat = time.RFC3339
+	initTimeFormat()
 
 	zl := zerolog.New(output).With().Timestamp().Caller().Logger()
 
@@ -101,3 +110,17 @@ func convertLogLevel(level Level) zerolog.Level {
 		return zerolog.InfoLevel
 	}
 }
+
+// noopLogger discards all log output. Used as a safe fallback when no logger is provided.
+type noopLogger struct{}
+
+// Noop returns a Logger that silently discards all log output.
+func Noop() Logger { return &noopLogger{} }
+
+func (noopLogger) Debug(_ string, _ ...Fields) {}
+func (noopLogger) Info(_ string, _ ...Fields)  {}
+func (noopLogger) Warn(_ string, _ ...Fields)  {}
+func (noopLogger) Error(_ string, _ ...Fields) {}
+func (noopLogger) Fatal(_ string, _ ...Fields) {}
+func (noopLogger) WithFields(_ Fields) Logger  { return &noopLogger{} }
+func (noopLogger) WithError(_ error) Logger    { return &noopLogger{} }

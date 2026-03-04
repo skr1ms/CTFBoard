@@ -11,6 +11,7 @@ import (
 )
 
 func TestRenderOK(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -23,6 +24,7 @@ func TestRenderOK(t *testing.T) {
 }
 
 func TestRenderCreated(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 
@@ -35,6 +37,7 @@ func TestRenderCreated(t *testing.T) {
 }
 
 func TestRenderNoContent(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodDelete, "/", nil)
 
@@ -45,6 +48,7 @@ func TestRenderNoContent(t *testing.T) {
 }
 
 func TestRenderJSON(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 

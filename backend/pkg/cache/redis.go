@@ -5,18 +5,40 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisClient(host, port, password string) (*redis.Client, error) {
+const (
+	redisDialTimeout  = 5 * time.Second
+	redisReadTimeout  = 3 * time.Second
+	redisWriteTimeout = 3 * time.Second
+	redisPingTimeout  = 5 * time.Second
+	redisDefaultPool  = 50
+	redisDefaultIdle  = 10
+)
+
+func NewRedisClient(cfg *config.Redis) (*redis.Client, error) {
+	poolSize := cfg.PoolSize
+	if poolSize <= 0 {
+		poolSize = redisDefaultPool
+	}
+	minIdle := cfg.MinIdleConns
+	if minIdle <= 0 {
+		minIdle = redisDefaultIdle
+	}
 	rdb := redis.NewClient(&redis.Options{
-		Addr:        fmt.Sprintf("%s:%s", host, port),
-		Password:    password,
-		DB:          0,
-		DialTimeout: 5 * time.Second,
+		Addr:         fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
+		Password:     cfg.Password,
+		DB:           0,
+		DialTimeout:  redisDialTimeout,
+		ReadTimeout:  redisReadTimeout,
+		WriteTimeout: redisWriteTimeout,
+		PoolSize:     poolSize,
+		MinIdleConns: minIdle,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), redisPingTimeout)
 	defer cancel()
 
 	if err := rdb.Ping(ctx).Err(); err != nil {

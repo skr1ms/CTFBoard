@@ -3,36 +3,34 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
-func CompetitionActive(competitionUC *competition.CompetitionUseCase) func(http.Handler) http.Handler {
+func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get competition status")
+				httputil.HandleError(w, r, err)
 				return
 			}
 
 			if !comp.IsSubmissionAllowed() {
-				status := comp.GetStatus()
-				var msg string
-				switch status {
+				var httpErr *httperr.HTTPError
+				switch comp.GetStatus() { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
 				case entity.CompetitionStatusNotStarted:
-					msg = "competition has not started yet"
+					httpErr = httperr.ErrCompetitionNotStarted
 				case entity.CompetitionStatusEnded:
-					msg = "competition has ended"
+					httpErr = httperr.ErrCompetitionEnded
 				case entity.CompetitionStatusPaused:
-					msg = "competition is paused"
-				case entity.CompetitionStatusActive, entity.CompetitionStatusFrozen:
-					msg = "submissions are not allowed at this time"
+					httpErr = httperr.ErrCompetitionPaused
 				default:
-					msg = "submissions are not allowed at this time"
+					httpErr = httperr.ErrSubmissionNotAllowed
 				}
-				httputil.RenderError(w, r, http.StatusForbidden, msg)
+				httputil.HandleError(w, r, httpErr)
 				return
 			}
 
@@ -41,16 +39,16 @@ func CompetitionActive(competitionUC *competition.CompetitionUseCase) func(http.
 	}
 }
 
-func CompetitionEnded(competitionUC *competition.CompetitionUseCase) func(http.Handler) http.Handler {
+func CompetitionEnded(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get competition status")
+				httputil.HandleError(w, r, err)
 				return
 			}
 			if comp.GetStatus() != entity.CompetitionStatusEnded {
-				httputil.RenderError(w, r, http.StatusForbidden, "comments available only after competition has ended")
+				httputil.HandleError(w, r, httperr.ErrCommentsAvailableAfterEnd)
 				return
 			}
 			next.ServeHTTP(w, r)

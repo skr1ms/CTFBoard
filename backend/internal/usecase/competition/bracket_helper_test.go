@@ -1,13 +1,13 @@
 package competition
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 func (h *CompetitionTestHelper) CreateBracketUseCase() *BracketUseCase {
 	h.t.Helper()
-	return NewBracketUseCase(h.deps.bracketRepo)
+	return NewBracketUseCase(BracketDeps{BracketRepo: h.deps.bracketRepo, TM: h.deps.tm})
 }
 
 func (h *CompetitionTestHelper) NewBracket(name, description string, isDefault bool) *entity.Bracket {

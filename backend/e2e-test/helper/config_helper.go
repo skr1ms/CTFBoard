@@ -3,7 +3,7 @@ package helper
 import (
 	"context"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +17,7 @@ func (h *E2EHelper) GetAdminConfigs(token string, expectStatus int) *openapi.Get
 
 func (h *E2EHelper) PutAdminConfig(token, key, value, valueType, description string, expectStatus int) *openapi.PutAdminConfigsKeyResponse {
 	h.t.Helper()
-	vt := openapi.RequestSetConfigRequestValueType(valueType)
+	vt := openapi.SetConfigRequestValueType(valueType)
 	desc := description
 	resp, err := h.client.PutAdminConfigsKeyWithResponse(context.Background(), key, openapi.PutAdminConfigsKeyJSONRequestBody{
 		Value:       value,

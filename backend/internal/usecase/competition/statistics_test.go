@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStatisticsUseCase_GetGeneralStats_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -39,6 +40,7 @@ func TestStatisticsUseCase_GetGeneralStats_Success(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetGeneralStats_Cached(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -57,6 +59,7 @@ func TestStatisticsUseCase_GetGeneralStats_Cached(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetGeneralStats_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -72,6 +75,7 @@ func TestStatisticsUseCase_GetGeneralStats_Error(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetChallengeStats_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -93,6 +97,7 @@ func TestStatisticsUseCase_GetChallengeStats_Success(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetScoreboardHistory_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -113,6 +118,7 @@ func TestStatisticsUseCase_GetScoreboardHistory_Success(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetChallengeStats_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -128,6 +134,7 @@ func TestStatisticsUseCase_GetChallengeStats_Error(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetScoreboardHistory_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -143,6 +150,7 @@ func TestStatisticsUseCase_GetScoreboardHistory_Error(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetScoreboardGraph_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -163,6 +171,7 @@ func TestStatisticsUseCase_GetScoreboardGraph_Success(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetScoreboardGraph_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -178,6 +187,7 @@ func TestStatisticsUseCase_GetScoreboardGraph_Error(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetChallengeDetailStats_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -206,6 +216,7 @@ func TestStatisticsUseCase_GetChallengeDetailStats_Success(t *testing.T) {
 }
 
 func TestStatisticsUseCase_GetChallengeDetailStats_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateStatisticsUseCase()
@@ -215,6 +226,150 @@ func TestStatisticsUseCase_GetChallengeDetailStats_Error(t *testing.T) {
 	deps.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetChallengeDetailStats(context.Background(), challengeID.String())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 5}}
+	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
+	deps.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(data, nil)
+	redisClient.Regexp().ExpectSet("stats:team_registration", `.*`, 5*time.Minute).SetVal("OK")
+
+	result, err := uc.GetTeamRegistrationTimeSeries(context.Background())
+
+	assert.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "2025-01-01", result[0].Date)
+	assert.Equal(t, 5, result[0].Count)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Error(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
+	deps.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetTeamRegistrationTimeSeries(context.Background())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Success(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 10}}
+	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
+	deps.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(data, nil)
+	redisClient.Regexp().ExpectSet("stats:user_registration", `.*`, 5*time.Minute).SetVal("OK")
+
+	result, err := uc.GetUserRegistrationTimeSeries(context.Background())
+
+	assert.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, 10, result[0].Count)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Error(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
+	deps.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetUserRegistrationTimeSeries(context.Background())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetSolveMatrix_Success(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	matrix := []*entity.SolveMatrixRow{
+		{TeamID: uuid.New(), TeamName: "T1", ChallengeID: uuid.New(), ChallengeTitle: "C1", Solved: true},
+	}
+	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
+	deps.statsRepo.On("GetSolveMatrix", mock.Anything).Return(matrix, nil)
+	redisClient.Regexp().ExpectSet("stats:solve_matrix", `.*`, 30*time.Second).SetVal("OK")
+
+	result, err := uc.GetSolveMatrix(context.Background())
+
+	assert.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "T1", result[0].TeamName)
+	assert.True(t, result[0].Solved)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetSolveMatrix_Error(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
+	deps.statsRepo.On("GetSolveMatrix", mock.Anything).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetSolveMatrix(context.Background())
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Success(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 3}}
+	redisClient.ExpectGet("stats:submission_timeseries:true").SetErr(redis.Nil)
+	deps.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, true).Return(data, nil)
+	redisClient.Regexp().ExpectSet("stats:submission_timeseries:true", `.*`, 5*time.Minute).SetVal("OK")
+
+	result, err := uc.GetSubmissionTimeSeriesByType(context.Background(), true)
+
+	assert.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, 3, result[0].Count)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Error(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	uc, redisClient := h.CreateStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:submission_timeseries:false").SetErr(redis.Nil)
+	deps.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, false).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetSubmissionTimeSeriesByType(context.Background(), false)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

@@ -6,23 +6,27 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/squirrel"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
 type FieldRepo struct {
 	pool *pgxpool.Pool
-	q    *sqlc.Queries
 }
 
+var _ repo.FieldRepository = (*FieldRepo)(nil)
+
 func NewFieldRepo(pool *pgxpool.Pool) *FieldRepo {
-	return &FieldRepo{
-		pool: pool,
-		q:    sqlc.New(pool),
-	}
+	return &FieldRepo{pool: pool}
+}
+
+func (r *FieldRepo) q(ctx context.Context) *sqlc.Queries {
+	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
 func optionsToBytes(opts []string) ([]byte, error) {
@@ -38,7 +42,7 @@ func optionsFromBytes(b []byte) ([]string, error) {
 	}
 	var out []string
 	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("FieldRepo - optionsFromBytes: %w", err)
 	}
 	return out, nil
 }
@@ -48,16 +52,19 @@ func (r *FieldRepo) Create(ctx context.Context, field *entity.Field) error {
 		field.ID = uuid.New()
 	}
 	required := field.Required
-	orderIndex := intToInt32Ptr(field.OrderIndex)
+	orderIndex, err := intToInt32Ptr(field.OrderIndex)
+	if err != nil {
+		return fmt.Errorf("FieldRepo - Create - orderIndex: %w", err)
+	}
 	createdAt := field.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now()
 	}
 	opts, err := optionsToBytes(field.Options)
 	if err != nil {
-		return fmt.Errorf("FieldRepo - Create options: %w", err)
+		return fmt.Errorf("FieldRepo - Create - options: %w", err)
 	}
-	return r.q.CreateField(ctx, sqlc.CreateFieldParams{
+	if err := r.q(ctx).CreateField(ctx, sqlc.CreateFieldParams{
 		ID:         field.ID,
 		Name:       field.Name,
 		FieldType:  string(field.FieldType),
@@ -66,20 +73,23 @@ func (r *FieldRepo) Create(ctx context.Context, field *entity.Field) error {
 		Options:    opts,
 		OrderIndex: orderIndex,
 		CreatedAt:  &createdAt,
-	})
+	}); err != nil {
+		return fmt.Errorf("FieldRepo - Create: %w", err)
+	}
+	return nil
 }
 
-func (r *FieldRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Field, error) {
-	row, err := r.q.GetFieldByID(ctx, id)
+func (r *FieldRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Field, error) {
+	row, err := r.q(ctx).GetFieldByID(ctx, ID)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, entityError.ErrFieldNotFound
+			return nil, httperr.ErrFieldNotFound
 		}
 		return nil, fmt.Errorf("FieldRepo - GetByID: %w", err)
 	}
 	opts, err := optionsFromBytes(row.Options)
 	if err != nil {
-		return nil, fmt.Errorf("FieldRepo - GetByID options: %w", err)
+		return nil, fmt.Errorf("FieldRepo - GetByID - options: %w", err)
 	}
 	return &entity.Field{
 		ID:         row.ID,
@@ -94,7 +104,7 @@ func (r *FieldRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Field, e
 }
 
 func (r *FieldRepo) GetByEntityType(ctx context.Context, entityType entity.EntityType) ([]*entity.Field, error) {
-	rows, err := r.q.GetFieldsByEntityType(ctx, string(entityType))
+	rows, err := r.q(ctx).GetFieldsByEntityType(ctx, string(entityType))
 	if err != nil {
 		return nil, fmt.Errorf("FieldRepo - GetByEntityType: %w", err)
 	}
@@ -102,7 +112,7 @@ func (r *FieldRepo) GetByEntityType(ctx context.Context, entityType entity.Entit
 	for i, row := range rows {
 		opts, err := optionsFromBytes(row.Options)
 		if err != nil {
-			return nil, fmt.Errorf("FieldRepo - GetByEntityType options: %w", err)
+			return nil, fmt.Errorf("FieldRepo - GetByEntityType - options: %w", err)
 		}
 		out[i] = &entity.Field{
 			ID:         row.ID,
@@ -119,7 +129,7 @@ func (r *FieldRepo) GetByEntityType(ctx context.Context, entityType entity.Entit
 }
 
 func (r *FieldRepo) GetAll(ctx context.Context) ([]*entity.Field, error) {
-	rows, err := r.q.GetAllFields(ctx)
+	rows, err := r.q(ctx).GetAllFields(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("FieldRepo - GetAll: %w", err)
 	}
@@ -127,7 +137,7 @@ func (r *FieldRepo) GetAll(ctx context.Context) ([]*entity.Field, error) {
 	for i, row := range rows {
 		opts, err := optionsFromBytes(row.Options)
 		if err != nil {
-			return nil, fmt.Errorf("FieldRepo - GetAll options: %w", err)
+			return nil, fmt.Errorf("FieldRepo - GetAll - options: %w", err)
 		}
 		out[i] = &entity.Field{
 			ID:         row.ID,
@@ -145,39 +155,51 @@ func (r *FieldRepo) GetAll(ctx context.Context) ([]*entity.Field, error) {
 
 func (r *FieldRepo) Update(ctx context.Context, field *entity.Field) error {
 	required := field.Required
-	orderIndex := intToInt32Ptr(field.OrderIndex)
+	orderIndex, err := intToInt32Ptr(field.OrderIndex)
+	if err != nil {
+		return fmt.Errorf("FieldRepo - Update - orderIndex: %w", err)
+	}
 	opts, err := optionsToBytes(field.Options)
 	if err != nil {
-		return fmt.Errorf("FieldRepo - Update options: %w", err)
+		return fmt.Errorf("FieldRepo - Update - options: %w", err)
 	}
-	return r.q.UpdateField(ctx, sqlc.UpdateFieldParams{
+	if err := r.q(ctx).UpdateField(ctx, sqlc.UpdateFieldParams{
 		ID:         field.ID,
 		Name:       field.Name,
 		FieldType:  string(field.FieldType),
 		Required:   &required,
 		Options:    opts,
 		OrderIndex: orderIndex,
-	})
+	}); err != nil {
+		return fmt.Errorf("FieldRepo - Update: %w", err)
+	}
+	return nil
 }
 
-func (r *FieldRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.q.DeleteField(ctx, id)
+// Delete removes a field by ID. Idempotent: returns nil if the field does not exist.
+func (r *FieldRepo) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := r.q(ctx).DeleteField(ctx, ID); err != nil {
+		return fmt.Errorf("FieldRepo - Delete: %w", err)
+	}
+	return nil
 }
 
 type FieldValueRepo struct {
 	pool *pgxpool.Pool
-	q    *sqlc.Queries
 }
 
 func NewFieldValueRepo(pool *pgxpool.Pool) *FieldValueRepo {
-	return &FieldValueRepo{
-		pool: pool,
-		q:    sqlc.New(pool),
-	}
+	return &FieldValueRepo{pool: pool}
+}
+
+var _ repo.FieldValueRepository = (*FieldValueRepo)(nil)
+
+func (r *FieldValueRepo) q(ctx context.Context) *sqlc.Queries {
+	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
 func (r *FieldValueRepo) GetByEntityID(ctx context.Context, entityID uuid.UUID) ([]*entity.FieldValue, error) {
-	rows, err := r.q.GetFieldValuesByEntityID(ctx, entityID)
+	rows, err := r.q(ctx).GetFieldValuesByEntityID(ctx, entityID)
 	if err != nil {
 		return nil, fmt.Errorf("FieldValueRepo - GetByEntityID: %w", err)
 	}
@@ -195,24 +217,34 @@ func (r *FieldValueRepo) GetByEntityID(ctx context.Context, entityID uuid.UUID) 
 }
 
 func (r *FieldValueRepo) SetValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
-	if err := r.q.DeleteFieldValuesByEntityID(ctx, entityID); err != nil {
+	return r.setValuesInner(ctx, entityID, values)
+}
+
+func (r *FieldValueRepo) setValuesInner(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
+	if err := r.q(ctx).DeleteFieldValuesByEntityID(ctx, entityID); err != nil {
 		return fmt.Errorf("FieldValueRepo - SetValues - Delete: %w", err)
 	}
+	if len(values) == 0 {
+		return nil
+	}
+	now := time.Now()
+	qb := squirrel.Insert("field_values").
+		Columns("id", "field_id", "entity_id", "value", "created_at").
+		Suffix("ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value").
+		PlaceholderFormat(squirrel.Dollar)
 	for fieldIDStr, value := range values {
 		fieldID, err := uuid.Parse(fieldIDStr)
 		if err != nil {
 			return fmt.Errorf("FieldValueRepo - SetValues: invalid field_id %s: %w", fieldIDStr, err)
 		}
-		now := time.Now()
-		if err := r.q.UpsertFieldValue(ctx, sqlc.UpsertFieldValueParams{
-			ID:        uuid.New(),
-			FieldID:   fieldID,
-			EntityID:  entityID,
-			Value:     value,
-			CreatedAt: &now,
-		}); err != nil {
-			return fmt.Errorf("FieldValueRepo - SetValues - Upsert: %w", err)
-		}
+		qb = qb.Values(uuid.New(), fieldID, entityID, value, now)
+	}
+	query, args, err := qb.ToSql()
+	if err != nil {
+		return fmt.Errorf("FieldValueRepo - SetValues - ToSql: %w", err)
+	}
+	if _, err := ExtractDB(ctx, r.pool).Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("FieldValueRepo - SetValues - Exec: %w", err)
 	}
 	return nil
 }

@@ -12,12 +12,14 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	client, _ := redismock.NewClientMock()
 	c := New(client)
 	require.NotNil(t, c)
 }
 
 func TestGetOrLoad_CacheHit(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
@@ -37,6 +39,7 @@ func TestGetOrLoad_CacheHit(t *testing.T) {
 }
 
 func TestGetOrLoad_CacheMiss_StoresAndReturns(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
@@ -54,6 +57,7 @@ func TestGetOrLoad_CacheMiss_StoresAndReturns(t *testing.T) {
 }
 
 func TestGetOrLoad_LoadError(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
@@ -72,6 +76,7 @@ func TestGetOrLoad_LoadError(t *testing.T) {
 }
 
 func TestGetOrLoad_StructType(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
@@ -93,23 +98,26 @@ func TestGetOrLoad_StructType(t *testing.T) {
 }
 
 func TestCache_Del_EmptyKeys(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
-	c.Del(ctx)
+	require.NoError(t, c.Del(ctx))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestCache_Del_WithKeys(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
 	mock.ExpectDel("a", "b").SetVal(2)
-	c.Del(ctx, "a", "b")
+	require.NoError(t, c.Del(ctx, "a", "b"))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestCache_Set_Success(t *testing.T) {
+	t.Parallel()
 	client, mock := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()
@@ -122,6 +130,7 @@ func TestCache_Set_Success(t *testing.T) {
 }
 
 func TestCache_Set_UnmarshalableValue(t *testing.T) {
+	t.Parallel()
 	client, _ := redismock.NewClientMock()
 	c := New(client)
 	ctx := context.Background()

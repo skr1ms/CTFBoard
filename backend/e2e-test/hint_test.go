@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
 // POST /challenges/{challengeID}/hints/{hintID}/unlock: hint locked until user has points; unlock deducts cost; score reflects deduction.
 func TestHint_Flow(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint")
 
@@ -66,8 +67,8 @@ func TestHint_Flow(t *testing.T) {
 // PUT /admin/hints/{ID}: admin updates hint content and cost; GET reflects new values.
 func TestHint_Update_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_update")
 
@@ -91,8 +92,8 @@ func TestHint_Update_Success(t *testing.T) {
 // PUT /admin/hints/{ID}: non-existent hint returns 404.
 func TestHint_Update_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_up_err")
 
@@ -102,8 +103,8 @@ func TestHint_Update_NotFound(t *testing.T) {
 // DELETE /admin/hints/{ID}: admin deletes hint; GET /challenges/{ID}/hints no longer returns it.
 func TestHint_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_del")
 
@@ -127,8 +128,8 @@ func TestHint_Delete_Success(t *testing.T) {
 // DELETE /admin/hints/{ID}: non-existent hint returns 204 (idempotent).
 func TestHint_Delete_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_del_err")
 
@@ -138,12 +139,67 @@ func TestHint_Delete_NotFound(t *testing.T) {
 // POST /challenges/{ID}/hints/{hintID}/unlock: non-existent hint returns 404.
 func TestHint_Unlock_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_unlock_404")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Unlock Chal", "flag{u}", 50)
 	_, _, tokenUser := h.RegisterUserAndLogin("unlock_user")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.UnlockHint(tokenUser, challengeID, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
+}
+
+// GET /admin/unlocks: admin lists all hint unlocks paginated.
+func TestHint_AdminListUnlocks_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_unlocks_ok")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":         "Unlock List Chal",
+		"description":   "desc",
+		"points":        100,
+		"flag":          "flag{unlock_list}",
+		"category":      "misc",
+		"initial_value": 100,
+		"min_value":     100,
+		"decay":         1,
+	})
+	hintID := h.CreateHint(tokenAdmin, challengeID, "Some hint", 0)
+
+	_, _, tokenUser := h.RegisterUserAndLogin("unlocks_list_user")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	h.SubmitFlag(tokenUser, challengeID, "flag{unlock_list}", http.StatusOK)
+	h.UnlockHint(tokenUser, challengeID, hintID, http.StatusOK)
+
+	page := 1
+	perPage := 50
+	resp, err := h.Client().GetAdminUnlocksWithResponse(context.Background(), &openapi.GetAdminUnlocksParams{
+		Page:    &page,
+		PerPage: &perPage,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "admin list unlocks")
+	require.NotNil(t, resp.JSON200)
+}
+
+// GET /admin/unlocks: non-admin returns 403 Forbidden.
+func TestHint_AdminListUnlocks_Forbidden(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	h.SetupCompetition("admin_unlocks_403")
+	_, _, tokenUser := h.RegisterUserAndLogin("unlocks_forbid_user")
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	page := 1
+	perPage := 50
+	resp, err := h.Client().GetAdminUnlocksWithResponse(context.Background(), &openapi.GetAdminUnlocksParams{
+		Page:    &page,
+		PerPage: &perPage,
+	}, helper.WithBearerToken(tokenUser))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusForbidden, resp.StatusCode(), resp.Body, "admin list unlocks forbidden")
 }

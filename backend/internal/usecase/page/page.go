@@ -3,59 +3,66 @@ package page
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
+var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
 type PageUseCase struct {
-	pageRepo repo.PageRepository
+	deps PageDeps
 }
 
-func NewPageUseCase(
-	pageRepo repo.PageRepository,
-) *PageUseCase {
-	return &PageUseCase{pageRepo: pageRepo}
+type PageDeps struct {
+	PageRepo repo.PageRepository
+}
+
+var _ usecase.PageUseCase = (*PageUseCase)(nil)
+
+func NewPageUseCase(deps PageDeps) *PageUseCase {
+	return &PageUseCase{deps: deps}
 }
 
 func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*entity.PageListItem, error) {
-	list, err := uc.pageRepo.GetPublishedList(ctx)
+	list, err := uc.deps.PageRepo.GetPublishedList(ctx)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - GetPublishedList")
+		return nil, fmt.Errorf("PageUseCase - GetPublishedList - PageRepo.GetPublishedList: %w", err)
 	}
 	return list, nil
 }
 
 func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*entity.Page, error) {
 	if strings.TrimSpace(slug) == "" {
-		return nil, fmt.Errorf("PageUseCase - GetBySlug: slug is required")
+		return nil, httperr.ErrPageSlugRequired
 	}
-	page, err := uc.pageRepo.GetBySlug(ctx, slug)
+	page, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - GetBySlug")
+		return nil, fmt.Errorf("PageUseCase - GetBySlug - PageRepo.GetBySlug: %w", err)
 	}
 	if page.IsDraft {
-		return nil, entityError.ErrPageNotFound
+		return nil, httperr.ErrPageNotFound
 	}
 	return page, nil
 }
 
-func (uc *PageUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Page, error) {
-	page, err := uc.pageRepo.GetByID(ctx, id)
+func (uc *PageUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Page, error) {
+	page, err := uc.deps.PageRepo.GetByID(ctx, ID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - GetByID")
+		return nil, fmt.Errorf("PageUseCase - GetByID - PageRepo.GetByID: %w", err)
 	}
 	return page, nil
 }
 
 func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*entity.Page, error) {
-	list, err := uc.pageRepo.GetAllList(ctx)
+	list, err := uc.deps.PageRepo.GetAllList(ctx)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - GetAllList")
+		return nil, fmt.Errorf("PageUseCase - GetAllList - PageRepo.GetAllList: %w", err)
 	}
 	return list, nil
 }
@@ -64,10 +71,13 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 	title = strings.TrimSpace(title)
 	slug = strings.TrimSpace(slug)
 	if title == "" {
-		return nil, fmt.Errorf("PageUseCase - Create: title is required")
+		return nil, httperr.ErrPageTitleRequired
 	}
 	if slug == "" {
-		return nil, fmt.Errorf("PageUseCase - Create: slug is required")
+		return nil, httperr.ErrPageSlugRequired
+	}
+	if !slugRe.MatchString(slug) {
+		return nil, httperr.NewValidationErrorf("slug must match ^[a-z0-9]+(?:-[a-z0-9]+)*$")
 	}
 	page := &entity.Page{
 		ID:         uuid.New(),
@@ -77,39 +87,42 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 		IsDraft:    isDraft,
 		OrderIndex: orderIndex,
 	}
-	if err := uc.pageRepo.Create(ctx, page); err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - Create")
+	if err := uc.deps.PageRepo.Create(ctx, page); err != nil {
+		return nil, fmt.Errorf("PageUseCase - Create - PageRepo.Create: %w", err)
 	}
 	return page, nil
 }
 
-func (uc *PageUseCase) Update(ctx context.Context, id uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*entity.Page, error) {
-	page, err := uc.pageRepo.GetByID(ctx, id)
+func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*entity.Page, error) {
+	page, err := uc.deps.PageRepo.GetByID(ctx, ID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - Update - GetByID")
+		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetByID: %w", err)
 	}
 	title = strings.TrimSpace(title)
 	slug = strings.TrimSpace(slug)
 	if title == "" {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - Update: title is required")
+		return nil, httperr.ErrPageTitleRequired
 	}
 	if slug == "" {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - Update: slug is required")
+		return nil, httperr.ErrPageSlugRequired
+	}
+	if !slugRe.MatchString(slug) {
+		return nil, httperr.NewValidationErrorf("slug must match ^[a-z0-9]+(?:-[a-z0-9]+)*$")
 	}
 	page.Title = title
 	page.Slug = slug
 	page.Content = content
 	page.IsDraft = isDraft
 	page.OrderIndex = orderIndex
-	if err := uc.pageRepo.Update(ctx, page); err != nil {
-		return nil, usecaseutil.Wrap(err, "PageUseCase - Update")
+	if err := uc.deps.PageRepo.Update(ctx, page); err != nil {
+		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.Update: %w", err)
 	}
 	return page, nil
 }
 
-func (uc *PageUseCase) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := uc.pageRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("PageUseCase - Delete")
+func (uc *PageUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := uc.deps.PageRepo.Delete(ctx, ID); err != nil {
+		return fmt.Errorf("PageUseCase - Delete - PageRepo.Delete: %w", err)
 	}
 	return nil
 }

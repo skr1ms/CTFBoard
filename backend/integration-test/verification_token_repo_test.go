@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -38,6 +39,7 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 }
 
 func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -46,10 +48,11 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 
 	_, err := repo.GetByToken(ctx, "non_existent_token")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrTokenNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrTokenNotFound))
 }
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -71,10 +74,11 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 
 	_, err = repo.GetByToken(ctx, token.Token)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrTokenNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrTokenNotFound))
 }
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

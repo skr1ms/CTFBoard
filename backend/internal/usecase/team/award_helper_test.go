@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/team/mocks"
 )
 
 type AwardTestHelper struct {
 	t       *testing.T
 	repo    *mocks.MockAwardRepository
-	txRepo  *mocks.MockTxRepository
+	tm      *mocks.MockTransactionManager
 	useCase *AwardUseCase
 	teamID  uuid.UUID
 	adminID uuid.UUID
@@ -21,12 +21,12 @@ type AwardTestHelper struct {
 func NewAwardTestHelper(t *testing.T) *AwardTestHelper {
 	t.Helper()
 	repo := mocks.NewMockAwardRepository(t)
-	txRepo := mocks.NewMockTxRepository(t)
-	uc := NewAwardUseCase(repo, txRepo, nil)
+	tm := mocks.NewMockTransactionManager(t)
+	uc := NewAwardUseCase(AwardDeps{AwardRepo: repo, TM: tm})
 	return &AwardTestHelper{
 		t:       t,
 		repo:    repo,
-		txRepo:  txRepo,
+		tm:      tm,
 		useCase: uc,
 		teamID:  uuid.New(),
 		adminID: uuid.New(),
@@ -43,9 +43,9 @@ func (h *AwardTestHelper) Repo() *mocks.MockAwardRepository {
 	return h.repo
 }
 
-func (h *AwardTestHelper) TxRepo() *mocks.MockTxRepository {
+func (h *AwardTestHelper) TM() *mocks.MockTransactionManager {
 	h.t.Helper()
-	return h.txRepo
+	return h.tm
 }
 
 func (h *AwardTestHelper) TeamID() uuid.UUID {

@@ -1,13 +1,17 @@
 package wire
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	backup "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	notification "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
+	team "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
+	user "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/google/wire"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	notification "github.com/skr1ms/CTFBoard/internal/usecase/notification"
-	user "github.com/skr1ms/CTFBoard/internal/usecase/user"
 )
 
 var RepoSet = wire.NewSet(
@@ -17,12 +21,11 @@ var RepoSet = wire.NewSet(
 	ProvideTeamRepo,
 	ProvideCompetitionRepo,
 	ProvideHintRepo,
-	ProvideHintUnlockRepo,
 	ProvideAwardRepo,
 	ProvideAuditLogRepo,
 	ProvideStatisticsRepo,
 	ProvideFileRepo,
-	ProvideTxRepo,
+	ProvideTransactionManager,
 	ProvideBackupRepo,
 	ProvideSubmissionRepo,
 	ProvideTagRepo,
@@ -32,23 +35,23 @@ var RepoSet = wire.NewSet(
 	ProvidePageRepo,
 	ProvideCommentRepo,
 	ProvideBracketRepo,
-	ProvideRatingRepo,
 	ProvideAPITokenRepo,
-	ProvideAppSettingsRepo,
-	ProvideConfigRepo,
+	ProvideSettingsRepo,
+	ProvideCompetitionParamRepo,
 	ProvideVerificationTokenRepo,
+	ProvideTrackingRepo,
+	ProvideOAuthRepo,
 	wire.Bind(new(repo.UserRepository), new(*persistent.UserRepo)),
 	wire.Bind(new(repo.TeamRepository), new(*persistent.TeamRepo)),
 	wire.Bind(new(repo.SolveRepository), new(*persistent.SolveRepo)),
 	wire.Bind(new(repo.CompetitionRepository), new(*persistent.CompetitionRepo)),
 	wire.Bind(new(repo.ChallengeRepository), new(*persistent.ChallengeRepo)),
 	wire.Bind(new(repo.HintRepository), new(*persistent.HintRepo)),
-	wire.Bind(new(repo.HintUnlockRepository), new(*persistent.HintUnlockRepo)),
 	wire.Bind(new(repo.AwardRepository), new(*persistent.AwardRepo)),
 	wire.Bind(new(repo.AuditLogRepository), new(*persistent.AuditLogRepo)),
-	wire.Bind(new(repo.StatisticsRepository), new(*persistent.StatisticsRepository)),
-	wire.Bind(new(repo.FileRepository), new(*persistent.FileRepository)),
-	wire.Bind(new(repo.TxRepository), new(*persistent.TxRepo)),
+	wire.Bind(new(repo.StatisticsRepository), new(*persistent.StatisticsRepo)),
+	wire.Bind(new(repo.FileRepository), new(*persistent.FileRepo)),
+	wire.Bind(new(repo.TransactionManager), new(*persistent.TransactionManager)),
 	wire.Bind(new(repo.BackupRepository), new(*persistent.BackupRepo)),
 	wire.Bind(new(repo.SubmissionRepository), new(*persistent.SubmissionRepo)),
 	wire.Bind(new(repo.TagRepository), new(*persistent.TagRepo)),
@@ -58,15 +61,19 @@ var RepoSet = wire.NewSet(
 	wire.Bind(new(repo.PageRepository), new(*persistent.PageRepo)),
 	wire.Bind(new(repo.CommentRepository), new(*persistent.CommentRepo)),
 	wire.Bind(new(repo.BracketRepository), new(*persistent.BracketRepo)),
-	wire.Bind(new(repo.RatingRepository), new(*persistent.RatingRepo)),
 	wire.Bind(new(repo.APITokenRepository), new(*persistent.APITokenRepo)),
-	wire.Bind(new(repo.AppSettingsRepository), new(*persistent.AppSettingsRepo)),
-	wire.Bind(new(repo.ConfigRepository), new(*persistent.ConfigRepo)),
+	wire.Bind(new(repo.SettingsRepository), new(*persistent.SettingsRepo)),
+	wire.Bind(new(repo.CompetitionParamRepository), new(*persistent.CompetitionParamRepo)),
 	wire.Bind(new(repo.VerificationTokenRepository), new(*persistent.VerificationTokenRepo)),
+	wire.Bind(new(repo.TrackingRepository), new(*persistent.TrackingRepo)),
+	wire.Bind(new(repo.OAuthAccountRepository), new(*persistent.OAuthRepo)),
 )
 
 var UseCaseSet = wire.NewSet(
 	ProvideScoreboardCacheService,
+	ProvideUserCacheService,
+	ProvideCompetitionGuard,
+	ProvideFailedLoginTracker,
 	ProvideUserUseCase,
 	ProvideTeamUseCase,
 	ProvideAwardUseCase,
@@ -76,6 +83,7 @@ var UseCaseSet = wire.NewSet(
 	ProvideSolveUseCase,
 	ProvideStatisticsUseCase,
 	ProvideSubmissionUseCase,
+	ProvideSubmissionBatcher,
 	ProvideTagUseCase,
 	ProvideFieldUseCase,
 	ProvideFieldValidator,
@@ -83,24 +91,32 @@ var UseCaseSet = wire.NewSet(
 	ProvidePageUseCase,
 	ProvideCommentUseCase,
 	ProvideBracketUseCase,
-	ProvideRatingUseCase,
 	ProvideAPITokenUseCase,
 	ProvideFileUseCase,
 	ProvideBackupUseCase,
 	ProvideSettingsUseCase,
-	ProvideDynamicConfigUseCase,
+	ProvideCompetitionParamUseCase,
 	ProvideEmailUseCase,
-	wire.Bind(new(usecase.BackupUseCase), new(*competition.BackupUseCase)),
+	ProvideTrackingUseCase,
+	ProvideOAuthUseCase,
+	ProvideOAuthProviders,
+	wire.Bind(new(usecase.BackupUseCase), new(*backup.BackupUseCase)),
+	wire.Bind(new(usecase.CompetitionUseCase), new(*competition.CompetitionUseCase)),
+	wire.Bind(new(usecase.CompetitionParamUseCase), new(*competition.CompetitionParamUseCase)),
+	wire.Bind(new(usecase.CompetitionGuard), new(*competition.Guard)),
 	wire.Bind(new(usecase.NotificationUseCase), new(*notification.NotificationUseCase)),
 	wire.Bind(new(usecase.BracketUseCase), new(*competition.BracketUseCase)),
-	wire.Bind(new(usecase.RatingUseCase), new(*competition.RatingUseCase)),
 	wire.Bind(new(usecase.APITokenUseCase), new(*user.APITokenUseCase)),
+	wire.Bind(new(user.SoloTeamCreator), new(*team.TeamUseCase)),
+	wire.Bind(new(cache.ChallengeListCacheInvalidator), new(*challenge.ChallengeUseCase)),
+	wire.Bind(new(usecase.SubmissionBatcher), new(*competition.SubmissionBatcher)),
 )
 
 var InfraSet = wire.NewSet(
 	ProvideValidator,
 	ProvideCrypto,
 	ProvideCache,
+	ProvideKeyValueStore,
 	ProvideBroadcaster,
 	ProvideWsController,
 )

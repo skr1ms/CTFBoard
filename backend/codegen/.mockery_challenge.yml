@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/skr1ms/CTFBoard/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       ChallengeRepository:
         config:
@@ -28,13 +28,6 @@ packages:
           pkgname: "mocks"
           structname: "MockTeamRepository"
 
-      TxRepository:
-        config:
-          dir: "internal/usecase/challenge/mocks"
-          filename: "TxRepository.go"
-          pkgname: "mocks"
-          structname: "MockTxRepository"
-
       FileRepository:
         config:
           dir: "internal/usecase/challenge/mocks"
@@ -49,13 +42,6 @@ packages:
           pkgname: "mocks"
           structname: "MockHintRepository"
 
-      HintUnlockRepository:
-        config:
-          dir: "internal/usecase/challenge/mocks"
-          filename: "HintUnlockRepository.go"
-          pkgname: "mocks"
-          structname: "MockHintUnlockRepository"
-
       AwardRepository:
         config:
           dir: "internal/usecase/challenge/mocks"
@@ -69,13 +55,6 @@ packages:
           filename: "CompetitionRepository.go"
           pkgname: "mocks"
           structname: "MockCompetitionRepository"
-
-      Transaction:
-        config:
-          dir: "internal/usecase/challenge/mocks"
-          filename: "Transaction.go"
-          pkgname: "mocks"
-          structname: "MockTransaction"
 
       AuditLogRepository:
         config:
@@ -98,7 +77,14 @@ packages:
           pkgname: "mocks"
           structname: "MockCommentRepository"
 
-  github.com/skr1ms/CTFBoard/internal/storage:
+      TransactionManager:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "TransactionManager.go"
+          pkgname: "mocks"
+          structname: "MockTransactionManager"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
     interfaces:
       Provider:
         config:
@@ -107,7 +93,7 @@ packages:
           pkgname: "mocks"
           structname: "MockS3Provider"
 
-  github.com/skr1ms/CTFBoard/pkg/crypto:
+  github.com/TakuyaYagam1/AstroCTFb/pkg/crypto:
     interfaces:
       Service:
         config:

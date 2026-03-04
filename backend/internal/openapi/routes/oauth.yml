@@ -1,0 +1,57 @@
+"/auth/oauth/{provider}":
+  get:
+    description: Redirects the user to the OAuth provider's authorization page
+    parameters:
+      - description: OAuth provider name (e.g. github, google)
+        in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+    responses:
+      "302":
+        description: Redirect to OAuth provider
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security: []
+    summary: OAuth redirect
+    tags:
+      - Authentication
+
+"/auth/oauth/{provider}/callback":
+  get:
+    description: Handles the OAuth provider callback, exchanges code for tokens and redirects to the frontend
+    parameters:
+      - description: OAuth provider name (e.g. github, google)
+        in: path
+        name: provider
+        required: true
+        schema:
+          type: string
+      - description: Authorization code returned by the OAuth provider
+        in: query
+        name: code
+        schema:
+          type: string
+      - description: State parameter for CSRF protection
+        in: query
+        name: state
+        schema:
+          type: string
+    responses:
+      "302":
+        description: Redirect to frontend with tokens in fragment
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security: []
+    summary: OAuth callback
+    tags:
+      - Authentication

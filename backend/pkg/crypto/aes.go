@@ -75,9 +75,10 @@ func (s *CryptoService) Decrypt(ciphertext64 string) (string, error) {
 		return "", errors.New("ciphertext too short")
 	}
 
-	if data[0] == keyVersionByte {
-		data = data[1:]
+	if data[0] != keyVersionByte {
+		return "", ErrUnknownKeyVersion
 	}
+	data = data[1:]
 
 	block, err := aes.NewCipher(s.key)
 	if err != nil {

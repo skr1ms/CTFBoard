@@ -1,0 +1,15 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper:
+    interfaces:
+      SettingsGetter:
+        config:
+          dir: "internal/controller/restapi/v1/helper/mocks"
+          filename: "SettingsGetter.go"
+          pkgname: "mocks"
+          structname: "MockSettingsGetter"

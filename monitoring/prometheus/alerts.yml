@@ -1,5 +1,5 @@
 groups:
-  - name: ctfboard_alerts
+  - name: astroctfb_alerts
     rules:
       - alert: InstanceDown
         expr: up == 0

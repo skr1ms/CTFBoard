@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/skr1ms/CTFBoard/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       FieldRepository:
         config:
@@ -14,9 +14,9 @@ packages:
           pkgname: "mocks"
           structname: "MockFieldRepository"
       
-      AppSettingsRepository:
+      SettingsRepository:
         config:
           dir: "internal/usecase/competition/mocks"
-          filename: "AppSettingsRepository.go"
+          filename: "SettingsRepository.go"
           pkgname: "mocks"
-          structname: "MockAppSettingsRepository"
+          structname: "MockSettingsRepository"

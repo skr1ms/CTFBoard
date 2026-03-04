@@ -1,0 +1,173 @@
+schemas:
+  response.AppSettingsResponse:
+    properties:
+      app_name:
+        type: string
+      cors_origins:
+        type: string
+      csv_export_max_rows:
+        type: integer
+      default_per_page:
+        type: integer
+      frontend_url:
+        type: string
+      max_per_page:
+        type: integer
+      max_teams:
+        type: integer
+        description: Maximum number of teams allowed (0 = unlimited)
+      rate_limit_forgot_password_per_minute:
+        type: integer
+      rate_limit_general_ip_per_minute:
+        type: integer
+      rate_limit_login_per_minute:
+        type: integer
+      rate_limit_logout_per_minute:
+        type: integer
+      rate_limit_refresh_per_minute:
+        type: integer
+      rate_limit_register_per_minute:
+        type: integer
+      rate_limit_reset_password_per_minute:
+        type: integer
+      rate_limit_scoreboard_per_minute:
+        type: integer
+      rate_limit_verify_email_per_minute:
+        type: integer
+      rate_limit_oauth_callback_per_minute:
+        type: integer
+      registration_open:
+        type: boolean
+      reset_ttl_hours:
+        type: integer
+      resend_enabled:
+        type: boolean
+      resend_from_email:
+        type: string
+      resend_from_name:
+        type: string
+      scoreboard_visible:
+        type: string
+      submit_limit_duration_min:
+        type: integer
+      submit_limit_per_user:
+        type: integer
+      updated_at:
+        type: string
+      verify_emails:
+        type: boolean
+      verify_ttl_hours:
+        type: integer
+      writeup_enabled:
+        type: boolean
+        description: Whether writeups/solutions are shown to teams after solving a challenge
+      oauth_github_enabled:
+        type: boolean
+        description: Allow users to sign in via GitHub OAuth
+      oauth_google_enabled:
+        type: boolean
+        description: Allow users to sign in via Google OAuth
+    type: object
+  request.UpdateAppSettingsRequest:
+    properties:
+      app_name:
+        maxLength: 100
+        type: string
+      cors_origins:
+        type: string
+      csv_export_max_rows:
+        minimum: 1
+        type: integer
+      default_per_page:
+        minimum: 1
+        maximum: 1000
+        type: integer
+      frontend_url:
+        maxLength: 512
+        type: string
+      max_per_page:
+        minimum: 1
+        maximum: 1000
+        type: integer
+      max_teams:
+        minimum: 0
+        type: integer
+        description: Maximum number of teams allowed (0 = unlimited)
+      rate_limit_forgot_password_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_general_ip_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_login_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_logout_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_refresh_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_register_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_reset_password_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_scoreboard_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_verify_email_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_oauth_callback_per_minute:
+        minimum: 1
+        type: integer
+      registration_open:
+        type: boolean
+      reset_ttl_hours:
+        maximum: 168
+        minimum: 1
+        type: integer
+      resend_enabled:
+        type: boolean
+      resend_from_email:
+        maxLength: 255
+        type: string
+      resend_from_name:
+        maxLength: 100
+        type: string
+      scoreboard_visible:
+        enum:
+          - public
+          - hidden
+          - admins_only
+        type: string
+      submit_limit_duration_min:
+        minimum: 1
+        type: integer
+      submit_limit_per_user:
+        minimum: 1
+        type: integer
+      verify_emails:
+        type: boolean
+      verify_ttl_hours:
+        maximum: 168
+        minimum: 1
+        type: integer
+      writeup_enabled:
+        type: boolean
+        description: Whether writeups/solutions are shown to teams after solving a challenge
+      oauth_github_enabled:
+        type: boolean
+        description: Allow users to sign in via GitHub OAuth
+      oauth_google_enabled:
+        type: boolean
+        description: Allow users to sign in via Google OAuth
+    required:
+      - app_name
+      - cors_origins
+      - frontend_url
+      - resend_from_email
+      - resend_from_name
+    type: object

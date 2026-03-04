@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockNotificationRepository creates a new instance of MockNotificationRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -220,8 +221,8 @@ func (_c *MockNotificationRepository_CreateUserNotification_Call) RunAndReturn(r
 }
 
 // Delete provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockNotificationRepository) Delete(ctx context.Context, ID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -229,7 +230,7 @@ func (_mock *MockNotificationRepository) Delete(ctx context.Context, id uuid.UUI
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -243,12 +244,12 @@ type MockNotificationRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockNotificationRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockNotificationRepository_Delete_Call {
-	return &MockNotificationRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockNotificationRepository_Expecter) Delete(ctx interface{}, ID interface{}) *MockNotificationRepository_Delete_Call {
+	return &MockNotificationRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, ID)}
 }
 
-func (_c *MockNotificationRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockNotificationRepository_Delete_Call {
+func (_c *MockNotificationRepository_Delete_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockNotificationRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -271,14 +272,14 @@ func (_c *MockNotificationRepository_Delete_Call) Return(err error) *MockNotific
 	return _c
 }
 
-func (_c *MockNotificationRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockNotificationRepository_Delete_Call {
+func (_c *MockNotificationRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockNotificationRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteUserNotification provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) DeleteUserNotification(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockNotificationRepository) DeleteUserNotification(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteUserNotification")
@@ -286,7 +287,7 @@ func (_mock *MockNotificationRepository) DeleteUserNotification(ctx context.Cont
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+		r0 = returnFunc(ctx, ID, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -300,13 +301,13 @@ type MockNotificationRepository_DeleteUserNotification_Call struct {
 
 // DeleteUserNotification is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - ID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) DeleteUserNotification(ctx interface{}, id interface{}, userID interface{}) *MockNotificationRepository_DeleteUserNotification_Call {
-	return &MockNotificationRepository_DeleteUserNotification_Call{Call: _e.mock.On("DeleteUserNotification", ctx, id, userID)}
+func (_e *MockNotificationRepository_Expecter) DeleteUserNotification(ctx interface{}, ID interface{}, userID interface{}) *MockNotificationRepository_DeleteUserNotification_Call {
+	return &MockNotificationRepository_DeleteUserNotification_Call{Call: _e.mock.On("DeleteUserNotification", ctx, ID, userID)}
 }
 
-func (_c *MockNotificationRepository_DeleteUserNotification_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockNotificationRepository_DeleteUserNotification_Call {
+func (_c *MockNotificationRepository_DeleteUserNotification_Call) Run(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID)) *MockNotificationRepository_DeleteUserNotification_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -334,7 +335,7 @@ func (_c *MockNotificationRepository_DeleteUserNotification_Call) Return(err err
 	return _c
 }
 
-func (_c *MockNotificationRepository_DeleteUserNotification_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockNotificationRepository_DeleteUserNotification_Call {
+func (_c *MockNotificationRepository_DeleteUserNotification_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error) *MockNotificationRepository_DeleteUserNotification_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -414,8 +415,8 @@ func (_c *MockNotificationRepository_GetAll_Call) RunAndReturn(run func(ctx cont
 }
 
 // GetByID provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Notification, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockNotificationRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Notification, error) {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -424,17 +425,17 @@ func (_mock *MockNotificationRepository) GetByID(ctx context.Context, id uuid.UU
 	var r0 *entity.Notification
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Notification, error)); ok {
-		return returnFunc(ctx, id)
+		return returnFunc(ctx, ID)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Notification); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Notification)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+		r1 = returnFunc(ctx, ID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -448,12 +449,12 @@ type MockNotificationRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockNotificationRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockNotificationRepository_GetByID_Call {
-	return &MockNotificationRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockNotificationRepository_Expecter) GetByID(ctx interface{}, ID interface{}) *MockNotificationRepository_GetByID_Call {
+	return &MockNotificationRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, ID)}
 }
 
-func (_c *MockNotificationRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockNotificationRepository_GetByID_Call {
+func (_c *MockNotificationRepository_GetByID_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockNotificationRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -476,7 +477,7 @@ func (_c *MockNotificationRepository_GetByID_Call) Return(notification *entity.N
 	return _c
 }
 
-func (_c *MockNotificationRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Notification, error)) *MockNotificationRepository_GetByID_Call {
+func (_c *MockNotificationRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Notification, error)) *MockNotificationRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -562,8 +563,8 @@ func (_c *MockNotificationRepository_GetUserNotifications_Call) RunAndReturn(run
 }
 
 // MarkAsRead provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) MarkAsRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockNotificationRepository) MarkAsRead(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkAsRead")
@@ -571,7 +572,7 @@ func (_mock *MockNotificationRepository) MarkAsRead(ctx context.Context, id uuid
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+		r0 = returnFunc(ctx, ID, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -585,13 +586,13 @@ type MockNotificationRepository_MarkAsRead_Call struct {
 
 // MarkAsRead is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - ID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) MarkAsRead(ctx interface{}, id interface{}, userID interface{}) *MockNotificationRepository_MarkAsRead_Call {
-	return &MockNotificationRepository_MarkAsRead_Call{Call: _e.mock.On("MarkAsRead", ctx, id, userID)}
+func (_e *MockNotificationRepository_Expecter) MarkAsRead(ctx interface{}, ID interface{}, userID interface{}) *MockNotificationRepository_MarkAsRead_Call {
+	return &MockNotificationRepository_MarkAsRead_Call{Call: _e.mock.On("MarkAsRead", ctx, ID, userID)}
 }
 
-func (_c *MockNotificationRepository_MarkAsRead_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockNotificationRepository_MarkAsRead_Call {
+func (_c *MockNotificationRepository_MarkAsRead_Call) Run(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID)) *MockNotificationRepository_MarkAsRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -619,7 +620,7 @@ func (_c *MockNotificationRepository_MarkAsRead_Call) Return(err error) *MockNot
 	return _c
 }
 
-func (_c *MockNotificationRepository_MarkAsRead_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockNotificationRepository_MarkAsRead_Call {
+func (_c *MockNotificationRepository_MarkAsRead_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error) *MockNotificationRepository_MarkAsRead_Call {
 	_c.Call.Return(run)
 	return _c
 }

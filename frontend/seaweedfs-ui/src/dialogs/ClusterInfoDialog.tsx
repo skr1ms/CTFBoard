@@ -60,19 +60,19 @@ function ClusterInfoDialog(props: DialogProps): React.ReactElement {
                                 marginTop: theme.spacing(1)
                             }}
                         >
-                            Version: {clusterInfo.version ?? '—'}
+                            Version: {clusterInfo.version ?? '-'}
                         </DialogContentText>
                         <DialogContentText>
-                            Datacenters: {clusterInfo.datacenters ?? '—'}
+                            Datacenters: {clusterInfo.datacenters ?? '-'}
                         </DialogContentText>
                         <DialogContentText>
-                            Racks: {clusterInfo.racks ?? '—'}
+                            Racks: {clusterInfo.racks ?? '-'}
                         </DialogContentText>
                         <DialogContentText>
-                            Nodes: {clusterInfo.nodes ?? '—'}
+                            Nodes: {clusterInfo.nodes ?? '-'}
                         </DialogContentText>
                         <DialogContentText>
-                            Storage Used: {clusterInfo.size ?? '—'}
+                            Storage Used: {clusterInfo.size ?? '-'}
                         </DialogContentText>
                     </Grid>
                 </Grid>

@@ -15,10 +15,14 @@ func GetClientIP(r *http.Request, trustedProxyCIDRs []string) string {
 		return remoteIP
 	}
 	if ip := r.Header.Get("X-Real-IP"); ip != "" {
-		return strings.TrimSpace(strings.Split(ip, ",")[0])
+		if ipStr := strings.TrimSpace(strings.Split(ip, ",")[0]); net.ParseIP(ipStr) != nil {
+			return ipStr
+		}
 	}
 	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return strings.TrimSpace(strings.Split(fwd, ",")[0])
+		if ipStr := strings.TrimSpace(strings.Split(fwd, ",")[0]); net.ParseIP(ipStr) != nil {
+			return ipStr
+		}
 	}
 	return remoteIP
 }

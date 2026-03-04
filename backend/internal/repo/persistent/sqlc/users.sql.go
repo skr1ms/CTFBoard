@@ -12,6 +12,50 @@ import (
 	"github.com/google/uuid"
 )
 
+const banUser = `-- name: BanUser :one
+UPDATE users SET is_banned = TRUE, banned_at = $2, banned_reason = $3 WHERE id = $1 RETURNING id
+`
+
+type BanUserParams struct {
+	ID           uuid.UUID  `json:"id"`
+	BannedAt     *time.Time `json:"banned_at"`
+	BannedReason *string    `json:"banned_reason"`
+}
+
+func (q *Queries) BanUser(ctx context.Context, arg BanUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, banUser, arg.ID, arg.BannedAt, arg.BannedReason)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const countSearchUsers = `-- name: CountSearchUsers :one
+SELECT COUNT(*)
+FROM users
+WHERE ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
+`
+
+func (q *Queries) CountSearchUsers(ctx context.Context, search *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchUsers, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSearchUsersByIP = `-- name: CountSearchUsersByIP :one
+SELECT COUNT(DISTINCT u.id)
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+`
+
+func (q *Queries) CountSearchUsersByIP(ctx context.Context, ip string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchUsersByIP, ip)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (id, username, email, password_hash, role, is_verified, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -69,8 +113,17 @@ func (q *Queries) CreateUserReturningID(ctx context.Context, arg CreateUserRetur
 	return id, err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
 FROM users
 ORDER BY created_at ASC
 `
@@ -93,6 +146,9 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.IsVerified,
 			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -106,7 +162,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
 FROM users
 WHERE email = $1
 `
@@ -123,13 +179,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Role,
 		&i.IsVerified,
 		&i.VerifiedAt,
+		&i.IsBanned,
+		&i.BannedAt,
+		&i.BannedReason,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
 FROM users
 WHERE id = $1
 `
@@ -146,13 +205,16 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Role,
 		&i.IsVerified,
 		&i.VerifiedAt,
+		&i.IsBanned,
+		&i.BannedAt,
+		&i.BannedReason,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
 FROM users
 WHERE username = $1
 `
@@ -169,13 +231,16 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Role,
 		&i.IsVerified,
 		&i.VerifiedAt,
+		&i.IsBanned,
+		&i.BannedAt,
+		&i.BannedReason,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listUsersByTeamID = `-- name: ListUsersByTeamID :many
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
 FROM users
 WHERE team_id = $1
 `
@@ -198,6 +263,9 @@ func (q *Queries) ListUsersByTeamID(ctx context.Context, teamID *uuid.UUID) ([]U
 			&i.Role,
 			&i.IsVerified,
 			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -208,6 +276,121 @@ func (q *Queries) ListUsersByTeamID(ctx context.Context, teamID *uuid.UUID) ([]U
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockUser = `-- name: LockUser :one
+SELECT id FROM users WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockUser(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockUser, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+FROM users
+WHERE ($3::text IS NULL OR username ILIKE '%' || $3 || '%')
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type SearchUsersParams struct {
+	Limit  int32   `json:"limit"`
+	Offset int32   `json:"offset"`
+	Search *string `json:"search"`
+}
+
+func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, searchUsers, arg.Limit, arg.Offset, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Username,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.IsVerified,
+			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsersByIP = `-- name: SearchUsersByIP :many
+SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.created_at
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+ORDER BY u.created_at ASC
+LIMIT $2 OFFSET $3
+`
+
+type SearchUsersByIPParams struct {
+	IP     string `json:"ip"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+func (q *Queries) SearchUsersByIP(ctx context.Context, arg SearchUsersByIPParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, searchUsersByIP, arg.IP, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Username,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.IsVerified,
+			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const unbanUser = `-- name: UnbanUser :one
+UPDATE users SET is_banned = FALSE, banned_at = NULL, banned_reason = NULL WHERE id = $1 RETURNING id
+`
+
+func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, unbanUser, id)
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updatePassword = `-- name: UpdatePassword :exec
@@ -221,6 +404,62 @@ type UpdatePasswordParams struct {
 
 func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
 	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const updateUserAdmin = `-- name: UpdateUserAdmin :exec
+UPDATE users SET
+    username = COALESCE($2, username),
+    email = COALESCE($3, email),
+    role = COALESCE($4, role),
+    is_verified = COALESCE($5, is_verified),
+    password_hash = COALESCE($6, password_hash)
+WHERE id = $1
+`
+
+type UpdateUserAdminParams struct {
+	ID           uuid.UUID `json:"id"`
+	Username     *string   `json:"username"`
+	Email        *string   `json:"email"`
+	Role         *string   `json:"role"`
+	IsVerified   *bool     `json:"is_verified"`
+	PasswordHash *string   `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserAdmin(ctx context.Context, arg UpdateUserAdminParams) error {
+	_, err := q.db.Exec(ctx, updateUserAdmin,
+		arg.ID,
+		arg.Username,
+		arg.Email,
+		arg.Role,
+		arg.IsVerified,
+		arg.PasswordHash,
+	)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE users SET
+    username = COALESCE($2, username),
+    email = COALESCE($3, email),
+    password_hash = COALESCE($4, password_hash)
+WHERE id = $1
+`
+
+type UpdateUserProfileParams struct {
+	ID           uuid.UUID `json:"id"`
+	Username     *string   `json:"username"`
+	Email        *string   `json:"email"`
+	PasswordHash *string   `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.Exec(ctx, updateUserProfile,
+		arg.ID,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+	)
 	return err
 }
 
@@ -240,8 +479,8 @@ func (q *Queries) UpdateUserTeamID(ctx context.Context, arg UpdateUserTeamIDPara
 	return id, err
 }
 
-const updateUserVerified = `-- name: UpdateUserVerified :exec
-UPDATE users SET is_verified = $2, verified_at = $3 WHERE id = $1
+const updateUserVerified = `-- name: UpdateUserVerified :one
+UPDATE users SET is_verified = $2, verified_at = $3 WHERE id = $1 RETURNING id
 `
 
 type UpdateUserVerifiedParams struct {
@@ -250,7 +489,9 @@ type UpdateUserVerifiedParams struct {
 	VerifiedAt *time.Time `json:"verified_at"`
 }
 
-func (q *Queries) UpdateUserVerified(ctx context.Context, arg UpdateUserVerifiedParams) error {
-	_, err := q.db.Exec(ctx, updateUserVerified, arg.ID, arg.IsVerified, arg.VerifiedAt)
-	return err
+func (q *Queries) UpdateUserVerified(ctx context.Context, arg UpdateUserVerifiedParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateUserVerified, arg.ID, arg.IsVerified, arg.VerifiedAt)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

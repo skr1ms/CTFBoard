@@ -1,37 +1,61 @@
-### Description
-Briefly: what changes and why.
+# Pull Request
 
-### Related Issues
+## Summary
+
+Brief description of what this PR does and why.
+
 Refs #
 
-### Type of Change
+## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
-- [ ] Refactoring
+- [ ] API change (OpenAPI spec)
+- [ ] Database migration
+- [ ] Refactor
+- [ ] Security fix
 - [ ] Documentation / config / CI
 - [ ] Other: ___
 
-### Checklist (CI runs on push; ensure all jobs pass)
+## Testing
 
-**Lint & config:**
-- [ ] `golangci-lint` (backend) — locally: `cd backend && make lint` or via CI
-- [ ] `yamllint` — when changing YAML (workflows, docker-compose, etc.)
-- [ ] `hadolint` — when changing `backend/Dockerfile`
-- [ ] `dotenv-linter` — when changing `.env*` files
+- [ ] Unit tests added/updated - `cd backend && make test-unit`
+- [ ] Integration tests added/updated - `make test-integration`
+- [ ] E2E tests added/updated - `make test-e2e`
+- [ ] Manually tested locally (`make compose-infra && make run`)
+
+## Checklist
 
 **Backend (Go):**
-- [ ] `go mod tidy` run when changing dependencies
-- [ ] Unit: `make test-unit` (CI job: `tests / unit`)
-- [ ] Integration: `make test-integration` (CI job: `tests / integration`)
-- [ ] E2E: `make test-e2e` (CI job: `tests / e2e`)
-- [ ] If API changed: updated `internal/openapi/openapi.yaml` and regenerated code (`make generate` or equivalent)
-- [ ] DB migrations in `backend/migrations/` (up/down) for new fields/tables
-- [ ] New env vars added to `.env.example` / `.env.local.example`
 
-### Testing
-How to verify changes manually (if needed).
+- [ ] `make lint` passes (`golangci-lint`)
+- [ ] `go mod tidy` run (if dependencies changed)
+- [ ] Race detector clean - `make test-race`
 
-### Deployment Notes
+**Code generation (run if relevant):**
+
+- [ ] OpenAPI spec updated + code regenerated - `make openapi`
+- [ ] SQL queries updated + sqlc regenerated - `make sqlc`
+- [ ] Mocks regenerated - `make mockery`
+- [ ] Wire providers updated - `make wire`
+
+**Database:**
+
+- [ ] Migration added in `backend/migrations/` (up + down) for schema changes
+
+**Config & secrets:**
+
+- [ ] New env vars documented in `.env.example` / `.env.local.example`
+- [ ] No secrets or API keys committed
+
+**Infrastructure:**
+
+- [ ] `yamllint` passes (if YAML changed - workflows, docker-compose)
+- [ ] `hadolint` passes (if `Dockerfile` changed)
+- [ ] `dotenv-linter` passes (if `.env*` changed)
+
+## Deployment Notes
+
 - [ ] DB migration required
-- [ ] Env update required (vars, secrets)
+- [ ] Env vars update required
 - [ ] Other: ___

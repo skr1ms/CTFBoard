@@ -15,6 +15,7 @@ import (
 )
 
 func TestHub_Run_RegisterUnregister(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
@@ -37,6 +38,7 @@ func TestHub_Run_RegisterUnregister(t *testing.T) {
 }
 
 func TestHub_Broadcast(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
@@ -64,6 +66,7 @@ func TestHub_Broadcast(t *testing.T) {
 }
 
 func TestHub_BroadcastEvent_Redis(t *testing.T) {
+	t.Parallel()
 	db, redisClient := redismock.NewClientMock()
 	hub := NewHub(db, "test-channel")
 	go hub.Run(context.Background())
@@ -79,12 +82,13 @@ func TestHub_BroadcastEvent_Redis(t *testing.T) {
 
 	redisClient.ExpectPublish("test-channel", data).SetVal(1)
 
-	hub.BroadcastEvent(event)
+	hub.BroadcastEvent(context.Background(), event)
 
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestHub_Run_ExitsOnContextCancel(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -101,6 +105,7 @@ func TestHub_Run_ExitsOnContextCancel(t *testing.T) {
 }
 
 func TestHub_SubscribeToRedis_NilClient(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -108,51 +113,51 @@ func TestHub_SubscribeToRedis_NilClient(t *testing.T) {
 }
 
 func TestNewClient_WritePump_ReadPump_Integration(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
+
+	srvCtx, srvCancel := context.WithCancel(context.Background())
+	t.Cleanup(srvCancel)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocketlib.Accept(w, r, &websocketlib.AcceptOptions{InsecureSkipVerify: true})
 		require.NoError(t, err)
-		client := NewClient(hub, conn)
+		client := NewClient(hub, conn, srvCtx)
 		hub.Register(client)
 		go client.WritePump()
 		go client.ReadPump()
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	wsURL := "ws" + srv.URL[4:] + "/"
 	conn, resp, err := websocketlib.Dial(context.Background(), wsURL, nil)
 	require.NoError(t, err)
-	if resp != nil {
-		if resp.Body != nil {
-			defer resp.Body.Close()
-		}
-		if resp.StatusCode != http.StatusSwitchingProtocols {
-			t.Fatalf("expected 101 Switching Protocols, got %d %s", resp.StatusCode, resp.Status)
-		}
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
 	}
 	require.NotNil(t, conn)
-	defer conn.Close(websocketlib.StatusNormalClosure, "")
 
-	time.Sleep(50 * time.Millisecond)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	_, data, err := conn.Read(ctx)
-	cancel()
+	readCtx, readCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer readCancel()
+	_, data, err := conn.Read(readCtx)
 	require.NoError(t, err)
 	var ev Event
 	require.NoError(t, json.Unmarshal(data, &ev))
 	assert.Equal(t, "connected", ev.Type)
+	_ = conn.Close(websocketlib.StatusNormalClosure, "")
 }
 
 func TestBroadcastEvent_JsonMarshalError(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
-	hub.BroadcastEvent(func() {})
+	hub.BroadcastEvent(context.Background(), func() {})
 }
 
 func TestHub_BroadcastEvent_LocalFallback(t *testing.T) {
+	t.Parallel()
 	hub := NewHub(nil, "")
 	go hub.Run(context.Background())
 
@@ -174,7 +179,7 @@ func TestHub_BroadcastEvent_LocalFallback(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	hub.BroadcastEvent(event)
+	hub.BroadcastEvent(context.Background(), event)
 
 	select {
 	case received := <-client.send:

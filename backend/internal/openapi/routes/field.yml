@@ -1,0 +1,108 @@
+/fields:
+  get:
+    description: Returns custom fields for registration (filter by entity_type)
+    parameters:
+      - name: entity_type
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [user, team]
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/FieldResponse'
+              type: array
+    summary: Get fields by entity type
+    tags:
+      - Fields
+
+/admin/fields:
+  post:
+    description: Creates a custom field. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateFieldRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/FieldResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Create field
+    tags:
+      - Admin
+
+"/admin/fields/{ID}":
+  put:
+    description: Updates a custom field. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdateFieldRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/FieldResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Update field
+    tags:
+      - Admin
+  delete:
+    description: Deletes a custom field. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete field
+    tags:
+      - Admin

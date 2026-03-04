@@ -23,7 +23,7 @@ type CreateAuditLogParams struct {
 	Action     string     `json:"action"`
 	EntityType string     `json:"entity_type"`
 	EntityID   *string    `json:"entity_id"`
-	Ip         *string    `json:"ip"`
+	IP         *string    `json:"ip"`
 	Details    []byte     `json:"details"`
 }
 
@@ -38,7 +38,7 @@ func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) 
 		arg.Action,
 		arg.EntityType,
 		arg.EntityID,
-		arg.Ip,
+		arg.IP,
 		arg.Details,
 	)
 	var i CreateAuditLogRow

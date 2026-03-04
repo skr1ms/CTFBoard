@@ -1,34 +1,26 @@
 package migrator
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
 
-	"github.com/golang-migrate/migrate/v4"
-	// Import postgres driver for migrations
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/skr1ms/CTFBoard/config"
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 func Run(cfg *config.DB) error {
-	m, err := migrate.New(
-		"file://"+cfg.MigrationsPath,
-		cfg.URL,
-	)
+	db, err := sql.Open("pgx", cfg.URL)
 	if err != nil {
-		return fmt.Errorf("migrator - Run - migrate.New: %w", err)
+		return fmt.Errorf("migrator - Run - sql.Open: %w", err)
 	}
-	defer func() {
-		_, _ = m.Close()
-	}()
+	defer db.Close()
 
-	if err := m.Up(); err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			return nil
-		}
-		return fmt.Errorf("migrator - Run - m.Up: %w", err)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("migrator - Run - goose.SetDialect: %w", err)
 	}
-
+	if err := goose.Up(db, cfg.MigrationsPath); err != nil {
+		return fmt.Errorf("migrator - Run - goose.Up: %w", err)
+	}
 	return nil
 }

@@ -1,0 +1,362 @@
+openapi: 3.0.0
+info:
+  contact:
+    email: skr1ms13666@gmail.com
+    name: API Support
+  description: REST API for managing CTF competition
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://ctfleague.ru/terms
+  title: AstroCTFb API
+  version: 1.0.0
+
+servers:
+  - url: https://api.ctfleague.ru/api/v1
+  - url: http://api.ctfleague.ru/api/v1
+
+paths:
+  # Auth (auth.go)
+  /auth/login:
+    $ref: './routes/auth.yml#/~1auth~1login'
+  /auth/register:
+    $ref: './routes/auth.yml#/~1auth~1register'
+  /auth/refresh:
+    $ref: './routes/auth.yml#/~1auth~1refresh'
+  /auth/me:
+    $ref: './routes/auth.yml#/~1auth~1me'
+  /auth/logout:
+    $ref: './routes/auth.yml#/~1auth~1logout'
+
+  # OAuth (oauth.go)
+  /auth/oauth/{provider}:
+    $ref: './routes/oauth.yml#/~1auth~1oauth~1{provider}'
+  /auth/oauth/{provider}/callback:
+    $ref: './routes/oauth.yml#/~1auth~1oauth~1{provider}~1callback'
+
+  # Email (email.go)
+  /auth/verify-email:
+    $ref: './routes/email.yml#/~1auth~1verify-email'
+  /auth/forgot-password:
+    $ref: './routes/email.yml#/~1auth~1forgot-password'
+  /auth/reset-password:
+    $ref: './routes/email.yml#/~1auth~1reset-password'
+  /auth/resend-verification:
+    $ref: './routes/email.yml#/~1auth~1resend-verification'
+
+  # User admin (user.go)
+  /admin/users:
+    $ref: './routes/user.yml#/~1admin~1users'
+  /admin/users/{ID}:
+    $ref: './routes/user.yml#/~1admin~1users~1{ID}'
+
+  # User (user.go)
+  /users:
+    $ref: './routes/user.yml#/~1users'
+  /users/{ID}:
+    $ref: './routes/user.yml#/~1users~1{ID}'
+  /users/me/solves:
+    $ref: './routes/user.yml#/~1users~1me~1solves'
+  /users/{ID}/solves:
+    $ref: './routes/user.yml#/~1users~1{ID}~1solves'
+  /users/me/fails:
+    $ref: './routes/user.yml#/~1users~1me~1fails'
+  /users/{ID}/fails:
+    $ref: './routes/user.yml#/~1users~1{ID}~1fails'
+  /users/me/awards:
+    $ref: './routes/user.yml#/~1users~1me~1awards'
+  /users/{ID}/awards:
+    $ref: './routes/user.yml#/~1users~1{ID}~1awards'
+  /users/me/submissions:
+    $ref: './routes/user.yml#/~1users~1me~1submissions'
+  /admin/users/{ID}/tracking:
+    $ref: './routes/user.yml#/~1admin~1users~1{ID}~1tracking'
+  /admin/users/{ID}/missing-challenges:
+    $ref: './routes/user.yml#/~1admin~1users~1{ID}~1missing-challenges'
+  /admin/users/{ID}/ban:
+    $ref: './routes/user.yml#/~1admin~1users~1{ID}~1ban'
+  /user/notifications:
+    $ref: './routes/notification.yml#/~1user~1notifications'
+  /user/notifications/{ID}/read:
+    $ref: './routes/notification.yml#/~1user~1notifications~1{ID}~1read'
+
+  # API Token (api_token.go)
+  /user/tokens:
+    $ref: './routes/api_token.yml#/~1user~1tokens'
+  /user/tokens/{ID}:
+    $ref: './routes/api_token.yml#/~1user~1tokens~1{ID}'
+
+  # Team (team.go)
+  /teams:
+    $ref: './routes/team.yml#/~1teams'
+  /teams/{ID}:
+    $ref: './routes/team.yml#/~1teams~1{ID}'
+  /teams/join:
+    $ref: './routes/team.yml#/~1teams~1join'
+  /teams/leave:
+    $ref: './routes/team.yml#/~1teams~1leave'
+  /teams/my:
+    $ref: './routes/team.yml#/~1teams~1my'
+  /teams/me:
+    $ref: './routes/team.yml#/~1teams~1me'
+  /teams/me/invite:
+    $ref: './routes/team.yml#/~1teams~1me~1invite'
+  /teams/solo:
+    $ref: './routes/team.yml#/~1teams~1solo'
+  /teams/members/{ID}:
+    $ref: './routes/team.yml#/~1teams~1members~1{ID}'
+  /teams/transfer-captain:
+    $ref: './routes/team.yml#/~1teams~1transfer-captain'
+  /teams/me/solves:
+    $ref: './routes/team.yml#/~1teams~1me~1solves'
+  /teams/{ID}/solves:
+    $ref: './routes/team.yml#/~1teams~1{ID}~1solves'
+  /teams/me/fails:
+    $ref: './routes/team.yml#/~1teams~1me~1fails'
+  /teams/{ID}/fails:
+    $ref: './routes/team.yml#/~1teams~1{ID}~1fails'
+  /teams/me/awards:
+    $ref: './routes/team.yml#/~1teams~1me~1awards'
+  /teams/{ID}/awards:
+    $ref: './routes/team.yml#/~1teams~1{ID}~1awards'
+
+  # Challenge (challenge.go)
+  /challenges:
+    $ref: './routes/challenge.yml#/~1challenges'
+  /challenges/types:
+    $ref: './routes/challenge.yml#/~1challenges~1types'
+  /challenges/{challengeID}:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}'
+  /challenges/{challengeID}/solves:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1solves'
+  /challenges/{challengeID}/tags:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1tags'
+  /challenges/{ID}/submit:
+    $ref: './routes/challenge.yml#/~1challenges~1{ID}~1submit'
+  /challenges/{ID}/first-blood:
+    $ref: './routes/challenge.yml#/~1challenges~1{ID}~1first-blood'
+  /challenges/{challengeID}/files:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1files'
+  /challenges/{challengeID}/hints:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1hints'
+  /challenges/{challengeID}/hints/{hintID}/unlock:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1hints~1{hintID}~1unlock'
+  /challenges/{challengeID}/comments:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1comments'
+
+  # Comment (comment.go)
+  /comments/{ID}:
+    $ref: './routes/comment.yml#/~1comments~1{ID}'
+
+  # File (file.go)
+  /files/{ID}/download:
+    $ref: './routes/file.yml#/~1files~1{ID}~1download'
+
+  # Scoreboard (scoreboard.go)
+  /scoreboard:
+    $ref: './routes/scoreboard.yml#/~1scoreboard'
+  /scoreboard/graph:
+    $ref: './routes/scoreboard.yml#/~1scoreboard~1graph'
+
+  # Statistics (statistics.go)
+  /statistics/general:
+    $ref: './routes/statistics.yml#/~1statistics~1general'
+  /statistics/challenges:
+    $ref: './routes/statistics.yml#/~1statistics~1challenges'
+  /statistics/challenges/{ID}:
+    $ref: './routes/statistics.yml#/~1statistics~1challenges~1{ID}'
+  /statistics/challenges/solves/percentages:
+    $ref: './routes/statistics.yml#/~1statistics~1challenges~1solves~1percentages'
+  /statistics/scores/distribution:
+    $ref: './routes/statistics.yml#/~1statistics~1scores~1distribution'
+  /statistics/submissions:
+    $ref: './routes/statistics.yml#/~1statistics~1submissions'
+  /statistics/submissions/{type}:
+    $ref: './routes/statistics.yml#/~1statistics~1submissions~1{type}'
+  /statistics/teams:
+    $ref: './routes/statistics.yml#/~1statistics~1teams'
+  /statistics/users:
+    $ref: './routes/statistics.yml#/~1statistics~1users'
+  /statistics/scoreboard:
+    $ref: './routes/statistics.yml#/~1statistics~1scoreboard'
+  /admin/statistics/solve-matrix:
+    $ref: './routes/statistics.yml#/~1admin~1statistics~1solve-matrix'
+
+  # Competition (competition.go)
+  /competition/status:
+    $ref: './routes/competition.yml#/~1competition~1status'
+
+  # Tag (tag.go)
+  /tags:
+    $ref: './routes/tag.yml#/~1tags'
+
+  # Field (field.go)
+  /fields:
+    $ref: './routes/field.yml#/~1fields'
+
+  # Bracket (bracket.go)
+  /brackets:
+    $ref: './routes/bracket.yml#/~1brackets'
+
+  # Page (page.go)
+  /pages:
+    $ref: './routes/page.yml#/~1pages'
+  /pages/{slug}:
+    $ref: './routes/page.yml#/~1pages~1{slug}'
+
+  # Notification (notification.go)
+  /notifications:
+    $ref: './routes/notification.yml#/~1notifications'
+
+  # WebSocket (websocket.go)
+  /ws:
+    $ref: './routes/websocket.yml#/~1ws'
+
+  # Award (award.go)
+  /admin/awards:
+    $ref: './routes/award.yml#/~1admin~1awards'
+  /admin/awards/{ID}:
+    $ref: './routes/award.yml#/~1admin~1awards~1{ID}'
+  /admin/awards/team/{teamID}:
+    $ref: './routes/award.yml#/~1admin~1awards~1team~1{teamID}'
+
+  # Healthcheck (backup.go)
+  /healthcheck:
+    $ref: './routes/backup.yml#/~1healthcheck'
+  /robots.txt:
+    $ref: './routes/backup.yml#/~1robots.txt'
+  /tos:
+    $ref: './routes/backup.yml#/~1tos'
+  /privacy:
+    $ref: './routes/backup.yml#/~1privacy'
+  /debug:
+    $ref: './routes/backup.yml#/~1debug'
+
+  # Backup/Reset (backup.go)
+  /admin/reset:
+    $ref: './routes/backup.yml#/~1admin~1reset'
+  /admin/export:
+    $ref: './routes/backup.yml#/~1admin~1export'
+  /admin/export/zip:
+    $ref: './routes/backup.yml#/~1admin~1export~1zip'
+  /admin/import:
+    $ref: './routes/backup.yml#/~1admin~1import'
+  /admin/export/csv:
+    $ref: './routes/backup.yml#/~1admin~1export~1csv'
+  /admin/import/csv:
+    $ref: './routes/backup.yml#/~1admin~1import~1csv'
+
+  # Submission (submission.go)
+  /admin/submissions:
+    $ref: './routes/submission.yml#/~1admin~1submissions'
+  /admin/submissions/{ID}:
+    $ref: './routes/submission.yml#/~1admin~1submissions~1{ID}'
+  /admin/submissions/challenge/{challengeID}:
+    $ref: './routes/submission.yml#/~1admin~1submissions~1challenge~1{challengeID}'
+  /admin/submissions/challenge/{challengeID}/stats:
+    $ref: './routes/submission.yml#/~1admin~1submissions~1challenge~1{challengeID}~1stats'
+  /admin/submissions/user/{userID}:
+    $ref: './routes/submission.yml#/~1admin~1submissions~1user~1{userID}'
+  /admin/submissions/team/{teamID}:
+    $ref: './routes/submission.yml#/~1admin~1submissions~1team~1{teamID}'
+
+  # Challenge endpoints
+  /challenges/{challengeID}/requirements:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1requirements'
+  /challenges/solutions:
+    $ref: './routes/challenge.yml#/~1challenges~1solutions'
+  /challenges/{challengeID}/solution:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1solution'
+  /admin/challenges/{challengeID}/flags:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{challengeID}~1flags'
+  /admin/challenges/{challengeID}/solution:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{challengeID}~1solution'
+
+  # Tag (tag.go) admin
+  /admin/tags:
+    $ref: './routes/tag.yml#/~1admin~1tags'
+  /admin/tags/{ID}:
+    $ref: './routes/tag.yml#/~1admin~1tags~1{ID}'
+
+  # Field (field.go) admin
+  /admin/fields:
+    $ref: './routes/field.yml#/~1admin~1fields'
+  /admin/fields/{ID}:
+    $ref: './routes/field.yml#/~1admin~1fields~1{ID}'
+
+  # Bracket (bracket.go) admin
+  /admin/brackets:
+    $ref: './routes/bracket.yml#/~1admin~1brackets'
+  /admin/brackets/{ID}:
+    $ref: './routes/bracket.yml#/~1admin~1brackets~1{ID}'
+
+  # Team (team.go) admin
+  /admin/teams:
+    $ref: './routes/team.yml#/~1admin~1teams'
+  /admin/teams/{ID}:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}'
+  /admin/teams/{ID}/members:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1members'
+  /admin/teams/{ID}/members/{userID}:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1members~1{userID}'
+  /admin/teams/{ID}/missing-challenges:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1missing-challenges'
+  /admin/teams/{ID}/bracket:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1bracket'
+  /admin/teams/{ID}/ban:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1ban'
+  /admin/teams/{ID}/hidden:
+    $ref: './routes/team.yml#/~1admin~1teams~1{ID}~1hidden'
+
+  # Competition (competition.go) admin
+  /admin/competition:
+    $ref: './routes/competition.yml#/~1admin~1competition'
+  # Page (page.go) admin
+  /admin/pages:
+    $ref: './routes/page.yml#/~1admin~1pages'
+  /admin/pages/{ID}:
+    $ref: './routes/page.yml#/~1admin~1pages~1{ID}'
+
+  # Notification (notification.go) admin
+  /admin/notifications:
+    $ref: './routes/notification.yml#/~1admin~1notifications'
+  /admin/notifications/user/{userID}:
+    $ref: './routes/notification.yml#/~1admin~1notifications~1user~1{userID}'
+  /admin/notifications/{ID}:
+    $ref: './routes/notification.yml#/~1admin~1notifications~1{ID}'
+
+  # Challenge (challenge.go) admin
+  /admin/challenges:
+    $ref: './routes/challenge.yml#/~1admin~1challenges'
+  /admin/challenges/{ID}:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{ID}'
+  /admin/challenges/{challengeID}/files:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{challengeID}~1files'
+  /admin/challenges/{challengeID}/hints:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{challengeID}~1hints'
+  /admin/challenges/{challengeID}/requirements:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1{challengeID}~1requirements'
+  /admin/hints/{ID}:
+    $ref: './routes/challenge.yml#/~1admin~1hints~1{ID}'
+  /admin/unlocks:
+    $ref: './routes/challenge.yml#/~1admin~1unlocks'
+
+  # File (file.go) admin
+  /admin/files/{ID}:
+    $ref: './routes/file.yml#/~1admin~1files~1{ID}'
+
+  # Settings (settings.go)
+  /admin/settings:
+    $ref: './routes/settings.yml#/~1admin~1settings'
+
+  # Config (request/config.go)
+  /admin/configs:
+    $ref: './routes/competition_params.yml#/~1admin~1configs'
+  /admin/configs/{key}:
+    $ref: './routes/competition_params.yml#/~1admin~1configs~1{key}'
+
+components:
+  securitySchemes:
+    $ref: './components/security.yml'
+  schemas:
+    $ref: './components/schemas.yml'

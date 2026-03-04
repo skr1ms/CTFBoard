@@ -1,67 +1,69 @@
 package helper
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
+	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/redis/go-redis/v9"
-	wsV1 "github.com/skr1ms/CTFBoard/internal/controller/websocket/v1"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/usecase"
-	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/internal/usecase/email"
-	"github.com/skr1ms/CTFBoard/internal/usecase/page"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings"
-	"github.com/skr1ms/CTFBoard/internal/usecase/team"
-	"github.com/skr1ms/CTFBoard/internal/usecase/user"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/validator"
 )
 
 type ChallengeDeps struct {
-	ChallengeUC *challenge.ChallengeUseCase
-	HintUC      *challenge.HintUseCase
-	FileUC      *challenge.FileUseCase
-	TagUC       *challenge.TagUseCase
-	CommentUC   *challenge.CommentUseCase
+	ChallengeUC usecase.ChallengeUseCase
+	HintUC      usecase.HintUseCase
+	FileUC      usecase.FileUseCase
+	TagUC       usecase.TagUseCase
+	CommentUC   usecase.CommentUseCase
 }
 
 type TeamDeps struct {
-	TeamUC  *team.TeamUseCase
-	AwardUC *team.AwardUseCase
+	TeamUC  usecase.TeamUseCase
+	AwardUC usecase.AwardUseCase
 }
 
 type UserDeps struct {
-	UserUC     *user.UserUseCase
-	EmailUC    *email.EmailUseCase
-	APITokenUC usecase.APITokenUseCase
+	UserUC        usecase.UserUseCase
+	EmailUC       usecase.EmailUseCase
+	APITokenUC    usecase.APITokenUseCase
+	TrackingUC    usecase.TrackingUseCase
+	OAuthUC       usecase.OAuthUseCase
+	FrontendURL   string
+	SecureCookies bool
 }
 
 type CompetitionDeps struct {
-	CompetitionUC *competition.CompetitionUseCase
-	SolveUC       *competition.SolveUseCase
-	StatsUC       *competition.StatisticsUseCase
-	SubmissionUC  *competition.SubmissionUseCase
-	BracketUC     *competition.BracketUseCase
-	RatingUC      *competition.RatingUseCase
+	CompetitionUC     usecase.CompetitionUseCase
+	SolveUC           usecase.SolveUseCase
+	StatsUC           usecase.StatisticsUseCase
+	SubmissionUC      usecase.SubmissionUseCase
+	SubmissionBatcher usecase.SubmissionBatcher
+	BracketUC         usecase.BracketUseCase
 }
 
 type AdminDeps struct {
-	BackupUC        usecase.BackupUseCase
-	SettingsUC      *settings.SettingsUseCase
-	DynamicConfigUC *competition.DynamicConfigUseCase
-	FieldUC         *settings.FieldUseCase
-	PageUC          *page.PageUseCase
-	NotifUC         usecase.NotificationUseCase
-	AppSettingsRepo repo.AppSettingsRepository
+	BackupUC           usecase.BackupUseCase
+	SettingsUC         usecase.SettingsUseCase
+	CompetitionParamUC usecase.CompetitionParamUseCase
+	FieldUC            usecase.FieldUseCase
+	PageUC             usecase.PageUseCase
+	NotifUC            usecase.NotificationUseCase
+	SettingsRepo       repo.SettingsRepository
 }
 
 type InfraDeps struct {
-	JWTService        *jwt.JWTService
-	RedisClient       *redis.Client
-	WSController      *wsV1.Controller
-	Validator         validator.Validator
-	Logger            logger.Logger
-	TrustedProxyCIDRs []string
+	JWTService                    *jwt.JWTService
+	RedisClient                   *redis.Client
+	StorageProvider               storage.Provider
+	WSController                  *wsV1.Controller
+	Validator                     validator.Validator
+	Logger                        logger.Logger
+	TrustedProxyCIDRs             []string
+	ForgotPasswordRateLimiter     *middleware.PerKeyRateLimiter
+	ResendVerificationRateLimiter *middleware.PerKeyRateLimiter
 }
 
 type ServerDeps struct {

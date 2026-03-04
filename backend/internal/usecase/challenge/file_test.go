@@ -8,15 +8,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestFileUseCase_Upload(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -50,6 +52,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 	})
 
 	t.Run("Error_StorageUploadFails", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -79,7 +82,9 @@ func TestFileUseCase_Upload(t *testing.T) {
 }
 
 func TestFileUseCase_Download(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -98,6 +103,7 @@ func TestFileUseCase_Download(t *testing.T) {
 	})
 
 	t.Run("Error_StorageFails", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -111,14 +117,16 @@ func TestFileUseCase_Download(t *testing.T) {
 		rc, err := uc.Download(ctx, path)
 		assert.Error(t, err)
 		assert.Nil(t, rc)
-		assert.Equal(t, expectedErr, err)
+		assert.True(t, errors.Is(err, expectedErr), "err should wrap expectedErr")
 
 		deps.s3Provider.AssertExpectations(t)
 	})
 }
 
 func TestFileUseCase_GetDownloadURL(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -143,6 +151,7 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 	})
 
 	t.Run("Error_FileNotFound", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -150,7 +159,7 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 		ctx := context.Background()
 		fileID := uuid.New()
 
-		deps.fileRepo.On("GetByID", ctx, fileID).Return(nil, entityError.ErrFileNotFound)
+		deps.fileRepo.On("GetByID", ctx, fileID).Return(nil, httperr.ErrFileNotFound)
 
 		url, err := uc.GetDownloadURL(ctx, fileID)
 		assert.Error(t, err)
@@ -163,7 +172,9 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 }
 
 func TestFileUseCase_GetByChallengeID(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -186,6 +197,7 @@ func TestFileUseCase_GetByChallengeID(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -206,7 +218,9 @@ func TestFileUseCase_GetByChallengeID(t *testing.T) {
 }
 
 func TestFileUseCase_Delete(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -227,6 +241,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 	})
 
 	t.Run("Error_NotFound", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -234,7 +249,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 		ctx := context.Background()
 		fileID := uuid.New()
 
-		deps.fileRepo.On("GetByID", ctx, fileID).Return(nil, entityError.ErrFileNotFound)
+		deps.fileRepo.On("GetByID", ctx, fileID).Return(nil, httperr.ErrFileNotFound)
 
 		err := uc.Delete(ctx, fileID)
 		assert.Error(t, err)
@@ -245,6 +260,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 	})
 
 	t.Run("Error_StorageDeleteFails", func(t *testing.T) {
+		t.Parallel()
 		h := NewChallengeTestHelper(t)
 		deps := h.Deps()
 		uc := h.CreateFileUseCase()
@@ -255,6 +271,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 		expectedErr := errors.New("s3 err")
 
 		deps.fileRepo.On("GetByID", ctx, fileID).Return(fileEntity, nil)
+		deps.fileRepo.On("Delete", ctx, fileID).Return(nil)
 		deps.s3Provider.On("Delete", ctx, fileEntity.Location).Return(expectedErr)
 
 		err := uc.Delete(ctx, fileID)

@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	challengeMocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	teamMocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	challengeMocks "github.com/skr1ms/CTFBoard/internal/usecase/challenge/mocks"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition/mocks"
-	teamMocks "github.com/skr1ms/CTFBoard/internal/usecase/team/mocks"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -25,17 +26,15 @@ type competitionTestDeps struct {
 	solveRepo       *mocks.MockSolveRepository
 	challengeRepo   *mocks.MockChallengeRepository
 	userRepo        *mocks.MockUserRepository
-	txRepo          *mocks.MockTxRepository
+	tm              *mocks.MockTransactionManager
 	statsRepo       *mocks.MockStatisticsRepository
-	appSettingsRepo *mocks.MockAppSettingsRepository
+	SettingsRepo    *mocks.MockSettingsRepository
 	hintRepo        *challengeMocks.MockHintRepository
 	teamRepo        *teamMocks.MockTeamRepository
 	awardRepo       *teamMocks.MockAwardRepository
-	backupRepo      *mocks.MockBackupRepository
 	logger          *mocks.MockLogger
 	bracketRepo     *mocks.MockBracketRepository
-	configRepo      *mocks.MockConfigRepository
-	ratingRepo      *mocks.MockRatingRepository
+	configRepo      *mocks.MockCompetitionParamRepo
 	submissionRepo  *mocks.MockSubmissionRepository
 }
 
@@ -47,6 +46,10 @@ func NewCompetitionTestHelper(t *testing.T) *CompetitionTestHelper {
 	l.On("Warn", mock.Anything, mock.Anything).Maybe()
 	l.On("Error", mock.Anything, mock.Anything).Maybe()
 	l.On("Debug", mock.Anything, mock.Anything).Maybe()
+	l.On("WithError", mock.Anything).Return(l).Maybe()
+	l.On("WithFields", mock.Anything).Return(l).Maybe()
+
+	tm := mocks.NewMockTransactionManager(t)
 
 	return &CompetitionTestHelper{
 		t: t,
@@ -56,17 +59,15 @@ func NewCompetitionTestHelper(t *testing.T) *CompetitionTestHelper {
 			solveRepo:       mocks.NewMockSolveRepository(t),
 			challengeRepo:   mocks.NewMockChallengeRepository(t),
 			userRepo:        mocks.NewMockUserRepository(t),
-			txRepo:          mocks.NewMockTxRepository(t),
+			tm:              tm,
 			statsRepo:       mocks.NewMockStatisticsRepository(t),
-			appSettingsRepo: mocks.NewMockAppSettingsRepository(t),
+			SettingsRepo:    mocks.NewMockSettingsRepository(t),
 			hintRepo:        challengeMocks.NewMockHintRepository(t),
 			teamRepo:        teamMocks.NewMockTeamRepository(t),
 			awardRepo:       teamMocks.NewMockAwardRepository(t),
-			backupRepo:      mocks.NewMockBackupRepository(t),
 			logger:          l,
 			bracketRepo:     mocks.NewMockBracketRepository(t),
-			configRepo:      mocks.NewMockConfigRepository(t),
-			ratingRepo:      mocks.NewMockRatingRepository(t),
+			configRepo:      mocks.NewMockCompetitionParamRepo(t),
 			submissionRepo:  mocks.NewMockSubmissionRepository(t),
 		},
 	}
@@ -80,7 +81,13 @@ func (h *CompetitionTestHelper) Deps() *competitionTestDeps {
 func (h *CompetitionTestHelper) CreateCompetitionUseCase() (*CompetitionUseCase, redismock.ClientMock) {
 	h.t.Helper()
 	client, redis := redismock.NewClientMock()
-	return NewCompetitionUseCase(h.deps.competitionRepo, h.deps.auditLogRepo, h.deps.txRepo, client), redis
+	return NewCompetitionUseCase(CompetitionDeps{
+		CompetitionRepo: h.deps.competitionRepo,
+		AuditLogRepo:    h.deps.auditLogRepo,
+		TM:              h.deps.tm,
+		Redis:           &cache.RedisKeyValueStore{Client: client},
+		Logger:          h.deps.logger,
+	}), redis
 }
 
 func (h *CompetitionTestHelper) NewCompetition(name, mode string, allowTeamSwitch bool) *entity.Competition {
@@ -88,7 +95,7 @@ func (h *CompetitionTestHelper) NewCompetition(name, mode string, allowTeamSwitc
 	return &entity.Competition{
 		ID:              1,
 		Name:            name,
-		Mode:            mode,
+		Mode:            entity.CompetitionMode(mode),
 		AllowTeamSwitch: allowTeamSwitch,
 	}
 }

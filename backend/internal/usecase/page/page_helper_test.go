@@ -3,9 +3,9 @@ package page
 import (
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page/mocks"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/page/mocks"
 )
 
 type PageTestHelper struct {
@@ -34,7 +34,7 @@ func (h *PageTestHelper) Deps() *pageTestDeps {
 
 func (h *PageTestHelper) CreateUseCase() *PageUseCase {
 	h.t.Helper()
-	return NewPageUseCase(h.deps.pageRepo)
+	return NewPageUseCase(PageDeps{PageRepo: h.deps.pageRepo})
 }
 
 func (h *PageTestHelper) NewPage(title, slug, content string, isDraft bool, orderIndex int) *entity.Page {

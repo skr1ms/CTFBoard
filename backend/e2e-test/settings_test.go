@@ -4,15 +4,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).
 func TestSettings_Admin_Get(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings")
 
 	resp := h.GetAdminSettings(tokenAdmin)
@@ -28,18 +28,18 @@ func TestSettings_Admin_Get(t *testing.T) {
 // PUT /admin/settings: admin updates app settings; GET reflects new values.
 func TestSettings_Admin_Put(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings_put")
 
 	body := map[string]any{
-		"app_name":                  "CTFBoard Test",
+		"app_name":                  "AstroCTFb Test",
 		"verify_emails":             true,
 		"frontend_url":              "https://test.example.com",
 		"cors_origins":              "https://test.example.com",
 		"resend_enabled":            false,
 		"resend_from_email":         "noreply@test.local",
-		"resend_from_name":          "CTFBoard",
+		"resend_from_name":          "AstroCTFb",
 		"verify_ttl_hours":          24,
 		"reset_ttl_hours":           1,
 		"submit_limit_per_user":     20,
@@ -51,7 +51,7 @@ func TestSettings_Admin_Put(t *testing.T) {
 
 	resp := h.GetAdminSettings(tokenAdmin)
 	require.NotNil(t, resp.JSON200)
-	require.Equal(t, "CTFBoard Test", *resp.JSON200.AppName)
+	require.Equal(t, "AstroCTFb Test", *resp.JSON200.AppName)
 	require.Equal(t, "https://test.example.com", *resp.JSON200.FrontendURL)
 	require.NotNil(t, resp.JSON200.SubmitLimitPerUser)
 	require.Equal(t, 20, *resp.JSON200.SubmitLimitPerUser)
@@ -60,8 +60,8 @@ func TestSettings_Admin_Put(t *testing.T) {
 // GET /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Get_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_set_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_set")
@@ -72,8 +72,8 @@ func TestSettings_Admin_Get_Forbidden(t *testing.T) {
 // PUT /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Put_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_set_put_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put_set")

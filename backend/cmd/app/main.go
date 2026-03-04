@@ -1,18 +1,17 @@
 package main
 
 import (
-	"os"
+	"log"
 
-	"github.com/skr1ms/CTFBoard/config"
-	"github.com/skr1ms/CTFBoard/internal/app"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/app"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func main() {
 	cfg, err := config.New()
 	if err != nil {
-		println("Config initialization failed: " + err.Error())
-		os.Exit(1)
+		log.Fatalf("Config initialization failed: %v", err)
 	}
 
 	l := logger.New(&logger.Options{

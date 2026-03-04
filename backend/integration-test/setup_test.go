@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -22,47 +22,58 @@ var (
 	globalConnStr       string
 	containerOnce       sync.Once
 	containerErr        error
+	globalPool          *pgxpool.Pool
+	globalPoolOnce      sync.Once
 )
 
 type TestPool struct {
 	Pool *pgxpool.Pool
 }
 
-func SetupTestPool(t *testing.T) *TestPool {
-	t.Helper()
+func TestMain(m *testing.M) {
 	ctx := context.Background()
-
-	if os.Getenv("USE_EXTERNAL_Pool") != "true" {
+	if os.Getenv("USE_EXTERNAL_DB") != "true" {
 		containerOnce.Do(func() {
 			globalPoolContainer, globalConnStr, containerErr = startPostgresContainer(ctx)
 		})
 		if containerErr != nil {
-			t.Fatalf("failed to start global Pool container: %s", containerErr)
+			fmt.Fprintf(os.Stderr, "failed to start container: %v\n", containerErr)
+			os.Exit(1)
 		}
 	} else {
 		globalConnStr = getExternalConnStr()
 	}
 
-	Pool, err := pgxpool.New(ctx, globalConnStr)
-	if err != nil {
-		t.Fatalf("failed to create connection Pool: %s", err)
-	}
-
-	if err := pingPool(ctx, Pool); err != nil {
-		t.Fatalf("failed to ping Pool: %s", err)
-	}
-
-	if err := runMigrations(ctx, Pool); err != nil {
-		t.Fatalf("failed to run migrations: %s", err)
-	}
-
-	truncateTables(t, Pool)
-
-	t.Cleanup(func() {
-		Pool.Close()
+	globalPoolOnce.Do(func() {
+		var err error
+		globalPool, err = pgxpool.New(ctx, globalConnStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to create pool: %v\n", err)
+			os.Exit(1)
+		}
 	})
+	if err := pingPool(ctx, globalPool); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to ping pool: %v\n", err)
+		os.Exit(1)
+	}
+	if err := runMigrations(ctx, globalPool); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to run migrations: %v\n", err)
+		os.Exit(1)
+	}
+	if err := truncateTablesCtx(ctx, globalPool); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to truncate: %v\n", err)
+		os.Exit(1)
+	}
+	if err := seedCompetition(ctx, globalPool); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to seed competition: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
 
-	return &TestPool{Pool: Pool}
+func SetupTestPool(t *testing.T) *TestPool {
+	t.Helper()
+	return &TestPool{Pool: globalPool}
 }
 
 func startPostgresContainer(ctx context.Context) (*postgres.PostgresContainer, string, error) {
@@ -94,9 +105,9 @@ func getExternalConnStr() string {
 	port := getEnv("POSTGRES_PORT", "5432")
 	user := getEnv("POSTGRES_USER", "test_user")
 	password := getEnv("POSTGRES_PASSWORD", "test_password")
-	Poolname := getEnv("POSTGRES_Pool", "test_board")
+	dbName := getEnv("POSTGRES_DB", "test_board")
 
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, Poolname)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbName)
 }
 
 func pingPool(ctx context.Context, Pool *pgxpool.Pool) error {
@@ -118,16 +129,16 @@ func runMigrations(ctx context.Context, Pool *pgxpool.Pool) error {
 	}
 
 	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".up.sql") {
+		if !strings.HasSuffix(f.Name(), ".sql") {
 			continue
 		}
 
-		content, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
+		raw, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
 		if err != nil {
 			return err
 		}
 
-		if _, err := Pool.Exec(ctx, string(content)); err != nil {
+		if _, err := Pool.Exec(ctx, extractGooseUp(string(raw))); err != nil {
 			if !isIgnorableError(err) {
 				return fmt.Errorf("migration error in %s: %w", f.Name(), err)
 			}
@@ -136,22 +147,44 @@ func runMigrations(ctx context.Context, Pool *pgxpool.Pool) error {
 	return nil
 }
 
-func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
-	t.Helper()
-	ctx := context.Background()
+func extractGooseUp(content string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inUp := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "-- +goose Up" {
+			inUp = true
+			continue
+		}
+		if trimmed == "-- +goose Down" {
+			break
+		}
+		if strings.HasPrefix(trimmed, "-- +goose") {
+			continue
+		}
+		if inUp {
+			// CONCURRENTLY cannot run in a transaction; tests use an isolated
+			// container with no concurrent load, so a regular index is fine.
+			result = append(result, strings.ReplaceAll(line, " CONCURRENTLY", ""))
+		}
+	}
+	return strings.Join(result, "\n")
+}
+
+func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 	tables := []string{
 		"user_notifications",
+		"oauth_accounts",
+		"challenge_requirements",
 		"challenge_tags",
 		"submissions",
 		"comments",
-		"team_ratings",
-		"global_ratings",
 		"field_values",
 		"api_tokens",
 		"tags",
 		"notifications",
 		"fields",
-		"ctf_events",
 		"brackets",
 		"pages",
 		"configs",
@@ -159,6 +192,7 @@ func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
 		"awards",
 		"solves",
 		"hints",
+		"solutions",
 		"files",
 		"challenges",
 		"verification_tokens",
@@ -168,15 +202,16 @@ func truncateTables(t *testing.T, Pool *pgxpool.Pool) {
 	}
 
 	for _, table := range tables {
-		if _, err := Pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)); err != nil {
-			t.Logf("failed to truncate table %s: %v", table, err)
+		if _, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)); err != nil {
+			return fmt.Errorf("truncate %s: %w", table, err)
 		}
 	}
+	return nil
+}
 
-	_, err := Pool.Exec(ctx, "INSERT INTO competition (ID, name) VALUES (1, 'CTF Competition') ON CONFLICT (ID) DO NOTHING")
-	if err != nil {
-		t.Logf("insert competition: %v", err)
-	}
+func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
+	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time) VALUES (1, 'CTF Competition', NOW() - INTERVAL '1 hour', NOW() + INTERVAL '24 hours') ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+	return err
 }
 
 func getEnv(key, fallback string) string {
@@ -195,7 +230,7 @@ const (
 	seaweedS3Port    = "8333"
 	seaweedAccessKey = "admin"
 	seaweedSecretKey = "admin"
-	seaweedBucket    = "ctfboard"
+	seaweedBucket    = "astroctfb"
 )
 
 var (

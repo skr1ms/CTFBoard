@@ -1,0 +1,36 @@
+schemas:
+  response.ConfigResponse:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+      value_type:
+        type: string
+      description:
+        type: string
+      updated_at:
+        type: string
+        format: date-time
+    required:
+      - key
+      - value
+      - value_type
+    type: object
+  request.SetConfigRequest:
+    properties:
+      value:
+        type: string
+      value_type:
+        enum:
+          - string
+          - int
+          - bool
+          - json
+        type: string
+        default: string
+      description:
+        type: string
+    required:
+      - value
+    type: object

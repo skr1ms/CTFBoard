@@ -8,6 +8,7 @@ import (
 )
 
 func TestRenderVerificationEmail_Success(t *testing.T) {
+	t.Parallel()
 	data := VerificationData{
 		Username:  "user1",
 		ActionURL: "https://example.com/verify?token=abc",
@@ -26,6 +27,7 @@ func TestRenderVerificationEmail_Success(t *testing.T) {
 }
 
 func TestRenderVerificationEmail_DefaultAppName(t *testing.T) {
+	t.Parallel()
 	data := VerificationData{
 		Username:  "u",
 		ActionURL: "http://x.com",
@@ -33,10 +35,11 @@ func TestRenderVerificationEmail_DefaultAppName(t *testing.T) {
 	}
 	html, err := RenderVerificationEmail(data, true)
 	require.NoError(t, err)
-	assert.Contains(t, html, "CTFBoard")
+	assert.Contains(t, html, "AstroCTFb")
 }
 
 func TestRenderPasswordResetEmail_Success(t *testing.T) {
+	t.Parallel()
 	data := PasswordResetData{
 		Username:  "user1",
 		ActionURL: "https://example.com/reset?token=xyz",
@@ -53,6 +56,7 @@ func TestRenderPasswordResetEmail_Success(t *testing.T) {
 }
 
 func TestRenderPasswordResetEmail_DefaultAppName(t *testing.T) {
+	t.Parallel()
 	data := PasswordResetData{
 		Username:  "u",
 		ActionURL: "http://x.com",
@@ -60,5 +64,5 @@ func TestRenderPasswordResetEmail_DefaultAppName(t *testing.T) {
 	}
 	html, err := RenderPasswordResetEmail(data, true)
 	require.NoError(t, err)
-	assert.Contains(t, html, "CTFBoard")
+	assert.Contains(t, html, "AstroCTFb")
 }

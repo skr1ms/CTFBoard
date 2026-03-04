@@ -4,16 +4,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/pages: admin gets list of all pages (including drafts).
 func TestPage_AdminList_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_pages_list")
 	suffix := uuid.New().String()[:8]
@@ -27,8 +27,8 @@ func TestPage_AdminList_Success(t *testing.T) {
 // GET /admin/pages/{ID}: admin gets page by ID; returns 200 and page data.
 func TestPage_AdminGetByID_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_pages_get_id")
 	suffix := uuid.New().String()[:8]
@@ -50,8 +50,8 @@ func TestPage_AdminGetByID_Success(t *testing.T) {
 // GET /pages/{slug}: returns created page.
 func TestPage_GetBySlug_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_pages_slug")
 
@@ -72,8 +72,8 @@ func TestPage_GetBySlug_Success(t *testing.T) {
 // GET /pages/{slug}: not found returns 404.
 func TestPage_GetBySlug_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.GetPageBySlug("missing-"+uuid.New().String()[:8], http.StatusNotFound)
 }
@@ -81,8 +81,8 @@ func TestPage_GetBySlug_NotFound(t *testing.T) {
 // POST /admin/pages: non-admin gets 403.
 func TestPage_Create_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("page_user_" + suffix)
@@ -93,8 +93,8 @@ func TestPage_Create_Forbidden(t *testing.T) {
 // PUT /admin/pages/{id}: admin updates page.
 func TestPage_Update_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_page_upd")
 	suffix := uuid.New().String()[:8]
@@ -112,8 +112,8 @@ func TestPage_Update_Success(t *testing.T) {
 // DELETE /admin/pages/{id}: admin deletes page.
 func TestPage_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_page_del")
 	suffix := uuid.New().String()[:8]

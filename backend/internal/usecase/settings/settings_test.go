@@ -6,16 +6,17 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSettingsUseCase_Get_Success(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
@@ -23,7 +24,7 @@ func TestSettingsUseCase_Get_Success(t *testing.T) {
 	settings := h.NewAppSettings()
 
 	redisClient.ExpectGet(cache.KeyAppSettings).SetErr(redis.Nil)
-	deps.appSettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+	deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
 	redisClient.Regexp().ExpectSet(cache.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
 
 	result, err := uc.Get(context.Background())
@@ -36,6 +37,7 @@ func TestSettingsUseCase_Get_Success(t *testing.T) {
 }
 
 func TestSettingsUseCase_Get_Cached_Success(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
@@ -50,17 +52,18 @@ func TestSettingsUseCase_Get_Cached_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, settings.AppName, result.AppName)
-	deps.appSettingsRepo.AssertNotCalled(t, "Get", mock.Anything)
+	deps.SettingsRepo.AssertNotCalled(t, "Get", mock.Anything)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestSettingsUseCase_Get_Error(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	redisClient.ExpectGet(cache.KeyAppSettings).SetErr(redis.Nil)
-	deps.appSettingsRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
+	deps.SettingsRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.Get(context.Background())
 
@@ -71,6 +74,7 @@ func TestSettingsUseCase_Get_Error(t *testing.T) {
 }
 
 func TestSettingsUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
@@ -79,7 +83,8 @@ func TestSettingsUseCase_Update_Success(t *testing.T) {
 	actorID := uuid.New()
 	clientIP := "127.0.0.1"
 
-	deps.appSettingsRepo.On("Update", mock.Anything, mock.MatchedBy(func(s *entity.AppSettings) bool {
+	deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+	deps.SettingsRepo.On("Update", mock.Anything, mock.MatchedBy(func(s *entity.Settings) bool {
 		return s.ID == settings.ID && s.AppName == settings.AppName
 	})).Return(nil)
 	redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
@@ -98,13 +103,15 @@ func TestSettingsUseCase_Update_Success(t *testing.T) {
 }
 
 func TestSettingsUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettings()
 
-	deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(errors.New("db error"))
+	deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+	deps.SettingsRepo.On("Update", mock.Anything, settings).Return(errors.New("db error"))
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -114,29 +121,33 @@ func TestSettingsUseCase_Update_Error(t *testing.T) {
 }
 
 func TestSettingsUseCase_Update_AuditLogError(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettings()
 
-	deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
-	redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
+	deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+	deps.SettingsRepo.On("Update", mock.Anything, settings).Return(nil)
 	deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("audit error"))
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Create audit")
+	assert.Contains(t, err.Error(), "AuditLogRepo.Create")
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
 func TestSettingsUseCase_Validate_SubmitLimitPerUser(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(0, 1, 24, 1, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -145,11 +156,14 @@ func TestSettingsUseCase_Validate_SubmitLimitPerUser(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_SubmitLimitDuration(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 0, 24, 1, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -158,11 +172,14 @@ func TestSettingsUseCase_Validate_SubmitLimitDuration(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_VerifyTTL_TooLow(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 1, 0, 1, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -171,11 +188,14 @@ func TestSettingsUseCase_Validate_VerifyTTL_TooLow(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_VerifyTTL_TooHigh(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 1, 200, 1, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -184,11 +204,14 @@ func TestSettingsUseCase_Validate_VerifyTTL_TooHigh(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_ResetTTL_TooLow(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 1, 24, 0, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -197,11 +220,14 @@ func TestSettingsUseCase_Validate_ResetTTL_TooLow(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_ResetTTL_TooHigh(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 1, 24, 200, entity.ScoreboardVisiblePublic)
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -210,11 +236,14 @@ func TestSettingsUseCase_Validate_ResetTTL_TooHigh(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_ScoreboardVisible_Invalid(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
+	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
 
 	settings := h.NewAppSettingsWithValues(10, 1, 24, 1, "invalid")
 
+	deps.SettingsRepo.On("Get", mock.Anything).Return(h.NewAppSettings(), nil)
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -223,6 +252,7 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_Invalid(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
+	t.Parallel()
 	validValues := []string{
 		entity.ScoreboardVisiblePublic,
 		entity.ScoreboardVisibleHidden,
@@ -231,13 +261,15 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
 
 	for _, visibility := range validValues {
 		t.Run(visibility, func(t *testing.T) {
+			t.Parallel()
 			h := NewSettingsTestHelper(t)
 			deps := h.Deps()
 			uc, redisClient := h.CreateSettingsUseCase()
 
 			settings := h.NewAppSettingsWithValues(10, 1, 24, 1, visibility)
 
-			deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
+			deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+			deps.SettingsRepo.On("Update", mock.Anything, settings).Return(nil)
 			redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 			deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
@@ -250,6 +282,7 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
 }
 
 func TestSettingsUseCase_Get_InvalidCachedJSON(t *testing.T) {
+	t.Parallel()
 	h := NewSettingsTestHelper(t)
 	deps := h.Deps()
 	uc, redisClient := h.CreateSettingsUseCase()
@@ -257,7 +290,7 @@ func TestSettingsUseCase_Get_InvalidCachedJSON(t *testing.T) {
 	settings := h.NewAppSettings()
 
 	redisClient.ExpectGet(cache.KeyAppSettings).SetVal("invalid json")
-	deps.appSettingsRepo.On("Get", mock.Anything).Return(settings, nil)
+	deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
 	redisClient.Regexp().ExpectSet(cache.KeyAppSettings, `.*`, cacheTTL).SetVal("OK")
 
 	result, err := uc.Get(context.Background())
@@ -268,6 +301,7 @@ func TestSettingsUseCase_Get_InvalidCachedJSON(t *testing.T) {
 }
 
 func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		submitLimit int
@@ -287,14 +321,16 @@ func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := NewSettingsTestHelper(t)
 			deps := h.Deps()
 			uc, redisClient := h.CreateSettingsUseCase()
 
 			settings := h.NewAppSettingsWithValues(tt.submitLimit, tt.submitDur, tt.verifyTTL, tt.resetTTL, tt.visibility)
 
+			deps.SettingsRepo.On("Get", mock.Anything).Return(settings, nil)
 			if !tt.wantErr {
-				deps.appSettingsRepo.On("Update", mock.Anything, settings).Return(nil)
+				deps.SettingsRepo.On("Update", mock.Anything, settings).Return(nil)
 				redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
 				deps.auditLogRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 			}

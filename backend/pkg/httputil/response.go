@@ -27,17 +27,20 @@ func RenderOK[T any](w http.ResponseWriter, r *http.Request, data T) {
 
 func RenderError(w http.ResponseWriter, r *http.Request, status int, message string) {
 	render.Status(r, status)
-	render.JSON(w, r, map[string]string{"error": message})
+	render.JSON(w, r, ErrorResponse{Code: codeFromStatus(status), Message: message})
 }
 
 func RenderErrorWithCode(w http.ResponseWriter, r *http.Request, status int, message, code string) {
 	render.Status(r, status)
-	render.JSON(w, r, map[string]any{
-		"error": message,
-		"code":  code,
-	})
+	render.JSON(w, r, ErrorResponse{Code: code, Message: message})
 }
 
 func RenderInvalidID(w http.ResponseWriter, r *http.Request) {
-	RenderError(w, r, http.StatusBadRequest, "invalid ID")
+	RenderErrorWithCode(w, r, http.StatusBadRequest, "invalid ID", "INVALID_ID")
+}
+
+func RenderText(w http.ResponseWriter, _ *http.Request, status int, contentType, body string) {
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body)) //nolint:errcheck
 }

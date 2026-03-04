@@ -59,3 +59,6 @@ out/
 backend/cmd/app/app
 backend/app
 CTFd/
+backend/bin/
+backend/openapi/components/schemas.yml
+PRD/

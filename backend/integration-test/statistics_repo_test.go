@@ -2,15 +2,18 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -26,6 +29,7 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -37,6 +41,7 @@ func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -64,6 +69,7 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -74,10 +80,10 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	ctx := context.Background()
 
 	solveTime := time.Now().Add(-1 * time.Hour)
-	_, err := f.Pool.Exec(ctx, "INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at) VALUES ($1, $2, $3, $4, $5)", uuid.New(), user1.ID, team1.ID, chall1.ID, solveTime)
+	_, err := f.Pool.Exec(ctx, "INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at, points_at_solve) VALUES ($1, $2, $3, $4, $5, $6)", uuid.New(), user1.ID, team1.ID, chall1.ID, solveTime, 100)
 	require.NoError(t, err)
 
-	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 10)
+	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 1000)
 	require.NoError(t, err)
 
 	found := false
@@ -91,6 +97,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -102,6 +109,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T
 }
 
 func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -114,6 +122,7 @@ func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 }
 
 func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -143,18 +152,21 @@ func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
 	assert.Equal(t, team.Name, stats.Solves[0].TeamName)
 }
 
-func TestStatisticsRepo_GetChallengeDetailStats_Success_NotFound(t *testing.T) {
+func TestStatisticsRepo_GetChallengeDetailStats_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
 	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New())
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
 	assert.Nil(t, stats)
 }
 
 func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -163,5 +175,96 @@ func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testin
 	cancel()
 
 	_, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	f.CreateUserWithTeam(t, uuid.New().String())
+
+	series, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, series)
+	require.GreaterOrEqual(t, len(series), 1)
+}
+
+func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetUserRegistrationTimeSeries_Success(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	f.CreateUser(t, uuid.New().String())
+
+	series, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, series)
+	require.GreaterOrEqual(t, len(series), 1)
+}
+
+func TestStatisticsRepo_GetUserRegistrationTimeSeries_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetSolveMatrix_Success(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, uuid.New().String())
+	chall := f.CreateChallenge(t, uuid.New().String(), 100)
+	f.CreateSolve(t, user.ID, team.ID, chall.ID)
+
+	matrix, err := f.StatisticsRepo.GetSolveMatrix(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, matrix)
+	found := false
+	for _, row := range matrix {
+		if row.TeamID == team.ID && row.ChallengeID == chall.ID {
+			assert.True(t, row.Solved)
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "solve matrix should contain row for team/challenge")
+}
+
+func TestStatisticsRepo_GetSolveMatrix_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetSolveMatrix(ctx)
 	require.Error(t, err)
 }

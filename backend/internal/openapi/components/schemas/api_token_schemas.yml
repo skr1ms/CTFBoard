@@ -1,0 +1,41 @@
+schemas:
+  response.APITokenResponse:
+    properties:
+      id:
+        type: string
+      description:
+        type: string
+      expires_at:
+        type: string
+        format: date-time
+      last_used_at:
+        type: string
+        format: date-time
+      created_at:
+        type: string
+    type: object
+  response.APITokenCreatedResponse:
+    properties:
+      id:
+        type: string
+      token:
+        type: string
+        description: Plaintext token (shown once)
+      description:
+        type: string
+      expires_at:
+        type: string
+        format: date-time
+      created_at:
+        type: string
+    required:
+      - token
+    type: object
+  request.CreateAPITokenRequest:
+    properties:
+      description:
+        type: string
+      expires_at:
+        type: string
+        format: date-time
+    type: object

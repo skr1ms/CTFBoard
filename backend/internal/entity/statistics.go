@@ -45,3 +45,44 @@ type ScoreboardHistoryEntry struct {
 	Points    int       `json:"points"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+type ChallengeSolvePercentage struct {
+	ID         uuid.UUID `json:"id"`
+	Title      string    `json:"title"`
+	Category   string    `json:"category"`
+	SolveCount int       `json:"solve_count"`
+	TotalTeams int       `json:"total_teams"`
+	Percentage float64   `json:"percentage"`
+}
+
+type ScoreDistributionBucket struct {
+	Bucket string `json:"bucket"`
+	Count  int    `json:"count"`
+}
+
+type SubmissionTimeSeries struct {
+	Date      string `json:"date"`
+	Correct   int    `json:"correct"`
+	Incorrect int    `json:"incorrect"`
+}
+
+type SubmissionTimeSeriesStats struct {
+	Items          []*SubmissionTimeSeries `json:"items"`
+	TotalCorrect   int                     `json:"total_correct"`
+	TotalIncorrect int                     `json:"total_incorrect"`
+}
+
+type RegistrationTimePoint struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+type SolveMatrixRow struct {
+	TeamID            uuid.UUID  `json:"team_id"`
+	TeamName          string     `json:"team_name"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory string     `json:"challenge_category"`
+	Solved            bool       `json:"solved"`
+	SolvedAt          *time.Time `json:"solved_at,omitempty"`
+}

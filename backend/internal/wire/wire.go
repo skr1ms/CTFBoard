@@ -3,18 +3,22 @@
 package wire
 
 import (
+	"context"
+
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/skr1ms/CTFBoard/config"
-	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 func InitializeApp(
+	ctx context.Context,
 	cfg *config.Config,
 	l logger.Logger,
 	pool *pgxpool.Pool,

@@ -4,14 +4,15 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestFieldUseCase_GetByEntityType_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -29,6 +30,7 @@ func TestFieldUseCase_GetByEntityType_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_GetByEntityType_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -44,6 +46,7 @@ func TestFieldUseCase_GetByEntityType_Error(t *testing.T) {
 }
 
 func TestFieldUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -72,6 +75,7 @@ func TestFieldUseCase_Create_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -86,6 +90,7 @@ func TestFieldUseCase_Create_Error(t *testing.T) {
 }
 
 func TestFieldUseCase_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -103,6 +108,7 @@ func TestFieldUseCase_GetByID_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -118,6 +124,7 @@ func TestFieldUseCase_GetByID_Error(t *testing.T) {
 }
 
 func TestFieldUseCase_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -133,6 +140,7 @@ func TestFieldUseCase_GetAll_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_GetAll_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -147,6 +155,7 @@ func TestFieldUseCase_GetAll_Error(t *testing.T) {
 }
 
 func TestFieldUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -176,21 +185,23 @@ func TestFieldUseCase_Update_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, entityError.ErrFieldNotFound)
+	deps.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, httperr.ErrFieldNotFound)
 
 	uc := h.CreateUseCase()
 	got, err := uc.Update(ctx, id, "name", entity.FieldTypeText, false, nil, 0)
 
-	assert.ErrorIs(t, err, entityError.ErrFieldNotFound)
+	assert.ErrorIs(t, err, httperr.ErrFieldNotFound)
 	assert.Nil(t, got)
 }
 
 func TestFieldUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -205,6 +216,7 @@ func TestFieldUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestFieldUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()

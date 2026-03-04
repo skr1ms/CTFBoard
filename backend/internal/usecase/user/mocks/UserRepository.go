@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockUserRepository creates a new instance of MockUserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -37,6 +38,201 @@ type MockUserRepository_Expecter struct {
 
 func (_m *MockUserRepository) EXPECT() *MockUserRepository_Expecter {
 	return &MockUserRepository_Expecter{mock: &_m.Mock}
+}
+
+// Ban provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) Ban(ctx context.Context, userID uuid.UUID, reason string) error {
+	ret := _mock.Called(ctx, userID, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Ban")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_Ban_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ban'
+type MockUserRepository_Ban_Call struct {
+	*mock.Call
+}
+
+// Ban is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - reason string
+func (_e *MockUserRepository_Expecter) Ban(ctx interface{}, userID interface{}, reason interface{}) *MockUserRepository_Ban_Call {
+	return &MockUserRepository_Ban_Call{Call: _e.mock.On("Ban", ctx, userID, reason)}
+}
+
+func (_c *MockUserRepository_Ban_Call) Run(run func(ctx context.Context, userID uuid.UUID, reason string)) *MockUserRepository_Ban_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_Ban_Call) Return(err error) *MockUserRepository_Ban_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, reason string) error) *MockUserRepository_Ban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearch provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) CountSearch(ctx context.Context, search *string) (int64, error) {
+	ret := _mock.Called(ctx, search)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearch")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) (int64, error)); ok {
+		return returnFunc(ctx, search)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) int64); ok {
+		r0 = returnFunc(ctx, search)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string) error); ok {
+		r1 = returnFunc(ctx, search)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_CountSearch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearch'
+type MockUserRepository_CountSearch_Call struct {
+	*mock.Call
+}
+
+// CountSearch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+func (_e *MockUserRepository_Expecter) CountSearch(ctx interface{}, search interface{}) *MockUserRepository_CountSearch_Call {
+	return &MockUserRepository_CountSearch_Call{Call: _e.mock.On("CountSearch", ctx, search)}
+}
+
+func (_c *MockUserRepository_CountSearch_Call) Run(run func(ctx context.Context, search *string)) *MockUserRepository_CountSearch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearch_Call) Return(n int64, err error) *MockUserRepository_CountSearch_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearch_Call) RunAndReturn(run func(ctx context.Context, search *string) (int64, error)) *MockUserRepository_CountSearch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearchByIP provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) CountSearchByIP(ctx context.Context, ip string) (int64, error) {
+	ret := _mock.Called(ctx, ip)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearchByIP")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return returnFunc(ctx, ip)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = returnFunc(ctx, ip)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, ip)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_CountSearchByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearchByIP'
+type MockUserRepository_CountSearchByIP_Call struct {
+	*mock.Call
+}
+
+// CountSearchByIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ip string
+func (_e *MockUserRepository_Expecter) CountSearchByIP(ctx interface{}, ip interface{}) *MockUserRepository_CountSearchByIP_Call {
+	return &MockUserRepository_CountSearchByIP_Call{Call: _e.mock.On("CountSearchByIP", ctx, ip)}
+}
+
+func (_c *MockUserRepository_CountSearchByIP_Call) Run(run func(ctx context.Context, ip string)) *MockUserRepository_CountSearchByIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchByIP_Call) Return(n int64, err error) *MockUserRepository_CountSearchByIP_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchByIP_Call) RunAndReturn(run func(ctx context.Context, ip string) (int64, error)) *MockUserRepository_CountSearchByIP_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Create provides a mock function for the type MockUserRepository
@@ -92,6 +288,63 @@ func (_c *MockUserRepository_Create_Call) Return(err error) *MockUserRepository_
 }
 
 func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(ctx context.Context, user *entity.User) error) *MockUserRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Delete provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) Delete(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
+type MockUserRepository_Delete_Call struct {
+	*mock.Call
+}
+
+// Delete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) Delete(ctx interface{}, userID interface{}) *MockUserRepository_Delete_Call {
+	return &MockUserRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, userID)}
+}
+
+func (_c *MockUserRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_Delete_Call) Return(err error) *MockUserRepository_Delete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -430,6 +683,280 @@ func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// Lock provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) Lock(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Lock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_Lock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Lock'
+type MockUserRepository_Lock_Call struct {
+	*mock.Call
+}
+
+// Lock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) Lock(ctx interface{}, userID interface{}) *MockUserRepository_Lock_Call {
+	return &MockUserRepository_Lock_Call{Call: _e.mock.On("Lock", ctx, userID)}
+}
+
+func (_c *MockUserRepository_Lock_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_Lock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_Lock_Call) Return(err error) *MockUserRepository_Lock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_Lock_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_Lock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Search provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) Search(ctx context.Context, search *string, limit int, offset int) ([]*entity.User, error) {
+	ret := _mock.Called(ctx, search, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) ([]*entity.User, error)); ok {
+		return returnFunc(ctx, search, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) []*entity.User); ok {
+		r0 = returnFunc(ctx, search, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string, int, int) error); ok {
+		r1 = returnFunc(ctx, search, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_Search_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Search'
+type MockUserRepository_Search_Call struct {
+	*mock.Call
+}
+
+// Search is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+//   - limit int
+//   - offset int
+func (_e *MockUserRepository_Expecter) Search(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockUserRepository_Search_Call {
+	return &MockUserRepository_Search_Call{Call: _e.mock.On("Search", ctx, search, limit, offset)}
+}
+
+func (_c *MockUserRepository_Search_Call) Run(run func(ctx context.Context, search *string, limit int, offset int)) *MockUserRepository_Search_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_Search_Call) Return(users []*entity.User, err error) *MockUserRepository_Search_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_Search_Call) RunAndReturn(run func(ctx context.Context, search *string, limit int, offset int) ([]*entity.User, error)) *MockUserRepository_Search_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SearchByIP provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SearchByIP(ctx context.Context, ip string, limit int, offset int) ([]*entity.User, error) {
+	ret := _mock.Called(ctx, ip, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchByIP")
+	}
+
+	var r0 []*entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) ([]*entity.User, error)); ok {
+		return returnFunc(ctx, ip, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) []*entity.User); ok {
+		r0 = returnFunc(ctx, ip, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
+		r1 = returnFunc(ctx, ip, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_SearchByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchByIP'
+type MockUserRepository_SearchByIP_Call struct {
+	*mock.Call
+}
+
+// SearchByIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ip string
+//   - limit int
+//   - offset int
+func (_e *MockUserRepository_Expecter) SearchByIP(ctx interface{}, ip interface{}, limit interface{}, offset interface{}) *MockUserRepository_SearchByIP_Call {
+	return &MockUserRepository_SearchByIP_Call{Call: _e.mock.On("SearchByIP", ctx, ip, limit, offset)}
+}
+
+func (_c *MockUserRepository_SearchByIP_Call) Run(run func(ctx context.Context, ip string, limit int, offset int)) *MockUserRepository_SearchByIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SearchByIP_Call) Return(users []*entity.User, err error) *MockUserRepository_SearchByIP_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_SearchByIP_Call) RunAndReturn(run func(ctx context.Context, ip string, limit int, offset int) ([]*entity.User, error)) *MockUserRepository_SearchByIP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetUnverified provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SetUnverified(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetUnverified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_SetUnverified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetUnverified'
+type MockUserRepository_SetUnverified_Call struct {
+	*mock.Call
+}
+
+// SetUnverified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) SetUnverified(ctx interface{}, userID interface{}) *MockUserRepository_SetUnverified_Call {
+	return &MockUserRepository_SetUnverified_Call{Call: _e.mock.On("SetUnverified", ctx, userID)}
+}
+
+func (_c *MockUserRepository_SetUnverified_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_SetUnverified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetUnverified_Call) Return(err error) *MockUserRepository_SetUnverified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_SetUnverified_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_SetUnverified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetVerified provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) SetVerified(ctx context.Context, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID)
@@ -483,6 +1010,150 @@ func (_c *MockUserRepository_SetVerified_Call) Return(err error) *MockUserReposi
 }
 
 func (_c *MockUserRepository_SetVerified_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_SetVerified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Unban provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) Unban(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Unban")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_Unban_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Unban'
+type MockUserRepository_Unban_Call struct {
+	*mock.Call
+}
+
+// Unban is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) Unban(ctx interface{}, userID interface{}) *MockUserRepository_Unban_Call {
+	return &MockUserRepository_Unban_Call{Call: _e.mock.On("Unban", ctx, userID)}
+}
+
+func (_c *MockUserRepository_Unban_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_Unban_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_Unban_Call) Return(err error) *MockUserRepository_Unban_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_Unban_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_Unban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAdmin provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UpdateAdmin(ctx context.Context, userID uuid.UUID, username *string, email *string, role *string, passwordHash *string, isVerified *bool) error {
+	ret := _mock.Called(ctx, userID, username, email, role, passwordHash, isVerified)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *string, *string, *string, *string, *bool) error); ok {
+		r0 = returnFunc(ctx, userID, username, email, role, passwordHash, isVerified)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UpdateAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAdmin'
+type MockUserRepository_UpdateAdmin_Call struct {
+	*mock.Call
+}
+
+// UpdateAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - username *string
+//   - email *string
+//   - role *string
+//   - passwordHash *string
+//   - isVerified *bool
+func (_e *MockUserRepository_Expecter) UpdateAdmin(ctx interface{}, userID interface{}, username interface{}, email interface{}, role interface{}, passwordHash interface{}, isVerified interface{}) *MockUserRepository_UpdateAdmin_Call {
+	return &MockUserRepository_UpdateAdmin_Call{Call: _e.mock.On("UpdateAdmin", ctx, userID, username, email, role, passwordHash, isVerified)}
+}
+
+func (_c *MockUserRepository_UpdateAdmin_Call) Run(run func(ctx context.Context, userID uuid.UUID, username *string, email *string, role *string, passwordHash *string, isVerified *bool)) *MockUserRepository_UpdateAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *string
+		if args[2] != nil {
+			arg2 = args[2].(*string)
+		}
+		var arg3 *string
+		if args[3] != nil {
+			arg3 = args[3].(*string)
+		}
+		var arg4 *string
+		if args[4] != nil {
+			arg4 = args[4].(*string)
+		}
+		var arg5 *string
+		if args[5] != nil {
+			arg5 = args[5].(*string)
+		}
+		var arg6 *bool
+		if args[6] != nil {
+			arg6 = args[6].(*bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateAdmin_Call) Return(err error) *MockUserRepository_UpdateAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateAdmin_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, username *string, email *string, role *string, passwordHash *string, isVerified *bool) error) *MockUserRepository_UpdateAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -546,6 +1217,81 @@ func (_c *MockUserRepository_UpdatePassword_Call) Return(err error) *MockUserRep
 }
 
 func (_c *MockUserRepository_UpdatePassword_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, passwordHash string) error) *MockUserRepository_UpdatePassword_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateProfile provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, username *string, email *string, passwordHash *string) error {
+	ret := _mock.Called(ctx, userID, username, email, passwordHash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateProfile")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *string, *string, *string) error); ok {
+		r0 = returnFunc(ctx, userID, username, email, passwordHash)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UpdateProfile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateProfile'
+type MockUserRepository_UpdateProfile_Call struct {
+	*mock.Call
+}
+
+// UpdateProfile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - username *string
+//   - email *string
+//   - passwordHash *string
+func (_e *MockUserRepository_Expecter) UpdateProfile(ctx interface{}, userID interface{}, username interface{}, email interface{}, passwordHash interface{}) *MockUserRepository_UpdateProfile_Call {
+	return &MockUserRepository_UpdateProfile_Call{Call: _e.mock.On("UpdateProfile", ctx, userID, username, email, passwordHash)}
+}
+
+func (_c *MockUserRepository_UpdateProfile_Call) Run(run func(ctx context.Context, userID uuid.UUID, username *string, email *string, passwordHash *string)) *MockUserRepository_UpdateProfile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *string
+		if args[2] != nil {
+			arg2 = args[2].(*string)
+		}
+		var arg3 *string
+		if args[3] != nil {
+			arg3 = args[3].(*string)
+		}
+		var arg4 *string
+		if args[4] != nil {
+			arg4 = args[4].(*string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateProfile_Call) Return(err error) *MockUserRepository_UpdateProfile_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateProfile_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, username *string, email *string, passwordHash *string) error) *MockUserRepository_UpdateProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }

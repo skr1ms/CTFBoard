@@ -1,13 +1,15 @@
-package ws
+package v1
 
 import (
 	"net/http"
 	"slices"
 
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
 )
 
 type Controller struct {
@@ -37,8 +39,14 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 		OriginPatterns: c.allowedOrigins,
 	}
 
-	if len(c.allowedOrigins) == 0 || slices.Contains(c.allowedOrigins, "*") {
+	if len(c.allowedOrigins) == 0 {
+		c.logger.Error("ws - HandleWS - ALLOWED_ORIGINS is not configured, rejecting connection")
+		httputil.HandleError(w, r, httperr.ErrWebsocketOriginNotConfigured)
+		return
+	}
+	if slices.Contains(c.allowedOrigins, "*") {
 		opts.InsecureSkipVerify = true
+		c.logger.Warn("ws - HandleWS - InsecureSkipVerify is enabled, configure ALLOWED_ORIGINS for production")
 	}
 
 	conn, err := websocket.Accept(w, r, opts)
@@ -47,7 +55,7 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pkgWS.NewClient(c.hub, conn)
+	client := pkgWS.NewClient(c.hub, conn, r.Context())
 	c.hub.Register(client)
 
 	go client.WritePump()

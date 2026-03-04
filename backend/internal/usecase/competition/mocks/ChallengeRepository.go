@@ -8,9 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 // NewMockChallengeRepository creates a new instance of MockChallengeRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -41,8 +42,8 @@ func (_m *MockChallengeRepository) EXPECT() *MockChallengeRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) Create(ctx context.Context, challenge *entity.Challenge) error {
-	ret := _mock.Called(ctx, challenge)
+func (_mock *MockChallengeRepository) Create(ctx context.Context, c *entity.Challenge) error {
+	ret := _mock.Called(ctx, c)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -50,7 +51,7 @@ func (_mock *MockChallengeRepository) Create(ctx context.Context, challenge *ent
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.Challenge) error); ok {
-		r0 = returnFunc(ctx, challenge)
+		r0 = returnFunc(ctx, c)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,12 +65,12 @@ type MockChallengeRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - challenge *entity.Challenge
-func (_e *MockChallengeRepository_Expecter) Create(ctx interface{}, challenge interface{}) *MockChallengeRepository_Create_Call {
-	return &MockChallengeRepository_Create_Call{Call: _e.mock.On("Create", ctx, challenge)}
+//   - c *entity.Challenge
+func (_e *MockChallengeRepository_Expecter) Create(ctx interface{}, c interface{}) *MockChallengeRepository_Create_Call {
+	return &MockChallengeRepository_Create_Call{Call: _e.mock.On("Create", ctx, c)}
 }
 
-func (_c *MockChallengeRepository_Create_Call) Run(run func(ctx context.Context, challenge *entity.Challenge)) *MockChallengeRepository_Create_Call {
+func (_c *MockChallengeRepository_Create_Call) Run(run func(ctx context.Context, c *entity.Challenge)) *MockChallengeRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -92,7 +93,73 @@ func (_c *MockChallengeRepository_Create_Call) Return(err error) *MockChallengeR
 	return _c
 }
 
-func (_c *MockChallengeRepository_Create_Call) RunAndReturn(run func(ctx context.Context, challenge *entity.Challenge) error) *MockChallengeRepository_Create_Call {
+func (_c *MockChallengeRepository_Create_Call) RunAndReturn(run func(ctx context.Context, c *entity.Challenge) error) *MockChallengeRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DecrementSolveCount provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) DecrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DecrementSolveCount")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_DecrementSolveCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DecrementSolveCount'
+type MockChallengeRepository_DecrementSolveCount_Call struct {
+	*mock.Call
+}
+
+// DecrementSolveCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) DecrementSolveCount(ctx interface{}, ID interface{}) *MockChallengeRepository_DecrementSolveCount_Call {
+	return &MockChallengeRepository_DecrementSolveCount_Call{Call: _e.mock.On("DecrementSolveCount", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_DecrementSolveCount_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_DecrementSolveCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_DecrementSolveCount_Call) Return(n int, err error) *MockChallengeRepository_DecrementSolveCount_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_DecrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (int, error)) *MockChallengeRepository_DecrementSolveCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -150,6 +217,63 @@ func (_c *MockChallengeRepository_Delete_Call) Return(err error) *MockChallengeR
 }
 
 func (_c *MockChallengeRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockChallengeRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteSolution provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) DeleteSolution(ctx context.Context, challengeID uuid.UUID) error {
+	ret := _mock.Called(ctx, challengeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSolution")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, challengeID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_DeleteSolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSolution'
+type MockChallengeRepository_DeleteSolution_Call struct {
+	*mock.Call
+}
+
+// DeleteSolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) DeleteSolution(ctx interface{}, challengeID interface{}) *MockChallengeRepository_DeleteSolution_Call {
+	return &MockChallengeRepository_DeleteSolution_Call{Call: _e.mock.On("DeleteSolution", ctx, challengeID)}
+}
+
+func (_c *MockChallengeRepository_DeleteSolution_Call) Run(run func(ctx context.Context, challengeID uuid.UUID)) *MockChallengeRepository_DeleteSolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_DeleteSolution_Call) Return(err error) *MockChallengeRepository_DeleteSolution_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_DeleteSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) error) *MockChallengeRepository_DeleteSolution_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -218,8 +342,8 @@ func (_c *MockChallengeRepository_GetAll_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAll_Call) Return(challengeWithSolveds []*repo.ChallengeWithSolved, err error) *MockChallengeRepository_GetAll_Call {
-	_c.Call.Return(challengeWithSolveds, err)
+func (_c *MockChallengeRepository_GetAll_Call) Return(vs []*repo.ChallengeWithSolved, err error) *MockChallengeRepository_GetAll_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -296,6 +420,482 @@ func (_c *MockChallengeRepository_GetByID_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// GetByIDForUpdate provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDForUpdate")
+	}
+
+	var r0 *entity.Challenge
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Challenge, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Challenge); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Challenge)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetByIDForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDForUpdate'
+type MockChallengeRepository_GetByIDForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetByIDForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetByIDForUpdate(ctx interface{}, ID interface{}) *MockChallengeRepository_GetByIDForUpdate_Call {
+	return &MockChallengeRepository_GetByIDForUpdate_Call{Call: _e.mock.On("GetByIDForUpdate", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_GetByIDForUpdate_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_GetByIDForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetByIDForUpdate_Call) Return(challenge *entity.Challenge, err error) *MockChallengeRepository_GetByIDForUpdate_Call {
+	_c.Call.Return(challenge, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetByIDForUpdate_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error)) *MockChallengeRepository_GetByIDForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByIDs provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*entity.Challenge, error) {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDs")
+	}
+
+	var r0 map[uuid.UUID]*entity.Challenge
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]*entity.Challenge, error)); ok {
+		return returnFunc(ctx, ids)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]*entity.Challenge); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID]*entity.Challenge)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ids)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDs'
+type MockChallengeRepository_GetByIDs_Call struct {
+	*mock.Call
+}
+
+// GetByIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetByIDs(ctx interface{}, ids interface{}) *MockChallengeRepository_GetByIDs_Call {
+	return &MockChallengeRepository_GetByIDs_Call{Call: _e.mock.On("GetByIDs", ctx, ids)}
+}
+
+func (_c *MockChallengeRepository_GetByIDs_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockChallengeRepository_GetByIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetByIDs_Call) Return(uUIDToChallenge map[uuid.UUID]*entity.Challenge, err error) *MockChallengeRepository_GetByIDs_Call {
+	_c.Call.Return(uUIDToChallenge, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*entity.Challenge, error)) *MockChallengeRepository_GetByIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetFlags provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetFlags(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFlags")
+	}
+
+	var r0 *repo.ChallengeFlags
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*repo.ChallengeFlags, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *repo.ChallengeFlags); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repo.ChallengeFlags)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetFlags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFlags'
+type MockChallengeRepository_GetFlags_Call struct {
+	*mock.Call
+}
+
+// GetFlags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetFlags(ctx interface{}, ID interface{}) *MockChallengeRepository_GetFlags_Call {
+	return &MockChallengeRepository_GetFlags_Call{Call: _e.mock.On("GetFlags", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_GetFlags_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_GetFlags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetFlags_Call) Return(v *repo.ChallengeFlags, err error) *MockChallengeRepository_GetFlags_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetFlags_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error)) *MockChallengeRepository_GetFlags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMissingChallengesByTeamID provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Challenge, error) {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMissingChallengesByTeamID")
+	}
+
+	var r0 []*entity.Challenge
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.Challenge, error)); ok {
+		return returnFunc(ctx, teamID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.Challenge); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Challenge)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetMissingChallengesByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMissingChallengesByTeamID'
+type MockChallengeRepository_GetMissingChallengesByTeamID_Call struct {
+	*mock.Call
+}
+
+// GetMissingChallengesByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetMissingChallengesByTeamID(ctx interface{}, teamID interface{}) *MockChallengeRepository_GetMissingChallengesByTeamID_Call {
+	return &MockChallengeRepository_GetMissingChallengesByTeamID_Call{Call: _e.mock.On("GetMissingChallengesByTeamID", ctx, teamID)}
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockChallengeRepository_GetMissingChallengesByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByTeamID_Call) Return(challenges []*entity.Challenge, err error) *MockChallengeRepository_GetMissingChallengesByTeamID_Call {
+	_c.Call.Return(challenges, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByTeamID_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) ([]*entity.Challenge, error)) *MockChallengeRepository_GetMissingChallengesByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMissingChallengesByUserID provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Challenge, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMissingChallengesByUserID")
+	}
+
+	var r0 []*entity.Challenge
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.Challenge, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.Challenge); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Challenge)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetMissingChallengesByUserID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMissingChallengesByUserID'
+type MockChallengeRepository_GetMissingChallengesByUserID_Call struct {
+	*mock.Call
+}
+
+// GetMissingChallengesByUserID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetMissingChallengesByUserID(ctx interface{}, userID interface{}) *MockChallengeRepository_GetMissingChallengesByUserID_Call {
+	return &MockChallengeRepository_GetMissingChallengesByUserID_Call{Call: _e.mock.On("GetMissingChallengesByUserID", ctx, userID)}
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByUserID_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChallengeRepository_GetMissingChallengesByUserID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByUserID_Call) Return(challenges []*entity.Challenge, err error) *MockChallengeRepository_GetMissingChallengesByUserID_Call {
+	_c.Call.Return(challenges, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetMissingChallengesByUserID_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]*entity.Challenge, error)) *MockChallengeRepository_GetMissingChallengesByUserID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetRequirements provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRequirements")
+	}
+
+	var r0 []*repo.ChallengeRequirement
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*repo.ChallengeRequirement, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*repo.ChallengeRequirement); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repo.ChallengeRequirement)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetRequirements_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRequirements'
+type MockChallengeRepository_GetRequirements_Call struct {
+	*mock.Call
+}
+
+// GetRequirements is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetRequirements(ctx interface{}, ID interface{}) *MockChallengeRepository_GetRequirements_Call {
+	return &MockChallengeRepository_GetRequirements_Call{Call: _e.mock.On("GetRequirements", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_GetRequirements_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_GetRequirements_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetRequirements_Call) Return(vs []*repo.ChallengeRequirement, err error) *MockChallengeRepository_GetRequirements_Call {
+	_c.Call.Return(vs, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetRequirements_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error)) *MockChallengeRepository_GetRequirements_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSolution provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSolution")
+	}
+
+	var r0 *repo.ChallengeSolution
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*repo.ChallengeSolution, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *repo.ChallengeSolution); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repo.ChallengeSolution)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetSolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSolution'
+type MockChallengeRepository_GetSolution_Call struct {
+	*mock.Call
+}
+
+// GetSolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetSolution(ctx interface{}, ID interface{}) *MockChallengeRepository_GetSolution_Call {
+	return &MockChallengeRepository_GetSolution_Call{Call: _e.mock.On("GetSolution", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_GetSolution_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_GetSolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetSolution_Call) Return(v *repo.ChallengeSolution, err error) *MockChallengeRepository_GetSolution_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetSolution_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error)) *MockChallengeRepository_GetSolution_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IncrementSolveCount provides a mock function for the type MockChallengeRepository
 func (_mock *MockChallengeRepository) IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, ID)
@@ -362,9 +962,203 @@ func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ListSolutions provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error) {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSolutions")
+	}
+
+	var r0 []*repo.ChallengeSolutionEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*repo.ChallengeSolutionEntry, error)); ok {
+		return returnFunc(ctx, teamID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*repo.ChallengeSolutionEntry); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repo.ChallengeSolutionEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_ListSolutions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSolutions'
+type MockChallengeRepository_ListSolutions_Call struct {
+	*mock.Call
+}
+
+// ListSolutions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) ListSolutions(ctx interface{}, teamID interface{}) *MockChallengeRepository_ListSolutions_Call {
+	return &MockChallengeRepository_ListSolutions_Call{Call: _e.mock.On("ListSolutions", ctx, teamID)}
+}
+
+func (_c *MockChallengeRepository_ListSolutions_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockChallengeRepository_ListSolutions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_ListSolutions_Call) Return(vs []*repo.ChallengeSolutionEntry, err error) *MockChallengeRepository_ListSolutions_Call {
+	_c.Call.Return(vs, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error)) *MockChallengeRepository_ListSolutions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetRequirements provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error {
+	ret := _mock.Called(ctx, challengeID, requirementIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetRequirements")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, challengeID, requirementIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_SetRequirements_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetRequirements'
+type MockChallengeRepository_SetRequirements_Call struct {
+	*mock.Call
+}
+
+// SetRequirements is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+//   - requirementIDs []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) SetRequirements(ctx interface{}, challengeID interface{}, requirementIDs interface{}) *MockChallengeRepository_SetRequirements_Call {
+	return &MockChallengeRepository_SetRequirements_Call{Call: _e.mock.On("SetRequirements", ctx, challengeID, requirementIDs)}
+}
+
+func (_c *MockChallengeRepository_SetRequirements_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID)) *MockChallengeRepository_SetRequirements_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_SetRequirements_Call) Return(err error) *MockChallengeRepository_SetRequirements_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_SetRequirements_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error) *MockChallengeRepository_SetRequirements_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetTags provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {
+	ret := _mock.Called(ctx, challengeID, tagIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetTags")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, challengeID, tagIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_SetTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetTags'
+type MockChallengeRepository_SetTags_Call struct {
+	*mock.Call
+}
+
+// SetTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+//   - tagIDs []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) SetTags(ctx interface{}, challengeID interface{}, tagIDs interface{}) *MockChallengeRepository_SetTags_Call {
+	return &MockChallengeRepository_SetTags_Call{Call: _e.mock.On("SetTags", ctx, challengeID, tagIDs)}
+}
+
+func (_c *MockChallengeRepository_SetTags_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID)) *MockChallengeRepository_SetTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_SetTags_Call) Return(err error) *MockChallengeRepository_SetTags_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_SetTags_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error) *MockChallengeRepository_SetTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) Update(ctx context.Context, challenge *entity.Challenge) error {
-	ret := _mock.Called(ctx, challenge)
+func (_mock *MockChallengeRepository) Update(ctx context.Context, c *entity.Challenge) error {
+	ret := _mock.Called(ctx, c)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
@@ -372,7 +1166,7 @@ func (_mock *MockChallengeRepository) Update(ctx context.Context, challenge *ent
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.Challenge) error); ok {
-		r0 = returnFunc(ctx, challenge)
+		r0 = returnFunc(ctx, c)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -386,12 +1180,12 @@ type MockChallengeRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - challenge *entity.Challenge
-func (_e *MockChallengeRepository_Expecter) Update(ctx interface{}, challenge interface{}) *MockChallengeRepository_Update_Call {
-	return &MockChallengeRepository_Update_Call{Call: _e.mock.On("Update", ctx, challenge)}
+//   - c *entity.Challenge
+func (_e *MockChallengeRepository_Expecter) Update(ctx interface{}, c interface{}) *MockChallengeRepository_Update_Call {
+	return &MockChallengeRepository_Update_Call{Call: _e.mock.On("Update", ctx, c)}
 }
 
-func (_c *MockChallengeRepository_Update_Call) Run(run func(ctx context.Context, challenge *entity.Challenge)) *MockChallengeRepository_Update_Call {
+func (_c *MockChallengeRepository_Update_Call) Run(run func(ctx context.Context, c *entity.Challenge)) *MockChallengeRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -414,7 +1208,7 @@ func (_c *MockChallengeRepository_Update_Call) Return(err error) *MockChallengeR
 	return _c
 }
 
-func (_c *MockChallengeRepository_Update_Call) RunAndReturn(run func(ctx context.Context, challenge *entity.Challenge) error) *MockChallengeRepository_Update_Call {
+func (_c *MockChallengeRepository_Update_Call) RunAndReturn(run func(ctx context.Context, c *entity.Challenge) error) *MockChallengeRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -478,6 +1272,80 @@ func (_c *MockChallengeRepository_UpdatePoints_Call) Return(err error) *MockChal
 }
 
 func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID, points int) error) *MockChallengeRepository_UpdatePoints_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertSolution provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error) {
+	ret := _mock.Called(ctx, challengeID, content)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertSolution")
+	}
+
+	var r0 *repo.ChallengeSolution
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*repo.ChallengeSolution, error)); ok {
+		return returnFunc(ctx, challengeID, content)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *repo.ChallengeSolution); ok {
+		r0 = returnFunc(ctx, challengeID, content)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repo.ChallengeSolution)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, challengeID, content)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_UpsertSolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertSolution'
+type MockChallengeRepository_UpsertSolution_Call struct {
+	*mock.Call
+}
+
+// UpsertSolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+//   - content string
+func (_e *MockChallengeRepository_Expecter) UpsertSolution(ctx interface{}, challengeID interface{}, content interface{}) *MockChallengeRepository_UpsertSolution_Call {
+	return &MockChallengeRepository_UpsertSolution_Call{Call: _e.mock.On("UpsertSolution", ctx, challengeID, content)}
+}
+
+func (_c *MockChallengeRepository_UpsertSolution_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, content string)) *MockChallengeRepository_UpsertSolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_UpsertSolution_Call) Return(v *repo.ChallengeSolution, err error) *MockChallengeRepository_UpsertSolution_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_UpsertSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error)) *MockChallengeRepository_UpsertSolution_Call {
 	_c.Call.Return(run)
 	return _c
 }

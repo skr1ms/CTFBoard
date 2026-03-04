@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockVerificationTokenRepository creates a new instance of MockVerificationTokenRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -8,30 +8,34 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewS3Provider_EmptyCredentials_Error(t *testing.T) {
-	_, err := storage.NewS3Provider("http://localhost:9000", "http://localhost:9000", "", "", "bucket", false)
+	t.Parallel()
+	_, err := storage.NewS3Provider("http://localhost:9000", "http://localhost:9000", "", "", "bucket", "us-east-1", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials")
 }
 
 func TestNewS3Provider_EmptyAccessKey_Error(t *testing.T) {
-	_, err := storage.NewS3Provider("http://localhost:9000", "", "", "secret", "bucket", false)
+	t.Parallel()
+	_, err := storage.NewS3Provider("http://localhost:9000", "", "", "secret", "bucket", "us-east-1", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials")
 }
 
 func TestNewS3Provider_EmptySecretKey_Error(t *testing.T) {
-	_, err := storage.NewS3Provider("http://localhost:9000", "", "access", "", "bucket", false)
+	t.Parallel()
+	_, err := storage.NewS3Provider("http://localhost:9000", "", "access", "", "bucket", "us-east-1", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials")
 }
 
 func TestS3Provider_Workflow(t *testing.T) {
+	t.Parallel()
 	endpoint := os.Getenv("S3_ENDPOINT")
 	accessKey := os.Getenv("S3_ACCESS_KEY")
 	secretKey := os.Getenv("S3_SECRET_KEY")
@@ -47,6 +51,7 @@ func TestS3Provider_Workflow(t *testing.T) {
 		accessKey,
 		secretKey,
 		bucket,
+		"us-east-1",
 		false,
 	)
 	require.NoError(t, err)
@@ -61,11 +66,13 @@ func TestS3Provider_Workflow(t *testing.T) {
 	path := storage.GenerateStoragePath(filename)
 
 	t.Run("Upload", func(t *testing.T) {
+		t.Parallel()
 		err := provider.Upload(ctx, path, bytes.NewReader(content), int64(len(content)), "text/plain")
 		require.NoError(t, err)
 	})
 
 	t.Run("Download", func(t *testing.T) {
+		t.Parallel()
 		rc, err := provider.Download(ctx, path)
 		require.NoError(t, err)
 		defer func() { _ = rc.Close() }()
@@ -76,6 +83,7 @@ func TestS3Provider_Workflow(t *testing.T) {
 	})
 
 	t.Run("GetPresignedURL", func(t *testing.T) {
+		t.Parallel()
 		url, err := provider.GetPresignedURL(ctx, path, time.Hour)
 		require.NoError(t, err)
 		assert.NotEmpty(t, url)
@@ -83,6 +91,7 @@ func TestS3Provider_Workflow(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
+		t.Parallel()
 		err := provider.Delete(ctx, path)
 		require.NoError(t, err)
 

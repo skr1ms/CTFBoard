@@ -3,9 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
 func RequireVerified(verifyEmails bool) func(http.Handler) http.Handler {
@@ -17,8 +17,8 @@ func RequireVerified(verifyEmails bool) func(http.Handler) http.Handler {
 			}
 
 			user, ok := GetUser(r.Context())
-			if !ok {
-				httputil.RenderError(w, r, http.StatusUnauthorized, "unauthorized")
+			if !ok || user == nil {
+				httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
 				return
 			}
 
@@ -28,7 +28,7 @@ func RequireVerified(verifyEmails bool) func(http.Handler) http.Handler {
 			}
 
 			if !user.IsVerified {
-				httputil.RenderErrorWithCode(w, r, http.StatusForbidden, entityError.ErrEmailNotVerified.Error(), "email_verification_required")
+				httputil.HandleError(w, r, httperr.ErrEmailNotVerified)
 				return
 			}
 

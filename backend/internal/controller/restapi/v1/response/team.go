@@ -3,22 +3,13 @@ package response
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-type ConfirmationRequired struct {
-	Reason       string        `json:"reason"`
-	AffectedData *AffectedData `json:"affected_data,omitempty"`
-}
-
-type AffectedData struct {
-	SolveCount int `json:"solve_count"`
-	Points     int `json:"points"`
-}
-
-func FromTeam(t *entity.Team) openapi.ResponseTeamResponse {
-	return openapi.ResponseTeamResponse{
+func FromTeam(t *entity.Team) openapi.TeamResponse {
+	return openapi.TeamResponse{
 		ID:          ptr(t.ID.String()),
 		Name:        ptr(t.Name),
 		InviteToken: ptr(t.InviteToken.String()),
@@ -27,8 +18,8 @@ func FromTeam(t *entity.Team) openapi.ResponseTeamResponse {
 	}
 }
 
-func FromTeamWithoutToken(t *entity.Team) openapi.ResponseTeamResponse {
-	return openapi.ResponseTeamResponse{
+func FromTeamWithoutToken(t *entity.Team) openapi.TeamResponse {
+	return openapi.TeamResponse{
 		ID:        ptr(t.ID.String()),
 		Name:      ptr(t.Name),
 		CaptainID: ptr(t.CaptainID.String()),
@@ -36,28 +27,109 @@ func FromTeamWithoutToken(t *entity.Team) openapi.ResponseTeamResponse {
 	}
 }
 
-func FromTeamWithMembers(t *entity.Team, members []*entity.User) openapi.ResponseTeamWithMembersResponse {
-	memberResponses := make([]openapi.ResponseUserResponse, 0, len(members))
-	for _, member := range members {
-		memberResponses = append(memberResponses, FromUser(member))
+func FromTeamWithMembers(t *entity.Team, members []*entity.User, minTeamSize int, meetsMinSize bool) openapi.TeamWithMembersResponse {
+	memberResponses := make([]openapi.UserResponse, len(members))
+	for i, member := range members {
+		memberResponses[i] = FromUser(member)
 	}
 
-	resp := openapi.ResponseTeamWithMembersResponse{
-		ID:          ptr(t.ID.String()),
-		Name:        ptr(t.Name),
-		InviteToken: ptr(t.InviteToken.String()),
-		CaptainID:   ptr(t.CaptainID.String()),
-		CreatedAt:   ptr(t.CreatedAt.Format(time.RFC3339)),
-		Members:     &memberResponses,
-		IsBanned:    ptr(t.IsBanned),
+	res := openapi.TeamWithMembersResponse{
+		ID:           ptr(t.ID.String()),
+		Name:         ptr(t.Name),
+		InviteToken:  ptr(t.InviteToken.String()),
+		CaptainID:    ptr(t.CaptainID.String()),
+		CreatedAt:    ptr(t.CreatedAt.Format(time.RFC3339)),
+		Members:      &memberResponses,
+		IsBanned:     ptr(t.IsBanned),
+		MinTeamSize:  ptr(minTeamSize),
+		MeetsMinSize: ptr(meetsMinSize),
 	}
 
 	if t.BannedAt != nil {
-		resp.BannedAt = ptr(t.BannedAt.Format(time.RFC3339))
+		res.BannedAt = ptr(t.BannedAt.Format(time.RFC3339))
 	}
 	if t.BannedReason != nil {
-		resp.BannedReason = t.BannedReason
+		res.BannedReason = t.BannedReason
 	}
 
-	return resp
+	return res
+}
+
+func FromTeamList(teams []*entity.Team, total int64, page, perPage int) openapi.TeamListResponse {
+	items := make([]openapi.TeamResponse, len(teams))
+	for i, t := range teams {
+		items[i] = FromTeamWithoutToken(t)
+	}
+	return openapi.TeamListResponse{
+		Data: &items,
+		Meta: &openapi.PaginationMeta{
+			Page:       ptr(page),
+			PerPage:    ptr(perPage),
+			Total:      ptr(int(total)),
+			TotalPages: ptr(TotalPages(total, perPage)),
+		},
+	}
+}
+
+func FromAdminTeam(t *entity.Team, memberCount *int) openapi.AdminTeamResponse {
+	res := openapi.AdminTeamResponse{
+		ID:          ptr(t.ID.String()),
+		Name:        ptr(t.Name),
+		CaptainID:   ptr(t.CaptainID.String()),
+		IsSolo:      ptr(t.IsSolo),
+		IsBanned:    ptr(t.IsBanned),
+		IsHidden:    ptr(t.IsHidden),
+		MemberCount: memberCount,
+		CreatedAt:   ptr(t.CreatedAt),
+	}
+	if t.BracketID != nil {
+		res.BracketID = ptr(t.BracketID.String())
+	}
+	if t.BannedReason != nil {
+		res.BannedReason = t.BannedReason
+	}
+	return res
+}
+
+func FromAdminTeamList(teams []*entity.Team, total int64, page, perPage int) openapi.AdminTeamListResponse {
+	items := make([]openapi.AdminTeamResponse, len(teams))
+	for i, t := range teams {
+		items[i] = FromAdminTeam(t, nil)
+	}
+	return openapi.AdminTeamListResponse{
+		Data: &items,
+		Meta: &openapi.PaginationMeta{
+			Page:       ptr(page),
+			PerPage:    ptr(perPage),
+			Total:      ptr(int(total)),
+			TotalPages: ptr(TotalPages(total, perPage)),
+		},
+	}
+}
+
+func FromTeamInvite(inviteToken string) openapi.TeamInviteResponse {
+	return openapi.TeamInviteResponse{InviteToken: &inviteToken}
+}
+
+func FromConfirmationRequired(reason string, affected *openapi.AffectedData) openapi.ConfirmationRequired {
+	return openapi.ConfirmationRequired{
+		Reason:       reason,
+		AffectedData: affected,
+	}
+}
+
+func FromHiddenStatus(hidden bool) openapi.HiddenStatus {
+	return openapi.HiddenStatus{Hidden: hidden}
+}
+
+func FromAffectedData(a *usecase.TeamCreateAffectedData) *openapi.AffectedData {
+	if a == nil {
+		return nil
+	}
+	return &openapi.AffectedData{
+		SolveCount:      ptr(a.SolveCount),
+		Points:          ptr(a.Points),
+		HintUnlockCount: ptr(a.HintUnlockCount),
+		AwardsTotal:     ptr(a.AwardsTotal),
+	}
 }

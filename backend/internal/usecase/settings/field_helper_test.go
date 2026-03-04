@@ -3,9 +3,9 @@ package settings
 import (
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mocks"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/settings/mocks"
 )
 
 type FieldTestHelper struct {
@@ -34,7 +34,7 @@ func (h *FieldTestHelper) Deps() *fieldTestDeps {
 
 func (h *FieldTestHelper) CreateUseCase() *FieldUseCase {
 	h.t.Helper()
-	return NewFieldUseCase(h.deps.fieldRepo)
+	return NewFieldUseCase(FieldDeps{FieldRepo: h.deps.fieldRepo})
 }
 
 func (h *FieldTestHelper) CreateFieldValidator() *FieldValidator {

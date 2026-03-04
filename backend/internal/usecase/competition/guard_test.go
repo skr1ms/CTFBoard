@@ -5,107 +5,105 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestGuard_Get_Success(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{Name: "CTF", Mode: "flexible", AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("flexible", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.Get(context.Background())
+	got, err := h.CreateGuard().Get(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, comp, got)
 }
 
 func TestGuard_Get_Error(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	repo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	h.Repo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
 
-	g := NewGuard(repo)
-	got, err := g.Get(context.Background())
+	got, err := h.CreateGuard().Get(context.Background())
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
 
 func TestGuard_RequireTeamSwitch_Success(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("flexible", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitch(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitch(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, comp, got)
 }
 
 func TestGuard_RequireTeamSwitch_Error(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{AllowTeamSwitch: false}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("flexible", false)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitch(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitch(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrRosterFrozen))
+	assert.True(t, errors.Is(err, httperr.ErrRosterFrozen))
 	assert.Nil(t, got)
 }
 
 func TestGuard_RequireTeamSwitchAndTeamsMode_Success(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{Mode: "flexible", AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("flexible", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitchAndTeamsMode(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitchAndTeamsMode(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, comp, got)
 }
 
 func TestGuard_RequireTeamSwitchAndTeamsMode_Error(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{Mode: "solo_only", AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("solo_only", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitchAndTeamsMode(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitchAndTeamsMode(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrSoloModeNotAllowed))
+	assert.True(t, errors.Is(err, httperr.ErrTeamsNotAllowed))
 	assert.Nil(t, got)
 }
 
 func TestGuard_RequireTeamSwitchAndSoloMode_Success(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{Mode: "solo_only", AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("solo_only", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitchAndSoloMode(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitchAndSoloMode(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, comp, got)
 }
 
 func TestGuard_RequireTeamSwitchAndSoloMode_Error(t *testing.T) {
-	repo := mocks.NewMockCompetitionRepository(t)
-	comp := &entity.Competition{Mode: "teams_only", AllowTeamSwitch: true}
-	repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	t.Parallel()
+	h := NewGuardTestHelper(t)
+	comp := h.NewCompetition("teams_only", true)
+	h.Repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
-	g := NewGuard(repo)
-	got, err := g.RequireTeamSwitchAndSoloMode(context.Background())
+	got, err := h.CreateGuard().RequireTeamSwitchAndSoloMode(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrSoloModeNotAllowed))
+	assert.True(t, errors.Is(err, httperr.ErrSoloModeNotAllowed))
 	assert.Nil(t, got)
 }

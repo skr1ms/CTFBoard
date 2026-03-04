@@ -1,0 +1,57 @@
+schemas:
+  entity.ScoreboardHistoryEntry:
+    properties:
+      points:
+        type: integer
+      team_id:
+        type: string
+      team_name:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  entity.ScorePoint:
+    properties:
+      timestamp:
+        type: string
+      score:
+        type: integer
+    type: object
+  entity.TeamTimeline:
+    properties:
+      team_id:
+        type: string
+      team_name:
+        type: string
+      timeline:
+        type: array
+        items:
+          $ref: "#/schemas/entity.ScorePoint"
+    type: object
+  entity.TimeRange:
+    properties:
+      start:
+        type: string
+      end:
+        type: string
+    type: object
+  entity.ScoreboardGraph:
+    properties:
+      range:
+        $ref: "#/schemas/entity.TimeRange"
+      teams:
+        type: array
+        items:
+          $ref: "#/schemas/entity.TeamTimeline"
+    type: object
+  response.ScoreboardEntryResponse:
+    properties:
+      last_solved:
+        type: string
+      points:
+        type: integer
+      team_id:
+        type: string
+      team_name:
+        type: string
+    type: object

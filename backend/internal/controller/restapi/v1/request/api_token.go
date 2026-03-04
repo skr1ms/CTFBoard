@@ -3,15 +3,9 @@ package request
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func CreateAPITokenParams(req *openapi.RequestCreateAPITokenRequest) (description string, expiresAt *time.Time) {
-	if req.Description != nil {
-		description = *req.Description
-	}
-	if req.ExpiresAt != nil {
-		expiresAt = req.ExpiresAt
-	}
-	return description, expiresAt
+func CreateAPITokenRequestToParams(req *openapi.CreateAPITokenRequest) (description string, expiresAt *time.Time) {
+	return derefOr(req.Description, ""), req.ExpiresAt
 }

@@ -24,7 +24,7 @@ type CreateFileParams struct {
 	Location    string    `json:"location"`
 	Filename    string    `json:"filename"`
 	Size        int64     `json:"size"`
-	Sha256      string    `json:"sha256"`
+	SHA256      string    `json:"sha256"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -36,7 +36,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) error {
 		arg.Location,
 		arg.Filename,
 		arg.Size,
-		arg.Sha256,
+		arg.SHA256,
 		arg.CreatedAt,
 	)
 	return err
@@ -74,7 +74,7 @@ func (q *Queries) GetAllFiles(ctx context.Context) ([]File, error) {
 			&i.Location,
 			&i.Filename,
 			&i.Size,
-			&i.Sha256,
+			&i.SHA256,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -103,7 +103,29 @@ func (q *Queries) GetFileByID(ctx context.Context, id uuid.UUID) (File, error) {
 		&i.Location,
 		&i.Filename,
 		&i.Size,
-		&i.Sha256,
+		&i.SHA256,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getFileByLocation = `-- name: GetFileByLocation :one
+SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+FROM files
+WHERE location = $1
+`
+
+func (q *Queries) GetFileByLocation(ctx context.Context, location string) (File, error) {
+	row := q.db.QueryRow(ctx, getFileByLocation, location)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.ChallengeID,
+		&i.Location,
+		&i.Filename,
+		&i.Size,
+		&i.SHA256,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -137,7 +159,7 @@ func (q *Queries) GetFilesByChallengeIDAndType(ctx context.Context, arg GetFiles
 			&i.Location,
 			&i.Filename,
 			&i.Size,
-			&i.Sha256,
+			&i.SHA256,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

@@ -4,20 +4,23 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestCommentUseCase_GetByChallengeID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	challengeID := uuid.New()
 	userID := uuid.New()
+	ch := h.NewChallenge(challengeID, "title", "cat", 100, "hash")
 	list := []*entity.Comment{h.NewComment(userID, challengeID, "text")}
 
+	deps.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(ch, nil)
 	deps.commentRepo.EXPECT().GetByChallengeID(mock.Anything, challengeID).Return(list, nil)
 
 	uc := h.CreateCommentUseCase()
@@ -29,11 +32,14 @@ func TestCommentUseCase_GetByChallengeID_Success(t *testing.T) {
 }
 
 func TestCommentUseCase_GetByChallengeID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	challengeID := uuid.New()
+	ch := h.NewChallenge(challengeID, "title", "cat", 100, "hash")
 
+	deps.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(ch, nil)
 	deps.commentRepo.EXPECT().GetByChallengeID(mock.Anything, challengeID).Return(nil, assert.AnError)
 
 	uc := h.CreateCommentUseCase()
@@ -44,6 +50,7 @@ func TestCommentUseCase_GetByChallengeID_Error(t *testing.T) {
 }
 
 func TestCommentUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -67,6 +74,7 @@ func TestCommentUseCase_Create_Success(t *testing.T) {
 }
 
 func TestCommentUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -85,6 +93,7 @@ func TestCommentUseCase_Create_Error(t *testing.T) {
 }
 
 func TestCommentUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -96,12 +105,13 @@ func TestCommentUseCase_Delete_Success(t *testing.T) {
 	deps.commentRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 	uc := h.CreateCommentUseCase()
-	err := uc.Delete(ctx, id, userID)
+	err := uc.Delete(ctx, id, userID, false)
 
 	assert.NoError(t, err)
 }
 
 func TestCommentUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -110,7 +120,26 @@ func TestCommentUseCase_Delete_Error(t *testing.T) {
 	deps.commentRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
 
 	uc := h.CreateCommentUseCase()
-	err := uc.Delete(ctx, id, userID)
+	err := uc.Delete(ctx, id, userID, false)
 
 	assert.Error(t, err)
+}
+
+func TestCommentUseCase_Delete_AdminCanDeleteAny_Success(t *testing.T) {
+	t.Parallel()
+	h := NewChallengeTestHelper(t)
+	deps := h.Deps()
+	ctx := context.Background()
+	id, ownerID := uuid.New(), uuid.New()
+	adminID := uuid.New()
+	c := h.NewComment(ownerID, uuid.New(), "content")
+	c.ID = id
+
+	deps.commentRepo.EXPECT().GetByID(mock.Anything, id).Return(c, nil)
+	deps.commentRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
+
+	uc := h.CreateCommentUseCase()
+	err := uc.Delete(ctx, id, adminID, true)
+
+	assert.NoError(t, err)
 }

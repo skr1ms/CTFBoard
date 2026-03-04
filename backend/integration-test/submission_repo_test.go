@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSubmissionRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -31,6 +32,7 @@ func TestSubmissionRepo_Create_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_Create_Error_InvalidUserID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -50,6 +52,7 @@ func TestSubmissionRepo_Create_Error_InvalidUserID(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByChallenge_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -66,6 +69,7 @@ func TestSubmissionRepo_GetByChallenge_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByChallenge_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -78,6 +82,7 @@ func TestSubmissionRepo_GetByChallenge_Error_CancelledContext(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByUser_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -94,6 +99,7 @@ func TestSubmissionRepo_GetByUser_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByUser_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -106,6 +112,7 @@ func TestSubmissionRepo_GetByUser_Error_CancelledContext(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByTeam_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -122,6 +129,7 @@ func TestSubmissionRepo_GetByTeam_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetByTeam_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -134,6 +142,7 @@ func TestSubmissionRepo_GetByTeam_Error_CancelledContext(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -145,6 +154,7 @@ func TestSubmissionRepo_GetAll_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -156,6 +166,7 @@ func TestSubmissionRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestSubmissionRepo_CountByChallenge_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -172,6 +183,7 @@ func TestSubmissionRepo_CountByChallenge_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_CountByChallenge_Success_Empty(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -183,6 +195,7 @@ func TestSubmissionRepo_CountByChallenge_Success_Empty(t *testing.T) {
 }
 
 func TestSubmissionRepo_CountByChallenge_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -195,6 +208,7 @@ func TestSubmissionRepo_CountByChallenge_Error_CancelledContext(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetStats_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -208,6 +222,7 @@ func TestSubmissionRepo_GetStats_Success(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetStats_Success_NoSubmissions(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -223,6 +238,7 @@ func TestSubmissionRepo_GetStats_Success_NoSubmissions(t *testing.T) {
 }
 
 func TestSubmissionRepo_GetStats_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

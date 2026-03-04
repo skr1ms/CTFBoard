@@ -5,17 +5,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /scoreboard with freeze_time: solves after freeze are not counted in public scoreboard (frozen view).
 func TestScoreboard_Freeze(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Cleanup(resetCompetitionToActive)
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, tokenAdmin := h.SetupCompetition("admin_freeze")
+	suffix := helper.UID()
+	_, _, tokenAdmin := h.RegisterAdmin("admin_freeze_" + suffix)
+
+	// Set competition times directly in DB to avoid COMPETITION_ACTIVE_CANNOT_UPDATE
+	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT.
+	now := time.Now().UTC()
+	freezeTime := now.Add(2 * time.Second)
+	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
 
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":       "Freeze Chall",
@@ -28,18 +35,6 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 	_, _, user1 := h.RegisterUserAndLogin("user_freeze_1")
 	h.CreateSoloTeam(user1, http.StatusCreated)
-
-	now := time.Now().UTC()
-	freezeTime := now.Add(2 * time.Second)
-	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":              "Freeze CTF",
-		"start_time":        now.Add(-1 * time.Hour),
-		"end_time":          now.Add(24 * time.Hour),
-		"freeze_time":       freezeTime,
-		"allow_team_switch": true,
-		"mode":              "flexible",
-	})
-
 	h.SubmitFlag(user1, challID, "flag{freeze}", http.StatusOK)
 
 	_, _, user2 := h.RegisterUserAndLogin("user_freeze_2")
@@ -75,19 +70,19 @@ func TestScoreboard_Freeze(t *testing.T) {
 // GET /scoreboard with freeze_time: when no solves exist, returns 200 and empty array.
 func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
-	_, tokenAdmin := h.SetupCompetition("admin_freeze_empty")
+	t.Cleanup(resetCompetitionToActive)
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+	suffix := helper.UID()
+	_, _, tokenAdmin := h.RegisterAdmin("admin_freeze_empty_" + suffix)
 	_ = h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Freeze Empty", "description": "x", "flag": "flag{fe}",
 		"points": 100, "category": "misc", "is_hidden": false,
 	})
+	// Set competition times directly in DB to avoid COMPETITION_ACTIVE_CANNOT_UPDATE
+	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT.
 	now := time.Now().UTC()
-	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name": "Freeze Empty CTF", "start_time": now.Add(-1 * time.Hour),
-		"end_time": now.Add(24 * time.Hour), "freeze_time": now.Add(1 * time.Hour),
-		"allow_team_switch": true, "mode": "flexible",
-	})
+	freezeTime := now.Add(1 * time.Hour)
+	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
 	resp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard freeze empty")
 	require.NotNil(t, resp.JSON200)

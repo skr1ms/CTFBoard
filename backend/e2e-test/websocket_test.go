@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 )
 
 func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
@@ -109,8 +109,8 @@ func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr 
 // GET /ws: client receives scoreboard_update event when a solve is submitted.
 func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_ws")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "WS Chall", "flag{ws_event}", 100)
@@ -149,8 +149,8 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 // GET /ws on invalid path: connection fails or returns 404.
 func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	_, _ = helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL()), TestPool
+	t.Parallel()
+	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws-invalid"
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -172,4 +172,69 @@ func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 		return
 	}
 	t.Fatalf("expected 404 or dial error for invalid path, got status=%d err=%v", status, err)
+}
+
+// GET /ws: authenticated user connects and receives a "connected" message.
+func TestWebSocket_Connect_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	h.SetupCompetition("admin_ws_connect")
+	suffix := uuid.New().String()[:8]
+	_, _, tokenUser := h.RegisterUserAndLogin("ws_connect_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	dialOpts := &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": []string{tokenUser}},
+	}
+	conn, resp, err := websocket.Dial(ctx, wsURL, dialOpts)
+	if err != nil {
+		t.Fatalf("ws connect failed (url=%s): %v", wsURL, err)
+	}
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	received, readErr, done := startWSReader(conn, wsConnectedTimeout+2*time.Second)
+	waitWSConnected(t, received, readErr, done)
+}
+
+// GET /ws: no auth --> upgrade refused with 401.
+func TestWebSocket_Connect_Unauthorized(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
+
+	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if conn != nil {
+		conn.Close(websocket.StatusNormalClosure, "")
+	}
+	if err != nil {
+		// dial error means server rejected the upgrade - acceptable
+		return
+	}
+	if resp != nil {
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
+		if resp.StatusCode == http.StatusUnauthorized {
+			return
+		}
+	}
+	t.Fatalf("expected dial error or 401 for unauthenticated ws connect, got status=%v err=%v", func() int {
+		if resp != nil {
+			return resp.StatusCode
+		}
+		return 0
+	}(), err)
 }

@@ -33,8 +33,3 @@ ORDER BY ct.challenge_id, t.name;
 
 -- name: DeleteChallengeTags :exec
 DELETE FROM challenge_tags WHERE challenge_id = $1;
-
--- name: AddChallengeTag :exec
-INSERT INTO challenge_tags (challenge_id, tag_id)
-VALUES ($1, $2)
-ON CONFLICT (challenge_id, tag_id) DO NOTHING;

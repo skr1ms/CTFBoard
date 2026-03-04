@@ -2,60 +2,42 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"golang.org/x/sync/singleflight"
 )
 
-type scoreboardVisibilityCache struct {
-	mu         sync.RWMutex
-	visibility string
-	fetchedAt  time.Time
-	ttl        time.Duration
+const (
+	scoreboardVisibilityKey = "scoreboard_visibility"
+	scoreboardVisibilityTTL = 30 * time.Second
+)
+
+// ScoreboardSettingsGetter is the minimal interface required by ScoreboardVisibility middleware.
+type ScoreboardSettingsGetter interface {
+	Get(ctx context.Context) (*entity.Settings, error)
 }
 
-func (c *scoreboardVisibilityCache) get(ctx context.Context, repo repo.AppSettingsRepository) (string, error) {
-	c.mu.RLock()
-	if time.Since(c.fetchedAt) < c.ttl && c.visibility != "" {
-		visibility := c.visibility
-		c.mu.RUnlock()
-		return visibility, nil
-	}
-	c.mu.RUnlock()
-
-	settings, err := repo.Get(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	c.mu.Lock()
-	c.visibility = settings.ScoreboardVisible
-	c.fetchedAt = time.Now()
-	c.mu.Unlock()
-
-	return settings.ScoreboardVisible, nil
-}
-
-func ScoreboardVisibility(appSettingsRepo repo.AppSettingsRepository) func(http.Handler) http.Handler {
-	cache := &scoreboardVisibilityCache{
-		ttl: 30 * time.Second,
-	}
+func ScoreboardVisibility(settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
+	c := cache.NewTTLCache[string, string](scoreboardVisibilityTTL, 1)
+	var sf singleflight.Group
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, hasUser := GetUser(r.Context())
-			if hasUser && user.Role == entity.RoleAdmin {
+			user, ok := GetUser(r.Context())
+			if ok && user != nil && user.Role == entity.RoleAdmin {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			visibility, err := cache.get(r.Context(), appSettingsRepo)
+			visibility, err := getScoreboardVisibility(r.Context(), c, &sf, settingsGetter)
 			if err != nil {
-				httputil.RenderError(w, r, http.StatusInternalServerError, "failed to get scoreboard visibility settings")
+				httputil.HandleError(w, r, err)
 				return
 			}
 
@@ -63,12 +45,40 @@ func ScoreboardVisibility(appSettingsRepo repo.AppSettingsRepository) func(http.
 			case entity.ScoreboardVisiblePublic:
 				next.ServeHTTP(w, r)
 			case entity.ScoreboardVisibleHidden:
-				httputil.RenderError(w, r, http.StatusForbidden, "scoreboard is currently hidden")
+				httputil.HandleError(w, r, httperr.ErrScoreboardHidden)
+				return
 			case entity.ScoreboardVisibleAdminsOnly:
-				httputil.RenderError(w, r, http.StatusForbidden, "scoreboard is only available to administrators")
+				httputil.HandleError(w, r, httperr.ErrScoreboardAdminsOnly)
+				return
 			default:
-				next.ServeHTTP(w, r)
+				httputil.HandleError(w, r, httperr.ErrScoreboardAccessDenied)
+				return
 			}
 		})
 	}
+}
+
+func getScoreboardVisibility(ctx context.Context, c *cache.TTLCache[string, string], sf *singleflight.Group, getter ScoreboardSettingsGetter) (string, error) {
+	if v, ok := c.Get(scoreboardVisibilityKey); ok {
+		return v, nil
+	}
+	v, err, _ := sf.Do(scoreboardVisibilityKey, func() (any, error) {
+		if cached, ok := c.Get(scoreboardVisibilityKey); ok {
+			return cached, nil
+		}
+		settings, err := getter.Get(context.WithoutCancel(ctx))
+		if err != nil {
+			return nil, err
+		}
+		c.Set(scoreboardVisibilityKey, settings.ScoreboardVisible)
+		return settings.ScoreboardVisible, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	visibility, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("ScoreboardVisibility: unexpected type from singleflight: %T", v)
+	}
+	return visibility, nil
 }
