@@ -5,23 +5,26 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo/persistent/sqlc"
 )
 
 type BracketRepo struct {
 	pool *pgxpool.Pool
-	q    *sqlc.Queries
 }
 
+var _ repo.BracketRepository = (*BracketRepo)(nil)
+
 func NewBracketRepo(pool *pgxpool.Pool) *BracketRepo {
-	return &BracketRepo{
-		pool: pool,
-		q:    sqlc.New(pool),
-	}
+	return &BracketRepo{pool: pool}
+}
+
+func (r *BracketRepo) q(ctx context.Context) *sqlc.Queries {
+	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
 func (r *BracketRepo) Create(ctx context.Context, bracket *entity.Bracket) error {
@@ -37,7 +40,7 @@ func (r *BracketRepo) Create(ctx context.Context, bracket *entity.Bracket) error
 	}
 	isDefault := &bracket.IsDefault
 	createdAt := &bracket.CreatedAt
-	_, err := r.q.CreateBracket(ctx, sqlc.CreateBracketParams{
+	_, err := r.q(ctx).CreateBracket(ctx, sqlc.CreateBracketParams{
 		ID:          bracket.ID,
 		Name:        bracket.Name,
 		Description: desc,
@@ -46,43 +49,43 @@ func (r *BracketRepo) Create(ctx context.Context, bracket *entity.Bracket) error
 	})
 	if err != nil {
 		if isPgUniqueViolation(err) {
-			return entityError.ErrBracketNameConflict
+			return httperr.ErrBracketNameConflict
 		}
 		return fmt.Errorf("BracketRepo - Create: %w", err)
 	}
 	return nil
 }
 
-func (r *BracketRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Bracket, error) {
-	row, err := r.q.GetBracketByID(ctx, id)
+func (r *BracketRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Bracket, error) {
+	row, err := r.q(ctx).GetBracketByID(ctx, ID)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, entityError.ErrBracketNotFound
+			return nil, httperr.ErrBracketNotFound
 		}
 		return nil, fmt.Errorf("BracketRepo - GetByID: %w", err)
 	}
-	return bracketRowToEntity(row), nil
+	return toEntityBracket(row), nil
 }
 
 func (r *BracketRepo) GetByName(ctx context.Context, name string) (*entity.Bracket, error) {
-	row, err := r.q.GetBracketByName(ctx, name)
+	row, err := r.q(ctx).GetBracketByName(ctx, name)
 	if err != nil {
 		if isNoRows(err) {
-			return nil, entityError.ErrBracketNotFound
+			return nil, httperr.ErrBracketNotFound
 		}
 		return nil, fmt.Errorf("BracketRepo - GetByName: %w", err)
 	}
-	return bracketRowToEntity(row), nil
+	return toEntityBracket(row), nil
 }
 
 func (r *BracketRepo) GetAll(ctx context.Context) ([]*entity.Bracket, error) {
-	rows, err := r.q.GetAllBrackets(ctx)
+	rows, err := r.q(ctx).GetAllBrackets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BracketRepo - GetAll: %w", err)
 	}
 	out := make([]*entity.Bracket, len(rows))
 	for i := range rows {
-		out[i] = bracketRowToEntity(rows[i])
+		out[i] = toEntityBracket(rows[i])
 	}
 	return out, nil
 }
@@ -93,7 +96,7 @@ func (r *BracketRepo) Update(ctx context.Context, bracket *entity.Bracket) error
 		desc = nil
 	}
 	isDefault := &bracket.IsDefault
-	err := r.q.UpdateBracket(ctx, sqlc.UpdateBracketParams{
+	err := r.q(ctx).UpdateBracket(ctx, sqlc.UpdateBracketParams{
 		ID:          bracket.ID,
 		Name:        bracket.Name,
 		Description: desc,
@@ -101,18 +104,28 @@ func (r *BracketRepo) Update(ctx context.Context, bracket *entity.Bracket) error
 	})
 	if err != nil {
 		if isPgUniqueViolation(err) {
-			return entityError.ErrBracketNameConflict
+			return httperr.ErrBracketNameConflict
 		}
 		return fmt.Errorf("BracketRepo - Update: %w", err)
 	}
 	return nil
 }
 
-func (r *BracketRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.q.DeleteBracket(ctx, id)
+func (r *BracketRepo) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := r.q(ctx).DeleteBracket(ctx, ID); err != nil {
+		return fmt.Errorf("BracketRepo - Delete: %w", err)
+	}
+	return nil
 }
 
-func bracketRowToEntity(row sqlc.Bracket) *entity.Bracket {
+func (r *BracketRepo) ClearAllDefaults(ctx context.Context) error {
+	if err := r.q(ctx).ClearAllDefaultBrackets(ctx); err != nil {
+		return fmt.Errorf("BracketRepo - ClearAllDefaults: %w", err)
+	}
+	return nil
+}
+
+func toEntityBracket(row sqlc.Bracket) *entity.Bracket {
 	desc := ""
 	if row.Description != nil {
 		desc = *row.Description

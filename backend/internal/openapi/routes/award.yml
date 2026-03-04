@@ -1,0 +1,162 @@
+/admin/awards:
+  get:
+    description: Returns list of all awards. Admin only.
+    parameters:
+      - name: team_id
+        in: query
+        description: Filter by team ID
+        x-go-name: TeamID
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/AwardResponse'
+              type: array
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: List all awards
+    tags:
+      - Admin
+  post:
+    description: Creates a new award (bonus or penalty) for a team. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateAwardRequest'
+      description: Award data
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/AwardResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Create award
+    tags:
+      - Admin
+
+"/admin/awards/{ID}":
+  get:
+    description: Returns a specific award by ID. Admin only.
+    parameters:
+      - description: Award ID
+        in: path
+        name: ID
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/AwardResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Get award by ID
+    tags:
+      - Admin
+  delete:
+    description: Deletes an award. Admin only.
+    parameters:
+      - description: Award ID
+        in: path
+        name: ID
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete award
+    tags:
+      - Admin
+
+"/admin/awards/team/{teamID}":
+  get:
+    description: Returns list of awards for a team. Admin only.
+    parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/AwardResponse'
+              type: array
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get awards by team
+    tags:
+      - Admin

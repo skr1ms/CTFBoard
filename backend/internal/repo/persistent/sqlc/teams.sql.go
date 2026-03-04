@@ -30,6 +30,48 @@ func (q *Queries) BanTeam(ctx context.Context, arg BanTeamParams) (uuid.UUID, er
 	return id, err
 }
 
+const countActiveTeams = `-- name: CountActiveTeams :one
+SELECT COUNT(*)::int
+FROM teams
+WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+`
+
+func (q *Queries) CountActiveTeams(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countActiveTeams)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countSearchTeams = `-- name: CountSearchTeams :one
+SELECT COUNT(*)
+FROM teams
+WHERE deleted_at IS NULL
+  AND is_hidden = false
+  AND is_banned = false
+  AND ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
+`
+
+func (q *Queries) CountSearchTeams(ctx context.Context, search *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchTeams, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSearchTeamsAdmin = `-- name: CountSearchTeamsAdmin :one
+SELECT COUNT(*) FROM teams
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
+`
+
+func (q *Queries) CountSearchTeamsAdmin(ctx context.Context, search *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchTeamsAdmin, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countTeamMembers = `-- name: CountTeamMembers :one
 SELECT COUNT(*)::int FROM users WHERE team_id = $1
 `
@@ -327,6 +369,144 @@ func (q *Queries) HardDeleteTeamsBefore(ctx context.Context, deletedAt *time.Tim
 	return err
 }
 
+const lockTeam = `-- name: LockTeam :one
+SELECT id FROM teams WHERE id = $1 AND deleted_at IS NULL FOR UPDATE
+`
+
+func (q *Queries) LockTeam(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockTeam, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
+const searchTeams = `-- name: SearchTeams :many
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+FROM teams
+WHERE deleted_at IS NULL
+  AND is_hidden = false
+  AND is_banned = false
+  AND ($3::text IS NULL OR name ILIKE '%' || $3 || '%')
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type SearchTeamsParams struct {
+	Limit  int32   `json:"limit"`
+	Offset int32   `json:"offset"`
+	Search *string `json:"search"`
+}
+
+type SearchTeamsRow struct {
+	ID            uuid.UUID  `json:"id"`
+	Name          string     `json:"name"`
+	InviteToken   uuid.UUID  `json:"invite_token"`
+	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
+	IsSolo        *bool      `json:"is_solo"`
+	IsAutoCreated *bool      `json:"is_auto_created"`
+	IsBanned      *bool      `json:"is_banned"`
+	BannedAt      *time.Time `json:"banned_at"`
+	BannedReason  *string    `json:"banned_reason"`
+	IsHidden      *bool      `json:"is_hidden"`
+	CreatedAt     *time.Time `json:"created_at"`
+}
+
+func (q *Queries) SearchTeams(ctx context.Context, arg SearchTeamsParams) ([]SearchTeamsRow, error) {
+	rows, err := q.db.Query(ctx, searchTeams, arg.Limit, arg.Offset, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchTeamsRow
+	for rows.Next() {
+		var i SearchTeamsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.InviteToken,
+			&i.CaptainID,
+			&i.BracketID,
+			&i.IsSolo,
+			&i.IsAutoCreated,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.IsHidden,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchTeamsAdmin = `-- name: SearchTeamsAdmin :many
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+FROM teams
+WHERE deleted_at IS NULL
+  AND ($3::text IS NULL OR name ILIKE '%' || $3 || '%')
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type SearchTeamsAdminParams struct {
+	Limit  int32   `json:"limit"`
+	Offset int32   `json:"offset"`
+	Search *string `json:"search"`
+}
+
+type SearchTeamsAdminRow struct {
+	ID            uuid.UUID  `json:"id"`
+	Name          string     `json:"name"`
+	InviteToken   uuid.UUID  `json:"invite_token"`
+	CaptainID     uuid.UUID  `json:"captain_id"`
+	BracketID     *uuid.UUID `json:"bracket_id"`
+	IsSolo        *bool      `json:"is_solo"`
+	IsAutoCreated *bool      `json:"is_auto_created"`
+	IsBanned      *bool      `json:"is_banned"`
+	BannedAt      *time.Time `json:"banned_at"`
+	BannedReason  *string    `json:"banned_reason"`
+	IsHidden      *bool      `json:"is_hidden"`
+	CreatedAt     *time.Time `json:"created_at"`
+}
+
+func (q *Queries) SearchTeamsAdmin(ctx context.Context, arg SearchTeamsAdminParams) ([]SearchTeamsAdminRow, error) {
+	rows, err := q.db.Query(ctx, searchTeamsAdmin, arg.Limit, arg.Offset, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchTeamsAdminRow
+	for rows.Next() {
+		var i SearchTeamsAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.InviteToken,
+			&i.CaptainID,
+			&i.BracketID,
+			&i.IsSolo,
+			&i.IsAutoCreated,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.IsHidden,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setTeamBracket = `-- name: SetTeamBracket :one
 UPDATE teams SET bracket_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id
 `
@@ -380,8 +560,38 @@ func (q *Queries) UnbanTeam(ctx context.Context, id uuid.UUID) (uuid.UUID, error
 	return id, err
 }
 
-const updateTeamCaptain = `-- name: UpdateTeamCaptain :exec
-UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL
+const updateTeamAdmin = `-- name: UpdateTeamAdmin :one
+UPDATE teams SET
+    name = COALESCE($2, name),
+    captain_id = COALESCE($3, captain_id),
+    bracket_id = COALESCE($4, bracket_id),
+    is_hidden = COALESCE($5, is_hidden)
+WHERE id = $1 AND deleted_at IS NULL RETURNING id
+`
+
+type UpdateTeamAdminParams struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      *string    `json:"name"`
+	CaptainID *uuid.UUID `json:"captain_id"`
+	BracketID *uuid.UUID `json:"bracket_id"`
+	IsHidden  *bool      `json:"is_hidden"`
+}
+
+func (q *Queries) UpdateTeamAdmin(ctx context.Context, arg UpdateTeamAdminParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateTeamAdmin,
+		arg.ID,
+		arg.Name,
+		arg.CaptainID,
+		arg.BracketID,
+		arg.IsHidden,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateTeamCaptain = `-- name: UpdateTeamCaptain :one
+UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id
 `
 
 type UpdateTeamCaptainParams struct {
@@ -389,7 +599,25 @@ type UpdateTeamCaptainParams struct {
 	CaptainID uuid.UUID `json:"captain_id"`
 }
 
-func (q *Queries) UpdateTeamCaptain(ctx context.Context, arg UpdateTeamCaptainParams) error {
-	_, err := q.db.Exec(ctx, updateTeamCaptain, arg.ID, arg.CaptainID)
-	return err
+func (q *Queries) UpdateTeamCaptain(ctx context.Context, arg UpdateTeamCaptainParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateTeamCaptain, arg.ID, arg.CaptainID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateTeamName = `-- name: UpdateTeamName :one
+UPDATE teams SET name = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id
+`
+
+type UpdateTeamNameParams struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) UpdateTeamName(ctx context.Context, arg UpdateTeamNameParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateTeamName, arg.ID, arg.Name)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

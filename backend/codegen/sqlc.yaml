@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "../queries"
-    schema: "../schema/postgres.sql"
+    schema: "../migrations"
     gen:
       go:
         package: "sqlc"
@@ -13,10 +13,30 @@ sql:
         emit_interface: false
         emit_exact_table_names: false
         emit_pointers_for_null_types: true
+        rename:
+          id: ID
+          # "solves" singularizes to "solf" via jinzhu/inflection (bug) -- this rename is required
+          solf: Solve
+          # table-level renames: match Go acronym conventions
+          api_token: APIToken
+          oauth_account: OAuthAccount
+          app_setting: AppSettings
+          tracking: TrackingEntry
+          config: CompetitionParam
+          # field-level renames: acronym conventions (IP, URL, OAuth, CSV, TTL)
+          ip: IP
+          sha256: SHA256
+          frontend_url: FrontendURL
+          cors_origins: CORSOrigins
+          verify_ttl_hours: VerifyTTLHours
+          reset_ttl_hours: ResetTTLHours
+          csv_export_max_rows: CSVExportMaxRows
+          rate_limit_general_ip_per_minute: RateLimitGeneralIPPerMinute
+          rate_limit_oauth_callback_per_minute: RateLimitOAuthCallbackPerMinute
+          oauth_github_enabled: OAuthGithubEnabled
+          oauth_google_enabled: OAuthGoogleEnabled
         overrides:
           - db_type: "pg_catalog.numeric"
-            go_type: "float64"
-          - column: "ctf_events.weight"
             go_type: "float64"
           - db_type: "uuid"
             go_type:

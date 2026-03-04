@@ -5,20 +5,36 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/team"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := team.NewTeamUseCase(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, nil)
+	guard := competition.NewGuard(f.CompetitionRepo)
+	uc := team.NewTeamUseCase(team.TeamDeps{
+		TeamRepo:           f.TeamRepo,
+		UserRepo:           f.UserRepo,
+		SolveRepo:          f.SolveRepo,
+		SubmissionRepo:     f.SubmissionRepo,
+		AwardRepo:          f.AwardRepo,
+		CompRepo:           f.CompetitionRepo,
+		SettingsGetter:     f.SettingsRepo,
+		ChallengeRepo:      f.ChallengeRepo,
+		TM:                 f.TM,
+		Guard:              guard,
+		HintRepo:           f.HintRepo,
+		DefaultMaxTeamSize: 10,
+	})
 
 	u1 := f.CreateUser(t, "racer_1")
 	u2 := f.CreateUser(t, "racer_2")
@@ -73,12 +89,30 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 }
 
 func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	uc := team.NewTeamUseCaseWithSize(f.TeamRepo, f.UserRepo, f.CompetitionRepo, f.TxRepo, nil, 2)
+	_, err := f.Pool.Exec(ctx, "UPDATE competition SET max_team_size = 2 WHERE id = 1")
+	require.NoError(t, err)
+
+	guard := competition.NewGuard(f.CompetitionRepo)
+	uc := team.NewTeamUseCase(team.TeamDeps{
+		TeamRepo:           f.TeamRepo,
+		UserRepo:           f.UserRepo,
+		SolveRepo:          f.SolveRepo,
+		SubmissionRepo:     f.SubmissionRepo,
+		AwardRepo:          f.AwardRepo,
+		CompRepo:           f.CompetitionRepo,
+		SettingsGetter:     f.SettingsRepo,
+		ChallengeRepo:      f.ChallengeRepo,
+		TM:                 f.TM,
+		Guard:              guard,
+		HintRepo:           f.HintRepo,
+		DefaultMaxTeamSize: 10,
+	})
 
 	captain := f.CreateUser(t, "captain")
 	team, err := uc.Create(ctx, "MaxCapTeam", captain.ID, false, false)

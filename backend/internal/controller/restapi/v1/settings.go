@@ -3,30 +3,26 @@ package v1
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Get all configs (admin)
 // (GET /admin/configs)
 func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
-	list, err := h.admin.DynamicConfigUC.GetAll(r.Context())
+	list, err := h.admin.CompetitionParamUC.GetAll(r.Context())
 	if h.OnError(w, r, err, "GetAdminConfigs", "GetAll") {
 		return
 	}
-	out := make([]openapi.ResponseConfigResponse, len(list))
-	for i, c := range list {
-		out[i] = response.FromConfig(c)
-	}
-	helper.RenderOK(w, r, out)
+	helper.RenderOK(w, r, response.FromConfigList(list))
 }
 
 // Get config by key (admin)
 // (GET /admin/configs/{key})
 func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	cfg, err := h.admin.DynamicConfigUC.Get(r.Context(), key)
+	cfg, err := h.admin.CompetitionParamUC.Get(r.Context(), key)
 	if h.OnError(w, r, err, "GetAdminConfigsKey", "Get") {
 		return
 	}
@@ -36,24 +32,22 @@ func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 // Set config (admin)
 // (PUT /admin/configs/{key})
 func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestSetConfigRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminConfigsKey")
-	if !ok {
-		return
-	}
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
-	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
-	valueType := request.SetConfigRequestToValueType(req.ValueType)
-	description := ""
-	if req.Description != nil {
-		description = *req.Description
-	}
-	if h.OnError(w, r, h.admin.DynamicConfigUC.Set(r.Context(), key, req.Value, description, valueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
+	req, ok := helper.DecodeAndValidate[openapi.SetConfigRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminConfigsKey",
+	)
+	if !ok {
 		return
 	}
-	helper.RenderOK(w, r, map[string]string{"message": "config updated"})
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
+	params := request.SetConfigRequestToParams(&req)
+	if h.OnError(w, r, h.admin.CompetitionParamUC.Set(r.Context(), key, params.Value, params.Description, params.ValueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
+		return
+	}
+	helper.RenderOK(w, r, response.Message("config updated"))
 }
 
 // Delete config (admin)
@@ -64,7 +58,7 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 		return
 	}
 	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
-	if h.OnError(w, r, h.admin.DynamicConfigUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
+	if h.OnError(w, r, h.admin.CompetitionParamUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)
@@ -77,31 +71,40 @@ func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetAdminSettings", "Get") {
 		return
 	}
-
 	helper.RenderOK(w, r, response.FromAppSettings(s))
 }
 
 // Update app settings
 // (PUT /admin/settings)
 func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateAppSettingsRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "UpdateAppSettings",
-	)
-	if !ok {
-		return
-	}
-
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
+	req, ok := helper.DecodeAndValidate[openapi.UpdateAppSettingsRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminSettings",
+	)
+	if !ok {
+		return
+	}
+
+	current, err := h.admin.SettingsUC.Get(r.Context())
+	if h.OnError(w, r, err, "PutAdminSettings", "GetCurrentSettings") {
+		return
+	}
+
 	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
-	s := request.UpdateAppSettingsRequestToEntity(&req, 1)
+
+	if err := request.ValidateUpdateAppSettingsRequest(&req); h.OnError(w, r, err, "PutAdminSettings", "Validate") {
+		return
+	}
+
+	s := request.UpdateAppSettingsRequestToEntity(&req, current.ID, current)
 
 	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "settings updated"})
+	helper.RenderOK(w, r, response.Message("settings updated"))
 }

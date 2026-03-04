@@ -5,32 +5,50 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
+)
+
+const (
+	apiTokenDescriptionMaxLen = 255
+	apiTokenRandomBytes       = 32
 )
 
 type APITokenUseCase struct {
-	repo repo.APITokenRepository
+	deps APITokenDeps
 }
 
-func NewAPITokenUseCase(
-	repo repo.APITokenRepository,
-) *APITokenUseCase {
-	return &APITokenUseCase{repo: repo}
+type APITokenDeps struct {
+	Repo repo.APITokenRepository
+}
+
+var _ usecase.APITokenUseCase = (*APITokenUseCase)(nil)
+
+func NewAPITokenUseCase(deps APITokenDeps) *APITokenUseCase {
+	return &APITokenUseCase{deps: deps}
 }
 
 func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*entity.APIToken, error) {
-	return uc.repo.GetByUserID(ctx, userID)
+	tokens, err := uc.deps.Repo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("APITokenUseCase - List - APITokenRepo.GetByUserID: %w", err)
+	}
+	return tokens, nil
 }
 
 func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *entity.APIToken, err error) {
-	b := make([]byte, 32)
+	if len(description) > apiTokenDescriptionMaxLen {
+		return "", nil, httperr.NewValidationErrorf("description must not exceed %d characters", apiTokenDescriptionMaxLen)
+	}
+	b := make([]byte, apiTokenRandomBytes)
 	if _, err := rand.Read(b); err != nil {
-		return "", nil, usecaseutil.Wrap(err, "APITokenUseCase - Create - rand")
+		return "", nil, fmt.Errorf("APITokenUseCase - Create - rand: %w", err)
 	}
 	plaintext = hex.EncodeToString(b)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -43,22 +61,32 @@ func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, descrip
 		ExpiresAt:   expiresAt,
 		CreatedAt:   time.Now(),
 	}
-	if err := uc.repo.Create(ctx, token); err != nil {
-		return "", nil, usecaseutil.Wrap(err, "APITokenUseCase - Create")
+	if err := uc.deps.Repo.Create(ctx, token); err != nil {
+		return "", nil, fmt.Errorf("APITokenUseCase - Create - APITokenRepo.Create: %w", err)
 	}
 	return plaintext, token, nil
 }
 
-func (uc *APITokenUseCase) Delete(ctx context.Context, id, userID uuid.UUID) error {
-	return uc.repo.Delete(ctx, id, userID)
+func (uc *APITokenUseCase) Delete(ctx context.Context, ID, userID uuid.UUID) error {
+	if err := uc.deps.Repo.Delete(ctx, ID, userID); err != nil {
+		return fmt.Errorf("APITokenUseCase - Delete - APITokenRepo.Delete: %w", err)
+	}
+	return nil
 }
 
 func (uc *APITokenUseCase) GetByTokenHash(ctx context.Context, tokenHash string) (*entity.APIToken, error) {
-	return uc.repo.GetByTokenHash(ctx, tokenHash)
+	token, err := uc.deps.Repo.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("APITokenUseCase - GetByTokenHash - APITokenRepo.GetByTokenHash: %w", err)
+	}
+	return token, nil
 }
 
-func (uc *APITokenUseCase) UpdateLastUsedAt(ctx context.Context, id uuid.UUID) error {
-	return uc.repo.UpdateLastUsedAt(ctx, id, time.Now())
+func (uc *APITokenUseCase) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID) error {
+	if err := uc.deps.Repo.UpdateLastUsedAt(ctx, ID, time.Now()); err != nil {
+		return fmt.Errorf("APITokenUseCase - UpdateLastUsedAt - APITokenRepo.UpdateLastUsedAt: %w", err)
+	}
+	return nil
 }
 
 func (uc *APITokenUseCase) ValidateToken(t *entity.APIToken) bool {

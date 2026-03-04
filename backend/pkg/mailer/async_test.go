@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	"github.com/skr1ms/CTFBoard/pkg/mailer/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestAsyncMailer(t *testing.T) {
+	t.Parallel()
 	mockMailer := mocks.NewMockMailer(t)
 	l := logger.New(&logger.Options{
 		Level:  logger.InfoLevel,
@@ -41,4 +42,37 @@ func TestAsyncMailer(t *testing.T) {
 	asyncMailer.Stop()
 	err = asyncMailer.Send(context.Background(), msg)
 	assert.ErrorIs(t, err, mailer.ErrMailerStopped)
+}
+
+func TestAsyncMailer_GracefulShutdown(t *testing.T) {
+	t.Parallel()
+	mockMailer := mocks.NewMockMailer(t)
+	l := logger.New(&logger.Options{
+		Level:  logger.InfoLevel,
+		Output: logger.ConsoleOutput,
+	})
+	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+
+	msg := mailer.Message{To: "drain@example.com", Subject: "Drain", Body: "Body"}
+
+	sendCalled := make(chan struct{})
+	mockMailer.On("Send", mock.Anything, mock.MatchedBy(func(m mailer.Message) bool {
+		return m.To == "drain@example.com"
+	})).Return(nil).Once().Run(func(mock.Arguments) { close(sendCalled) })
+
+	err := asyncMailer.Send(context.Background(), msg)
+	assert.NoError(t, err)
+
+	done := make(chan struct{})
+	go func() {
+		asyncMailer.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-sendCalled:
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for mailer to drain message")
+	}
+	<-done
 }

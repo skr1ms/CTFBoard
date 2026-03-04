@@ -9,12 +9,14 @@ import (
 )
 
 func TestNew_Success(t *testing.T) {
+	t.Parallel()
 	m := New(Config{APIKey: "key", FromEmail: "a@b.c", FromName: "CTF"})
 	require.NotNil(t, m)
 	assert.NotNil(t, m.client)
 }
 
 func TestResendMailer_Send_Error(t *testing.T) {
+	t.Parallel()
 	m := New(Config{APIKey: "re_skip", FromEmail: "a@b.c"})
 	require.NotNil(t, m)
 

@@ -3,12 +3,12 @@ package response
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromNotification(n *entity.Notification) openapi.ResponseNotificationResponse {
-	return openapi.ResponseNotificationResponse{
+func FromNotification(n *entity.Notification) openapi.NotificationResponse {
+	return openapi.NotificationResponse{
 		ID:        ptr(n.ID.String()),
 		Title:     ptr(n.Title),
 		Content:   ptr(n.Content),
@@ -18,8 +18,16 @@ func FromNotification(n *entity.Notification) openapi.ResponseNotificationRespon
 	}
 }
 
-func FromUserNotification(un *entity.UserNotification) openapi.ResponseUserNotificationResponse {
-	return openapi.ResponseUserNotificationResponse{
+func FromNotificationList(ns []*entity.Notification) []openapi.NotificationResponse {
+	res := make([]openapi.NotificationResponse, len(ns))
+	for i, n := range ns {
+		res[i] = FromNotification(n)
+	}
+	return res
+}
+
+func FromUserNotification(un *entity.UserNotification) openapi.UserNotificationResponse {
+	return openapi.UserNotificationResponse{
 		ID:        ptr(un.ID.String()),
 		Title:     ptr(un.Title),
 		Content:   ptr(un.Content),
@@ -27,4 +35,12 @@ func FromUserNotification(un *entity.UserNotification) openapi.ResponseUserNotif
 		IsRead:    ptr(un.IsRead),
 		CreatedAt: ptr(un.CreatedAt.Format(time.RFC3339)),
 	}
+}
+
+func FromUserNotificationList(uns []*entity.UserNotification) []openapi.UserNotificationResponse {
+	res := make([]openapi.UserNotificationResponse, len(uns))
+	for i, un := range uns {
+		res[i] = FromUserNotification(un)
+	}
+	return res
 }

@@ -3,22 +3,30 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/config"
-	"github.com/skr1ms/CTFBoard/internal/storage"
-	"github.com/skr1ms/CTFBoard/internal/wire"
-	"github.com/skr1ms/CTFBoard/pkg/cache"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
-	"github.com/skr1ms/CTFBoard/pkg/migrator"
-	"github.com/skr1ms/CTFBoard/pkg/postgres"
-	"github.com/skr1ms/CTFBoard/pkg/seed"
-	pkgWS "github.com/skr1ms/CTFBoard/pkg/websocket"
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/wire"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/migrator"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/postgres"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/seed"
+	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
+	"github.com/google/uuid"
+)
+
+const (
+	asyncMailerQueueSize = 100
+	asyncMailerWorkers   = 2
 )
 
 func Run(cfg *config.Config, l logger.Logger) {
@@ -35,7 +43,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 	}
 	defer pool.Close()
 
-	redisClient, err := cache.NewRedisClient(cfg.Host, cfg.Redis.Port, cfg.Redis.Password)
+	redisClient, err := cache.NewRedisClient(&cfg.Redis)
 	if err != nil {
 		l.WithError(err).Error("failed to connect to redis")
 		return
@@ -68,24 +76,43 @@ func Run(cfg *config.Config, l logger.Logger) {
 	defer cancel()
 
 	jwtRevoker := jwt.NewRedisRevocationStore(redisClient)
-	jwtService := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker)
-	wsHub := pkgWS.NewHub(redisClient, "scoreboard:updates")
+	jwtService, err := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker, nil)
+	if err != nil {
+		l.WithError(err).Error("failed to create JWT service")
+		return
+	}
+	wsHub := pkgWS.NewHub(redisClient, cache.PubSubScoreboard)
 	go wsHub.Run(ctx)
 	go wsHub.SubscribeToRedis(ctx)
 
 	resendMailer := mailer.New(mailer.Config{APIKey: cfg.APIKey, FromEmail: cfg.FromEmail, FromName: cfg.FromName})
-	asyncMailer := mailer.NewAsyncMailer(resendMailer, 100, 2, l)
+	asyncMailer := mailer.NewAsyncMailer(resendMailer, asyncMailerQueueSize, asyncMailerWorkers, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
-	app, err := wire.InitializeApp(cfg, l, pool, redisClient, storageProvider, jwtService, wsHub, asyncMailer)
+	app, err := wire.InitializeApp(ctx, cfg, l, pool, redisClient, storageProvider, jwtService, wsHub, asyncMailer)
 	if err != nil {
 		l.WithError(err).Error("failed to initialize app")
 		return
 	}
 
+	jwtService.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, string, string, error) {
+		u, err := app.UserRepo.GetByID(ctx, userID)
+		if err != nil {
+			return "", "", "", fmt.Errorf("app - SetUserRoleLookup - GetByID: %w", err)
+		}
+		if u.IsBanned {
+			return "", "", "", httperr.ErrUserBanned
+		}
+		return u.Email, u.Username, u.Role, nil
+	})
+
+	if app.SubmissionBatcher != nil {
+		defer app.SubmissionBatcher.Stop()
+	}
+
 	runSeed(cfg, app, l)
-	runServerUntilShutdown(ctx, app.Server, cfg.HTTP.Port, l)
+	runServerUntilShutdown(ctx, app.Server, cfg.HTTP.Port, cfg.ShutdownTimeout, l)
 }
 
 func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
@@ -99,7 +126,7 @@ func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
 	}
 }
 
-func runServerUntilShutdown(ctx context.Context, server *http.Server, port string, l logger.Logger) {
+func runServerUntilShutdown(ctx context.Context, server *http.Server, port string, shutdownTimeout time.Duration, l logger.Logger) {
 	serverErrors := make(chan error, 1)
 	go func() {
 		l.Info("Starting HTTP server", map[string]any{"port": port})
@@ -112,12 +139,12 @@ func runServerUntilShutdown(ctx context.Context, server *http.Server, port strin
 		}
 	case <-ctx.Done():
 		l.Info("Shutting down server")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			l.WithError(err).Error("Server forced to shutdown")
 			_ = server.Close()
 		}
-		cancel()
 	}
 }
 
@@ -129,20 +156,21 @@ func provideStorage(cfg *config.Config, l logger.Logger) (storage.Provider, erro
 			cfg.S3AccessKey,
 			cfg.S3SecretKey,
 			cfg.S3Bucket,
+			cfg.S3Region,
 			cfg.S3UseSSL,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("app - provideStorage - NewS3Provider: %w", err)
 		}
 		if err := s3Provider.EnsureBucket(context.Background()); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("app - provideStorage - EnsureBucket: %w", err)
 		}
 		l.Info("Using S3 storage provider", map[string]any{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
 		return s3Provider, nil
 	}
 	fsProvider, err := storage.NewFilesystemProvider(cfg.LocalPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("app - provideStorage - NewFilesystemProvider: %w", err)
 	}
 	l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})
 	return fsProvider, nil

@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +46,8 @@ func (h *E2EHelper) GetStatisticsChallengesIdExpectStatus(token, id string, expe
 
 func (h *E2EHelper) GetStatisticsScoreboard(token string, limit int) *openapi.GetStatisticsScoreboardResponse {
 	h.t.Helper()
-	resp, err := h.client.GetStatisticsScoreboardWithResponse(context.Background(), WithBearerToken(token))
+	params := &openapi.GetStatisticsScoreboardParams{Limit: &limit}
+	resp, err := h.client.GetStatisticsScoreboardWithResponse(context.Background(), params, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "statistics scoreboard")
 	return resp

@@ -1,12 +1,12 @@
 package response
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromPage(p *entity.Page) openapi.ResponsePageResponse {
-	return openapi.ResponsePageResponse{
+func FromPage(p *entity.Page) openapi.PageResponse {
+	return openapi.PageResponse{
 		ID:         ptr(p.ID.String()),
 		Title:      ptr(p.Title),
 		Slug:       ptr(p.Slug),
@@ -18,8 +18,8 @@ func FromPage(p *entity.Page) openapi.ResponsePageResponse {
 	}
 }
 
-func FromPageListItem(item *entity.PageListItem) openapi.ResponsePageListItemResponse {
-	return openapi.ResponsePageListItemResponse{
+func FromPageListItem(item *entity.PageListItem) openapi.PageListItemResponse {
+	return openapi.PageListItemResponse{
 		ID:         ptr(item.ID.String()),
 		Title:      ptr(item.Title),
 		Slug:       ptr(item.Slug),
@@ -27,16 +27,16 @@ func FromPageListItem(item *entity.PageListItem) openapi.ResponsePageListItemRes
 	}
 }
 
-func FromPageList(items []*entity.PageListItem) []openapi.ResponsePageListItemResponse {
-	res := make([]openapi.ResponsePageListItemResponse, len(items))
+func FromPageList(items []*entity.PageListItem) []openapi.PageListItemResponse {
+	res := make([]openapi.PageListItemResponse, len(items))
 	for i, item := range items {
 		res[i] = FromPageListItem(item)
 	}
 	return res
 }
 
-func FromPageFullList(items []*entity.Page) []openapi.ResponsePageResponse {
-	res := make([]openapi.ResponsePageResponse, len(items))
+func FromPageFullList(items []*entity.Page) []openapi.PageResponse {
+	res := make([]openapi.PageResponse, len(items))
 	for i, item := range items {
 		res[i] = FromPage(item)
 	}

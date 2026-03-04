@@ -24,7 +24,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 COPY --from=builder /app/bin/backend .
-COPY --from=builder /app/bin/cleanup /usr/local/bin/ctfboard-cleanup
+COPY --from=builder /app/bin/cleanup /usr/local/bin/astroctfb-cleanup
 COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 8080

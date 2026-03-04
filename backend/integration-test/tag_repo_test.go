@@ -5,14 +5,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTagRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -25,18 +26,20 @@ func TestTagRepo_Create_Success(t *testing.T) {
 }
 
 func TestTagRepo_Create_Error_DuplicateName(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f.CreateTag(t, "dup")
-	tag2 := &entity.Tag{Name: "tag_dup", Color: "#111"}
+	t1 := f.CreateTag(t, "dup")
+	tag2 := &entity.Tag{Name: t1.Name, Color: "#111"}
 	err := f.TagRepo.Create(ctx, tag2)
 	assert.Error(t, err)
 }
 
 func TestTagRepo_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -50,6 +53,7 @@ func TestTagRepo_GetByID_Success(t *testing.T) {
 }
 
 func TestTagRepo_GetByID_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -57,10 +61,11 @@ func TestTagRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrTagNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
 }
 
 func TestTagRepo_GetByName_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -73,6 +78,7 @@ func TestTagRepo_GetByName_Success(t *testing.T) {
 }
 
 func TestTagRepo_GetByName_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -80,23 +86,30 @@ func TestTagRepo_GetByName_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByName(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrTagNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
 }
 
 func TestTagRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f.CreateTag(t, "a")
-	f.CreateTag(t, "b")
+	t1 := f.CreateTag(t, "a")
+	t2 := f.CreateTag(t, "b")
 	list, err := f.TagRepo.GetAll(ctx)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(list), 2)
+	ids := make(map[uuid.UUID]bool)
+	for _, tag := range list {
+		ids[tag.ID] = true
+	}
+	assert.True(t, ids[t1.ID], "tag 1 should be in GetAll result")
+	assert.True(t, ids[t2.ID], "tag 2 should be in GetAll result")
 }
 
 func TestTagRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -108,6 +121,7 @@ func TestTagRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestTagRepo_Update_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -123,6 +137,7 @@ func TestTagRepo_Update_Success(t *testing.T) {
 }
 
 func TestTagRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -135,6 +150,7 @@ func TestTagRepo_Update_Error_CancelledContext(t *testing.T) {
 }
 
 func TestTagRepo_Delete_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -145,10 +161,11 @@ func TestTagRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.TagRepo.GetByID(ctx, tag.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrTagNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
 }
 
 func TestTagRepo_Delete_Error_NoRows(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -159,6 +176,7 @@ func TestTagRepo_Delete_Error_NoRows(t *testing.T) {
 }
 
 func TestTagRepo_GetByChallengeID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -166,7 +184,9 @@ func TestTagRepo_GetByChallengeID_Success(t *testing.T) {
 
 	challenge := f.CreateChallenge(t, "chtag", 100)
 	tag := f.CreateTag(t, "ch")
-	err := f.TagRepo.SetChallengeTags(ctx, challenge.ID, []uuid.UUID{tag.ID})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetTags(txCtx, challenge.ID, []uuid.UUID{tag.ID})
+	})
 	require.NoError(t, err)
 	tags, err := f.TagRepo.GetByChallengeID(ctx, challenge.ID)
 	require.NoError(t, err)
@@ -175,6 +195,7 @@ func TestTagRepo_GetByChallengeID_Success(t *testing.T) {
 }
 
 func TestTagRepo_GetByChallengeID_Error_Empty(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -187,6 +208,7 @@ func TestTagRepo_GetByChallengeID_Error_Empty(t *testing.T) {
 }
 
 func TestTagRepo_SetChallengeTags_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -195,7 +217,9 @@ func TestTagRepo_SetChallengeTags_Success(t *testing.T) {
 	challenge := f.CreateChallenge(t, "settags", 100)
 	tag1 := f.CreateTag(t, "s1")
 	tag2 := f.CreateTag(t, "s2")
-	err := f.TagRepo.SetChallengeTags(ctx, challenge.ID, []uuid.UUID{tag1.ID, tag2.ID})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetTags(txCtx, challenge.ID, []uuid.UUID{tag1.ID, tag2.ID})
+	})
 	require.NoError(t, err)
 	tags, err := f.TagRepo.GetByChallengeID(ctx, challenge.ID)
 	require.NoError(t, err)
@@ -203,12 +227,15 @@ func TestTagRepo_SetChallengeTags_Success(t *testing.T) {
 }
 
 func TestTagRepo_SetChallengeTags_Error_InvalidTagID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "invalidtag", 100)
-	err := f.TagRepo.SetChallengeTags(ctx, challenge.ID, []uuid.UUID{uuid.New()})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetTags(txCtx, challenge.ID, []uuid.UUID{uuid.New()})
+	})
 	assert.Error(t, err)
 }

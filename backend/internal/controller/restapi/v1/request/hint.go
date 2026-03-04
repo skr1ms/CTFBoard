@@ -1,25 +1,11 @@
 package request
 
-import "github.com/skr1ms/CTFBoard/internal/openapi"
+import "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 
-func CreateHintRequestToParams(req *openapi.RequestCreateHintRequest) (content string, cost, orderIndex int) {
-	cost, orderIndex = 0, 0
-	if req.Cost != nil {
-		cost = *req.Cost
-	}
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	return req.Content, cost, orderIndex
+func CreateHintRequestToParams(req *openapi.CreateHintRequest) (content string, cost, orderIndex int) {
+	return req.Content, derefOr(req.Cost, 0), derefOr(req.OrderIndex, 0)
 }
 
-func UpdateHintRequestToParams(req *openapi.RequestUpdateHintRequest) (content string, cost, orderIndex int) {
-	cost, orderIndex = 0, 0
-	if req.Cost != nil {
-		cost = *req.Cost
-	}
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	return req.Content, cost, orderIndex
+func UpdateHintRequestToParams(req *openapi.UpdateHintRequest) (content string, cost, orderIndex int) {
+	return req.Content, derefOr(req.Cost, 0), derefOr(req.OrderIndex, 0)
 }

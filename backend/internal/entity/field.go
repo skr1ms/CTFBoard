@@ -15,12 +15,28 @@ const (
 	FieldTypeBoolean FieldType = "boolean"
 )
 
+func (ft FieldType) IsValid() bool {
+	switch ft {
+	case FieldTypeText, FieldTypeNumber, FieldTypeSelect, FieldTypeBoolean:
+		return true
+	}
+	return false
+}
+
 type EntityType string
 
 const (
 	EntityTypeUser EntityType = "user"
 	EntityTypeTeam EntityType = "team"
 )
+
+func (et EntityType) IsValid() bool {
+	switch et {
+	case EntityTypeUser, EntityTypeTeam:
+		return true
+	}
+	return false
+}
 
 type Field struct {
 	ID         uuid.UUID  `json:"id"`

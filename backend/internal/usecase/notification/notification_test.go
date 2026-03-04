@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestNotificationUseCase_CreateGlobal_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -35,6 +36,7 @@ func TestNotificationUseCase_CreateGlobal_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_CreateGlobal_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -49,6 +51,7 @@ func TestNotificationUseCase_CreateGlobal_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_CreatePersonal_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -72,6 +75,7 @@ func TestNotificationUseCase_CreatePersonal_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_CreatePersonal_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -87,6 +91,7 @@ func TestNotificationUseCase_CreatePersonal_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_GetGlobal_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -102,6 +107,7 @@ func TestNotificationUseCase_GetGlobal_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_GetGlobal_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -116,6 +122,7 @@ func TestNotificationUseCase_GetGlobal_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_GetUserNotifications_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -132,6 +139,7 @@ func TestNotificationUseCase_GetUserNotifications_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_GetUserNotifications_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -147,6 +155,7 @@ func TestNotificationUseCase_GetUserNotifications_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_MarkAsRead_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -161,6 +170,7 @@ func TestNotificationUseCase_MarkAsRead_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_MarkAsRead_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -175,6 +185,7 @@ func TestNotificationUseCase_MarkAsRead_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_CountUnread_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -191,6 +202,7 @@ func TestNotificationUseCase_CountUnread_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_CountUnread_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -206,6 +218,7 @@ func TestNotificationUseCase_CountUnread_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -232,6 +245,7 @@ func TestNotificationUseCase_Update_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -247,6 +261,7 @@ func TestNotificationUseCase_Update_Error(t *testing.T) {
 }
 
 func TestNotificationUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -261,6 +276,7 @@ func TestNotificationUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestNotificationUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewNotificationTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()

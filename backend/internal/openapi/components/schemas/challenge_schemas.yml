@@ -1,0 +1,467 @@
+schemas:
+  entity.ChallengeExport:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      category:
+        type: string
+      points:
+        type: integer
+      flag_hash:
+        type: string
+      is_hidden:
+        type: boolean
+      hints:
+        type: array
+        items:
+          $ref: "#/schemas/entity.Hint"
+    type: object
+  entity.Hint:
+    properties:
+      id:
+        type: string
+      challenge_id:
+        type: string
+      content:
+        type: string
+      cost:
+        type: integer
+      order_index:
+        type: integer
+    type: object
+  entity.Solve:
+    properties:
+      id:
+        type: string
+      user_id:
+        type: string
+      team_id:
+        type: string
+      challenge_id:
+        type: string
+      solved_at:
+        type: string
+    type: object
+  request.CreateChallengeRequest:
+    properties:
+      category:
+        example: Web
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_category"
+      decay:
+        example: 20
+        minimum: 0
+        type: integer
+      description:
+        example: Challenge description
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_description"
+      flag:
+        example: CTF{flag_here}
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_flag"
+      flag_format_regex:
+        description: Optional regex for flag format validation for this challenge; overrides competition default
+        example: '^CTF\{[a-zA-Z0-9_]+\}$'
+        type: string
+      initial_value:
+        example: 500
+        minimum: 0
+        type: integer
+      is_case_insensitive:
+        example: false
+        type: boolean
+      is_hidden:
+        example: false
+        type: boolean
+      is_regex:
+        example: false
+        type: boolean
+      min_value:
+        example: 100
+        minimum: 0
+        type: integer
+      points:
+        example: 100
+        minimum: 0
+        type: integer
+      tag_ids:
+        description: Tag IDs for the challenge
+        items:
+          type: string
+        type: array
+      title:
+        example: Challenge 1
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_title"
+    required:
+      - category
+      - description
+      - flag
+      - points
+      - title
+    type: object
+  request.UpdateChallengeRequest:
+    properties:
+      category:
+        example: Web
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_category"
+      decay:
+        example: 20
+        minimum: 0
+        type: integer
+      description:
+        example: Updated description
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_description"
+      flag:
+        example: CTF{new_flag}
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,challenge_flag"
+      flag_format_regex:
+        description: Optional regex for flag format validation for this challenge; overrides competition default
+        example: '^CTF\{[a-zA-Z0-9_]+\}$'
+        type: string
+      initial_value:
+        example: 500
+        minimum: 0
+        type: integer
+      is_case_insensitive:
+        example: false
+        type: boolean
+      is_hidden:
+        example: false
+        type: boolean
+      is_regex:
+        example: false
+        type: boolean
+      min_value:
+        example: 100
+        minimum: 0
+        type: integer
+      points:
+        example: 150
+        minimum: 0
+        type: integer
+      tag_ids:
+        description: Tag IDs for the challenge
+        items:
+          type: string
+        type: array
+      title:
+        example: Updated title
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,challenge_title"
+    required:
+      - category
+      - description
+      - points
+      - title
+    type: object
+  request.SubmitFlagRequest:
+    properties:
+      flag:
+        example: CTF{flag_here}
+        maxLength: 2048
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=2048"
+    required:
+      - flag
+    type: object
+  request.CreateHintRequest:
+    properties:
+      content:
+        example: This is a hint
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,hint_content"
+      cost:
+        example: 50
+        minimum: 0
+        type: integer
+      order_index:
+        example: 0
+        minimum: 0
+        type: integer
+    required:
+      - content
+    type: object
+  request.UpdateHintRequest:
+    properties:
+      content:
+        example: Updated hint content
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,hint_content"
+      cost:
+        example: 100
+        minimum: 0
+        type: integer
+      order_index:
+        example: 1
+        minimum: 0
+        type: integer
+    required:
+      - content
+    type: object
+  request.CreateCommentRequest:
+    properties:
+      content:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,not_empty"
+    required:
+      - content
+    type: object
+  response.ChallengeResponse:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_hidden:
+        type: boolean
+      points:
+        type: integer
+      solve_count:
+        type: integer
+      solved:
+        type: boolean
+      tags:
+        items:
+          $ref: "#/schemas/response.TagResponse"
+        type: array
+      title:
+        type: string
+    type: object
+  response.ChallengeDetailResponse:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      category:
+        type: string
+      points:
+        type: integer
+      solve_count:
+        type: integer
+      solved_by_me:
+        type: boolean
+      tags:
+        items:
+          $ref: "#/schemas/response.TagResponse"
+        type: array
+      files:
+        items:
+          $ref: "#/schemas/response.FileItem"
+        type: array
+      hints:
+        items:
+          $ref: "#/schemas/response.HintItem"
+        type: array
+      first_blood:
+        $ref: "#/schemas/response.FirstBloodResponse"
+    type: object
+  response.SolveEntry:
+    properties:
+      user_id:
+        type: string
+      username:
+        type: string
+      team_id:
+        type: string
+      team_name:
+        type: string
+      solved_at:
+        type: string
+        format: date-time
+    type: object
+  response.HintResponse:
+    properties:
+      content:
+        type: string
+      cost:
+        type: integer
+      id:
+        type: string
+      order_index:
+        type: integer
+      unlocked:
+        type: boolean
+    type: object
+  response.HintAdminResponse:
+    properties:
+      challenge_id:
+        type: string
+      content:
+        type: string
+      cost:
+        type: integer
+      id:
+        type: string
+      order_index:
+        type: integer
+    type: object
+  response.HintItem:
+    properties:
+      id:
+        type: string
+      cost:
+        type: integer
+      order_index:
+        type: integer
+      unlocked:
+        type: boolean
+      content:
+        type: string
+    type: object
+  response.FirstBloodResponse:
+    properties:
+      solved_at:
+        type: string
+      team_id:
+        type: string
+      team_name:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  response.CommentResponse:
+    properties:
+      id:
+        type: string
+      user_id:
+        type: string
+      challenge_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+    type: object
+  response.HintUnlockResponse:
+    properties:
+      id:
+        type: string
+      hint_id:
+        type: string
+      team_id:
+        type: string
+      unlocked_at:
+        type: string
+        format: date-time
+      challenge_id:
+        type: string
+      hint_cost:
+        type: integer
+    type: object
+  response.HintUnlockListResponse:
+    properties:
+      data:
+        type: array
+        items:
+          $ref: "#/schemas/response.HintUnlockResponse"
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object
+  response.ChallengeRequirementResponse:
+    properties:
+      challenge_id:
+        type: string
+      challenge_title:
+        type: string
+      challenge_category:
+        type: string
+    type: object
+  request.SetChallengeRequirementsRequest:
+    properties:
+      requirement_ids:
+        description: List of challenge IDs that must be solved before this challenge
+        items:
+          type: string
+        type: array
+    type: object
+  request.AdminUpsertSolutionRequest:
+    properties:
+      content:
+        description: Markdown writeup content
+        type: string
+    required:
+      - content
+    type: object
+  response.ChallengeSolutionResponse:
+    properties:
+      challenge_id:
+        type: string
+      content:
+        type: string
+      files:
+        items:
+          $ref: "#/schemas/response.FileItem"
+        type: array
+    type: object
+  response.ChallengeSolutionEntry:
+    properties:
+      challenge_id:
+        type: string
+      challenge_title:
+        type: string
+      challenge_category:
+        type: string
+      content:
+        type: string
+      files:
+        items:
+          $ref: "#/schemas/response.FileItem"
+        type: array
+    type: object
+  response.ChallengeFlagsResponse:
+    properties:
+      flags:
+        items:
+          type: string
+        type: array
+      is_regex:
+        type: boolean
+      is_case_insensitive:
+        type: boolean
+      flag_regex:
+        type: string
+      flag_format_regex:
+        type: string
+    type: object
+  response.SubmitFlagResponse:
+    properties:
+      correct:
+        type: boolean
+      message:
+        type: string
+    required:
+      - correct
+      - message
+    type: object

@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestFilesystemProvider_Workflow(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-test")
+func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
@@ -61,43 +62,48 @@ func TestFilesystemProvider_Workflow(t *testing.T) {
 
 		_, err = provider.Download(ctx, path)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "file not found")
+		assert.Contains(t, err.Error(), "FilesystemProvider - Download")
 	})
 }
 
 func TestFilesystemProvider_PathTraversal(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-traversal-test")
+	t.Parallel()
+	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-traversal-test")
 	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	provider, err := storage.NewFilesystemProvider(tmpDir)
 	require.NoError(t, err)
-	defer func() { _ = provider.Close() }()
+	t.Cleanup(func() { _ = provider.Close() })
 
 	ctx := context.Background()
 	content := []byte("malicious")
 	path := "../escape.txt"
 
 	t.Run("Upload Traversal", func(t *testing.T) {
+		t.Parallel()
 		err := provider.Upload(ctx, path, bytes.NewReader(content), int64(len(content)), "text/plain")
 		assert.Error(t, err)
 	})
 }
 
 func TestGenerateStoragePath_Success(t *testing.T) {
+	t.Parallel()
 	path := storage.GenerateStoragePath("file.txt")
 	assert.NotEmpty(t, path)
 	assert.Contains(t, path, "file.txt")
 }
 
 func TestGenerateStoragePath_SanitizesFilename(t *testing.T) {
+	t.Parallel()
 	path := storage.GenerateStoragePath("/etc/passwd")
 	assert.NotContains(t, path, "..")
 	assert.Contains(t, path, "passwd")
 }
 
 func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-nested")
+	t.Parallel()
+	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-nested")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
@@ -124,7 +130,8 @@ func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
 }
 
 func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "ctfboard-file-*")
+	t.Parallel()
+	tmpFile, err := os.CreateTemp("", "astroctfb-file-*")
 	require.NoError(t, err)
 	tmpPath := tmpFile.Name()
 	require.NoError(t, tmpFile.Close())
@@ -135,7 +142,8 @@ func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
 }
 
 func TestFilesystemProvider_Download_NotFound(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ctfboard-storage-download-test")
+	t.Parallel()
+	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-download-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
@@ -145,5 +153,5 @@ func TestFilesystemProvider_Download_NotFound(t *testing.T) {
 
 	_, err = provider.Download(context.Background(), "nonexistent/path.txt")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "file not found")
+	assert.Contains(t, err.Error(), "FilesystemProvider - Download")
 }

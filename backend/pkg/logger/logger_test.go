@@ -9,6 +9,7 @@ import (
 )
 
 func TestNew_Success(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: InfoLevel, Output: ConsoleOutput}
 	l := New(opts)
 	require.NotNil(t, l)
@@ -16,6 +17,7 @@ func TestNew_Success(t *testing.T) {
 }
 
 func TestNew_DefaultOutput(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: DebugLevel, Output: OutputType(99)}
 	l := New(opts)
 	require.NotNil(t, l)
@@ -23,6 +25,7 @@ func TestNew_DefaultOutput(t *testing.T) {
 }
 
 func TestZerologLogger_WithError_Success(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: InfoLevel, Output: ConsoleOutput}
 	l := New(opts).WithError(errors.New("err"))
 	require.NotNil(t, l)
@@ -30,6 +33,7 @@ func TestZerologLogger_WithError_Success(t *testing.T) {
 }
 
 func TestZerologLogger_WithError_Error(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: WarnLevel, Output: ConsoleOutput}
 	l := New(opts).WithError(errors.New("warn err"))
 	require.NotNil(t, l)
@@ -37,6 +41,7 @@ func TestZerologLogger_WithError_Error(t *testing.T) {
 }
 
 func TestZerologLogger_WithFields_Success(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: InfoLevel, Output: ConsoleOutput}
 	l := New(opts).WithFields(Fields{"k": "v"})
 	require.NotNil(t, l)
@@ -44,6 +49,7 @@ func TestZerologLogger_WithFields_Success(t *testing.T) {
 }
 
 func TestConvertLogLevel_Default(t *testing.T) {
+	t.Parallel()
 	opts := &Options{Level: Level(100), Output: ConsoleOutput}
 	l := New(opts)
 	require.NotNil(t, l)
@@ -51,6 +57,7 @@ func TestConvertLogLevel_Default(t *testing.T) {
 }
 
 func TestOptions_Apply(t *testing.T) {
+	t.Parallel()
 	opts := &Options{}
 	WithLevel(ErrorLevel)(opts)
 	WithOutput(FileOutput)(opts)

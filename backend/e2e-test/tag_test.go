@@ -4,16 +4,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /tags: returns created tags.
 func TestTag_GetTags_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_tags_list")
 
@@ -40,8 +40,8 @@ func TestTag_GetTags_Success(t *testing.T) {
 // POST /admin/tags: non-admin gets 403.
 func TestTag_Create_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("tag_user_" + suffix)
@@ -52,8 +52,8 @@ func TestTag_Create_Forbidden(t *testing.T) {
 // PUT /admin/tags/{id}: admin updates tag.
 func TestTag_Update_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_tag_upd")
 	suffix := uuid.New().String()[:8]
@@ -77,8 +77,8 @@ func TestTag_Update_Success(t *testing.T) {
 // PUT /admin/tags/{id}: non-admin gets 403.
 func TestTag_Update_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_tag_upd_f")
 	suffix := uuid.New().String()[:8]
@@ -92,8 +92,8 @@ func TestTag_Update_Forbidden(t *testing.T) {
 // DELETE /admin/tags/{id}: admin deletes tag.
 func TestTag_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_tag_del")
 	suffix := uuid.New().String()[:8]
@@ -106,8 +106,8 @@ func TestTag_Delete_Success(t *testing.T) {
 // DELETE /admin/tags/{id}: non-admin gets 403.
 func TestTag_Delete_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_tag_del_f")
 	suffix := uuid.New().String()[:8]

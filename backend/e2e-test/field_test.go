@@ -4,16 +4,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /fields: returns created fields for entity_type.
 func TestField_GetFields_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_fields_list")
 
@@ -39,8 +39,8 @@ func TestField_GetFields_Success(t *testing.T) {
 // POST /admin/fields: non-admin gets 403.
 func TestField_Create_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("field_user_" + suffix)
@@ -51,8 +51,8 @@ func TestField_Create_Forbidden(t *testing.T) {
 // PUT /admin/fields/{id}: admin updates field.
 func TestField_Update_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_field_upd")
 	suffix := uuid.New().String()[:8]
@@ -76,8 +76,8 @@ func TestField_Update_Success(t *testing.T) {
 // DELETE /admin/fields/{id}: admin deletes field.
 func TestField_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_field_del")
 	suffix := uuid.New().String()[:8]

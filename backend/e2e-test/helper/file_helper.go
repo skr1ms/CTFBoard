@@ -6,8 +6,9 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,9 +58,7 @@ func (h *E2EHelper) GetFileDownloadURL(token, fileID string) string {
 	h.t.Helper()
 	resp := h.GetFilesIDDownloadExpectStatus(token, fileID, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
-	url, ok := (*resp.JSON200)["url"]
-	require.True(h.t, ok, "url key in response")
-	return url
+	return resp.JSON200.URL
 }
 
 func (h *E2EHelper) GetFilesIDDownloadExpectStatus(token, fileID string, expectStatus int) *openapi.GetFilesIDDownloadResponse {
@@ -70,11 +69,21 @@ func (h *E2EHelper) GetFilesIDDownloadExpectStatus(token, fileID string, expectS
 	return resp
 }
 
-func (h *E2EHelper) DownloadFileContent(token, url string) string {
+func (h *E2EHelper) DownloadFileContent(token, rawURL string) string {
 	h.t.Helper()
-	downloadURL := url
+	downloadURL := rawURL
 	if len(downloadURL) > 0 && downloadURL[0] == '/' {
 		downloadURL = h.baseURL + downloadURL
+	} else {
+		parsed, err := url.Parse(downloadURL)
+		if err == nil {
+			baseParsed, err2 := url.Parse(h.baseURL)
+			if err2 == nil {
+				parsed.Scheme = baseParsed.Scheme
+				parsed.Host = baseParsed.Host
+				downloadURL = parsed.String()
+			}
+		}
 	}
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, downloadURL, nil)
 	require.NoError(h.t, err)

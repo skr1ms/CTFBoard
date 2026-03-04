@@ -6,14 +6,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRequireVerified_Disabled_Success(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(RequireVerified(false))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -26,6 +27,7 @@ func TestRequireVerified_Disabled_Success(t *testing.T) {
 }
 
 func TestRequireVerified_NoUser_Error(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(RequireVerified(true))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -38,6 +40,7 @@ func TestRequireVerified_NoUser_Error(t *testing.T) {
 }
 
 func TestRequireVerified_Admin_Success(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +60,7 @@ func TestRequireVerified_Admin_Success(t *testing.T) {
 }
 
 func TestRequireVerified_Unverified_Error(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +80,7 @@ func TestRequireVerified_Unverified_Error(t *testing.T) {
 }
 
 func TestRequireVerified_Verified_Success(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,103 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+    interfaces:
+      CompetitionRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "CompetitionRepository.go"
+          pkgname: "mocks"
+          structname: "MockCompetitionRepository"
+
+      ChallengeRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "ChallengeRepository.go"
+          pkgname: "mocks"
+          structname: "MockChallengeRepository"
+
+      HintRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "HintRepository.go"
+          pkgname: "mocks"
+          structname: "MockHintRepository"
+
+      TeamRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "TeamRepository.go"
+          pkgname: "mocks"
+          structname: "MockTeamRepository"
+
+      UserRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
+      AwardRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "AwardRepository.go"
+          pkgname: "mocks"
+          structname: "MockAwardRepository"
+
+      SolveRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "SolveRepository.go"
+          pkgname: "mocks"
+          structname: "MockSolveRepository"
+
+      SubmissionRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "SubmissionRepository.go"
+          pkgname: "mocks"
+          structname: "MockSubmissionRepository"
+
+      FileRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "FileRepository.go"
+          pkgname: "mocks"
+          structname: "MockFileRepository"
+
+      BackupRepository:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "BackupRepository.go"
+          pkgname: "mocks"
+          structname: "MockBackupRepository"
+
+      TransactionManager:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "TransactionManager.go"
+          pkgname: "mocks"
+          structname: "MockTransactionManager"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
+    interfaces:
+      Provider:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "StorageProvider.go"
+          pkgname: "mocks"
+          structname: "MockStorageProvider"
+
+  github.com/TakuyaYagam1/AstroCTFb/pkg/logger:
+    interfaces:
+      Logger:
+        config:
+          dir: "internal/usecase/backup/mocks"
+          filename: "Logger.go"
+          pkgname: "mocks"
+          structname: "MockLogger"

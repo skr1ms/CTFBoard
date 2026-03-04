@@ -5,28 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // POST /challenges/{challengeID}/comments + GET /challenges/{challengeID}/comments: allowed only after competition ended.
 func TestComment_CreateAndList_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	// Sequential: mutates global competition state; parallel tests could repopulate Redis cache with "active".
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, tokenAdmin := h.SetupCompetition("admin_comments_ok")
-
+	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_ok_" + uuid.New().String()[:8])
+	t.Cleanup(resetCompetitionToActive)
 	now := time.Now().UTC()
-	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":              "Test CTF",
-		"start_time":        now.Add(-2 * time.Hour).Format(time.RFC3339),
-		"end_time":          now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"is_paused":         false,
-		"allow_team_switch": true,
-		"mode":              "flexible",
-	})
+	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
 
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Challenge", "FLAG{comment}", 100)
 
@@ -53,8 +46,8 @@ func TestComment_CreateAndList_Success(t *testing.T) {
 // POST /challenges/{challengeID}/comments: while competition active returns 403.
 func TestComment_Create_Forbidden_WhenActive(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_comments_forbid")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Challenge 2", "FLAG{comment2}", 100)
@@ -68,19 +61,13 @@ func TestComment_Create_Forbidden_WhenActive(t *testing.T) {
 // DELETE /comments/{id}: author deletes own comment.
 func TestComment_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	// Sequential: mutates global competition state.
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, tokenAdmin := h.SetupCompetition("admin_comments_del")
+	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_del_" + uuid.New().String()[:8])
+	t.Cleanup(resetCompetitionToActive)
 	now := time.Now().UTC()
-	h.UpdateCompetition(tokenAdmin, map[string]any{
-		"name":              "Test CTF",
-		"start_time":        now.Add(-2 * time.Hour).Format(time.RFC3339),
-		"end_time":          now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"is_paused":         false,
-		"allow_team_switch": true,
-		"mode":              "flexible",
-	})
+	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Del Ch", "FLAG{del}", 100)
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_del_user_" + suffix)
@@ -94,8 +81,8 @@ func TestComment_Delete_Success(t *testing.T) {
 // DELETE /comments/{id}: wrong id returns 404 or 403 (comments disabled during active competition).
 func TestComment_Delete_NotFound(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_del_nf_" + suffix)

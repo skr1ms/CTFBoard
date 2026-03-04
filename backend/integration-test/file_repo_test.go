@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFileRepo_Create(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -36,6 +37,7 @@ func TestFileRepo_Create(t *testing.T) {
 }
 
 func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -55,6 +57,7 @@ func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
 }
 
 func TestFileRepo_GetByID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -81,17 +84,19 @@ func TestFileRepo_GetByID(t *testing.T) {
 }
 
 func TestFileRepo_GetByID_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	got, err := f.FileRepo.GetByID(ctx, uuid.New())
-	assert.ErrorIs(t, err, entityError.ErrFileNotFound)
+	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
 	assert.Nil(t, got)
 }
 
 func TestFileRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -107,10 +112,16 @@ func TestFileRepo_GetAll_Success(t *testing.T) {
 
 	files, err := f.FileRepo.GetAll(ctx)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(files), 2)
+	ids := make(map[uuid.UUID]bool)
+	for _, fl := range files {
+		ids[fl.ID] = true
+	}
+	assert.True(t, ids[f1.ID], "file 1 should be in GetAll result")
+	assert.True(t, ids[f2.ID], "file 2 should be in GetAll result")
 }
 
 func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -124,6 +135,7 @@ func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestFileRepo_GetByChallengeID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -143,6 +155,7 @@ func TestFileRepo_GetByChallengeID(t *testing.T) {
 }
 
 func TestFileRepo_GetByChallengeID_Empty(t *testing.T) {
+	t.Parallel()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -155,6 +168,7 @@ func TestFileRepo_GetByChallengeID_Empty(t *testing.T) {
 }
 
 func TestFileRepo_Delete(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -168,15 +182,16 @@ func TestFileRepo_Delete(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = f.FileRepo.GetByID(ctx, file.ID)
-	assert.ErrorIs(t, err, entityError.ErrFileNotFound)
+	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
 }
 
 func TestFileRepo_Delete_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	err := f.FileRepo.Delete(ctx, uuid.New())
-	assert.ErrorIs(t, err, entityError.ErrFileNotFound)
+	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
 }

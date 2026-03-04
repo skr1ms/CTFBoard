@@ -11,6 +11,7 @@ import (
 )
 
 func TestRenderJSON_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 	data := map[string]string{"key": "value"}
@@ -24,6 +25,7 @@ func TestRenderJSON_Success(t *testing.T) {
 }
 
 func TestRenderJSON_ErrorStatus(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -33,6 +35,7 @@ func TestRenderJSON_ErrorStatus(t *testing.T) {
 }
 
 func TestRenderNoContent_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -43,6 +46,7 @@ func TestRenderNoContent_Success(t *testing.T) {
 }
 
 func TestRenderCreated_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", nil)
 	data := map[string]int{"id": 1}
@@ -56,6 +60,7 @@ func TestRenderCreated_Success(t *testing.T) {
 }
 
 func TestRenderOK_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 	data := map[string]bool{"ok": true}
@@ -69,6 +74,7 @@ func TestRenderOK_Success(t *testing.T) {
 }
 
 func TestRenderError_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -77,10 +83,11 @@ func TestRenderError_Success(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	var body map[string]string
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-	assert.Equal(t, "not found", body["error"])
+	assert.Equal(t, "not found", body["message"])
 }
 
 func TestRenderError_Error(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 	RenderError(w, r, http.StatusInternalServerError, "internal")
@@ -88,6 +95,7 @@ func TestRenderError_Error(t *testing.T) {
 }
 
 func TestRenderErrorWithCode_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -96,11 +104,12 @@ func TestRenderErrorWithCode_Success(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	var body map[string]any
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-	assert.Equal(t, "invalid", body["error"])
+	assert.Equal(t, "invalid", body["message"])
 	assert.Equal(t, "INVALID_REQUEST", body["code"])
 }
 
 func TestRenderErrorWithCode_Error(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 	RenderErrorWithCode(w, r, http.StatusForbidden, "forbidden", "FORBIDDEN")
@@ -108,6 +117,7 @@ func TestRenderErrorWithCode_Error(t *testing.T) {
 }
 
 func TestRenderInvalidID_Success(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -116,5 +126,5 @@ func TestRenderInvalidID_Success(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	var body map[string]string
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-	assert.Equal(t, "invalid ID", body["error"])
+	assert.Equal(t, "invalid ID", body["message"])
 }

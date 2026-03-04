@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestTagUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -31,6 +32,7 @@ func TestTagUseCase_Create_Success(t *testing.T) {
 }
 
 func TestTagUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -46,6 +48,7 @@ func TestTagUseCase_Create_Error(t *testing.T) {
 }
 
 func TestTagUseCase_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -64,6 +67,7 @@ func TestTagUseCase_GetByID_Success(t *testing.T) {
 }
 
 func TestTagUseCase_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -79,6 +83,7 @@ func TestTagUseCase_GetByID_Error(t *testing.T) {
 }
 
 func TestTagUseCase_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -94,6 +99,7 @@ func TestTagUseCase_GetAll_Success(t *testing.T) {
 }
 
 func TestTagUseCase_GetAll_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -108,6 +114,7 @@ func TestTagUseCase_GetAll_Error(t *testing.T) {
 }
 
 func TestTagUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -130,6 +137,7 @@ func TestTagUseCase_Update_Success(t *testing.T) {
 }
 
 func TestTagUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -145,6 +153,7 @@ func TestTagUseCase_Update_Error(t *testing.T) {
 }
 
 func TestTagUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -159,6 +168,7 @@ func TestTagUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestTagUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewChallengeTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()

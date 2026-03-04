@@ -4,19 +4,24 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestBracketUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	name, desc := "bracket1", "desc"
 	isDefault := true
 
+	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	deps.bracketRepo.EXPECT().ClearAllDefaults(mock.Anything).Return(nil).Once()
 	deps.bracketRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *entity.Bracket) {
 		assert.Equal(t, name, b.Name)
 		assert.Equal(t, desc, b.Description)
@@ -31,12 +36,35 @@ func TestBracketUseCase_Create_Success(t *testing.T) {
 	assert.Equal(t, name, got.Name)
 }
 
-func TestBracketUseCase_Create_Error(t *testing.T) {
+func TestBracketUseCase_Create_NotDefault_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	name, desc := "bracket1", "desc"
 
+	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	deps.bracketRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+
+	uc := h.CreateBracketUseCase()
+	got, err := uc.Create(ctx, name, desc, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+}
+
+func TestBracketUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
+	h := NewCompetitionTestHelper(t)
+	deps := h.Deps()
+	ctx := context.Background()
+	name, desc := "bracket1", "desc"
+
+	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
 	deps.bracketRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := h.CreateBracketUseCase()
@@ -47,6 +75,7 @@ func TestBracketUseCase_Create_Error(t *testing.T) {
 }
 
 func TestBracketUseCase_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -64,6 +93,7 @@ func TestBracketUseCase_GetByID_Success(t *testing.T) {
 }
 
 func TestBracketUseCase_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -79,6 +109,7 @@ func TestBracketUseCase_GetByID_Error(t *testing.T) {
 }
 
 func TestBracketUseCase_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -94,6 +125,7 @@ func TestBracketUseCase_GetAll_Success(t *testing.T) {
 }
 
 func TestBracketUseCase_GetAll_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -108,6 +140,7 @@ func TestBracketUseCase_GetAll_Error(t *testing.T) {
 }
 
 func TestBracketUseCase_Update_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -117,7 +150,11 @@ func TestBracketUseCase_Update_Success(t *testing.T) {
 	name, desc := "new", "newd"
 	isDefault := true
 
+	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
 	deps.bracketRepo.EXPECT().GetByID(mock.Anything, id).Return(bracket, nil)
+	deps.bracketRepo.EXPECT().ClearAllDefaults(mock.Anything).Return(nil).Once()
 	deps.bracketRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *entity.Bracket) {
 		assert.Equal(t, name, b.Name)
 		assert.Equal(t, desc, b.Description)
@@ -132,11 +169,15 @@ func TestBracketUseCase_Update_Success(t *testing.T) {
 }
 
 func TestBracketUseCase_Update_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
 	id := uuid.New()
 
+	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
 	deps.bracketRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
 
 	uc := h.CreateBracketUseCase()
@@ -147,6 +188,7 @@ func TestBracketUseCase_Update_Error(t *testing.T) {
 }
 
 func TestBracketUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -161,6 +203,7 @@ func TestBracketUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestBracketUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewCompetitionTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()

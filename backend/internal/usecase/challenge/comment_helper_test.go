@@ -1,13 +1,13 @@
 package challenge
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 func (h *ChallengeTestHelper) CreateCommentUseCase() *CommentUseCase {
 	h.t.Helper()
-	return NewCommentUseCase(h.deps.commentRepo, h.deps.challengeRepo)
+	return NewCommentUseCase(CommentDeps{CommentRepo: h.deps.commentRepo, ChallengeRepo: h.deps.challengeRepo})
 }
 
 func (h *ChallengeTestHelper) NewComment(userID, challengeID uuid.UUID, content string) *entity.Comment {

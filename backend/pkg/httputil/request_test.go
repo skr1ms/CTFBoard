@@ -7,13 +7,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/pkg/logger"
-	"github.com/skr1ms/CTFBoard/pkg/validator"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDecodeJSON_Success(t *testing.T) {
+	t.Parallel()
 	body := map[string]string{"key": "value"}
 	jsonBody, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -25,6 +26,7 @@ func TestDecodeJSON_Success(t *testing.T) {
 }
 
 func TestDecodeJSON_Error(t *testing.T) {
+	t.Parallel()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("invalid json")))
 	var result map[string]string
 	err := DecodeJSON(r, &result)
@@ -32,6 +34,7 @@ func TestDecodeJSON_Error(t *testing.T) {
 }
 
 func TestDecodeAndValidate_Success(t *testing.T) {
+	t.Parallel()
 	type Req struct {
 		Name string `validate:"not_empty"`
 	}
@@ -40,7 +43,8 @@ func TestDecodeAndValidate_Success(t *testing.T) {
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	v := validator.New()
+	v, err := validator.New()
+	require.NoError(t, err)
 	l := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
 	got, ok := DecodeAndValidate[Req](w, r, v, l, "test")
 	require.True(t, ok)
@@ -48,9 +52,11 @@ func TestDecodeAndValidate_Success(t *testing.T) {
 }
 
 func TestDecodeAndValidate_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("{")))
-	v := validator.New()
+	v, err := validator.New()
+	require.NoError(t, err)
 	l := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
 	_, ok := DecodeAndValidate[struct {
 		Name string `validate:"not_empty"`
@@ -60,6 +66,7 @@ func TestDecodeAndValidate_InvalidJSON(t *testing.T) {
 }
 
 func TestDecodeAndValidate_ValidationError(t *testing.T) {
+	t.Parallel()
 	type Req struct {
 		Name string `validate:"not_empty"`
 	}
@@ -68,7 +75,8 @@ func TestDecodeAndValidate_ValidationError(t *testing.T) {
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	v := validator.New()
+	v, err := validator.New()
+	require.NoError(t, err)
 	l := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
 	_, ok := DecodeAndValidate[Req](w, r, v, l, "test")
 	assert.False(t, ok)

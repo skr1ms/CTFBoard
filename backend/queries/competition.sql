@@ -17,5 +17,5 @@ UPDATE competition SET
     allow_team_switch = $9,
     min_team_size = $10,
     max_team_size = $11,
-    updated_at = $12
+    updated_at = NOW()
 WHERE id = 1;

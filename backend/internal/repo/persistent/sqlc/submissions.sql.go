@@ -28,12 +28,34 @@ SELECT COUNT(*) FROM submissions WHERE ip = $1 AND is_correct = FALSE AND create
 `
 
 type CountFailedSubmissionsByIPParams struct {
-	Ip        *string    `json:"ip"`
+	IP        *string    `json:"ip"`
 	CreatedAt *time.Time `json:"created_at"`
 }
 
 func (q *Queries) CountFailedSubmissionsByIP(ctx context.Context, arg CountFailedSubmissionsByIPParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countFailedSubmissionsByIP, arg.Ip, arg.CreatedAt)
+	row := q.db.QueryRow(ctx, countFailedSubmissionsByIP, arg.IP, arg.CreatedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countFailsByTeamID = `-- name: CountFailsByTeamID :one
+SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND is_correct = FALSE
+`
+
+func (q *Queries) CountFailsByTeamID(ctx context.Context, teamID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countFailsByTeamID, teamID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countFailsByUserID = `-- name: CountFailsByUserID :one
+SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND is_correct = FALSE
+`
+
+func (q *Queries) CountFailsByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countFailsByUserID, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -84,7 +106,7 @@ type CreateSubmissionParams struct {
 	ChallengeID   uuid.UUID  `json:"challenge_id"`
 	SubmittedFlag string     `json:"submitted_flag"`
 	IsCorrect     bool       `json:"is_correct"`
-	Ip            *string    `json:"ip"`
+	IP            *string    `json:"ip"`
 	CreatedAt     *time.Time `json:"created_at"`
 }
 
@@ -96,9 +118,27 @@ func (q *Queries) CreateSubmission(ctx context.Context, arg CreateSubmissionPara
 		arg.ChallengeID,
 		arg.SubmittedFlag,
 		arg.IsCorrect,
-		arg.Ip,
+		arg.IP,
 		arg.CreatedAt,
 	)
+	return err
+}
+
+const deleteSubmission = `-- name: DeleteSubmission :exec
+DELETE FROM submissions WHERE id = $1
+`
+
+func (q *Queries) DeleteSubmission(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSubmission, id)
+	return err
+}
+
+const deleteSubmissionsByTeamID = `-- name: DeleteSubmissionsByTeamID :exec
+DELETE FROM submissions WHERE team_id = $1
+`
+
+func (q *Queries) DeleteSubmissionsByTeamID(ctx context.Context, teamID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSubmissionsByTeamID, teamID)
 	return err
 }
 
@@ -125,7 +165,7 @@ type GetAllSubmissionsRow struct {
 	ChallengeID       uuid.UUID  `json:"challenge_id"`
 	SubmittedFlag     string     `json:"submitted_flag"`
 	IsCorrect         bool       `json:"is_correct"`
-	Ip                *string    `json:"ip"`
+	IP                *string    `json:"ip"`
 	CreatedAt         *time.Time `json:"created_at"`
 	Username          string     `json:"username"`
 	TeamName          string     `json:"team_name"`
@@ -149,7 +189,7 @@ func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsPa
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
-			&i.Ip,
+			&i.IP,
 			&i.CreatedAt,
 			&i.Username,
 			&i.TeamName,
@@ -164,6 +204,197 @@ func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const getFailsByTeamID = `-- name: GetFailsByTeamID :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+       u.username, c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN users u ON u.id = s.user_id
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.team_id = $1 AND s.is_correct = FALSE
+ORDER BY s.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetFailsByTeamIDParams struct {
+	TeamID *uuid.UUID `json:"team_id"`
+	Limit  int32      `json:"limit"`
+	Offset int32      `json:"offset"`
+}
+
+type GetFailsByTeamIDRow struct {
+	ID                uuid.UUID  `json:"id"`
+	UserID            uuid.UUID  `json:"user_id"`
+	TeamID            *uuid.UUID `json:"team_id"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	SubmittedFlag     string     `json:"submitted_flag"`
+	IsCorrect         bool       `json:"is_correct"`
+	IP                *string    `json:"ip"`
+	CreatedAt         *time.Time `json:"created_at"`
+	Username          string     `json:"username"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory *string    `json:"challenge_category"`
+}
+
+func (q *Queries) GetFailsByTeamID(ctx context.Context, arg GetFailsByTeamIDParams) ([]GetFailsByTeamIDRow, error) {
+	rows, err := q.db.Query(ctx, getFailsByTeamID, arg.TeamID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFailsByTeamIDRow
+	for rows.Next() {
+		var i GetFailsByTeamIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TeamID,
+			&i.ChallengeID,
+			&i.SubmittedFlag,
+			&i.IsCorrect,
+			&i.IP,
+			&i.CreatedAt,
+			&i.Username,
+			&i.ChallengeTitle,
+			&i.ChallengeCategory,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFailsByUserID = `-- name: GetFailsByUserID :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+       c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.user_id = $1 AND s.is_correct = FALSE
+ORDER BY s.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetFailsByUserIDParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+}
+
+type GetFailsByUserIDRow struct {
+	ID                uuid.UUID  `json:"id"`
+	UserID            uuid.UUID  `json:"user_id"`
+	TeamID            *uuid.UUID `json:"team_id"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	SubmittedFlag     string     `json:"submitted_flag"`
+	IsCorrect         bool       `json:"is_correct"`
+	IP                *string    `json:"ip"`
+	CreatedAt         *time.Time `json:"created_at"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory *string    `json:"challenge_category"`
+}
+
+func (q *Queries) GetFailsByUserID(ctx context.Context, arg GetFailsByUserIDParams) ([]GetFailsByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getFailsByUserID, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFailsByUserIDRow
+	for rows.Next() {
+		var i GetFailsByUserIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TeamID,
+			&i.ChallengeID,
+			&i.SubmittedFlag,
+			&i.IsCorrect,
+			&i.IP,
+			&i.CreatedAt,
+			&i.ChallengeTitle,
+			&i.ChallengeCategory,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSubmissionByID = `-- name: GetSubmissionByID :one
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+    u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN users u ON u.id = s.user_id
+LEFT JOIN teams t ON t.id = s.team_id
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.id = $1
+`
+
+type GetSubmissionByIDRow struct {
+	ID                uuid.UUID  `json:"id"`
+	UserID            uuid.UUID  `json:"user_id"`
+	TeamID            *uuid.UUID `json:"team_id"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	SubmittedFlag     string     `json:"submitted_flag"`
+	IsCorrect         bool       `json:"is_correct"`
+	IP                *string    `json:"ip"`
+	CreatedAt         *time.Time `json:"created_at"`
+	Username          string     `json:"username"`
+	TeamName          string     `json:"team_name"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory *string    `json:"challenge_category"`
+}
+
+func (q *Queries) GetSubmissionByID(ctx context.Context, id uuid.UUID) (GetSubmissionByIDRow, error) {
+	row := q.db.QueryRow(ctx, getSubmissionByID, id)
+	var i GetSubmissionByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TeamID,
+		&i.ChallengeID,
+		&i.SubmittedFlag,
+		&i.IsCorrect,
+		&i.IP,
+		&i.CreatedAt,
+		&i.Username,
+		&i.TeamName,
+		&i.ChallengeTitle,
+		&i.ChallengeCategory,
+	)
+	return i, err
+}
+
+const getSubmissionByIDForUpdate = `-- name: GetSubmissionByIDForUpdate :one
+SELECT id, user_id, team_id, challenge_id, submitted_flag, is_correct, ip, created_at
+FROM submissions
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetSubmissionByIDForUpdate(ctx context.Context, id uuid.UUID) (Submission, error) {
+	row := q.db.QueryRow(ctx, getSubmissionByIDForUpdate, id)
+	var i Submission
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TeamID,
+		&i.ChallengeID,
+		&i.SubmittedFlag,
+		&i.IsCorrect,
+		&i.IP,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getSubmissionStats = `-- name: GetSubmissionStats :one
@@ -212,7 +443,7 @@ type GetSubmissionsByChallengeRow struct {
 	ChallengeID   uuid.UUID  `json:"challenge_id"`
 	SubmittedFlag string     `json:"submitted_flag"`
 	IsCorrect     bool       `json:"is_correct"`
-	Ip            *string    `json:"ip"`
+	IP            *string    `json:"ip"`
 	CreatedAt     *time.Time `json:"created_at"`
 	Username      string     `json:"username"`
 	TeamName      string     `json:"team_name"`
@@ -234,7 +465,7 @@ func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissi
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
-			&i.Ip,
+			&i.IP,
 			&i.CreatedAt,
 			&i.Username,
 			&i.TeamName,
@@ -273,7 +504,7 @@ type GetSubmissionsByTeamRow struct {
 	ChallengeID       uuid.UUID  `json:"challenge_id"`
 	SubmittedFlag     string     `json:"submitted_flag"`
 	IsCorrect         bool       `json:"is_correct"`
-	Ip                *string    `json:"ip"`
+	IP                *string    `json:"ip"`
 	CreatedAt         *time.Time `json:"created_at"`
 	Username          string     `json:"username"`
 	ChallengeTitle    string     `json:"challenge_title"`
@@ -296,7 +527,7 @@ func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsBy
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
-			&i.Ip,
+			&i.IP,
 			&i.CreatedAt,
 			&i.Username,
 			&i.ChallengeTitle,
@@ -335,7 +566,7 @@ type GetSubmissionsByUserRow struct {
 	ChallengeID       uuid.UUID  `json:"challenge_id"`
 	SubmittedFlag     string     `json:"submitted_flag"`
 	IsCorrect         bool       `json:"is_correct"`
-	Ip                *string    `json:"ip"`
+	IP                *string    `json:"ip"`
 	CreatedAt         *time.Time `json:"created_at"`
 	ChallengeTitle    string     `json:"challenge_title"`
 	ChallengeCategory *string    `json:"challenge_category"`
@@ -357,7 +588,7 @@ func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsBy
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
-			&i.Ip,
+			&i.IP,
 			&i.CreatedAt,
 			&i.ChallengeTitle,
 			&i.ChallengeCategory,
@@ -370,4 +601,18 @@ func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsBy
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateSubmission = `-- name: UpdateSubmission :exec
+UPDATE submissions SET is_correct = $2 WHERE id = $1
+`
+
+type UpdateSubmissionParams struct {
+	ID        uuid.UUID `json:"id"`
+	IsCorrect bool      `json:"is_correct"`
+}
+
+func (q *Queries) UpdateSubmission(ctx context.Context, arg UpdateSubmissionParams) error {
+	_, err := q.db.Exec(ctx, updateSubmission, arg.ID, arg.IsCorrect)
+	return err
 }

@@ -63,3 +63,52 @@ SELECT
     COUNT(*) FILTER (WHERE is_correct = FALSE) AS incorrect
 FROM submissions
 WHERE challenge_id = $1;
+
+-- name: GetFailsByUserID :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+       c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.user_id = $1 AND s.is_correct = FALSE
+ORDER BY s.created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountFailsByUserID :one
+SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND is_correct = FALSE;
+
+-- name: GetFailsByTeamID :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+       u.username, c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN users u ON u.id = s.user_id
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.team_id = $1 AND s.is_correct = FALSE
+ORDER BY s.created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: GetSubmissionByID :one
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at,
+    u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
+FROM submissions s
+JOIN users u ON u.id = s.user_id
+LEFT JOIN teams t ON t.id = s.team_id
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.id = $1;
+
+-- name: GetSubmissionByIDForUpdate :one
+SELECT id, user_id, team_id, challenge_id, submitted_flag, is_correct, ip, created_at
+FROM submissions
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdateSubmission :exec
+UPDATE submissions SET is_correct = $2 WHERE id = $1;
+
+-- name: DeleteSubmission :exec
+DELETE FROM submissions WHERE id = $1;
+
+-- name: DeleteSubmissionsByTeamID :exec
+DELETE FROM submissions WHERE team_id = $1;
+
+-- name: CountFailsByTeamID :one
+SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND is_correct = FALSE;

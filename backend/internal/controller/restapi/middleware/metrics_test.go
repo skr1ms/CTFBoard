@@ -11,6 +11,7 @@ import (
 )
 
 func TestMetrics_Success(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(Metrics)
 	r.Get("/ok", func(w http.ResponseWriter, _ *http.Request) {
@@ -25,6 +26,7 @@ func TestMetrics_Success(t *testing.T) {
 }
 
 func TestMetrics_NotFound(t *testing.T) {
+	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(Metrics)
 	r.Get("/ok", func(w http.ResponseWriter, _ *http.Request) {

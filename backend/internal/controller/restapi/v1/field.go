@@ -3,10 +3,11 @@ package v1
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/response"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Get custom fields
@@ -26,25 +27,18 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 // Create field
 // (POST /admin/fields)
 func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestCreateFieldRequest](w, r, h.infra.Validator, h.infra.Logger, "PostAdminFields")
+	req, ok := helper.DecodeAndValidate[openapi.CreateFieldRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PostAdminFields",
+	)
 	if !ok {
 		return
 	}
-	fieldType := entity.FieldType(req.FieldType)
-	entityType := entity.EntityType(req.EntityType)
-	required := false
-	if req.Required != nil {
-		required = *req.Required
+	name, fieldType, entityType, required, options, orderIndex, err := request.CreateFieldRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, helper.NewValidationErrorf("%s", err.Error()), "PostAdminFields", "CreateFieldRequestToParams")
+		return
 	}
-	var options []string
-	if req.Options != nil {
-		options = *req.Options
-	}
-	orderIndex := 0
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	field, err := h.admin.FieldUC.Create(r.Context(), req.Name, fieldType, entityType, required, options, orderIndex)
+	field, err := h.admin.FieldUC.Create(r.Context(), name, fieldType, entityType, required, options, orderIndex)
 	if h.OnError(w, r, err, "PostAdminFields", "Create") {
 		return
 	}
@@ -53,29 +47,23 @@ func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 
 // Update field
 // (PUT /admin/fields/{ID})
-func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id string) {
-	fieldID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, ID string) {
+	fieldIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.RequestUpdateFieldRequest](w, r, h.infra.Validator, h.infra.Logger, "PutAdminFieldsID")
+	req, ok := helper.DecodeAndValidate[openapi.UpdateFieldRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminFieldsID",
+	)
 	if !ok {
 		return
 	}
-	fieldType := entity.FieldType(req.FieldType)
-	required := false
-	if req.Required != nil {
-		required = *req.Required
+	name, fieldType, required, options, orderIndex, err := request.UpdateFieldRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, helper.NewValidationErrorf("%s", err.Error()), "PutAdminFieldsID", "UpdateFieldRequestToParams")
+		return
 	}
-	var options []string
-	if req.Options != nil {
-		options = *req.Options
-	}
-	orderIndex := 0
-	if req.OrderIndex != nil {
-		orderIndex = *req.OrderIndex
-	}
-	field, err := h.admin.FieldUC.Update(r.Context(), fieldID, req.Name, fieldType, required, options, orderIndex)
+	field, err := h.admin.FieldUC.Update(r.Context(), fieldIDParsed, name, fieldType, required, options, orderIndex)
 	if h.OnError(w, r, err, "PutAdminFieldsID", "Update") {
 		return
 	}
@@ -84,12 +72,12 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, id str
 
 // Delete field
 // (DELETE /admin/fields/{ID})
-func (h *Server) DeleteAdminFieldsID(w http.ResponseWriter, r *http.Request, id string) {
-	fieldID, ok := helper.ParseUUID(w, r, id)
+func (h *Server) DeleteAdminFieldsID(w http.ResponseWriter, r *http.Request, ID string) {
+	fieldIDParsed, ok := helper.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.admin.FieldUC.Delete(r.Context(), fieldID), "DeleteAdminFieldsID", "Delete") {
+	if h.OnError(w, r, h.admin.FieldUC.Delete(r.Context(), fieldIDParsed), "DeleteAdminFieldsID", "Delete") {
 		return
 	}
 	helper.RenderNoContent(w, r)

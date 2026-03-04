@@ -1,17 +1,11 @@
 package request
 
-import "github.com/skr1ms/CTFBoard/internal/openapi"
+import "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 
-func ForgotPasswordRequestEmail(req *openapi.RequestForgotPasswordRequest) string {
-	if req.Email != nil {
-		return *req.Email
-	}
-	return ""
+func ForgotPasswordRequestToParams(req *openapi.ForgotPasswordRequest) string {
+	return req.Email
 }
 
-func ResetPasswordRequestParams(req *openapi.RequestResetPasswordRequest) (token, newPassword string) {
-	if req.NewPassword != nil {
-		newPassword = *req.NewPassword
-	}
-	return req.Token, newPassword
+func ResetPasswordRequestToParams(req *openapi.ResetPasswordRequest) (token, newPassword string) {
+	return req.Token, req.NewPassword
 }

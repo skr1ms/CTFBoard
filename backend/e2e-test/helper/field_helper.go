@@ -3,7 +3,7 @@ package helper
 import (
 	"context"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,8 +18,8 @@ func (h *E2EHelper) GetFields(entityType string, expectStatus int) *openapi.GetF
 
 func (h *E2EHelper) CreateField(token, name, fieldType, entityType string, required bool, expectStatus int) *openapi.PostAdminFieldsResponse {
 	h.t.Helper()
-	ft := openapi.RequestCreateFieldRequestFieldType(fieldType)
-	et := openapi.RequestCreateFieldRequestEntityType(entityType)
+	ft := openapi.CreateFieldRequestFieldType(fieldType)
+	et := openapi.CreateFieldRequestEntityType(entityType)
 	resp, err := h.client.PostAdminFieldsWithResponse(context.Background(), openapi.PostAdminFieldsJSONRequestBody{
 		Name:       name,
 		FieldType:  ft,
@@ -41,7 +41,7 @@ func (h *E2EHelper) DeleteField(token, id string, expectStatus int) *openapi.Del
 
 func (h *E2EHelper) UpdateField(token, id, name, fieldType string, required bool, expectStatus int) *openapi.PutAdminFieldsIDResponse {
 	h.t.Helper()
-	ft := openapi.RequestUpdateFieldRequestFieldType(fieldType)
+	ft := openapi.UpdateFieldRequestFieldType(fieldType)
 	resp, err := h.client.PutAdminFieldsIDWithResponse(context.Background(), id, openapi.PutAdminFieldsIDJSONRequestBody{
 		Name:      name,
 		FieldType: ft,

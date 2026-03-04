@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockTeamRepository creates a new instance of MockTeamRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -38,6 +39,63 @@ type MockTeamRepository_Expecter struct {
 
 func (_m *MockTeamRepository) EXPECT() *MockTeamRepository_Expecter {
 	return &MockTeamRepository_Expecter{mock: &_m.Mock}
+}
+
+// AcquireAdvisoryLock provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
+	ret := _mock.Called(ctx, lockKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcquireAdvisoryLock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, lockKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_AcquireAdvisoryLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireAdvisoryLock'
+type MockTeamRepository_AcquireAdvisoryLock_Call struct {
+	*mock.Call
+}
+
+// AcquireAdvisoryLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - lockKey int64
+func (_e *MockTeamRepository_Expecter) AcquireAdvisoryLock(ctx interface{}, lockKey interface{}) *MockTeamRepository_AcquireAdvisoryLock_Call {
+	return &MockTeamRepository_AcquireAdvisoryLock_Call{Call: _e.mock.On("AcquireAdvisoryLock", ctx, lockKey)}
+}
+
+func (_c *MockTeamRepository_AcquireAdvisoryLock_Call) Run(run func(ctx context.Context, lockKey int64)) *MockTeamRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_AcquireAdvisoryLock_Call) Return(err error) *MockTeamRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_AcquireAdvisoryLock_Call) RunAndReturn(run func(ctx context.Context, lockKey int64) error) *MockTeamRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Ban provides a mock function for the type MockTeamRepository
@@ -99,6 +157,198 @@ func (_c *MockTeamRepository_Ban_Call) Return(err error) *MockTeamRepository_Ban
 }
 
 func (_c *MockTeamRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, reason string) error) *MockTeamRepository_Ban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountActiveTeams provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) CountActiveTeams(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountActiveTeams")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_CountActiveTeams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountActiveTeams'
+type MockTeamRepository_CountActiveTeams_Call struct {
+	*mock.Call
+}
+
+// CountActiveTeams is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockTeamRepository_Expecter) CountActiveTeams(ctx interface{}) *MockTeamRepository_CountActiveTeams_Call {
+	return &MockTeamRepository_CountActiveTeams_Call{Call: _e.mock.On("CountActiveTeams", ctx)}
+}
+
+func (_c *MockTeamRepository_CountActiveTeams_Call) Run(run func(ctx context.Context)) *MockTeamRepository_CountActiveTeams_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_CountActiveTeams_Call) Return(n int, err error) *MockTeamRepository_CountActiveTeams_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_CountActiveTeams_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockTeamRepository_CountActiveTeams_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearch provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) CountSearch(ctx context.Context, search *string) (int64, error) {
+	ret := _mock.Called(ctx, search)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearch")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) (int64, error)); ok {
+		return returnFunc(ctx, search)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) int64); ok {
+		r0 = returnFunc(ctx, search)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string) error); ok {
+		r1 = returnFunc(ctx, search)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_CountSearch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearch'
+type MockTeamRepository_CountSearch_Call struct {
+	*mock.Call
+}
+
+// CountSearch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+func (_e *MockTeamRepository_Expecter) CountSearch(ctx interface{}, search interface{}) *MockTeamRepository_CountSearch_Call {
+	return &MockTeamRepository_CountSearch_Call{Call: _e.mock.On("CountSearch", ctx, search)}
+}
+
+func (_c *MockTeamRepository_CountSearch_Call) Run(run func(ctx context.Context, search *string)) *MockTeamRepository_CountSearch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_CountSearch_Call) Return(n int64, err error) *MockTeamRepository_CountSearch_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_CountSearch_Call) RunAndReturn(run func(ctx context.Context, search *string) (int64, error)) *MockTeamRepository_CountSearch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearchAdmin provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) CountSearchAdmin(ctx context.Context, search *string) (int64, error) {
+	ret := _mock.Called(ctx, search)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearchAdmin")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) (int64, error)); ok {
+		return returnFunc(ctx, search)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) int64); ok {
+		r0 = returnFunc(ctx, search)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string) error); ok {
+		r1 = returnFunc(ctx, search)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_CountSearchAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearchAdmin'
+type MockTeamRepository_CountSearchAdmin_Call struct {
+	*mock.Call
+}
+
+// CountSearchAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+func (_e *MockTeamRepository_Expecter) CountSearchAdmin(ctx interface{}, search interface{}) *MockTeamRepository_CountSearchAdmin_Call {
+	return &MockTeamRepository_CountSearchAdmin_Call{Call: _e.mock.On("CountSearchAdmin", ctx, search)}
+}
+
+func (_c *MockTeamRepository_CountSearchAdmin_Call) Run(run func(ctx context.Context, search *string)) *MockTeamRepository_CountSearchAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_CountSearchAdmin_Call) Return(n int64, err error) *MockTeamRepository_CountSearchAdmin_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_CountSearchAdmin_Call) RunAndReturn(run func(ctx context.Context, search *string) (int64, error)) *MockTeamRepository_CountSearchAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -222,6 +472,63 @@ func (_c *MockTeamRepository_Create_Call) Return(err error) *MockTeamRepository_
 }
 
 func (_c *MockTeamRepository_Create_Call) RunAndReturn(run func(ctx context.Context, team *entity.Team) error) *MockTeamRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateAuditLog provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) CreateAuditLog(ctx context.Context, log *entity.TeamAuditLog) error {
+	ret := _mock.Called(ctx, log)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAuditLog")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.TeamAuditLog) error); ok {
+		r0 = returnFunc(ctx, log)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_CreateAuditLog_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAuditLog'
+type MockTeamRepository_CreateAuditLog_Call struct {
+	*mock.Call
+}
+
+// CreateAuditLog is a helper method to define mock.On call
+//   - ctx context.Context
+//   - log *entity.TeamAuditLog
+func (_e *MockTeamRepository_Expecter) CreateAuditLog(ctx interface{}, log interface{}) *MockTeamRepository_CreateAuditLog_Call {
+	return &MockTeamRepository_CreateAuditLog_Call{Call: _e.mock.On("CreateAuditLog", ctx, log)}
+}
+
+func (_c *MockTeamRepository_CreateAuditLog_Call) Run(run func(ctx context.Context, log *entity.TeamAuditLog)) *MockTeamRepository_CreateAuditLog_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.TeamAuditLog
+		if args[1] != nil {
+			arg1 = args[1].(*entity.TeamAuditLog)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_CreateAuditLog_Call) Return(err error) *MockTeamRepository_CreateAuditLog_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_CreateAuditLog_Call) RunAndReturn(run func(ctx context.Context, log *entity.TeamAuditLog) error) *MockTeamRepository_CreateAuditLog_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -674,6 +981,223 @@ func (_c *MockTeamRepository_HardDeleteTeams_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// Lock provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) Lock(ctx context.Context, teamID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Lock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_Lock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Lock'
+type MockTeamRepository_Lock_Call struct {
+	*mock.Call
+}
+
+// Lock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockTeamRepository_Expecter) Lock(ctx interface{}, teamID interface{}) *MockTeamRepository_Lock_Call {
+	return &MockTeamRepository_Lock_Call{Call: _e.mock.On("Lock", ctx, teamID)}
+}
+
+func (_c *MockTeamRepository_Lock_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockTeamRepository_Lock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_Lock_Call) Return(err error) *MockTeamRepository_Lock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_Lock_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockTeamRepository_Lock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Search provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) Search(ctx context.Context, search *string, limit int, offset int) ([]*entity.Team, error) {
+	ret := _mock.Called(ctx, search, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) ([]*entity.Team, error)); ok {
+		return returnFunc(ctx, search, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) []*entity.Team); ok {
+		r0 = returnFunc(ctx, search, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string, int, int) error); ok {
+		r1 = returnFunc(ctx, search, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_Search_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Search'
+type MockTeamRepository_Search_Call struct {
+	*mock.Call
+}
+
+// Search is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+//   - limit int
+//   - offset int
+func (_e *MockTeamRepository_Expecter) Search(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockTeamRepository_Search_Call {
+	return &MockTeamRepository_Search_Call{Call: _e.mock.On("Search", ctx, search, limit, offset)}
+}
+
+func (_c *MockTeamRepository_Search_Call) Run(run func(ctx context.Context, search *string, limit int, offset int)) *MockTeamRepository_Search_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_Search_Call) Return(teams []*entity.Team, err error) *MockTeamRepository_Search_Call {
+	_c.Call.Return(teams, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_Search_Call) RunAndReturn(run func(ctx context.Context, search *string, limit int, offset int) ([]*entity.Team, error)) *MockTeamRepository_Search_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SearchAdmin provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) SearchAdmin(ctx context.Context, search *string, limit int, offset int) ([]*entity.Team, error) {
+	ret := _mock.Called(ctx, search, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchAdmin")
+	}
+
+	var r0 []*entity.Team
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) ([]*entity.Team, error)); ok {
+		return returnFunc(ctx, search, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) []*entity.Team); ok {
+		r0 = returnFunc(ctx, search, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Team)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *string, int, int) error); ok {
+		r1 = returnFunc(ctx, search, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_SearchAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchAdmin'
+type MockTeamRepository_SearchAdmin_Call struct {
+	*mock.Call
+}
+
+// SearchAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - search *string
+//   - limit int
+//   - offset int
+func (_e *MockTeamRepository_Expecter) SearchAdmin(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockTeamRepository_SearchAdmin_Call {
+	return &MockTeamRepository_SearchAdmin_Call{Call: _e.mock.On("SearchAdmin", ctx, search, limit, offset)}
+}
+
+func (_c *MockTeamRepository_SearchAdmin_Call) Run(run func(ctx context.Context, search *string, limit int, offset int)) *MockTeamRepository_SearchAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *string
+		if args[1] != nil {
+			arg1 = args[1].(*string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_SearchAdmin_Call) Return(teams []*entity.Team, err error) *MockTeamRepository_SearchAdmin_Call {
+	_c.Call.Return(teams, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_SearchAdmin_Call) RunAndReturn(run func(ctx context.Context, search *string, limit int, offset int) ([]*entity.Team, error)) *MockTeamRepository_SearchAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetBracket provides a mock function for the type MockTeamRepository
 func (_mock *MockTeamRepository) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
 	ret := _mock.Called(ctx, teamID, bracketID)
@@ -853,6 +1377,213 @@ func (_c *MockTeamRepository_Unban_Call) Return(err error) *MockTeamRepository_U
 }
 
 func (_c *MockTeamRepository_Unban_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockTeamRepository_Unban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAdmin provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) UpdateAdmin(ctx context.Context, teamID uuid.UUID, name *string, captainID *uuid.UUID, bracketID *uuid.UUID, isHidden *bool) error {
+	ret := _mock.Called(ctx, teamID, name, captainID, bracketID, isHidden)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *string, *uuid.UUID, *uuid.UUID, *bool) error); ok {
+		r0 = returnFunc(ctx, teamID, name, captainID, bracketID, isHidden)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_UpdateAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAdmin'
+type MockTeamRepository_UpdateAdmin_Call struct {
+	*mock.Call
+}
+
+// UpdateAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - name *string
+//   - captainID *uuid.UUID
+//   - bracketID *uuid.UUID
+//   - isHidden *bool
+func (_e *MockTeamRepository_Expecter) UpdateAdmin(ctx interface{}, teamID interface{}, name interface{}, captainID interface{}, bracketID interface{}, isHidden interface{}) *MockTeamRepository_UpdateAdmin_Call {
+	return &MockTeamRepository_UpdateAdmin_Call{Call: _e.mock.On("UpdateAdmin", ctx, teamID, name, captainID, bracketID, isHidden)}
+}
+
+func (_c *MockTeamRepository_UpdateAdmin_Call) Run(run func(ctx context.Context, teamID uuid.UUID, name *string, captainID *uuid.UUID, bracketID *uuid.UUID, isHidden *bool)) *MockTeamRepository_UpdateAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *string
+		if args[2] != nil {
+			arg2 = args[2].(*string)
+		}
+		var arg3 *uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(*uuid.UUID)
+		}
+		var arg4 *uuid.UUID
+		if args[4] != nil {
+			arg4 = args[4].(*uuid.UUID)
+		}
+		var arg5 *bool
+		if args[5] != nil {
+			arg5 = args[5].(*bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateAdmin_Call) Return(err error) *MockTeamRepository_UpdateAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateAdmin_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, name *string, captainID *uuid.UUID, bracketID *uuid.UUID, isHidden *bool) error) *MockTeamRepository_UpdateAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCaptain provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) UpdateCaptain(ctx context.Context, teamID uuid.UUID, newCaptainID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID, newCaptainID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCaptain")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID, newCaptainID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_UpdateCaptain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCaptain'
+type MockTeamRepository_UpdateCaptain_Call struct {
+	*mock.Call
+}
+
+// UpdateCaptain is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - newCaptainID uuid.UUID
+func (_e *MockTeamRepository_Expecter) UpdateCaptain(ctx interface{}, teamID interface{}, newCaptainID interface{}) *MockTeamRepository_UpdateCaptain_Call {
+	return &MockTeamRepository_UpdateCaptain_Call{Call: _e.mock.On("UpdateCaptain", ctx, teamID, newCaptainID)}
+}
+
+func (_c *MockTeamRepository_UpdateCaptain_Call) Run(run func(ctx context.Context, teamID uuid.UUID, newCaptainID uuid.UUID)) *MockTeamRepository_UpdateCaptain_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateCaptain_Call) Return(err error) *MockTeamRepository_UpdateCaptain_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateCaptain_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, newCaptainID uuid.UUID) error) *MockTeamRepository_UpdateCaptain_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateName provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) UpdateName(ctx context.Context, teamID uuid.UUID, name string) error {
+	ret := _mock.Called(ctx, teamID, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateName")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, teamID, name)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_UpdateName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateName'
+type MockTeamRepository_UpdateName_Call struct {
+	*mock.Call
+}
+
+// UpdateName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - name string
+func (_e *MockTeamRepository_Expecter) UpdateName(ctx interface{}, teamID interface{}, name interface{}) *MockTeamRepository_UpdateName_Call {
+	return &MockTeamRepository_UpdateName_Call{Call: _e.mock.On("UpdateName", ctx, teamID, name)}
+}
+
+func (_c *MockTeamRepository_UpdateName_Call) Run(run func(ctx context.Context, teamID uuid.UUID, name string)) *MockTeamRepository_UpdateName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateName_Call) Return(err error) *MockTeamRepository_UpdateName_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateName_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, name string) error) *MockTeamRepository_UpdateName_Call {
 	_c.Call.Return(run)
 	return _c
 }

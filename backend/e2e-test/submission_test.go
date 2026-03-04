@@ -1,19 +1,21 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/submissions/challenge/{challengeID}: submissions exist after a wrong flag submit.
 func TestSubmission_AdminListByChallenge_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_ok")
 
@@ -23,12 +25,12 @@ func TestSubmission_AdminListByChallenge_Success(t *testing.T) {
 	_, _, tokenUser := h.RegisterUserAndLogin("sub_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
-	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusBadRequest)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusOK)
 
 	listResp := h.GetAdminSubmissionsByChallenge(tokenAdmin, challengeID, 1, 50, http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
-	require.NotNil(t, listResp.JSON200.Items)
-	require.GreaterOrEqual(t, len(*listResp.JSON200.Items), 1)
+	require.NotNil(t, listResp.JSON200.Data)
+	require.GreaterOrEqual(t, len(*listResp.JSON200.Data), 1)
 
 	statsResp := h.GetAdminSubmissionStatsByChallenge(tokenAdmin, challengeID, http.StatusOK)
 	require.NotNil(t, statsResp.JSON200)
@@ -39,8 +41,8 @@ func TestSubmission_AdminListByChallenge_Success(t *testing.T) {
 // GET /admin/submissions/challenge/{challengeID}/stats: admin gets submission stats for challenge; returns 200 (total, etc.).
 func TestSubmission_AdminStatsByChallenge_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_stats")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Stats Challenge", "FLAG{stats}", 100)
@@ -54,8 +56,8 @@ func TestSubmission_AdminStatsByChallenge_Success(t *testing.T) {
 // GET /admin/submissions: non-admin gets 403.
 func TestSubmission_AdminList_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("sub_forbid_" + suffix)
@@ -66,8 +68,8 @@ func TestSubmission_AdminList_Forbidden(t *testing.T) {
 // GET /admin/submissions: admin gets list (may be empty).
 func TestSubmission_AdminList_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_list")
 	h.GetAdminSubmissions(tokenAdmin, 1, 50, http.StatusOK)
@@ -76,8 +78,8 @@ func TestSubmission_AdminList_Success(t *testing.T) {
 // GET /admin/submissions/challenge/{id}: non-admin gets 403.
 func TestSubmission_AdminListByChallenge_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_ch")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Ch", "FLAG{x}", 100)
@@ -90,28 +92,28 @@ func TestSubmission_AdminListByChallenge_Forbidden(t *testing.T) {
 // GET /admin/submissions/user/{id}: admin gets list by user.
 func TestSubmission_AdminListByUser_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_user")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "ChUser", "FLAG{user}", 100)
 	suffix := uuid.New().String()[:8]
 	email, _, tokenUser := h.RegisterUserAndLogin("sub_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
-	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusBadRequest)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong}", http.StatusOK)
 	userID := h.GetUserIDByEmail(email)
 
 	listResp := h.GetAdminSubmissionsByUser(tokenAdmin, userID, 1, 50, http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
-	require.NotNil(t, listResp.JSON200.Items)
-	require.GreaterOrEqual(t, len(*listResp.JSON200.Items), 1)
+	require.NotNil(t, listResp.JSON200.Data)
+	require.GreaterOrEqual(t, len(*listResp.JSON200.Data), 1)
 }
 
 // GET /admin/submissions/team/{id}: non-admin gets 403.
 func TestSubmission_AdminListByTeam_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_subs_team")
 	_ = h.CreateBasicChallenge(tokenAdmin, "ChTeam", "FLAG{team}", 100)
@@ -123,4 +125,237 @@ func TestSubmission_AdminListByTeam_Forbidden(t *testing.T) {
 	teamID := *team.JSON200.ID
 
 	h.GetAdminSubmissionsByTeam(tokenUser, teamID, 1, 50, http.StatusForbidden)
+}
+
+// POST /admin/submissions: admin creates a submission record.
+func TestSubmission_AdminCreate_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_create")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Create Sub Chall", "flag{create}", 100)
+
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("sub_create_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	userID := h.GetUserIDByEmail(email)
+
+	isCorrect := false
+	resp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   challengeID,
+		UserID:        userID,
+		TeamID:        &teamID,
+		SubmittedFlag: "flag{manual}",
+		IsCorrect:     isCorrect,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusCreated, resp.StatusCode(), resp.Body, "admin create submission")
+}
+
+// POST /admin/submissions: invalid payload returns 400.
+func TestSubmission_AdminCreate_InvalidPayload(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_bad")
+
+	resp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   "not-a-uuid",
+		UserID:        "not-a-uuid",
+		SubmittedFlag: "",
+		IsCorrect:     false,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusBadRequest, resp.StatusCode(), resp.Body, "admin create submission bad payload")
+}
+
+// GET /admin/submissions/{ID}: admin gets submission by ID.
+func TestSubmission_AdminGetByID_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_get")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Get Sub Chall", "flag{get}", 100)
+
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("sub_get_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	userID := h.GetUserIDByEmail(email)
+
+	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   challengeID,
+		UserID:        userID,
+		TeamID:        &teamID,
+		SubmittedFlag: "flag{manual_get}",
+		IsCorrect:     false,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, createResp.StatusCode())
+	require.NotNil(t, createResp.JSON201)
+	submissionID := createResp.JSON201.ID
+
+	getResp, err := h.Client().GetAdminSubmissionsIDWithResponse(context.Background(), *submissionID, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusOK, getResp.StatusCode(), getResp.Body, "admin get submission by id")
+	require.NotNil(t, getResp.JSON200)
+	require.Equal(t, *submissionID, *getResp.JSON200.ID)
+}
+
+// GET /admin/submissions/{ID}: not found returns 404.
+func TestSubmission_AdminGetByID_NotFound(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_get_404")
+
+	resp, err := h.Client().GetAdminSubmissionsIDWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "admin get submission not found")
+}
+
+// PATCH /admin/submissions/{ID}: admin updates isCorrect flag.
+func TestSubmission_AdminUpdate_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_patch")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Patch Sub Chall", "flag{patch}", 100)
+
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("sub_patch_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	userID := h.GetUserIDByEmail(email)
+
+	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   challengeID,
+		UserID:        userID,
+		TeamID:        &teamID,
+		SubmittedFlag: "flag{manual_patch}",
+		IsCorrect:     false,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, createResp.StatusCode())
+	submissionID := createResp.JSON201.ID
+
+	isCorrect := true
+	patchResp, err := h.Client().PatchAdminSubmissionsIDWithResponse(context.Background(), *submissionID, openapi.AdminUpdateSubmissionRequest{
+		IsCorrect: &isCorrect,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusOK, patchResp.StatusCode(), patchResp.Body, "admin patch submission")
+}
+
+// PATCH /admin/submissions/{ID}: non-admin gets 403.
+func TestSubmission_AdminUpdate_Forbidden(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_patch_f")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Patch Forbid Chall", "flag{pf}", 100)
+
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("sub_patch_f_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	userID := h.GetUserIDByEmail(email)
+
+	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   challengeID,
+		UserID:        userID,
+		TeamID:        &teamID,
+		SubmittedFlag: "flag{pf_manual}",
+		IsCorrect:     false,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, createResp.StatusCode())
+	submissionID := createResp.JSON201.ID
+
+	isCorrect := true
+	patchResp, err := h.Client().PatchAdminSubmissionsIDWithResponse(context.Background(), *submissionID, openapi.AdminUpdateSubmissionRequest{
+		IsCorrect: &isCorrect,
+	}, helper.WithBearerToken(tokenUser))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusForbidden, patchResp.StatusCode(), patchResp.Body, "admin patch submission forbidden")
+}
+
+// DELETE /admin/submissions/{ID}: admin deletes submission.
+func TestSubmission_AdminDelete_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_del")
+	challengeID := h.CreateBasicChallenge(tokenAdmin, "Del Sub Chall", "flag{del_sub}", 100)
+
+	suffix := uuid.New().String()[:8]
+	email, _, tokenUser := h.RegisterUserAndLogin("sub_del_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+	userID := h.GetUserIDByEmail(email)
+
+	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
+		ChallengeID:   challengeID,
+		UserID:        userID,
+		TeamID:        &teamID,
+		SubmittedFlag: "flag{manual_del}",
+		IsCorrect:     false,
+	}, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, createResp.StatusCode())
+	submissionID := createResp.JSON201.ID
+
+	delResp, err := h.Client().DeleteAdminSubmissionsIDWithResponse(context.Background(), *submissionID, helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusNoContent, delResp.StatusCode(), delResp.Body, "admin delete submission")
+}
+
+// DELETE /admin/submissions/{ID}: not found returns 204 (idempotent delete).
+func TestSubmission_AdminDelete_NotFound(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_del_404")
+
+	resp, err := h.Client().DeleteAdminSubmissionsIDWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenAdmin))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusNoContent, resp.StatusCode(), resp.Body, "admin delete submission not found")
+}
+
+// GET /admin/submissions/team/{teamID}: admin lists team submissions.
+func TestSubmission_AdminListByTeam_Success(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_sub_team_ok")
+	_ = h.CreateBasicChallenge(tokenAdmin, "Team Sub Chall", "flag{team_sub}", 100)
+
+	suffix := uuid.New().String()[:8]
+	_, _, tokenUser := h.RegisterUserAndLogin("sub_team_ok_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	team := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+
+	h.GetAdminSubmissionsByTeam(tokenAdmin, teamID, 1, 50, http.StatusOK)
 }

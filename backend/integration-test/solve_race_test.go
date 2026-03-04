@@ -6,16 +6,17 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/competition"
-	"github.com/skr1ms/CTFBoard/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -25,7 +26,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
-		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TxRepo: f.TxRepo,
+		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
 		Cache: cache.New(db), ScoreboardCache: nil, Broadcaster: nil,
 	})
 
@@ -73,6 +74,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 }
 
 func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -82,7 +84,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
-		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TxRepo: f.TxRepo,
+		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
 		Cache: cache.New(db), ScoreboardCache: nil, Broadcaster: nil,
 	})
 

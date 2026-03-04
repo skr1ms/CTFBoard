@@ -1,0 +1,83 @@
+schemas:
+  response.HealthcheckResponse:
+    properties:
+      status:
+        type: string
+      database:
+        type: string
+    type: object
+  entity.BackupData:
+    properties:
+      version:
+        type: string
+      exported_at:
+        type: string
+      competition:
+        $ref: "#/schemas/entity.Competition"
+      challenges:
+        type: array
+        items:
+          $ref: "#/schemas/entity.ChallengeExport"
+      teams:
+        type: array
+        items:
+          $ref: "#/schemas/entity.TeamExport"
+      users:
+        type: array
+        items:
+          $ref: "#/schemas/entity.UserExport"
+      awards:
+        type: array
+        items:
+          $ref: "#/schemas/entity.Award"
+      solves:
+        type: array
+        items:
+          $ref: "#/schemas/entity.Solve"
+      files:
+        type: array
+        items:
+          $ref: "#/schemas/entity.File"
+    type: object
+  request.AdminResetRequest:
+    properties:
+      pages:
+        type: boolean
+        description: Reset pages
+      notifications:
+        type: boolean
+        description: Reset notifications
+      challenges:
+        type: boolean
+        description: Reset challenges, hints, files
+      accounts:
+        type: boolean
+        description: Reset users and teams
+      submissions:
+        type: boolean
+        description: Reset submissions and solves
+    type: object
+  entity.ImportResult:
+    properties:
+      success:
+        type: boolean
+      errors:
+        type: array
+        items:
+          type: string
+      skipped_count:
+        type: integer
+    type: object
+  response.CSVImportResult:
+    properties:
+      success:
+        type: boolean
+      imported_count:
+        type: integer
+      errors:
+        type: array
+        items:
+          type: string
+      skipped_count:
+        type: integer
+    type: object

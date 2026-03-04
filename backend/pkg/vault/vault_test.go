@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,7 @@ func TestNewFromEnv_ErrorNoToken(t *testing.T) {
 }
 
 func TestNewFromEnv_WithCustomMountPath(t *testing.T) {
+	t.Parallel()
 	os.Setenv("VAULT_ADDR", "http://localhost:8200")
 	os.Setenv("VAULT_TOKEN", "token")
 	os.Setenv("VAULT_MOUNT_PATH", "custom-mount")
@@ -50,12 +52,14 @@ func TestNewFromEnv_WithCustomMountPath(t *testing.T) {
 }
 
 func TestNew_NewWithMount(t *testing.T) {
+	t.Parallel()
 	c, err := New("http://localhost:8200", "token")
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 }
 
 func TestClient_GetSecret_GetString_Success(t *testing.T) {
+	t.Parallel()
 	resp := map[string]any{
 		"data": map[string]any{
 			"data": map[string]any{
@@ -75,17 +79,19 @@ func TestClient_GetSecret_GetString_Success(t *testing.T) {
 	c, err := NewWithMount(srv.URL, "token", "secret")
 	require.NoError(t, err)
 
-	data, err := c.GetSecret("test/path")
+	ctx := context.Background()
+	data, err := c.GetSecret(ctx, "test/path")
 	require.NoError(t, err)
 	assert.Equal(t, "value1", data["key1"])
 	assert.Equal(t, "value2", data["key2"])
 
-	s, err := c.GetString("test/path", "key1")
+	s, err := c.GetString(ctx, "test/path", "key1")
 	require.NoError(t, err)
 	assert.Equal(t, "value1", s)
 }
 
 func TestClient_GetSecret_Error(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		if err := json.NewEncoder(w).Encode(map[string]any{"errors": []string{"no such path"}}); err != nil {
@@ -97,12 +103,13 @@ func TestClient_GetSecret_Error(t *testing.T) {
 	c, err := NewWithMount(srv.URL, "token", "secret")
 	require.NoError(t, err)
 
-	_, err = c.GetSecret("missing")
+	_, err = c.GetSecret(context.Background(), "missing")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read secret")
 }
 
 func TestClient_GetSecret_EmptyData(t *testing.T) {
+	t.Parallel()
 	resp := map[string]any{
 		"data": map[string]any{
 			"data":     nil,
@@ -119,12 +126,13 @@ func TestClient_GetSecret_EmptyData(t *testing.T) {
 	c, err := NewWithMount(srv.URL, "token", "secret")
 	require.NoError(t, err)
 
-	_, err = c.GetSecret("empty")
+	_, err = c.GetSecret(context.Background(), "empty")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "secret not found")
 }
 
 func TestClient_GetString_KeyNotFound(t *testing.T) {
+	t.Parallel()
 	resp := map[string]any{
 		"data": map[string]any{
 			"data":     map[string]any{"other": "x"},
@@ -141,7 +149,7 @@ func TestClient_GetString_KeyNotFound(t *testing.T) {
 	c, err := NewWithMount(srv.URL, "token", "secret")
 	require.NoError(t, err)
 
-	_, err = c.GetString("test", "missing_key")
+	_, err = c.GetString(context.Background(), "test", "missing_key")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }

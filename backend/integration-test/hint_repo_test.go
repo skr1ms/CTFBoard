@@ -2,16 +2,17 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHintRepo_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -29,6 +30,7 @@ func TestHintRepo_GetByID_Success(t *testing.T) {
 }
 
 func TestHintRepo_GetByID_Error(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -39,6 +41,7 @@ func TestHintRepo_GetByID_Error(t *testing.T) {
 }
 
 func TestHintRepo_Create_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -52,6 +55,7 @@ func TestHintRepo_Create_Error_CancelledContext(t *testing.T) {
 }
 
 func TestHintRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -65,6 +69,7 @@ func TestHintRepo_Update_Error_CancelledContext(t *testing.T) {
 }
 
 func TestHintRepo_Delete_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -77,6 +82,7 @@ func TestHintRepo_Delete_Error_CancelledContext(t *testing.T) {
 }
 
 func TestHintRepo_CRUD_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -117,6 +123,7 @@ func TestHintRepo_CRUD_Success(t *testing.T) {
 }
 
 func TestHintUnlockRepo_Flow(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -126,24 +133,23 @@ func TestHintUnlockRepo_Flow(t *testing.T) {
 	challenge := f.CreateChallenge(t, "C1", 100)
 	hint := f.CreateHint(t, challenge.ID, 10, 1)
 
-	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
+	})
 	require.NoError(t, err)
 
-	err = f.TxRepo.CreateHintUnlockTx(ctx, tx, team.ID, hint.ID)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit(ctx))
-
-	unlock, err := f.HintUnlockRepo.GetByTeamAndHint(ctx, team.ID, hint.ID)
+	unlock, err := f.HintRepo.GetByTeamAndHint(ctx, team.ID, hint.ID)
 	require.NoError(t, err)
 	assert.Equal(t, team.ID, unlock.TeamID)
 	assert.Equal(t, hint.ID, unlock.HintID)
 
-	IDs, err := f.HintUnlockRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
+	IDs, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
 	require.NoError(t, err)
 	assert.Contains(t, IDs, hint.ID)
 }
 
 func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -151,26 +157,113 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 
 	_, team := f.CreateUserWithTeam(t, "u2")
 
-	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{TeamID: team.ID, Value: -50, Description: "Hint penalty"}
+		return f.AwardRepo.Create(txCtx, award)
+	})
 	require.NoError(t, err)
-
-	f.CreateAwardTx(t, tx, team.ID, -50, "Hint penalty")
-	require.NoError(t, tx.Commit(ctx))
 	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, -50, total)
 
-	tx2, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{TeamID: team.ID, Value: 100, Description: "Bonus"}
+		return f.AwardRepo.Create(txCtx, award)
+	})
 	require.NoError(t, err)
-	f.CreateAwardTx(t, tx2, team.ID, 100, "Bonus")
-	require.NoError(t, tx2.Commit(ctx))
 
 	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 50, total)
 }
 
+func TestHintUnlockRepo_Rollback_UnlockNotPersistedOnError(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "unlock_rb")
+	challenge := f.CreateChallenge(t, "C_unlock_rb", 100)
+	hint := f.CreateHint(t, challenge.ID, 20, 1)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		if innerErr := f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID); innerErr != nil {
+			return innerErr
+		}
+		return errors.New("forced rollback")
+	})
+	require.Error(t, err)
+
+	ids, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
+	require.NoError(t, err)
+	assert.NotContains(t, ids, hint.ID, "hint unlock should be rolled back")
+}
+
+func TestHintUnlockRepo_Rollback_AwardOrphan(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "award_rb")
+	challenge := f.CreateChallenge(t, "C_award_rb", 100)
+	hint := f.CreateHint(t, challenge.ID, 30, 1)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{TeamID: team.ID, Value: -30, Description: "hint cost"}
+		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
+			return innerErr
+		}
+		if innerErr := f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID); innerErr != nil {
+			return innerErr
+		}
+		return errors.New("forced rollback after both writes")
+	})
+	require.Error(t, err)
+
+	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, total, "hint penalty award should be rolled back")
+
+	ids, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
+	require.NoError(t, err)
+	assert.NotContains(t, ids, hint.ID, "hint unlock should be rolled back")
+}
+
+func TestHintUnlockAndAwardTx_Commit(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "award_commit")
+	challenge := f.CreateChallenge(t, "C_award_commit", 100)
+	hint := f.CreateHint(t, challenge.ID, 25, 1)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{TeamID: team.ID, Value: -25, Description: "hint cost"}
+		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
+			return innerErr
+		}
+		return f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
+	})
+	require.NoError(t, err)
+
+	total, err := f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, -25, total)
+
+	ids, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
+	require.NoError(t, err)
+	assert.Contains(t, ids, hint.ID)
+}
+
 func TestScoreboardWithAwards(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -189,10 +282,11 @@ func TestScoreboardWithAwards(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 100, score)
 
-	tx, err := f.Pool.BeginTx(ctx, pgx.TxOptions{})
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{TeamID: team.ID, Value: -20, Description: "Penalty"}
+		return f.AwardRepo.Create(txCtx, award)
+	})
 	require.NoError(t, err)
-	f.CreateAwardTx(t, tx, team.ID, -20, "Penalty")
-	require.NoError(t, tx.Commit(ctx))
 
 	score, err = f.SolveRepo.GetTeamScore(ctx, team.ID)
 	require.NoError(t, err)

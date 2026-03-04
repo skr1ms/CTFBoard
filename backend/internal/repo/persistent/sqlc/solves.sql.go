@@ -13,16 +13,17 @@ import (
 )
 
 const createSolve = `-- name: CreateSolve :exec
-INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at, points_at_solve)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateSolveParams struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	TeamID      uuid.UUID  `json:"team_id"`
-	ChallengeID uuid.UUID  `json:"challenge_id"`
-	SolvedAt    *time.Time `json:"solved_at"`
+	ID            uuid.UUID  `json:"id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	TeamID        uuid.UUID  `json:"team_id"`
+	ChallengeID   uuid.UUID  `json:"challenge_id"`
+	SolvedAt      *time.Time `json:"solved_at"`
+	PointsAtSolve int32      `json:"points_at_solve"`
 }
 
 func (q *Queries) CreateSolve(ctx context.Context, arg CreateSolveParams) error {
@@ -32,7 +33,22 @@ func (q *Queries) CreateSolve(ctx context.Context, arg CreateSolveParams) error 
 		arg.TeamID,
 		arg.ChallengeID,
 		arg.SolvedAt,
+		arg.PointsAtSolve,
 	)
+	return err
+}
+
+const deleteSolveByTeamAndChallenge = `-- name: DeleteSolveByTeamAndChallenge :exec
+DELETE FROM solves WHERE team_id = $1 AND challenge_id = $2
+`
+
+type DeleteSolveByTeamAndChallengeParams struct {
+	TeamID      uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
+}
+
+func (q *Queries) DeleteSolveByTeamAndChallenge(ctx context.Context, arg DeleteSolveByTeamAndChallengeParams) error {
+	_, err := q.db.Exec(ctx, deleteSolveByTeamAndChallenge, arg.TeamID, arg.ChallengeID)
 	return err
 }
 
@@ -46,26 +62,27 @@ func (q *Queries) DeleteSolvesByTeamID(ctx context.Context, teamID uuid.UUID) er
 }
 
 const getAllSolves = `-- name: GetAllSolves :many
-SELECT id, user_id, team_id, challenge_id, solved_at
+SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve
 FROM solves
 ORDER BY solved_at ASC
 `
 
-func (q *Queries) GetAllSolves(ctx context.Context) ([]Solf, error) {
+func (q *Queries) GetAllSolves(ctx context.Context) ([]Solve, error) {
 	rows, err := q.db.Query(ctx, getAllSolves)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Solf
+	var items []Solve
 	for rows.Next() {
-		var i Solf
+		var i Solve
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
 			&i.TeamID,
 			&i.ChallengeID,
 			&i.SolvedAt,
+			&i.PointsAtSolve,
 		); err != nil {
 			return nil, err
 		}
@@ -82,7 +99,7 @@ SELECT s.user_id, u.username, s.team_id, t.name AS team_name, s.solved_at
 FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1
+WHERE s.challenge_id = $1 AND t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 ORDER BY s.solved_at ASC
 LIMIT 1
 `
@@ -116,9 +133,8 @@ SELECT
     solve_points.last_solved AS solved_at
 FROM teams t
 LEFT JOIN (
-    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
 LEFT JOIN (
@@ -170,9 +186,8 @@ SELECT
     solve_points.last_solved AS solved_at
 FROM teams t
 LEFT JOIN (
-    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
 LEFT JOIN (
@@ -225,9 +240,8 @@ SELECT
     solve_points.last_solved AS solved_at
 FROM teams t
 LEFT JOIN (
-    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id
     WHERE s.solved_at <= $1
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
@@ -288,9 +302,8 @@ SELECT
     solve_points.last_solved AS solved_at
 FROM teams t
 LEFT JOIN (
-    SELECT s.team_id, SUM(c.points)::int AS points, MAX(s.solved_at) AS last_solved
+    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id
     WHERE s.solved_at <= $1
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
@@ -342,26 +355,27 @@ func (q *Queries) GetScoreboardFrozen(ctx context.Context, arg GetScoreboardFroz
 }
 
 const getSolveByID = `-- name: GetSolveByID :one
-SELECT id, user_id, team_id, challenge_id, solved_at
+SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve
 FROM solves
 WHERE id = $1
 `
 
-func (q *Queries) GetSolveByID(ctx context.Context, id uuid.UUID) (Solf, error) {
+func (q *Queries) GetSolveByID(ctx context.Context, id uuid.UUID) (Solve, error) {
 	row := q.db.QueryRow(ctx, getSolveByID, id)
-	var i Solf
+	var i Solve
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.TeamID,
 		&i.ChallengeID,
 		&i.SolvedAt,
+		&i.PointsAtSolve,
 	)
 	return i, err
 }
 
 const getSolveByTeamAndChallenge = `-- name: GetSolveByTeamAndChallenge :one
-SELECT id, user_id, team_id, challenge_id, solved_at
+SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve
 FROM solves
 WHERE team_id = $1 AND challenge_id = $2
 `
@@ -371,21 +385,22 @@ type GetSolveByTeamAndChallengeParams struct {
 	ChallengeID uuid.UUID `json:"challenge_id"`
 }
 
-func (q *Queries) GetSolveByTeamAndChallenge(ctx context.Context, arg GetSolveByTeamAndChallengeParams) (Solf, error) {
+func (q *Queries) GetSolveByTeamAndChallenge(ctx context.Context, arg GetSolveByTeamAndChallengeParams) (Solve, error) {
 	row := q.db.QueryRow(ctx, getSolveByTeamAndChallenge, arg.TeamID, arg.ChallengeID)
-	var i Solf
+	var i Solve
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.TeamID,
 		&i.ChallengeID,
 		&i.SolvedAt,
+		&i.PointsAtSolve,
 	)
 	return i, err
 }
 
 const getSolveByTeamAndChallengeForUpdate = `-- name: GetSolveByTeamAndChallengeForUpdate :one
-SELECT id, user_id, team_id, challenge_id, solved_at
+SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve
 FROM solves
 WHERE team_id = $1 AND challenge_id = $2
 FOR UPDATE
@@ -396,41 +411,223 @@ type GetSolveByTeamAndChallengeForUpdateParams struct {
 	ChallengeID uuid.UUID `json:"challenge_id"`
 }
 
-func (q *Queries) GetSolveByTeamAndChallengeForUpdate(ctx context.Context, arg GetSolveByTeamAndChallengeForUpdateParams) (Solf, error) {
+func (q *Queries) GetSolveByTeamAndChallengeForUpdate(ctx context.Context, arg GetSolveByTeamAndChallengeForUpdateParams) (Solve, error) {
 	row := q.db.QueryRow(ctx, getSolveByTeamAndChallengeForUpdate, arg.TeamID, arg.ChallengeID)
-	var i Solf
+	var i Solve
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.TeamID,
 		&i.ChallengeID,
 		&i.SolvedAt,
+		&i.PointsAtSolve,
 	)
 	return i, err
 }
 
-const getSolvesByUserID = `-- name: GetSolvesByUserID :many
-SELECT id, user_id, team_id, challenge_id, solved_at
+const getSolvedChallengeIDsByTeam = `-- name: GetSolvedChallengeIDsByTeam :many
+SELECT challenge_id
 FROM solves
-WHERE user_id = $1
-ORDER BY solved_at DESC
+WHERE team_id = $1 AND challenge_id = ANY($2::uuid[])
 `
 
-func (q *Queries) GetSolvesByUserID(ctx context.Context, userID uuid.UUID) ([]Solf, error) {
-	rows, err := q.db.Query(ctx, getSolvesByUserID, userID)
+type GetSolvedChallengeIDsByTeamParams struct {
+	TeamID  uuid.UUID   `json:"team_id"`
+	Column2 []uuid.UUID `json:"column_2"`
+}
+
+func (q *Queries) GetSolvedChallengeIDsByTeam(ctx context.Context, arg GetSolvedChallengeIDsByTeamParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, getSolvedChallengeIDsByTeam, arg.TeamID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Solf
+	var items []uuid.UUID
 	for rows.Next() {
-		var i Solf
+		var challenge_id uuid.UUID
+		if err := rows.Scan(&challenge_id); err != nil {
+			return nil, err
+		}
+		items = append(items, challenge_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSolvesByChallengeID = `-- name: GetSolvesByChallengeID :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
+       u.username, t.name AS team_name
+FROM solves s
+JOIN users u ON u.id = s.user_id
+JOIN teams t ON t.id = s.team_id
+WHERE s.challenge_id = $1 AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+ORDER BY s.solved_at ASC
+`
+
+type GetSolvesByChallengeIDRow struct {
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	TeamID      uuid.UUID  `json:"team_id"`
+	ChallengeID uuid.UUID  `json:"challenge_id"`
+	SolvedAt    *time.Time `json:"solved_at"`
+	Username    string     `json:"username"`
+	TeamName    string     `json:"team_name"`
+}
+
+func (q *Queries) GetSolvesByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]GetSolvesByChallengeIDRow, error) {
+	rows, err := q.db.Query(ctx, getSolvesByChallengeID, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSolvesByChallengeIDRow
+	for rows.Next() {
+		var i GetSolvesByChallengeIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
 			&i.TeamID,
 			&i.ChallengeID,
 			&i.SolvedAt,
+			&i.Username,
+			&i.TeamName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSolvesByTeamIDWithDetails = `-- name: GetSolvesByTeamIDWithDetails :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
+       u.username, c.title AS challenge_title, c.category AS challenge_category, c.points AS challenge_points
+FROM solves s
+JOIN users u ON u.id = s.user_id
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.team_id = $1 AND c.is_hidden = false
+ORDER BY s.solved_at DESC
+`
+
+type GetSolvesByTeamIDWithDetailsRow struct {
+	ID                uuid.UUID  `json:"id"`
+	UserID            uuid.UUID  `json:"user_id"`
+	TeamID            uuid.UUID  `json:"team_id"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	SolvedAt          *time.Time `json:"solved_at"`
+	Username          string     `json:"username"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory *string    `json:"challenge_category"`
+	ChallengePoints   *int32     `json:"challenge_points"`
+}
+
+func (q *Queries) GetSolvesByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]GetSolvesByTeamIDWithDetailsRow, error) {
+	rows, err := q.db.Query(ctx, getSolvesByTeamIDWithDetails, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSolvesByTeamIDWithDetailsRow
+	for rows.Next() {
+		var i GetSolvesByTeamIDWithDetailsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TeamID,
+			&i.ChallengeID,
+			&i.SolvedAt,
+			&i.Username,
+			&i.ChallengeTitle,
+			&i.ChallengeCategory,
+			&i.ChallengePoints,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSolvesByUserID = `-- name: GetSolvesByUserID :many
+SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve
+FROM solves
+WHERE user_id = $1
+ORDER BY solved_at DESC
+`
+
+func (q *Queries) GetSolvesByUserID(ctx context.Context, userID uuid.UUID) ([]Solve, error) {
+	rows, err := q.db.Query(ctx, getSolvesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Solve
+	for rows.Next() {
+		var i Solve
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TeamID,
+			&i.ChallengeID,
+			&i.SolvedAt,
+			&i.PointsAtSolve,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSolvesByUserIDWithDetails = `-- name: GetSolvesByUserIDWithDetails :many
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
+       c.title AS challenge_title, c.category AS challenge_category, c.points AS challenge_points
+FROM solves s
+JOIN challenges c ON c.id = s.challenge_id
+WHERE s.user_id = $1 AND c.is_hidden = false
+ORDER BY s.solved_at DESC
+`
+
+type GetSolvesByUserIDWithDetailsRow struct {
+	ID                uuid.UUID  `json:"id"`
+	UserID            uuid.UUID  `json:"user_id"`
+	TeamID            uuid.UUID  `json:"team_id"`
+	ChallengeID       uuid.UUID  `json:"challenge_id"`
+	SolvedAt          *time.Time `json:"solved_at"`
+	ChallengeTitle    string     `json:"challenge_title"`
+	ChallengeCategory *string    `json:"challenge_category"`
+	ChallengePoints   *int32     `json:"challenge_points"`
+}
+
+func (q *Queries) GetSolvesByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]GetSolvesByUserIDWithDetailsRow, error) {
+	rows, err := q.db.Query(ctx, getSolvesByUserIDWithDetails, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSolvesByUserIDWithDetailsRow
+	for rows.Next() {
+		var i GetSolvesByUserIDWithDetailsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TeamID,
+			&i.ChallengeID,
+			&i.SolvedAt,
+			&i.ChallengeTitle,
+			&i.ChallengeCategory,
+			&i.ChallengePoints,
 		); err != nil {
 			return nil, err
 		}
@@ -445,8 +642,7 @@ func (q *Queries) GetSolvesByUserID(ctx context.Context, userID uuid.UUID) ([]So
 const getTeamScore = `-- name: GetTeamScore :one
 SELECT
     COALESCE((
-        SELECT SUM(c.points) FROM solves s
-        JOIN challenges c ON c.id = s.challenge_id
+        SELECT SUM(s.points_at_solve) FROM solves s
         WHERE s.team_id = $1
     ), 0)::int +
     COALESCE((

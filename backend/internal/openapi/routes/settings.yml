@@ -1,0 +1,41 @@
+/admin/settings:
+  get:
+    description: Returns app settings. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/AppSettingsResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get admin settings
+    tags:
+      - Admin
+  put:
+    description: Updates app settings. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdateAppSettingsRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Update admin settings
+    tags:
+      - Admin

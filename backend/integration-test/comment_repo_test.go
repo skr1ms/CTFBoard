@@ -5,14 +5,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCommentRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -27,6 +28,7 @@ func TestCommentRepo_Create_Success(t *testing.T) {
 }
 
 func TestCommentRepo_Create_Error_InvalidUserID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -39,6 +41,7 @@ func TestCommentRepo_Create_Error_InvalidUserID(t *testing.T) {
 }
 
 func TestCommentRepo_GetByID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -52,6 +55,7 @@ func TestCommentRepo_GetByID_Success(t *testing.T) {
 }
 
 func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -59,10 +63,11 @@ func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.CommentRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrCommentNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrCommentNotFound))
 }
 
 func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -78,6 +83,7 @@ func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
 }
 
 func TestCommentRepo_GetByChallengeID_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -90,6 +96,7 @@ func TestCommentRepo_GetByChallengeID_Error_CancelledContext(t *testing.T) {
 }
 
 func TestCommentRepo_Update_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -105,6 +112,7 @@ func TestCommentRepo_Update_Success(t *testing.T) {
 }
 
 func TestCommentRepo_Update_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -117,6 +125,7 @@ func TestCommentRepo_Update_Error_CancelledContext(t *testing.T) {
 }
 
 func TestCommentRepo_Delete_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -127,10 +136,11 @@ func TestCommentRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.CommentRepo.GetByID(ctx, comment.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, entityError.ErrCommentNotFound))
+	assert.True(t, errors.Is(err, httperr.ErrCommentNotFound))
 }
 
 func TestCommentRepo_Delete_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

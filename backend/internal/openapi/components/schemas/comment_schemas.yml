@@ -1,0 +1,4 @@
+# Empty schema, because comment schemas are used in challenge routes and are located in challenge_schemas.yml:
+# - request.CreateCommentRequest
+# - response.CommentResponse
+schemas:

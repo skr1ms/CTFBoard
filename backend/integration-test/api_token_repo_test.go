@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAPITokenRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -24,6 +25,7 @@ func TestAPITokenRepo_Create_Success(t *testing.T) {
 }
 
 func TestAPITokenRepo_Create_Error_InvalidUserID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -35,6 +37,7 @@ func TestAPITokenRepo_Create_Error_InvalidUserID(t *testing.T) {
 }
 
 func TestAPITokenRepo_GetByUserID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -51,6 +54,7 @@ func TestAPITokenRepo_GetByUserID_Success(t *testing.T) {
 }
 
 func TestAPITokenRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -63,6 +67,7 @@ func TestAPITokenRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
 }
 
 func TestAPITokenRepo_GetByTokenHash_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -80,6 +85,7 @@ func TestAPITokenRepo_GetByTokenHash_Success(t *testing.T) {
 }
 
 func TestAPITokenRepo_GetByTokenHash_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -91,6 +97,7 @@ func TestAPITokenRepo_GetByTokenHash_Error_NotFound(t *testing.T) {
 }
 
 func TestAPITokenRepo_Delete_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -108,6 +115,7 @@ func TestAPITokenRepo_Delete_Success(t *testing.T) {
 }
 
 func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -125,6 +133,7 @@ func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {
 }
 
 func TestAPITokenRepo_UpdateLastUsedAt_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -139,6 +148,7 @@ func TestAPITokenRepo_UpdateLastUsedAt_Success(t *testing.T) {
 }
 
 func TestAPITokenRepo_UpdateLastUsedAt_Error_NotFound(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

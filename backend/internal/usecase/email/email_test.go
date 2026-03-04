@@ -6,15 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/pkg/mailer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -48,6 +49,7 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 }
 
 func TestEmailUseCase_VerifyEmail_Hashing(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -56,6 +58,7 @@ func TestEmailUseCase_VerifyEmail_Hashing(t *testing.T) {
 	tokenEntity := h.NewVerificationToken(uuid.New(), hashedToken, entity.TokenTypeEmailVerification)
 
 	deps.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
+	h.SetupTxRun()
 	deps.userRepo.On("SetVerified", mock.Anything, tokenEntity.UserID).Return(nil)
 	deps.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenEntity.UserID, entity.TokenTypeEmailVerification).Return(nil)
 	err := h.CreateUseCase().VerifyEmail(context.Background(), rawToken)
@@ -63,6 +66,7 @@ func TestEmailUseCase_VerifyEmail_Hashing(t *testing.T) {
 }
 
 func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -93,16 +97,18 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 }
 
 func TestEmailUseCase_SendPasswordResetEmail_UserNotFound(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
-	deps.userRepo.On("GetByEmail", mock.Anything, "unknown@example.com").Return(nil, entityError.ErrUserNotFound)
+	deps.userRepo.On("GetByEmail", mock.Anything, "unknown@example.com").Return(nil, httperr.ErrUserNotFound)
 
 	err := h.CreateUseCase().SendPasswordResetEmail(context.Background(), "unknown@example.com")
 	assert.NoError(t, err, "Should not return error even if user is not found (security)")
 }
 
 func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -111,6 +117,7 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 	tokenEntity := h.NewVerificationToken(uuid.New(), hashedToken, entity.TokenTypePasswordReset)
 
 	deps.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
+	h.SetupTxRun()
 	deps.userRepo.On("UpdatePassword", mock.Anything, tokenEntity.UserID, mock.MatchedBy(func(pwd string) bool {
 		return len(pwd) > 0
 	})).Return(nil)
@@ -121,16 +128,19 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 }
 
 func TestEmailUseCase_ResetPassword_TokenInvalid(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
-	deps.tokenRepo.On("GetByToken", mock.Anything, mock.Anything).Return(nil, entityError.ErrTokenNotFound)
+	h.SetupTxRun()
+	deps.tokenRepo.On("GetByToken", mock.Anything, mock.Anything).Return(nil, httperr.ErrTokenNotFound)
 
 	err := h.CreateUseCase().ResetPassword(context.Background(), "invalid-token", "new-password")
-	assert.ErrorIs(t, err, entityError.ErrTokenNotFound)
+	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
 }
 
 func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -147,6 +157,7 @@ func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
 }
 
 func TestEmailUseCase_ResendVerification_AlreadyVerified(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -160,6 +171,7 @@ func TestEmailUseCase_ResendVerification_AlreadyVerified(t *testing.T) {
 }
 
 func TestEmailUseCase_SendPasswordResetEmail_MailerError(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
@@ -176,11 +188,12 @@ func TestEmailUseCase_SendPasswordResetEmail_MailerError(t *testing.T) {
 }
 
 func TestEmailUseCase_ResendVerification_UserNotFound(t *testing.T) {
+	t.Parallel()
 	h := NewEmailTestHelper(t)
 	deps := h.Deps()
 
-	deps.userRepo.On("GetByID", mock.Anything, uuid.Nil).Return(nil, entityError.ErrUserNotFound)
+	deps.userRepo.On("GetByID", mock.Anything, uuid.Nil).Return(nil, httperr.ErrUserNotFound)
 
 	err := h.CreateUseCase().ResendVerification(context.Background(), uuid.Nil)
-	assert.ErrorIs(t, err, entityError.ErrUserNotFound)
+	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
 }

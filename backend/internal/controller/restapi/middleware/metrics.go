@@ -53,15 +53,11 @@ func Metrics(next http.Handler) http.Handler {
 		status := strconv.Itoa(ww.Status())
 
 		routeContext := chi.RouteContext(r.Context())
-		path := ""
+		path := "/unknown"
 		if routeContext != nil && routeContext.RoutePattern() != "" {
 			path = routeContext.RoutePattern()
-		} else {
-			if ww.Status() == http.StatusNotFound {
-				path = "/not-found"
-			} else {
-				path = r.URL.Path
-			}
+		} else if ww.Status() == http.StatusNotFound {
+			path = "/not-found"
 		}
 
 		method := r.Method

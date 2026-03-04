@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,14 +20,10 @@ func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
 	user, team := f.CreateUserWithTeam(t, "erase_user")
 	challenge := f.CreateChallenge(t, "erase_chall", 100)
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseAllTables(txCtx)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.EraseAllTablesTx(ctx, tx)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
 
 	_, err = f.UserRepo.GetByID(ctx, user.ID)
 	assert.Error(t, err)
@@ -42,13 +37,12 @@ func TestBackupRepo_EraseAllTablesTx_Error_ClosedTx(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	require.NoError(t, tx.Rollback(ctx))
-
-	err = f.BackupRepo.EraseAllTablesTx(ctx, tx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseAllTables(txCtx)
+	})
 	assert.Error(t, err)
 }
 
@@ -64,14 +58,10 @@ func TestBackupRepo_ImportCompetitionTx_Success(t *testing.T) {
 		Mode: "flexible",
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportCompetition(txCtx, comp)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportCompetitionTx(ctx, tx, comp)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
 
 	got, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
@@ -84,11 +74,9 @@ func TestBackupRepo_ImportCompetitionTx_NilCompetition(t *testing.T) {
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportCompetitionTx(ctx, tx, nil)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportCompetition(txCtx, nil)
+	})
 	require.NoError(t, err)
 }
 
@@ -118,15 +106,10 @@ func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportChallenges(txCtx, data)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportChallengesTx(ctx, tx, data)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	got, err := f.ChallengeRepo.GetByID(ctx, challengeID)
 	require.NoError(t, err)
 	assert.Equal(t, "Backup Chall", got.Title)
@@ -152,11 +135,9 @@ func TestBackupRepo_ImportChallengesTx_Error_InvalidHintChallengeID(t *testing.T
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportChallengesTx(ctx, tx, data)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportChallenges(txCtx, data)
+	})
 	assert.Error(t, err)
 }
 
@@ -187,15 +168,10 @@ func TestBackupRepo_ImportTeamsTx_Success(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportTeams(txCtx, data, opts)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportTeamsTx(ctx, tx, data, opts)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	got, err := f.TeamRepo.GetByID(ctx, teamID)
 	require.NoError(t, err)
 	assert.Equal(t, "Imported Team", got.Name)
@@ -223,11 +199,9 @@ func TestBackupRepo_ImportTeamsTx_Error_InvalidCaptainID(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportTeamsTx(ctx, tx, data, opts)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportTeams(txCtx, data, opts)
+	})
 	assert.Error(t, err)
 }
 
@@ -247,15 +221,10 @@ func TestBackupRepo_ImportUsersTx_Success(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportUsers(txCtx, data, opts)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportUsersTx(ctx, tx, data, opts)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	got, err := f.UserRepo.GetByID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "updated_user", got.Username)
@@ -276,11 +245,9 @@ func TestBackupRepo_ImportUsersTx_Error_InvalidTeamID(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportUsersTx(ctx, tx, data, opts)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportUsers(txCtx, data, opts)
+	})
 	assert.Error(t, err)
 }
 
@@ -298,15 +265,10 @@ func TestBackupRepo_ImportAwardsTx_Success(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportAwards(txCtx, data)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportAwardsTx(ctx, tx, data)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	awards, err := f.AwardRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
 	assert.Len(t, awards, 1)
@@ -325,11 +287,9 @@ func TestBackupRepo_ImportAwardsTx_Error_InvalidTeamID(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportAwardsTx(ctx, tx, data)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportAwards(txCtx, data)
+	})
 	assert.Error(t, err)
 }
 
@@ -348,15 +308,10 @@ func TestBackupRepo_ImportSolvesTx_Success(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportSolves(txCtx, data)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportSolvesTx(ctx, tx, data)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	got, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, got.UserID)
@@ -376,11 +331,9 @@ func TestBackupRepo_ImportSolvesTx_Error_InvalidTeamID(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportSolvesTx(ctx, tx, data)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportSolves(txCtx, data)
+	})
 	assert.Error(t, err)
 }
 
@@ -398,15 +351,10 @@ func TestBackupRepo_ImportFileMetadataTx_Success(t *testing.T) {
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportFileMetadata(txCtx, data)
+	})
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportFileMetadataTx(ctx, tx, data)
-	require.NoError(t, err)
-
-	require.NoError(t, tx.Commit(ctx))
-
 	got, err := f.FileRepo.GetByID(ctx, fileID)
 	require.NoError(t, err)
 	assert.Equal(t, "file.txt", got.Filename)
@@ -424,15 +372,13 @@ func TestBackupRepo_ImportFileMetadataTx_Error_InvalidChallengeID(t *testing.T) 
 		},
 	}
 
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck
-
-	err = f.BackupRepo.ImportFileMetadataTx(ctx, tx, data)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportFileMetadata(txCtx, data)
+	})
 	assert.Error(t, err)
 }
 
-func TestBackupRepo_RunTransaction_FullImport_Success(t *testing.T) {
+func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -457,26 +403,26 @@ func TestBackupRepo_RunTransaction_FullImport_Success(t *testing.T) {
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 
-	err = f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
-		if err := f.BackupRepo.ImportCompetitionTx(txCtx, tx, data.Competition); err != nil {
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		if err := f.BackupRepo.ImportCompetition(txCtx, data.Competition); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportChallengesTx(txCtx, tx, data); err != nil {
+		if err := f.BackupRepo.ImportChallenges(txCtx, data); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportTeamsTx(txCtx, tx, data, opts); err != nil {
+		if err := f.BackupRepo.ImportTeams(txCtx, data, opts); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportUsersTx(txCtx, tx, data, opts); err != nil {
+		if err := f.BackupRepo.ImportUsers(txCtx, data, opts); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportAwardsTx(txCtx, tx, data); err != nil {
+		if err := f.BackupRepo.ImportAwards(txCtx, data); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportSolvesTx(txCtx, tx, data); err != nil {
+		if err := f.BackupRepo.ImportSolves(txCtx, data); err != nil {
 			return err
 		}
-		return f.BackupRepo.ImportFileMetadataTx(txCtx, tx, data)
+		return f.BackupRepo.ImportFileMetadata(txCtx, data)
 	})
 
 	require.NoError(t, err)
@@ -486,7 +432,7 @@ func TestBackupRepo_RunTransaction_FullImport_Success(t *testing.T) {
 	assert.Equal(t, data.Competition.Name, gotComp.Name)
 }
 
-func TestBackupRepo_RunTransaction_EraseAndImportChallenges_Success(t *testing.T) {
+func TestBackupRepo_TM_Run_EraseAndImportChallenges_Success(t *testing.T) {
 	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -501,14 +447,14 @@ func TestBackupRepo_RunTransaction_EraseAndImportChallenges_Success(t *testing.T
 		{Challenge: entity.Challenge{ID: challengeID, Title: "Restored Chall", Description: challenge.Description, Category: challenge.Category, Points: 400, FlagHash: challenge.FlagHash, InitialValue: 400, MinValue: 400, Decay: 0, SolveCount: 0}, Hints: []entity.Hint{}},
 	}
 
-	err := f.TxRepo.RunTransaction(ctx, func(txCtx context.Context, tx repo.Transaction) error {
-		if err := f.BackupRepo.EraseAllTablesTx(txCtx, tx); err != nil {
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		if err := f.BackupRepo.EraseAllTables(txCtx); err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportCompetitionTx(txCtx, tx, data.Competition); err != nil {
+		if err := f.BackupRepo.ImportCompetition(txCtx, data.Competition); err != nil {
 			return err
 		}
-		return f.BackupRepo.ImportChallengesTx(txCtx, tx, data)
+		return f.BackupRepo.ImportChallenges(txCtx, data)
 	})
 
 	require.NoError(t, err)
@@ -517,4 +463,58 @@ func TestBackupRepo_RunTransaction_EraseAndImportChallenges_Success(t *testing.T
 	require.NoError(t, err)
 	assert.Equal(t, "Restored Chall", got.Title)
 	assert.Equal(t, 400, got.Points)
+}
+
+func TestBackupRepo_EraseTables_DisallowedTable_ReturnsError(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseTables(txCtx, []string{"solves", "evil_table"})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not allowed")
+	assert.Contains(t, err.Error(), "evil_table")
+}
+
+func TestBackupRepo_EraseTables_AllowedSubset_Success(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "erase_subset")
+	challenge := f.CreateChallenge(t, "erase_subset_ch", 100)
+	f.CreateSolve(t, user.ID, team.ID, challenge.ID)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseTables(txCtx, []string{"solves"})
+	})
+	require.NoError(t, err)
+
+	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
+	assert.Error(t, err)
+	_, err = f.UserRepo.GetByID(ctx, user.ID)
+	require.NoError(t, err)
+	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
+	require.NoError(t, err)
+}
+
+func TestBackupRepo_EraseTables_EmptyTables_NoOp(t *testing.T) {
+	t.Helper()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseTables(txCtx, nil)
+	})
+	require.NoError(t, err)
+
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.EraseTables(txCtx, []string{})
+	})
+	require.NoError(t, err)
 }

@@ -9,16 +9,16 @@ import (
 
 const (
 	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
+	pingInterval   = 30 * time.Second
 	maxMessageSize = 512
 )
 
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, ctx context.Context) *Client {
 	return &Client{
 		hub:  hub,
 		conn: conn,
 		send: make(chan []byte, 256),
+		ctx:  ctx,
 	}
 }
 
@@ -37,24 +37,16 @@ func (c *Client) ReadPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), pongWait)
-
-		_, _, err := c.conn.Read(ctx)
-		cancel()
-
+		_, _, err := c.conn.Read(c.ctx)
 		if err != nil {
-			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
-				websocket.CloseStatus(err) == websocket.StatusGoingAway {
-				return
-			}
 			return
 		}
 	}
 }
 
-//nolint:gocognit,gocyclo
+//nolint:gocognit
 func (c *Client) WritePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(pingInterval)
 	defer func() {
 		ticker.Stop()
 		c.closeConn()
@@ -63,11 +55,11 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			ctx, cancel := context.WithTimeout(context.Background(), writeWait)
+			ctx, cancel := context.WithTimeout(c.ctx, writeWait)
 
 			if !ok {
-				c.closeConn()
 				cancel()
+				c.closeConn()
 				return
 			}
 
@@ -81,22 +73,7 @@ func (c *Client) WritePump() {
 				cancel()
 				return
 			}
-		drain:
-			for {
-				select {
-				case next := <-c.send:
-					if _, err := w.Write([]byte{'\n'}); err != nil {
-						cancel()
-						return
-					}
-					if _, err := w.Write(next); err != nil {
-						cancel()
-						return
-					}
-				default:
-					break drain
-				}
-			}
+
 			if err := w.Close(); err != nil {
 				cancel()
 				return
@@ -104,12 +81,15 @@ func (c *Client) WritePump() {
 			cancel()
 
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), writeWait)
+			ctx, cancel := context.WithTimeout(c.ctx, writeWait)
 			if err := c.conn.Ping(ctx); err != nil {
 				cancel()
 				return
 			}
 			cancel()
+
+		case <-c.ctx.Done():
+			return
 		}
 	}
 }

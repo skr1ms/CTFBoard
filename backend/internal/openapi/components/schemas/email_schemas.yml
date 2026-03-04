@@ -1,0 +1,24 @@
+schemas:
+  request.ForgotPasswordRequest:
+    properties:
+      email:
+        example: player1@example.com
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_email"
+    required:
+      - email
+    type: object
+  request.ResetPasswordRequest:
+    properties:
+      new_password:
+        example: NewSecurePassword123!
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,strong_password"
+      token:
+        type: string
+    required:
+      - token
+      - new_password
+    type: object

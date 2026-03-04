@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

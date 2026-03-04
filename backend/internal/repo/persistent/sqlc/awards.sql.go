@@ -38,6 +38,24 @@ func (q *Queries) CreateAward(ctx context.Context, arg CreateAwardParams) error 
 	return err
 }
 
+const deleteAward = `-- name: DeleteAward :exec
+DELETE FROM awards WHERE id = $1
+`
+
+func (q *Queries) DeleteAward(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAward, id)
+	return err
+}
+
+const deleteAwardsByTeamID = `-- name: DeleteAwardsByTeamID :exec
+DELETE FROM awards WHERE team_id = $1
+`
+
+func (q *Queries) DeleteAwardsByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAwardsByTeamID, teamID)
+	return err
+}
+
 const getAllAwards = `-- name: GetAllAwards :many
 SELECT id, team_id, value, description, created_by, created_at
 FROM awards
@@ -69,6 +87,26 @@ func (q *Queries) GetAllAwards(ctx context.Context) ([]Award, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getAwardByID = `-- name: GetAwardByID :one
+SELECT id, team_id, value, description, created_by, created_at
+FROM awards
+WHERE id = $1
+`
+
+func (q *Queries) GetAwardByID(ctx context.Context, id uuid.UUID) (Award, error) {
+	row := q.db.QueryRow(ctx, getAwardByID, id)
+	var i Award
+	err := row.Scan(
+		&i.ID,
+		&i.TeamID,
+		&i.Value,
+		&i.Description,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getAwardsByTeamID = `-- name: GetAwardsByTeamID :many

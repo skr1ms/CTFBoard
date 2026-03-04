@@ -5,15 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /competition/status: returns status, start_time, end_time (public, no auth).
 func TestCompetition_Status(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, _ = h.SetupCompetition("status")
 
 	resp := h.GetCompetitionStatus()
 	require.NotNil(t, resp.JSON200)
@@ -25,8 +27,8 @@ func TestCompetition_Status(t *testing.T) {
 // PUT /admin/competition: pause/resume; when paused, POST /challenges/{ID}/submit returns 403; when resumed, submit succeeds.
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Cleanup(resetCompetitionToActive)
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("admin_comp")
 
@@ -43,14 +45,16 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	now := time.Now().UTC()
-	h.UpdateCompetition(tokenAdmin, map[string]any{
+	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), nil)
+	setCompetitionMode("flexible")
+	time.Sleep(6 * time.Second)
+
+	h.PutAdminCompetitionExpectStatus(tokenAdmin, map[string]any{
 		"name":              "Comp Name",
-		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"end_time":          now.Add(24 * time.Hour).Format(time.RFC3339),
 		"is_paused":         true,
 		"allow_team_switch": true,
 		"mode":              "flexible",
-	})
+	}, http.StatusOK)
 
 	statusResp := h.GetCompetitionStatus()
 	require.NotNil(t, statusResp.JSON200)
@@ -58,14 +62,12 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusForbidden)
 
-	h.UpdateCompetition(tokenAdmin, map[string]any{
+	h.PutAdminCompetitionExpectStatus(tokenAdmin, map[string]any{
 		"name":              "Comp Name",
-		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
-		"end_time":          now.Add(24 * time.Hour).Format(time.RFC3339),
 		"is_paused":         false,
 		"allow_team_switch": true,
 		"mode":              "flexible",
-	})
+	}, http.StatusOK)
 
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusOK)
 }
@@ -73,8 +75,8 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 // GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.).
 func TestCompetition_Admin_Get(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_get")
 
@@ -88,8 +90,8 @@ func TestCompetition_Admin_Get(t *testing.T) {
 // GET /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_get_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_comp")
@@ -100,8 +102,8 @@ func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
 // PUT /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Put_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_put_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put")

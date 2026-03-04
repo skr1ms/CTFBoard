@@ -1,130 +1,94 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
-	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/middleware"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/helper"
-	"github.com/skr1ms/CTFBoard/internal/controller/restapi/v1/request"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Verify email
 // (GET /auth/verify-email)
 func (h *Server) GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request, params openapi.GetAuthVerifyEmailParams) {
-	if params.Token == "" {
-		helper.RenderError(w, r, http.StatusBadRequest, "token is required")
-		return
-	}
-
 	err := h.user.EmailUC.VerifyEmail(r.Context(), params.Token)
-	if err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAuthVerifyEmail")
-
-		if errors.Is(err, entityError.ErrTokenNotFound) {
-			helper.RenderError(w, r, http.StatusNotFound, "invalid token")
-		} else if errors.Is(err, entityError.ErrTokenExpired) {
-			helper.RenderError(w, r, http.StatusGone, "token expired")
-		} else if errors.Is(err, entityError.ErrTokenAlreadyUsed) {
-			helper.RenderError(w, r, http.StatusConflict, "token already used")
-		} else {
-			helper.RenderError(w, r, http.StatusInternalServerError, "internal server error")
-		}
+	if h.OnError(w, r, err, "GetAuthVerifyEmail", "VerifyEmail") {
 		return
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "email verified successfully"})
+	helper.RenderOK(w, r, response.Message("email verified successfully"))
 }
 
 // Request password reset
 // (POST /auth/forgot-password)
 func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
-	// Rate Limit: 10 requests per day per IP (forgot password)
-	ip := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
-	allowed, err := middleware.CheckRateLimit(r.Context(), h.infra.RedisClient, "forgot", ip, 10, 24*time.Hour)
-	if err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthForgotPassword - CheckRateLimit")
-		helper.RenderError(w, r, http.StatusInternalServerError, "rate limit check failed")
-		return
-	}
-	if !allowed {
-		helper.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
-		return
-	}
-
-	req, ok := helper.DecodeAndValidate[openapi.RequestForgotPasswordRequest](
+	req, ok := helper.DecodeAndValidate[openapi.ForgotPasswordRequest](
 		w, r, h.infra.Validator, h.infra.Logger, "PostAuthForgotPassword",
 	)
 	if !ok {
 		return
 	}
 
-	email := request.ForgotPasswordRequestEmail(&req)
+	email := request.ForgotPasswordRequestToParams(&req)
+
+	// Rate Limit: per-email daily limit (prevents targeting a specific account).
+	allowed, err := h.infra.ForgotPasswordRateLimiter.Check(r.Context(), email)
+	if h.OnError(w, r, err, "PostAuthForgotPassword", "CheckRateLimit") {
+		return
+	}
+	if !allowed {
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthForgotPassword", "RateLimit")
+		return
+	}
 	if err := h.user.EmailUC.SendPasswordResetEmail(r.Context(), email); err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthForgotPassword - SendPasswordResetEmail")
+		h.infra.Logger.WithError(err).Warn("restapi - v1 - PostAuthForgotPassword - SendPasswordResetEmail")
+		// Do not return error to client (avoid email enumeration)
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "if an account exists with this email, a password reset link has been sent"})
+	helper.RenderOK(w, r, response.Message("if an account exists with this email, a password reset link has been sent"))
 }
 
 // Reset password
 // (POST /auth/reset-password)
 func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RequestResetPasswordRequest](
+	req, ok := helper.DecodeAndValidate[openapi.ResetPasswordRequest](
 		w, r, h.infra.Validator, h.infra.Logger, "PostAuthResetPassword",
 	)
 	if !ok {
 		return
 	}
 
-	token, newPassword := request.ResetPasswordRequestParams(&req)
+	token, newPassword := request.ResetPasswordRequestToParams(&req)
 	err := h.user.EmailUC.ResetPassword(r.Context(), token, newPassword)
-	if err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthResetPassword")
-
-		if errors.Is(err, entityError.ErrTokenNotFound) {
-			helper.RenderError(w, r, http.StatusNotFound, "invalid token")
-		} else if errors.Is(err, entityError.ErrTokenExpired) {
-			helper.RenderError(w, r, http.StatusGone, "token expired")
-		} else if errors.Is(err, entityError.ErrTokenAlreadyUsed) {
-			helper.RenderError(w, r, http.StatusConflict, "token already used")
-		} else {
-			helper.RenderError(w, r, http.StatusInternalServerError, "internal server error")
-		}
+	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPassword") {
 		return
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "password reset successfully"})
+	helper.RenderOK(w, r, response.Message("password reset successfully"))
 }
 
 // Resend verification email
 // (POST /auth/resend-verification)
 func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Request) {
-	useruuid, ok := helper.ParseAuthUserID(w, r)
+	userID, ok := helper.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
 
 	// Rate Limit: 10 requests per day per user (resend)
-	allowed, err := middleware.CheckRateLimit(r.Context(), h.infra.RedisClient, "resend", useruuid.String(), 10, 24*time.Hour)
-	if err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthResendVerification - CheckRateLimit")
-		helper.RenderError(w, r, http.StatusInternalServerError, "rate limit check failed")
+	allowed, err := h.infra.ResendVerificationRateLimiter.Check(r.Context(), userID.String())
+	if h.OnError(w, r, err, "PostAuthResendVerification", "CheckRateLimit") {
 		return
 	}
 	if !allowed {
-		helper.RenderError(w, r, http.StatusTooManyRequests, "too many requests")
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResendVerification", "RateLimit")
 		return
 	}
 
-	if err := h.user.EmailUC.ResendVerification(r.Context(), useruuid); err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - PostAuthResendVerification")
-		helper.RenderError(w, r, http.StatusInternalServerError, "failed to resend verification email")
+	if h.OnError(w, r, h.user.EmailUC.ResendVerification(r.Context(), userID), "PostAuthResendVerification", "ResendVerification") {
 		return
 	}
 
-	helper.RenderOK(w, r, map[string]string{"message": "verification email sent"})
+	helper.RenderOK(w, r, response.Message("verification email sent"))
 }

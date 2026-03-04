@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestAPITokenUseCase_List_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -29,6 +30,7 @@ func TestAPITokenUseCase_List_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_List_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -44,6 +46,7 @@ func TestAPITokenUseCase_List_Error(t *testing.T) {
 }
 
 func TestAPITokenUseCase_Create_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -67,6 +70,7 @@ func TestAPITokenUseCase_Create_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_Create_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -83,6 +87,7 @@ func TestAPITokenUseCase_Create_Error(t *testing.T) {
 }
 
 func TestAPITokenUseCase_Delete_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -97,6 +102,7 @@ func TestAPITokenUseCase_Delete_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_Delete_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -111,6 +117,7 @@ func TestAPITokenUseCase_Delete_Error(t *testing.T) {
 }
 
 func TestAPITokenUseCase_GetByTokenHash_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -127,6 +134,7 @@ func TestAPITokenUseCase_GetByTokenHash_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_GetByTokenHash_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -141,6 +149,7 @@ func TestAPITokenUseCase_GetByTokenHash_Error(t *testing.T) {
 }
 
 func TestAPITokenUseCase_UpdateLastUsedAt_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -155,6 +164,7 @@ func TestAPITokenUseCase_UpdateLastUsedAt_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_UpdateLastUsedAt_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	deps := h.Deps()
 	ctx := context.Background()
@@ -169,6 +179,7 @@ func TestAPITokenUseCase_UpdateLastUsedAt_Error(t *testing.T) {
 }
 
 func TestAPITokenUseCase_ValidateToken_Success(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	uc := h.CreateAPITokenUseCase()
 	token := h.NewAPIToken(uuid.New(), "h", "d", nil)
@@ -179,6 +190,7 @@ func TestAPITokenUseCase_ValidateToken_Success(t *testing.T) {
 }
 
 func TestAPITokenUseCase_ValidateToken_Error(t *testing.T) {
+	t.Parallel()
 	h := NewUserTestHelper(t)
 	uc := h.CreateAPITokenUseCase()
 

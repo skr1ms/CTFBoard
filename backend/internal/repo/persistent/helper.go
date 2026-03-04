@@ -8,16 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/skr1ms/CTFBoard/internal/repo"
 )
-
-func mustPgxTx(tx repo.Transaction) pgx.Tx {
-	pgxTx, ok := tx.(pgx.Tx)
-	if !ok {
-		panic("mustPgxTx: invalid transaction type")
-	}
-	return pgxTx
-}
 
 func isNoRows(err error) bool {
 	return err != nil && errors.Is(err, pgx.ErrNoRows)
@@ -35,9 +26,12 @@ func ptrTimeToTime(t *time.Time) time.Time {
 	return *t
 }
 
-func timeFromNullable(v any) time.Time {
+func timeFromNullableAny(v any) time.Time {
 	if v == nil {
 		return time.Time{}
+	}
+	if t, ok := v.(*time.Time); ok && t != nil {
+		return *t
 	}
 	if t, ok := v.(time.Time); ok {
 		return t
@@ -66,15 +60,15 @@ func intToInt32Safe(i int) (int32, error) {
 	return int32(i), nil
 }
 
-func intToInt32Ptr(i int) *int32 {
+func intToInt32Ptr(i int) (*int32, error) {
 	if i == 0 {
-		return nil
+		return nil, nil
 	}
 	v, err := intToInt32Safe(i)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("intToInt32Ptr: %w", err)
 	}
-	return &v
+	return &v, nil
 }
 
 func strPtrOrNil(s string) *string {

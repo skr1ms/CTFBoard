@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockBracketRepository creates a new instance of MockBracketRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -37,6 +38,57 @@ type MockBracketRepository_Expecter struct {
 
 func (_m *MockBracketRepository) EXPECT() *MockBracketRepository_Expecter {
 	return &MockBracketRepository_Expecter{mock: &_m.Mock}
+}
+
+// ClearAllDefaults provides a mock function for the type MockBracketRepository
+func (_mock *MockBracketRepository) ClearAllDefaults(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearAllDefaults")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBracketRepository_ClearAllDefaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearAllDefaults'
+type MockBracketRepository_ClearAllDefaults_Call struct {
+	*mock.Call
+}
+
+// ClearAllDefaults is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockBracketRepository_Expecter) ClearAllDefaults(ctx interface{}) *MockBracketRepository_ClearAllDefaults_Call {
+	return &MockBracketRepository_ClearAllDefaults_Call{Call: _e.mock.On("ClearAllDefaults", ctx)}
+}
+
+func (_c *MockBracketRepository_ClearAllDefaults_Call) Run(run func(ctx context.Context)) *MockBracketRepository_ClearAllDefaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBracketRepository_ClearAllDefaults_Call) Return(err error) *MockBracketRepository_ClearAllDefaults_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBracketRepository_ClearAllDefaults_Call) RunAndReturn(run func(ctx context.Context) error) *MockBracketRepository_ClearAllDefaults_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Create provides a mock function for the type MockBracketRepository
@@ -97,8 +149,8 @@ func (_c *MockBracketRepository_Create_Call) RunAndReturn(run func(ctx context.C
 }
 
 // Delete provides a mock function for the type MockBracketRepository
-func (_mock *MockBracketRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockBracketRepository) Delete(ctx context.Context, ID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -106,7 +158,7 @@ func (_mock *MockBracketRepository) Delete(ctx context.Context, id uuid.UUID) er
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -120,12 +172,12 @@ type MockBracketRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockBracketRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockBracketRepository_Delete_Call {
-	return &MockBracketRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockBracketRepository_Expecter) Delete(ctx interface{}, ID interface{}) *MockBracketRepository_Delete_Call {
+	return &MockBracketRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, ID)}
 }
 
-func (_c *MockBracketRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockBracketRepository_Delete_Call {
+func (_c *MockBracketRepository_Delete_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockBracketRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -148,7 +200,7 @@ func (_c *MockBracketRepository_Delete_Call) Return(err error) *MockBracketRepos
 	return _c
 }
 
-func (_c *MockBracketRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockBracketRepository_Delete_Call {
+func (_c *MockBracketRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockBracketRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -216,8 +268,8 @@ func (_c *MockBracketRepository_GetAll_Call) RunAndReturn(run func(ctx context.C
 }
 
 // GetByID provides a mock function for the type MockBracketRepository
-func (_mock *MockBracketRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Bracket, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockBracketRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Bracket, error) {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -226,17 +278,17 @@ func (_mock *MockBracketRepository) GetByID(ctx context.Context, id uuid.UUID) (
 	var r0 *entity.Bracket
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Bracket, error)); ok {
-		return returnFunc(ctx, id)
+		return returnFunc(ctx, ID)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Bracket); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Bracket)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+		r1 = returnFunc(ctx, ID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -250,12 +302,12 @@ type MockBracketRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockBracketRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockBracketRepository_GetByID_Call {
-	return &MockBracketRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockBracketRepository_Expecter) GetByID(ctx interface{}, ID interface{}) *MockBracketRepository_GetByID_Call {
+	return &MockBracketRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, ID)}
 }
 
-func (_c *MockBracketRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockBracketRepository_GetByID_Call {
+func (_c *MockBracketRepository_GetByID_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockBracketRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -278,7 +330,7 @@ func (_c *MockBracketRepository_GetByID_Call) Return(bracket *entity.Bracket, er
 	return _c
 }
 
-func (_c *MockBracketRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Bracket, error)) *MockBracketRepository_GetByID_Call {
+func (_c *MockBracketRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Bracket, error)) *MockBracketRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

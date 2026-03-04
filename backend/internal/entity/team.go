@@ -9,7 +9,7 @@ import (
 type Team struct {
 	ID            uuid.UUID  `json:"id"`
 	Name          string     `json:"name"`
-	InviteToken   uuid.UUID  `json:"invite_token"`
+	InviteToken   uuid.UUID  `json:"-"`
 	CaptainID     uuid.UUID  `json:"captain_id"`
 	BracketID     *uuid.UUID `json:"bracket_id,omitempty"`
 	IsSolo        bool       `json:"is_solo"`

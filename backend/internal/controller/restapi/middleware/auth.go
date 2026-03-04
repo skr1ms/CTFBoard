@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/pkg/httputil"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
 )
 
 type contextKey string
@@ -27,8 +29,8 @@ type UserByIDGetter interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
 }
 
-func authBearer(jwtService *jwt.JWTService, r *http.Request, token string) (context.Context, bool) {
-	claims, err := jwtService.ValidateAccessToken(token)
+func authBearer(jwtService jwt.Service, r *http.Request, token string) (context.Context, bool) {
+	claims, err := jwtService.ValidateAccessToken(r.Context(), token)
 	if err != nil {
 		return nil, false
 	}
@@ -37,7 +39,7 @@ func authBearer(jwtService *jwt.JWTService, r *http.Request, token string) (cont
 	return ctx, true
 }
 
-func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, r *http.Request, plaintext string) (context.Context, bool) {
+func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.Logger, r *http.Request, plaintext string) (context.Context, bool) {
 	if apiTokenUC == nil || userUC == nil {
 		return nil, false
 	}
@@ -55,38 +57,44 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, r *http.Requ
 	if err != nil || user == nil {
 		return nil, false
 	}
-	_ = apiTokenUC.UpdateLastUsedAt(r.Context(), token.ID) //nolint:errcheck // best-effort update
+	if user.IsBanned {
+		return nil, false
+	}
+	if err := apiTokenUC.UpdateLastUsedAt(r.Context(), token.ID); err != nil {
+		log.WithError(err).Warn("middleware - Auth - UpdateLastUsedAt: failed to update api token last_used_at")
+	}
 	ctx := context.WithValue(r.Context(), httputil.UserIDKey, user.ID.String())
 	ctx = context.WithValue(ctx, UserRoleKey, user.Role)
+	ctx = context.WithValue(ctx, userContextKey, user)
 	return ctx, true
 }
 
-func Auth(jwtService *jwt.JWTService, apiTokenUC APITokenAuther, userUC UserByIDGetter) func(http.Handler) http.Handler {
+func Auth(jwtService jwt.Service, apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				httputil.RenderError(w, r, http.StatusUnauthorized, "authorization header required")
+				httputil.HandleError(w, r, httperr.ErrAuthorizationHeaderRequired)
 				return
 			}
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) != 2 {
-				httputil.RenderError(w, r, http.StatusUnauthorized, "invalid authorization header format")
+				httputil.HandleError(w, r, httperr.ErrInvalidAuthorizationHeader)
 				return
 			}
 			var ctx context.Context
 			var ok bool
-			switch parts[0] {
-			case "Bearer":
+			switch {
+			case strings.EqualFold(parts[0], "Bearer"):
 				ctx, ok = authBearer(jwtService, r, parts[1])
-			case "Token":
-				ctx, ok = authAPIToken(apiTokenUC, userUC, r, parts[1])
+			case strings.EqualFold(parts[0], "Token"):
+				ctx, ok = authAPIToken(apiTokenUC, userUC, log, r, parts[1])
 			default:
-				httputil.RenderError(w, r, http.StatusUnauthorized, "invalid authorization header format")
+				httputil.HandleError(w, r, httperr.ErrInvalidAuthorizationHeader)
 				return
 			}
 			if !ok {
-				httputil.RenderError(w, r, http.StatusUnauthorized, "invalid token")
+				httputil.HandleError(w, r, httperr.ErrInvalidToken)
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -97,8 +105,8 @@ func Auth(jwtService *jwt.JWTService, apiTokenUC APITokenAuther, userUC UserByID
 func Admin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := GetUser(r.Context())
-		if !ok || user.Role != entity.RoleAdmin {
-			httputil.RenderError(w, r, http.StatusForbidden, "admin access required")
+		if !ok || user == nil || user.Role != entity.RoleAdmin {
+			httputil.HandleError(w, r, httperr.ErrAccessDenied)
 			return
 		}
 		next.ServeHTTP(w, r)

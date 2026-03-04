@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/usecase/challenge"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,40 +22,41 @@ func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
 	_, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("hint:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
 	uc := challenge.NewHintUseCase(challenge.HintDeps{
-		HintRepo: f.HintRepo, HintUnlockRepo: f.HintUnlockRepo, AwardRepo: f.AwardRepo,
-		TxRepo: f.TxRepo, SolveRepo: f.SolveRepo, ScoreboardCache: nil,
+		HintRepo: f.HintRepo, AwardRepo: f.AwardRepo,
+		TM: f.TM, SolveRepo: f.SolveRepo,
+		CompRepo: f.CompetitionRepo, TeamRepo: f.TeamRepo,
+		UserRepo:        f.UserRepo,
+		ChallengeRepo:   f.ChallengeRepo,
+		ScoreboardCache: nil,
 	})
 
-	team, challenge, hint := setupHintRaceTest(t, f, ctx)
+	user, team, challenge, hint := setupHintRaceTest(t, f, ctx)
 
-	successes, errors := runConcurrentUnlocks(uc, ctx, team.ID, hint.ID)
+	successes, errors := runConcurrentUnlocks(uc, ctx, user.ID, team.ID, challenge.ID, hint.ID)
 
 	verifyHintUnlockResults(t, f, ctx, team, challenge, successes, errors)
 }
 
-func setupHintRaceTest(t *testing.T, f *TestFixture, ctx context.Context) (*entity.Team, *entity.Challenge, *entity.Hint) {
+func setupHintRaceTest(t *testing.T, f *TestFixture, ctx context.Context) (*entity.User, *entity.Team, *entity.Challenge, *entity.Hint) {
 	t.Helper()
-	_, team := f.CreateUserWithTeam(t, "hint_racer")
+	user, team := f.CreateUserWithTeam(t, "hint_racer")
 	award := &entity.Award{
 		TeamID:      team.ID,
 		Value:       100,
 		Description: "Initial Funding",
 	}
-
-	tx, err := f.TxRepo.BeginTx(ctx)
-	require.NoError(t, err)
-	err = f.TxRepo.CreateAwardTx(ctx, tx, award)
-	require.NoError(t, err)
-	err = tx.Commit(ctx)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.AwardRepo.Create(txCtx, award)
+	})
 	require.NoError(t, err)
 
 	challenge := f.CreateChallenge(t, "HintRaceChall", 500)
 	hint := f.CreateHint(t, challenge.ID, 100, 1)
 
-	return team, challenge, hint
+	return user, team, challenge, hint
 }
 
-func runConcurrentUnlocks(uc *challenge.HintUseCase, ctx context.Context, teamID, hintID uuid.UUID) (int, []error) {
+func runConcurrentUnlocks(uc *challenge.HintUseCase, ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (int, []error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -64,7 +65,7 @@ func runConcurrentUnlocks(uc *challenge.HintUseCase, ctx context.Context, teamID
 
 	action := func() {
 		defer wg.Done()
-		h, err := uc.UnlockHint(ctx, teamID, hintID)
+		h, err := uc.UnlockHint(ctx, userID, teamID, challengeID, hintID)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -97,14 +98,11 @@ func verifyHintUnlockResults(t *testing.T, f *TestFixture, ctx context.Context, 
 	assert.Equal(t, 1, successes, "Only one unlock should succeed due to sufficient funds for only one")
 	assert.Equal(t, 1, len(errors), "One unlock should fail with insufficient funds or already unlocked")
 
-	unlocks, err := f.HintUnlockRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
+	unlocks, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, challenge.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(unlocks))
 
-	checkTx, err := f.TxRepo.BeginTx(ctx)
+	score, err := f.SolveRepo.GetTeamScore(ctx, team.ID)
 	require.NoError(t, err)
-	defer func() { _ = checkTx.Rollback(ctx) }() //nolint:errcheck
-	finalScore, err := f.TxRepo.GetTeamScoreTx(ctx, checkTx, team.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 0, finalScore, "Final score should be 0, not negative")
+	assert.Equal(t, 0, score, "Final score should be 0, not negative")
 }

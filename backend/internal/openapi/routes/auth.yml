@@ -1,0 +1,181 @@
+/auth/login:
+  post:
+    description: Authenticates user and returns JWT tokens
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/LoginRequest'
+      description: Credentials
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/TokenPair'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: User login
+    tags:
+      - Authentication
+
+/auth/register:
+  post:
+    description: Creates a new user in the system
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/RegisterRequest'
+      description: Registration data
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/RegisterResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Register new user
+    tags:
+      - Authentication
+
+/auth/refresh:
+  post:
+    description: Refreshes access and refresh tokens using a valid refresh token
+    parameters:
+      - name: Authorization
+        in: header
+        required: true
+        description: Bearer refresh token
+        schema:
+          type: string
+          example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/TokenPair'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Refresh tokens
+    tags:
+      - Authentication
+
+/auth/me:
+  get:
+    description: Returns information about authenticated user
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MeResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Get current user info
+    tags:
+      - Authentication
+  patch:
+    description: Updates current user profile (username, email, password)
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdateProfileRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MeResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict (username or email taken)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    summary: Update current user profile
+    tags:
+      - Authentication
+
+/auth/logout:
+  post:
+    description: Invalidates refresh token (if provided). Client should discard tokens.
+    parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: Optional Bearer refresh token to invalidate
+        schema:
+          type: string
+    requestBody:
+      required: false
+      description: Optional body carrying refresh token if not provided in the Authorization header
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/LogoutRequest'
+    responses:
+      "200":
+        description: OK
+      "401":
+        description: Unauthorized
+    security: []
+    summary: Logout
+    tags:
+      - Authentication
+

@@ -1,0 +1,77 @@
+schemas:
+  response.NotificationResponse:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      content:
+        type: string
+      type:
+        type: string
+      is_pinned:
+        type: boolean
+      created_at:
+        type: string
+    type: object
+  response.UserNotificationResponse:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      content:
+        type: string
+      type:
+        type: string
+      is_read:
+        type: boolean
+      created_at:
+        type: string
+    type: object
+  request.CreateNotificationRequest:
+    properties:
+      title:
+        type: string
+      content:
+        type: string
+      type:
+        type: string
+        enum: [info, warning, success, error]
+        default: info
+      is_pinned:
+        type: boolean
+        default: false
+    required:
+      - title
+      - content
+    type: object
+  request.CreateUserNotificationRequest:
+    properties:
+      title:
+        type: string
+      content:
+        type: string
+      type:
+        type: string
+        enum: [info, warning, success, error]
+        default: info
+    required:
+      - title
+      - content
+    type: object
+  request.UpdateNotificationRequest:
+    properties:
+      title:
+        type: string
+      content:
+        type: string
+      type:
+        type: string
+        enum: [info, warning, success, error]
+      is_pinned:
+        type: boolean
+    required:
+      - title
+      - content
+    type: object

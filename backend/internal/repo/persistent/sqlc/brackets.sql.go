@@ -12,6 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearAllDefaultBrackets = `-- name: ClearAllDefaultBrackets :exec
+UPDATE brackets SET is_default = false WHERE is_default = true
+`
+
+func (q *Queries) ClearAllDefaultBrackets(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, clearAllDefaultBrackets)
+	return err
+}
+
 const createBracket = `-- name: CreateBracket :one
 INSERT INTO brackets (id, name, description, is_default, created_at)
 VALUES ($1, $2, $3, $4, $5)

@@ -13,25 +13,30 @@ FROM challenges
 WHERE id = $1
 FOR UPDATE;
 
--- name: ListChallenges :many
+-- name: GetChallengesByIDs :many
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+FROM challenges
+WHERE id = ANY($1::uuid[]);
+
+-- name: GetChallenges :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
 FROM challenges c
 WHERE c.is_hidden = false;
 
--- name: ListChallengesByTag :many
+-- name: GetChallengesByTag :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
 WHERE c.is_hidden = false;
 
--- name: ListChallengesForTeam :many
+-- name: GetChallengesForTeam :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1
 WHERE c.is_hidden = false;
 
--- name: ListChallengesForTeamByTag :many
+-- name: GetChallengesForTeamByTag :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
@@ -51,5 +56,47 @@ DELETE FROM challenges WHERE id = $1 RETURNING id;
 -- name: IncrementChallengeSolveCount :one
 UPDATE challenges SET solve_count = solve_count + 1 WHERE id = $1 RETURNING solve_count;
 
+-- name: DecrementChallengeSolveCount :one
+UPDATE challenges SET solve_count = GREATEST(solve_count - 1, 0) WHERE id = $1 RETURNING solve_count;
+
 -- name: UpdateChallengePoints :one
 UPDATE challenges SET points = $2 WHERE id = $1 RETURNING id;
+
+-- name: GetChallengeFlags :one
+SELECT flag_hash, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+FROM challenges
+WHERE id = $1;
+
+-- name: GetMissingChallengesByTeamID :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+FROM challenges c
+WHERE c.is_hidden = false
+  AND NOT EXISTS (
+    SELECT 1 FROM solves s
+    WHERE s.challenge_id = c.id AND s.team_id = $1
+  )
+ORDER BY c.category, c.points DESC;
+
+-- name: GetMissingChallengesByUserID :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+FROM challenges c
+WHERE c.is_hidden = false
+  AND NOT EXISTS (
+    SELECT 1 FROM solves s
+    WHERE s.challenge_id = c.id 
+      AND (
+        (s.team_id IS NOT NULL AND s.team_id = (SELECT u.team_id FROM users u WHERE u.id = $1 AND u.team_id IS NOT NULL))
+        OR (s.user_id = $1 AND s.team_id IS NULL)
+      )
+  )
+ORDER BY c.category, c.points DESC;
+
+-- name: GetChallengeRequirements :many
+SELECT c.id, c.title, c.category
+FROM challenge_requirements cr
+JOIN challenges c ON c.id = cr.required_challenge_id
+WHERE cr.challenge_id = $1
+ORDER BY c.title;
+
+-- name: DeleteChallengeRequirements :exec
+DELETE FROM challenge_requirements WHERE challenge_id = $1;

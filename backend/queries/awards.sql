@@ -15,3 +15,14 @@ SELECT COALESCE(SUM(value), 0)::int FROM awards WHERE team_id = $1;
 SELECT id, team_id, value, description, created_by, created_at
 FROM awards
 ORDER BY created_at ASC;
+
+-- name: GetAwardByID :one
+SELECT id, team_id, value, description, created_by, created_at
+FROM awards
+WHERE id = $1;
+
+-- name: DeleteAward :exec
+DELETE FROM awards WHERE id = $1;
+
+-- name: DeleteAwardsByTeamID :exec
+DELETE FROM awards WHERE team_id = $1;

@@ -13,79 +13,95 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-// Defines values for RequestCreateFieldRequestEntityType.
+// Defines values for CreateFieldRequestEntityType.
 const (
-	RequestCreateFieldRequestEntityTypeTeam RequestCreateFieldRequestEntityType = "team"
-	RequestCreateFieldRequestEntityTypeUser RequestCreateFieldRequestEntityType = "user"
+	CreateFieldRequestEntityTypeTeam CreateFieldRequestEntityType = "team"
+	CreateFieldRequestEntityTypeUser CreateFieldRequestEntityType = "user"
 )
 
-// Defines values for RequestCreateFieldRequestFieldType.
+// Defines values for CreateFieldRequestFieldType.
 const (
-	RequestCreateFieldRequestFieldTypeBoolean RequestCreateFieldRequestFieldType = "boolean"
-	RequestCreateFieldRequestFieldTypeNumber  RequestCreateFieldRequestFieldType = "number"
-	RequestCreateFieldRequestFieldTypeSelect  RequestCreateFieldRequestFieldType = "select"
-	RequestCreateFieldRequestFieldTypeText    RequestCreateFieldRequestFieldType = "text"
+	CreateFieldRequestFieldTypeBoolean CreateFieldRequestFieldType = "boolean"
+	CreateFieldRequestFieldTypeNumber  CreateFieldRequestFieldType = "number"
+	CreateFieldRequestFieldTypeSelect  CreateFieldRequestFieldType = "select"
+	CreateFieldRequestFieldTypeText    CreateFieldRequestFieldType = "text"
 )
 
-// Defines values for RequestCreateNotificationRequestType.
+// Defines values for CreateNotificationRequestType.
 const (
-	RequestCreateNotificationRequestTypeError   RequestCreateNotificationRequestType = "error"
-	RequestCreateNotificationRequestTypeInfo    RequestCreateNotificationRequestType = "info"
-	RequestCreateNotificationRequestTypeSuccess RequestCreateNotificationRequestType = "success"
-	RequestCreateNotificationRequestTypeWarning RequestCreateNotificationRequestType = "warning"
+	CreateNotificationRequestTypeError   CreateNotificationRequestType = "error"
+	CreateNotificationRequestTypeInfo    CreateNotificationRequestType = "info"
+	CreateNotificationRequestTypeSuccess CreateNotificationRequestType = "success"
+	CreateNotificationRequestTypeWarning CreateNotificationRequestType = "warning"
 )
 
-// Defines values for RequestCreateUserNotificationRequestType.
+// Defines values for CreateUserNotificationRequestType.
 const (
-	RequestCreateUserNotificationRequestTypeError   RequestCreateUserNotificationRequestType = "error"
-	RequestCreateUserNotificationRequestTypeInfo    RequestCreateUserNotificationRequestType = "info"
-	RequestCreateUserNotificationRequestTypeSuccess RequestCreateUserNotificationRequestType = "success"
-	RequestCreateUserNotificationRequestTypeWarning RequestCreateUserNotificationRequestType = "warning"
+	CreateUserNotificationRequestTypeError   CreateUserNotificationRequestType = "error"
+	CreateUserNotificationRequestTypeInfo    CreateUserNotificationRequestType = "info"
+	CreateUserNotificationRequestTypeSuccess CreateUserNotificationRequestType = "success"
+	CreateUserNotificationRequestTypeWarning CreateUserNotificationRequestType = "warning"
 )
 
-// Defines values for RequestSetConfigRequestValueType.
+// Defines values for FieldResponseEntityType.
 const (
-	Bool   RequestSetConfigRequestValueType = "bool"
-	Int    RequestSetConfigRequestValueType = "int"
-	JSON   RequestSetConfigRequestValueType = "json"
-	String RequestSetConfigRequestValueType = "string"
+	FieldResponseEntityTypeTeam FieldResponseEntityType = "team"
+	FieldResponseEntityTypeUser FieldResponseEntityType = "user"
 )
 
-// Defines values for RequestUpdateAppSettingsRequestScoreboardVisible.
+// Defines values for FieldResponseFieldType.
 const (
-	AdminsOnly RequestUpdateAppSettingsRequestScoreboardVisible = "admins_only"
-	Hidden     RequestUpdateAppSettingsRequestScoreboardVisible = "hidden"
-	Public     RequestUpdateAppSettingsRequestScoreboardVisible = "public"
+	FieldResponseFieldTypeBoolean FieldResponseFieldType = "boolean"
+	FieldResponseFieldTypeNumber  FieldResponseFieldType = "number"
+	FieldResponseFieldTypeSelect  FieldResponseFieldType = "select"
+	FieldResponseFieldTypeText    FieldResponseFieldType = "text"
 )
 
-// Defines values for RequestUpdateFieldRequestFieldType.
+// Defines values for SetConfigRequestValueType.
 const (
-	RequestUpdateFieldRequestFieldTypeBoolean RequestUpdateFieldRequestFieldType = "boolean"
-	RequestUpdateFieldRequestFieldTypeNumber  RequestUpdateFieldRequestFieldType = "number"
-	RequestUpdateFieldRequestFieldTypeSelect  RequestUpdateFieldRequestFieldType = "select"
-	RequestUpdateFieldRequestFieldTypeText    RequestUpdateFieldRequestFieldType = "text"
+	Bool   SetConfigRequestValueType = "bool"
+	Int    SetConfigRequestValueType = "int"
+	JSON   SetConfigRequestValueType = "json"
+	String SetConfigRequestValueType = "string"
 )
 
-// Defines values for RequestUpdateNotificationRequestType.
+// Defines values for UpdateAppSettingsRequestScoreboardVisible.
 const (
-	Error   RequestUpdateNotificationRequestType = "error"
-	Info    RequestUpdateNotificationRequestType = "info"
-	Success RequestUpdateNotificationRequestType = "success"
-	Warning RequestUpdateNotificationRequestType = "warning"
+	AdminsOnly UpdateAppSettingsRequestScoreboardVisible = "admins_only"
+	Hidden     UpdateAppSettingsRequestScoreboardVisible = "hidden"
+	Public     UpdateAppSettingsRequestScoreboardVisible = "public"
 )
 
-// Defines values for ResponseFieldResponseEntityType.
+// Defines values for UpdateFieldRequestFieldType.
 const (
-	ResponseFieldResponseEntityTypeTeam ResponseFieldResponseEntityType = "team"
-	ResponseFieldResponseEntityTypeUser ResponseFieldResponseEntityType = "user"
+	Boolean UpdateFieldRequestFieldType = "boolean"
+	Number  UpdateFieldRequestFieldType = "number"
+	Select  UpdateFieldRequestFieldType = "select"
+	Text    UpdateFieldRequestFieldType = "text"
 )
 
-// Defines values for ResponseFieldResponseFieldType.
+// Defines values for UpdateNotificationRequestType.
 const (
-	Boolean ResponseFieldResponseFieldType = "boolean"
-	Number  ResponseFieldResponseFieldType = "number"
-	Select  ResponseFieldResponseFieldType = "select"
-	Text    ResponseFieldResponseFieldType = "text"
+	Error   UpdateNotificationRequestType = "error"
+	Info    UpdateNotificationRequestType = "info"
+	Success UpdateNotificationRequestType = "success"
+	Warning UpdateNotificationRequestType = "warning"
+)
+
+// Defines values for PostAdminChallengesChallengeIDFilesMultipartBodyType.
+const (
+	Challenge PostAdminChallengesChallengeIDFilesMultipartBodyType = "challenge"
+	Writeup   PostAdminChallengesChallengeIDFilesMultipartBodyType = "writeup"
+)
+
+// Defines values for GetAdminExportCsvParamsTable.
+const (
+	GetAdminExportCsvParamsTableAwards      GetAdminExportCsvParamsTable = "awards"
+	GetAdminExportCsvParamsTableChallenges  GetAdminExportCsvParamsTable = "challenges"
+	GetAdminExportCsvParamsTableSolves      GetAdminExportCsvParamsTable = "solves"
+	GetAdminExportCsvParamsTableSubmissions GetAdminExportCsvParamsTable = "submissions"
+	GetAdminExportCsvParamsTableTeams       GetAdminExportCsvParamsTable = "teams"
+	GetAdminExportCsvParamsTableUsers       GetAdminExportCsvParamsTable = "users"
 )
 
 // Defines values for PostAdminImportMultipartBodyConflictMode.
@@ -95,486 +111,36 @@ const (
 	Skip      PostAdminImportMultipartBodyConflictMode = "skip"
 )
 
+// Defines values for PostAdminImportCsvMultipartBodyTable.
+const (
+	PostAdminImportCsvMultipartBodyTableAwards      PostAdminImportCsvMultipartBodyTable = "awards"
+	PostAdminImportCsvMultipartBodyTableChallenges  PostAdminImportCsvMultipartBodyTable = "challenges"
+	PostAdminImportCsvMultipartBodyTableSolves      PostAdminImportCsvMultipartBodyTable = "solves"
+	PostAdminImportCsvMultipartBodyTableSubmissions PostAdminImportCsvMultipartBodyTable = "submissions"
+	PostAdminImportCsvMultipartBodyTableTeams       PostAdminImportCsvMultipartBodyTable = "teams"
+	PostAdminImportCsvMultipartBodyTableUsers       PostAdminImportCsvMultipartBodyTable = "users"
+)
+
+// Defines values for GetAdminUsersParamsField.
+const (
+	IP       GetAdminUsersParamsField = "ip"
+	Username GetAdminUsersParamsField = "username"
+)
+
 // Defines values for GetFieldsParamsEntityType.
 const (
 	Team GetFieldsParamsEntityType = "team"
 	User GetFieldsParamsEntityType = "user"
 )
 
-// EntityAward defines model for entity.Award.
-type EntityAward struct {
-	CreatedAt   *string `json:"created_at,omitempty"`
-	Description *string `json:"description,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	TeamID      *string `json:"team_id,omitempty"`
-	Value       *int    `json:"value,omitempty"`
-}
-
-// EntityBackupData defines model for entity.BackupData.
-type EntityBackupData struct {
-	Awards      *[]EntityAward           `json:"awards,omitempty"`
-	Challenges  *[]EntityChallengeExport `json:"challenges,omitempty"`
-	Competition *EntityCompetition       `json:"competition,omitempty"`
-	ExportedAt  *string                  `json:"exported_at,omitempty"`
-	Files       *[]EntityFile            `json:"files,omitempty"`
-	Solves      *[]EntitySolve           `json:"solves,omitempty"`
-	Teams       *[]EntityTeamExport      `json:"teams,omitempty"`
-	Users       *[]EntityUserExport      `json:"users,omitempty"`
-	Version     *string                  `json:"version,omitempty"`
-}
-
-// EntityChallengeDetailStats defines model for entity.ChallengeDetailStats.
-type EntityChallengeDetailStats struct {
-	Category         *string                      `json:"category,omitempty"`
-	FirstBlood       *EntityChallengeSolveEntry   `json:"first_blood,omitempty"`
-	ID               *string                      `json:"id,omitempty"`
-	PercentageSolved *float32                     `json:"percentage_solved,omitempty"`
-	Points           *int                         `json:"points,omitempty"`
-	SolveCount       *int                         `json:"solve_count,omitempty"`
-	Solves           *[]EntityChallengeSolveEntry `json:"solves,omitempty"`
-	Title            *string                      `json:"title,omitempty"`
-	TotalTeams       *int                         `json:"total_teams,omitempty"`
-}
-
-// EntityChallengeExport defines model for entity.ChallengeExport.
-type EntityChallengeExport struct {
-	Category    *string       `json:"category,omitempty"`
-	Description *string       `json:"description,omitempty"`
-	FlagHash    *string       `json:"flag_hash,omitempty"`
-	Hints       *[]EntityHint `json:"hints,omitempty"`
-	ID          *string       `json:"id,omitempty"`
-	IsHidden    *bool         `json:"is_hidden,omitempty"`
-	Points      *int          `json:"points,omitempty"`
-	Title       *string       `json:"title,omitempty"`
-}
-
-// EntityChallengeSolveEntry defines model for entity.ChallengeSolveEntry.
-type EntityChallengeSolveEntry struct {
-	SolvedAt *time.Time `json:"solved_at,omitempty"`
-	TeamID   *string    `json:"team_id,omitempty"`
-	TeamName *string    `json:"team_name,omitempty"`
-}
-
-// EntityChallengeStats defines model for entity.ChallengeStats.
-type EntityChallengeStats struct {
-	Category   *string `json:"category,omitempty"`
-	ID         *string `json:"id,omitempty"`
-	Points     *int    `json:"points,omitempty"`
-	SolveCount *int    `json:"solve_count,omitempty"`
-	Title      *string `json:"title,omitempty"`
-}
-
-// EntityCompetition defines model for entity.Competition.
-type EntityCompetition struct {
-	EndTime    *string `json:"end_time,omitempty"`
-	FreezeTime *string `json:"freeze_time,omitempty"`
-	ID         *int    `json:"id,omitempty"`
-	IsPaused   *bool   `json:"is_paused,omitempty"`
-	Mode       *string `json:"mode,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	StartTime  *string `json:"start_time,omitempty"`
-}
-
-// EntityFile defines model for entity.File.
-type EntityFile struct {
-	ChallengeID *string `json:"challenge_id,omitempty"`
-	CreatedAt   *string `json:"created_at,omitempty"`
-	Filename    *string `json:"filename,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	Location    *string `json:"location,omitempty"`
-	Sha256      *string `json:"sha256,omitempty"`
-	Size        *int    `json:"size,omitempty"`
-	Type        *string `json:"type,omitempty"`
-}
-
-// EntityGeneralStats defines model for entity.GeneralStats.
-type EntityGeneralStats struct {
-	ChallengeCount *int `json:"challenge_count,omitempty"`
-	SolveCount     *int `json:"solve_count,omitempty"`
-	TeamCount      *int `json:"team_count,omitempty"`
-	UserCount      *int `json:"user_count,omitempty"`
-}
-
-// EntityHint defines model for entity.Hint.
-type EntityHint struct {
-	ChallengeID *string `json:"challenge_id,omitempty"`
-	Content     *string `json:"content,omitempty"`
-	Cost        *int    `json:"cost,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	OrderIndex  *int    `json:"order_index,omitempty"`
-}
-
-// EntityImportResult defines model for entity.ImportResult.
-type EntityImportResult struct {
-	Errors       *[]string `json:"errors,omitempty"`
-	SkippedCount *int      `json:"skipped_count,omitempty"`
-	Success      *bool     `json:"success,omitempty"`
-}
-
-// EntityScorePoint defines model for entity.ScorePoint.
-type EntityScorePoint struct {
-	Score     *int    `json:"score,omitempty"`
-	Timestamp *string `json:"timestamp,omitempty"`
-}
-
-// EntityScoreboardGraph defines model for entity.ScoreboardGraph.
-type EntityScoreboardGraph struct {
-	Range *EntityTimeRange      `json:"range,omitempty"`
-	Teams *[]EntityTeamTimeline `json:"teams,omitempty"`
-}
-
-// EntityScoreboardHistoryEntry defines model for entity.ScoreboardHistoryEntry.
-type EntityScoreboardHistoryEntry struct {
-	Points    *int    `json:"points,omitempty"`
-	TeamID    *string `json:"team_id,omitempty"`
-	TeamName  *string `json:"team_name,omitempty"`
-	Timestamp *string `json:"timestamp,omitempty"`
-}
-
-// EntitySolve defines model for entity.Solve.
-type EntitySolve struct {
-	ChallengeID *string `json:"challenge_id,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	SolvedAt    *string `json:"solved_at,omitempty"`
-	TeamID      *string `json:"team_id,omitempty"`
-	UserID      *string `json:"user_id,omitempty"`
-}
-
-// EntityTeamExport defines model for entity.TeamExport.
-type EntityTeamExport struct {
-	CaptainID *string   `json:"captain_id,omitempty"`
-	ID        *string   `json:"id,omitempty"`
-	IsBanned  *bool     `json:"is_banned,omitempty"`
-	MemberIds *[]string `json:"member_ids,omitempty"`
-	Name      *string   `json:"name,omitempty"`
-}
-
-// EntityTeamTimeline defines model for entity.TeamTimeline.
-type EntityTeamTimeline struct {
-	TeamID   *string             `json:"team_id,omitempty"`
-	TeamName *string             `json:"team_name,omitempty"`
-	Timeline *[]EntityScorePoint `json:"timeline,omitempty"`
-}
-
-// EntityTimeRange defines model for entity.TimeRange.
-type EntityTimeRange struct {
-	End   *string `json:"end,omitempty"`
-	Start *string `json:"start,omitempty"`
-}
-
-// EntityUserExport defines model for entity.UserExport.
-type EntityUserExport struct {
-	Email    *string `json:"email,omitempty"`
-	ID       *string `json:"id,omitempty"`
-	Role     *string `json:"role,omitempty"`
-	TeamID   *string `json:"team_id,omitempty"`
-	Username *string `json:"username,omitempty"`
-}
-
-// JwtTokenPair defines model for jwt.TokenPair.
-type JwtTokenPair struct {
-	AccessExpiresAt  *int    `json:"access_expires_at,omitempty"`
-	AccessToken      *string `json:"access_token,omitempty"`
-	RefreshExpiresAt *int    `json:"refresh_expires_at,omitempty"`
-	RefreshToken     *string `json:"refresh_token,omitempty"`
-}
-
-// RequestBanTeamRequest defines model for request.BanTeamRequest.
-type RequestBanTeamRequest struct {
-	Reason string `json:"reason"`
-}
-
-// RequestCreateAPITokenRequest defines model for request.CreateAPITokenRequest.
-type RequestCreateAPITokenRequest struct {
-	Description *string    `json:"description,omitempty"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
-}
-
-// RequestCreateAwardRequest defines model for request.CreateAwardRequest.
-type RequestCreateAwardRequest struct {
-	Description string `json:"description"`
-	TeamID      string `json:"team_id"`
-	Value       int    `json:"value"`
-}
-
-// RequestCreateBracketRequest defines model for request.CreateBracketRequest.
-type RequestCreateBracketRequest struct {
-	Description *string `json:"description,omitempty"`
-	IsDefault   *bool   `json:"is_default,omitempty"`
-	Name        string  `json:"name"`
-}
-
-// RequestCreateCTFEventRequest defines model for request.CreateCTFEventRequest.
-type RequestCreateCTFEventRequest struct {
-	EndTime   time.Time `json:"end_time"`
-	Name      string    `json:"name"`
-	StartTime time.Time `json:"start_time"`
-	Weight    *float32  `json:"weight,omitempty"`
-}
-
-// RequestCreateChallengeRequest defines model for request.CreateChallengeRequest.
-type RequestCreateChallengeRequest struct {
-	Category    string `json:"category"`
-	Decay       *int   `json:"decay,omitempty"`
-	Description string `json:"description"`
-	Flag        string `json:"flag"`
-
-	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
-	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
-	InitialValue      *int    `json:"initial_value,omitempty"`
-	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
-	IsHidden          *bool   `json:"is_hidden,omitempty"`
-	IsRegex           *bool   `json:"is_regex,omitempty"`
-	MinValue          *int    `json:"min_value,omitempty"`
-	Points            int     `json:"points"`
-
-	// TagIds Tag IDs for the challenge
-	TagIds *[]string `json:"tag_ids,omitempty"`
-	Title  string    `json:"title"`
-}
-
-// RequestCreateCommentRequest defines model for request.CreateCommentRequest.
-type RequestCreateCommentRequest struct {
-	Content string `json:"content"`
-}
-
-// RequestCreateFieldRequest defines model for request.CreateFieldRequest.
-type RequestCreateFieldRequest struct {
-	EntityType RequestCreateFieldRequestEntityType `json:"entity_type"`
-	FieldType  RequestCreateFieldRequestFieldType  `json:"field_type"`
-	Name       string                              `json:"name"`
-
-	// Options Options for select type
-	Options    *[]string `json:"options,omitempty"`
-	OrderIndex *int      `json:"order_index,omitempty"`
-	Required   *bool     `json:"required,omitempty"`
-}
-
-// RequestCreateFieldRequestEntityType defines model for RequestCreateFieldRequest.EntityType.
-type RequestCreateFieldRequestEntityType string
-
-// RequestCreateFieldRequestFieldType defines model for RequestCreateFieldRequest.FieldType.
-type RequestCreateFieldRequestFieldType string
-
-// RequestCreateHintRequest defines model for request.CreateHintRequest.
-type RequestCreateHintRequest struct {
-	Content    string `json:"content"`
-	Cost       *int   `json:"cost,omitempty"`
-	OrderIndex *int   `json:"order_index,omitempty"`
-}
-
-// RequestCreateNotificationRequest defines model for request.CreateNotificationRequest.
-type RequestCreateNotificationRequest struct {
-	Content  string                                `json:"content"`
-	IsPinned *bool                                 `json:"is_pinned,omitempty"`
-	Title    string                                `json:"title"`
-	Type     *RequestCreateNotificationRequestType `json:"type,omitempty"`
-}
-
-// RequestCreateNotificationRequestType defines model for RequestCreateNotificationRequest.Type.
-type RequestCreateNotificationRequestType string
-
-// RequestCreatePageRequest defines model for request.CreatePageRequest.
-type RequestCreatePageRequest struct {
-	Content    *string `json:"content,omitempty"`
-	IsDraft    *bool   `json:"is_draft,omitempty"`
-	OrderIndex *int    `json:"order_index,omitempty"`
-	Slug       string  `json:"slug"`
-	Title      string  `json:"title"`
-}
-
-// RequestCreateTagRequest defines model for request.CreateTagRequest.
-type RequestCreateTagRequest struct {
-	Color *string `json:"color,omitempty"`
-	Name  string  `json:"name"`
-}
-
-// RequestCreateTeamRequest defines model for request.CreateTeamRequest.
-type RequestCreateTeamRequest struct {
-	ConfirmReset *bool  `json:"confirm_reset,omitempty"`
-	Name         string `json:"name"`
-}
-
-// RequestCreateUserNotificationRequest defines model for request.CreateUserNotificationRequest.
-type RequestCreateUserNotificationRequest struct {
-	Content string                                    `json:"content"`
-	Title   string                                    `json:"title"`
-	Type    *RequestCreateUserNotificationRequestType `json:"type,omitempty"`
-}
-
-// RequestCreateUserNotificationRequestType defines model for RequestCreateUserNotificationRequest.Type.
-type RequestCreateUserNotificationRequestType string
-
-// RequestForgotPasswordRequest defines model for request.ForgotPasswordRequest.
-type RequestForgotPasswordRequest struct {
-	Email *string `json:"email,omitempty"`
-}
-
-// RequestJoinTeamRequest defines model for request.JoinTeamRequest.
-type RequestJoinTeamRequest struct {
-	ConfirmReset *bool  `json:"confirm_reset,omitempty"`
-	InviteToken  string `json:"invite_token"`
-}
-
-// RequestLoginRequest defines model for request.LoginRequest.
-type RequestLoginRequest struct {
-	Email    *string `json:"email,omitempty"`
-	Password string  `json:"password"`
-}
-
-// RequestRegisterRequest defines model for request.RegisterRequest.
-type RequestRegisterRequest struct {
-	// CustomFields Custom field values (field_id -> value)
-	CustomFields *map[string]string `json:"custom_fields,omitempty"`
-	Email        *string            `json:"email,omitempty"`
-	Password     *string            `json:"password,omitempty"`
-	Username     *string            `json:"username,omitempty"`
-}
-
-// RequestResetPasswordRequest defines model for request.ResetPasswordRequest.
-type RequestResetPasswordRequest struct {
-	NewPassword *string `json:"new_password,omitempty"`
-	Token       string  `json:"token"`
-}
-
-// RequestSetConfigRequest defines model for request.SetConfigRequest.
-type RequestSetConfigRequest struct {
-	Description *string                           `json:"description,omitempty"`
-	Value       string                            `json:"value"`
-	ValueType   *RequestSetConfigRequestValueType `json:"value_type,omitempty"`
-}
-
-// RequestSetConfigRequestValueType defines model for RequestSetConfigRequest.ValueType.
-type RequestSetConfigRequestValueType string
-
-// RequestSetHiddenRequest defines model for request.SetHiddenRequest.
-type RequestSetHiddenRequest struct {
-	Hidden *bool `json:"hidden,omitempty"`
-}
-
-// RequestSetTeamBracketRequest defines model for request.SetTeamBracketRequest.
-type RequestSetTeamBracketRequest struct {
-	BracketID *openapi_types.UUID `json:"bracket_id"`
-}
-
-// RequestSubmitFlagRequest defines model for request.SubmitFlagRequest.
-type RequestSubmitFlagRequest struct {
-	Flag string `json:"flag"`
-}
-
-// RequestTransferCaptainRequest defines model for request.TransferCaptainRequest.
-type RequestTransferCaptainRequest struct {
-	NewCaptainID string `json:"new_captain_id"`
-}
-
-// RequestUpdateAppSettingsRequest defines model for request.UpdateAppSettingsRequest.
-type RequestUpdateAppSettingsRequest struct {
-	AppName                string                                            `json:"app_name"`
-	CorsOrigins            string                                            `json:"cors_origins"`
-	FrontendURL            string                                            `json:"frontend_url"`
-	RegistrationOpen       *bool                                             `json:"registration_open,omitempty"`
-	ResendEnabled          *bool                                             `json:"resend_enabled,omitempty"`
-	ResendFromEmail        string                                            `json:"resend_from_email"`
-	ResendFromName         string                                            `json:"resend_from_name"`
-	ResetTTLHours          *int                                              `json:"reset_ttl_hours,omitempty"`
-	ScoreboardVisible      *RequestUpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty"`
-	SubmitLimitDurationMin *int                                              `json:"submit_limit_duration_min,omitempty"`
-	SubmitLimitPerUser     *int                                              `json:"submit_limit_per_user,omitempty"`
-	VerifyEmails           *bool                                             `json:"verify_emails,omitempty"`
-	VerifyTTLHours         *int                                              `json:"verify_ttl_hours,omitempty"`
-}
-
-// RequestUpdateAppSettingsRequestScoreboardVisible defines model for RequestUpdateAppSettingsRequest.ScoreboardVisible.
-type RequestUpdateAppSettingsRequestScoreboardVisible string
-
-// RequestUpdateBracketRequest defines model for request.UpdateBracketRequest.
-type RequestUpdateBracketRequest struct {
-	Description *string `json:"description,omitempty"`
-	IsDefault   *bool   `json:"is_default,omitempty"`
-	Name        string  `json:"name"`
-}
-
-// RequestUpdateChallengeRequest defines model for request.UpdateChallengeRequest.
-type RequestUpdateChallengeRequest struct {
-	Category    string  `json:"category"`
-	Decay       *int    `json:"decay,omitempty"`
-	Description string  `json:"description"`
-	Flag        *string `json:"flag,omitempty"`
-
-	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
-	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
-	InitialValue      *int    `json:"initial_value,omitempty"`
-	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
-	IsHidden          *bool   `json:"is_hidden,omitempty"`
-	IsRegex           *bool   `json:"is_regex,omitempty"`
-	MinValue          *int    `json:"min_value,omitempty"`
-	Points            int     `json:"points"`
-
-	// TagIds Tag IDs for the challenge
-	TagIds *[]string `json:"tag_ids,omitempty"`
-	Title  string    `json:"title"`
-}
-
-// RequestUpdateCompetitionRequest defines model for request.UpdateCompetitionRequest.
-type RequestUpdateCompetitionRequest struct {
-	AllowTeamSwitch *bool      `json:"allow_team_switch,omitempty"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	FlagRegex       *string    `json:"flag_regex,omitempty"`
-	FreezeTime      *time.Time `json:"freeze_time,omitempty"`
-	IsPaused        *bool      `json:"is_paused,omitempty"`
-	IsPublic        *bool      `json:"is_public,omitempty"`
-	Mode            *string    `json:"mode,omitempty"`
-	Name            string     `json:"name"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
-}
-
-// RequestUpdateFieldRequest defines model for request.UpdateFieldRequest.
-type RequestUpdateFieldRequest struct {
-	FieldType  RequestUpdateFieldRequestFieldType `json:"field_type"`
-	Name       string                             `json:"name"`
-	Options    *[]string                          `json:"options,omitempty"`
-	OrderIndex *int                               `json:"order_index,omitempty"`
-	Required   *bool                              `json:"required,omitempty"`
-}
-
-// RequestUpdateFieldRequestFieldType defines model for RequestUpdateFieldRequest.FieldType.
-type RequestUpdateFieldRequestFieldType string
-
-// RequestUpdateHintRequest defines model for request.UpdateHintRequest.
-type RequestUpdateHintRequest struct {
-	Content    string `json:"content"`
-	Cost       *int   `json:"cost,omitempty"`
-	OrderIndex *int   `json:"order_index,omitempty"`
-}
-
-// RequestUpdateNotificationRequest defines model for request.UpdateNotificationRequest.
-type RequestUpdateNotificationRequest struct {
-	Content  string                                `json:"content"`
-	IsPinned *bool                                 `json:"is_pinned,omitempty"`
-	Title    string                                `json:"title"`
-	Type     *RequestUpdateNotificationRequestType `json:"type,omitempty"`
-}
-
-// RequestUpdateNotificationRequestType defines model for RequestUpdateNotificationRequest.Type.
-type RequestUpdateNotificationRequestType string
-
-// RequestUpdatePageRequest defines model for request.UpdatePageRequest.
-type RequestUpdatePageRequest struct {
-	Content    *string `json:"content,omitempty"`
-	IsDraft    *bool   `json:"is_draft,omitempty"`
-	OrderIndex *int    `json:"order_index,omitempty"`
-	Slug       string  `json:"slug"`
-	Title      string  `json:"title"`
-}
-
-// RequestUpdateTagRequest defines model for request.UpdateTagRequest.
-type RequestUpdateTagRequest struct {
-	Color *string `json:"color,omitempty"`
-	Name  string  `json:"name"`
-}
-
-// ResponseAPITokenCreatedResponse defines model for response.APITokenCreatedResponse.
-type ResponseAPITokenCreatedResponse struct {
+// Defines values for GetStatisticsSubmissionsTypeParamsType.
+const (
+	Correct   GetStatisticsSubmissionsTypeParamsType = "correct"
+	Incorrect GetStatisticsSubmissionsTypeParamsType = "incorrect"
+)
+
+// APITokenCreatedResponse defines model for APITokenCreatedResponse.
+type APITokenCreatedResponse struct {
 	CreatedAt   *string    `json:"created_at,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -584,8 +150,8 @@ type ResponseAPITokenCreatedResponse struct {
 	Token string `json:"token"`
 }
 
-// ResponseAPITokenResponse defines model for response.APITokenResponse.
-type ResponseAPITokenResponse struct {
+// APITokenResponse defines model for APITokenResponse.
+type APITokenResponse struct {
 	CreatedAt   *string    `json:"created_at,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -593,36 +159,211 @@ type ResponseAPITokenResponse struct {
 	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
 }
 
-// ResponseAppSettingsResponse defines model for response.AppSettingsResponse.
-type ResponseAppSettingsResponse struct {
-	AppName                *string `json:"app_name,omitempty"`
-	CorsOrigins            *string `json:"cors_origins,omitempty"`
-	FrontendURL            *string `json:"frontend_url,omitempty"`
-	RegistrationOpen       *bool   `json:"registration_open,omitempty"`
-	ResendEnabled          *bool   `json:"resend_enabled,omitempty"`
-	ResendFromEmail        *string `json:"resend_from_email,omitempty"`
-	ResendFromName         *string `json:"resend_from_name,omitempty"`
-	ResetTTLHours          *int    `json:"reset_ttl_hours,omitempty"`
-	ScoreboardVisible      *string `json:"scoreboard_visible,omitempty"`
-	SubmitLimitDurationMin *int    `json:"submit_limit_duration_min,omitempty"`
-	SubmitLimitPerUser     *int    `json:"submit_limit_per_user,omitempty"`
-	UpdatedAt              *string `json:"updated_at,omitempty"`
-	VerifyEmails           *bool   `json:"verify_emails,omitempty"`
-	VerifyTTLHours         *int    `json:"verify_ttl_hours,omitempty"`
+// AdminAddMemberRequest defines model for AdminAddMemberRequest.
+type AdminAddMemberRequest struct {
+	UserID string `json:"user_id"`
 }
 
-// ResponseAwardResponse defines model for response.AwardResponse.
-type ResponseAwardResponse struct {
-	CreatedAt   *string `json:"created_at,omitempty"`
-	CreatedBy   *string `json:"created_by,omitempty"`
-	Description *string `json:"description,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	TeamID      *string `json:"team_id,omitempty"`
-	Value       *int    `json:"value,omitempty"`
+// AdminCreateSubmissionRequest defines model for AdminCreateSubmissionRequest.
+type AdminCreateSubmissionRequest struct {
+	ChallengeID   string  `json:"challenge_id"`
+	IP            *string `json:"ip,omitempty"`
+	IsCorrect     bool    `json:"is_correct"`
+	SubmittedFlag string  `json:"submitted_flag"`
+	TeamID        *string `json:"team_id,omitempty"`
+	UserID        string  `json:"user_id"`
 }
 
-// ResponseBracketResponse defines model for response.BracketResponse.
-type ResponseBracketResponse struct {
+// AdminCreateUserRequest defines model for AdminCreateUserRequest.
+type AdminCreateUserRequest struct {
+	Email    string  `json:"email" validate:"required,custom_email"`
+	Password string  `json:"password" validate:"required,strong_password"`
+	Role     *string `json:"role,omitempty" validate:"omitempty,oneof=user admin"`
+	Username string  `json:"username" validate:"required,custom_username"`
+}
+
+// AdminResetRequest defines model for AdminResetRequest.
+type AdminResetRequest struct {
+	// Accounts Reset users and teams
+	Accounts *bool `json:"accounts,omitempty"`
+
+	// Challenges Reset challenges, hints, files
+	Challenges *bool `json:"challenges,omitempty"`
+
+	// Notifications Reset notifications
+	Notifications *bool `json:"notifications,omitempty"`
+
+	// Pages Reset pages
+	Pages *bool `json:"pages,omitempty"`
+
+	// Submissions Reset submissions and solves
+	Submissions *bool `json:"submissions,omitempty"`
+}
+
+// AdminTeamListResponse defines model for AdminTeamListResponse.
+type AdminTeamListResponse struct {
+	Data *[]AdminTeamResponse `json:"data,omitempty"`
+	Meta *PaginationMeta      `json:"meta,omitempty"`
+}
+
+// AdminTeamResponse defines model for AdminTeamResponse.
+type AdminTeamResponse struct {
+	BannedReason *string    `json:"banned_reason,omitempty"`
+	BracketID    *string    `json:"bracket_id,omitempty"`
+	CaptainID    *string    `json:"captain_id,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	ID           *string    `json:"id,omitempty"`
+	IsBanned     *bool      `json:"is_banned,omitempty"`
+	IsHidden     *bool      `json:"is_hidden,omitempty"`
+	IsSolo       *bool      `json:"is_solo,omitempty"`
+	MemberCount  *int       `json:"member_count,omitempty"`
+	Name         *string    `json:"name,omitempty"`
+}
+
+// AdminUpdateSubmissionRequest defines model for AdminUpdateSubmissionRequest.
+type AdminUpdateSubmissionRequest struct {
+	IsCorrect *bool `json:"is_correct,omitempty"`
+}
+
+// AdminUpdateTeamRequest defines model for AdminUpdateTeamRequest.
+type AdminUpdateTeamRequest struct {
+	BracketID *string `json:"bracket_id,omitempty"`
+	CaptainID *string `json:"captain_id,omitempty"`
+	IsHidden  *bool   `json:"is_hidden,omitempty"`
+	Name      *string `json:"name,omitempty" validate:"omitempty,team_name"`
+}
+
+// AdminUpdateUserRequest defines model for AdminUpdateUserRequest.
+type AdminUpdateUserRequest struct {
+	Email      *string `json:"email,omitempty" validate:"omitempty,custom_email"`
+	IsVerified *bool   `json:"is_verified,omitempty"`
+	Password   *string `json:"password,omitempty" validate:"omitempty,strong_password"`
+	Role       *string `json:"role,omitempty" validate:"omitempty,oneof=user admin"`
+	Username   *string `json:"username,omitempty" validate:"omitempty,custom_username"`
+}
+
+// AdminUpsertSolutionRequest defines model for AdminUpsertSolutionRequest.
+type AdminUpsertSolutionRequest struct {
+	// Content Markdown writeup content
+	Content string `json:"content"`
+}
+
+// AdminUserListResponse defines model for AdminUserListResponse.
+type AdminUserListResponse struct {
+	Data *[]AdminUserResponse `json:"data,omitempty"`
+	Meta *PaginationMeta      `json:"meta,omitempty"`
+}
+
+// AdminUserResponse defines model for AdminUserResponse.
+type AdminUserResponse struct {
+	BannedAt     *time.Time `json:"banned_at,omitempty"`
+	BannedReason *string    `json:"banned_reason,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	Email        *string    `json:"email,omitempty"`
+	ID           *string    `json:"id,omitempty"`
+	IsBanned     *bool      `json:"is_banned,omitempty"`
+	IsVerified   *bool      `json:"is_verified,omitempty"`
+	Role         *string    `json:"role,omitempty"`
+	TeamID       *string    `json:"team_id,omitempty"`
+	Username     *string    `json:"username,omitempty"`
+}
+
+// AffectedData defines model for AffectedData.
+type AffectedData struct {
+	AwardsTotal     *int `json:"awards_total,omitempty"`
+	HintUnlockCount *int `json:"hint_unlock_count,omitempty"`
+	Points          *int `json:"points,omitempty"`
+	SolveCount      *int `json:"solve_count,omitempty"`
+}
+
+// AppSettingsResponse defines model for AppSettingsResponse.
+type AppSettingsResponse struct {
+	AppName          *string `json:"app_name,omitempty"`
+	CorsOrigins      *string `json:"cors_origins,omitempty"`
+	CsvExportMaxRows *int    `json:"csv_export_max_rows,omitempty"`
+	DefaultPerPage   *int    `json:"default_per_page,omitempty"`
+	FrontendURL      *string `json:"frontend_url,omitempty"`
+	MaxPerPage       *int    `json:"max_per_page,omitempty"`
+
+	// MaxTeams Maximum number of teams allowed (0 = unlimited)
+	MaxTeams *int `json:"max_teams,omitempty"`
+
+	// OauthGithubEnabled Allow users to sign in via GitHub OAuth
+	OauthGithubEnabled *bool `json:"oauth_github_enabled,omitempty"`
+
+	// OauthGoogleEnabled Allow users to sign in via Google OAuth
+	OauthGoogleEnabled               *bool   `json:"oauth_google_enabled,omitempty"`
+	RateLimitForgotPasswordPerMinute *int    `json:"rate_limit_forgot_password_per_minute,omitempty"`
+	RateLimitGeneralIPPerMinute      *int    `json:"rate_limit_general_ip_per_minute,omitempty"`
+	RateLimitLoginPerMinute          *int    `json:"rate_limit_login_per_minute,omitempty"`
+	RateLimitLogoutPerMinute         *int    `json:"rate_limit_logout_per_minute,omitempty"`
+	RateLimitOauthCallbackPerMinute  *int    `json:"rate_limit_oauth_callback_per_minute,omitempty"`
+	RateLimitRefreshPerMinute        *int    `json:"rate_limit_refresh_per_minute,omitempty"`
+	RateLimitRegisterPerMinute       *int    `json:"rate_limit_register_per_minute,omitempty"`
+	RateLimitResetPasswordPerMinute  *int    `json:"rate_limit_reset_password_per_minute,omitempty"`
+	RateLimitScoreboardPerMinute     *int    `json:"rate_limit_scoreboard_per_minute,omitempty"`
+	RateLimitVerifyEmailPerMinute    *int    `json:"rate_limit_verify_email_per_minute,omitempty"`
+	RegistrationOpen                 *bool   `json:"registration_open,omitempty"`
+	ResendEnabled                    *bool   `json:"resend_enabled,omitempty"`
+	ResendFromEmail                  *string `json:"resend_from_email,omitempty"`
+	ResendFromName                   *string `json:"resend_from_name,omitempty"`
+	ResetTTLHours                    *int    `json:"reset_ttl_hours,omitempty"`
+	ScoreboardVisible                *string `json:"scoreboard_visible,omitempty"`
+	SubmitLimitDurationMin           *int    `json:"submit_limit_duration_min,omitempty"`
+	SubmitLimitPerUser               *int    `json:"submit_limit_per_user,omitempty"`
+	UpdatedAt                        *string `json:"updated_at,omitempty"`
+	VerifyEmails                     *bool   `json:"verify_emails,omitempty"`
+	VerifyTTLHours                   *int    `json:"verify_ttl_hours,omitempty"`
+
+	// WriteupEnabled Whether writeups/solutions are shown to teams after solving a challenge
+	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
+}
+
+// Award defines model for Award.
+type Award struct {
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	CreatedBy   *string    `json:"created_by"`
+	Description *string    `json:"description,omitempty"`
+	ID          *string    `json:"id,omitempty"`
+	TeamID      *string    `json:"team_id,omitempty"`
+	Value       *int       `json:"value,omitempty"`
+}
+
+// AwardResponse defines model for AwardResponse.
+type AwardResponse struct {
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	CreatedBy   *string    `json:"created_by"`
+	Description *string    `json:"description,omitempty"`
+	ID          *string    `json:"id,omitempty"`
+	TeamID      *string    `json:"team_id,omitempty"`
+	Value       *int       `json:"value,omitempty"`
+}
+
+// BackupData defines model for BackupData.
+type BackupData struct {
+	Awards      *[]Award           `json:"awards,omitempty"`
+	Challenges  *[]ChallengeExport `json:"challenges,omitempty"`
+	Competition *Competition       `json:"competition,omitempty"`
+	ExportedAt  *string            `json:"exported_at,omitempty"`
+	Files       *[]File            `json:"files,omitempty"`
+	Solves      *[]Solve           `json:"solves,omitempty"`
+	Teams       *[]TeamExport      `json:"teams,omitempty"`
+	Users       *[]UserExport      `json:"users,omitempty"`
+	Version     *string            `json:"version,omitempty"`
+}
+
+// BanTeamRequest defines model for BanTeamRequest.
+type BanTeamRequest struct {
+	Reason string `json:"reason"`
+}
+
+// BanUserRequest defines model for BanUserRequest.
+type BanUserRequest struct {
+	Reason string `json:"reason" validate:"required,min=1,max=500"`
+}
+
+// BracketResponse defines model for BracketResponse.
+type BracketResponse struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	ID          *string    `json:"id,omitempty"`
@@ -630,31 +371,127 @@ type ResponseBracketResponse struct {
 	Name        *string    `json:"name,omitempty"`
 }
 
-// ResponseCTFEventResponse defines model for response.CTFEventResponse.
-type ResponseCTFEventResponse struct {
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	EndTime   *time.Time `json:"end_time,omitempty"`
-	ID        *string    `json:"id,omitempty"`
-	Name      *string    `json:"name,omitempty"`
-	StartTime *time.Time `json:"start_time,omitempty"`
-	Weight    *float32   `json:"weight,omitempty"`
+// CSVImportResult defines model for CSVImportResult.
+type CSVImportResult struct {
+	Errors        *[]string `json:"errors,omitempty"`
+	ImportedCount *int      `json:"imported_count,omitempty"`
+	SkippedCount  *int      `json:"skipped_count,omitempty"`
+	Success       *bool     `json:"success,omitempty"`
 }
 
-// ResponseChallengeResponse defines model for response.ChallengeResponse.
-type ResponseChallengeResponse struct {
-	Category    *string                `json:"category,omitempty"`
-	Description *string                `json:"description,omitempty"`
-	ID          *string                `json:"id,omitempty"`
-	IsHidden    *bool                  `json:"is_hidden,omitempty"`
-	Points      *int                   `json:"points,omitempty"`
-	SolveCount  *int                   `json:"solve_count,omitempty"`
-	Solved      *bool                  `json:"solved,omitempty"`
-	Tags        *[]ResponseTagResponse `json:"tags,omitempty"`
-	Title       *string                `json:"title,omitempty"`
+// ChallengeDetailResponse defines model for ChallengeDetailResponse.
+type ChallengeDetailResponse struct {
+	Category    *string             `json:"category,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Files       *[]FileItem         `json:"files,omitempty"`
+	FirstBlood  *FirstBloodResponse `json:"first_blood,omitempty"`
+	Hints       *[]HintItem         `json:"hints,omitempty"`
+	ID          *string             `json:"id,omitempty"`
+	Points      *int                `json:"points,omitempty"`
+	SolveCount  *int                `json:"solve_count,omitempty"`
+	SolvedByMe  *bool               `json:"solved_by_me,omitempty"`
+	Tags        *[]TagResponse      `json:"tags,omitempty"`
+	Title       *string             `json:"title,omitempty"`
 }
 
-// ResponseCommentResponse defines model for response.CommentResponse.
-type ResponseCommentResponse struct {
+// ChallengeDetailStats defines model for ChallengeDetailStats.
+type ChallengeDetailStats struct {
+	Category         *string                `json:"category,omitempty"`
+	FirstBlood       *ChallengeSolveEntry   `json:"first_blood,omitempty"`
+	ID               *string                `json:"id,omitempty"`
+	PercentageSolved *float32               `json:"percentage_solved,omitempty"`
+	Points           *int                   `json:"points,omitempty"`
+	SolveCount       *int                   `json:"solve_count,omitempty"`
+	Solves           *[]ChallengeSolveEntry `json:"solves,omitempty"`
+	Title            *string                `json:"title,omitempty"`
+	TotalTeams       *int                   `json:"total_teams,omitempty"`
+}
+
+// ChallengeExport defines model for ChallengeExport.
+type ChallengeExport struct {
+	Category    *string `json:"category,omitempty"`
+	Description *string `json:"description,omitempty"`
+	FlagHash    *string `json:"flag_hash,omitempty"`
+	Hints       *[]Hint `json:"hints,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	IsHidden    *bool   `json:"is_hidden,omitempty"`
+	Points      *int    `json:"points,omitempty"`
+	Title       *string `json:"title,omitempty"`
+}
+
+// ChallengeFlagsResponse defines model for ChallengeFlagsResponse.
+type ChallengeFlagsResponse struct {
+	FlagFormatRegex   *string   `json:"flag_format_regex,omitempty"`
+	FlagRegex         *string   `json:"flag_regex,omitempty"`
+	Flags             *[]string `json:"flags,omitempty"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive,omitempty"`
+	IsRegex           *bool     `json:"is_regex,omitempty"`
+}
+
+// ChallengeRequirementResponse defines model for ChallengeRequirementResponse.
+type ChallengeRequirementResponse struct {
+	ChallengeCategory *string `json:"challenge_category,omitempty"`
+	ChallengeID       *string `json:"challenge_id,omitempty"`
+	ChallengeTitle    *string `json:"challenge_title,omitempty"`
+}
+
+// ChallengeResponse defines model for ChallengeResponse.
+type ChallengeResponse struct {
+	Category    *string        `json:"category,omitempty"`
+	Description *string        `json:"description,omitempty"`
+	ID          *string        `json:"id,omitempty"`
+	IsHidden    *bool          `json:"is_hidden,omitempty"`
+	Points      *int           `json:"points,omitempty"`
+	SolveCount  *int           `json:"solve_count,omitempty"`
+	Solved      *bool          `json:"solved,omitempty"`
+	Tags        *[]TagResponse `json:"tags,omitempty"`
+	Title       *string        `json:"title,omitempty"`
+}
+
+// ChallengeSolutionEntry defines model for ChallengeSolutionEntry.
+type ChallengeSolutionEntry struct {
+	ChallengeCategory *string     `json:"challenge_category,omitempty"`
+	ChallengeID       *string     `json:"challenge_id,omitempty"`
+	ChallengeTitle    *string     `json:"challenge_title,omitempty"`
+	Content           *string     `json:"content,omitempty"`
+	Files             *[]FileItem `json:"files,omitempty"`
+}
+
+// ChallengeSolutionResponse defines model for ChallengeSolutionResponse.
+type ChallengeSolutionResponse struct {
+	ChallengeID *string     `json:"challenge_id,omitempty"`
+	Content     *string     `json:"content,omitempty"`
+	Files       *[]FileItem `json:"files,omitempty"`
+}
+
+// ChallengeSolveEntry defines model for ChallengeSolveEntry.
+type ChallengeSolveEntry struct {
+	SolvedAt *time.Time `json:"solved_at,omitempty"`
+	TeamID   *string    `json:"team_id,omitempty"`
+	TeamName *string    `json:"team_name,omitempty"`
+}
+
+// ChallengeSolvePercentage defines model for ChallengeSolvePercentage.
+type ChallengeSolvePercentage struct {
+	Category   *string  `json:"category,omitempty"`
+	ID         *string  `json:"id,omitempty"`
+	Percentage *float32 `json:"percentage,omitempty"`
+	SolveCount *int     `json:"solve_count,omitempty"`
+	Title      *string  `json:"title,omitempty"`
+	TotalTeams *int     `json:"total_teams,omitempty"`
+}
+
+// ChallengeStats defines model for ChallengeStats.
+type ChallengeStats struct {
+	Category   *string `json:"category,omitempty"`
+	ID         *string `json:"id,omitempty"`
+	Points     *int    `json:"points,omitempty"`
+	SolveCount *int    `json:"solve_count,omitempty"`
+	Title      *string `json:"title,omitempty"`
+}
+
+// CommentResponse defines model for CommentResponse.
+type CommentResponse struct {
 	ChallengeID *string    `json:"challenge_id,omitempty"`
 	Content     *string    `json:"content,omitempty"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
@@ -663,8 +500,19 @@ type ResponseCommentResponse struct {
 	UserID      *string    `json:"user_id,omitempty"`
 }
 
-// ResponseCompetitionResponse defines model for response.CompetitionResponse.
-type ResponseCompetitionResponse struct {
+// Competition defines model for Competition.
+type Competition struct {
+	EndTime    *string `json:"end_time,omitempty"`
+	FreezeTime *string `json:"freeze_time,omitempty"`
+	ID         *int    `json:"id,omitempty"`
+	IsPaused   *bool   `json:"is_paused,omitempty"`
+	Mode       *string `json:"mode,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	StartTime  *string `json:"start_time,omitempty"`
+}
+
+// CompetitionResponse defines model for CompetitionResponse.
+type CompetitionResponse struct {
 	EndTime    *string `json:"end_time,omitempty"`
 	FreezeTime *string `json:"freeze_time,omitempty"`
 	ID         *int    `json:"id,omitempty"`
@@ -676,8 +524,8 @@ type ResponseCompetitionResponse struct {
 	Status     *string `json:"status,omitempty"`
 }
 
-// ResponseCompetitionStatusResponse defines model for response.CompetitionStatusResponse.
-type ResponseCompetitionStatusResponse struct {
+// CompetitionStatusResponse defines model for CompetitionStatusResponse.
+type CompetitionStatusResponse struct {
 	EndTime           *string `json:"end_time,omitempty"`
 	Name              *string `json:"name,omitempty"`
 	StartTime         *string `json:"start_time,omitempty"`
@@ -685,8 +533,8 @@ type ResponseCompetitionStatusResponse struct {
 	SubmissionAllowed *bool   `json:"submission_allowed,omitempty"`
 }
 
-// ResponseConfigResponse defines model for response.ConfigResponse.
-type ResponseConfigResponse struct {
+// ConfigResponse defines model for ConfigResponse.
+type ConfigResponse struct {
 	Description *string    `json:"description,omitempty"`
 	Key         string     `json:"key"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
@@ -694,26 +542,186 @@ type ResponseConfigResponse struct {
 	ValueType   string     `json:"value_type"`
 }
 
-// ResponseFieldResponse defines model for response.FieldResponse.
-type ResponseFieldResponse struct {
-	CreatedAt  *time.Time                       `json:"created_at,omitempty"`
-	EntityType *ResponseFieldResponseEntityType `json:"entity_type,omitempty"`
-	FieldType  *ResponseFieldResponseFieldType  `json:"field_type,omitempty"`
-	ID         *string                          `json:"id,omitempty"`
-	Name       *string                          `json:"name,omitempty"`
-	Options    *[]string                        `json:"options,omitempty"`
-	OrderIndex *int                             `json:"order_index,omitempty"`
-	Required   *bool                            `json:"required,omitempty"`
+// ConfirmationRequired defines model for ConfirmationRequired.
+type ConfirmationRequired struct {
+	AffectedData *AffectedData `json:"affected_data,omitempty"`
+	Reason       string        `json:"reason"`
 }
 
-// ResponseFieldResponseEntityType defines model for ResponseFieldResponse.EntityType.
-type ResponseFieldResponseEntityType string
+// CreateAPITokenRequest defines model for CreateAPITokenRequest.
+type CreateAPITokenRequest struct {
+	Description *string    `json:"description,omitempty"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
 
-// ResponseFieldResponseFieldType defines model for ResponseFieldResponse.FieldType.
-type ResponseFieldResponseFieldType string
+// CreateAwardRequest defines model for CreateAwardRequest.
+type CreateAwardRequest struct {
+	Description string `json:"description"`
+	TeamID      string `json:"team_id"`
+	Value       int    `json:"value"`
+}
 
-// ResponseFirstBloodResponse defines model for response.FirstBloodResponse.
-type ResponseFirstBloodResponse struct {
+// CreateBracketRequest defines model for CreateBracketRequest.
+type CreateBracketRequest struct {
+	Description *string `json:"description,omitempty"`
+	IsDefault   *bool   `json:"is_default,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// CreateChallengeRequest defines model for CreateChallengeRequest.
+type CreateChallengeRequest struct {
+	Category    string `json:"category" validate:"required,challenge_category"`
+	Decay       *int   `json:"decay,omitempty"`
+	Description string `json:"description" validate:"required,challenge_description"`
+	Flag        string `json:"flag" validate:"required,challenge_flag"`
+
+	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
+	InitialValue      *int    `json:"initial_value,omitempty"`
+	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
+	IsHidden          *bool   `json:"is_hidden,omitempty"`
+	IsRegex           *bool   `json:"is_regex,omitempty"`
+	MinValue          *int    `json:"min_value,omitempty"`
+	Points            int     `json:"points"`
+
+	// TagIds Tag IDs for the challenge
+	TagIds *[]string `json:"tag_ids,omitempty"`
+	Title  string    `json:"title" validate:"required,challenge_title"`
+}
+
+// CreateCommentRequest defines model for CreateCommentRequest.
+type CreateCommentRequest struct {
+	Content string `json:"content" validate:"required,not_empty"`
+}
+
+// CreateFieldRequest defines model for CreateFieldRequest.
+type CreateFieldRequest struct {
+	EntityType CreateFieldRequestEntityType `json:"entity_type"`
+	FieldType  CreateFieldRequestFieldType  `json:"field_type"`
+	Name       string                       `json:"name"`
+
+	// Options Options for select type
+	Options    *[]string `json:"options,omitempty"`
+	OrderIndex *int      `json:"order_index,omitempty"`
+	Required   *bool     `json:"required,omitempty"`
+}
+
+// CreateFieldRequestEntityType defines model for CreateFieldRequest.EntityType.
+type CreateFieldRequestEntityType string
+
+// CreateFieldRequestFieldType defines model for CreateFieldRequest.FieldType.
+type CreateFieldRequestFieldType string
+
+// CreateHintRequest defines model for CreateHintRequest.
+type CreateHintRequest struct {
+	Content    string `json:"content" validate:"required,hint_content"`
+	Cost       *int   `json:"cost,omitempty"`
+	OrderIndex *int   `json:"order_index,omitempty"`
+}
+
+// CreateNotificationRequest defines model for CreateNotificationRequest.
+type CreateNotificationRequest struct {
+	Content  string                         `json:"content"`
+	IsPinned *bool                          `json:"is_pinned,omitempty"`
+	Title    string                         `json:"title"`
+	Type     *CreateNotificationRequestType `json:"type,omitempty"`
+}
+
+// CreateNotificationRequestType defines model for CreateNotificationRequest.Type.
+type CreateNotificationRequestType string
+
+// CreatePageRequest defines model for CreatePageRequest.
+type CreatePageRequest struct {
+	Content    *string `json:"content,omitempty"`
+	IsDraft    *bool   `json:"is_draft,omitempty"`
+	OrderIndex *int    `json:"order_index,omitempty"`
+	Slug       string  `json:"slug"`
+	Title      string  `json:"title"`
+}
+
+// CreateTagRequest defines model for CreateTagRequest.
+type CreateTagRequest struct {
+	Color *string `json:"color,omitempty"`
+	Name  string  `json:"name"`
+}
+
+// CreateTeamRequest defines model for CreateTeamRequest.
+type CreateTeamRequest struct {
+	ConfirmReset *bool  `json:"confirm_reset,omitempty"`
+	Name         string `json:"name" validate:"required,team_name"`
+}
+
+// CreateUserNotificationRequest defines model for CreateUserNotificationRequest.
+type CreateUserNotificationRequest struct {
+	Content string                             `json:"content"`
+	Title   string                             `json:"title"`
+	Type    *CreateUserNotificationRequestType `json:"type,omitempty"`
+}
+
+// CreateUserNotificationRequestType defines model for CreateUserNotificationRequest.Type.
+type CreateUserNotificationRequestType string
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// FailListResponse defines model for FailListResponse.
+type FailListResponse struct {
+	Data *[]SubmissionResponse `json:"data,omitempty"`
+	Meta *PaginationMeta       `json:"meta,omitempty"`
+}
+
+// FieldResponse defines model for FieldResponse.
+type FieldResponse struct {
+	CreatedAt  *time.Time               `json:"created_at,omitempty"`
+	EntityType *FieldResponseEntityType `json:"entity_type,omitempty"`
+	FieldType  *FieldResponseFieldType  `json:"field_type,omitempty"`
+	ID         *string                  `json:"id,omitempty"`
+	Name       *string                  `json:"name,omitempty"`
+	Options    *[]string                `json:"options,omitempty"`
+	OrderIndex *int                     `json:"order_index,omitempty"`
+	Required   *bool                    `json:"required,omitempty"`
+}
+
+// FieldResponseEntityType defines model for FieldResponse.EntityType.
+type FieldResponseEntityType string
+
+// FieldResponseFieldType defines model for FieldResponse.FieldType.
+type FieldResponseFieldType string
+
+// File defines model for File.
+type File struct {
+	ChallengeID *string `json:"challenge_id,omitempty"`
+	CreatedAt   *string `json:"created_at,omitempty"`
+	Filename    *string `json:"filename,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	Location    *string `json:"location,omitempty"`
+	Sha256      *string `json:"sha256,omitempty"`
+	Size        *int    `json:"size,omitempty"`
+	Type        *string `json:"type,omitempty"`
+}
+
+// FileDownloadURLResponse defines model for FileDownloadURLResponse.
+type FileDownloadURLResponse struct {
+	URL string `json:"url"`
+}
+
+// FileItem defines model for FileItem.
+type FileItem struct {
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Filename  *string    `json:"filename,omitempty"`
+	ID        *string    `json:"id,omitempty"`
+	Sha256    *string    `json:"sha256,omitempty"`
+	Size      *int       `json:"size,omitempty"`
+
+	// URL Presigned download URL (only present when explicitly generated)
+	URL *string `json:"url,omitempty"`
+}
+
+// FirstBloodResponse defines model for FirstBloodResponse.
+type FirstBloodResponse struct {
 	SolvedAt *string `json:"solved_at,omitempty"`
 	TeamID   *string `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
@@ -721,24 +729,32 @@ type ResponseFirstBloodResponse struct {
 	Username *string `json:"username,omitempty"`
 }
 
-// ResponseGlobalRatingResponse defines model for response.GlobalRatingResponse.
-type ResponseGlobalRatingResponse struct {
-	BestRank    *int       `json:"best_rank"`
-	EventsCount *int       `json:"events_count,omitempty"`
-	LastUpdated *time.Time `json:"last_updated,omitempty"`
-	TeamID      *string    `json:"team_id,omitempty"`
-	TeamName    *string    `json:"team_name,omitempty"`
-	TotalPoints *float32   `json:"total_points,omitempty"`
+// ForgotPasswordRequest defines model for ForgotPasswordRequest.
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,custom_email"`
 }
 
-// ResponseGlobalRatingsListResponse defines model for response.GlobalRatingsListResponse.
-type ResponseGlobalRatingsListResponse struct {
-	Items *[]ResponseGlobalRatingResponse `json:"items,omitempty"`
-	Total *int                            `json:"total,omitempty"`
+// GeneralStats defines model for GeneralStats.
+type GeneralStats struct {
+	ChallengeCount *int `json:"challenge_count,omitempty"`
+	SolveCount     *int `json:"solve_count,omitempty"`
+	TeamCount      *int `json:"team_count,omitempty"`
+	UserCount      *int `json:"user_count,omitempty"`
 }
 
-// ResponseHintAdminResponse defines model for response.HintAdminResponse.
-type ResponseHintAdminResponse struct {
+// HealthcheckResponse defines model for HealthcheckResponse.
+type HealthcheckResponse struct {
+	Database *string `json:"database,omitempty"`
+	Status   *string `json:"status,omitempty"`
+}
+
+// HiddenStatus defines model for HiddenStatus.
+type HiddenStatus struct {
+	Hidden bool `json:"hidden"`
+}
+
+// Hint defines model for Hint.
+type Hint struct {
 	ChallengeID *string `json:"challenge_id,omitempty"`
 	Content     *string `json:"content,omitempty"`
 	Cost        *int    `json:"cost,omitempty"`
@@ -746,8 +762,17 @@ type ResponseHintAdminResponse struct {
 	OrderIndex  *int    `json:"order_index,omitempty"`
 }
 
-// ResponseHintResponse defines model for response.HintResponse.
-type ResponseHintResponse struct {
+// HintAdminResponse defines model for HintAdminResponse.
+type HintAdminResponse struct {
+	ChallengeID *string `json:"challenge_id,omitempty"`
+	Content     *string `json:"content,omitempty"`
+	Cost        *int    `json:"cost,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	OrderIndex  *int    `json:"order_index,omitempty"`
+}
+
+// HintItem defines model for HintItem.
+type HintItem struct {
 	Content    *string `json:"content,omitempty"`
 	Cost       *int    `json:"cost,omitempty"`
 	ID         *string `json:"id,omitempty"`
@@ -755,8 +780,57 @@ type ResponseHintResponse struct {
 	Unlocked   *bool   `json:"unlocked,omitempty"`
 }
 
-// ResponseMeResponse defines model for response.MeResponse.
-type ResponseMeResponse struct {
+// HintResponse defines model for HintResponse.
+type HintResponse struct {
+	Content    *string `json:"content,omitempty"`
+	Cost       *int    `json:"cost,omitempty"`
+	ID         *string `json:"id,omitempty"`
+	OrderIndex *int    `json:"order_index,omitempty"`
+	Unlocked   *bool   `json:"unlocked,omitempty"`
+}
+
+// HintUnlockListResponse defines model for HintUnlockListResponse.
+type HintUnlockListResponse struct {
+	Data *[]HintUnlockResponse `json:"data,omitempty"`
+	Meta *PaginationMeta       `json:"meta,omitempty"`
+}
+
+// HintUnlockResponse defines model for HintUnlockResponse.
+type HintUnlockResponse struct {
+	ChallengeID *string    `json:"challenge_id,omitempty"`
+	HintCost    *int       `json:"hint_cost,omitempty"`
+	HintID      *string    `json:"hint_id,omitempty"`
+	ID          *string    `json:"id,omitempty"`
+	TeamID      *string    `json:"team_id,omitempty"`
+	UnlockedAt  *time.Time `json:"unlocked_at,omitempty"`
+}
+
+// ImportResult defines model for ImportResult.
+type ImportResult struct {
+	Errors       *[]string `json:"errors,omitempty"`
+	SkippedCount *int      `json:"skipped_count,omitempty"`
+	Success      *bool     `json:"success,omitempty"`
+}
+
+// JoinTeamRequest defines model for JoinTeamRequest.
+type JoinTeamRequest struct {
+	ConfirmReset *bool  `json:"confirm_reset,omitempty"`
+	InviteToken  string `json:"invite_token"`
+}
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    *string `json:"email,omitempty" validate:"omitempty,custom_email"`
+	Password string  `json:"password" validate:"required"`
+}
+
+// LogoutRequest Optional body for logout. The refresh token can also be passed via Authorization header.
+type LogoutRequest struct {
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
+// MeResponse defines model for MeResponse.
+type MeResponse struct {
 	CreatedAt *string `json:"created_at,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	ID        *string `json:"id,omitempty"`
@@ -767,8 +841,13 @@ type ResponseMeResponse struct {
 	Username *string `json:"username,omitempty"`
 }
 
-// ResponseNotificationResponse defines model for response.NotificationResponse.
-type ResponseNotificationResponse struct {
+// MessageResponse defines model for MessageResponse.
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
+// NotificationResponse defines model for NotificationResponse.
+type NotificationResponse struct {
 	Content   *string `json:"content,omitempty"`
 	CreatedAt *string `json:"created_at,omitempty"`
 	ID        *string `json:"id,omitempty"`
@@ -777,16 +856,16 @@ type ResponseNotificationResponse struct {
 	Type      *string `json:"type,omitempty"`
 }
 
-// ResponsePageListItemResponse defines model for response.PageListItemResponse.
-type ResponsePageListItemResponse struct {
+// PageListItemResponse defines model for PageListItemResponse.
+type PageListItemResponse struct {
 	ID         *string `json:"id,omitempty"`
 	OrderIndex *int    `json:"order_index,omitempty"`
 	Slug       *string `json:"slug,omitempty"`
 	Title      *string `json:"title,omitempty"`
 }
 
-// ResponsePageResponse defines model for response.PageResponse.
-type ResponsePageResponse struct {
+// PageResponse defines model for PageResponse.
+type PageResponse struct {
 	Content    *string    `json:"content,omitempty"`
 	CreatedAt  *time.Time `json:"created_at,omitempty"`
 	ID         *string    `json:"id,omitempty"`
@@ -797,39 +876,152 @@ type ResponsePageResponse struct {
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 }
 
-// ResponseRegisterResponse defines model for response.RegisterResponse.
-type ResponseRegisterResponse struct {
+// PaginationMeta defines model for PaginationMeta.
+type PaginationMeta struct {
+	Page       *int `json:"page,omitempty"`
+	PerPage    *int `json:"per_page,omitempty"`
+	Total      *int `json:"total,omitempty"`
+	TotalPages *int `json:"total_pages,omitempty"`
+}
+
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	// CustomFields Custom field values (field_id -> value)
+	CustomFields *map[string]string `json:"custom_fields,omitempty"`
+	Email        *string            `json:"email,omitempty" validate:"required,custom_email"`
+	Password     *string            `json:"password,omitempty" validate:"required,strong_password"`
+	Username     *string            `json:"username,omitempty" validate:"required,custom_username"`
+}
+
+// RegisterResponse defines model for RegisterResponse.
+type RegisterResponse struct {
 	CreatedAt *string `json:"created_at,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	ID        *string `json:"id,omitempty"`
 	Username  *string `json:"username,omitempty"`
 }
 
-// ResponseScoreboardEntryResponse defines model for response.ScoreboardEntryResponse.
-type ResponseScoreboardEntryResponse struct {
+// RegistrationTimePoint defines model for RegistrationTimePoint.
+type RegistrationTimePoint struct {
+	Count *int                `json:"count,omitempty"`
+	Date  *openapi_types.Date `json:"date,omitempty"`
+}
+
+// ResetPasswordRequest defines model for ResetPasswordRequest.
+type ResetPasswordRequest struct {
+	NewPassword string `json:"new_password" validate:"required,strong_password"`
+	Token       string `json:"token"`
+}
+
+// ScoreDistributionBucket defines model for ScoreDistributionBucket.
+type ScoreDistributionBucket struct {
+	Bucket *string `json:"bucket,omitempty"`
+	Count  *int    `json:"count,omitempty"`
+}
+
+// ScorePoint defines model for ScorePoint.
+type ScorePoint struct {
+	Score     *int    `json:"score,omitempty"`
+	Timestamp *string `json:"timestamp,omitempty"`
+}
+
+// ScoreboardEntryResponse defines model for ScoreboardEntryResponse.
+type ScoreboardEntryResponse struct {
 	LastSolved *string `json:"last_solved,omitempty"`
 	Points     *int    `json:"points,omitempty"`
 	TeamID     *string `json:"team_id,omitempty"`
 	TeamName   *string `json:"team_name,omitempty"`
 }
 
-// ResponseSolveResponse defines model for response.SolveResponse.
-type ResponseSolveResponse struct {
+// ScoreboardGraph defines model for ScoreboardGraph.
+type ScoreboardGraph struct {
+	Range *TimeRange      `json:"range,omitempty"`
+	Teams *[]TeamTimeline `json:"teams,omitempty"`
+}
+
+// ScoreboardHistoryEntry defines model for ScoreboardHistoryEntry.
+type ScoreboardHistoryEntry struct {
+	Points    *int    `json:"points,omitempty"`
+	TeamID    *string `json:"team_id,omitempty"`
+	TeamName  *string `json:"team_name,omitempty"`
+	Timestamp *string `json:"timestamp,omitempty"`
+}
+
+// SetChallengeRequirementsRequest defines model for SetChallengeRequirementsRequest.
+type SetChallengeRequirementsRequest struct {
+	// RequirementIds List of challenge IDs that must be solved before this challenge
+	RequirementIds *[]string `json:"requirement_ids,omitempty"`
+}
+
+// SetConfigRequest defines model for SetConfigRequest.
+type SetConfigRequest struct {
+	Description *string                    `json:"description,omitempty"`
+	Value       string                     `json:"value"`
+	ValueType   *SetConfigRequestValueType `json:"value_type,omitempty"`
+}
+
+// SetConfigRequestValueType defines model for SetConfigRequest.ValueType.
+type SetConfigRequestValueType string
+
+// SetHiddenRequest defines model for SetHiddenRequest.
+type SetHiddenRequest struct {
+	Hidden *bool `json:"hidden,omitempty"`
+}
+
+// SetTeamBracketRequest defines model for SetTeamBracketRequest.
+type SetTeamBracketRequest struct {
+	BracketID *openapi_types.UUID `json:"bracket_id"`
+}
+
+// Solve defines model for Solve.
+type Solve struct {
 	ChallengeID *string `json:"challenge_id,omitempty"`
 	ID          *string `json:"id,omitempty"`
 	SolvedAt    *string `json:"solved_at,omitempty"`
+	TeamID      *string `json:"team_id,omitempty"`
+	UserID      *string `json:"user_id,omitempty"`
 }
 
-// ResponseSubmissionListResponse defines model for response.SubmissionListResponse.
-type ResponseSubmissionListResponse struct {
-	Items   *[]ResponseSubmissionResponse `json:"items,omitempty"`
-	Page    *int                          `json:"page,omitempty"`
-	PerPage *int                          `json:"per_page,omitempty"`
-	Total   *int                          `json:"total,omitempty"`
+// SolveMatrixRow defines model for SolveMatrixRow.
+type SolveMatrixRow struct {
+	ChallengeCategory *string             `json:"challenge_category,omitempty"`
+	ChallengeID       *openapi_types.UUID `json:"challenge_id,omitempty"`
+	ChallengeTitle    *string             `json:"challenge_title,omitempty"`
+	Solved            *bool               `json:"solved,omitempty"`
+	SolvedAt          *time.Time          `json:"solved_at"`
+	TeamID            *openapi_types.UUID `json:"team_id,omitempty"`
+	TeamName          *string             `json:"team_name,omitempty"`
 }
 
-// ResponseSubmissionResponse defines model for response.SubmissionResponse.
-type ResponseSubmissionResponse struct {
+// SolveResponse defines model for SolveResponse.
+type SolveResponse struct {
+	ChallengeID *string    `json:"challenge_id,omitempty"`
+	ID          *string    `json:"id,omitempty"`
+	SolvedAt    *time.Time `json:"solved_at,omitempty"`
+}
+
+// SolveWithDetailsResponse defines model for SolveWithDetailsResponse.
+type SolveWithDetailsResponse struct {
+	ChallengeCategory *string    `json:"challenge_category,omitempty"`
+	ChallengeID       *string    `json:"challenge_id,omitempty"`
+	ChallengePoints   *int       `json:"challenge_points,omitempty"`
+	ChallengeTitle    *string    `json:"challenge_title,omitempty"`
+	ID                *string    `json:"id,omitempty"`
+	SolvedAt          *time.Time `json:"solved_at,omitempty"`
+	TeamID            *string    `json:"team_id,omitempty"`
+	TeamName          *string    `json:"team_name,omitempty"`
+	UserID            *string    `json:"user_id,omitempty"`
+	Username          *string    `json:"username,omitempty"`
+}
+
+// SubmissionListResponse defines model for SubmissionListResponse.
+type SubmissionListResponse struct {
+	Data *[]SubmissionResponse `json:"data,omitempty"`
+	Meta *PaginationMeta       `json:"meta,omitempty"`
+}
+
+// SubmissionResponse defines model for SubmissionResponse.
+type SubmissionResponse struct {
 	ChallengeCategory *string `json:"challenge_category,omitempty"`
 	ChallengeID       *string `json:"challenge_id,omitempty"`
 	ChallengeTitle    *string `json:"challenge_title,omitempty"`
@@ -844,38 +1036,67 @@ type ResponseSubmissionResponse struct {
 	Username          *string `json:"username,omitempty"`
 }
 
-// ResponseSubmissionStatsResponse defines model for response.SubmissionStatsResponse.
-type ResponseSubmissionStatsResponse struct {
+// SubmissionStatsResponse defines model for SubmissionStatsResponse.
+type SubmissionStatsResponse struct {
 	Correct   *int `json:"correct,omitempty"`
 	Incorrect *int `json:"incorrect,omitempty"`
 	Total     *int `json:"total,omitempty"`
 }
 
-// ResponseTagResponse defines model for response.TagResponse.
-type ResponseTagResponse struct {
+// SubmissionTimeSeries defines model for SubmissionTimeSeries.
+type SubmissionTimeSeries struct {
+	Correct   *int                `json:"correct,omitempty"`
+	Date      *openapi_types.Date `json:"date,omitempty"`
+	Incorrect *int                `json:"incorrect,omitempty"`
+}
+
+// SubmissionTimeSeriesResponse defines model for SubmissionTimeSeriesResponse.
+type SubmissionTimeSeriesResponse struct {
+	Items          *[]SubmissionTimeSeries `json:"items,omitempty"`
+	TotalCorrect   *int                    `json:"total_correct,omitempty"`
+	TotalIncorrect *int                    `json:"total_incorrect,omitempty"`
+}
+
+// SubmitFlagRequest defines model for SubmitFlagRequest.
+type SubmitFlagRequest struct {
+	Flag string `json:"flag" validate:"required,max=2048"`
+}
+
+// SubmitFlagResponse defines model for SubmitFlagResponse.
+type SubmitFlagResponse struct {
+	Correct bool   `json:"correct"`
+	Message string `json:"message"`
+}
+
+// TagResponse defines model for TagResponse.
+type TagResponse struct {
 	Color *string `json:"color,omitempty"`
 	ID    *string `json:"id,omitempty"`
 	Name  *string `json:"name,omitempty"`
 }
 
-// ResponseTeamRatingItemResponse defines model for response.TeamRatingItemResponse.
-type ResponseTeamRatingItemResponse struct {
-	CreatedAt    *time.Time `json:"created_at,omitempty"`
-	CtfEventID   *string    `json:"ctf_event_id,omitempty"`
-	ID           *string    `json:"id,omitempty"`
-	Rank         *int       `json:"rank,omitempty"`
-	RatingPoints *float32   `json:"rating_points,omitempty"`
-	Score        *int       `json:"score,omitempty"`
+// TeamExport defines model for TeamExport.
+type TeamExport struct {
+	CaptainID *string   `json:"captain_id,omitempty"`
+	ID        *string   `json:"id,omitempty"`
+	IsBanned  *bool     `json:"is_banned,omitempty"`
+	MemberIds *[]string `json:"member_ids,omitempty"`
+	Name      *string   `json:"name,omitempty"`
 }
 
-// ResponseTeamRatingResponse defines model for response.TeamRatingResponse.
-type ResponseTeamRatingResponse struct {
-	EventRatings *[]ResponseTeamRatingItemResponse `json:"event_ratings,omitempty"`
-	Global       *ResponseGlobalRatingResponse     `json:"global,omitempty"`
+// TeamInviteResponse defines model for TeamInviteResponse.
+type TeamInviteResponse struct {
+	InviteToken *string `json:"invite_token,omitempty"`
 }
 
-// ResponseTeamResponse defines model for response.TeamResponse.
-type ResponseTeamResponse struct {
+// TeamListResponse defines model for TeamListResponse.
+type TeamListResponse struct {
+	Data *[]TeamResponse `json:"data,omitempty"`
+	Meta *PaginationMeta `json:"meta,omitempty"`
+}
+
+// TeamResponse defines model for TeamResponse.
+type TeamResponse struct {
 	CaptainID   *string `json:"captain_id,omitempty"`
 	CreatedAt   *string `json:"created_at,omitempty"`
 	ID          *string `json:"id,omitempty"`
@@ -883,21 +1104,235 @@ type ResponseTeamResponse struct {
 	Name        *string `json:"name,omitempty"`
 }
 
-// ResponseTeamWithMembersResponse defines model for response.TeamWithMembersResponse.
-type ResponseTeamWithMembersResponse struct {
-	BannedAt     *string                 `json:"banned_at,omitempty"`
-	BannedReason *string                 `json:"banned_reason,omitempty"`
-	CaptainID    *string                 `json:"captain_id,omitempty"`
-	CreatedAt    *string                 `json:"created_at,omitempty"`
-	ID           *string                 `json:"id,omitempty"`
-	InviteToken  *string                 `json:"invite_token,omitempty"`
-	IsBanned     *bool                   `json:"is_banned,omitempty"`
-	Members      *[]ResponseUserResponse `json:"members,omitempty"`
-	Name         *string                 `json:"name,omitempty"`
+// TeamTimeline defines model for TeamTimeline.
+type TeamTimeline struct {
+	TeamID   *string       `json:"team_id,omitempty"`
+	TeamName *string       `json:"team_name,omitempty"`
+	Timeline *[]ScorePoint `json:"timeline,omitempty"`
 }
 
-// ResponseUserNotificationResponse defines model for response.UserNotificationResponse.
-type ResponseUserNotificationResponse struct {
+// TeamWithMembersResponse defines model for TeamWithMembersResponse.
+type TeamWithMembersResponse struct {
+	BannedAt     *string `json:"banned_at,omitempty"`
+	BannedReason *string `json:"banned_reason,omitempty"`
+	CaptainID    *string `json:"captain_id,omitempty"`
+	CreatedAt    *string `json:"created_at,omitempty"`
+	ID           *string `json:"id,omitempty"`
+	InviteToken  *string `json:"invite_token,omitempty"`
+	IsBanned     *bool   `json:"is_banned,omitempty"`
+
+	// MeetsMinSize True if the team has at least min_team_size members (or min is not set).
+	MeetsMinSize *bool           `json:"meets_min_size,omitempty"`
+	Members      *[]UserResponse `json:"members,omitempty"`
+
+	// MinTeamSize Minimum team size required to submit flags (0 means not enforced).
+	MinTeamSize *int    `json:"min_team_size,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
+
+// TimeRange defines model for TimeRange.
+type TimeRange struct {
+	End   *string `json:"end,omitempty"`
+	Start *string `json:"start,omitempty"`
+}
+
+// TokenPair defines model for TokenPair.
+type TokenPair struct {
+	AccessExpiresAt  *int    `json:"access_expires_at,omitempty"`
+	AccessToken      *string `json:"access_token,omitempty"`
+	RefreshExpiresAt *int    `json:"refresh_expires_at,omitempty"`
+	RefreshToken     *string `json:"refresh_token,omitempty"`
+}
+
+// TrackingEntry defines model for TrackingEntry.
+type TrackingEntry struct {
+	ID        *string    `json:"id,omitempty"`
+	IP        *string    `json:"ip,omitempty"`
+	TrackedAt *time.Time `json:"tracked_at,omitempty"`
+	UserAgent *string    `json:"user_agent,omitempty"`
+	UserID    *string    `json:"user_id,omitempty"`
+}
+
+// TrackingListResponse defines model for TrackingListResponse.
+type TrackingListResponse struct {
+	Data *[]TrackingEntry `json:"data,omitempty"`
+	Meta *PaginationMeta  `json:"meta,omitempty"`
+}
+
+// TransferCaptainRequest defines model for TransferCaptainRequest.
+type TransferCaptainRequest struct {
+	NewCaptainID string `json:"new_captain_id"`
+}
+
+// UpdateAppSettingsRequest defines model for UpdateAppSettingsRequest.
+type UpdateAppSettingsRequest struct {
+	AppName          string `json:"app_name"`
+	CorsOrigins      string `json:"cors_origins"`
+	CsvExportMaxRows *int   `json:"csv_export_max_rows,omitempty"`
+	DefaultPerPage   *int   `json:"default_per_page,omitempty"`
+	FrontendURL      string `json:"frontend_url"`
+	MaxPerPage       *int   `json:"max_per_page,omitempty"`
+
+	// MaxTeams Maximum number of teams allowed (0 = unlimited)
+	MaxTeams *int `json:"max_teams,omitempty"`
+
+	// OauthGithubEnabled Allow users to sign in via GitHub OAuth
+	OauthGithubEnabled *bool `json:"oauth_github_enabled,omitempty"`
+
+	// OauthGoogleEnabled Allow users to sign in via Google OAuth
+	OauthGoogleEnabled               *bool                                      `json:"oauth_google_enabled,omitempty"`
+	RateLimitForgotPasswordPerMinute *int                                       `json:"rate_limit_forgot_password_per_minute,omitempty"`
+	RateLimitGeneralIPPerMinute      *int                                       `json:"rate_limit_general_ip_per_minute,omitempty"`
+	RateLimitLoginPerMinute          *int                                       `json:"rate_limit_login_per_minute,omitempty"`
+	RateLimitLogoutPerMinute         *int                                       `json:"rate_limit_logout_per_minute,omitempty"`
+	RateLimitOauthCallbackPerMinute  *int                                       `json:"rate_limit_oauth_callback_per_minute,omitempty"`
+	RateLimitRefreshPerMinute        *int                                       `json:"rate_limit_refresh_per_minute,omitempty"`
+	RateLimitRegisterPerMinute       *int                                       `json:"rate_limit_register_per_minute,omitempty"`
+	RateLimitResetPasswordPerMinute  *int                                       `json:"rate_limit_reset_password_per_minute,omitempty"`
+	RateLimitScoreboardPerMinute     *int                                       `json:"rate_limit_scoreboard_per_minute,omitempty"`
+	RateLimitVerifyEmailPerMinute    *int                                       `json:"rate_limit_verify_email_per_minute,omitempty"`
+	RegistrationOpen                 *bool                                      `json:"registration_open,omitempty"`
+	ResendEnabled                    *bool                                      `json:"resend_enabled,omitempty"`
+	ResendFromEmail                  string                                     `json:"resend_from_email"`
+	ResendFromName                   string                                     `json:"resend_from_name"`
+	ResetTTLHours                    *int                                       `json:"reset_ttl_hours,omitempty"`
+	ScoreboardVisible                *UpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty"`
+	SubmitLimitDurationMin           *int                                       `json:"submit_limit_duration_min,omitempty"`
+	SubmitLimitPerUser               *int                                       `json:"submit_limit_per_user,omitempty"`
+	VerifyEmails                     *bool                                      `json:"verify_emails,omitempty"`
+	VerifyTTLHours                   *int                                       `json:"verify_ttl_hours,omitempty"`
+
+	// WriteupEnabled Whether writeups/solutions are shown to teams after solving a challenge
+	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
+}
+
+// UpdateAppSettingsRequestScoreboardVisible defines model for UpdateAppSettingsRequest.ScoreboardVisible.
+type UpdateAppSettingsRequestScoreboardVisible string
+
+// UpdateBracketRequest defines model for UpdateBracketRequest.
+type UpdateBracketRequest struct {
+	Description *string `json:"description,omitempty"`
+	IsDefault   *bool   `json:"is_default,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// UpdateChallengeRequest defines model for UpdateChallengeRequest.
+type UpdateChallengeRequest struct {
+	Category    string  `json:"category" validate:"required,challenge_category"`
+	Decay       *int    `json:"decay,omitempty"`
+	Description string  `json:"description" validate:"required,challenge_description"`
+	Flag        *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
+
+	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
+	InitialValue      *int    `json:"initial_value,omitempty"`
+	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
+	IsHidden          *bool   `json:"is_hidden,omitempty"`
+	IsRegex           *bool   `json:"is_regex,omitempty"`
+	MinValue          *int    `json:"min_value,omitempty"`
+	Points            int     `json:"points"`
+
+	// TagIds Tag IDs for the challenge
+	TagIds *[]string `json:"tag_ids,omitempty"`
+	Title  string    `json:"title" validate:"required,challenge_title"`
+}
+
+// UpdateCompetitionRequest defines model for UpdateCompetitionRequest.
+type UpdateCompetitionRequest struct {
+	AllowTeamSwitch *bool      `json:"allow_team_switch,omitempty"`
+	EndTime         *time.Time `json:"end_time,omitempty"`
+	FlagRegex       *string    `json:"flag_regex,omitempty"`
+	FreezeTime      *time.Time `json:"freeze_time,omitempty"`
+	IsPaused        *bool      `json:"is_paused,omitempty"`
+	IsPublic        *bool      `json:"is_public,omitempty"`
+	Mode            *string    `json:"mode,omitempty"`
+	Name            string     `json:"name"`
+	StartTime       *time.Time `json:"start_time,omitempty"`
+}
+
+// UpdateFieldRequest defines model for UpdateFieldRequest.
+type UpdateFieldRequest struct {
+	FieldType  UpdateFieldRequestFieldType `json:"field_type"`
+	Name       string                      `json:"name"`
+	Options    *[]string                   `json:"options,omitempty"`
+	OrderIndex *int                        `json:"order_index,omitempty"`
+	Required   *bool                       `json:"required,omitempty"`
+}
+
+// UpdateFieldRequestFieldType defines model for UpdateFieldRequest.FieldType.
+type UpdateFieldRequestFieldType string
+
+// UpdateHintRequest defines model for UpdateHintRequest.
+type UpdateHintRequest struct {
+	Content    string `json:"content" validate:"required,hint_content"`
+	Cost       *int   `json:"cost,omitempty"`
+	OrderIndex *int   `json:"order_index,omitempty"`
+}
+
+// UpdateNotificationRequest defines model for UpdateNotificationRequest.
+type UpdateNotificationRequest struct {
+	Content  string                         `json:"content"`
+	IsPinned *bool                          `json:"is_pinned,omitempty"`
+	Title    string                         `json:"title"`
+	Type     *UpdateNotificationRequestType `json:"type,omitempty"`
+}
+
+// UpdateNotificationRequestType defines model for UpdateNotificationRequest.Type.
+type UpdateNotificationRequestType string
+
+// UpdatePageRequest defines model for UpdatePageRequest.
+type UpdatePageRequest struct {
+	Content    *string `json:"content,omitempty"`
+	IsDraft    *bool   `json:"is_draft,omitempty"`
+	OrderIndex *int    `json:"order_index,omitempty"`
+	Slug       string  `json:"slug"`
+	Title      string  `json:"title"`
+}
+
+// UpdateProfileRequest defines model for UpdateProfileRequest.
+type UpdateProfileRequest struct {
+	CurrentPassword *string `json:"current_password,omitempty"`
+	Email           *string `json:"email,omitempty" validate:"omitempty,custom_email"`
+	Password        *string `json:"password,omitempty" validate:"omitempty,strong_password"`
+	Username        *string `json:"username,omitempty" validate:"omitempty,custom_username"`
+}
+
+// UpdateTagRequest defines model for UpdateTagRequest.
+type UpdateTagRequest struct {
+	Color *string `json:"color,omitempty"`
+	Name  string  `json:"name"`
+}
+
+// UpdateTeamRequest defines model for UpdateTeamRequest.
+type UpdateTeamRequest struct {
+	Name string `json:"name" validate:"required,team_name"`
+}
+
+// UploadFileResponse defines model for UploadFileResponse.
+type UploadFileResponse struct {
+	Filename string `json:"filename"`
+	ID       string `json:"id"`
+	Sha256   string `json:"sha256"`
+	Size     int64  `json:"size"`
+}
+
+// UserExport defines model for UserExport.
+type UserExport struct {
+	Email    *string `json:"email,omitempty"`
+	ID       *string `json:"id,omitempty"`
+	Role     *string `json:"role,omitempty"`
+	TeamID   *string `json:"team_id,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
+// UserListResponse defines model for UserListResponse.
+type UserListResponse struct {
+	Data *[]UserResponse `json:"data,omitempty"`
+	Meta *PaginationMeta `json:"meta,omitempty"`
+}
+
+// UserNotificationResponse defines model for UserNotificationResponse.
+type UserNotificationResponse struct {
 	Content   *string `json:"content,omitempty"`
 	CreatedAt *string `json:"created_at,omitempty"`
 	ID        *string `json:"id,omitempty"`
@@ -906,27 +1341,27 @@ type ResponseUserNotificationResponse struct {
 	Type      *string `json:"type,omitempty"`
 }
 
-// ResponseUserProfileResponse defines model for response.UserProfileResponse.
-type ResponseUserProfileResponse struct {
-	CreatedAt *string                  `json:"created_at,omitempty"`
-	ID        *string                  `json:"id,omitempty"`
-	Solves    *[]ResponseSolveResponse `json:"solves,omitempty"`
-	TeamID    *string                  `json:"team_id,omitempty"`
-	Username  *string                  `json:"username,omitempty"`
+// UserProfileResponse defines model for UserProfileResponse.
+type UserProfileResponse struct {
+	CreatedAt *string          `json:"created_at,omitempty"`
+	ID        *string          `json:"id,omitempty"`
+	Solves    *[]SolveResponse `json:"solves,omitempty"`
+	TeamID    *string          `json:"team_id,omitempty"`
+	Username  *string          `json:"username,omitempty"`
 }
 
-// ResponseUserResponse defines model for response.UserResponse.
-type ResponseUserResponse struct {
+// UserResponse defines model for UserResponse.
+type UserResponse struct {
 	ID       *string `json:"id,omitempty"`
 	Role     *string `json:"role,omitempty"`
 	TeamID   *string `json:"team_id,omitempty"`
 	Username *string `json:"username,omitempty"`
 }
 
-// V1ErrorResponse defines model for v1.ErrorResponse.
-type V1ErrorResponse struct {
-	Code  *string `json:"code,omitempty"`
-	Error *string `json:"error,omitempty"`
+// GetAdminAwardsParams defines parameters for GetAdminAwards.
+type GetAdminAwardsParams struct {
+	// TeamID Filter by team ID
+	TeamID *string `form:"team_id,omitempty" json:"team_id,omitempty"`
 }
 
 // PostAdminChallengesChallengeIDFilesMultipartBody defines parameters for PostAdminChallengesChallengeIDFiles.
@@ -934,28 +1369,32 @@ type PostAdminChallengesChallengeIDFilesMultipartBody struct {
 	// File File to upload
 	File openapi_types.File `json:"file"`
 
-	// Type File type: challenge or writeup
-	Type *string `json:"type,omitempty"`
+	// Type File type (defaults to challenge)
+	Type *PostAdminChallengesChallengeIDFilesMultipartBodyType `json:"type,omitempty"`
 }
+
+// PostAdminChallengesChallengeIDFilesMultipartBodyType defines parameters for PostAdminChallengesChallengeIDFiles.
+type PostAdminChallengesChallengeIDFilesMultipartBodyType string
 
 // GetAdminExportParams defines parameters for GetAdminExport.
 type GetAdminExportParams struct {
-	// IncludeUsers Include user data in export
-	IncludeUsers *bool `form:"include_users,omitempty" json:"include_users,omitempty"`
-
-	// IncludeTeams Include team data in export
-	IncludeTeams *bool `form:"include_teams,omitempty" json:"include_teams,omitempty"`
-
-	// IncludeSolves Include solve data in export
+	IncludeUsers  *bool `form:"include_users,omitempty" json:"include_users,omitempty"`
+	IncludeTeams  *bool `form:"include_teams,omitempty" json:"include_teams,omitempty"`
 	IncludeSolves *bool `form:"include_solves,omitempty" json:"include_solves,omitempty"`
-
-	// IncludeAwards Include award data in export
 	IncludeAwards *bool `form:"include_awards,omitempty" json:"include_awards,omitempty"`
 }
 
+// GetAdminExportCsvParams defines parameters for GetAdminExportCsv.
+type GetAdminExportCsvParams struct {
+	// Table Table name to export
+	Table GetAdminExportCsvParamsTable `form:"table" json:"table"`
+}
+
+// GetAdminExportCsvParamsTable defines parameters for GetAdminExportCsv.
+type GetAdminExportCsvParamsTable string
+
 // GetAdminExportZipParams defines parameters for GetAdminExportZip.
 type GetAdminExportZipParams struct {
-	// IncludeFiles Include challenge files in export
 	IncludeFiles *bool `form:"include_files,omitempty" json:"include_files,omitempty"`
 }
 
@@ -970,12 +1409,27 @@ type PostAdminImportMultipartBody struct {
 	// File ZIP backup file
 	File openapi_types.File `json:"file"`
 
+	// PreserveAdminRoles Preserve admin roles for existing users during import
+	PreserveAdminRoles *bool `json:"preserve_admin_roles,omitempty"`
+
 	// ValidateFiles Validate file checksums
 	ValidateFiles *bool `json:"validate_files,omitempty"`
 }
 
 // PostAdminImportMultipartBodyConflictMode defines parameters for PostAdminImport.
 type PostAdminImportMultipartBodyConflictMode string
+
+// PostAdminImportCsvMultipartBody defines parameters for PostAdminImportCsv.
+type PostAdminImportCsvMultipartBody struct {
+	// File CSV file
+	File openapi_types.File `json:"file"`
+
+	// Table Target table name
+	Table PostAdminImportCsvMultipartBodyTable `json:"table"`
+}
+
+// PostAdminImportCsvMultipartBodyTable defines parameters for PostAdminImportCsv.
+type PostAdminImportCsvMultipartBodyTable string
 
 // GetAdminSubmissionsParams defines parameters for GetAdminSubmissions.
 type GetAdminSubmissionsParams struct {
@@ -999,6 +1453,61 @@ type GetAdminSubmissionsTeamTeamIDParams struct {
 type GetAdminSubmissionsUserUserIDParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetAdminTeamsParams defines parameters for GetAdminTeams.
+type GetAdminTeamsParams struct {
+	// Q Search query (team name)
+	Q       *string `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetAdminUnlocksParams defines parameters for GetAdminUnlocks.
+type GetAdminUnlocksParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetAdminUsersParams defines parameters for GetAdminUsers.
+type GetAdminUsersParams struct {
+	// Q Search query (username or IP if field=ip)
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Field Search field (username or ip)
+	Field   *GetAdminUsersParamsField `form:"field,omitempty" json:"field,omitempty"`
+	Page    *int                      `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int                      `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetAdminUsersParamsField defines parameters for GetAdminUsers.
+type GetAdminUsersParamsField string
+
+// GetAdminUsersIDTrackingParams defines parameters for GetAdminUsersIDTracking.
+type GetAdminUsersIDTrackingParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// PostAuthLogoutParams defines parameters for PostAuthLogout.
+type PostAuthLogoutParams struct {
+	// Authorization Optional Bearer refresh token to invalidate
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// GetAuthOauthProviderCallbackParams defines parameters for GetAuthOauthProviderCallback.
+type GetAuthOauthProviderCallbackParams struct {
+	// Code Authorization code returned by the OAuth provider
+	Code *string `form:"code,omitempty" json:"code,omitempty"`
+
+	// State State parameter for CSRF protection
+	State *string `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// PostAuthRefreshParams defines parameters for PostAuthRefresh.
+type PostAuthRefreshParams struct {
+	// Authorization Bearer refresh token
+	Authorization string `json:"Authorization"`
 }
 
 // GetAuthVerifyEmailParams defines parameters for GetAuthVerifyEmail.
@@ -1033,12 +1542,6 @@ type GetNotificationsParams struct {
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
-// GetRatingsParams defines parameters for GetRatings.
-type GetRatingsParams struct {
-	Page    *int `form:"page,omitempty" json:"page,omitempty"`
-	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
-}
-
 // GetScoreboardParams defines parameters for GetScoreboard.
 type GetScoreboardParams struct {
 	// Bracket Filter scoreboard by bracket (category) ID
@@ -1051,116 +1554,210 @@ type GetScoreboardGraphParams struct {
 	Top *int `form:"top,omitempty" json:"top,omitempty"`
 }
 
+// GetStatisticsScoreboardParams defines parameters for GetStatisticsScoreboard.
+type GetStatisticsScoreboardParams struct {
+	// Limit Number of teams to include in history (default 10, max 50)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetStatisticsSubmissionsTypeParamsType defines parameters for GetStatisticsSubmissionsType.
+type GetStatisticsSubmissionsTypeParamsType string
+
+// GetTeamsParams defines parameters for GetTeams.
+type GetTeamsParams struct {
+	// Q Search query
+	Q       *string `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetTeamsMeFailsParams defines parameters for GetTeamsMeFails.
+type GetTeamsMeFailsParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetTeamsIDFailsParams defines parameters for GetTeamsIDFails.
+type GetTeamsIDFailsParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
 // GetUserNotificationsParams defines parameters for GetUserNotifications.
 type GetUserNotificationsParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
+// GetUsersParams defines parameters for GetUsers.
+type GetUsersParams struct {
+	// Q Search query
+	Q       *string `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetUsersMeFailsParams defines parameters for GetUsersMeFails.
+type GetUsersMeFailsParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetUsersMeSubmissionsParams defines parameters for GetUsersMeSubmissions.
+type GetUsersMeSubmissionsParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetUsersIDFailsParams defines parameters for GetUsersIDFails.
+type GetUsersIDFailsParams struct {
+	Page    *int `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
 // PostAdminAwardsJSONRequestBody defines body for PostAdminAwards for application/json ContentType.
-type PostAdminAwardsJSONRequestBody = RequestCreateAwardRequest
+type PostAdminAwardsJSONRequestBody = CreateAwardRequest
 
 // PostAdminBracketsJSONRequestBody defines body for PostAdminBrackets for application/json ContentType.
-type PostAdminBracketsJSONRequestBody = RequestCreateBracketRequest
+type PostAdminBracketsJSONRequestBody = CreateBracketRequest
 
 // PutAdminBracketsIDJSONRequestBody defines body for PutAdminBracketsID for application/json ContentType.
-type PutAdminBracketsIDJSONRequestBody = RequestUpdateBracketRequest
+type PutAdminBracketsIDJSONRequestBody = UpdateBracketRequest
 
 // PostAdminChallengesJSONRequestBody defines body for PostAdminChallenges for application/json ContentType.
-type PostAdminChallengesJSONRequestBody = RequestCreateChallengeRequest
+type PostAdminChallengesJSONRequestBody = CreateChallengeRequest
 
 // PutAdminChallengesIDJSONRequestBody defines body for PutAdminChallengesID for application/json ContentType.
-type PutAdminChallengesIDJSONRequestBody = RequestUpdateChallengeRequest
+type PutAdminChallengesIDJSONRequestBody = UpdateChallengeRequest
 
 // PostAdminChallengesChallengeIDFilesMultipartRequestBody defines body for PostAdminChallengesChallengeIDFiles for multipart/form-data ContentType.
 type PostAdminChallengesChallengeIDFilesMultipartRequestBody PostAdminChallengesChallengeIDFilesMultipartBody
 
 // PostAdminChallengesChallengeIDHintsJSONRequestBody defines body for PostAdminChallengesChallengeIDHints for application/json ContentType.
-type PostAdminChallengesChallengeIDHintsJSONRequestBody = RequestCreateHintRequest
+type PostAdminChallengesChallengeIDHintsJSONRequestBody = CreateHintRequest
+
+// PutAdminChallengesChallengeIDRequirementsJSONRequestBody defines body for PutAdminChallengesChallengeIDRequirements for application/json ContentType.
+type PutAdminChallengesChallengeIDRequirementsJSONRequestBody = SetChallengeRequirementsRequest
+
+// PostAdminChallengesChallengeIDSolutionJSONRequestBody defines body for PostAdminChallengesChallengeIDSolution for application/json ContentType.
+type PostAdminChallengesChallengeIDSolutionJSONRequestBody = AdminUpsertSolutionRequest
 
 // PutAdminCompetitionJSONRequestBody defines body for PutAdminCompetition for application/json ContentType.
-type PutAdminCompetitionJSONRequestBody = RequestUpdateCompetitionRequest
+type PutAdminCompetitionJSONRequestBody = UpdateCompetitionRequest
 
 // PutAdminConfigsKeyJSONRequestBody defines body for PutAdminConfigsKey for application/json ContentType.
-type PutAdminConfigsKeyJSONRequestBody = RequestSetConfigRequest
-
-// PostAdminCtfEventsJSONRequestBody defines body for PostAdminCtfEvents for application/json ContentType.
-type PostAdminCtfEventsJSONRequestBody = RequestCreateCTFEventRequest
+type PutAdminConfigsKeyJSONRequestBody = SetConfigRequest
 
 // PostAdminFieldsJSONRequestBody defines body for PostAdminFields for application/json ContentType.
-type PostAdminFieldsJSONRequestBody = RequestCreateFieldRequest
+type PostAdminFieldsJSONRequestBody = CreateFieldRequest
 
 // PutAdminFieldsIDJSONRequestBody defines body for PutAdminFieldsID for application/json ContentType.
-type PutAdminFieldsIDJSONRequestBody = RequestUpdateFieldRequest
+type PutAdminFieldsIDJSONRequestBody = UpdateFieldRequest
 
 // PutAdminHintsIDJSONRequestBody defines body for PutAdminHintsID for application/json ContentType.
-type PutAdminHintsIDJSONRequestBody = RequestUpdateHintRequest
+type PutAdminHintsIDJSONRequestBody = UpdateHintRequest
 
 // PostAdminImportMultipartRequestBody defines body for PostAdminImport for multipart/form-data ContentType.
 type PostAdminImportMultipartRequestBody PostAdminImportMultipartBody
 
+// PostAdminImportCsvMultipartRequestBody defines body for PostAdminImportCsv for multipart/form-data ContentType.
+type PostAdminImportCsvMultipartRequestBody PostAdminImportCsvMultipartBody
+
 // PostAdminNotificationsJSONRequestBody defines body for PostAdminNotifications for application/json ContentType.
-type PostAdminNotificationsJSONRequestBody = RequestCreateNotificationRequest
+type PostAdminNotificationsJSONRequestBody = CreateNotificationRequest
 
 // PostAdminNotificationsUserUserIDJSONRequestBody defines body for PostAdminNotificationsUserUserID for application/json ContentType.
-type PostAdminNotificationsUserUserIDJSONRequestBody = RequestCreateUserNotificationRequest
+type PostAdminNotificationsUserUserIDJSONRequestBody = CreateUserNotificationRequest
 
 // PutAdminNotificationsIDJSONRequestBody defines body for PutAdminNotificationsID for application/json ContentType.
-type PutAdminNotificationsIDJSONRequestBody = RequestUpdateNotificationRequest
+type PutAdminNotificationsIDJSONRequestBody = UpdateNotificationRequest
 
 // PostAdminPagesJSONRequestBody defines body for PostAdminPages for application/json ContentType.
-type PostAdminPagesJSONRequestBody = RequestCreatePageRequest
+type PostAdminPagesJSONRequestBody = CreatePageRequest
 
 // PutAdminPagesIDJSONRequestBody defines body for PutAdminPagesID for application/json ContentType.
-type PutAdminPagesIDJSONRequestBody = RequestUpdatePageRequest
+type PutAdminPagesIDJSONRequestBody = UpdatePageRequest
+
+// PostAdminResetJSONRequestBody defines body for PostAdminReset for application/json ContentType.
+type PostAdminResetJSONRequestBody = AdminResetRequest
 
 // PutAdminSettingsJSONRequestBody defines body for PutAdminSettings for application/json ContentType.
-type PutAdminSettingsJSONRequestBody = RequestUpdateAppSettingsRequest
+type PutAdminSettingsJSONRequestBody = UpdateAppSettingsRequest
+
+// PostAdminSubmissionsJSONRequestBody defines body for PostAdminSubmissions for application/json ContentType.
+type PostAdminSubmissionsJSONRequestBody = AdminCreateSubmissionRequest
+
+// PatchAdminSubmissionsIDJSONRequestBody defines body for PatchAdminSubmissionsID for application/json ContentType.
+type PatchAdminSubmissionsIDJSONRequestBody = AdminUpdateSubmissionRequest
 
 // PostAdminTagsJSONRequestBody defines body for PostAdminTags for application/json ContentType.
-type PostAdminTagsJSONRequestBody = RequestCreateTagRequest
+type PostAdminTagsJSONRequestBody = CreateTagRequest
 
 // PutAdminTagsIDJSONRequestBody defines body for PutAdminTagsID for application/json ContentType.
-type PutAdminTagsIDJSONRequestBody = RequestUpdateTagRequest
+type PutAdminTagsIDJSONRequestBody = UpdateTagRequest
+
+// PatchAdminTeamsIDJSONRequestBody defines body for PatchAdminTeamsID for application/json ContentType.
+type PatchAdminTeamsIDJSONRequestBody = AdminUpdateTeamRequest
 
 // PostAdminTeamsIDBanJSONRequestBody defines body for PostAdminTeamsIDBan for application/json ContentType.
-type PostAdminTeamsIDBanJSONRequestBody = RequestBanTeamRequest
+type PostAdminTeamsIDBanJSONRequestBody = BanTeamRequest
 
 // PatchAdminTeamsIDBracketJSONRequestBody defines body for PatchAdminTeamsIDBracket for application/json ContentType.
-type PatchAdminTeamsIDBracketJSONRequestBody = RequestSetTeamBracketRequest
+type PatchAdminTeamsIDBracketJSONRequestBody = SetTeamBracketRequest
 
 // PatchAdminTeamsIDHiddenJSONRequestBody defines body for PatchAdminTeamsIDHidden for application/json ContentType.
-type PatchAdminTeamsIDHiddenJSONRequestBody = RequestSetHiddenRequest
+type PatchAdminTeamsIDHiddenJSONRequestBody = SetHiddenRequest
+
+// PostAdminTeamsIDMembersJSONRequestBody defines body for PostAdminTeamsIDMembers for application/json ContentType.
+type PostAdminTeamsIDMembersJSONRequestBody = AdminAddMemberRequest
+
+// PostAdminUsersJSONRequestBody defines body for PostAdminUsers for application/json ContentType.
+type PostAdminUsersJSONRequestBody = AdminCreateUserRequest
+
+// PatchAdminUsersIDJSONRequestBody defines body for PatchAdminUsersID for application/json ContentType.
+type PatchAdminUsersIDJSONRequestBody = AdminUpdateUserRequest
+
+// PostAdminUsersIDBanJSONRequestBody defines body for PostAdminUsersIDBan for application/json ContentType.
+type PostAdminUsersIDBanJSONRequestBody = BanUserRequest
 
 // PostAuthForgotPasswordJSONRequestBody defines body for PostAuthForgotPassword for application/json ContentType.
-type PostAuthForgotPasswordJSONRequestBody = RequestForgotPasswordRequest
+type PostAuthForgotPasswordJSONRequestBody = ForgotPasswordRequest
 
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
-type PostAuthLoginJSONRequestBody = RequestLoginRequest
+type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostAuthLogoutJSONRequestBody defines body for PostAuthLogout for application/json ContentType.
+type PostAuthLogoutJSONRequestBody = LogoutRequest
+
+// PatchAuthMeJSONRequestBody defines body for PatchAuthMe for application/json ContentType.
+type PatchAuthMeJSONRequestBody = UpdateProfileRequest
 
 // PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
-type PostAuthRegisterJSONRequestBody = RequestRegisterRequest
+type PostAuthRegisterJSONRequestBody = RegisterRequest
 
 // PostAuthResetPasswordJSONRequestBody defines body for PostAuthResetPassword for application/json ContentType.
-type PostAuthResetPasswordJSONRequestBody = RequestResetPasswordRequest
+type PostAuthResetPasswordJSONRequestBody = ResetPasswordRequest
 
 // PostChallengesIDSubmitJSONRequestBody defines body for PostChallengesIDSubmit for application/json ContentType.
-type PostChallengesIDSubmitJSONRequestBody = RequestSubmitFlagRequest
+type PostChallengesIDSubmitJSONRequestBody = SubmitFlagRequest
 
 // PostChallengesChallengeIDCommentsJSONRequestBody defines body for PostChallengesChallengeIDComments for application/json ContentType.
-type PostChallengesChallengeIDCommentsJSONRequestBody = RequestCreateCommentRequest
+type PostChallengesChallengeIDCommentsJSONRequestBody = CreateCommentRequest
 
 // PostTeamsJSONRequestBody defines body for PostTeams for application/json ContentType.
-type PostTeamsJSONRequestBody = RequestCreateTeamRequest
+type PostTeamsJSONRequestBody = CreateTeamRequest
 
 // PostTeamsJoinJSONRequestBody defines body for PostTeamsJoin for application/json ContentType.
-type PostTeamsJoinJSONRequestBody = RequestJoinTeamRequest
+type PostTeamsJoinJSONRequestBody = JoinTeamRequest
+
+// PatchTeamsMeJSONRequestBody defines body for PatchTeamsMe for application/json ContentType.
+type PatchTeamsMeJSONRequestBody = UpdateTeamRequest
 
 // PostTeamsSoloJSONRequestBody defines body for PostTeamsSolo for application/json ContentType.
-type PostTeamsSoloJSONRequestBody = RequestCreateTeamRequest
+type PostTeamsSoloJSONRequestBody = CreateTeamRequest
 
 // PostTeamsTransferCaptainJSONRequestBody defines body for PostTeamsTransferCaptain for application/json ContentType.
-type PostTeamsTransferCaptainJSONRequestBody = RequestTransferCaptainRequest
+type PostTeamsTransferCaptainJSONRequestBody = TransferCaptainRequest
 
 // PostUserTokensJSONRequestBody defines body for PostUserTokens for application/json ContentType.
-type PostUserTokensJSONRequestBody = RequestCreateAPITokenRequest
+type PostUserTokensJSONRequestBody = CreateAPITokenRequest

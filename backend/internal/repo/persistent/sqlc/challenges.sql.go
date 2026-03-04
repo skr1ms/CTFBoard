@@ -55,6 +55,17 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 	return err
 }
 
+const decrementChallengeSolveCount = `-- name: DecrementChallengeSolveCount :one
+UPDATE challenges SET solve_count = GREATEST(solve_count - 1, 0) WHERE id = $1 RETURNING solve_count
+`
+
+func (q *Queries) DecrementChallengeSolveCount(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementChallengeSolveCount, id)
+	var solve_count int32
+	err := row.Scan(&solve_count)
+	return solve_count, err
+}
+
 const deleteChallenge = `-- name: DeleteChallenge :one
 DELETE FROM challenges WHERE id = $1 RETURNING id
 `
@@ -63,6 +74,15 @@ func (q *Queries) DeleteChallenge(ctx context.Context, id uuid.UUID) (uuid.UUID,
 	row := q.db.QueryRow(ctx, deleteChallenge, id)
 	err := row.Scan(&id)
 	return id, err
+}
+
+const deleteChallengeRequirements = `-- name: DeleteChallengeRequirements :exec
+DELETE FROM challenge_requirements WHERE challenge_id = $1
+`
+
+func (q *Queries) DeleteChallengeRequirements(ctx context.Context, challengeID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteChallengeRequirements, challengeID)
+	return err
 }
 
 const getChallengeByID = `-- name: GetChallengeByID :one
@@ -160,6 +180,520 @@ func (q *Queries) GetChallengeByIDForUpdate(ctx context.Context, id uuid.UUID) (
 	return i, err
 }
 
+const getChallengeFlags = `-- name: GetChallengeFlags :one
+SELECT flag_hash, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+FROM challenges
+WHERE id = $1
+`
+
+type GetChallengeFlagsRow struct {
+	FlagHash          string  `json:"flag_hash"`
+	IsRegex           *bool   `json:"is_regex"`
+	IsCaseInsensitive *bool   `json:"is_case_insensitive"`
+	FlagRegex         *string `json:"flag_regex"`
+	FlagFormatRegex   *string `json:"flag_format_regex"`
+}
+
+func (q *Queries) GetChallengeFlags(ctx context.Context, id uuid.UUID) (GetChallengeFlagsRow, error) {
+	row := q.db.QueryRow(ctx, getChallengeFlags, id)
+	var i GetChallengeFlagsRow
+	err := row.Scan(
+		&i.FlagHash,
+		&i.IsRegex,
+		&i.IsCaseInsensitive,
+		&i.FlagRegex,
+		&i.FlagFormatRegex,
+	)
+	return i, err
+}
+
+const getChallengeRequirements = `-- name: GetChallengeRequirements :many
+SELECT c.id, c.title, c.category
+FROM challenge_requirements cr
+JOIN challenges c ON c.id = cr.required_challenge_id
+WHERE cr.challenge_id = $1
+ORDER BY c.title
+`
+
+type GetChallengeRequirementsRow struct {
+	ID       uuid.UUID `json:"id"`
+	Title    string    `json:"title"`
+	Category *string   `json:"category"`
+}
+
+func (q *Queries) GetChallengeRequirements(ctx context.Context, challengeID uuid.UUID) ([]GetChallengeRequirementsRow, error) {
+	rows, err := q.db.Query(ctx, getChallengeRequirements, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengeRequirementsRow
+	for rows.Next() {
+		var i GetChallengeRequirementsRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.Category); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChallenges = `-- name: GetChallenges :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
+FROM challenges c
+WHERE c.is_hidden = false
+`
+
+type GetChallengesRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+	Solved            int32     `json:"solved"`
+}
+
+func (q *Queries) GetChallenges(ctx context.Context) ([]GetChallengesRow, error) {
+	rows, err := q.db.Query(ctx, getChallenges)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengesRow
+	for rows.Next() {
+		var i GetChallengesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+			&i.Solved,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChallengesByIDs = `-- name: GetChallengesByIDs :many
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+FROM challenges
+WHERE id = ANY($1::uuid[])
+`
+
+type GetChallengesByIDsRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+}
+
+func (q *Queries) GetChallengesByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]GetChallengesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getChallengesByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengesByIDsRow
+	for rows.Next() {
+		var i GetChallengesByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChallengesByTag = `-- name: GetChallengesByTag :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
+FROM challenges c
+JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
+WHERE c.is_hidden = false
+`
+
+type GetChallengesByTagRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+	Solved            int32     `json:"solved"`
+}
+
+func (q *Queries) GetChallengesByTag(ctx context.Context, tagID uuid.UUID) ([]GetChallengesByTagRow, error) {
+	rows, err := q.db.Query(ctx, getChallengesByTag, tagID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengesByTagRow
+	for rows.Next() {
+		var i GetChallengesByTagRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+			&i.Solved,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChallengesForTeam = `-- name: GetChallengesForTeam :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
+    (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
+FROM challenges c
+LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1
+WHERE c.is_hidden = false
+`
+
+type GetChallengesForTeamRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+	Solved            int32     `json:"solved"`
+}
+
+func (q *Queries) GetChallengesForTeam(ctx context.Context, teamID uuid.UUID) ([]GetChallengesForTeamRow, error) {
+	rows, err := q.db.Query(ctx, getChallengesForTeam, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengesForTeamRow
+	for rows.Next() {
+		var i GetChallengesForTeamRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+			&i.Solved,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChallengesForTeamByTag = `-- name: GetChallengesForTeamByTag :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
+    (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
+FROM challenges c
+JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
+LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2
+WHERE c.is_hidden = false
+`
+
+type GetChallengesForTeamByTagParams struct {
+	TagID  uuid.UUID `json:"tag_id"`
+	TeamID uuid.UUID `json:"team_id"`
+}
+
+type GetChallengesForTeamByTagRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+	Solved            int32     `json:"solved"`
+}
+
+func (q *Queries) GetChallengesForTeamByTag(ctx context.Context, arg GetChallengesForTeamByTagParams) ([]GetChallengesForTeamByTagRow, error) {
+	rows, err := q.db.Query(ctx, getChallengesForTeamByTag, arg.TagID, arg.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengesForTeamByTagRow
+	for rows.Next() {
+		var i GetChallengesForTeamByTagRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+			&i.Solved,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMissingChallengesByTeamID = `-- name: GetMissingChallengesByTeamID :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+FROM challenges c
+WHERE c.is_hidden = false
+  AND NOT EXISTS (
+    SELECT 1 FROM solves s
+    WHERE s.challenge_id = c.id AND s.team_id = $1
+  )
+ORDER BY c.category, c.points DESC
+`
+
+type GetMissingChallengesByTeamIDRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+}
+
+func (q *Queries) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]GetMissingChallengesByTeamIDRow, error) {
+	rows, err := q.db.Query(ctx, getMissingChallengesByTeamID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMissingChallengesByTeamIDRow
+	for rows.Next() {
+		var i GetMissingChallengesByTeamIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMissingChallengesByUserID = `-- name: GetMissingChallengesByUserID :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+FROM challenges c
+WHERE c.is_hidden = false
+  AND NOT EXISTS (
+    SELECT 1 FROM solves s
+    WHERE s.challenge_id = c.id 
+      AND (
+        (s.team_id IS NOT NULL AND s.team_id = (SELECT u.team_id FROM users u WHERE u.id = $1 AND u.team_id IS NOT NULL))
+        OR (s.user_id = $1 AND s.team_id IS NULL)
+      )
+  )
+ORDER BY c.category, c.points DESC
+`
+
+type GetMissingChallengesByUserIDRow struct {
+	ID                uuid.UUID `json:"id"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	Category          *string   `json:"category"`
+	Points            *int32    `json:"points"`
+	InitialValue      int32     `json:"initial_value"`
+	MinValue          int32     `json:"min_value"`
+	Decay             int32     `json:"decay"`
+	SolveCount        int32     `json:"solve_count"`
+	FlagHash          string    `json:"flag_hash"`
+	IsHidden          *bool     `json:"is_hidden"`
+	IsRegex           *bool     `json:"is_regex"`
+	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
+	FlagRegex         *string   `json:"flag_regex"`
+	FlagFormatRegex   *string   `json:"flag_format_regex"`
+}
+
+func (q *Queries) GetMissingChallengesByUserID(ctx context.Context, id uuid.UUID) ([]GetMissingChallengesByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getMissingChallengesByUserID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMissingChallengesByUserIDRow
+	for rows.Next() {
+		var i GetMissingChallengesByUserIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Points,
+			&i.InitialValue,
+			&i.MinValue,
+			&i.Decay,
+			&i.SolveCount,
+			&i.FlagHash,
+			&i.IsHidden,
+			&i.IsRegex,
+			&i.IsCaseInsensitive,
+			&i.FlagRegex,
+			&i.FlagFormatRegex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const incrementChallengeSolveCount = `-- name: IncrementChallengeSolveCount :one
 UPDATE challenges SET solve_count = solve_count + 1 WHERE id = $1 RETURNING solve_count
 `
@@ -169,265 +703,6 @@ func (q *Queries) IncrementChallengeSolveCount(ctx context.Context, id uuid.UUID
 	var solve_count int32
 	err := row.Scan(&solve_count)
 	return solve_count, err
-}
-
-const listChallenges = `-- name: ListChallenges :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
-FROM challenges c
-WHERE c.is_hidden = false
-`
-
-type ListChallengesRow struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          *string   `json:"category"`
-	Points            *int32    `json:"points"`
-	InitialValue      int32     `json:"initial_value"`
-	MinValue          int32     `json:"min_value"`
-	Decay             int32     `json:"decay"`
-	SolveCount        int32     `json:"solve_count"`
-	FlagHash          string    `json:"flag_hash"`
-	IsHidden          *bool     `json:"is_hidden"`
-	IsRegex           *bool     `json:"is_regex"`
-	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"flag_regex"`
-	FlagFormatRegex   *string   `json:"flag_format_regex"`
-	Solved            int32     `json:"solved"`
-}
-
-func (q *Queries) ListChallenges(ctx context.Context) ([]ListChallengesRow, error) {
-	rows, err := q.db.Query(ctx, listChallenges)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListChallengesRow
-	for rows.Next() {
-		var i ListChallengesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Category,
-			&i.Points,
-			&i.InitialValue,
-			&i.MinValue,
-			&i.Decay,
-			&i.SolveCount,
-			&i.FlagHash,
-			&i.IsHidden,
-			&i.IsRegex,
-			&i.IsCaseInsensitive,
-			&i.FlagRegex,
-			&i.FlagFormatRegex,
-			&i.Solved,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listChallengesByTag = `-- name: ListChallengesByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
-FROM challenges c
-JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
-WHERE c.is_hidden = false
-`
-
-type ListChallengesByTagRow struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          *string   `json:"category"`
-	Points            *int32    `json:"points"`
-	InitialValue      int32     `json:"initial_value"`
-	MinValue          int32     `json:"min_value"`
-	Decay             int32     `json:"decay"`
-	SolveCount        int32     `json:"solve_count"`
-	FlagHash          string    `json:"flag_hash"`
-	IsHidden          *bool     `json:"is_hidden"`
-	IsRegex           *bool     `json:"is_regex"`
-	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"flag_regex"`
-	FlagFormatRegex   *string   `json:"flag_format_regex"`
-	Solved            int32     `json:"solved"`
-}
-
-func (q *Queries) ListChallengesByTag(ctx context.Context, tagID uuid.UUID) ([]ListChallengesByTagRow, error) {
-	rows, err := q.db.Query(ctx, listChallengesByTag, tagID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListChallengesByTagRow
-	for rows.Next() {
-		var i ListChallengesByTagRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Category,
-			&i.Points,
-			&i.InitialValue,
-			&i.MinValue,
-			&i.Decay,
-			&i.SolveCount,
-			&i.FlagHash,
-			&i.IsHidden,
-			&i.IsRegex,
-			&i.IsCaseInsensitive,
-			&i.FlagRegex,
-			&i.FlagFormatRegex,
-			&i.Solved,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listChallengesForTeam = `-- name: ListChallengesForTeam :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
-    (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
-FROM challenges c
-LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1
-WHERE c.is_hidden = false
-`
-
-type ListChallengesForTeamRow struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          *string   `json:"category"`
-	Points            *int32    `json:"points"`
-	InitialValue      int32     `json:"initial_value"`
-	MinValue          int32     `json:"min_value"`
-	Decay             int32     `json:"decay"`
-	SolveCount        int32     `json:"solve_count"`
-	FlagHash          string    `json:"flag_hash"`
-	IsHidden          *bool     `json:"is_hidden"`
-	IsRegex           *bool     `json:"is_regex"`
-	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"flag_regex"`
-	FlagFormatRegex   *string   `json:"flag_format_regex"`
-	Solved            int32     `json:"solved"`
-}
-
-func (q *Queries) ListChallengesForTeam(ctx context.Context, teamID uuid.UUID) ([]ListChallengesForTeamRow, error) {
-	rows, err := q.db.Query(ctx, listChallengesForTeam, teamID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListChallengesForTeamRow
-	for rows.Next() {
-		var i ListChallengesForTeamRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Category,
-			&i.Points,
-			&i.InitialValue,
-			&i.MinValue,
-			&i.Decay,
-			&i.SolveCount,
-			&i.FlagHash,
-			&i.IsHidden,
-			&i.IsRegex,
-			&i.IsCaseInsensitive,
-			&i.FlagRegex,
-			&i.FlagFormatRegex,
-			&i.Solved,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listChallengesForTeamByTag = `-- name: ListChallengesForTeamByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
-    (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
-FROM challenges c
-JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
-LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2
-WHERE c.is_hidden = false
-`
-
-type ListChallengesForTeamByTagParams struct {
-	TagID  uuid.UUID `json:"tag_id"`
-	TeamID uuid.UUID `json:"team_id"`
-}
-
-type ListChallengesForTeamByTagRow struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          *string   `json:"category"`
-	Points            *int32    `json:"points"`
-	InitialValue      int32     `json:"initial_value"`
-	MinValue          int32     `json:"min_value"`
-	Decay             int32     `json:"decay"`
-	SolveCount        int32     `json:"solve_count"`
-	FlagHash          string    `json:"flag_hash"`
-	IsHidden          *bool     `json:"is_hidden"`
-	IsRegex           *bool     `json:"is_regex"`
-	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"flag_regex"`
-	FlagFormatRegex   *string   `json:"flag_format_regex"`
-	Solved            int32     `json:"solved"`
-}
-
-func (q *Queries) ListChallengesForTeamByTag(ctx context.Context, arg ListChallengesForTeamByTagParams) ([]ListChallengesForTeamByTagRow, error) {
-	rows, err := q.db.Query(ctx, listChallengesForTeamByTag, arg.TagID, arg.TeamID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListChallengesForTeamByTagRow
-	for rows.Next() {
-		var i ListChallengesForTeamByTagRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Category,
-			&i.Points,
-			&i.InitialValue,
-			&i.MinValue,
-			&i.Decay,
-			&i.SolveCount,
-			&i.FlagHash,
-			&i.IsHidden,
-			&i.IsRegex,
-			&i.IsCaseInsensitive,
-			&i.FlagRegex,
-			&i.FlagFormatRegex,
-			&i.Solved,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const updateChallenge = `-- name: UpdateChallenge :exec

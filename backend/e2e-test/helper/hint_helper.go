@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +45,7 @@ func (h *E2EHelper) GetChallengesChallengeIDHintsExpectStatus(token, challengeID
 	return resp
 }
 
-func (h *E2EHelper) GetHintFromList(token, challengeID, hintID string) *openapi.ResponseHintResponse {
+func (h *E2EHelper) GetHintFromList(token, challengeID, hintID string) *openapi.HintResponse {
 	h.t.Helper()
 	resp := h.GetChallengesChallengeIDHintsExpectStatus(token, challengeID, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)

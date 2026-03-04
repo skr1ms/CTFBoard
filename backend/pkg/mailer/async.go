@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/skr1ms/CTFBoard/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 var ErrMailerStopped = errors.New("mailer stopped")
@@ -80,7 +81,6 @@ func (m *AsyncMailer) worker() {
 		case msg := <-m.msgChan:
 			m.send(msg)
 		case <-m.quit:
-			// Drain the channel
 			for {
 				select {
 				case msg := <-m.msgChan:
@@ -94,7 +94,9 @@ func (m *AsyncMailer) worker() {
 }
 
 func (m *AsyncMailer) send(msg Message) {
-	if err := m.delegate.Send(context.Background(), msg); err != nil {
-		m.l.WithError(err).Error(fmt.Sprintf("AsyncMailer: failed to send email to %s", msg.To))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := m.delegate.Send(ctx, msg); err != nil {
+		m.l.WithError(err).WithFields(logger.Fields{"to": msg.To}).Error("AsyncMailer: failed to send email")
 	}
 }

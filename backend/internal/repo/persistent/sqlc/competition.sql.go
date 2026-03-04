@@ -52,7 +52,7 @@ UPDATE competition SET
     allow_team_switch = $9,
     min_team_size = $10,
     max_team_size = $11,
-    updated_at = $12
+    updated_at = NOW()
 WHERE id = 1
 `
 
@@ -68,7 +68,6 @@ type UpdateCompetitionParams struct {
 	AllowTeamSwitch *bool      `json:"allow_team_switch"`
 	MinTeamSize     *int32     `json:"min_team_size"`
 	MaxTeamSize     *int32     `json:"max_team_size"`
-	UpdatedAt       *time.Time `json:"updated_at"`
 }
 
 func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionParams) error {
@@ -84,7 +83,6 @@ func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionPa
 		arg.AllowTeamSwitch,
 		arg.MinTeamSize,
 		arg.MaxTeamSize,
-		arg.UpdatedAt,
 	)
 	return err
 }

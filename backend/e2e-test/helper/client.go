@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,7 +92,16 @@ func RequireLoginOK(t *testing.T, resp *openapi.PostAuthLoginResponse) string {
 	return *resp.JSON200.AccessToken
 }
 
-func RequireMeOK(t *testing.T, resp *openapi.GetAuthMeResponse) *openapi.ResponseMeResponse {
+func RequireRefreshOK(t *testing.T, resp *openapi.PostAuthRefreshResponse) (accessToken, refreshToken string) {
+	t.Helper()
+	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "refresh")
+	require.NotNil(t, resp.JSON200)
+	require.NotNil(t, resp.JSON200.AccessToken)
+	require.NotNil(t, resp.JSON200.RefreshToken)
+	return *resp.JSON200.AccessToken, *resp.JSON200.RefreshToken
+}
+
+func RequireMeOK(t *testing.T, resp *openapi.GetAuthMeResponse) *openapi.MeResponse {
 	t.Helper()
 	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "me")
 	require.NotNil(t, resp.JSON200)
@@ -103,21 +112,21 @@ func RequireConflict(t *testing.T, resp *openapi.PostAuthRegisterResponse, label
 	t.Helper()
 	RequireStatus(t, http.StatusConflict, resp.StatusCode(), resp.Body, label)
 	require.NotNil(t, resp.JSON409)
-	require.NotEmpty(t, *resp.JSON409.Error)
+	require.NotEmpty(t, resp.JSON409.Message)
 }
 
 func RequireUnauthorized(t *testing.T, resp *openapi.PostAuthLoginResponse, label string) {
 	t.Helper()
 	RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, label)
 	require.NotNil(t, resp.JSON401)
-	require.NotEmpty(t, *resp.JSON401.Error)
+	require.NotEmpty(t, resp.JSON401.Message)
 }
 
 func RequireMeUnauthorized(t *testing.T, resp *openapi.GetAuthMeResponse) {
 	t.Helper()
 	RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "me")
 	require.NotNil(t, resp.JSON401)
-	require.NotEmpty(t, *resp.JSON401.Error)
+	require.NotEmpty(t, resp.JSON401.Message)
 }
 
 func RequireMyTeamOK(t *testing.T, resp *openapi.GetTeamsMyResponse) string {
@@ -135,7 +144,7 @@ func RequireAwardsCount(t *testing.T, resp *openapi.GetAdminAwardsTeamTeamIDResp
 	require.Len(t, *resp.JSON200, count)
 }
 
-func RequireChallengeFields(t *testing.T, c *openapi.ResponseChallengeResponse, title string, solved *bool, solveCount, points *int) {
+func RequireChallengeFields(t *testing.T, c *openapi.ChallengeResponse, title string, solved *bool, solveCount, points *int) {
 	t.Helper()
 	require.NotNil(t, c, "challenge is nil")
 	if title != "" {

@@ -5,6 +5,7 @@ linters:
   enable:
     - asciicheck
     - bodyclose
+    - contextcheck
     - copyloopvar
     - dogsled
     - durationcheck
@@ -22,10 +23,12 @@ linters:
     - ineffassign
     - makezero
     - misspell
+    - mnd
     - nakedret
     - nolintlint
     - noctx
     - predeclared
+    - revive
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
@@ -35,16 +38,15 @@ linters:
     - unparam
     - unused
     - whitespace
+    - wrapcheck
   disable:
     # Disabled overly strict/cosmetic linters
     - wsl
     - dupl
     - err113
-    - mnd
     - paralleltest
     # Disabled stylistic linters - focus on real bugs and complexity
     - gocritic # Too many style suggestions
-    - revive # Overlaps with other linters, too opinionated
     - nlreturn # Blank line before return - cosmetic
     - godot # Comment punctuation - cosmetic
     - godox # TODO comments are fine
@@ -58,6 +60,25 @@ linters:
       check-blank: true
     errorlint:
       errorf: true
+    wrapcheck:
+      ignore-package-globs:
+        - os
+        - net
+        - encoding/*
+        - crypto/*
+        - io
+        - github.com/jackc/pgx/*
+        - github.com/testcontainers/*
+        - github.com/cenkalti/backoff/*
+        - github.com/TakuyaYagam1/AstroCTFb/internal/repo
+        - github.com/TakuyaYagam1/AstroCTFb/internal/storage
+        - github.com/TakuyaYagam1/AstroCTFb/pkg/*
+        - github.com/go-playground/*
+        - golang.org/x/crypto/*
+        - golang.org/x/sync/*
+        - github.com/Masterminds/*
+        - github.com/TakuyaYagam1/AstroCTFb/internal/usecase/*
+        - github.com/ulule/*
     exhaustive:
       default-signifies-exhaustive: false
     funlen:
@@ -75,6 +96,33 @@ linters:
     gosec:
       excludes:
         - G101
+        - G117
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
+        - assign
+      ignored-numbers:
+        - "0"
+        - "1"
+        - "2"
+        - "10"
+        - "100"
+      ignored-files:
+        - ".*_test\\.go"
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: var-naming
+          severity: warning
+        - name: unexported-return
+          severity: warning
+        - name: unused-parameter
+          severity: warning
   exclusions:
     generated: lax
     presets:
@@ -82,6 +130,36 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - linters: [gosec]
+        path: e2e-test/
+        text: "G704"
+      - linters: [wrapcheck]
+        path: e2e-test/
+      - linters: [wrapcheck]
+        path: integration-test/
+      - linters: [wrapcheck]
+        path: internal/repo/
+      - linters: [wrapcheck]
+        path: internal/wire/
+      - linters: [wrapcheck]
+        path: internal/app/
+      - linters: [wrapcheck]
+        path: internal/storage/
+      - linters: [wrapcheck]
+        path: pkg/
+      - linters: [wrapcheck]
+        path: config/
+      - linters: [wrapcheck]
+        path: internal/controller/
+      - linters: [mnd]
+        path: e2e-test/
+      - linters: [mnd]
+        path: integration-test/
+      - linters: [revive]
+        path: e2e-test/
+      - linters: [revive]
+        path: integration-test/
     paths:
       - bin/
       - third_party$
@@ -97,6 +175,9 @@ formatters:
   settings:
     gofumpt:
       extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/TakuyaYagam1
   exclusions:
     generated: lax
     paths:

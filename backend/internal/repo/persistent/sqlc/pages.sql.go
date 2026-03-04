@@ -7,26 +7,23 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 const createPage = `-- name: CreatePage :one
 INSERT INTO pages (id, title, slug, content, is_draft, order_index, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 RETURNING id, title, slug, content, is_draft, order_index, created_at, updated_at
 `
 
 type CreatePageParams struct {
-	ID         uuid.UUID  `json:"id"`
-	Title      string     `json:"title"`
-	Slug       string     `json:"slug"`
-	Content    string     `json:"content"`
-	IsDraft    *bool      `json:"is_draft"`
-	OrderIndex *int32     `json:"order_index"`
-	CreatedAt  *time.Time `json:"created_at"`
-	UpdatedAt  *time.Time `json:"updated_at"`
+	ID         uuid.UUID `json:"id"`
+	Title      string    `json:"title"`
+	Slug       string    `json:"slug"`
+	Content    string    `json:"content"`
+	IsDraft    *bool     `json:"is_draft"`
+	OrderIndex *int32    `json:"order_index"`
 }
 
 func (q *Queries) CreatePage(ctx context.Context, arg CreatePageParams) (Page, error) {
@@ -37,8 +34,6 @@ func (q *Queries) CreatePage(ctx context.Context, arg CreatePageParams) (Page, e
 		arg.Content,
 		arg.IsDraft,
 		arg.OrderIndex,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i Page
 	err := row.Scan(
@@ -63,13 +58,13 @@ func (q *Queries) DeletePage(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getAllPagesList = `-- name: GetAllPagesList :many
+const getAllPages = `-- name: GetAllPages :many
 SELECT id, title, slug, content, is_draft, order_index, created_at, updated_at
 FROM pages ORDER BY order_index ASC, created_at ASC
 `
 
-func (q *Queries) GetAllPagesList(ctx context.Context) ([]Page, error) {
-	rows, err := q.db.Query(ctx, getAllPagesList)
+func (q *Queries) GetAllPages(ctx context.Context) ([]Page, error) {
+	rows, err := q.db.Query(ctx, getAllPages)
 	if err != nil {
 		return nil, err
 	}
@@ -139,27 +134,27 @@ func (q *Queries) GetPageBySlug(ctx context.Context, slug string) (Page, error) 
 	return i, err
 }
 
-const getPublishedPagesList = `-- name: GetPublishedPagesList :many
+const getPublishedPages = `-- name: GetPublishedPages :many
 SELECT id, title, slug, order_index
 FROM pages WHERE is_draft = FALSE ORDER BY order_index ASC, created_at ASC
 `
 
-type GetPublishedPagesListRow struct {
+type GetPublishedPagesRow struct {
 	ID         uuid.UUID `json:"id"`
 	Title      string    `json:"title"`
 	Slug       string    `json:"slug"`
 	OrderIndex *int32    `json:"order_index"`
 }
 
-func (q *Queries) GetPublishedPagesList(ctx context.Context) ([]GetPublishedPagesListRow, error) {
-	rows, err := q.db.Query(ctx, getPublishedPagesList)
+func (q *Queries) GetPublishedPages(ctx context.Context) ([]GetPublishedPagesRow, error) {
+	rows, err := q.db.Query(ctx, getPublishedPages)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPublishedPagesListRow
+	var items []GetPublishedPagesRow
 	for rows.Next() {
-		var i GetPublishedPagesListRow
+		var i GetPublishedPagesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -177,18 +172,17 @@ func (q *Queries) GetPublishedPagesList(ctx context.Context) ([]GetPublishedPage
 }
 
 const updatePage = `-- name: UpdatePage :exec
-UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = $7
+UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdatePageParams struct {
-	ID         uuid.UUID  `json:"id"`
-	Title      string     `json:"title"`
-	Slug       string     `json:"slug"`
-	Content    string     `json:"content"`
-	IsDraft    *bool      `json:"is_draft"`
-	OrderIndex *int32     `json:"order_index"`
-	UpdatedAt  *time.Time `json:"updated_at"`
+	ID         uuid.UUID `json:"id"`
+	Title      string    `json:"title"`
+	Slug       string    `json:"slug"`
+	Content    string    `json:"content"`
+	IsDraft    *bool     `json:"is_draft"`
+	OrderIndex *int32    `json:"order_index"`
 }
 
 func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) error {
@@ -199,7 +193,6 @@ func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) error {
 		arg.Content,
 		arg.IsDraft,
 		arg.OrderIndex,
-		arg.UpdatedAt,
 	)
 	return err
 }

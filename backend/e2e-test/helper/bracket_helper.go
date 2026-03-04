@@ -3,8 +3,8 @@ package helper
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 

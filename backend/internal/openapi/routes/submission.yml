@@ -1,0 +1,274 @@
+/admin/submissions:
+  get:
+    description: Returns paginated list of all flag submissions. Admin only.
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionListResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get all submissions
+    tags:
+      - Admin
+  post:
+    description: Creates a new submission manually. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/AdminCreateSubmissionRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Create submission
+    tags:
+      - Admin
+
+"/admin/submissions/challenge/{challengeID}":
+  get:
+    description: Returns paginated list of submissions for a challenge. Admin only.
+    parameters:
+      - name: challengeID
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionListResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get submissions by challenge
+    tags:
+      - Admin
+
+"/admin/submissions/challenge/{challengeID}/stats":
+  get:
+    description: Returns submission statistics for a challenge. Admin only.
+    parameters:
+      - name: challengeID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionStatsResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get submission stats by challenge
+    tags:
+      - Admin
+
+"/admin/submissions/user/{userID}":
+  get:
+    description: Returns paginated list of submissions by a user. Admin only.
+    parameters:
+      - name: userID
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionListResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get submissions by user
+    tags:
+      - Admin
+
+"/admin/submissions/team/{teamID}":
+  get:
+    description: Returns paginated list of submissions by a team. Admin only.
+    parameters:
+      - name: teamID
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionListResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get submissions by team
+    tags:
+      - Admin
+
+"/admin/submissions/{ID}":
+  get:
+    description: Returns a single submission by ID. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Get submission by ID
+    tags:
+      - Admin
+  patch:
+    description: Updates a submission. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/AdminUpdateSubmissionRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SubmissionResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Update submission
+    tags:
+      - Admin
+  delete:
+    description: Deletes a submission. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete submission
+    tags:
+      - Admin

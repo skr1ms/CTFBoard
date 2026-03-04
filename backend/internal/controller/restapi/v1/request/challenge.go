@@ -1,75 +1,111 @@
 package request
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
 )
 
-func CreateChallengeRequestToParams(req *openapi.RequestCreateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) {
-	initialValue, minValue, decay = 500, 100, 20
-	if req.InitialValue != nil {
-		initialValue = *req.InitialValue
-	}
-	if req.MinValue != nil {
-		minValue = *req.MinValue
-	}
-	if req.Decay != nil {
-		decay = *req.Decay
-	}
-	if req.IsHidden != nil {
-		isHidden = *req.IsHidden
-	}
-	if req.IsRegex != nil {
-		isRegex = *req.IsRegex
-	}
-	if req.IsCaseInsensitive != nil {
-		isCaseInsensitive = *req.IsCaseInsensitive
-	}
-	if req.TagIds != nil {
-		tagIDs = make([]uuid.UUID, 0, len(*req.TagIds))
-		for _, s := range *req.TagIds {
-			if id, err := uuid.Parse(s); err == nil {
-				tagIDs = append(tagIDs, id)
-			}
-		}
-	}
-	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, req.Flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex, tagIDs
+const (
+	defaultInitialValue = 500
+	defaultMinValue     = 100
+	defaultDecay        = 20
+)
+
+type ChallengeParams struct {
+	Title             string
+	Description       string
+	Category          string
+	Points            int
+	InitialValue      int
+	MinValue          int
+	Decay             int
+	Flag              string
+	IsHidden          bool
+	IsRegex           bool
+	IsCaseInsensitive bool
+	FlagFormatRegex   *string
+	TagIDs            []uuid.UUID
 }
 
-func SubmitFlagRequestToFlag(req *openapi.RequestSubmitFlagRequest) string {
+func parseTagIDs(rawIDs *[]string) ([]uuid.UUID, error) {
+	if rawIDs == nil {
+		return nil, nil
+	}
+	ids := make([]uuid.UUID, 0, len(*rawIDs))
+	for _, s := range *rawIDs {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return nil, helper.NewValidationErrorf("invalid tag_id")
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func ParseRequirementIDs(rawIDs *[]string) ([]uuid.UUID, error) {
+	if rawIDs == nil {
+		return nil, nil
+	}
+	ids := make([]uuid.UUID, 0, len(*rawIDs))
+	for _, s := range *rawIDs {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return nil, helper.NewValidationErrorf("invalid requirement_id")
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (ChallengeParams, error) {
+	tagIDs, err := parseTagIDs(req.TagIds)
+	if err != nil {
+		return ChallengeParams{}, err
+	}
+	return ChallengeParams{
+		Title:             req.Title,
+		Description:       req.Description,
+		Category:          req.Category,
+		Points:            req.Points,
+		Flag:              req.Flag,
+		FlagFormatRegex:   req.FlagFormatRegex,
+		TagIDs:            tagIDs,
+		InitialValue:      derefOr(req.InitialValue, defaultInitialValue),
+		MinValue:          derefOr(req.MinValue, defaultMinValue),
+		Decay:             derefOr(req.Decay, defaultDecay),
+		IsHidden:          derefOr(req.IsHidden, false),
+		IsRegex:           derefOr(req.IsRegex, false),
+		IsCaseInsensitive: derefOr(req.IsCaseInsensitive, false),
+	}, nil
+}
+
+func SubmitFlagRequestToParams(req *openapi.SubmitFlagRequest) string {
 	return req.Flag
 }
 
-func UpdateChallengeRequestToParams(req *openapi.RequestUpdateChallengeRequest) (title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) {
-	initialValue, minValue, decay = 500, 100, 20
-	if req.InitialValue != nil {
-		initialValue = *req.InitialValue
+func AdminUpsertSolutionRequestToParams(req *openapi.AdminUpsertSolutionRequest) string {
+	return req.Content
+}
+
+func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (ChallengeParams, error) {
+	tagIDs, err := parseTagIDs(req.TagIds)
+	if err != nil {
+		return ChallengeParams{}, err
 	}
-	if req.MinValue != nil {
-		minValue = *req.MinValue
-	}
-	if req.Decay != nil {
-		decay = *req.Decay
-	}
-	if req.Flag != nil {
-		flag = *req.Flag
-	}
-	if req.IsHidden != nil {
-		isHidden = *req.IsHidden
-	}
-	if req.IsRegex != nil {
-		isRegex = *req.IsRegex
-	}
-	if req.IsCaseInsensitive != nil {
-		isCaseInsensitive = *req.IsCaseInsensitive
-	}
-	if req.TagIds != nil {
-		tagIDs = make([]uuid.UUID, 0, len(*req.TagIds))
-		for _, s := range *req.TagIds {
-			if id, err := uuid.Parse(s); err == nil {
-				tagIDs = append(tagIDs, id)
-			}
-		}
-	}
-	return req.Title, req.Description, req.Category, req.Points, initialValue, minValue, decay, flag, isHidden, isRegex, isCaseInsensitive, req.FlagFormatRegex, tagIDs
+	return ChallengeParams{
+		Title:             req.Title,
+		Description:       req.Description,
+		Category:          req.Category,
+		Points:            req.Points,
+		FlagFormatRegex:   req.FlagFormatRegex,
+		TagIDs:            tagIDs,
+		InitialValue:      derefOr(req.InitialValue, defaultInitialValue),
+		MinValue:          derefOr(req.MinValue, defaultMinValue),
+		Decay:             derefOr(req.Decay, defaultDecay),
+		Flag:              derefOr(req.Flag, ""),
+		IsHidden:          derefOr(req.IsHidden, false),
+		IsRegex:           derefOr(req.IsRegex, false),
+		IsCaseInsensitive: derefOr(req.IsCaseInsensitive, false),
+	}, nil
 }

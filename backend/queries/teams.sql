@@ -34,6 +34,11 @@ WHERE u.id = $1 AND t.is_solo = true AND t.deleted_at IS NULL;
 -- name: CountTeamMembers :one
 SELECT COUNT(*)::int FROM users WHERE team_id = $1;
 
+-- name: CountActiveTeams :one
+SELECT COUNT(*)::int
+FROM teams
+WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false;
+
 -- name: BanTeam :one
 UPDATE teams SET is_banned = true, banned_at = $2, banned_reason = $3
 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
@@ -45,8 +50,8 @@ WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 -- name: SetTeamHidden :one
 UPDATE teams SET is_hidden = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
--- name: UpdateTeamCaptain :exec
-UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL;
+-- name: UpdateTeamCaptain :one
+UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: GetAllTeams :many
 SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
@@ -59,3 +64,48 @@ UPDATE teams SET bracket_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING 
 
 -- name: HardDeleteTeamsBefore :exec
 DELETE FROM teams WHERE deleted_at IS NOT NULL AND deleted_at < $1;
+
+-- name: UpdateTeamAdmin :one
+UPDATE teams SET
+    name = COALESCE(sqlc.narg('name'), name),
+    captain_id = COALESCE(sqlc.narg('captain_id'), captain_id),
+    bracket_id = COALESCE(sqlc.narg('bracket_id'), bracket_id),
+    is_hidden = COALESCE(sqlc.narg('is_hidden'), is_hidden)
+WHERE id = $1 AND deleted_at IS NULL RETURNING id;
+
+-- name: UpdateTeamName :one
+UPDATE teams SET name = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
+
+-- name: SearchTeams :many
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+FROM teams
+WHERE deleted_at IS NULL
+  AND is_hidden = false
+  AND is_banned = false
+  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%')
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2;
+
+-- name: SearchTeamsAdmin :many
+SELECT id, name, invite_token, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+FROM teams
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%')
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountSearchTeamsAdmin :one
+SELECT COUNT(*) FROM teams
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%');
+
+-- name: LockTeam :one
+SELECT id FROM teams WHERE id = $1 AND deleted_at IS NULL FOR UPDATE;
+
+-- name: CountSearchTeams :one
+SELECT COUNT(*)
+FROM teams
+WHERE deleted_at IS NULL
+  AND is_hidden = false
+  AND is_banned = false
+  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%');

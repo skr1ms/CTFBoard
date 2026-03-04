@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFieldValidator_ValidateValues_Success(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -29,6 +30,7 @@ func TestFieldValidator_ValidateValues_Success(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_RepoError(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -41,6 +43,7 @@ func TestFieldValidator_ValidateValues_RepoError(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_UnknownField(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -59,6 +62,7 @@ func TestFieldValidator_ValidateValues_UnknownField(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_RequiredMissing(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -74,6 +78,7 @@ func TestFieldValidator_ValidateValues_RequiredMissing(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_NumberInvalid(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -90,6 +95,7 @@ func TestFieldValidator_ValidateValues_NumberInvalid(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_BooleanInvalid(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -106,6 +112,7 @@ func TestFieldValidator_ValidateValues_BooleanInvalid(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_SelectInvalidOption(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -123,6 +130,7 @@ func TestFieldValidator_ValidateValues_SelectInvalidOption(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_TextTooLong(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser
@@ -143,6 +151,7 @@ func TestFieldValidator_ValidateValues_TextTooLong(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_SelectSuccess(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeTeam
@@ -159,6 +168,7 @@ func TestFieldValidator_ValidateValues_SelectSuccess(t *testing.T) {
 }
 
 func TestFieldValidator_ValidateValues_BooleanSuccess(t *testing.T) {
+	t.Parallel()
 	h := NewFieldTestHelper(t)
 	ctx := context.Background()
 	entityType := entity.EntityTypeUser

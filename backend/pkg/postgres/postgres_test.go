@@ -3,11 +3,12 @@ package postgres
 import (
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/config"
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew_InvalidURL_Error(t *testing.T) {
+	t.Parallel()
 	cfg := &config.DB{URL: "://invalid"}
 	pool, err := New(cfg)
 	require.Error(t, err)
@@ -15,6 +16,7 @@ func TestNew_InvalidURL_Error(t *testing.T) {
 }
 
 func TestNew_InvalidDSN_Error(t *testing.T) {
+	t.Parallel()
 	cfg := &config.DB{URL: "postgres://%zz@localhost/db"}
 	pool, err := New(cfg)
 	require.Error(t, err)

@@ -1,20 +1,21 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /scoreboard: ranks and points reflect solves; team with more solves has higher rank and correct total points.
 func TestScoreboard_Display(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_scoreboard")
 
@@ -56,6 +57,9 @@ func TestScoreboard_Display(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
+	time.Sleep(300 * time.Millisecond)
+	_ = TestRedis.Del(context.Background(), "scoreboard", "scoreboard:frozen")
+
 	h.AssertTeamScore(tokenUser1, nameUser1, 300)
 	h.AssertTeamScore(tokenUser2, nameUser2, 100)
 }
@@ -63,8 +67,8 @@ func TestScoreboard_Display(t *testing.T) {
 // GET /scoreboard: returns 200 and array even when no teams/solves.
 func TestScoreboard_Empty(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, token := h.SetupCompetition("admin_empty_sb")
 	resp := h.GetScoreboard(token)

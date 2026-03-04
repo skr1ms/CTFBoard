@@ -4,16 +4,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/e2e-test/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // GET /brackets: returns created brackets.
 func TestBracket_GetBrackets_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_brackets_list")
 
@@ -39,8 +39,8 @@ func TestBracket_GetBrackets_Success(t *testing.T) {
 // POST /admin/brackets: non-admin gets 403.
 func TestBracket_Create_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("bracket_user_" + suffix)
@@ -51,8 +51,8 @@ func TestBracket_Create_Forbidden(t *testing.T) {
 // PUT /admin/brackets/{id}: admin updates bracket.
 func TestBracket_Update_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_bracket_upd")
 	suffix := uuid.New().String()[:8]
@@ -75,8 +75,8 @@ func TestBracket_Update_Success(t *testing.T) {
 // DELETE /admin/brackets/{id}: admin deletes bracket.
 func TestBracket_Delete_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_bracket_del")
 	suffix := uuid.New().String()[:8]
@@ -89,8 +89,8 @@ func TestBracket_Delete_Success(t *testing.T) {
 // PATCH /admin/teams/{id}/bracket: admin sets team bracket; returns 200.
 func TestBracket_SetTeamBracket_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_bracket_set")
 	suffix := uuid.New().String()[:8]
@@ -108,8 +108,8 @@ func TestBracket_SetTeamBracket_Success(t *testing.T) {
 // PATCH /admin/teams/{id}/bracket: non-admin gets 403.
 func TestBracket_SetTeamBracket_Forbidden(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_bracket_team")
 	suffix := uuid.New().String()[:8]
@@ -126,8 +126,8 @@ func TestBracket_SetTeamBracket_Forbidden(t *testing.T) {
 // GET /admin/brackets/{ID}: admin gets bracket by ID; returns 200 and bracket data.
 func TestBracket_GetAdminBracketByID_Success(t *testing.T) {
 	t.Helper()
-	setupE2E(t)
-	h := helper.NewE2EHelper(t, nil, TestPool, GetTestBaseURL())
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_bracket_get_id")
 	suffix := uuid.New().String()[:8]

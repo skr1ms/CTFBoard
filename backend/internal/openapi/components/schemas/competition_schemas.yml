@@ -1,0 +1,78 @@
+schemas:
+  response.CompetitionResponse:
+    properties:
+      end_time:
+        type: string
+      freeze_time:
+        type: string
+      id:
+        type: integer
+      is_paused:
+        type: boolean
+      is_public:
+        type: boolean
+      mode:
+        type: string
+      name:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+    type: object
+  response.CompetitionStatusResponse:
+    properties:
+      end_time:
+        type: string
+      name:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      submission_allowed:
+        type: boolean
+    type: object
+  entity.Competition:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      start_time:
+        type: string
+      end_time:
+        type: string
+      freeze_time:
+        type: string
+      is_paused:
+        type: boolean
+      mode:
+        type: string
+    type: object
+  request.UpdateCompetitionRequest:
+    properties:
+      allow_team_switch:
+        type: boolean
+      end_time:
+        format: date-time
+        type: string
+      flag_regex:
+        type: string
+      freeze_time:
+        format: date-time
+        type: string
+      is_paused:
+        type: boolean
+      is_public:
+        type: boolean
+      mode:
+        type: string
+      name:
+        type: string
+      start_time:
+        format: date-time
+        type: string
+    required:
+      - name
+    type: object

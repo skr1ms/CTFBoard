@@ -3,12 +3,12 @@ package response
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromAPIToken(t *entity.APIToken) openapi.ResponseAPITokenResponse {
-	res := openapi.ResponseAPITokenResponse{
+func FromAPIToken(t *entity.APIToken) openapi.APITokenResponse {
+	res := openapi.APITokenResponse{
 		ID:        ptr(t.ID.String()),
 		CreatedAt: ptr(t.CreatedAt.Format(time.RFC3339)),
 	}
@@ -24,8 +24,16 @@ func FromAPIToken(t *entity.APIToken) openapi.ResponseAPITokenResponse {
 	return res
 }
 
-func FromAPITokenCreated(plaintext string, t *entity.APIToken) openapi.ResponseAPITokenCreatedResponse {
-	res := openapi.ResponseAPITokenCreatedResponse{
+func FromAPITokenList(ts []*entity.APIToken) []openapi.APITokenResponse {
+	res := make([]openapi.APITokenResponse, len(ts))
+	for i, t := range ts {
+		res[i] = FromAPIToken(t)
+	}
+	return res
+}
+
+func FromAPITokenCreated(plaintext string, t *entity.APIToken) openapi.APITokenCreatedResponse {
+	res := openapi.APITokenCreatedResponse{
 		ID:        ptr(t.ID.String()),
 		Token:     plaintext,
 		CreatedAt: ptr(t.CreatedAt.Format(time.RFC3339)),

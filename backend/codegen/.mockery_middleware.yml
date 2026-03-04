@@ -1,0 +1,40 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware:
+    interfaces:
+      APITokenAuther:
+        config:
+          dir: "internal/controller/restapi/middleware/mocks"
+          filename: "APITokenAuther.go"
+          pkgname: "mocks"
+          structname: "MockAPITokenAuther"
+
+      UserByIDGetter:
+        config:
+          dir: "internal/controller/restapi/middleware/mocks"
+          filename: "UserByIDGetter.go"
+          pkgname: "mocks"
+          structname: "MockUserByIDGetter"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+    interfaces:
+      TrackingRepository:
+        config:
+          dir: "internal/controller/restapi/middleware/mocks"
+          filename: "TrackingRepository.go"
+          pkgname: "mocks"
+          structname: "MockTrackingRepository"
+
+  github.com/TakuyaYagam1/AstroCTFb/pkg/logger:
+    interfaces:
+      Logger:
+        config:
+          dir: "internal/controller/restapi/middleware/mocks"
+          filename: "Logger.go"
+          pkgname: "mocks"
+          structname: "MockLogger"

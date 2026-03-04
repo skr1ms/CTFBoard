@@ -15,12 +15,12 @@ type Client struct {
 	hub       *Hub
 	conn      *websocket.Conn
 	send      chan []byte
+	ctx       context.Context
 	closeOnce sync.Once
 }
 
 type broadcastItem struct {
 	data []byte
-	done chan struct{}
 }
 
 type Hub struct {
@@ -42,8 +42,8 @@ func NewHub(
 	return &Hub{
 		clients:      make(map[*Client]bool),
 		broadcast:    make(chan broadcastItem, 256),
-		register:     make(chan *Client),
-		unregister:   make(chan *Client),
+		register:     make(chan *Client, 64),
+		unregister:   make(chan *Client, 64),
 		done:         make(chan struct{}),
 		redisClient:  redisClient,
 		redisChannel: redisChannel,
@@ -60,13 +60,15 @@ func (h *Hub) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			for client := range h.clients {
+				delete(h.clients, client)
 				close(client.send)
+				atomic.AddInt64(&h.clientCount, -1)
 			}
 			return
 		case client := <-h.register:
 			h.clients[client] = true
 			atomic.AddInt64(&h.clientCount, 1)
-			if welcome, err := json.Marshal(Event{Type: "connected", Payload: nil, Timestamp: time.Now()}); err == nil {
+			if welcome, err := json.Marshal(Event{Type: EventTypeConnected, Payload: nil, Timestamp: time.Now()}); err == nil {
 				select {
 				case client.send <- welcome:
 				default:
@@ -97,9 +99,6 @@ func (h *Hub) broadcastToClients(item broadcastItem) {
 		default:
 		}
 	}
-	if item.done != nil {
-		close(item.done)
-	}
 }
 
 func (h *Hub) Register(client *Client) {
@@ -117,41 +116,29 @@ func (h *Hub) Unregister(client *Client) {
 }
 
 func (h *Hub) Broadcast(data []byte) {
+	t := time.NewTimer(5 * time.Second)
+	defer t.Stop()
 	select {
 	case h.broadcast <- broadcastItem{data: data}:
 	case <-h.done:
-	case <-time.After(5 * time.Second):
-		return
+	case <-t.C:
 	}
 }
 
-func (h *Hub) BroadcastEvent(event any) {
+func (h *Hub) BroadcastEvent(ctx context.Context, event any) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return
 	}
-	done := make(chan struct{})
-	sendTimer := time.NewTimer(100 * time.Millisecond)
-	select {
-	case h.broadcast <- broadcastItem{data: data, done: done}:
-		if !sendTimer.Stop() {
-			<-sendTimer.C
-		}
-		waitTimer := time.NewTimer(5 * time.Second)
-		select {
-		case <-done:
-			waitTimer.Stop()
-		case <-waitTimer.C:
-		}
-	case <-h.done:
-		sendTimer.Stop()
-		return
-	case <-sendTimer.C:
-		return
-	}
 	if h.redisClient != nil {
-		h.redisClient.Publish(context.Background(), h.redisChannel, data)
+		pubCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		err := h.redisClient.Publish(pubCtx, h.redisChannel, data).Err()
+		cancel()
+		if err == nil {
+			return
+		}
 	}
+	h.Broadcast(data)
 }
 
 func (h *Hub) SubscribeToRedis(ctx context.Context) {

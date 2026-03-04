@@ -1,13 +1,13 @@
 package competition
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 func (h *CompetitionTestHelper) CreateSubmissionUseCase() *SubmissionUseCase {
 	h.t.Helper()
-	return NewSubmissionUseCase(h.deps.submissionRepo)
+	return NewSubmissionUseCase(SubmissionDeps{SubmissionRepo: h.deps.submissionRepo})
 }
 
 func (h *CompetitionTestHelper) NewSubmission(userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, flag string, isCorrect bool) *entity.Submission {

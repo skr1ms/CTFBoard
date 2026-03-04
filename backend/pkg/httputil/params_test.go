@@ -7,78 +7,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 //nolint:gocognit
-func TestParseuuidParam(t *testing.T) {
-	tests := []struct {
-		name       string
-		paramName  string
-		paramValue string
-		wantOK     bool
-		wantStatus int
-	}{
-		{
-			name:       "valid uuid",
-			paramName:  "ID",
-			paramValue: "123e4567-e89b-12d3-a456-426614174000",
-			wantOK:     true,
-			wantStatus: 0,
-		},
-		{
-			name:       "invalid uuid format",
-			paramName:  "ID",
-			paramValue: "invalid-uuid",
-			wantOK:     false,
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "empty uuid",
-			paramName:  "ID",
-			paramValue: "",
-			wantOK:     false,
-			wantStatus: http.StatusBadRequest,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest("GET", "/test", nil)
-
-			rctx := chi.NewRouteContext()
-			if tt.paramValue != "" {
-				rctx.URLParams.Add(tt.paramName, tt.paramValue)
-			}
-			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-
-			result, ok := ParseuuidParam(w, r, tt.paramName)
-
-			if ok != tt.wantOK {
-				t.Errorf("ParseuuidParam() ok = %v, want %v", ok, tt.wantOK)
-			}
-
-			if !tt.wantOK {
-				if w.Code != tt.wantStatus {
-					t.Errorf("ParseuuidParam() status = %v, want %v", w.Code, tt.wantStatus)
-				}
-			} else {
-				expecteduuid, err := uuid.Parse(tt.paramValue)
-				if err != nil {
-					t.Fatalf("uuid parse: %v", err)
-				}
-				if result != expecteduuid {
-					t.Errorf("ParseuuidParam() = %v, want %v", result, expecteduuid)
-				}
-			}
-		})
-	}
-}
-
-//nolint:gocognit
 func TestParseAuthUserID(t *testing.T) {
+	t.Parallel()
 	validuuid := "123e4567-e89b-12d3-a456-426614174000"
 
 	tests := []struct {
@@ -109,6 +43,7 @@ func TestParseAuthUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest("GET", "/test", nil)
 
@@ -141,6 +76,7 @@ func TestParseAuthUserID(t *testing.T) {
 }
 
 func TestRenderJSON(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -162,6 +98,7 @@ func TestRenderJSON(t *testing.T) {
 }
 
 func TestRenderNoContent(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -173,6 +110,7 @@ func TestRenderNoContent(t *testing.T) {
 }
 
 func TestRenderCreated(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test", nil)
 
@@ -185,6 +123,7 @@ func TestRenderCreated(t *testing.T) {
 }
 
 func TestRenderError(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -199,12 +138,13 @@ func TestRenderError(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if response["error"] != "not found" {
-		t.Errorf("RenderError() error = %v, want %v", response["error"], "not found")
+	if response["message"] != "not found" {
+		t.Errorf("RenderError() message = %v, want %v", response["message"], "not found")
 	}
 }
 
 func TestRenderErrorWithCode(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -219,8 +159,8 @@ func TestRenderErrorWithCode(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if response["error"] != "invalid input" {
-		t.Errorf("RenderErrorWithCode() error = %v, want %v", response["error"], "invalid input")
+	if response["message"] != "invalid input" {
+		t.Errorf("RenderErrorWithCode() message = %v, want %v", response["message"], "invalid input")
 	}
 
 	if response["code"] != "INVALID_INPUT" {
@@ -229,6 +169,7 @@ func TestRenderErrorWithCode(t *testing.T) {
 }
 
 func TestRenderOK(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 	data := map[string]string{"ok": "true"}
@@ -239,6 +180,7 @@ func TestRenderOK(t *testing.T) {
 }
 
 func TestRenderInvalidID(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 	RenderInvalidID(w, r)
@@ -249,7 +191,7 @@ func TestRenderInvalidID(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
-	if response["error"] != "invalid ID" {
-		t.Errorf("RenderInvalidID() error = %v, want invalid ID", response["error"])
+	if response["message"] != "invalid ID" {
+		t.Errorf("RenderInvalidID() message = %v, want invalid ID", response["message"])
 	}
 }

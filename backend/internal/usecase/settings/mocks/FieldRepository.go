@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockFieldRepository creates a new instance of MockFieldRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -97,8 +98,8 @@ func (_c *MockFieldRepository_Create_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // Delete provides a mock function for the type MockFieldRepository
-func (_mock *MockFieldRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockFieldRepository) Delete(ctx context.Context, ID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -106,7 +107,7 @@ func (_mock *MockFieldRepository) Delete(ctx context.Context, id uuid.UUID) erro
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -120,12 +121,12 @@ type MockFieldRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockFieldRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockFieldRepository_Delete_Call {
-	return &MockFieldRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockFieldRepository_Expecter) Delete(ctx interface{}, ID interface{}) *MockFieldRepository_Delete_Call {
+	return &MockFieldRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, ID)}
 }
 
-func (_c *MockFieldRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockFieldRepository_Delete_Call {
+func (_c *MockFieldRepository_Delete_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockFieldRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -148,7 +149,7 @@ func (_c *MockFieldRepository_Delete_Call) Return(err error) *MockFieldRepositor
 	return _c
 }
 
-func (_c *MockFieldRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockFieldRepository_Delete_Call {
+func (_c *MockFieldRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockFieldRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -284,8 +285,8 @@ func (_c *MockFieldRepository_GetByEntityType_Call) RunAndReturn(run func(ctx co
 }
 
 // GetByID provides a mock function for the type MockFieldRepository
-func (_mock *MockFieldRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Field, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockFieldRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Field, error) {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -294,17 +295,17 @@ func (_mock *MockFieldRepository) GetByID(ctx context.Context, id uuid.UUID) (*e
 	var r0 *entity.Field
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Field, error)); ok {
-		return returnFunc(ctx, id)
+		return returnFunc(ctx, ID)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Field); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Field)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+		r1 = returnFunc(ctx, ID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -318,12 +319,12 @@ type MockFieldRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockFieldRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockFieldRepository_GetByID_Call {
-	return &MockFieldRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockFieldRepository_Expecter) GetByID(ctx interface{}, ID interface{}) *MockFieldRepository_GetByID_Call {
+	return &MockFieldRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, ID)}
 }
 
-func (_c *MockFieldRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockFieldRepository_GetByID_Call {
+func (_c *MockFieldRepository_GetByID_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockFieldRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -346,7 +347,7 @@ func (_c *MockFieldRepository_GetByID_Call) Return(field *entity.Field, err erro
 	return _c
 }
 
-func (_c *MockFieldRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Field, error)) *MockFieldRepository_GetByID_Call {
+func (_c *MockFieldRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Field, error)) *MockFieldRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

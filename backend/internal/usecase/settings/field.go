@@ -2,31 +2,34 @@ package settings
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type FieldUseCase struct {
-	fieldRepo repo.FieldRepository
+	deps FieldDeps
 }
 
-func NewFieldUseCase(
-	fieldRepo repo.FieldRepository,
-) *FieldUseCase {
-	return &FieldUseCase{fieldRepo: fieldRepo}
+type FieldDeps struct {
+	FieldRepo repo.FieldRepository
+}
+
+var _ usecase.FieldUseCase = (*FieldUseCase)(nil)
+
+func NewFieldUseCase(deps FieldDeps) *FieldUseCase {
+	return &FieldUseCase{deps: deps}
 }
 
 func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType entity.EntityType) ([]*entity.Field, error) {
-	list, err := uc.fieldRepo.GetByEntityType(ctx, entityType)
+	list, err := uc.deps.FieldRepo.GetByEntityType(ctx, entityType)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetByEntityType")
+		return nil, fmt.Errorf("FieldUseCase - GetByEntityType - FieldRepo.GetByEntityType: %w", err)
 	}
 	return list, nil
 }
@@ -34,7 +37,7 @@ func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType entity.E
 func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entity.FieldType, entityType entity.EntityType, required bool, options []string, orderIndex int) (*entity.Field, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, fmt.Errorf("FieldUseCase - Create: name is required")
+		return nil, httperr.NewValidationErrorf("name is required")
 	}
 	field := &entity.Field{
 		ID:         uuid.New(),
@@ -45,54 +48,51 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entit
 		Options:    options,
 		OrderIndex: orderIndex,
 	}
-	if err := uc.fieldRepo.Create(ctx, field); err != nil {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - Create")
+	if err := uc.deps.FieldRepo.Create(ctx, field); err != nil {
+		return nil, fmt.Errorf("FieldUseCase - Create - FieldRepo.Create: %w", err)
 	}
 	return field, nil
 }
 
-func (uc *FieldUseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Field, error) {
-	field, err := uc.fieldRepo.GetByID(ctx, id)
+func (uc *FieldUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Field, error) {
+	field, err := uc.deps.FieldRepo.GetByID(ctx, ID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetByID")
+		return nil, fmt.Errorf("FieldUseCase - GetByID - FieldRepo.GetByID: %w", err)
 	}
 	return field, nil
 }
 
 func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*entity.Field, error) {
-	list, err := uc.fieldRepo.GetAll(ctx)
+	list, err := uc.deps.FieldRepo.GetAll(ctx)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - GetAll")
+		return nil, fmt.Errorf("FieldUseCase - GetAll - FieldRepo.GetAll: %w", err)
 	}
 	return list, nil
 }
 
-func (uc *FieldUseCase) Update(ctx context.Context, id uuid.UUID, name string, fieldType entity.FieldType, required bool, options []string, orderIndex int) (*entity.Field, error) {
-	field, err := uc.fieldRepo.GetByID(ctx, id)
+func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, fieldType entity.FieldType, required bool, options []string, orderIndex int) (*entity.Field, error) {
+	field, err := uc.deps.FieldRepo.GetByID(ctx, ID)
 	if err != nil {
-		if errors.Is(err, entityError.ErrFieldNotFound) {
-			return nil, err
-		}
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update - GetByID")
+		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.GetByID: %w", err)
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update: name is required")
+		return nil, httperr.NewValidationErrorf("name is required")
 	}
 	field.Name = name
 	field.FieldType = fieldType
 	field.Required = required
 	field.Options = options
 	field.OrderIndex = orderIndex
-	if err := uc.fieldRepo.Update(ctx, field); err != nil {
-		return nil, usecaseutil.Wrap(err, "FieldUseCase - Update")
+	if err := uc.deps.FieldRepo.Update(ctx, field); err != nil {
+		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.Update: %w", err)
 	}
 	return field, nil
 }
 
-func (uc *FieldUseCase) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := uc.fieldRepo.Delete(ctx, id); err != nil {
-		return usecaseutil.Wrap(err, "FieldUseCase - Delete")
+func (uc *FieldUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := uc.deps.FieldRepo.Delete(ctx, ID); err != nil {
+		return fmt.Errorf("FieldUseCase - Delete - FieldRepo.Delete: %w", err)
 	}
 	return nil
 }

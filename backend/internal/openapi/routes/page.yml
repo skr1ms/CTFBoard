@@ -1,0 +1,173 @@
+/pages:
+  get:
+    description: Returns list of published pages (title, slug)
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/PageListItemResponse'
+              type: array
+    summary: Get published pages list
+    tags:
+      - Pages
+
+"/pages/{slug}":
+  get:
+    description: Returns page by slug (published only)
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PageResponse'
+      "404":
+        description: Not Found
+    summary: Get page by slug
+    tags:
+      - Pages
+
+/admin/pages:
+  get:
+    description: Returns list of all pages. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/PageResponse'
+              type: array
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Get all pages
+    tags:
+      - Admin
+  post:
+    description: Creates a new page. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreatePageRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PageResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "409":
+        description: Conflict
+    security:
+      - BearerAuth: []
+    summary: Create page
+    tags:
+      - Admin
+
+"/admin/pages/{ID}":
+  get:
+    description: Returns page by ID. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PageResponse'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Get page by ID
+    tags:
+      - Admin
+  put:
+    description: Updates a page. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdatePageRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PageResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+      "409":
+        description: Conflict
+    security:
+      - BearerAuth: []
+    summary: Update page
+    tags:
+      - Admin
+  delete:
+    description: Deletes a page. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete page
+    tags:
+      - Admin

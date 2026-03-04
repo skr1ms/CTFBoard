@@ -4,34 +4,37 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/cache"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type AwardUseCase struct {
-	awardRepo       repo.AwardRepository
-	txRepo          repo.TxRepository
-	scoreboardCache cache.ScoreboardCacheInvalidator
+	deps AwardDeps
 }
 
-func NewAwardUseCase(
-	awardRepo repo.AwardRepository,
-	txRepo repo.TxRepository,
-	scoreboardCache cache.ScoreboardCacheInvalidator,
-) *AwardUseCase {
-	return &AwardUseCase{
-		awardRepo:       awardRepo,
-		txRepo:          txRepo,
-		scoreboardCache: scoreboardCache,
-	}
+type AwardDeps struct {
+	AwardRepo       repo.AwardRepository
+	TeamRepo        repo.TeamRepository
+	TM              repo.TransactionManager
+	ScoreboardCache cache.ScoreboardCacheInvalidator
+}
+
+var _ usecase.AwardUseCase = (*AwardUseCase)(nil)
+
+func NewAwardUseCase(deps AwardDeps) *AwardUseCase {
+	return &AwardUseCase{deps: deps}
 }
 
 func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*entity.Award, error) {
+	if teamID == uuid.Nil {
+		return nil, httperr.ErrAwardTeamIDRequired
+	}
 	if value == 0 {
-		return nil, fmt.Errorf("AwardUseCase - Create: value cannot be 0")
+		return nil, httperr.ErrAwardValueCannotBeZero
 	}
 
 	award := &entity.Award{
@@ -41,22 +44,64 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		CreatedBy:   &createdBy,
 	}
 
-	if err := uc.txRepo.RunTransaction(ctx, func(ctx context.Context, tx repo.Transaction) error {
-		return uc.txRepo.CreateAwardTx(ctx, tx, award)
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		if uc.deps.TeamRepo != nil {
+			team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
+			if err != nil {
+				return fmt.Errorf("AwardUseCase - Create - TeamRepo.GetByID: %w", err)
+			}
+			if team.IsBanned {
+				return httperr.ErrTeamBanned
+			}
+		}
+		if err := uc.deps.AwardRepo.Create(ctx, award); err != nil {
+			return fmt.Errorf("AwardUseCase - Create - AwardRepo.Create: %w", err)
+		}
+		return nil
 	}); err != nil {
-		return nil, usecaseutil.Wrap(err, "AwardUseCase - Create")
+		return nil, fmt.Errorf("AwardUseCase - Create - TM.Run: %w", err)
 	}
 
-	if uc.scoreboardCache != nil {
-		uc.scoreboardCache.InvalidateAll(ctx)
+	if uc.deps.ScoreboardCache != nil {
+		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
 	}
 	return award, nil
 }
 
 func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
-	awards, err := uc.awardRepo.GetByTeamID(ctx, teamID)
+	awards, err := uc.deps.AwardRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "AwardUseCase - GetByTeamID")
+		return nil, fmt.Errorf("AwardUseCase - GetByTeamID - AwardRepo.GetByTeamID: %w", err)
 	}
 	return awards, nil
+}
+
+func (uc *AwardUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Award, error) {
+	award, err := uc.deps.AwardRepo.GetByID(ctx, ID)
+	if err != nil {
+		return nil, fmt.Errorf("AwardUseCase - GetByID - AwardRepo.GetByID: %w", err)
+	}
+	return award, nil
+}
+
+func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*entity.Award, error) {
+	awards, err := uc.deps.AwardRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("AwardUseCase - GetAll - AwardRepo.GetAll: %w", err)
+	}
+	return awards, nil
+}
+
+func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
+	award, err := uc.deps.AwardRepo.GetByID(ctx, ID)
+	if err != nil {
+		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.GetByID: %w", err)
+	}
+	if err := uc.deps.AwardRepo.Delete(ctx, ID); err != nil {
+		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.Delete: %w", err)
+	}
+	if uc.deps.ScoreboardCache != nil {
+		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, award.TeamID)
+	}
+	return nil
 }

@@ -3,12 +3,12 @@ package response
 import (
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromSubmission(s *entity.SubmissionWithDetails) openapi.ResponseSubmissionResponse {
-	res := openapi.ResponseSubmissionResponse{
+func FromSubmission(s *entity.SubmissionWithDetails) openapi.SubmissionResponse {
+	res := openapi.SubmissionResponse{
 		ID:                ptr(s.ID.String()),
 		UserID:            ptr(s.UserID.String()),
 		ChallengeID:       ptr(s.ChallengeID.String()),
@@ -29,21 +29,24 @@ func FromSubmission(s *entity.SubmissionWithDetails) openapi.ResponseSubmissionR
 	return res
 }
 
-func FromSubmissionList(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.ResponseSubmissionListResponse {
-	resItems := make([]openapi.ResponseSubmissionResponse, len(items))
+func FromSubmissionList(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
+	data := make([]openapi.SubmissionResponse, len(items))
 	for i, item := range items {
-		resItems[i] = FromSubmission(item)
+		data[i] = FromSubmission(item)
 	}
-	return openapi.ResponseSubmissionListResponse{
-		Items:   &resItems,
-		Total:   ptr(int(total)),
-		Page:    ptr(page),
-		PerPage: ptr(perPage),
+	return openapi.SubmissionListResponse{
+		Data: &data,
+		Meta: &openapi.PaginationMeta{
+			Page:       ptr(page),
+			PerPage:    ptr(perPage),
+			Total:      ptr(int(total)),
+			TotalPages: ptr(TotalPages(total, perPage)),
+		},
 	}
 }
 
-func FromSubmissionStats(stats *entity.SubmissionStats) openapi.ResponseSubmissionStatsResponse {
-	return openapi.ResponseSubmissionStatsResponse{
+func FromSubmissionStats(stats *entity.SubmissionStats) openapi.SubmissionStatsResponse {
+	return openapi.SubmissionStatsResponse{
 		Total:     ptr(stats.Total),
 		Correct:   ptr(stats.Correct),
 		Incorrect: ptr(stats.Incorrect),

@@ -3,7 +3,7 @@ package migrator
 import (
 	"testing"
 
-	"github.com/skr1ms/CTFBoard/config"
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/stretchr/testify/require"
 )
 

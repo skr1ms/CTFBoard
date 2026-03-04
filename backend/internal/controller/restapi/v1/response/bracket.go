@@ -1,12 +1,12 @@
 package response
 
 import (
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromBracket(b *entity.Bracket) openapi.ResponseBracketResponse {
-	return openapi.ResponseBracketResponse{
+func FromBracket(b *entity.Bracket) openapi.BracketResponse {
+	return openapi.BracketResponse{
 		ID:          ptr(b.ID.String()),
 		Name:        ptr(b.Name),
 		Description: ptr(b.Description),
@@ -15,8 +15,8 @@ func FromBracket(b *entity.Bracket) openapi.ResponseBracketResponse {
 	}
 }
 
-func FromBracketList(items []*entity.Bracket) []openapi.ResponseBracketResponse {
-	res := make([]openapi.ResponseBracketResponse, len(items))
+func FromBracketList(items []*entity.Bracket) []openapi.BracketResponse {
+	res := make([]openapi.BracketResponse, len(items))
 	for i, b := range items {
 		res[i] = FromBracket(b)
 	}

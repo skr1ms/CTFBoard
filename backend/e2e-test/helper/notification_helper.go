@@ -3,7 +3,7 @@ package helper
 import (
 	"context"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +18,7 @@ func (h *E2EHelper) GetNotifications(page, perPage, expectStatus int) *openapi.G
 
 func (h *E2EHelper) CreateNotification(token, title, content, typ string, pinned bool, expectStatus int) *openapi.PostAdminNotificationsResponse {
 	h.t.Helper()
-	tp := openapi.RequestCreateNotificationRequestType(typ)
+	tp := openapi.CreateNotificationRequestType(typ)
 	resp, err := h.client.PostAdminNotificationsWithResponse(context.Background(), openapi.PostAdminNotificationsJSONRequestBody{
 		Title:    title,
 		Content:  content,
@@ -32,7 +32,7 @@ func (h *E2EHelper) CreateNotification(token, title, content, typ string, pinned
 
 func (h *E2EHelper) CreateUserNotification(token, userID, title, content, typ string, expectStatus int) *openapi.PostAdminNotificationsUserUserIDResponse {
 	h.t.Helper()
-	tp := openapi.RequestCreateUserNotificationRequestType(typ)
+	tp := openapi.CreateUserNotificationRequestType(typ)
 	resp, err := h.client.PostAdminNotificationsUserUserIDWithResponse(context.Background(), userID, openapi.PostAdminNotificationsUserUserIDJSONRequestBody{
 		Title:   title,
 		Content: content,
@@ -62,7 +62,7 @@ func (h *E2EHelper) MarkUserNotificationRead(token, id string, expectStatus int)
 
 func (h *E2EHelper) UpdateNotification(token, id, title, content, typ string, pinned bool, expectStatus int) *openapi.PutAdminNotificationsIDResponse {
 	h.t.Helper()
-	tp := openapi.RequestUpdateNotificationRequestType(typ)
+	tp := openapi.UpdateNotificationRequestType(typ)
 	resp, err := h.client.PutAdminNotificationsIDWithResponse(context.Background(), id, openapi.PutAdminNotificationsIDJSONRequestBody{
 		Title:    title,
 		Content:  content,

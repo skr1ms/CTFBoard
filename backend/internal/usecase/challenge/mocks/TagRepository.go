@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockTagRepository creates a new instance of MockTagRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -97,8 +98,8 @@ func (_c *MockTagRepository_Create_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // Delete provides a mock function for the type MockTagRepository
-func (_mock *MockTagRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockTagRepository) Delete(ctx context.Context, ID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -106,7 +107,7 @@ func (_mock *MockTagRepository) Delete(ctx context.Context, id uuid.UUID) error 
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -120,12 +121,12 @@ type MockTagRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockTagRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockTagRepository_Delete_Call {
-	return &MockTagRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockTagRepository_Expecter) Delete(ctx interface{}, ID interface{}) *MockTagRepository_Delete_Call {
+	return &MockTagRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, ID)}
 }
 
-func (_c *MockTagRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTagRepository_Delete_Call {
+func (_c *MockTagRepository_Delete_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockTagRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -148,7 +149,7 @@ func (_c *MockTagRepository_Delete_Call) Return(err error) *MockTagRepository_De
 	return _c
 }
 
-func (_c *MockTagRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockTagRepository_Delete_Call {
+func (_c *MockTagRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockTagRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -352,8 +353,8 @@ func (_c *MockTagRepository_GetByChallengeIDs_Call) RunAndReturn(run func(ctx co
 }
 
 // GetByID provides a mock function for the type MockTagRepository
-func (_mock *MockTagRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tag, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockTagRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Tag, error) {
+	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -362,17 +363,17 @@ func (_mock *MockTagRepository) GetByID(ctx context.Context, id uuid.UUID) (*ent
 	var r0 *entity.Tag
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Tag, error)); ok {
-		return returnFunc(ctx, id)
+		return returnFunc(ctx, ID)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Tag); ok {
-		r0 = returnFunc(ctx, id)
+		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entity.Tag)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+		r1 = returnFunc(ctx, ID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -386,12 +387,12 @@ type MockTagRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockTagRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockTagRepository_GetByID_Call {
-	return &MockTagRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - ID uuid.UUID
+func (_e *MockTagRepository_Expecter) GetByID(ctx interface{}, ID interface{}) *MockTagRepository_GetByID_Call {
+	return &MockTagRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, ID)}
 }
 
-func (_c *MockTagRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTagRepository_GetByID_Call {
+func (_c *MockTagRepository_GetByID_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockTagRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -414,7 +415,7 @@ func (_c *MockTagRepository_GetByID_Call) Return(tag *entity.Tag, err error) *Mo
 	return _c
 }
 
-func (_c *MockTagRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*entity.Tag, error)) *MockTagRepository_GetByID_Call {
+func (_c *MockTagRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Tag, error)) *MockTagRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -483,69 +484,6 @@ func (_c *MockTagRepository_GetByName_Call) Return(tag *entity.Tag, err error) *
 }
 
 func (_c *MockTagRepository_GetByName_Call) RunAndReturn(run func(ctx context.Context, name string) (*entity.Tag, error)) *MockTagRepository_GetByName_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetChallengeTags provides a mock function for the type MockTagRepository
-func (_mock *MockTagRepository) SetChallengeTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {
-	ret := _mock.Called(ctx, challengeID, tagIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetChallengeTags")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, challengeID, tagIDs)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockTagRepository_SetChallengeTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetChallengeTags'
-type MockTagRepository_SetChallengeTags_Call struct {
-	*mock.Call
-}
-
-// SetChallengeTags is a helper method to define mock.On call
-//   - ctx context.Context
-//   - challengeID uuid.UUID
-//   - tagIDs []uuid.UUID
-func (_e *MockTagRepository_Expecter) SetChallengeTags(ctx interface{}, challengeID interface{}, tagIDs interface{}) *MockTagRepository_SetChallengeTags_Call {
-	return &MockTagRepository_SetChallengeTags_Call{Call: _e.mock.On("SetChallengeTags", ctx, challengeID, tagIDs)}
-}
-
-func (_c *MockTagRepository_SetChallengeTags_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID)) *MockTagRepository_SetChallengeTags_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 []uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].([]uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockTagRepository_SetChallengeTags_Call) Return(err error) *MockTagRepository_SetChallengeTags_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockTagRepository_SetChallengeTags_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error) *MockTagRepository_SetChallengeTags_Call {
 	_c.Call.Return(run)
 	return _c
 }

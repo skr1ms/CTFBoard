@@ -3,7 +3,10 @@ package mailer
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/resend/resend-go/v3"
 )
 
@@ -56,10 +59,37 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 		params.Text = msg.Body
 	}
 
-	_, err := m.client.Emails.SendWithContext(ctx, params)
-	if err != nil {
-		return fmt.Errorf("failed to send email via Resend: %w", err)
+	operation := func() error {
+		_, err := m.client.Emails.SendWithContext(ctx, params)
+		if err != nil {
+			if isResendPermanentError(err) {
+				return backoff.Permanent(fmt.Errorf("failed to send email via Resend: %w", err))
+			}
+			return fmt.Errorf("failed to send email via Resend: %w", err)
+		}
+		return nil
 	}
 
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+	bo.InitialInterval = 2 * time.Second
+	bo.Multiplier = 2
+
+	if err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx)); err != nil {
+		return err
+	}
 	return nil
+}
+
+func isResendPermanentError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, code := range []string{"400", "401", "403", "404", "422"} {
+		if strings.Contains(msg, code) {
+			return true
+		}
+	}
+	return false
 }

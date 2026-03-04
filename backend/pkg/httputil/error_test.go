@@ -6,15 +6,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHandleError_HTTPError(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
-	HandleError(w, r, entityError.ErrUserNotFound)
+	HandleError(w, r, httperr.ErrUserNotFound)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	var body ErrorResponse
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
@@ -22,11 +23,13 @@ func TestHandleError_HTTPError(t *testing.T) {
 }
 
 func TestHandleError_GenericError(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 	HandleError(w, r, assert.AnError)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	var body ErrorResponse
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-	assert.Equal(t, "Internal server error", body.Error)
+	assert.Equal(t, "Internal server error", body.Message)
+	assert.Equal(t, "INTERNAL_ERROR", body.Code)
 }

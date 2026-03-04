@@ -11,19 +11,26 @@ import (
 	"time"
 )
 
+const (
+	defaultDirMode = 0o750
+	hashPrefixLen  = 16
+)
+
+var _ Provider = (*FilesystemProvider)(nil)
+
 type FilesystemProvider struct {
 	basePath string
 	root     *os.Root
 }
 
 func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
-	if err := os.MkdirAll(basePath, 0o750); err != nil {
-		return nil, fmt.Errorf("failed to create base directory: %w", err)
+	if err := os.MkdirAll(basePath, defaultDirMode); err != nil {
+		return nil, fmt.Errorf("FilesystemProvider - NewFilesystemProvider: %w", err)
 	}
 
 	root, err := os.OpenRoot(basePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open root: %w", err)
+		return nil, fmt.Errorf("FilesystemProvider - NewFilesystemProvider: %w", err)
 	}
 
 	return &FilesystemProvider{
@@ -35,19 +42,19 @@ func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
 func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.Reader, size int64, contentType string) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		if err := p.root.MkdirAll(dir, 0o750); err != nil {
-			return fmt.Errorf("failed to create directory: %w", err)
+		if err := p.root.MkdirAll(dir, defaultDirMode); err != nil {
+			return fmt.Errorf("FilesystemProvider - Upload: %w", err)
 		}
 	}
 
 	file, err := p.root.Create(path)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return fmt.Errorf("FilesystemProvider - Upload: %w", err)
 	}
 	defer func() { _ = file.Close() }()
 
 	if _, err := io.Copy(file, reader); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return fmt.Errorf("FilesystemProvider - Upload: %w", err)
 	}
 
 	return nil
@@ -56,10 +63,7 @@ func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.
 func (p *FilesystemProvider) Download(ctx context.Context, path string) (io.ReadCloser, error) {
 	file, err := p.root.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("file not found: %s", path)
-		}
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, fmt.Errorf("FilesystemProvider - Download: %w", err)
 	}
 	return file, nil
 }
@@ -70,16 +74,22 @@ func (p *FilesystemProvider) Close() error {
 
 func (p *FilesystemProvider) Delete(ctx context.Context, path string) error {
 	if err := p.root.Remove(path); err != nil {
-		return fmt.Errorf("failed to delete file: %w", err)
+		return fmt.Errorf("FilesystemProvider - Delete: %w", err)
 	}
 
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		if err := p.root.Remove(dir); err != nil {
-			return fmt.Errorf("failed to remove dir: %w", err)
-		}
+		_ = p.root.Remove(dir) //nolint:errcheck // best-effort: fails if dir still contains other files
 	}
 
+	return nil
+}
+
+func (p *FilesystemProvider) Ping(_ context.Context) error {
+	_, err := os.Stat(p.basePath)
+	if err != nil {
+		return fmt.Errorf("FilesystemProvider - Ping: %w", err)
+	}
 	return nil
 }
 
@@ -91,6 +101,6 @@ func GenerateStoragePath(filename string) string {
 	safeName := filepath.Base(filename)
 	h := sha256.New()
 	_, _ = fmt.Fprintf(h, "%d-%s", time.Now().UnixNano(), safeName)
-	hash := hex.EncodeToString(h.Sum(nil))[:16]
+	hash := hex.EncodeToString(h.Sum(nil))[:hashPrefixLen]
 	return filepath.Join(hash, safeName)
 }

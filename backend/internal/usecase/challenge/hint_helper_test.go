@@ -1,17 +1,20 @@
 package challenge
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 )
 
 func (h *ChallengeTestHelper) CreateHintUseCase() (*HintUseCase, redismock.ClientMock) {
 	h.t.Helper()
 	_, redis := redismock.NewClientMock()
 	return NewHintUseCase(HintDeps{
-		HintRepo: h.deps.hintRepo, HintUnlockRepo: h.deps.hintUnlockRepo, AwardRepo: h.deps.awardRepo,
-		TxRepo: h.deps.txRepo, SolveRepo: h.deps.solveRepo, ScoreboardCache: nil,
+		HintRepo: h.deps.hintRepo, AwardRepo: h.deps.awardRepo,
+		TM: h.deps.tm, SolveRepo: h.deps.solveRepo,
+		CompRepo: h.deps.compRepo, TeamRepo: h.deps.teamRepo,
+		ChallengeRepo:   h.deps.challengeRepo,
+		ScoreboardCache: nil,
 	}), redis
 }
 

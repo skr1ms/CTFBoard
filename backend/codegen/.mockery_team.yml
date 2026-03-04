@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/skr1ms/CTFBoard/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       TeamRepository:
         config:
@@ -28,16 +28,44 @@ packages:
           pkgname: "mocks"
           structname: "MockCompetitionRepository"
 
-      TxRepository:
-        config:
-          dir: "internal/usecase/team/mocks"
-          filename: "TxRepository.go"
-          pkgname: "mocks"
-          structname: "MockTxRepository"
-
       AwardRepository:
         config:
           dir: "internal/usecase/team/mocks"
           filename: "AwardRepository.go"
           pkgname: "mocks"
           structname: "MockAwardRepository"
+
+      SettingsRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "SettingsRepository.go"
+          pkgname: "mocks"
+          structname: "MockSettingsRepository"
+
+      SolveRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "SolveRepository.go"
+          pkgname: "mocks"
+          structname: "MockSolveRepository"
+
+      ChallengeRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "ChallengeRepository.go"
+          pkgname: "mocks"
+          structname: "MockChallengeRepository"
+
+      SubmissionRepository:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "SubmissionRepository.go"
+          pkgname: "mocks"
+          structname: "MockSubmissionRepository"
+
+      TransactionManager:
+        config:
+          dir: "internal/usecase/team/mocks"
+          filename: "TransactionManager.go"
+          pkgname: "mocks"
+          structname: "MockTransactionManager"

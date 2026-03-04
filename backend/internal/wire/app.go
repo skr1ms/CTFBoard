@@ -3,10 +3,12 @@ package wire
 import (
 	"net/http"
 
-	"github.com/skr1ms/CTFBoard/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 type App struct {
-	Server   *http.Server
-	UserRepo repo.UserRepository
+	Server            *http.Server
+	UserRepo          repo.UserRepository
+	SubmissionBatcher usecase.SubmissionBatcher
 }

@@ -3,8 +3,9 @@ package helper
 import (
 	"context"
 	"net/http"
+	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -116,7 +117,7 @@ func (h *E2EHelper) GetChallengesExpectStatus(token string, expectStatus int) *o
 	return resp
 }
 
-func (h *E2EHelper) FindChallengeInList(token, challengeID string) *openapi.ResponseChallengeResponse {
+func (h *E2EHelper) FindChallengeInList(token, challengeID string) *openapi.ChallengeResponse {
 	h.t.Helper()
 	resp := h.GetChallengesExpectStatus(token, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
@@ -142,6 +143,22 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
 	}
 }
 
+func (h *E2EHelper) SetChallengeRequirements(token, challengeID string, requirementIDs []string) {
+	h.t.Helper()
+	h.SetChallengeRequirementsExpectStatus(token, challengeID, requirementIDs, http.StatusNoContent)
+}
+
+func (h *E2EHelper) SetChallengeRequirementsExpectStatus(token, challengeID string, requirementIDs []string, expectStatus int) {
+	h.t.Helper()
+	req := openapi.PutAdminChallengesChallengeIDRequirementsJSONRequestBody{}
+	if len(requirementIDs) > 0 {
+		req.RequirementIds = &requirementIDs
+	}
+	resp, err := h.client.PutAdminChallengesChallengeIDRequirementsWithResponse(context.Background(), challengeID, req, WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "set challenge requirements")
+}
+
 func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *openapi.GetChallengesIDFirstBloodResponse {
 	h.t.Helper()
 	resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID, WithBearerToken(token))
@@ -150,9 +167,29 @@ func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *
 	return resp
 }
 
+func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries int, sleep time.Duration) *openapi.GetChallengesIDFirstBloodResponse {
+	h.t.Helper()
+	var last *openapi.GetChallengesIDFirstBloodResponse
+	for i := 0; i < maxTries; i++ {
+		resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID, WithBearerToken(token))
+		require.NoError(h.t, err)
+		last = resp
+		if resp.StatusCode() == http.StatusOK {
+			return resp
+		}
+		if resp.StatusCode() != http.StatusNotFound || i == maxTries-1 {
+			RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "first-blood")
+			return resp
+		}
+		time.Sleep(sleep)
+	}
+	RequireStatus(h.t, http.StatusOK, last.StatusCode(), last.Body, "first-blood")
+	return last
+}
+
 func (h *E2EHelper) AssertFirstBlood(token, challengeID, expectedUsername, expectedTeamName string) {
 	h.t.Helper()
-	resp := h.GetFirstBlood(token, challengeID, http.StatusOK)
+	resp := h.GetFirstBloodWithRetry(token, challengeID, 4, 400*time.Millisecond)
 	require.NotNil(h.t, resp.JSON200)
 	require.NotNil(h.t, resp.JSON200.Username, "username")
 	require.Equal(h.t, expectedUsername, *resp.JSON200.Username)

@@ -1,0 +1,72 @@
+schemas:
+  response.FieldResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      field_type:
+        type: string
+        enum: [text, number, select, boolean]
+      entity_type:
+        type: string
+        enum: [user, team]
+      required:
+        type: boolean
+      options:
+        items:
+          type: string
+        type: array
+      order_index:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  request.CreateFieldRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+      field_type:
+        type: string
+        enum: [text, number, select, boolean]
+      entity_type:
+        type: string
+        enum: [user, team]
+      required:
+        type: boolean
+        default: false
+      options:
+        description: Options for select type
+        items:
+          type: string
+        type: array
+      order_index:
+        type: integer
+        default: 0
+    required:
+      - name
+      - field_type
+      - entity_type
+    type: object
+  request.UpdateFieldRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+      field_type:
+        type: string
+        enum: [text, number, select, boolean]
+      required:
+        type: boolean
+      options:
+        items:
+          type: string
+        type: array
+      order_index:
+        type: integer
+    required:
+      - name
+      - field_type
+    type: object

@@ -58,9 +58,9 @@ FROM api_tokens
 WHERE token_hash = $1
 `
 
-func (q *Queries) GetAPITokenByHash(ctx context.Context, tokenHash string) (ApiToken, error) {
+func (q *Queries) GetAPITokenByHash(ctx context.Context, tokenHash string) (APIToken, error) {
 	row := q.db.QueryRow(ctx, getAPITokenByHash, tokenHash)
-	var i ApiToken
+	var i APIToken
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -80,15 +80,15 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetAPITokensByUserID(ctx context.Context, userID uuid.UUID) ([]ApiToken, error) {
+func (q *Queries) GetAPITokensByUserID(ctx context.Context, userID uuid.UUID) ([]APIToken, error) {
 	rows, err := q.db.Query(ctx, getAPITokensByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ApiToken
+	var items []APIToken
 	for rows.Next() {
-		var i ApiToken
+		var i APIToken
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,

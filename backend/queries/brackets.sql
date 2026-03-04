@@ -21,3 +21,6 @@ WHERE id = $1;
 
 -- name: DeleteBracket :exec
 DELETE FROM brackets WHERE id = $1;
+
+-- name: ClearAllDefaultBrackets :exec
+UPDATE brackets SET is_default = false WHERE is_default = true;

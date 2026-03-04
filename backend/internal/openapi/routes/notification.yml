@@ -1,0 +1,199 @@
+/notifications:
+  get:
+    description: Returns list of global notifications
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/NotificationResponse'
+              type: array
+    summary: Get global notifications
+    tags:
+      - Notifications
+
+/user/notifications:
+  get:
+    description: Returns list of notifications for current user
+    parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/UserNotificationResponse'
+              type: array
+      "401":
+        description: Unauthorized
+    security:
+      - BearerAuth: []
+    summary: Get user notifications
+    tags:
+      - Notifications
+
+"/user/notifications/{ID}/read":
+  patch:
+    description: Marks notification as read
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+      "401":
+        description: Unauthorized
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Mark notification as read
+    tags:
+      - Notifications
+
+/admin/notifications:
+  post:
+    description: Creates a global notification. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateNotificationRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/NotificationResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Create global notification
+    tags:
+      - Admin
+
+"/admin/notifications/user/{userID}":
+  post:
+    description: Creates a personal notification for a user. Admin only.
+    parameters:
+      - name: userID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateUserNotificationRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/UserNotificationResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Create personal notification
+    tags:
+      - Admin
+
+"/admin/notifications/{ID}":
+  put:
+    description: Updates a notification. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/UpdateNotificationRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/NotificationResponse'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Update notification
+    tags:
+      - Admin
+  delete:
+    description: Deletes a notification. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "404":
+        description: Not Found
+    security:
+      - BearerAuth: []
+    summary: Delete notification
+    tags:
+      - Admin

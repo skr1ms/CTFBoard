@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockAPITokenRepository creates a new instance of MockAPITokenRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -98,8 +99,8 @@ func (_c *MockAPITokenRepository_Create_Call) RunAndReturn(run func(ctx context.
 }
 
 // Delete provides a mock function for the type MockAPITokenRepository
-func (_mock *MockAPITokenRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockAPITokenRepository) Delete(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -107,7 +108,7 @@ func (_mock *MockAPITokenRepository) Delete(ctx context.Context, id uuid.UUID, u
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+		r0 = returnFunc(ctx, ID, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -121,13 +122,13 @@ type MockAPITokenRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - ID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockAPITokenRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockAPITokenRepository_Delete_Call {
-	return &MockAPITokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
+func (_e *MockAPITokenRepository_Expecter) Delete(ctx interface{}, ID interface{}, userID interface{}) *MockAPITokenRepository_Delete_Call {
+	return &MockAPITokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, ID, userID)}
 }
 
-func (_c *MockAPITokenRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockAPITokenRepository_Delete_Call {
+func (_c *MockAPITokenRepository_Delete_Call) Run(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID)) *MockAPITokenRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -155,7 +156,7 @@ func (_c *MockAPITokenRepository_Delete_Call) Return(err error) *MockAPITokenRep
 	return _c
 }
 
-func (_c *MockAPITokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockAPITokenRepository_Delete_Call {
+func (_c *MockAPITokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID, userID uuid.UUID) error) *MockAPITokenRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -297,8 +298,8 @@ func (_c *MockAPITokenRepository_GetByUserID_Call) RunAndReturn(run func(ctx con
 }
 
 // UpdateLastUsedAt provides a mock function for the type MockAPITokenRepository
-func (_mock *MockAPITokenRepository) UpdateLastUsedAt(ctx context.Context, id uuid.UUID, at time.Time) error {
-	ret := _mock.Called(ctx, id, at)
+func (_mock *MockAPITokenRepository) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID, at time.Time) error {
+	ret := _mock.Called(ctx, ID, at)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateLastUsedAt")
@@ -306,7 +307,7 @@ func (_mock *MockAPITokenRepository) UpdateLastUsedAt(ctx context.Context, id uu
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r0 = returnFunc(ctx, id, at)
+		r0 = returnFunc(ctx, ID, at)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -320,13 +321,13 @@ type MockAPITokenRepository_UpdateLastUsedAt_Call struct {
 
 // UpdateLastUsedAt is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - ID uuid.UUID
 //   - at time.Time
-func (_e *MockAPITokenRepository_Expecter) UpdateLastUsedAt(ctx interface{}, id interface{}, at interface{}) *MockAPITokenRepository_UpdateLastUsedAt_Call {
-	return &MockAPITokenRepository_UpdateLastUsedAt_Call{Call: _e.mock.On("UpdateLastUsedAt", ctx, id, at)}
+func (_e *MockAPITokenRepository_Expecter) UpdateLastUsedAt(ctx interface{}, ID interface{}, at interface{}) *MockAPITokenRepository_UpdateLastUsedAt_Call {
+	return &MockAPITokenRepository_UpdateLastUsedAt_Call{Call: _e.mock.On("UpdateLastUsedAt", ctx, ID, at)}
 }
 
-func (_c *MockAPITokenRepository_UpdateLastUsedAt_Call) Run(run func(ctx context.Context, id uuid.UUID, at time.Time)) *MockAPITokenRepository_UpdateLastUsedAt_Call {
+func (_c *MockAPITokenRepository_UpdateLastUsedAt_Call) Run(run func(ctx context.Context, ID uuid.UUID, at time.Time)) *MockAPITokenRepository_UpdateLastUsedAt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -354,7 +355,7 @@ func (_c *MockAPITokenRepository_UpdateLastUsedAt_Call) Return(err error) *MockA
 	return _c
 }
 
-func (_c *MockAPITokenRepository_UpdateLastUsedAt_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, at time.Time) error) *MockAPITokenRepository_UpdateLastUsedAt_Call {
+func (_c *MockAPITokenRepository_UpdateLastUsedAt_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID, at time.Time) error) *MockAPITokenRepository_UpdateLastUsedAt_Call {
 	_c.Call.Return(run)
 	return _c
 }

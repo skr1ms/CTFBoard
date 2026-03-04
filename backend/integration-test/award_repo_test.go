@@ -5,12 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skr1ms/CTFBoard/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAwardRepo_GetAll_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -20,17 +22,21 @@ func TestAwardRepo_GetAll_Success(t *testing.T) {
 	_, team1 := f.CreateUserWithTeam(t, "team_getall_1")
 	_, team2 := f.CreateUserWithTeam(t, "team_getall_2")
 
-	a1 := &entity.Award{TeamID: team1.ID, Value: 10, Description: "A1", CreatedBy: &admin.ID}
-	a2 := &entity.Award{TeamID: team2.ID, Value: 20, Description: "A2", CreatedBy: &admin.ID}
-	require.NoError(t, f.AwardRepo.Create(ctx, a1))
-	require.NoError(t, f.AwardRepo.Create(ctx, a2))
+	award1 := f.CreateAward(t, team1.ID, 10, "A1", &admin.ID)
+	award2 := f.CreateAward(t, team2.ID, 20, "A2", &admin.ID)
 
 	awards, err := f.AwardRepo.GetAll(ctx)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, len(awards), 2)
+	ids := make(map[uuid.UUID]bool)
+	for _, a := range awards {
+		ids[a.ID] = true
+	}
+	assert.True(t, ids[award1.ID], "award1 should be in GetAll result")
+	assert.True(t, ids[award2.ID], "award2 should be in GetAll result")
 }
 
 func TestAwardRepo_GetAll_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -44,48 +50,44 @@ func TestAwardRepo_GetAll_Error_CancelledContext(t *testing.T) {
 }
 
 func TestAwardRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
-	ctx := context.Background()
 
 	admin := f.CreateUser(t, "admin_c")
 	_, team := f.CreateUserWithTeam(t, "team_create")
 
-	award := &entity.Award{
-		TeamID:      team.ID,
-		Value:       100,
-		Description: "Test Bonus",
-		CreatedBy:   &admin.ID,
-	}
-
-	err := f.AwardRepo.Create(ctx, award)
-	require.NoError(t, err)
+	award := f.CreateAward(t, team.ID, 100, "Test Bonus", &admin.ID)
 	assert.NotZero(t, award.ID)
 	assert.NotZero(t, award.CreatedAt)
 }
 
 func TestAwardRepo_Create_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	admin := f.CreateUser(t, "admin_ctx")
 	_, team := f.CreateUserWithTeam(t, "team_ctx")
 
-	award := &entity.Award{
-		TeamID:      team.ID,
-		Value:       10,
-		Description: "Fail",
-		CreatedBy:   &admin.ID,
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := f.AwardRepo.Create(ctx, award)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		award := &entity.Award{
+			TeamID:      team.ID,
+			Value:       10,
+			Description: "Fail",
+			CreatedBy:   &admin.ID,
+		}
+		return f.AwardRepo.Create(txCtx, award)
+	})
 	assert.Error(t, err)
 }
 
 func TestAwardRepo_GetByTeamID_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -94,15 +96,11 @@ func TestAwardRepo_GetByTeamID_Success(t *testing.T) {
 	admin := f.CreateUser(t, "admin_g")
 	_, team := f.CreateUserWithTeam(t, "team_get")
 
-	award1 := &entity.Award{TeamID: team.ID, Value: 10, Description: "First", CreatedBy: &admin.ID}
-	err := f.AwardRepo.Create(ctx, award1)
-	require.NoError(t, err)
+	award1 := f.CreateAward(t, team.ID, 10, "First", &admin.ID)
 
 	time.Sleep(10 * time.Millisecond)
 
-	award2 := &entity.Award{TeamID: team.ID, Value: 20, Description: "Second", CreatedBy: &admin.ID}
-	err = f.AwardRepo.Create(ctx, award2)
-	require.NoError(t, err)
+	award2 := f.CreateAward(t, team.ID, 20, "Second", &admin.ID)
 
 	awards, err := f.AwardRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
@@ -116,6 +114,7 @@ func TestAwardRepo_GetByTeamID_Success(t *testing.T) {
 }
 
 func TestAwardRepo_GetByTeamID_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -129,6 +128,7 @@ func TestAwardRepo_GetByTeamID_Error_CancelledContext(t *testing.T) {
 }
 
 func TestAwardRepo_GetTeamTotalAwards_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -141,13 +141,8 @@ func TestAwardRepo_GetTeamTotalAwards_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 
-	award1 := &entity.Award{TeamID: team.ID, Value: 100, Description: "Win", CreatedBy: &admin.ID}
-	err = f.AwardRepo.Create(ctx, award1)
-	require.NoError(t, err)
-
-	award2 := &entity.Award{TeamID: team.ID, Value: -30, Description: "Penalty", CreatedBy: &admin.ID}
-	err = f.AwardRepo.Create(ctx, award2)
-	require.NoError(t, err)
+	f.CreateAward(t, team.ID, 100, "Win", &admin.ID)
+	f.CreateAward(t, team.ID, -30, "Penalty", &admin.ID)
 
 	total, err = f.AwardRepo.GetTeamTotalAwards(ctx, team.ID)
 	require.NoError(t, err)
@@ -155,6 +150,7 @@ func TestAwardRepo_GetTeamTotalAwards_Success(t *testing.T) {
 }
 
 func TestAwardRepo_GetTeamTotalAwards_Error_CancelledContext(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)

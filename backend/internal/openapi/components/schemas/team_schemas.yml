@@ -1,0 +1,206 @@
+schemas:
+  response.TeamResponse:
+    properties:
+      captain_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      invite_token:
+        type: string
+      name:
+        type: string
+    type: object
+  response.TeamWithMembersResponse:
+    properties:
+      captain_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      invite_token:
+        type: string
+      members:
+        items:
+          $ref: "#/schemas/response.UserResponse"
+        type: array
+      name:
+        type: string
+      is_banned:
+        type: boolean
+      banned_at:
+        type: string
+      banned_reason:
+        type: string
+      min_team_size:
+        description: Minimum team size required to submit flags (0 means not enforced).
+        type: integer
+        minimum: 0
+      meets_min_size:
+        description: True if the team has at least min_team_size members (or min is not set).
+        type: boolean
+    type: object
+  response.TeamListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/schemas/response.TeamResponse"
+        type: array
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object
+  request.CreateTeamRequest:
+    properties:
+      confirm_reset:
+        type: boolean
+      name:
+        example: Team A
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,team_name"
+    required:
+      - name
+    type: object
+  request.JoinTeamRequest:
+    properties:
+      confirm_reset:
+        type: boolean
+      invite_token:
+        example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        type: string
+    required:
+      - invite_token
+    type: object
+  request.TransferCaptainRequest:
+    properties:
+      new_captain_id:
+        example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        type: string
+    required:
+      - new_captain_id
+    type: object
+  request.BanTeamRequest:
+    properties:
+      reason:
+        example: Violation of rules
+        type: string
+        maxLength: 500
+    required:
+      - reason
+    type: object
+  response.ConfirmationRequired:
+    properties:
+      reason:
+        type: string
+      affected_data:
+        $ref: "#/schemas/response.AffectedData"
+    required:
+      - reason
+    type: object
+  response.AffectedData:
+    properties:
+      solve_count:
+        type: integer
+      points:
+        type: integer
+      hint_unlock_count:
+        type: integer
+      awards_total:
+        type: integer
+    type: object
+  response.HiddenStatus:
+    properties:
+      hidden:
+        type: boolean
+    required:
+      - hidden
+    type: object
+  request.SetHiddenRequest:
+    properties:
+      hidden:
+        type: boolean
+    type: object
+  response.AdminTeamResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      captain_id:
+        type: string
+      bracket_id:
+        type: string
+      is_solo:
+        type: boolean
+      is_banned:
+        type: boolean
+      banned_reason:
+        type: string
+      is_hidden:
+        type: boolean
+      member_count:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  response.AdminTeamListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/schemas/response.AdminTeamResponse"
+        type: array
+      meta:
+        $ref: "#/schemas/response.PaginationMeta"
+    type: object
+  request.AdminUpdateTeamRequest:
+    properties:
+      name:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,team_name"
+      captain_id:
+        type: string
+      bracket_id:
+        type: string
+      is_hidden:
+        type: boolean
+    type: object
+  request.AdminAddMemberRequest:
+    properties:
+      user_id:
+        type: string
+    required:
+      - user_id
+    type: object
+  request.UpdateTeamRequest:
+    properties:
+      name:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,team_name"
+    required:
+      - name
+    type: object
+  response.TeamInviteResponse:
+    properties:
+      invite_token:
+        type: string
+    type: object
+  entity.TeamExport:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      captain_id:
+        type: string
+      is_banned:
+        type: boolean
+      member_ids:
+        type: array
+        items:
+          type: string
+    type: object

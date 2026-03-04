@@ -42,7 +42,7 @@ function LoginPage(): React.ReactElement {
           SeaweedFS UI
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }} align="center">
-          Admin login (CTFBoard)
+          Admin login (AstroCTFb)
         </Typography>
         <form onSubmit={handleSubmit}>
           <TextField

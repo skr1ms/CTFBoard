@@ -1,0 +1,71 @@
+schemas:
+  response.PageResponse:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      slug:
+        type: string
+      content:
+        type: string
+      is_draft:
+        type: boolean
+      order_index:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+    type: object
+  response.PageListItemResponse:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      slug:
+        type: string
+      order_index:
+        type: integer
+    type: object
+  request.CreatePageRequest:
+    properties:
+      title:
+        type: string
+        maxLength: 200
+      slug:
+        type: string
+        maxLength: 100
+      content:
+        type: string
+      is_draft:
+        type: boolean
+        default: true
+      order_index:
+        type: integer
+        default: 0
+    required:
+      - title
+      - slug
+    type: object
+  request.UpdatePageRequest:
+    properties:
+      title:
+        type: string
+        maxLength: 200
+      slug:
+        type: string
+        maxLength: 100
+      content:
+        type: string
+      is_draft:
+        type: boolean
+      order_index:
+        type: integer
+    required:
+      - title
+      - slug
+    type: object

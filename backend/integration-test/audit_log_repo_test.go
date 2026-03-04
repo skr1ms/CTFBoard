@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAuditLogRepo_Create_Success(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
@@ -35,6 +36,7 @@ func TestAuditLogRepo_Create_Success(t *testing.T) {
 }
 
 func TestAuditLogRepo_Create_Error_InvalidUUID(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)

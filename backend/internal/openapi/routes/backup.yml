@@ -1,0 +1,301 @@
+/healthcheck:
+  get:
+    description: Returns service health status including database connectivity
+    responses:
+      "200":
+        description: Healthy
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/HealthcheckResponse'
+      "503":
+        description: Service Unavailable
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/HealthcheckResponse'
+    summary: Health check
+    tags:
+      - System
+
+/robots.txt:
+  get:
+    description: Returns robots.txt content for search engine crawlers
+    responses:
+      "200":
+        description: robots.txt content
+        content:
+          text/plain:
+            schema:
+              type: string
+              example: |
+                User-agent: *
+                Disallow: /api/
+                Allow: /
+    summary: Get robots.txt
+    tags:
+      - System
+
+/tos:
+  get:
+    description: Returns Terms of Service page content
+    responses:
+      "200":
+        description: Terms of Service content
+        content:
+          text/html:
+            schema:
+              type: string
+    summary: Get Terms of Service
+    tags:
+      - System
+
+/privacy:
+  get:
+    description: Returns Privacy Policy page content
+    responses:
+      "200":
+        description: Privacy Policy content
+        content:
+          text/html:
+            schema:
+              type: string
+    summary: Get Privacy Policy
+    tags:
+      - System
+
+/debug:
+  get:
+    description: Returns debug information. Only available in SAFE_MODE (development).
+    responses:
+      "200":
+        description: Debug information
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "404":
+        description: Not available (not in SAFE_MODE)
+    summary: Get debug information
+    tags:
+      - System
+
+/admin/export:
+  get:
+    description: Exports competition data as JSON backup. Admin only.
+    parameters:
+      - name: include_users
+        in: query
+        schema:
+          type: boolean
+      - name: include_teams
+        in: query
+        schema:
+          type: boolean
+      - name: include_solves
+        in: query
+        schema:
+          type: boolean
+      - name: include_awards
+        in: query
+        schema:
+          type: boolean
+    responses:
+      "200":
+        description: Backup data
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BackupData'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "500":
+        description: Internal Server Error
+    security:
+      - BearerAuth: []
+    summary: Export competition backup
+    tags:
+      - Admin
+
+/admin/export/zip:
+  get:
+    description: Exports competition data as ZIP archive with files. Admin only.
+    parameters:
+      - name: include_files
+        in: query
+        schema:
+          type: boolean
+    responses:
+      "200":
+        description: ZIP archive
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+        headers:
+          Content-Disposition:
+            schema:
+              type: string
+              example: 'attachment; filename="backup-20260201T130000Z.zip"'
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+      "500":
+        description: Internal Server Error
+    security:
+      - BearerAuth: []
+    summary: Export competition backup as ZIP
+    tags:
+      - Admin
+
+/admin/reset:
+  post:
+    description: Selectively resets competition data. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/AdminResetRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Reset competition data
+    tags:
+      - Admin
+
+/admin/import:
+  post:
+    description: Imports competition data from ZIP backup. Admin only.
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+                description: ZIP backup file
+              erase_existing:
+                type: boolean
+                description: Erase existing data before import
+              conflict_mode:
+                type: string
+                enum: [merge, overwrite, skip]
+                description: How to handle conflicts
+              validate_files:
+                type: boolean
+                description: Validate file checksums
+              preserve_admin_roles:
+                type: boolean
+                description: Preserve admin roles for existing users during import
+            required:
+              - file
+      required: true
+    responses:
+      "200":
+        description: Import result
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ImportResult'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Import competition backup
+    tags:
+      - Admin
+
+/admin/export/csv:
+  get:
+    description: Exports data table as CSV. Admin only.
+    parameters:
+      - name: table
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [users, teams, challenges, submissions, solves, awards]
+        description: Table name to export
+    responses:
+      "200":
+        description: CSV file
+        content:
+          text/csv:
+            schema:
+              type: string
+        headers:
+          Content-Disposition:
+            schema:
+              type: string
+              example: 'attachment; filename="users.csv"'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Export table as CSV
+    tags:
+      - Admin
+
+/admin/import/csv:
+  post:
+    description: Imports data from CSV file. Admin only.
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+                description: CSV file
+              table:
+                type: string
+                enum: [users, teams, challenges, submissions, solves, awards]
+                description: Target table name
+            required:
+              - file
+              - table
+      required: true
+    responses:
+      "200":
+        description: Import result
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/CSVImportResult'
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+      "403":
+        description: Forbidden
+    security:
+      - BearerAuth: []
+    summary: Import CSV data
+    tags:
+      - Admin

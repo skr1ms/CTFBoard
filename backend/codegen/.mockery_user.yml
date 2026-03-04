@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/skr1ms/CTFBoard/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       UserRepository:
         config:
@@ -28,13 +28,6 @@ packages:
           pkgname: "mocks"
           structname: "MockSolveRepository"
 
-      TxRepository:
-        config:
-          dir: "internal/usecase/user/mocks"
-          filename: "TxRepository.go"
-          pkgname: "mocks"
-          structname: "MockTxRepository"
-
       VerificationTokenRepository:
         config:
           dir: "internal/usecase/user/mocks"
@@ -49,7 +42,44 @@ packages:
           pkgname: "mocks"
           structname: "MockAPITokenRepository"
 
-  github.com/skr1ms/CTFBoard/pkg/jwt:
+      OAuthAccountRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "OAuthAccountRepository.go"
+          pkgname: "mocks"
+          structname: "MockOAuthAccountRepository"
+
+      SettingsRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "SettingsRepository.go"
+          pkgname: "mocks"
+          structname: "MockSettingsRepository"
+
+      TransactionManager:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "TransactionManager.go"
+          pkgname: "mocks"
+          structname: "MockTransactionManager"
+
+      TrackingRepository:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "TrackingRepository.go"
+          pkgname: "mocks"
+          structname: "MockTrackingRepository"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi:
+    interfaces:
+      OAuthProviderAPI:
+        config:
+          dir: "internal/usecase/user/mocks"
+          filename: "OAuthProviderAPI.go"
+          pkgname: "mocks"
+          structname: "MockOAuthProviderAPI"
+
+  github.com/TakuyaYagam1/AstroCTFb/pkg/jwt:
     interfaces:
       Service:
         config:

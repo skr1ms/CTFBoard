@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/internal/usecase/user/mocks"
-	"github.com/skr1ms/CTFBoard/pkg/jwt"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -24,7 +23,7 @@ type testDependencies struct {
 	userRepo     *mocks.MockUserRepository
 	teamRepo     *mocks.MockTeamRepository
 	solveRepo    *mocks.MockSolveRepository
-	txRepo       *mocks.MockTxRepository
+	tm           *mocks.MockTransactionManager
 	jwtService   *mocks.MockJWTService
 	apiTokenRepo *mocks.MockAPITokenRepository
 }
@@ -37,7 +36,7 @@ func NewUserTestHelper(t *testing.T) *UserTestHelper {
 			userRepo:     mocks.NewMockUserRepository(t),
 			teamRepo:     mocks.NewMockTeamRepository(t),
 			solveRepo:    mocks.NewMockSolveRepository(t),
-			txRepo:       mocks.NewMockTxRepository(t),
+			tm:           mocks.NewMockTransactionManager(t),
 			jwtService:   mocks.NewMockJWTService(t),
 			apiTokenRepo: mocks.NewMockAPITokenRepository(t),
 		},
@@ -48,7 +47,7 @@ func (h *UserTestHelper) CreateUseCase() *UserUseCase {
 	h.t.Helper()
 	return NewUserUseCase(UserDeps{
 		UserRepo: h.deps.userRepo, TeamRepo: h.deps.teamRepo, SolveRepo: h.deps.solveRepo,
-		TxRepo: h.deps.txRepo, JWTService: h.deps.jwtService, FieldValidator: nil, FieldValueRepo: nil,
+		TM: h.deps.tm, JWTService: h.deps.jwtService, FieldValidator: nil, FieldValueRepo: nil,
 	})
 }
 
@@ -122,19 +121,19 @@ func (h *UserTestHelper) SetupLoginMocks(email, password string) {
 
 func (h *UserTestHelper) SetupRegisterSuccessMocks(username, email string) {
 	h.t.Helper()
-	h.deps.userRepo.EXPECT().GetByUsername(mock.Anything, username).Return(nil, entityError.ErrUserNotFound)
-	h.deps.userRepo.EXPECT().GetByEmail(mock.Anything, email).Return(nil, entityError.ErrUserNotFound)
-	h.deps.txRepo.EXPECT().RunTransaction(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context, repo.Transaction) error) error {
-		return fn(ctx, nil)
+	h.deps.userRepo.EXPECT().GetByUsername(mock.Anything, username).Return(nil, httperr.ErrUserNotFound)
+	h.deps.userRepo.EXPECT().GetByEmail(mock.Anything, email).Return(nil, httperr.ErrUserNotFound)
+	h.deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
 	}).Once()
-	h.deps.txRepo.EXPECT().CreateUserTx(mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, _ repo.Transaction, u *entity.User) {
+	h.deps.userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *entity.User) {
 		u.ID = uuid.New()
 	}).Once()
 }
 
 func (h *UserTestHelper) CreateAPITokenUseCase() *APITokenUseCase {
 	h.t.Helper()
-	return NewAPITokenUseCase(h.deps.apiTokenRepo)
+	return NewAPITokenUseCase(APITokenDeps{Repo: h.deps.apiTokenRepo})
 }
 
 func (h *UserTestHelper) NewAPIToken(userID uuid.UUID, tokenHash, description string, expiresAt *time.Time) *entity.APIToken {

@@ -5,32 +5,41 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
-	"github.com/skr1ms/CTFBoard/internal/entity"
-	entityError "github.com/skr1ms/CTFBoard/internal/entity/error"
-	"github.com/skr1ms/CTFBoard/internal/repo"
-	"github.com/skr1ms/CTFBoard/pkg/usecaseutil"
 )
 
 type CommentUseCase struct {
-	commentRepo   repo.CommentRepository
-	challengeRepo repo.ChallengeRepository
+	deps CommentDeps
 }
 
-func NewCommentUseCase(
-	commentRepo repo.CommentRepository,
-	challengeRepo repo.ChallengeRepository,
-) *CommentUseCase {
-	return &CommentUseCase{
-		commentRepo:   commentRepo,
-		challengeRepo: challengeRepo,
-	}
+type CommentDeps struct {
+	CommentRepo   repo.CommentRepository
+	ChallengeRepo repo.ChallengeRepository
+	UserRepo      repo.UserRepository
+	TM            repo.TransactionManager
+}
+
+var _ usecase.CommentUseCase = (*CommentUseCase)(nil)
+
+func NewCommentUseCase(deps CommentDeps) *CommentUseCase {
+	return &CommentUseCase{deps: deps}
 }
 
 func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Comment, error) {
-	list, err := uc.commentRepo.GetByChallengeID(ctx, challengeID)
+	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "CommentUseCase - GetByChallengeID")
+		return nil, fmt.Errorf("CommentUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
+	}
+	if challenge.IsHidden {
+		return nil, httperr.ErrChallengeNotFound
+	}
+	list, err := uc.deps.CommentRepo.GetByChallengeID(ctx, challengeID)
+	if err != nil {
+		return nil, fmt.Errorf("CommentUseCase - GetByChallengeID - CommentRepo.GetByChallengeID: %w", err)
 	}
 	return list, nil
 }
@@ -38,33 +47,54 @@ func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid
 func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*entity.Comment, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
-		return nil, fmt.Errorf("CommentUseCase - Create: content is required")
+		return nil, httperr.ErrCommentContentRequired
 	}
-	_, err := uc.challengeRepo.GetByID(ctx, challengeID)
+	if uc.deps.UserRepo != nil {
+		user, err := uc.deps.UserRepo.GetByID(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("CommentUseCase - Create - UserRepo.GetByID: %w", err)
+		}
+		if user.IsBanned {
+			return nil, httperr.ErrUserBanned
+		}
+	}
+	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
-		return nil, usecaseutil.Wrap(err, "CommentUseCase - Create - GetByID challenge")
+		return nil, fmt.Errorf("CommentUseCase - Create - ChallengeRepo.GetByID: %w", err)
+	}
+	if challenge.IsHidden {
+		return nil, httperr.ErrChallengeNotFound
 	}
 	comment := &entity.Comment{
 		UserID:      userID,
 		ChallengeID: challengeID,
 		Content:     content,
 	}
-	if err := uc.commentRepo.Create(ctx, comment); err != nil {
-		return nil, usecaseutil.Wrap(err, "CommentUseCase - Create")
+	if err := uc.deps.CommentRepo.Create(ctx, comment); err != nil {
+		return nil, fmt.Errorf("CommentUseCase - Create - CommentRepo.Create: %w", err)
 	}
 	return comment, nil
 }
 
-func (uc *CommentUseCase) Delete(ctx context.Context, id, userID uuid.UUID) error {
-	c, err := uc.commentRepo.GetByID(ctx, id)
-	if err != nil {
-		return usecaseutil.Wrap(err, "CommentUseCase - Delete - GetByID")
+func (uc *CommentUseCase) Delete(ctx context.Context, ID, userID uuid.UUID, isAdmin bool) error {
+	run := func(ctx context.Context) error {
+		c, err := uc.deps.CommentRepo.GetByID(ctx, ID)
+		if err != nil {
+			return fmt.Errorf("CommentUseCase - Delete - CommentRepo.GetByID: %w", err)
+		}
+		if !isAdmin && c.UserID != userID {
+			return httperr.ErrCommentForbidden
+		}
+		if err := uc.deps.CommentRepo.Delete(ctx, ID); err != nil {
+			return fmt.Errorf("CommentUseCase - Delete - CommentRepo.Delete: %w", err)
+		}
+		return nil
 	}
-	if c.UserID != userID {
-		return entityError.ErrCommentForbidden
+	if uc.deps.TM != nil {
+		if err := uc.deps.TM.Run(ctx, run); err != nil {
+			return fmt.Errorf("CommentUseCase - Delete - TM.Run: %w", err)
+		}
+		return nil
 	}
-	if err := uc.commentRepo.Delete(ctx, id); err != nil {
-		return usecaseutil.Wrap(err, "CommentUseCase - Delete")
-	}
-	return nil
+	return run(ctx)
 }
