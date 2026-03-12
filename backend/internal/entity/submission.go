@@ -15,6 +15,7 @@ type Submission struct {
 	IsCorrect     bool       `json:"is_correct"`
 	IP            string     `json:"ip,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
+	BannedUserID  *uuid.UUID `json:"banned_user_id,omitempty"`
 }
 
 type SubmissionWithDetails struct {

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type APITokenRepo struct {
@@ -45,8 +46,8 @@ func (r *APITokenRepo) Create(ctx context.Context, token *entity.APIToken) error
 		UserID:      token.UserID,
 		TokenHash:   token.TokenHash,
 		Description: desc,
-		ExpiresAt:   expiresAt,
-		CreatedAt:   createdAt,
+		ExpiresAt:   timeToTimestamptz(expiresAt),
+		CreatedAt:   timeToTimestamptz(createdAt),
 	}); err != nil {
 		return fmt.Errorf("APITokenRepo - Create: %w", err)
 	}
@@ -65,9 +66,9 @@ func (r *APITokenRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*en
 			UserID:      row.UserID,
 			TokenHash:   row.TokenHash,
 			Description: ptrStrToStr(row.Description),
-			ExpiresAt:   row.ExpiresAt,
-			LastUsedAt:  row.LastUsedAt,
-			CreatedAt:   ptrTimeToTime(row.CreatedAt),
+			ExpiresAt:   timestamptzToTime(row.ExpiresAt),
+			LastUsedAt:  timestamptzToTime(row.LastUsedAt),
+			CreatedAt:   ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
@@ -86,9 +87,9 @@ func (r *APITokenRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*e
 		UserID:      row.UserID,
 		TokenHash:   row.TokenHash,
 		Description: ptrStrToStr(row.Description),
-		ExpiresAt:   row.ExpiresAt,
-		LastUsedAt:  row.LastUsedAt,
-		CreatedAt:   ptrTimeToTime(row.CreatedAt),
+		ExpiresAt:   timestamptzToTime(row.ExpiresAt),
+		LastUsedAt:  timestamptzToTime(row.LastUsedAt),
+		CreatedAt:   ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
@@ -102,7 +103,7 @@ func (r *APITokenRepo) Delete(ctx context.Context, ID, userID uuid.UUID) error {
 func (r *APITokenRepo) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID, at time.Time) error {
 	if err := r.q(ctx).UpdateAPITokenLastUsed(ctx, sqlc.UpdateAPITokenLastUsedParams{
 		ID:         ID,
-		LastUsedAt: &at,
+		LastUsedAt: timeToTimestamptz(&at),
 	}); err != nil {
 		return fmt.Errorf("APITokenRepo - UpdateLastUsedAt: %w", err)
 	}

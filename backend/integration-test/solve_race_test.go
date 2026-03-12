@@ -6,13 +6,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {

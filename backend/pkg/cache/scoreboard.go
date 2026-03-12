@@ -13,6 +13,7 @@ type TeamBracketIDGetter interface {
 type ScoreboardCacheInvalidator interface {
 	InvalidateAll(ctx context.Context)
 	InvalidateForTeam(ctx context.Context, teamID uuid.UUID)
+	InvalidateLiveOnly(ctx context.Context, teamID uuid.UUID)
 }
 
 // UserCacheInvalidator evicts a cached user entry so the next request loads fresh data.
@@ -45,20 +46,22 @@ type ChallengeListCacheInvalidator interface {
 }
 
 type ScoreboardCacheService struct {
-	cache      *Cache
-	getter     TeamBracketIDGetter
-	localClear func() // clears in-process scoreboard caches on every invalidation
+	cache              *Cache
+	getter             TeamBracketIDGetter
+	localClear         func()
+	localClearLiveOnly func(keys []string)
 }
 
 func NewScoreboardCacheService(c *Cache, getter TeamBracketIDGetter) *ScoreboardCacheService {
 	return &ScoreboardCacheService{cache: c, getter: getter}
 }
 
-// RegisterLocalCache registers a callback that is invoked on every cache
-// invalidation to also clear in-process (non-Redis) scoreboard caches.
-// Must be called before the service is used.
 func (s *ScoreboardCacheService) RegisterLocalCache(fn func()) {
 	s.localClear = fn
+}
+
+func (s *ScoreboardCacheService) RegisterLocalCacheLiveOnly(fn func(keys []string)) {
+	s.localClearLiveOnly = fn
 }
 
 func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
@@ -69,24 +72,37 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 		s.localClear()
 	}
 	if s.cache != nil {
-		_ = s.cache.Del(ctx, KeyScoreboard, KeyScoreboardFrozen) //nolint:errcheck // best-effort invalidation
+		_ = s.cache.Del(ctx, KeyScoreboard, KeyScoreboardFrozen)    //nolint:errcheck // best-effort invalidation
+		_ = s.cache.DeleteByPrefix(ctx, KeyScoreboardFrozenPrefix)  //nolint:errcheck // best-effort invalidation
+		_ = s.cache.DeleteByPrefix(ctx, KeyScoreboardBracketPrefix) //nolint:errcheck // best-effort invalidation
 	}
 }
 
-func (s *ScoreboardCacheService) InvalidateForTeam(ctx context.Context, teamID uuid.UUID) {
+func (s *ScoreboardCacheService) InvalidateForTeam(ctx context.Context, _ uuid.UUID) {
 	if s == nil || s.cache == nil {
 		return
 	}
-	s.InvalidateAll(ctx) // also calls localClear
-	if s.getter == nil {
+	s.InvalidateAll(ctx)
+}
+
+func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID uuid.UUID) {
+	if s == nil || s.cache == nil {
 		return
 	}
-	bracketID, err := s.getter.GetTeamBracketID(ctx, teamID)
-	if err != nil || bracketID == nil {
+	liveKeys := []string{KeyScoreboard}
+	if s.getter != nil {
+		if bracketID, err := s.getter.GetTeamBracketID(ctx, teamID); err == nil && bracketID != nil {
+			liveKeys = append(liveKeys, KeyScoreboardBracket(bracketID.String()))
+		}
+	}
+	if s.localClearLiveOnly != nil {
+		s.localClearLiveOnly(liveKeys)
+	} else if s.localClear != nil {
+		s.localClear()
+	}
+	if err := s.cache.Del(ctx, liveKeys...); err != nil {
 		return
 	}
-	idStr := bracketID.String()
-	_ = s.cache.Del(ctx, KeyScoreboardBracket(idStr), KeyScoreboardBracketFrozen(idStr)) //nolint:errcheck // best-effort invalidation
 }
 
 var _ ScoreboardCacheInvalidator = (*ScoreboardCacheService)(nil)

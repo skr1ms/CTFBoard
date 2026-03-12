@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type PageRepo struct {
@@ -49,8 +50,8 @@ func (r *PageRepo) Create(ctx context.Context, page *entity.Page) error {
 		}
 		return fmt.Errorf("PageRepo - Create: %w", err)
 	}
-	page.CreatedAt = ptrTimeToTime(row.CreatedAt)
-	page.UpdatedAt = ptrTimeToTime(row.UpdatedAt)
+	page.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	page.UpdatedAt = ptrTimeToTime(timestamptzToTime(row.UpdatedAt))
 	return nil
 }
 
@@ -155,7 +156,7 @@ func toEntityPage(row sqlc.Page) *entity.Page {
 		Content:    row.Content,
 		IsDraft:    isDraft,
 		OrderIndex: orderIndex,
-		CreatedAt:  ptrTimeToTime(row.CreatedAt),
-		UpdatedAt:  ptrTimeToTime(row.UpdatedAt),
+		CreatedAt:  ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+		UpdatedAt:  ptrTimeToTime(timestamptzToTime(row.UpdatedAt)),
 	}
 }

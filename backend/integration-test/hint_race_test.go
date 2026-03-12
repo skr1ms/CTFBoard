@@ -5,12 +5,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
@@ -35,6 +37,44 @@ func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
 	successes, errors := runConcurrentUnlocks(uc, ctx, user.ID, team.ID, challenge.ID, hint.ID)
 
 	verifyHintUnlockResults(t, f, ctx, team, challenge, successes, errors)
+}
+
+func TestHintUseCase_Unlock_Concurrent_ScoreAboveCost_NoDoubleCharge(t *testing.T) {
+	t.Helper()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	uc := challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: f.HintRepo, AwardRepo: f.AwardRepo,
+		TM: f.TM, SolveRepo: f.SolveRepo,
+		CompRepo: f.CompetitionRepo, TeamRepo: f.TeamRepo,
+		UserRepo:        f.UserRepo,
+		ChallengeRepo:   f.ChallengeRepo,
+		ScoreboardCache: nil,
+	})
+
+	user, team := f.CreateUserWithTeam(t, "hint_race_200")
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.AwardRepo.Create(txCtx, &entity.Award{
+			TeamID: team.ID, Value: 200, Description: "Initial",
+		})
+	})
+	require.NoError(t, err)
+	chall := f.CreateChallenge(t, "HintRace200", 500)
+	hint := f.CreateHint(t, chall.ID, 100, 1)
+
+	successes, errs := runConcurrentUnlocks(uc, ctx, user.ID, team.ID, chall.ID, hint.ID)
+
+	assert.Equal(t, 1, successes, "exactly one unlock must succeed")
+	require.Len(t, errs, 1)
+	assert.ErrorIs(t, errs[0], httperr.ErrHintAlreadyUnlocked)
+	unlocks, err := f.HintRepo.GetUnlockedHintIDs(ctx, team.ID, chall.ID)
+	require.NoError(t, err)
+	assert.Len(t, unlocks, 1)
+	score, err := f.SolveRepo.GetTeamScore(ctx, team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 100, score, "score must be 100 (200 - one charge of 100), not double-charged")
 }
 
 func setupHintRaceTest(t *testing.T, f *TestFixture, ctx context.Context) (*entity.User, *entity.Team, *entity.Challenge, *entity.Hint) {

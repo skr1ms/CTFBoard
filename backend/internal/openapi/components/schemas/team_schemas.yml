@@ -9,6 +9,7 @@ schemas:
         type: string
       invite_token:
         type: string
+        nullable: true
       name:
         type: string
     type: object
@@ -22,6 +23,7 @@ schemas:
         type: string
       invite_token:
         type: string
+        nullable: true
       members:
         items:
           $ref: "#/schemas/response.UserResponse"
@@ -63,6 +65,11 @@ schemas:
     required:
       - name
     type: object
+  request.CreateSoloTeamRequest:
+    properties:
+      confirm_reset:
+        type: boolean
+    type: object
   request.JoinTeamRequest:
     properties:
       confirm_reset:
@@ -70,6 +77,8 @@ schemas:
       invite_token:
         example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,uuid"
     required:
       - invite_token
     type: object
@@ -83,10 +92,17 @@ schemas:
     type: object
   request.BanTeamRequest:
     properties:
+      ban_members:
+        default: false
+        description: If true, ban each team member as a user (they cannot create/join teams or participate in solo).
+        type: boolean
       reason:
         example: Violation of rules
         type: string
+        minLength: 1
         maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=500"
     required:
       - reason
     type: object
@@ -121,6 +137,8 @@ schemas:
     properties:
       hidden:
         type: boolean
+    required:
+      - hidden
     type: object
   response.AdminTeamResponse:
     properties:
@@ -159,12 +177,15 @@ schemas:
     properties:
       name:
         type: string
+        minLength: 1
         x-oapi-codegen-extra-tags:
           validate: "omitempty,team_name"
       captain_id:
         type: string
+        format: uuid
       bracket_id:
         type: string
+        format: uuid
       is_hidden:
         type: boolean
     type: object
@@ -172,6 +193,9 @@ schemas:
     properties:
       user_id:
         type: string
+        format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,uuid"
     required:
       - user_id
     type: object

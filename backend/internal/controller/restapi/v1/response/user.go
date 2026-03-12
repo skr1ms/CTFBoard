@@ -3,14 +3,18 @@ package response
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/google/uuid"
 )
 
 func FromUserForRegister(u *entity.User) openapi.RegisterResponse {
+	if u == nil {
+		return openapi.RegisterResponse{}
+	}
 	return openapi.RegisterResponse{
 		ID:        ptr(u.ID.String()),
 		Username:  ptr(u.Username),
@@ -20,6 +24,9 @@ func FromUserForRegister(u *entity.User) openapi.RegisterResponse {
 }
 
 func FromUserForMe(u *entity.User) openapi.MeResponse {
+	if u == nil {
+		return openapi.MeResponse{}
+	}
 	var teamIDStr *string
 	if u.TeamID != nil {
 		teamIDStr = ptr(u.TeamID.String())
@@ -28,13 +35,16 @@ func FromUserForMe(u *entity.User) openapi.MeResponse {
 		ID:        ptr(u.ID.String()),
 		Username:  ptr(u.Username),
 		Email:     ptr(u.Email),
-		Role:      ptr(u.Role),
+		Role:      ptr(string(u.Role)),
 		TeamID:    teamIDStr,
 		CreatedAt: ptr(u.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
 func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
+	if up == nil || up.User == nil {
+		return openapi.UserProfileResponse{}
+	}
 	var teamIDStr *string
 	if up.User.TeamID != nil {
 		teamIDStr = ptr(up.User.TeamID.String())
@@ -55,6 +65,9 @@ func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
 }
 
 func FromUser(u *entity.User) openapi.UserResponse {
+	if u == nil {
+		return openapi.UserResponse{}
+	}
 	var teamIDStr *string
 	if u.TeamID != nil {
 		teamIDStr = ptr(u.TeamID.String())
@@ -63,7 +76,7 @@ func FromUser(u *entity.User) openapi.UserResponse {
 		ID:       ptr(u.ID.String()),
 		Username: ptr(u.Username),
 		TeamID:   teamIDStr,
-		Role:     ptr(u.Role),
+		Role:     ptr(string(u.Role)),
 	}
 }
 
@@ -101,6 +114,9 @@ func FromUserList(users []*entity.User, total int64, page, perPage int) openapi.
 }
 
 func FromAdminUser(u *entity.User) openapi.AdminUserResponse {
+	if u == nil {
+		return openapi.AdminUserResponse{}
+	}
 	var teamIDStr *string
 	if u.TeamID != nil {
 		teamIDStr = ptr(u.TeamID.String())
@@ -109,7 +125,7 @@ func FromAdminUser(u *entity.User) openapi.AdminUserResponse {
 		ID:           ptr(u.ID.String()),
 		Username:     ptr(u.Username),
 		Email:        ptr(u.Email),
-		Role:         ptr(u.Role),
+		Role:         ptr(string(u.Role)),
 		TeamID:       teamIDStr,
 		IsVerified:   ptr(u.IsVerified),
 		CreatedAt:    ptr(u.CreatedAt),
@@ -164,10 +180,10 @@ func FromSolveWithDetailsList(solves []*entity.SolveWithDetails) []openapi.Solve
 	return res
 }
 
-func FromFailList(fails []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.FailListResponse {
+func FromFailListPublic(fails []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.FailListResponse {
 	data := make([]openapi.SubmissionResponse, len(fails))
 	for i, f := range fails {
-		data[i] = FromSubmission(f)
+		data[i] = FromSubmissionPublic(f)
 	}
 	return openapi.FailListResponse{
 		Data: &data,

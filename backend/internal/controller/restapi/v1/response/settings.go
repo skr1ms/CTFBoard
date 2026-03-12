@@ -27,6 +27,8 @@ func FromAppSettings(s *entity.Settings) openapi.AppSettingsResponse {
 		RateLimitScoreboardPerMinute:     ptr(s.RateLimitScoreboardPerMinute),
 		RateLimitVerifyEmailPerMinute:    ptr(s.RateLimitVerifyEmailPerMinute),
 		RateLimitOauthCallbackPerMinute:  ptr(s.RateLimitOAuthCallbackPerMinute),
+		RateLimitOauthRedirectPerMinute:  ptr(s.RateLimitOAuthRedirectPerMinute),
+		RateLimitCommentPerMinute:        ptr(s.RateLimitCommentPerMinute),
 		RegistrationOpen:                 ptr(s.RegistrationOpen),
 		ResendEnabled:                    ptr(s.ResendEnabled),
 		ResendFromEmail:                  ptr(s.ResendFromEmail),

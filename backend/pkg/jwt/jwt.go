@@ -24,6 +24,12 @@ const (
 // UserRoleLookup resolves the current role for a user during token refresh.
 type UserRoleLookup func(ctx context.Context, userID uuid.UUID) (email, name, role string, err error)
 
+// KeyEntry holds a key id and secret for signing/verification (key rotation).
+type KeyEntry struct {
+	Kid    string
+	Secret string
+}
+
 type Service interface {
 	GenerateTokenPair(userID uuid.UUID, email, name, role string) (*TokenPair, error)
 	ValidateAccessToken(ctx context.Context, tokenString string) (*CustomClaims, error)
@@ -31,15 +37,21 @@ type Service interface {
 	RefreshTokens(ctx context.Context, refreshTokenString string) (*TokenPair, error)
 	RevokeRefreshToken(ctx context.Context, refreshTokenString string) error
 	RevokeAccessToken(ctx context.Context, accessTokenString string) error
+	// RevokeAllForUser invalidates every token issued to userID before the
+	// current moment. Tokens with IssuedAt <= the recorded timestamp are
+	// rejected by subsequent ValidateAccessToken / ValidateRefreshToken calls.
+	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
 }
 
 type JWTService struct {
-	accessSecret   []byte
-	refreshSecret  []byte
-	accessTTL      time.Duration
-	refreshTTL     time.Duration
-	revoker        RevocationStore
-	userRoleLookup atomic.Pointer[UserRoleLookup]
+	accessKeysByKid   map[string][]byte
+	refreshKeysByKid  map[string][]byte
+	accessPrimaryKid  string
+	refreshPrimaryKid string
+	accessTTL         time.Duration
+	refreshTTL        time.Duration
+	revoker           RevocationStore
+	userRoleLookup    atomic.Pointer[UserRoleLookup]
 }
 
 type CustomClaims struct {
@@ -59,25 +71,41 @@ type TokenPair struct {
 }
 
 func NewJWTService(
-	accessSecret string,
-	refreshSecret string,
+	accessKeys []KeyEntry,
+	refreshKeys []KeyEntry,
 	accessTTL time.Duration,
 	refreshTTL time.Duration,
 	revoker RevocationStore,
 	userRoleLookup UserRoleLookup,
 ) (*JWTService, error) {
-	if len(accessSecret) < MinSecretLength {
-		return nil, fmt.Errorf("access secret must be at least %d bytes, got %d", MinSecretLength, len(accessSecret))
+	if len(accessKeys) == 0 {
+		return nil, fmt.Errorf("access keys must contain at least one key")
 	}
-	if len(refreshSecret) < MinSecretLength {
-		return nil, fmt.Errorf("refresh secret must be at least %d bytes, got %d", MinSecretLength, len(refreshSecret))
+	if len(refreshKeys) == 0 {
+		return nil, fmt.Errorf("refresh keys must contain at least one key")
+	}
+	accessByKid := make(map[string][]byte, len(accessKeys))
+	for _, k := range accessKeys {
+		if len(k.Secret) < MinSecretLength {
+			return nil, fmt.Errorf("access key %q secret must be at least %d bytes", k.Kid, MinSecretLength)
+		}
+		accessByKid[k.Kid] = []byte(k.Secret)
+	}
+	refreshByKid := make(map[string][]byte, len(refreshKeys))
+	for _, k := range refreshKeys {
+		if len(k.Secret) < MinSecretLength {
+			return nil, fmt.Errorf("refresh key %q secret must be at least %d bytes", k.Kid, MinSecretLength)
+		}
+		refreshByKid[k.Kid] = []byte(k.Secret)
 	}
 	svc := &JWTService{
-		accessSecret:  []byte(accessSecret),
-		refreshSecret: []byte(refreshSecret),
-		accessTTL:     accessTTL,
-		refreshTTL:    refreshTTL,
-		revoker:       revoker,
+		accessKeysByKid:   accessByKid,
+		refreshKeysByKid:  refreshByKid,
+		accessPrimaryKid:  accessKeys[0].Kid,
+		refreshPrimaryKid: refreshKeys[0].Kid,
+		accessTTL:         accessTTL,
+		refreshTTL:        refreshTTL,
+		revoker:           revoker,
 	}
 	if userRoleLookup != nil {
 		svc.userRoleLookup.Store(&userRoleLookup)
@@ -128,13 +156,17 @@ func (j *JWTService) GenerateTokenPair(userID uuid.UUID, email, name, role strin
 	}
 
 	accessToken := jwt.NewWithClaims(jwt.GetSigningMethod(AccessMethod), accessClaims)
-	accessTokenString, err := accessToken.SignedString(j.accessSecret)
+	accessToken.Header["kid"] = j.accessPrimaryKid
+	accessKey := j.accessKeysByKid[j.accessPrimaryKid]
+	accessTokenString, err := accessToken.SignedString(accessKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	refreshToken := jwt.NewWithClaims(jwt.GetSigningMethod(RefreshMethod), refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString(j.refreshSecret)
+	refreshToken.Header["kid"] = j.refreshPrimaryKid
+	refreshKey := j.refreshKeysByKid[j.refreshPrimaryKid]
+	refreshTokenString, err := refreshToken.SignedString(refreshKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -152,7 +184,18 @@ func (j *JWTService) ValidateAccessToken(ctx context.Context, tokenString string
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return j.accessSecret, nil
+		var kid string
+		if k, ok := token.Header["kid"].(string); ok {
+			kid = k
+		}
+		if kid == "" {
+			kid = j.accessPrimaryKid
+		}
+		key, ok := j.accessKeysByKid[kid]
+		if !ok {
+			return nil, fmt.Errorf("unknown access key id %q", kid)
+		}
+		return key, nil
 	}, jwt.WithIssuer(IssuerAstroCTFb))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate access token: %w", err)
@@ -165,7 +208,7 @@ func (j *JWTService) ValidateAccessToken(ctx context.Context, tokenString string
 	if claims.TokenType != TokenTypeAccess {
 		return nil, fmt.Errorf("invalid token type")
 	}
-	if err := j.checkRevocation(ctx, claims.ID); err != nil {
+	if err := j.checkRevocation(ctx, claims); err != nil {
 		return nil, fmt.Errorf("jwt validate access: %w", err)
 	}
 	return claims, nil
@@ -176,7 +219,18 @@ func (j *JWTService) ValidateRefreshToken(ctx context.Context, tokenString strin
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return j.refreshSecret, nil
+		var kid string
+		if k, ok := token.Header["kid"].(string); ok {
+			kid = k
+		}
+		if kid == "" {
+			kid = j.refreshPrimaryKid
+		}
+		key, ok := j.refreshKeysByKid[kid]
+		if !ok {
+			return nil, fmt.Errorf("unknown refresh key id %q", kid)
+		}
+		return key, nil
 	}, jwt.WithIssuer(IssuerAstroCTFb))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate refresh token: %w", err)
@@ -189,24 +243,42 @@ func (j *JWTService) ValidateRefreshToken(ctx context.Context, tokenString strin
 	if claims.TokenType != TokenTypeRefresh {
 		return nil, fmt.Errorf("invalid token type")
 	}
-	if err := j.checkRevocation(ctx, claims.ID); err != nil {
+	if err := j.checkRevocation(ctx, claims); err != nil {
 		return nil, fmt.Errorf("jwt validate refresh: %w", err)
 	}
 	return claims, nil
 }
 
-func (j *JWTService) checkRevocation(ctx context.Context, jti string) error {
-	if jti == "" {
+// checkRevocation checks both the per-JTI revocation list and the per-user
+// revocation timestamp. It returns an error if the token is revoked by either.
+func (j *JWTService) checkRevocation(ctx context.Context, claims *CustomClaims) error {
+	if claims.ID == "" {
 		return fmt.Errorf("token missing jti claim")
 	}
 	if j.revoker == nil {
 		return nil
 	}
-	revoked, err := j.revoker.IsRevoked(ctx, jti)
+	revoked, err := j.revoker.IsRevoked(ctx, claims.ID)
 	if err != nil {
 		return fmt.Errorf("revocation check: %w", err)
 	}
 	if revoked {
+		return fmt.Errorf("token revoked")
+	}
+	// Check per-user revocation (e.g. set on password change).
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return fmt.Errorf("invalid user_id in claims: %w", err)
+	}
+	var issuedAt int64
+	if claims.IssuedAt != nil {
+		issuedAt = claims.IssuedAt.Unix()
+	}
+	userRevoked, err := j.revoker.IsUserRevoked(ctx, userID, issuedAt)
+	if err != nil {
+		return fmt.Errorf("user revocation check: %w", err)
+	}
+	if userRevoked {
 		return fmt.Errorf("token revoked")
 	}
 	return nil
@@ -286,4 +358,19 @@ func (j *JWTService) RevokeAccessToken(ctx context.Context, accessTokenString st
 		}
 	}
 	return j.revoker.Revoke(ctx, claims.ID, ttl)
+}
+
+// RevokeAllForUser invalidates all tokens currently issued to userID by storing
+// a user-level revocation timestamp. Any token whose IssuedAt is <= that
+// timestamp will be rejected by ValidateAccessToken / ValidateRefreshToken.
+// Uses the longer of the two TTLs so the entry outlives all valid tokens.
+func (j *JWTService) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
+	if j.revoker == nil {
+		return nil
+	}
+	ttl := j.refreshTTL
+	if j.accessTTL > ttl {
+		ttl = j.accessTTL
+	}
+	return j.revoker.RevokeUserTokens(ctx, userID, ttl)
 }

@@ -11,10 +11,10 @@ import (
 )
 
 // sfKey returns the singleflight deduplication key for a cache key.
-// Using the raw cache key (without a type suffix) lets Del/Forget use the same
-// key space to cancel in-flight goroutines on invalidation.
-// The same cache key must always map to the same Go type - mixing types for
-// the same key is a programming error regardless.
+// Using the raw key (no type suffix) allows Del/Forget to cancel in-flight loads.
+// The same key must always be used with the same Go type; using the same key
+// with different types (e.g. GetOrLoad[int](key) and GetOrLoad[string](key))
+// can cause "cache: unexpected type" error due to singleflight key collision.
 func sfKey[T any](key string) string {
 	return key
 }
@@ -28,6 +28,9 @@ func New(redis *redis.Client) *Cache {
 	return &Cache{redis: redis}
 }
 
+// GetOrLoad returns cached value or loads via loadFn and caches it. Uses singleflight
+// per key. When calling from a singleflight.Do callback elsewhere, pass
+// context.WithoutCancel(ctx) so one caller's cancellation does not cancel the shared load.
 func GetOrLoad[T any](c *Cache, ctx context.Context, key string, ttl time.Duration, loadFn func() (T, error)) (T, error) {
 	var result T
 
@@ -56,7 +59,7 @@ func GetOrLoad[T any](c *Cache, ctx context.Context, key string, ttl time.Durati
 	cached, ok := v.(T)
 	if !ok {
 		var zero T
-		return zero, fmt.Errorf("cache: unexpected type")
+		return zero, fmt.Errorf("cache: unexpected type for key %q (possible type collision: same key used with different types)", key)
 	}
 	return cached, nil
 }
@@ -82,7 +85,7 @@ func (c *Cache) Set(ctx context.Context, key string, value any, ttl time.Duratio
 	return nil
 }
 
-const deleteByPrefixBatchSize = 100
+const deleteByPrefixBatchSize = 500
 
 // DeleteByPrefix deletes all keys matching prefix (prefix*). Uses SCAN to avoid blocking.
 func (c *Cache) DeleteByPrefix(ctx context.Context, prefix string) error {
@@ -97,8 +100,8 @@ func (c *Cache) DeleteByPrefix(ctx context.Context, prefix string) error {
 			for _, key := range keys {
 				c.sf.Forget(key)
 			}
-			if err := c.redis.Del(ctx, keys...).Err(); err != nil {
-				return fmt.Errorf("cache delete by prefix del: %w", err)
+			if err := c.redis.Unlink(ctx, keys...).Err(); err != nil {
+				return fmt.Errorf("cache delete by prefix unlink: %w", err)
 			}
 		}
 		cursor = nextCursor

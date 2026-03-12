@@ -1,25 +1,25 @@
 /healthcheck:
   get:
-    description: Returns service health status including database connectivity
+    operationId: GetHealthcheck
+    security: []
+    description: Simple liveness check; returns 200 with status/database. For full readiness (db, redis, storage) use GET /health which may return 503.
     responses:
       "200":
-        description: Healthy
+        description: OK
         content:
           application/json:
             schema:
               $ref: '../components/schemas.yml#/HealthcheckResponse'
-      "503":
-        description: Service Unavailable
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/HealthcheckResponse'
-    summary: Health check
+      "400":
+        description: Bad Request
+    summary: Health check (liveness)
     tags:
       - System
 
 /robots.txt:
   get:
+    operationId: GetRobotsTxt
+    security: []
     description: Returns robots.txt content for search engine crawlers
     responses:
       "200":
@@ -32,12 +32,16 @@
                 User-agent: *
                 Disallow: /api/
                 Allow: /
+      "400":
+        description: Bad Request
     summary: Get robots.txt
     tags:
       - System
 
 /tos:
   get:
+    operationId: GetTos
+    security: []
     description: Returns Terms of Service page content
     responses:
       "200":
@@ -46,12 +50,16 @@
           text/html:
             schema:
               type: string
+      "400":
+        description: Bad Request
     summary: Get Terms of Service
     tags:
       - System
 
 /privacy:
   get:
+    operationId: GetPrivacy
+    security: []
     description: Returns Privacy Policy page content
     responses:
       "200":
@@ -60,13 +68,16 @@
           text/html:
             schema:
               type: string
+      "400":
+        description: Bad Request
     summary: Get Privacy Policy
     tags:
       - System
 
 /debug:
   get:
-    description: Returns debug information. Only available in SAFE_MODE (development).
+    operationId: GetDebug
+    description: Returns debug information. Only available in SAFE_MODE (development). Admin only.
     responses:
       "200":
         description: Debug information
@@ -75,14 +86,28 @@
             schema:
               type: object
               additionalProperties: true
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not available (not in SAFE_MODE)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get debug information
     tags:
       - System
 
 /admin/export:
   get:
+    operationId: GetAdminExport
     description: Exports competition data as JSON backup. Admin only.
     parameters:
       - name: include_users
@@ -94,6 +119,10 @@
         schema:
           type: boolean
       - name: include_solves
+        in: query
+        schema:
+          type: boolean
+      - name: include_hint_unlocks
         in: query
         schema:
           type: boolean
@@ -110,18 +139,32 @@
               $ref: '../components/schemas.yml#/BackupData'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Export competition backup
     tags:
       - Admin
 
 /admin/export/zip:
   get:
+    operationId: GetAdminExportZip
     description: Exports competition data as ZIP archive with files. Admin only.
     parameters:
       - name: include_files
@@ -143,18 +186,32 @@
               example: 'attachment; filename="backup-20260201T130000Z.zip"'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Export competition backup as ZIP
     tags:
       - Admin
 
 /admin/reset:
   post:
+    operationId: PostAdminReset
     description: Selectively resets competition data. Admin only.
     requestBody:
       content:
@@ -165,20 +222,38 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Reset competition data
     tags:
       - Admin
 
 /admin/import:
   post:
+    operationId: PostAdminImport
     description: Imports competition data from ZIP backup. Admin only.
     requestBody:
       content:
@@ -215,18 +290,32 @@
               $ref: '../components/schemas.yml#/ImportResult'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Import competition backup
     tags:
       - Admin
 
 /admin/export/csv:
   get:
+    operationId: GetAdminExportCsv
     description: Exports data table as CSV. Admin only.
     parameters:
       - name: table
@@ -250,18 +339,32 @@
               example: 'attachment; filename="users.csv"'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Export table as CSV
     tags:
       - Admin
 
 /admin/import/csv:
   post:
+    operationId: PostAdminImportCsv
     description: Imports data from CSV file. Admin only.
     requestBody:
       content:
@@ -290,12 +393,25 @@
               $ref: '../components/schemas.yml#/CSVImportResult'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Import CSV data
     tags:
       - Admin

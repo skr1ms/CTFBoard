@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // GET /healthcheck: returns 200 OK.
@@ -54,13 +55,14 @@ func TestStatic_Privacy(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "privacy")
 }
 
-// GET /debug: returns 200 when DEBUG_ENABLED=true, otherwise 404.
+// GET /debug: admin-only; returns 200 when DEBUG_ENABLED=true, otherwise 404. Without auth returns 401.
 func TestStatic_Debug(t *testing.T) {
 	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	resp, err := h.Client().GetDebugWithResponse(context.Background())
+	_, tokenAdmin := h.SetupCompetition("debug_test")
+	resp, err := h.Client().GetDebugWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	if resp.StatusCode() == http.StatusNotFound {
 		t.Skip("debug endpoint not enabled (DEBUG_ENABLED != true)")

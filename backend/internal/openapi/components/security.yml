@@ -3,3 +3,9 @@ BearerAuth:
   in: header
   name: Authorization
   type: apiKey
+
+ApiTokenAuth:
+  type: apiKey
+  in: header
+  name: Authorization
+  description: 'API Token authentication. Format: Token {plaintext_token}'

@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 type CommentUseCase struct {
@@ -20,6 +21,7 @@ type CommentDeps struct {
 	CommentRepo   repo.CommentRepository
 	ChallengeRepo repo.ChallengeRepository
 	UserRepo      repo.UserRepository
+	TeamRepo      repo.TeamRepository
 	TM            repo.TransactionManager
 }
 
@@ -56,6 +58,15 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 		}
 		if user.IsBanned {
 			return nil, httperr.ErrUserBanned
+		}
+		if uc.deps.TeamRepo != nil && user.TeamID != nil {
+			team, err := uc.deps.TeamRepo.GetByID(ctx, *user.TeamID)
+			if err != nil {
+				return nil, fmt.Errorf("CommentUseCase - Create - TeamRepo.GetByID: %w", err)
+			}
+			if team.IsBanned {
+				return nil, httperr.ErrTeamBanned
+			}
 		}
 	}
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)

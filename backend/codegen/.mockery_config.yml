@@ -11,6 +11,6 @@ packages:
         config:
           dir: "config/mocks"
           filename: "vault_secret_getter.go"
-          pkgname: "config"
+          pkgname: "mocks"
           structname: "MockVaultSecretGetter"
-          inpackage: true
+          inpackage: false

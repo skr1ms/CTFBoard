@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -10,10 +12,16 @@ import (
 )
 
 // Verify email
-// (GET /auth/verify-email)
-func (h *Server) GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request, params openapi.GetAuthVerifyEmailParams) {
-	err := h.user.EmailUC.VerifyEmail(r.Context(), params.Token)
-	if h.OnError(w, r, err, "GetAuthVerifyEmail", "VerifyEmail") {
+// (POST /auth/verify-email)
+func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	req, ok := helper.DecodeAndValidate[openapi.VerifyEmailRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PostAuthVerifyEmail",
+	)
+	if !ok {
+		return
+	}
+	err := h.user.EmailUC.VerifyEmail(r.Context(), req.Token)
+	if h.OnError(w, r, err, "PostAuthVerifyEmail", "VerifyEmail") {
 		return
 	}
 
@@ -60,7 +68,18 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, newPassword := request.ResetPasswordRequestToParams(&req)
-	err := h.user.EmailUC.ResetPassword(r.Context(), token, newPassword)
+	sum := sha256.Sum256([]byte(token))
+	tokenHash := hex.EncodeToString(sum[:])
+	allowed, err := h.infra.ResetPasswordTokenRateLimiter.Check(r.Context(), tokenHash)
+	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPasswordTokenRateLimit") {
+		return
+	}
+	if !allowed {
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
+		return
+	}
+
+	err = h.user.EmailUC.ResetPassword(r.Context(), token, newPassword)
 	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPassword") {
 		return
 	}

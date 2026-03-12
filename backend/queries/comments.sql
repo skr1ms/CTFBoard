@@ -11,6 +11,10 @@ FROM comments WHERE id = $1;
 SELECT id, user_id, challenge_id, content, created_at, updated_at
 FROM comments WHERE challenge_id = $1 ORDER BY created_at ASC;
 
+-- name: GetAllComments :many
+SELECT id, user_id, challenge_id, content, created_at, updated_at
+FROM comments ORDER BY created_at ASC;
+
 -- name: UpdateComment :exec
 UPDATE comments SET content = $2, updated_at = NOW() WHERE id = $1;
 

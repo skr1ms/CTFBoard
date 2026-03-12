@@ -6,6 +6,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch'
@@ -22,21 +23,28 @@ function NewFolderDialog(props: DialogProps): React.ReactElement {
 
     const [folder, setFolder] = React.useState('')
     const [goTo, setGoTo] = React.useState(false)
+    const [error, setError] = React.useState('')
 
     function handleClose() {
         setFolder('')
         setGoTo(false)
+        setError('')
         close()
     }
 
     async function submit() {
-        let fullPath = getFullPath(folder, context.currentLocation)
-        await Filer.createFolder(fullPath)
-        context.refresh()
-        if (goTo) {
-            context.updateLocation(fullPath)
+        setError('')
+        try {
+            const fullPath = getFullPath(folder, context.currentLocation)
+            await Filer.createFolder(fullPath)
+            context.refresh()
+            if (goTo) {
+                context.updateLocation(fullPath)
+            }
+            handleClose()
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Create folder failed')
         }
-        handleClose()
     }
 
     function isValid() {
@@ -53,6 +61,7 @@ function NewFolderDialog(props: DialogProps): React.ReactElement {
                 Create Folder
             </DialogTitle>
             <DialogContent>
+                {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
                 <TextField
                     required
                     fullWidth

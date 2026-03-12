@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HintRepo struct {
@@ -70,6 +72,17 @@ func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, err
 	return toEntityHint(h), nil
 }
 
+func (r *HintRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
+	h, err := r.q(ctx).GetHintByIDForUpdate(ctx, ID)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, httperr.ErrHintNotFound
+		}
+		return nil, fmt.Errorf("HintRepo - GetByIDForUpdate: %w", err)
+	}
+	return toEntityHint(h), nil
+}
+
 func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error) {
 	rows, err := r.q(ctx).GetHintsByChallengeID(ctx, challengeID)
 	if err != nil {
@@ -78,6 +91,21 @@ func (r *HintRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) 
 	out := make([]*entity.Hint, 0, len(rows))
 	for _, h := range rows {
 		out = append(out, toEntityHint(h))
+	}
+	return out, nil
+}
+
+func (r *HintRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.Hint, error) {
+	if len(challengeIDs) == 0 {
+		return map[uuid.UUID][]*entity.Hint{}, nil
+	}
+	rows, err := r.q(ctx).GetHintsByChallengeIDs(ctx, challengeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("HintRepo - GetByChallengeIDs: %w", err)
+	}
+	out := make(map[uuid.UUID][]*entity.Hint)
+	for _, h := range rows {
+		out[h.ChallengeID] = append(out[h.ChallengeID], toEntityHint(h))
 	}
 	return out, nil
 }
@@ -111,12 +139,22 @@ func (r *HintRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func toEntityHintUnlock(u sqlc.HintUnlock) *entity.HintUnlock {
+func toEntityHintUnlockFromRow(id, hintID, teamID uuid.UUID, unlockedAt pgtype.Timestamptz) *entity.HintUnlock {
 	return &entity.HintUnlock{
-		ID:         u.ID,
-		HintID:     u.HintID,
-		TeamID:     u.TeamID,
-		UnlockedAt: ptrTimeToTime(u.UnlockedAt),
+		ID:         id,
+		HintID:     hintID,
+		TeamID:     teamID,
+		UnlockedAt: ptrTimeToTime(timestamptzToTime(unlockedAt)),
+	}
+}
+
+func toEntityHintUnlockFromBackup(u sqlc.HintUnlock) *entity.HintUnlock {
+	return &entity.HintUnlock{
+		ID:           u.ID,
+		HintID:       u.HintID,
+		TeamID:       u.TeamID,
+		UnlockedAt:   ptrTimeToTime(timestamptzToTime(u.UnlockedAt)),
+		BannedTeamID: u.BannedTeamID,
 	}
 }
 
@@ -131,7 +169,7 @@ func (r *HintRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUI
 		}
 		return nil, fmt.Errorf("HintRepo - GetByTeamAndHint: %w", err)
 	}
-	return toEntityHintUnlock(u), nil
+	return toEntityHintUnlockFromRow(u.ID, u.HintID, u.TeamID, u.UnlockedAt), nil
 }
 
 func (r *HintRepo) GetUnlockedHintIDs(ctx context.Context, teamID, challengeID uuid.UUID) ([]uuid.UUID, error) {
@@ -167,7 +205,7 @@ func (r *HintRepo) GetAll(ctx context.Context, limit, offset int) ([]*entity.Hin
 			ID:          row.ID,
 			HintID:      row.HintID,
 			TeamID:      row.TeamID,
-			UnlockedAt:  ptrTimeToTime(row.UnlockedAt),
+			UnlockedAt:  ptrTimeToTime(timestamptzToTime(row.UnlockedAt)),
 			ChallengeID: row.ChallengeID,
 			HintCost:    int(row.HintCost),
 		})
@@ -192,13 +230,37 @@ func (r *HintRepo) CountByTeamID(ctx context.Context, teamID uuid.UUID) (int, er
 }
 
 func (r *HintRepo) CreateUnlock(ctx context.Context, teamID, hintID uuid.UUID) error {
-	err := r.q(ctx).CreateHintUnlock(ctx, sqlc.CreateHintUnlockParams{
+	_, err := r.q(ctx).CreateHintUnlock(ctx, sqlc.CreateHintUnlockParams{
 		ID:     uuid.New(),
 		HintID: hintID,
 		TeamID: teamID,
 	})
 	if err != nil {
+		if isNoRows(err) {
+			return httperr.ErrHintAlreadyUnlocked
+		}
 		return fmt.Errorf("HintRepo - CreateUnlock: %w", err)
+	}
+	return nil
+}
+
+func (r *HintRepo) DeleteUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).DeleteHintUnlocksByTeamID(ctx, teamID); err != nil {
+		return fmt.Errorf("HintRepo - DeleteUnlocksByTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *HintRepo) SoftBanUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).SoftBanHintUnlocksByTeamID(ctx, teamID); err != nil {
+		return fmt.Errorf("HintRepo - SoftBanUnlocksByTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *HintRepo) RestoreUnlocksByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).RestoreHintUnlocksByBannedTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("HintRepo - RestoreUnlocksByBannedTeamID: %w", err)
 	}
 	return nil
 }
@@ -210,7 +272,19 @@ func (r *HintRepo) GetAllUnlocks(ctx context.Context) ([]*entity.HintUnlock, err
 	}
 	out := make([]*entity.HintUnlock, len(rows))
 	for i, u := range rows {
-		out[i] = toEntityHintUnlock(u)
+		out[i] = toEntityHintUnlockFromRow(u.ID, u.HintID, u.TeamID, u.UnlockedAt)
+	}
+	return out, nil
+}
+
+func (r *HintRepo) GetAllUnlocksForBackup(ctx context.Context) ([]*entity.HintUnlock, error) {
+	rows, err := r.q(ctx).GetHintUnlocksForBackup(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("HintRepo - GetAllUnlocksForBackup: %w", err)
+	}
+	out := make([]*entity.HintUnlock, len(rows))
+	for i, u := range rows {
+		out[i] = toEntityHintUnlockFromBackup(u)
 	}
 	return out, nil
 }
@@ -226,5 +300,5 @@ func (r *HintRepo) GetByTeamAndHintForUpdate(ctx context.Context, teamID, hintID
 		}
 		return nil, fmt.Errorf("HintRepo - GetByTeamAndHintForUpdate: %w", err)
 	}
-	return toEntityHintUnlock(u), nil
+	return toEntityHintUnlockFromRow(u.ID, u.HintID, u.TeamID, u.UnlockedAt), nil
 }

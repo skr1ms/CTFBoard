@@ -4,25 +4,25 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestTagUseCase_Create_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	name, color := "tag1", "#ff0000"
 
-	deps.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
+	d.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
 		assert.Equal(t, name, tag.Name)
 		assert.Equal(t, color, tag.Color)
 	})
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.Create(ctx, name, color)
 
 	assert.NoError(t, err)
@@ -33,14 +33,13 @@ func TestTagUseCase_Create_Success(t *testing.T) {
 
 func TestTagUseCase_Create_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	name, color := "tag1", "#ff0000"
 
-	deps.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
+	d.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.Create(ctx, name, color)
 
 	assert.Error(t, err)
@@ -49,16 +48,15 @@ func TestTagUseCase_Create_Error(t *testing.T) {
 
 func TestTagUseCase_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
-	tag := h.NewTag("t", "#ccc")
+	tag := newTestTag("t", "#ccc")
 	tag.ID = id
 
-	deps.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(tag, nil)
+	d.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(tag, nil)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.GetByID(ctx, id)
 
 	assert.NoError(t, err)
@@ -68,14 +66,13 @@ func TestTagUseCase_GetByID_Success(t *testing.T) {
 
 func TestTagUseCase_GetByID_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
+	d.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.GetByID(ctx, id)
 
 	assert.Error(t, err)
@@ -84,14 +81,13 @@ func TestTagUseCase_GetByID_Error(t *testing.T) {
 
 func TestTagUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Tag{h.NewTag("t1", "#aaa"), h.NewTag("t2", "#bbb")}
+	list := []*entity.Tag{newTestTag("t1", "#aaa"), newTestTag("t2", "#bbb")}
 
-	deps.tagRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
+	d.tagRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.GetAll(ctx)
 
 	assert.NoError(t, err)
@@ -100,13 +96,12 @@ func TestTagUseCase_GetAll_Success(t *testing.T) {
 
 func TestTagUseCase_GetAll_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 
-	deps.tagRepo.EXPECT().GetAll(mock.Anything).Return(nil, assert.AnError)
+	d.tagRepo.EXPECT().GetAll(mock.Anything).Return(nil, assert.AnError)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.GetAll(ctx)
 
 	assert.Error(t, err)
@@ -115,21 +110,20 @@ func TestTagUseCase_GetAll_Error(t *testing.T) {
 
 func TestTagUseCase_Update_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
-	tag := h.NewTag("old", "#000")
+	tag := newTestTag("old", "#000")
 	tag.ID = id
 	name, color := "new", "#fff"
 
-	deps.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(tag, nil)
-	deps.tagRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
+	d.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(tag, nil)
+	d.tagRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
 		assert.Equal(t, name, tag.Name)
 		assert.Equal(t, color, tag.Color)
 	})
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.Update(ctx, id, name, color)
 
 	assert.NoError(t, err)
@@ -138,14 +132,13 @@ func TestTagUseCase_Update_Success(t *testing.T) {
 
 func TestTagUseCase_Update_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
+	d.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	got, err := uc.Update(ctx, id, "name", "color")
 
 	assert.Error(t, err)
@@ -154,14 +147,13 @@ func TestTagUseCase_Update_Error(t *testing.T) {
 
 func TestTagUseCase_Delete_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.tagRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
+	d.tagRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	err := uc.Delete(ctx, id)
 
 	assert.NoError(t, err)
@@ -169,14 +161,13 @@ func TestTagUseCase_Delete_Success(t *testing.T) {
 
 func TestTagUseCase_Delete_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
+	d := newChallengeTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.tagRepo.EXPECT().Delete(mock.Anything, id).Return(assert.AnError)
+	d.tagRepo.EXPECT().Delete(mock.Anything, id).Return(assert.AnError)
 
-	uc := h.CreateTagUseCase()
+	uc := d.createTagUseCase()
 	err := uc.Delete(ctx, id)
 
 	assert.Error(t, err)

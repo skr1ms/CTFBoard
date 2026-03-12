@@ -3,8 +3,9 @@ package helper
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetMyTeam(token string, expectStatus int) *openapi.GetTeamsMyResponse {
@@ -24,7 +25,7 @@ func (h *E2EHelper) CreateTeam(token, name string, expectStatus int) {
 
 func (h *E2EHelper) CreateSoloTeam(token string, expectStatus int) {
 	h.t.Helper()
-	resp, err := h.client.PostTeamsSoloWithResponse(context.Background(), openapi.PostTeamsSoloJSONRequestBody{Name: "Solo"}, WithBearerToken(token))
+	resp, err := h.client.PostTeamsSoloWithResponse(context.Background(), openapi.PostTeamsSoloJSONRequestBody{}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "create solo team")
 }
@@ -99,7 +100,15 @@ func (h *E2EHelper) GetAwardsByTeam(token, teamID string, expectStatus int) *ope
 
 func (h *E2EHelper) BanTeam(token, teamID, reason string, expectStatus int) {
 	h.t.Helper()
-	resp, err := h.client.PostAdminTeamsIDBanWithResponse(context.Background(), teamID, openapi.PostAdminTeamsIDBanJSONRequestBody{Reason: reason}, WithBearerToken(token))
+	h.BanTeamWithOptions(token, teamID, reason, false, expectStatus)
+}
+
+func (h *E2EHelper) BanTeamWithOptions(token, teamID, reason string, banMembers bool, expectStatus int) {
+	h.t.Helper()
+	resp, err := h.client.PostAdminTeamsIDBanWithResponse(context.Background(), teamID, openapi.PostAdminTeamsIDBanJSONRequestBody{
+		Reason:     reason,
+		BanMembers: &banMembers,
+	}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "ban team")
 }
@@ -113,7 +122,7 @@ func (h *E2EHelper) UnbanTeam(token, teamID string, expectStatus int) {
 
 func (h *E2EHelper) SetTeamHidden(token, teamID string, hidden bool, expectStatus int) {
 	h.t.Helper()
-	resp, err := h.client.PatchAdminTeamsIDHiddenWithResponse(context.Background(), teamID, openapi.PatchAdminTeamsIDHiddenJSONRequestBody{Hidden: &hidden}, WithBearerToken(token))
+	resp, err := h.client.PatchAdminTeamsIDHiddenWithResponse(context.Background(), teamID, openapi.PatchAdminTeamsIDHiddenJSONRequestBody{Hidden: hidden}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "set team hidden")
 }

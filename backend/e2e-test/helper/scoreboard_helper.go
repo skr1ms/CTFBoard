@@ -4,9 +4,10 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetScoreboard(token string) *openapi.GetScoreboardResponse {

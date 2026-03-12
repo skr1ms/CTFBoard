@@ -3,8 +3,8 @@
 // # Connection Protocol
 //
 // Clients connect to GET /ws. The server upgrades the HTTP connection to WebSocket
-// using the coder/websocket library. No authentication is required for the WS
-// connection itself (events are public scoreboard data and notifications).
+// using the coder/websocket library. Authentication (JWT Bearer or API Token) is
+// required; unauthenticated connections receive 401.
 //
 // On successful connection, the server sends a "connected" event:
 //

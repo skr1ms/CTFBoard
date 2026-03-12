@@ -1,5 +1,6 @@
 "/admin/users":
   get:
+    operationId: GetAdminUsers
     description: Returns list of all users with filtering. Admin only.
     parameters:
       - name: q
@@ -33,14 +34,24 @@
               $ref: '../components/schemas.yml#/AdminUserListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List users (admin)
     tags:
       - Admin
   post:
+    operationId: PostAdminUsers
     description: Creates a new user. Admin only.
     requestBody:
       content:
@@ -57,20 +68,38 @@
               $ref: '../components/schemas.yml#/AdminUserResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
         description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create user (admin)
     tags:
       - Admin
 
 "/admin/users/{ID}":
   patch:
+    operationId: PatchAdminUsersID
     description: Updates user data. Admin only.
     parameters:
       - name: ID
@@ -93,18 +122,36 @@
               $ref: '../components/schemas.yml#/AdminUserResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update user (admin)
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminUsersID
     description: Deletes a user. Admin only.
     parameters:
       - name: ID
@@ -115,20 +162,40 @@
     responses:
       "204":
         description: No Content
+      "400":
+        description: Bad Request (e.g. self-delete not allowed)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete user (admin)
     tags:
       - Admin
 
 "/admin/users/{ID}/ban":
   post:
+    operationId: PostAdminUsersIDBan
     description: Bans a user. Admin only.
     parameters:
       - name: ID
@@ -145,20 +212,42 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Ban user
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminUsersIDBan
     description: Unbans a user. Admin only.
     parameters:
       - name: ID
@@ -171,18 +260,32 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Unban user
     tags:
       - Admin
 
 /users:
   get:
+    operationId: GetUsers
     description: Returns paginated list of users (admin or public depending on settings)
     parameters:
       - name: q
@@ -209,15 +312,21 @@
               $ref: '../components/schemas.yml#/UserListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List users
     tags:
       - Users
 
 "/users/{ID}":
   get:
-    description: Returns public information about user and their solved challenges
+    operationId: GetUsersID
+    description: Returns public information about user and their solved challenges. Requires authentication (scoreboard visibility applies).
     parameters:
       - description: User ID
         in: path
@@ -232,18 +341,34 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/UserProfileResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (scoreboard visibility)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
         content:
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user profile
     tags:
       - Users
 
 "/users/me/solves":
   get:
+    operationId: GetUsersMeSolves
     description: Returns solves for current user
     responses:
       "200":
@@ -256,14 +381,20 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my solves
     tags:
       - Users
 
 "/users/{ID}/solves":
   get:
+    operationId: GetUsersIDSolves
     description: Returns solves for a user
     parameters:
       - name: ID
@@ -282,14 +413,32 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not owner and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user solves
     tags:
       - Users
 
 "/users/me/fails":
   get:
+    operationId: GetUsersMeFails
     description: Returns failed submissions for current user (paginated)
     parameters:
       - name: page
@@ -309,14 +458,20 @@
               $ref: '../components/schemas.yml#/FailListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my fails
     tags:
       - Users
 
 "/users/{ID}/fails":
   get:
+    operationId: GetUsersIDFails
     description: Returns failed submissions for a user (paginated)
     parameters:
       - name: ID
@@ -341,14 +496,32 @@
               $ref: '../components/schemas.yml#/FailListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not owner and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user fails
     tags:
       - Users
 
 "/users/me/awards":
   get:
+    operationId: GetUsersMeAwards
     description: Returns awards for current user
     responses:
       "200":
@@ -361,14 +534,20 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my awards
     tags:
       - Users
 
 "/users/{ID}/awards":
   get:
+    operationId: GetUsersIDAwards
     description: Returns awards for a user
     parameters:
       - name: ID
@@ -387,14 +566,32 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not owner and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user awards
     tags:
       - Users
 
 "/users/me/submissions":
   get:
+    operationId: GetUsersMeSubmissions
     description: Returns submissions (all attempts) for the current user
     parameters:
       - name: page
@@ -416,14 +613,20 @@
               $ref: '../components/schemas.yml#/SubmissionListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my submissions
     tags:
       - Users
 
 "/admin/users/{ID}/tracking":
   get:
+    operationId: GetAdminUsersIDTracking
     description: Returns list of IP addresses tracked for a user. Admin only.
     parameters:
       - name: ID
@@ -450,18 +653,32 @@
               $ref: '../components/schemas.yml#/TrackingListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user tracking (admin)
     tags:
       - Admin
 
 "/admin/users/{ID}/missing-challenges":
   get:
+    operationId: GetAdminUsersIDMissingChallenges
     description: Returns list of challenges that the user has not solved yet. Admin only.
     parameters:
       - name: ID
@@ -480,12 +697,25 @@
                 $ref: '../components/schemas.yml#/ChallengeResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user missing challenges (admin)
     tags:
       - Admin

@@ -8,21 +8,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func newTestJWTService(t *testing.T) *jwt.JWTService {
 	t.Helper()
-	svc, err := jwt.NewJWTService("access-secret-min-32-chars-long!", "refresh-secret-min-32-chars-long", time.Hour, time.Hour, nil, nil)
+	svc, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: "access-secret-min-32-chars-long!"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "refresh-secret-min-32-chars-long"}},
+		time.Hour, time.Hour, nil, nil)
 	require.NoError(t, err)
 	return svc
 }
@@ -45,14 +49,14 @@ func TestAuth_BearerSuccess(t *testing.T) {
 	t.Parallel()
 	svc := newTestJWTService(t)
 	userID := uuid.New()
-	token, err := svc.GenerateTokenPair(userID, "a@b.c", "Name", entity.RoleAdmin)
+	token, err := svc.GenerateTokenPair(userID, "a@b.c", "Name", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	r := chi.NewRouter()
 	r.Use(Auth(svc, nil, nil, logger.Noop()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, userID.String(), GetUserID(r.Context()))
-		assert.Equal(t, entity.RoleAdmin, GetUserRole(r.Context()))
+		assert.Equal(t, string(entity.RoleAdmin), GetUserRole(r.Context()))
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -119,7 +123,7 @@ func TestAdmin_Error(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), UserRoleKey, entity.RoleUser)
+			ctx := context.WithValue(r.Context(), UserRoleKey, string(entity.RoleUser))
 			ctx = context.WithValue(ctx, httputil.UserIDKey, uuid.New().String())
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -153,7 +157,7 @@ func TestAuth_TokenSuccess(t *testing.T) {
 	r.Use(Auth(nil, apiAuth, userGet, logger.Noop()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, userID.String(), GetUserID(r.Context()))
-		assert.Equal(t, entity.RoleUser, GetUserRole(r.Context()))
+		assert.Equal(t, string(entity.RoleUser), GetUserRole(r.Context()))
 		w.WriteHeader(http.StatusOK)
 	})
 

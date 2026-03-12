@@ -41,7 +41,11 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	if !ok {
 		return
 	}
-	comment, err := h.challenge.CommentUC.Create(r.Context(), user.ID, challengeIDParsed, request.CreateCommentRequestToParams(&req))
+	content, err := request.CreateCommentRequestToParams(&req)
+	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "CreateCommentRequestToParams") {
+		return
+	}
+	comment, err := h.challenge.CommentUC.Create(r.Context(), user.ID, challengeIDParsed, content)
 	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Create") {
 		return
 	}

@@ -2,6 +2,7 @@ package helper
 
 import (
 	"bytes"
+	"context"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -34,7 +35,7 @@ func newMultipartRequest(t *testing.T, build func(w *multipart.Writer)) *http.Re
 	w := multipart.NewWriter(&buf)
 	build(w)
 	require.NoError(t, w.Close())
-	req, err := http.NewRequest(http.MethodPost, "/", &buf)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/", &buf)
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	require.NoError(t, req.ParseMultipartForm(32<<20))
@@ -47,7 +48,7 @@ func TestDecodeMultipartForm_StringField(t *testing.T) {
 		require.NoError(t, w.WriteField("name", "hello"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "hello", dst.Name)
 }
 
@@ -57,7 +58,7 @@ func TestDecodeMultipartForm_StringPtrField(t *testing.T) {
 		require.NoError(t, w.WriteField("name_ptr", "world"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.NamePtr)
 	assert.Equal(t, "world", *dst.NamePtr)
 }
@@ -68,9 +69,19 @@ func TestDecodeMultipartForm_BoolPtrField_True(t *testing.T) {
 		require.NoError(t, w.WriteField("active", "true"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.Active)
 	assert.True(t, *dst.Active)
+}
+
+func TestDecodeMultipartForm_BoolPtrField_Invalid(t *testing.T) {
+	t.Parallel()
+	req := newMultipartRequest(t, func(w *multipart.Writer) {
+		require.NoError(t, w.WriteField("active", "invalid"))
+	})
+	var dst multipartTestStruct
+	err := DecodeMultipartForm(req, &dst, nil)
+	require.Error(t, err)
 }
 
 func TestDecodeMultipartForm_BoolPtrField_False(t *testing.T) {
@@ -79,7 +90,7 @@ func TestDecodeMultipartForm_BoolPtrField_False(t *testing.T) {
 		require.NoError(t, w.WriteField("active", "false"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.Active)
 	assert.False(t, *dst.Active)
 }
@@ -90,18 +101,18 @@ func TestDecodeMultipartForm_SkipsJSONDashTag(t *testing.T) {
 		require.NoError(t, w.WriteField("-", "should-be-ignored"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Empty(t, dst.Ignored)
 }
 
 func TestDecodeMultipartForm_NoMultipartForm_IsNoOp(t *testing.T) {
 	t.Parallel()
-	req, err := http.NewRequest(http.MethodPost, "/", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
 	require.NoError(t, err)
 
 	var dst multipartTestStruct
 	dst.Name = "original"
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "original", dst.Name)
 }
 
@@ -117,7 +128,7 @@ func TestDecodeMultipartForm_FileField(t *testing.T) {
 		require.NoError(t, err)
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.NotEmpty(t, dst.File.Filename())
 }
 
@@ -127,7 +138,7 @@ func TestDecodeMultipartForm_NamedStringType(t *testing.T) {
 		require.NoError(t, w.WriteField("mode", "ctf"))
 	})
 	var dst multipartEnumStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, namedStringType("ctf"), dst.Mode)
 }
 
@@ -137,7 +148,7 @@ func TestDecodeMultipartForm_NamedStringPtrType(t *testing.T) {
 		require.NoError(t, w.WriteField("mode_ptr", "jeopardy"))
 	})
 	var dst multipartEnumStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.ModePtr)
 	assert.Equal(t, namedStringType("jeopardy"), *dst.ModePtr)
 }
@@ -150,7 +161,7 @@ func TestDecodeMultipartForm_MultipleFields(t *testing.T) {
 		require.NoError(t, w.WriteField("name_ptr", "bob"))
 	})
 	var dst multipartTestStruct
-	DecodeMultipartForm(req, &dst)
+	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "alice", dst.Name)
 	require.NotNil(t, dst.Active)
 	assert.True(t, *dst.Active)

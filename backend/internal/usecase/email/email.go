@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const emailTokenBytes = 32
@@ -149,26 +150,27 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - UserRepo.GetByEmail: %w", err)
 	}
 
-	if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypePasswordReset); err != nil {
-		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - TokenRepo.DeleteByUserAndType: %w", err)
-	}
-
 	token, err := generateToken(emailTokenBytes)
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - generateToken: %w", err)
 	}
-
 	hashedToken := hashToken(token)
-
 	vt := &entity.VerificationToken{
 		UserID:    user.ID,
 		Token:     hashedToken,
 		Type:      entity.TokenTypePasswordReset,
 		ExpiresAt: time.Now().Add(uc.deps.ResetTTL),
 	}
-
-	if err := uc.deps.TokenRepo.Create(ctx, vt); err != nil {
-		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - TokenRepo.Create: %w", err)
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypePasswordReset); err != nil {
+			return fmt.Errorf("TokenRepo.DeleteByUserAndType: %w", err)
+		}
+		if err := uc.deps.TokenRepo.Create(ctx, vt); err != nil {
+			return fmt.Errorf("TokenRepo.Create: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail: %w", err)
 	}
 
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", uc.deps.FrontendURL, token)

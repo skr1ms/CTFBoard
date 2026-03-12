@@ -9,6 +9,9 @@ import (
 )
 
 func FromTeam(t *entity.Team) openapi.TeamResponse {
+	if t == nil {
+		return openapi.TeamResponse{}
+	}
 	return openapi.TeamResponse{
 		ID:          ptr(t.ID.String()),
 		Name:        ptr(t.Name),
@@ -19,6 +22,9 @@ func FromTeam(t *entity.Team) openapi.TeamResponse {
 }
 
 func FromTeamWithoutToken(t *entity.Team) openapi.TeamResponse {
+	if t == nil {
+		return openapi.TeamResponse{}
+	}
 	return openapi.TeamResponse{
 		ID:        ptr(t.ID.String()),
 		Name:      ptr(t.Name),
@@ -28,9 +34,14 @@ func FromTeamWithoutToken(t *entity.Team) openapi.TeamResponse {
 }
 
 func FromTeamWithMembers(t *entity.Team, members []*entity.User, minTeamSize int, meetsMinSize bool) openapi.TeamWithMembersResponse {
-	memberResponses := make([]openapi.UserResponse, len(members))
-	for i, member := range members {
-		memberResponses[i] = FromUser(member)
+	if t == nil {
+		return openapi.TeamWithMembersResponse{}
+	}
+	memberResponses := make([]openapi.UserResponse, 0, len(members))
+	for _, member := range members {
+		if member != nil {
+			memberResponses = append(memberResponses, FromUser(member))
+		}
 	}
 
 	res := openapi.TeamWithMembersResponse{

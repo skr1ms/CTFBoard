@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/coder/websocket"
+	"github.com/go-chi/chi/v5"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
-	"github.com/coder/websocket"
-	"github.com/go-chi/chi/v5"
 )
 
 type Controller struct {
@@ -35,6 +37,12 @@ func (c *Controller) RegisterRoutes(router chi.Router) {
 }
 
 func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
+	user, ok := middleware.GetUser(r.Context())
+	if !ok || user == nil {
+		httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
+		return
+	}
+
 	opts := &websocket.AcceptOptions{
 		OriginPatterns: c.allowedOrigins,
 	}
@@ -45,8 +53,9 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if slices.Contains(c.allowedOrigins, "*") {
-		opts.InsecureSkipVerify = true
-		c.logger.Warn("ws - HandleWS - InsecureSkipVerify is enabled, configure ALLOWED_ORIGINS for production")
+		c.logger.Error("ws - HandleWS - ALLOWED_ORIGINS=* is not allowed for security")
+		httputil.HandleError(w, r, httperr.ErrWebsocketWildcardOriginNotAllowed)
+		return
 	}
 
 	conn, err := websocket.Accept(w, r, opts)

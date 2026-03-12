@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 const maxFieldTextLen = 500
@@ -43,8 +45,12 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 	}
 	for _, field := range fields {
 		if field.Required {
-			if _, ok := values[field.ID]; !ok {
+			val, ok := values[field.ID]
+			if !ok {
 				return httperr.NewValidationErrorf("required field missing")
+			}
+			if field.FieldType == entity.FieldTypeText && val == "" {
+				return httperr.NewValidationErrorf("required field cannot be empty")
 			}
 		}
 	}
@@ -62,7 +68,7 @@ func (v *FieldValidator) validateValue(field *entity.Field, value string) error 
 	case entity.FieldTypeText:
 		return v.validateText(value)
 	default:
-		return httperr.NewValidationErrorf("unsupported field type: %s", string(field.FieldType))
+		return httperr.NewValidationErrorf("unsupported field type")
 	}
 }
 
@@ -84,6 +90,7 @@ func (v *FieldValidator) validateSelect(value string, options []string) error {
 	if len(options) == 0 {
 		return httperr.NewValidationErrorf("select field has no options configured")
 	}
+	value = strings.TrimSpace(value)
 	for _, opt := range options {
 		if opt == value {
 			return nil

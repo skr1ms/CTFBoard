@@ -49,7 +49,7 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 	}
 
 	if user.TeamID == nil {
-		h.OnError(w, r, helper.ErrUserMustBeInTeam, "PostChallengesChallengeIDHintsHintIDUnlock", "RequireTeam")
+		h.OnError(w, r, helper.ErrUserNotInTeam, "PostChallengesChallengeIDHintsHintIDUnlock", "RequireTeam")
 		return
 	}
 
@@ -76,7 +76,11 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 		return
 	}
 
-	content, cost, orderIndex := request.CreateHintRequestToParams(&req)
+	content, cost, orderIndex, err := request.CreateHintRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PostAdminChallengesChallengeIDHints", "CreateHintRequestToParams")
+		return
+	}
 	hint, err := h.challenge.HintUC.Create(r.Context(), challengeIDParsed, content, cost, orderIndex)
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDHints", "Create") {
 		return
@@ -100,7 +104,11 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	content, cost, orderIndex := request.UpdateHintRequestToParams(&req)
+	content, cost, orderIndex, err := request.UpdateHintRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PutAdminHintsID", "UpdateHintRequestToParams")
+		return
+	}
 	hint, err := h.challenge.HintUC.Update(r.Context(), hintIDParsed, content, cost, orderIndex)
 	if h.OnError(w, r, err, "PutAdminHintsID", "Update") {
 		return

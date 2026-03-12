@@ -3,9 +3,10 @@ package cache
 import (
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 func TestKeyScoreboardBracket_Success(t *testing.T) {

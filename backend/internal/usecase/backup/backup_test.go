@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mocks"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewBackupUseCase(t *testing.T) {
@@ -38,6 +39,8 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 	comp := &entity.Competition{Name: "Test", Mode: "flexible"}
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
@@ -76,6 +79,8 @@ func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
 	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
 
 	storage := mocks.NewMockStorageProvider(t)
 
@@ -103,6 +108,8 @@ func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 	comp := &entity.Competition{Name: "Test", Mode: "flexible"}
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
 	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 
 	deps := BackupDeps{
@@ -134,6 +141,8 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
 	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
@@ -175,13 +184,22 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 		return fn(ctx)
 	}).Once()
 	backupRepo.EXPECT().ImportCompetition(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportTags(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportChallenges(mock.Anything, mock.Anything).Return(nil).Once()
-	backupRepo.EXPECT().ImportTeams(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportChallengeTags(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportBrackets(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportUsers(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportTeams(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().UpdateUserTeamIDs(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportAwards(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportSolves(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportHintUnlocks(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportFileMetadata(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportChallengeRequirements(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportSolutions(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportComments(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportFields(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportFieldValues(mock.Anything, mock.Anything).Return(nil).Once()
 	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 
 	deps := BackupDeps{

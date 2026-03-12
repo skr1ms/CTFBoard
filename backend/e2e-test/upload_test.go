@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // GET /files/{ID}/download: non-existent file returns 404.
@@ -148,22 +149,22 @@ func TestFile_GetDownload_NotFound(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }
 
-// POST /admin/challenges/{ID}/files: non-existent challenge returns 500.
+// POST /admin/challenges/{ID}/files: non-existent challenge returns 404.
 func TestChallenge_UploadFile_NotFound(t *testing.T) {
 	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_upload_404")
-	h.UploadChallengeFileExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "a.txt", "content", http.StatusInternalServerError)
+	h.UploadChallengeFileExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "a.txt", "content", http.StatusNotFound)
 }
 
-// POST /admin/challenges/{ID}/hints: non-existent challenge returns 500.
+// POST /admin/challenges/{ID}/hints: non-existent challenge returns 404.
 func TestChallenge_CreateHint_NotFound(t *testing.T) {
 	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hint_create_404")
-	h.CreateHintExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "hint", 0, http.StatusInternalServerError)
+	h.CreateHintExpectStatus(tokenAdmin, "00000000-0000-0000-0000-000000000000", "hint", 0, http.StatusNotFound)
 }

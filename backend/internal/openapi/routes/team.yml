@@ -1,5 +1,6 @@
 /teams:
   get:
+    operationId: GetTeams
     description: Returns paginated list of teams
     parameters:
       - name: q
@@ -26,12 +27,18 @@
               $ref: '../components/schemas.yml#/TeamListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List teams
     tags:
       - Teams
   post:
+    operationId: PostTeams
     description: Creates new team. User becomes captain. Returns 200 with ConfirmationRequired if the operation would affect existing data and confirmation is needed; returns 201 with TeamResponse on success.
     requestBody:
       content:
@@ -73,12 +80,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create team
     tags:
       - Teams
 
 /teams/{ID}:
   get:
+    operationId: GetTeamsID
     description: Returns team information by ID
     parameters:
       - description: Team ID
@@ -100,6 +109,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (scoreboard visibility)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
         content:
@@ -108,12 +123,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team by ID
     tags:
       - Teams
 
 /teams/join:
   post:
+    operationId: PostTeamsJoin
     description: Joins team by invite token
     requestBody:
       content:
@@ -153,22 +170,26 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "410":
+        description: Gone (invite token expired)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Join team
     tags:
       - Teams
 
 /teams/leave:
   post:
+    operationId: PostTeamsLeave
     description: Leave current team
     responses:
-      "200":
-        description: OK
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/MessageResponse'
+      "204":
+        description: No Content
       "400":
         description: Bad Request
         content:
@@ -189,12 +210,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Leave team
     tags:
       - Teams
 
 /teams/my:
   get:
+    operationId: GetTeamsMy
     description: Returns information about current user's team. If no team, returns 404.
     responses:
       "200":
@@ -217,12 +240,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my team
     tags:
       - Teams
 
 /teams/me:
   patch:
+    operationId: PatchTeamsMe
     description: Updates current user's team. Captain only.
     requestBody:
       content:
@@ -245,24 +270,34 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not captain)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
         description: Conflict (name taken)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update my team
     tags:
       - Teams
   delete:
+    operationId: DeleteTeamsMe
     description: Disbands the current team (Captain only)
     responses:
-      "200":
-        description: OK
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/MessageResponse'
+      "204":
+        description: No Content
       "401":
         description: Unauthorized
         content:
@@ -277,22 +312,24 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Disband team
     tags:
       - Teams
 
 /teams/solo:
   post:
+    operationId: PostTeamsSolo
     description: Creates a solo team for the user (Select Solo Mode)
     requestBody:
       content:
         application/json:
           schema:
-            $ref: '../components/schemas.yml#/CreateTeamRequest'
-      description: Confirm reset
+            $ref: '../components/schemas.yml#/CreateSoloTeamRequest'
+      description: Optional confirm_reset when user already has a solo team
     responses:
-      "200":
-        description: OK
+      "201":
+        description: Created
         content:
           application/json:
             schema:
@@ -305,12 +342,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create solo team
     tags:
       - Teams
 
 /teams/members/{ID}:
   delete:
+    operationId: DeleteTeamsMembersID
     description: Kicks a member from the team (Captain only)
     parameters:
       - description: Member User ID
@@ -320,12 +359,8 @@
         schema:
           type: string
     responses:
-      "200":
-        description: OK
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/MessageResponse'
+      "204":
+        description: No Content
       "401":
         description: Unauthorized
         content:
@@ -346,12 +381,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Kick member
     tags:
       - Teams
 
 /teams/transfer-captain:
   post:
+    operationId: PostTeamsTransferCaptain
     description: Transfer team captain role
     requestBody:
       content:
@@ -393,12 +430,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Transfer captainship
     tags:
       - Teams
 
 "/teams/me/invite":
   get:
+    operationId: GetTeamsMeInvite
     description: Returns the team invite URL/token. Captain only.
     responses:
       "200":
@@ -409,18 +448,66 @@
               $ref: '../components/schemas.yml#/TeamInviteResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not captain)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found (no team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team invite token
+    tags:
+      - Teams
+  post:
+    operationId: PostTeamsMeInvite
+    description: Regenerates the team invite token and sets a new expiration (e.g. 7 days). Captain only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/TeamInviteResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not captain)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (no team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Regenerate team invite token
     tags:
       - Teams
 
 "/teams/me/solves":
   get:
+    operationId: GetTeamsMeSolves
     description: Returns solves for current user's team
     responses:
       "200":
@@ -433,19 +520,35 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (user must be in a team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found (no team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my team solves
     tags:
       - Teams
 
-"/teams/{ID}/solves":
+"/teams/solves/{teamID}":
   get:
+    operationId: GetTeamsIDSolves
     description: Returns solves for a team
     parameters:
-      - name: ID
+      - name: teamID
         in: path
         required: true
         schema:
@@ -461,14 +564,32 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not in team and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (team not found)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team solves
     tags:
       - Teams
 
 "/teams/me/fails":
   get:
+    operationId: GetTeamsMeFails
     description: Returns failed submissions for current user's team (paginated)
     parameters:
       - name: page
@@ -488,19 +609,35 @@
               $ref: '../components/schemas.yml#/FailListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (user must be in a team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found (no team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my team fails
     tags:
       - Teams
 
-"/teams/{ID}/fails":
+"/teams/fails/{teamID}":
   get:
+    operationId: GetTeamsIDFails
     description: Returns failed submissions for a team (paginated)
     parameters:
-      - name: ID
+      - name: teamID
         in: path
         required: true
         schema:
@@ -522,14 +659,32 @@
               $ref: '../components/schemas.yml#/FailListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not in team and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (team not found)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team fails
     tags:
       - Teams
 
 "/teams/me/awards":
   get:
+    operationId: GetTeamsMeAwards
     description: Returns awards for current user's team
     responses:
       "200":
@@ -542,19 +697,35 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (user must be in a team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found (no team)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get my team awards
     tags:
       - Teams
 
-"/teams/{ID}/awards":
+"/teams/awards/{teamID}":
   get:
+    operationId: GetTeamsIDAwards
     description: Returns awards for a team
     parameters:
-      - name: ID
+      - name: teamID
         in: path
         required: true
         schema:
@@ -570,14 +741,32 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (not in team and not admin)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (team not found)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team awards
     tags:
       - Teams
 
 "/admin/teams":
   get:
+    operationId: GetAdminTeams
     description: Returns list of all teams with filtering. Admin only.
     parameters:
       - name: q
@@ -604,16 +793,26 @@
               $ref: '../components/schemas.yml#/AdminTeamListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List all teams (admin)
     tags:
       - Admin
 
 "/admin/teams/{ID}":
   patch:
+    operationId: PatchAdminTeamsID
     description: Updates team data. Admin only.
     parameters:
       - name: ID
@@ -636,18 +835,36 @@
               $ref: '../components/schemas.yml#/AdminTeamResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update team (admin)
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminTeamsID
     description: Deletes a team. Admin only.
     parameters:
       - name: ID
@@ -660,18 +877,32 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete team (admin)
     tags:
       - Admin
 
 "/admin/teams/{ID}/members":
   get:
+    operationId: GetAdminTeamsIDMembers
     description: Returns members of a team. Admin only.
     parameters:
       - name: ID
@@ -690,16 +921,30 @@
                 $ref: '../components/schemas.yml#/AdminUserResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team members (admin)
     tags:
       - Admin
   post:
+    operationId: PostAdminTeamsIDMembers
     description: Adds a user to a team. Admin only.
     parameters:
       - name: ID
@@ -716,22 +961,44 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Add member to team (admin)
     tags:
       - Admin
 
 "/admin/teams/{ID}/members/{userID}":
   delete:
+    operationId: DeleteAdminTeamsIDMembersUserID
     description: Removes a user from a team. Admin only.
     parameters:
       - name: ID
@@ -749,18 +1016,32 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Remove member from team (admin)
     tags:
       - Admin
 
 "/admin/teams/{ID}/missing-challenges":
   get:
+    operationId: GetAdminTeamsIDMissingChallenges
     description: Returns list of challenges that the team has not solved yet. Admin only.
     parameters:
       - name: ID
@@ -779,18 +1060,32 @@
                 $ref: '../components/schemas.yml#/ChallengeResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team missing challenges (admin)
     tags:
       - Admin
 
 "/admin/teams/{ID}/bracket":
   patch:
+    operationId: PatchAdminTeamsIDBracket
     description: Sets team bracket (category). Admin only.
     parameters:
       - name: ID
@@ -807,22 +1102,44 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/TeamResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Set team bracket
     tags:
       - Admin
 
 "/admin/teams/{ID}/ban":
   post:
+    operationId: PostAdminTeamsIDBan
     description: Bans a team. Admin only.
     parameters:
       - name: ID
@@ -845,18 +1162,36 @@
               $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Ban team
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminTeamsIDBan
     description: Unbans a team. Admin only.
     parameters:
       - name: ID
@@ -865,26 +1200,36 @@
         schema:
           type: string
     responses:
-      "200":
-        description: OK
+      "204":
+        description: No Content
+      "401":
+        description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '../components/schemas.yml#/MessageResponse'
-      "401":
-        description: Unauthorized
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Unban team
     tags:
       - Admin
 
 "/admin/teams/{ID}/hidden":
   patch:
+    operationId: PatchAdminTeamsIDHidden
     description: Sets team hidden status. Admin only.
     parameters:
       - name: ID
@@ -907,14 +1252,31 @@
               $ref: '../components/schemas.yml#/HiddenStatus'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Set team hidden status
     tags:
       - Admin

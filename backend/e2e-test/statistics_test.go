@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // GET /statistics/general: returns user_count, team_count, challenge_count, solve_count (public, no auth).
 func TestStatistics_General(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -73,7 +73,6 @@ func TestStatistics_Scoreboard(t *testing.T) {
 
 // GET /statistics/scoreboard: no auth returns 401.
 func TestStatistics_Scoreboard_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_sb_401")
@@ -85,7 +84,6 @@ func TestStatistics_Scoreboard_Unauthorized(t *testing.T) {
 
 // GET /scoreboard/graph: returns range and teams with timelines; optional top query; public.
 func TestStatistics_ScoreboardGraph(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -106,7 +104,6 @@ func TestStatistics_ScoreboardGraph(t *testing.T) {
 
 // GET /scoreboard/graph: no auth returns 401.
 func TestStatistics_ScoreboardGraph_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_graph_401")
@@ -118,7 +115,6 @@ func TestStatistics_ScoreboardGraph_Unauthorized(t *testing.T) {
 
 // GET /statistics/challenges/{id}: returns challenge detail stats (id, title, category, points, solve_count, first_blood, solves); public.
 func TestStatistics_ChallengeDetail_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -162,7 +158,6 @@ func TestStatistics_ChallengeDetail_Success(t *testing.T) {
 
 // GET /statistics/challenges/{id}: 404 when challenge does not exist.
 func TestStatistics_ChallengeDetail_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -172,7 +167,6 @@ func TestStatistics_ChallengeDetail_NotFound(t *testing.T) {
 
 // GET /statistics/challenges/{id}: invalid UUID returns 400.
 func TestStatistics_ChallengeDetail_InvalidID_Returns400(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, token := h.SetupCompetition("admin_invalid_id")
@@ -188,110 +182,101 @@ func TestStatistics_ChallengeDetail_InvalidID_Returns400(t *testing.T) {
 
 // GET /statistics/challenges/solves/percentages: returns array; no auth returns 401.
 func TestStatistics_SolvesPercentages(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_pct_admin")
 	h.CreateBasicChallenge(tokenAdmin, "Pct Chall", "flag{pct}", 50)
 
-	resp, err := h.Client().GetStatisticsChallengesSolvesPercentagesWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetStatisticsChallengesSolvesPercentagesWithResponse(context.Background(), nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get solves percentages")
 }
 
 // GET /statistics/challenges/solves/percentages: no auth returns 401.
 func TestStatistics_SolvesPercentages_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_pct_401")
 
-	resp, err := h.Client().GetStatisticsChallengesSolvesPercentagesWithResponse(context.Background())
+	resp, err := h.Client().GetStatisticsChallengesSolvesPercentagesWithResponse(context.Background(), nil)
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get solves percentages no auth")
 }
 
 // GET /statistics/scores/distribution: returns distribution; no auth returns 401.
 func TestStatistics_ScoresDistribution(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_dist_admin")
 	h.CreateBasicChallenge(tokenAdmin, "Dist Chall", "flag{dist}", 50)
 
-	resp, err := h.Client().GetStatisticsScoresDistributionWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetStatisticsScoresDistributionWithResponse(context.Background(), nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get scores distribution")
 }
 
 // GET /statistics/scores/distribution: no auth returns 401.
 func TestStatistics_ScoresDistribution_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_dist_401")
 
-	resp, err := h.Client().GetStatisticsScoresDistributionWithResponse(context.Background())
+	resp, err := h.Client().GetStatisticsScoresDistributionWithResponse(context.Background(), nil)
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get scores distribution no auth")
 }
 
 // GET /statistics/submissions: returns time series stats; no auth returns 401.
 func TestStatistics_Submissions(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_subs_admin")
 
-	resp, err := h.Client().GetStatisticsSubmissionsWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetStatisticsSubmissionsWithResponse(context.Background(), nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics submissions")
 }
 
 // GET /statistics/submissions: no auth returns 401.
 func TestStatistics_Submissions_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_subs_401")
 
-	resp, err := h.Client().GetStatisticsSubmissionsWithResponse(context.Background())
+	resp, err := h.Client().GetStatisticsSubmissionsWithResponse(context.Background(), nil)
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get statistics submissions no auth")
 }
 
 // GET /statistics/submissions/{type}: type=correct --> filtered series.
 func TestStatistics_SubmissionsType_Correct(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_subs_type")
 
-	resp, err := h.Client().GetStatisticsSubmissionsTypeWithResponse(context.Background(), openapi.Correct, helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetStatisticsSubmissionsTypeWithResponse(context.Background(), openapi.Correct, nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics submissions type correct")
 }
 
-// GET /statistics/submissions/{type}: invalid type returns 200 with empty list (server accepts any type value).
+// GET /statistics/submissions/{type}: invalid type returns 400.
 func TestStatistics_SubmissionsType_InvalidType(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_subs_type_400")
 
-	resp, err := h.Client().GetStatisticsSubmissionsTypeWithResponse(context.Background(), "invalid_type", helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetStatisticsSubmissionsTypeWithResponse(context.Background(), "invalid_type", nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics submissions invalid type returns empty list")
+	helper.RequireStatus(t, http.StatusBadRequest, resp.StatusCode(), resp.Body, "get statistics submissions invalid type returns 400")
 }
 
 // GET /statistics/teams: returns team registration series; no auth returns 401.
 func TestStatistics_Teams(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -304,7 +289,6 @@ func TestStatistics_Teams(t *testing.T) {
 
 // GET /statistics/teams: no auth returns 401.
 func TestStatistics_Teams_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_teams_401")
@@ -316,7 +300,6 @@ func TestStatistics_Teams_Unauthorized(t *testing.T) {
 
 // GET /statistics/users: returns user registration series; no auth returns 401.
 func TestStatistics_Users(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -329,7 +312,6 @@ func TestStatistics_Users(t *testing.T) {
 
 // GET /statistics/users: no auth returns 401.
 func TestStatistics_Users_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("stats_users_401")
@@ -341,20 +323,18 @@ func TestStatistics_Users_Unauthorized(t *testing.T) {
 
 // GET /admin/statistics/solve-matrix: admin gets solve matrix; non-admin returns 403.
 func TestStatistics_AdminSolveMatrix(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("stats_matrix_admin")
 
-	resp, err := h.Client().GetAdminStatisticsSolveMatrixWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().GetAdminStatisticsSolveMatrixWithResponse(context.Background(), nil, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get admin solve matrix")
 }
 
 // GET /admin/statistics/solve-matrix: non-admin returns 403.
 func TestStatistics_AdminSolveMatrix_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -362,7 +342,7 @@ func TestStatistics_AdminSolveMatrix_Forbidden(t *testing.T) {
 	suffix := uuid.New().String()[:8]
 	_, _, tokenUser := h.RegisterUserAndLogin("matrix_user_" + suffix)
 
-	resp, err := h.Client().GetAdminStatisticsSolveMatrixWithResponse(context.Background(), helper.WithBearerToken(tokenUser))
+	resp, err := h.Client().GetAdminStatisticsSolveMatrixWithResponse(context.Background(), nil, helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusForbidden, resp.StatusCode(), resp.Body, "get admin solve matrix forbidden")
 }

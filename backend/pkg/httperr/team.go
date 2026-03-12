@@ -106,6 +106,16 @@ var (
 		StatusCode: http.StatusForbidden,
 		Code:       "TEAM_BANNED",
 	}
+	ErrUserWasInBannedTeam = &HTTPError{
+		Err:        errors.New("user was member of a banned team and cannot create or join a team"),
+		StatusCode: http.StatusForbidden,
+		Code:       "USER_WAS_IN_BANNED_TEAM",
+	}
+	ErrInviteExpired = &HTTPError{
+		Err:        errors.New("invite token has expired"),
+		StatusCode: http.StatusGone,
+		Code:       "INVITE_EXPIRED",
+	}
 	ErrTeamConflict = &HTTPError{
 		Err:        errors.New("team conflict"),
 		StatusCode: http.StatusConflict,
@@ -135,5 +145,15 @@ var (
 		Err:        errors.New("user must be in a team"),
 		StatusCode: http.StatusNotFound,
 		Code:       "USER_NOT_IN_TEAM",
+	}
+	ErrCannotLeaveSoloTeam = &HTTPError{
+		Err:        errors.New("cannot leave solo team in solo-only competition"),
+		StatusCode: http.StatusForbidden,
+		Code:       "CANNOT_LEAVE_SOLO_TEAM",
+	}
+	ErrCannotDisbandSoloTeam = &HTTPError{
+		Err:        errors.New("cannot disband solo team in solo-only competition"),
+		StatusCode: http.StatusForbidden,
+		Code:       "CANNOT_DISBAND_SOLO_TEAM",
 	}
 )

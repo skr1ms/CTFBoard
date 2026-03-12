@@ -29,6 +29,40 @@ func FromSubmission(s *entity.SubmissionWithDetails) openapi.SubmissionResponse 
 	return res
 }
 
+func FromSubmissionPublic(s *entity.SubmissionWithDetails) openapi.SubmissionResponse {
+	res := openapi.SubmissionResponse{
+		ID:                ptr(s.ID.String()),
+		UserID:            ptr(s.UserID.String()),
+		ChallengeID:       ptr(s.ChallengeID.String()),
+		IsCorrect:         ptr(s.IsCorrect),
+		CreatedAt:         ptr(s.CreatedAt.Format(time.RFC3339)),
+		Username:          ptr(s.Username),
+		TeamName:          ptr(s.TeamName),
+		ChallengeTitle:    ptr(s.ChallengeTitle),
+		ChallengeCategory: ptr(s.ChallengeCategory),
+	}
+	if s.TeamID != nil {
+		res.TeamID = ptr(s.TeamID.String())
+	}
+	return res
+}
+
+func FromSubmissionListPublic(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
+	data := make([]openapi.SubmissionResponse, len(items))
+	for i, item := range items {
+		data[i] = FromSubmissionPublic(item)
+	}
+	return openapi.SubmissionListResponse{
+		Data: &data,
+		Meta: &openapi.PaginationMeta{
+			Page:       ptr(page),
+			PerPage:    ptr(perPage),
+			Total:      ptr(int(total)),
+			TotalPages: ptr(TotalPages(total, perPage)),
+		},
+	}
+}
+
 func FromSubmissionList(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
 	data := make([]openapi.SubmissionResponse, len(items))
 	for i, item := range items {

@@ -16,24 +16,6 @@ schemas:
       - size
       - sha256
     type: object
-  response.FileListItem:
-    properties:
-      id:
-        type: string
-      filename:
-        type: string
-      size:
-        type: integer
-        format: int64
-      created_at:
-        type: string
-        format: date-time
-    required:
-      - id
-      - filename
-      - size
-      - created_at
-    type: object
   response.FileDownloadURLResponse:
     properties:
       url:

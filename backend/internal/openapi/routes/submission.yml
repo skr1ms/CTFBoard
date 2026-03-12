@@ -1,5 +1,6 @@
 /admin/submissions:
   get:
+    operationId: GetAdminSubmissions
     description: Returns paginated list of all flag submissions. Admin only.
     parameters:
       - name: page
@@ -10,6 +11,11 @@
         in: query
         schema:
           type: integer
+      - name: live
+        in: query
+        description: If true, admin sees all submissions (ignores freeze). Only effective for admin.
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -19,14 +25,24 @@
               $ref: '../components/schemas.yml#/SubmissionListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get all submissions
     tags:
       - Admin
   post:
+    operationId: PostAdminSubmissions
     description: Creates a new submission manually. Admin only.
     requestBody:
       content:
@@ -43,18 +59,32 @@
               $ref: '../components/schemas.yml#/SubmissionResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create submission
     tags:
       - Admin
 
 "/admin/submissions/challenge/{challengeID}":
   get:
+    operationId: GetAdminSubmissionsChallengeChallengeID
     description: Returns paginated list of submissions for a challenge. Admin only.
     parameters:
       - name: challengeID
@@ -70,6 +100,11 @@
         in: query
         schema:
           type: integer
+      - name: live
+        in: query
+        description: If true, admin sees all submissions (ignores freeze). Only effective for admin.
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -79,18 +114,32 @@
               $ref: '../components/schemas.yml#/SubmissionListResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submissions by challenge
     tags:
       - Admin
 
 "/admin/submissions/challenge/{challengeID}/stats":
   get:
+    operationId: GetAdminSubmissionsChallengeChallengeIDStats
     description: Returns submission statistics for a challenge. Admin only.
     parameters:
       - name: challengeID
@@ -98,6 +147,11 @@
         required: true
         schema:
           type: string
+      - name: live
+        in: query
+        description: If true, admin sees live stats (ignores freeze). Only effective for admin.
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -107,18 +161,32 @@
               $ref: '../components/schemas.yml#/SubmissionStatsResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submission stats by challenge
     tags:
       - Admin
 
 "/admin/submissions/user/{userID}":
   get:
+    operationId: GetAdminSubmissionsUserUserID
     description: Returns paginated list of submissions by a user. Admin only.
     parameters:
       - name: userID
@@ -134,6 +202,11 @@
         in: query
         schema:
           type: integer
+      - name: live
+        in: query
+        description: If true, admin sees all submissions (ignores freeze). Only effective for admin.
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -143,18 +216,32 @@
               $ref: '../components/schemas.yml#/SubmissionListResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submissions by user
     tags:
       - Admin
 
 "/admin/submissions/team/{teamID}":
   get:
+    operationId: GetAdminSubmissionsTeamTeamID
     description: Returns paginated list of submissions by a team. Admin only.
     parameters:
       - name: teamID
@@ -170,6 +257,11 @@
         in: query
         schema:
           type: integer
+      - name: live
+        in: query
+        description: If true, admin sees all submissions (ignores freeze). Only effective for admin.
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -179,18 +271,32 @@
               $ref: '../components/schemas.yml#/SubmissionListResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submissions by team
     tags:
       - Admin
 
 "/admin/submissions/{ID}":
   get:
+    operationId: GetAdminSubmissionsID
     description: Returns a single submission by ID. Admin only.
     parameters:
       - name: ID
@@ -207,16 +313,30 @@
               $ref: '../components/schemas.yml#/SubmissionResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submission by ID
     tags:
       - Admin
   patch:
+    operationId: PatchAdminSubmissionsID
     description: Updates a submission. Admin only.
     parameters:
       - name: ID
@@ -239,18 +359,36 @@
               $ref: '../components/schemas.yml#/SubmissionResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update submission
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminSubmissionsID
     description: Deletes a submission. Admin only.
     parameters:
       - name: ID
@@ -263,12 +401,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete submission
     tags:
       - Admin

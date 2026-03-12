@@ -2,6 +2,7 @@ package vault
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -114,7 +115,8 @@ func isVaultPermanentError(err error) bool {
 }
 
 func asVaultResponseError(err error, target **vault.ResponseError) bool {
-	if re, ok := err.(*vault.ResponseError); ok { //nolint:errorlint
+	var re *vault.ResponseError
+	if errors.As(err, &re) {
 		*target = re
 		return true
 	}

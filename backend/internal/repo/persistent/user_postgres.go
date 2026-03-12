@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserRepo struct {
@@ -27,20 +29,37 @@ func (r *UserRepo) q(ctx context.Context) *sqlc.Queries {
 	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
-func toEntityUser(u sqlc.User) *entity.User {
+type userRow struct {
+	ID              uuid.UUID
+	TeamID          *uuid.UUID
+	Username        string
+	Email           string
+	PasswordHash    string
+	Role            *string
+	IsVerified      *bool
+	VerifiedAt      pgtype.Timestamptz
+	IsBanned        bool
+	BannedAt        pgtype.Timestamptz
+	BannedReason    *string
+	WasInBannedTeam bool
+	CreatedAt       pgtype.Timestamptz
+}
+
+func toEntityUser(r *userRow) *entity.User {
 	return &entity.User{
-		ID:           u.ID,
-		Username:     u.Username,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		Role:         ptrStrToStr(u.Role),
-		IsVerified:   boolPtrToBool(u.IsVerified),
-		TeamID:       u.TeamID,
-		VerifiedAt:   u.VerifiedAt,
-		CreatedAt:    ptrTimeToTime(u.CreatedAt),
-		IsBanned:     u.IsBanned,
-		BannedAt:     u.BannedAt,
-		BannedReason: u.BannedReason,
+		ID:              r.ID,
+		Username:        r.Username,
+		Email:           r.Email,
+		PasswordHash:    r.PasswordHash,
+		Role:            entity.Role(ptrStrToStr(r.Role)),
+		IsVerified:      boolPtrToBool(r.IsVerified),
+		TeamID:          r.TeamID,
+		VerifiedAt:      timestamptzToTime(r.VerifiedAt),
+		CreatedAt:       ptrTimeToTime(timestamptzToTime(r.CreatedAt)),
+		IsBanned:        r.IsBanned,
+		BannedAt:        timestamptzToTime(r.BannedAt),
+		BannedReason:    r.BannedReason,
+		WasInBannedTeam: r.WasInBannedTeam,
 	}
 }
 
@@ -54,14 +73,15 @@ func (r *UserRepo) Create(ctx context.Context, u *entity.User) error {
 	u.CreatedAt = time.Now()
 	u.IsVerified = false
 	isVerified := false
+	roleStr := string(u.Role)
 	err := r.q(ctx).CreateUser(ctx, sqlc.CreateUserParams{
 		ID:           u.ID,
 		Username:     u.Username,
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
-		Role:         &u.Role,
+		Role:         &roleStr,
 		IsVerified:   &isVerified,
-		CreatedAt:    &u.CreatedAt,
+		CreatedAt:    timeToTimestamptz(&u.CreatedAt),
 	})
 	if err != nil {
 		if isPgUniqueViolation(err) {
@@ -80,7 +100,7 @@ func (r *UserRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.User, err
 		}
 		return nil, fmt.Errorf("UserRepo - GetByID: %w", err)
 	}
-	return toEntityUser(u), nil
+	return toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}), nil
 }
 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
@@ -91,7 +111,7 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, 
 		}
 		return nil, fmt.Errorf("UserRepo - GetByEmail: %w", err)
 	}
-	return toEntityUser(u), nil
+	return toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}), nil
 }
 
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*entity.User, error) {
@@ -102,7 +122,7 @@ func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*entity.
 		}
 		return nil, fmt.Errorf("UserRepo - GetByUsername: %w", err)
 	}
-	return toEntityUser(u), nil
+	return toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}), nil
 }
 
 func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error) {
@@ -112,9 +132,62 @@ func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity
 	}
 	out := make([]*entity.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toEntityUser(u))
+		out = append(out, toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}))
 	}
 	return out, nil
+}
+
+func (r *UserRepo) GetByTeamIDs(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID][]*entity.User, error) {
+	if len(teamIDs) == 0 {
+		return map[uuid.UUID][]*entity.User{}, nil
+	}
+	rows, err := r.q(ctx).ListUsersByTeamIDs(ctx, teamIDs)
+	if err != nil {
+		return nil, fmt.Errorf("UserRepo - GetByTeamIDs: %w", err)
+	}
+	out := make(map[uuid.UUID][]*entity.User)
+	for _, u := range rows {
+		if u.TeamID != nil {
+			out[*u.TeamID] = append(out[*u.TeamID], toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}))
+		}
+	}
+	return out, nil
+}
+
+func (r *UserRepo) UpdateTeamIDBatch(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	err := r.q(ctx).UpdateUserTeamIDBatch(ctx, sqlc.UpdateUserTeamIDBatchParams{
+		TeamID:  teamID,
+		Column2: userIDs,
+	})
+	if err != nil {
+		return fmt.Errorf("UserRepo - UpdateTeamIDBatch: %w", err)
+	}
+	return nil
+}
+
+func (r *UserRepo) FilterIDsByTeamIDNull(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	ids, err := r.q(ctx).ListUserIDsWithTeamIDNull(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("UserRepo - FilterIDsByTeamIDNull: %w", err)
+	}
+	return ids, nil
+}
+
+func (r *UserRepo) FilterIDsByTeamIDNullAndNotBanned(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	ids, err := r.q(ctx).ListUserIDsWithTeamIDNullAndNotBanned(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("UserRepo - FilterIDsByTeamIDNullAndNotBanned: %w", err)
+	}
+	return ids, nil
 }
 
 func (r *UserRepo) GetAll(ctx context.Context) ([]*entity.User, error) {
@@ -124,7 +197,7 @@ func (r *UserRepo) GetAll(ctx context.Context) ([]*entity.User, error) {
 	}
 	out := make([]*entity.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toEntityUser(u))
+		out = append(out, toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}))
 	}
 	return out, nil
 }
@@ -149,7 +222,7 @@ func (r *UserRepo) SetVerified(ctx context.Context, userID uuid.UUID) error {
 	if _, err := r.q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{
 		ID:         userID,
 		IsVerified: &ok,
-		VerifiedAt: &now,
+		VerifiedAt: timeToTimestamptz(&now),
 	}); err != nil {
 		if isNoRows(err) {
 			return httperr.ErrUserNotFound
@@ -164,7 +237,7 @@ func (r *UserRepo) SetUnverified(ctx context.Context, userID uuid.UUID) error {
 	if _, err := r.q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{
 		ID:         userID,
 		IsVerified: &ok,
-		VerifiedAt: nil,
+		VerifiedAt: timeToTimestamptz(nil),
 	}); err != nil {
 		if isNoRows(err) {
 			return httperr.ErrUserNotFound
@@ -206,7 +279,7 @@ func (r *UserRepo) Search(ctx context.Context, search *string, limit, offset int
 	}
 	out := make([]*entity.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toEntityUser(u))
+		out = append(out, toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}))
 	}
 	return out, nil
 }
@@ -280,7 +353,7 @@ func (r *UserRepo) SearchByIP(ctx context.Context, ip string, limit, offset int)
 	}
 	out := make([]*entity.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toEntityUser(u))
+		out = append(out, toEntityUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.CreatedAt}))
 	}
 	return out, nil
 }
@@ -308,7 +381,7 @@ func (r *UserRepo) Ban(ctx context.Context, userID uuid.UUID, reason string) err
 	bannedAt := time.Now()
 	_, err := r.q(ctx).BanUser(ctx, sqlc.BanUserParams{
 		ID:           userID,
-		BannedAt:     &bannedAt,
+		BannedAt:     timeToTimestamptz(&bannedAt),
 		BannedReason: &reason,
 	})
 	if err != nil {
@@ -327,6 +400,27 @@ func (r *UserRepo) Unban(ctx context.Context, userID uuid.UUID) error {
 			return httperr.ErrUserNotFound
 		}
 		return fmt.Errorf("UserRepo - Unban: %w", err)
+	}
+	return nil
+}
+
+func (r *UserRepo) SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	if err := r.q(ctx).SetWasInBannedTeamByIDs(ctx, sqlc.SetWasInBannedTeamByIDsParams{
+		WasInBannedTeam: value,
+		Column2:         userIDs,
+	}); err != nil {
+		return fmt.Errorf("UserRepo - SetWasInBannedTeamByIDs: %w", err)
+	}
+	return nil
+}
+
+func (r *UserRepo) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
+	db := ExtractDB(ctx, r.pool)
+	if _, err := db.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); err != nil {
+		return fmt.Errorf("UserRepo - AcquireAdvisoryLock: %w", err)
 	}
 	return nil
 }

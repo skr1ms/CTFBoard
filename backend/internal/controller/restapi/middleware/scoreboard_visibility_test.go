@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 )
 
 func TestScoreboardVisibility_Public(t *testing.T) {
@@ -17,7 +18,7 @@ func TestScoreboardVisibility_Public(t *testing.T) {
 	repo := mocks.NewMockSettingsRepository(t)
 	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisiblePublic}, nil)
 
-	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -34,7 +35,7 @@ func TestScoreboardVisibility_Hidden(t *testing.T) {
 	repo := mocks.NewMockSettingsRepository(t)
 	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisibleHidden}, nil)
 
-	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -51,7 +52,7 @@ func TestScoreboardVisibility_AdminsOnly_Forbidden(t *testing.T) {
 	repo := mocks.NewMockSettingsRepository(t)
 	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisibleAdminsOnly}, nil)
 
-	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -66,7 +67,7 @@ func TestScoreboardVisibility_AdminsOnly_Forbidden(t *testing.T) {
 func TestScoreboardVisibility_AdminsOnly_Allowed(t *testing.T) {
 	t.Parallel()
 	repo := mocks.NewMockSettingsRepository(t)
-	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

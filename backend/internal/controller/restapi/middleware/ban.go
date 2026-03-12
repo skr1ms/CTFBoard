@@ -5,14 +5,19 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/google/uuid"
 )
 
-const teamBanCacheTTL = 15 * time.Second
+const teamBanCacheTTL = 100 * time.Millisecond
+
+// RequireTeamNotBanned uses cache with teamBanCacheTTL. After BanTeam/UnbanTeam
+// the usecase invalidates the team cache; a short TTL limits the window where a banned
+// team could still be seen as active before invalidation or expiry.
 
 type TeamGetter interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.Team, error)
@@ -41,7 +46,10 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cache.Cache) func(http.Handl
 				httputil.HandleError(w, r, err)
 				return
 			}
-
+			if team == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if team.IsBanned {
 				httputil.HandleError(w, r, httperr.ErrTeamBanned)
 				return

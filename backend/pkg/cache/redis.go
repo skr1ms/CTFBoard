@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 const (

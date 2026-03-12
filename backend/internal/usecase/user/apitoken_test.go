@@ -5,23 +5,44 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
 )
+
+type apiTokenTestDeps struct {
+	apiTokenRepo *mocks.MockAPITokenRepository
+}
+
+func newAPITokenTestDeps(t *testing.T) *apiTokenTestDeps {
+	t.Helper()
+	return &apiTokenTestDeps{apiTokenRepo: mocks.NewMockAPITokenRepository(t)}
+}
+
+func (d *apiTokenTestDeps) createUseCase() *APITokenUseCase {
+	return NewAPITokenUseCase(APITokenDeps{Repo: d.apiTokenRepo})
+}
+
+func newTestAPIToken(userID uuid.UUID, tokenHash, description string, expiresAt *time.Time) *entity.APIToken {
+	return &entity.APIToken{
+		ID: uuid.New(), UserID: userID, TokenHash: tokenHash, Description: description,
+		ExpiresAt: expiresAt, CreatedAt: time.Now(),
+	}
+}
 
 func TestAPITokenUseCase_List_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
-	tokens := []*entity.APIToken{h.NewAPIToken(userID, "hash", "desc", nil)}
+	tokens := []*entity.APIToken{newTestAPIToken(userID, "hash", "desc", nil)}
 
-	deps.apiTokenRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(tokens, nil)
+	d.apiTokenRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(tokens, nil)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	list, err := uc.List(ctx, userID)
 
 	assert.NoError(t, err)
@@ -31,14 +52,13 @@ func TestAPITokenUseCase_List_Success(t *testing.T) {
 
 func TestAPITokenUseCase_List_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
 
-	deps.apiTokenRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(nil, assert.AnError)
+	d.apiTokenRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(nil, assert.AnError)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	list, err := uc.List(ctx, userID)
 
 	assert.Error(t, err)
@@ -47,21 +67,20 @@ func TestAPITokenUseCase_List_Error(t *testing.T) {
 
 func TestAPITokenUseCase_Create_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
 	desc := "token"
 	var exp *time.Time
 
-	deps.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, token *entity.APIToken) {
+	d.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, token *entity.APIToken) {
 		assert.Equal(t, userID, token.UserID)
 		assert.Equal(t, desc, token.Description)
 		assert.Equal(t, exp, token.ExpiresAt)
 		assert.NotEmpty(t, token.TokenHash)
 	})
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	plaintext, token, err := uc.Create(ctx, userID, desc, exp)
 
 	assert.NoError(t, err)
@@ -71,14 +90,13 @@ func TestAPITokenUseCase_Create_Success(t *testing.T) {
 
 func TestAPITokenUseCase_Create_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
 
-	deps.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
+	d.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	plaintext, token, err := uc.Create(ctx, userID, "desc", nil)
 
 	assert.Error(t, err)
@@ -88,14 +106,13 @@ func TestAPITokenUseCase_Create_Error(t *testing.T) {
 
 func TestAPITokenUseCase_Delete_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	id, userID := uuid.New(), uuid.New()
 
-	deps.apiTokenRepo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
+	d.apiTokenRepo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	err := uc.Delete(ctx, id, userID)
 
 	assert.NoError(t, err)
@@ -103,14 +120,13 @@ func TestAPITokenUseCase_Delete_Success(t *testing.T) {
 
 func TestAPITokenUseCase_Delete_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	id, userID := uuid.New(), uuid.New()
 
-	deps.apiTokenRepo.EXPECT().Delete(mock.Anything, id, userID).Return(assert.AnError)
+	d.apiTokenRepo.EXPECT().Delete(mock.Anything, id, userID).Return(assert.AnError)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	err := uc.Delete(ctx, id, userID)
 
 	assert.Error(t, err)
@@ -118,15 +134,14 @@ func TestAPITokenUseCase_Delete_Error(t *testing.T) {
 
 func TestAPITokenUseCase_GetByTokenHash_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
-	expected := h.NewAPIToken(userID, "hash1", "d", nil)
+	expected := newTestAPIToken(userID, "hash1", "d", nil)
 
-	deps.apiTokenRepo.EXPECT().GetByTokenHash(mock.Anything, "hash1").Return(expected, nil)
+	d.apiTokenRepo.EXPECT().GetByTokenHash(mock.Anything, "hash1").Return(expected, nil)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	token, err := uc.GetByTokenHash(ctx, "hash1")
 
 	assert.NoError(t, err)
@@ -135,13 +150,12 @@ func TestAPITokenUseCase_GetByTokenHash_Success(t *testing.T) {
 
 func TestAPITokenUseCase_GetByTokenHash_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 
-	deps.apiTokenRepo.EXPECT().GetByTokenHash(mock.Anything, "hash1").Return(nil, assert.AnError)
+	d.apiTokenRepo.EXPECT().GetByTokenHash(mock.Anything, "hash1").Return(nil, assert.AnError)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	token, err := uc.GetByTokenHash(ctx, "hash1")
 
 	assert.Error(t, err)
@@ -150,14 +164,13 @@ func TestAPITokenUseCase_GetByTokenHash_Error(t *testing.T) {
 
 func TestAPITokenUseCase_UpdateLastUsedAt_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.apiTokenRepo.EXPECT().UpdateLastUsedAt(mock.Anything, id, mock.Anything).Return(nil)
+	d.apiTokenRepo.EXPECT().UpdateLastUsedAt(mock.Anything, id, mock.Anything).Return(nil)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	err := uc.UpdateLastUsedAt(ctx, id)
 
 	assert.NoError(t, err)
@@ -165,14 +178,13 @@ func TestAPITokenUseCase_UpdateLastUsedAt_Success(t *testing.T) {
 
 func TestAPITokenUseCase_UpdateLastUsedAt_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
 
-	deps.apiTokenRepo.EXPECT().UpdateLastUsedAt(mock.Anything, id, mock.Anything).Return(assert.AnError)
+	d.apiTokenRepo.EXPECT().UpdateLastUsedAt(mock.Anything, id, mock.Anything).Return(assert.AnError)
 
-	uc := h.CreateAPITokenUseCase()
+	uc := d.createUseCase()
 	err := uc.UpdateLastUsedAt(ctx, id)
 
 	assert.Error(t, err)
@@ -180,9 +192,9 @@ func TestAPITokenUseCase_UpdateLastUsedAt_Error(t *testing.T) {
 
 func TestAPITokenUseCase_ValidateToken_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	uc := h.CreateAPITokenUseCase()
-	token := h.NewAPIToken(uuid.New(), "h", "d", nil)
+	d := newAPITokenTestDeps(t)
+	uc := d.createUseCase()
+	token := newTestAPIToken(uuid.New(), "h", "d", nil)
 
 	ok := uc.ValidateToken(token)
 
@@ -191,12 +203,12 @@ func TestAPITokenUseCase_ValidateToken_Success(t *testing.T) {
 
 func TestAPITokenUseCase_ValidateToken_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	uc := h.CreateAPITokenUseCase()
+	d := newAPITokenTestDeps(t)
+	uc := d.createUseCase()
 
 	assert.False(t, uc.ValidateToken(nil))
 
 	exp := time.Now().Add(-time.Hour)
-	token := h.NewAPIToken(uuid.New(), "h", "d", &exp)
+	token := newTestAPIToken(uuid.New(), "h", "d", &exp)
 	assert.False(t, uc.ValidateToken(token))
 }

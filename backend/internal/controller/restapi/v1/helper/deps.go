@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"github.com/redis/go-redis/v9"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
@@ -9,7 +11,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	"github.com/redis/go-redis/v9"
 )
 
 type ChallengeDeps struct {
@@ -62,8 +63,11 @@ type InfraDeps struct {
 	Validator                     validator.Validator
 	Logger                        logger.Logger
 	TrustedProxyCIDRs             []string
+	RateLimitConfigCache          *RateLimitConfigCache
+	ScoreboardVisibilityCache     *middleware.ScoreboardVisibilityCache
 	ForgotPasswordRateLimiter     *middleware.PerKeyRateLimiter
 	ResendVerificationRateLimiter *middleware.PerKeyRateLimiter
+	ResetPasswordTokenRateLimiter *middleware.PerKeyRateLimiter
 }
 
 type ServerDeps struct {

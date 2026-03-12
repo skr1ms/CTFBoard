@@ -12,6 +12,9 @@ schemas:
     properties:
       name:
         type: string
+        maxLength: 50
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=50"
       color:
         type: string
         default: "#6b7280"
@@ -22,6 +25,9 @@ schemas:
     properties:
       name:
         type: string
+        maxLength: 50
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=50"
       color:
         type: string
     required:

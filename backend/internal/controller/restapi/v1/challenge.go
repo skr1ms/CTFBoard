@@ -2,15 +2,17 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/google/uuid"
 )
 
 const asyncLogTimeout = 5 * time.Second
@@ -41,9 +43,9 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 }
 
 // Submit flag
-// (POST /challenges/{ID}/submit)
-func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, ID string) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, ID)
+// (POST /challenges/{challengeID}/submit)
+func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.Request, challengeID string) {
+	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -54,16 +56,23 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	}
 
 	req, ok := helper.DecodeAndValidate[openapi.SubmitFlagRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostChallengesIDSubmit",
+		w, r, h.infra.Validator, h.infra.Logger, "PostChallengesChallengeIDSubmit",
 	)
 	if !ok {
 		return
 	}
 
-	flag := request.SubmitFlagRequestToParams(&req)
+	flag, err := request.SubmitFlagRequestToParams(&req)
+	if h.OnError(w, r, err, "PostChallengesChallengeIDSubmit", "RequestConversion") {
+		return
+	}
 	valid, submitErr := h.challenge.ChallengeUC.SubmitFlag(r.Context(), challengeIDParsed, flag, user.ID, user.TeamID)
 
 	isCorrectForLog := valid
+	if submitErr != nil && errors.Is(submitErr, helper.ErrAlreadySolved) {
+		isCorrectForLog = true
+	}
+	shouldLog := submitErr == nil || errors.Is(submitErr, helper.ErrAlreadySolved)
 	sub := &entity.Submission{
 		UserID:        user.ID,
 		ChallengeID:   challengeIDParsed,
@@ -75,19 +84,21 @@ func (h *Server) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, 
 	if user.TeamID != nil {
 		sub.TeamID = user.TeamID
 	}
-	if h.comp.SubmissionBatcher != nil {
-		h.comp.SubmissionBatcher.Enqueue(sub)
-	} else {
-		go func() {
-			logCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), asyncLogTimeout)
-			defer cancel()
-			if logErr := h.comp.SubmissionUC.LogSubmission(logCtx, sub); logErr != nil {
-				h.infra.Logger.WithError(logErr).Error("restapi - v1 - PostChallengesIDSubmit - LogSubmission")
-			}
-		}()
+	if shouldLog {
+		if h.comp.SubmissionBatcher != nil {
+			h.comp.SubmissionBatcher.Enqueue(sub)
+		} else {
+			go func() {
+				logCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), asyncLogTimeout)
+				defer cancel()
+				if logErr := h.comp.SubmissionUC.LogSubmission(logCtx, sub); logErr != nil {
+					h.infra.Logger.WithError(logErr).Error("restapi - v1 - PostChallengesChallengeIDSubmit - LogSubmission")
+				}
+			}()
+		}
 	}
 
-	if h.OnError(w, r, submitErr, "PostChallengesIDSubmit", "SubmitFlag") {
+	if h.OnError(w, r, submitErr, "PostChallengesChallengeIDSubmit", "SubmitFlag") {
 		return
 	}
 
@@ -203,6 +214,8 @@ func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request
 	}
 
 	ip := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
+	// Best-effort async tracking: detached from the request context so the
+	// response is not delayed. The timeout bounds goroutine lifetime.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), asyncLogTimeout)
 		defer cancel()
@@ -293,10 +306,15 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 	if h.OnError(w, r, err, "GetChallengesSolutions", "ListSolutions") {
 		return
 	}
-
-	helper.RenderOK(w, r, response.FromChallengeSolutionEntryList(entries, func(e *entity.ChallengeSolutionEntry) map[string]string {
-		return h.buildDownloadURLs(r.Context(), e.Files)
-	}))
+	var allFiles []*entity.File
+	for _, e := range entries {
+		allFiles = append(allFiles, e.Files...)
+	}
+	urls, err := h.buildDownloadURLs(r.Context(), allFiles, user.TeamID, user.Role == entity.RoleAdmin)
+	if h.OnError(w, r, err, "GetChallengesSolutions", "buildDownloadURLs") {
+		return
+	}
+	helper.RenderOK(w, r, response.FromChallengeSolutionEntryList(entries, urls))
 }
 
 // Get challenge solution
@@ -328,8 +346,11 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "GetSolution") {
 		return
 	}
-
-	helper.RenderOK(w, r, response.FromChallengeSolution(solution, h.buildDownloadURLs(r.Context(), solution.Files)))
+	urls, err := h.buildDownloadURLs(r.Context(), solution.Files, user.TeamID, user.Role == entity.RoleAdmin)
+	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "buildDownloadURLs") {
+		return
+	}
+	helper.RenderOK(w, r, response.FromChallengeSolution(solution, urls))
 }
 
 // Create or update challenge solution
@@ -351,8 +372,11 @@ func (h *Server) PostAdminChallengesChallengeIDSolution(w http.ResponseWriter, r
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDSolution", "AdminUpsertSolution") {
 		return
 	}
-
-	helper.RenderOK(w, r, response.FromChallengeSolution(solution, h.buildDownloadURLs(r.Context(), solution.Files)))
+	urls, err := h.buildDownloadURLs(r.Context(), solution.Files, nil, true)
+	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDSolution", "buildDownloadURLs") {
+		return
+	}
+	helper.RenderOK(w, r, response.FromChallengeSolution(solution, urls))
 }
 
 // Delete challenge solution

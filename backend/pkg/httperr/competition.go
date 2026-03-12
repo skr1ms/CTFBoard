@@ -11,11 +11,6 @@ var (
 		StatusCode: http.StatusNotFound,
 		Code:       "COMPETITION_NOT_FOUND",
 	}
-	ErrCompetitionNotActive = &HTTPError{
-		Err:        errors.New("competition is not active"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_NOT_ACTIVE",
-	}
 	ErrCompetitionNotStarted = &HTTPError{
 		Err:        errors.New("competition has not started yet"),
 		StatusCode: http.StatusForbidden,

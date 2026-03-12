@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AuditLogRepo struct {
@@ -42,6 +43,6 @@ func (r *AuditLogRepo) Create(ctx context.Context, l *entity.AuditLog) error {
 		return fmt.Errorf("AuditLogRepo - Create: %w", err)
 	}
 	l.ID = row.ID
-	l.CreatedAt = ptrTimeToTime(row.CreatedAt)
+	l.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
 	return nil
 }

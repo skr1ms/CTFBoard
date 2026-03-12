@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func TestMemRateLimiter_FirstRequest_ReturnsOne(t *testing.T) {
@@ -43,7 +44,7 @@ func TestMemRateLimiter_WindowExpiry_ResetsCount(t *testing.T) {
 	assert.Equal(t, int64(1), count, "counter should reset after window expiry")
 }
 
-func TestMemRateLimiter_MaxKeys_ReturnZeroOnOverflow(t *testing.T) {
+func TestMemRateLimiter_MaxKeys_EvictsOldestAndAcceptsNew(t *testing.T) {
 	t.Parallel()
 	m := &memRateLimiter{
 		entries: make(map[string]*memRateLimitEntry, 2),
@@ -52,7 +53,7 @@ func TestMemRateLimiter_MaxKeys_ReturnZeroOnOverflow(t *testing.T) {
 	_ = m.incr("k1", time.Minute)
 	_ = m.incr("k2", time.Minute)
 	count := m.incr("k3", time.Minute)
-	assert.Equal(t, int64(0), count)
+	assert.Equal(t, int64(1), count)
 }
 
 func TestMemRateLimiter_DifferentKeys_IndependentCounters(t *testing.T) {
@@ -84,6 +85,7 @@ func buildRateLimitHandler(t *testing.T, limit int64) http.Handler {
 		db, "test", time.Minute, cache, getter,
 		func(_ *RateLimitConfig) int64 { return limit },
 		func(_ *http.Request) (string, error) { return "key1", nil },
+		nil,
 		logger.Noop(),
 	)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -142,6 +144,7 @@ func TestRateLimitFromConfig_ConfigGetterError_UsesFallbackDefaults(t *testing.T
 		db, "submit", time.Minute, cache, getter,
 		func(c *RateLimitConfig) int64 { return int64(c.LoginPerMinute) },
 		func(_ *http.Request) (string, error) { return "user1", nil },
+		nil,
 		logger.Noop(),
 	)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -11,48 +11,77 @@ const BackupVersion = "1.0"
 type ConflictMode string
 
 const (
-	ConflictModeMerge     ConflictMode = "merge"
 	ConflictModeOverwrite ConflictMode = "overwrite"
 	ConflictModeSkip      ConflictMode = "skip"
 )
 
+type ChallengeRequirementPair struct {
+	ChallengeID         uuid.UUID `json:"challenge_id"`
+	RequiredChallengeID uuid.UUID `json:"required_challenge_id"`
+}
+
+type SolutionBackup struct {
+	ID          uuid.UUID `json:"id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
+	Content     string    `json:"content"`
+}
+
 type BackupData struct {
-	Version     string            `json:"version"`
-	ExportedAt  time.Time         `json:"exported_at"`
-	Competition *Competition      `json:"competition"`
-	Challenges  []ChallengeExport `json:"challenges"`
-	Teams       []TeamExport      `json:"teams,omitempty"`
-	Users       []UserExport      `json:"users,omitempty"`
-	Awards      []Award           `json:"awards,omitempty"`
-	Solves      []Solve           `json:"solves,omitempty"`
-	HintUnlocks []HintUnlock      `json:"hint_unlocks,omitempty"`
-	Files       []File            `json:"files,omitempty"`
+	Version               string                     `json:"version"`
+	ExportedAt            time.Time                  `json:"exported_at"`
+	Competition           *Competition               `json:"competition"`
+	Tags                  []Tag                      `json:"tags,omitempty"`
+	Challenges            []ChallengeExport          `json:"challenges"`
+	Brackets              []Bracket                  `json:"brackets,omitempty"`
+	ChallengeRequirements []ChallengeRequirementPair `json:"challenge_requirements,omitempty"`
+	Solutions             []SolutionBackup           `json:"solutions,omitempty"`
+	Teams                 []TeamExport               `json:"teams,omitempty"`
+	Users                 []UserExport               `json:"users,omitempty"`
+	Awards                []Award                    `json:"awards,omitempty"`
+	Solves                []Solve                    `json:"solves,omitempty"`
+	HintUnlocks           []HintUnlock               `json:"hint_unlocks,omitempty"`
+	Files                 []File                     `json:"files,omitempty"`
+	Comments              []Comment                  `json:"comments,omitempty"`
+	Fields                []Field                    `json:"fields,omitempty"`
+	FieldValues           []FieldValue               `json:"field_values,omitempty"`
 }
 
 type ChallengeExport struct {
 	Challenge
-	Hints []Hint `json:"hints,omitempty"`
+	FlagHash  string      `json:"flag_hash"`
+	FlagRegex string      `json:"flag_regex"`
+	Hints     []Hint      `json:"hints,omitempty"`
+	TagIDs    []uuid.UUID `json:"tag_ids,omitempty"`
 }
 
 type TeamExport struct {
 	Team
-	MemberIDs []uuid.UUID `json:"member_ids,omitempty"`
+	InviteToken          uuid.UUID   `json:"invite_token"`
+	InviteTokenExpiresAt *time.Time  `json:"invite_token_expires_at,omitempty"`
+	MemberIDs            []uuid.UUID `json:"member_ids,omitempty"`
 }
 
 type UserExport struct {
-	ID       uuid.UUID  `json:"id"`
-	Username string     `json:"username"`
-	Email    string     `json:"email,omitempty"`
-	Role     string     `json:"role"`
-	TeamID   *uuid.UUID `json:"team_id,omitempty"`
+	ID           uuid.UUID  `json:"id"`
+	Username     string     `json:"username"`
+	Email        string     `json:"email,omitempty"`
+	Role         string     `json:"role"`
+	TeamID       *uuid.UUID `json:"team_id,omitempty"`
+	IsVerified   bool       `json:"is_verified"`
+	VerifiedAt   *time.Time `json:"verified_at,omitempty"`
+	IsBanned     bool       `json:"is_banned"`
+	BannedAt     *time.Time `json:"banned_at,omitempty"`
+	BannedReason *string    `json:"banned_reason,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type ExportOptions struct {
-	IncludeUsers  bool
-	IncludeTeams  bool
-	IncludeSolves bool
-	IncludeAwards bool
-	IncludeFiles  bool
+	IncludeUsers       bool
+	IncludeTeams       bool
+	IncludeSolves      bool
+	IncludeHintUnlocks bool
+	IncludeAwards      bool
+	IncludeFiles       bool
 }
 
 type ImportOptions struct {
@@ -60,6 +89,8 @@ type ImportOptions struct {
 	ConflictMode       ConflictMode `json:"conflict_mode"`
 	ValidateFiles      bool         `json:"validate_files"`
 	PreserveAdminRoles bool         `json:"preserve_admin_roles"`
+	AdminUserID        *uuid.UUID   `json:"-"`
+	AdminIP            string       `json:"-"`
 }
 
 type ImportResult struct {

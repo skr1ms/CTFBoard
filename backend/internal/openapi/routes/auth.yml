@@ -1,5 +1,7 @@
 /auth/login:
   post:
+    operationId: PostAuthLogin
+    security: []
     description: Authenticates user and returns JWT tokens
     requestBody:
       content:
@@ -27,12 +29,20 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: User login
     tags:
       - Authentication
 
 /auth/register:
   post:
+    operationId: PostAuthRegister
+    security: []
     description: Creates a new user in the system
     requestBody:
       content:
@@ -60,12 +70,20 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Register new user
     tags:
       - Authentication
 
 /auth/refresh:
   post:
+    operationId: PostAuthRefresh
+    security: []
     description: Refreshes access and refresh tokens using a valid refresh token
     parameters:
       - name: Authorization
@@ -88,12 +106,25 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (e.g. user banned)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Refresh tokens
     tags:
       - Authentication
 
 /auth/me:
   get:
+    operationId: GetAuthMe
     description: Returns information about authenticated user
     responses:
       "200":
@@ -110,10 +141,12 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get current user info
     tags:
       - Authentication
   patch:
+    operationId: PatchAuthMe
     description: Updates current user profile (username, email, password)
     requestBody:
       content:
@@ -148,12 +181,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update current user profile
     tags:
       - Authentication
 
 /auth/logout:
   post:
+    operationId: PostAuthLogout
     description: Invalidates refresh token (if provided). Client should discard tokens.
     parameters:
       - name: Authorization
@@ -170,10 +205,26 @@
           schema:
             $ref: '../components/schemas.yml#/LogoutRequest'
     responses:
-      "200":
-        description: OK
+      "204":
+        description: No Content
+      "400":
+        description: Bad Request (e.g. invalid JSON body)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security: []
     summary: Logout
     tags:

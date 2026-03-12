@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // Competition flag_regex: invalid format returns 400 INVALID_FLAG_FORMAT; valid format wrong content returns 400 invalid flag; correct flag returns 200.

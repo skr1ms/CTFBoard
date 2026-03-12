@@ -23,7 +23,7 @@ variables:
   DOCKER_BUILDKIT: "1"
   DOCKER_CLI_IMAGE: docker:cli
 
-  GOLANG_IMAGE: golang:alpine
+  GOLANG_IMAGE: golang:1.25-alpine
   POSTGRES_IMAGE: postgres:17-alpine
   REDIS_IMAGE: redis:alpine
   GOLANGCI_LINT_IMAGE: golangci/golangci-lint:latest-alpine
@@ -91,7 +91,7 @@ build:cleanup:
 # Lint job
 lint:backend:code:
   stage: security
-  image: golang:alpine
+  image: $GOLANG_IMAGE
   allow_failure: false
   variables:
     CGO_ENABLED: "0"

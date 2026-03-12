@@ -69,7 +69,7 @@ func TestClient_GetSecret_GetString_Success(t *testing.T) {
 			"metadata": map[string]any{"version": 1},
 		},
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			return
 		}
@@ -92,7 +92,7 @@ func TestClient_GetSecret_GetString_Success(t *testing.T) {
 
 func TestClient_GetSecret_Error(t *testing.T) {
 	t.Parallel()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		if err := json.NewEncoder(w).Encode(map[string]any{"errors": []string{"no such path"}}); err != nil {
 			return
@@ -116,7 +116,7 @@ func TestClient_GetSecret_EmptyData(t *testing.T) {
 			"metadata": map[string]any{},
 		},
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			return
 		}
@@ -139,7 +139,7 @@ func TestClient_GetString_KeyNotFound(t *testing.T) {
 			"metadata": map[string]any{},
 		},
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			return
 		}

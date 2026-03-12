@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	BearerAuthScopes = "BearerAuth.Scopes"
+	ApiTokenAuthScopes = "ApiTokenAuth.Scopes"
+	BearerAuthScopes   = "BearerAuth.Scopes"
 )
 
 // Defines values for CreateFieldRequestEntityType.
@@ -90,8 +91,8 @@ const (
 
 // Defines values for PostAdminChallengesChallengeIDFilesMultipartBodyType.
 const (
-	Challenge PostAdminChallengesChallengeIDFilesMultipartBodyType = "challenge"
-	Writeup   PostAdminChallengesChallengeIDFilesMultipartBodyType = "writeup"
+	PostAdminChallengesChallengeIDFilesMultipartBodyTypeChallenge PostAdminChallengesChallengeIDFilesMultipartBodyType = "challenge"
+	PostAdminChallengesChallengeIDFilesMultipartBodyTypeWriteup   PostAdminChallengesChallengeIDFilesMultipartBodyType = "writeup"
 )
 
 // Defines values for GetAdminExportCsvParamsTable.
@@ -125,6 +126,12 @@ const (
 const (
 	IP       GetAdminUsersParamsField = "ip"
 	Username GetAdminUsersParamsField = "username"
+)
+
+// Defines values for GetChallengesChallengeIDFilesParamsType.
+const (
+	GetChallengesChallengeIDFilesParamsTypeChallenge GetChallengesChallengeIDFilesParamsType = "challenge"
+	GetChallengesChallengeIDFilesParamsTypeWriteup   GetChallengesChallengeIDFilesParamsType = "writeup"
 )
 
 // Defines values for GetFieldsParamsEntityType.
@@ -161,17 +168,17 @@ type APITokenResponse struct {
 
 // AdminAddMemberRequest defines model for AdminAddMemberRequest.
 type AdminAddMemberRequest struct {
-	UserID string `json:"user_id"`
+	UserID openapi_types.UUID `json:"user_id" validate:"required,uuid"`
 }
 
 // AdminCreateSubmissionRequest defines model for AdminCreateSubmissionRequest.
 type AdminCreateSubmissionRequest struct {
-	ChallengeID   string  `json:"challenge_id"`
-	IP            *string `json:"ip,omitempty"`
-	IsCorrect     bool    `json:"is_correct"`
-	SubmittedFlag string  `json:"submitted_flag"`
-	TeamID        *string `json:"team_id,omitempty"`
-	UserID        string  `json:"user_id"`
+	ChallengeID   openapi_types.UUID  `json:"challenge_id"`
+	IP            *string             `json:"ip,omitempty"`
+	IsCorrect     bool                `json:"is_correct"`
+	SubmittedFlag string              `json:"submitted_flag" validate:"required,max=200"`
+	TeamID        *openapi_types.UUID `json:"team_id,omitempty"`
+	UserID        openapi_types.UUID  `json:"user_id"`
 }
 
 // AdminCreateUserRequest defines model for AdminCreateUserRequest.
@@ -222,15 +229,15 @@ type AdminTeamResponse struct {
 
 // AdminUpdateSubmissionRequest defines model for AdminUpdateSubmissionRequest.
 type AdminUpdateSubmissionRequest struct {
-	IsCorrect *bool `json:"is_correct,omitempty"`
+	IsCorrect bool `json:"is_correct"`
 }
 
 // AdminUpdateTeamRequest defines model for AdminUpdateTeamRequest.
 type AdminUpdateTeamRequest struct {
-	BracketID *string `json:"bracket_id,omitempty"`
-	CaptainID *string `json:"captain_id,omitempty"`
-	IsHidden  *bool   `json:"is_hidden,omitempty"`
-	Name      *string `json:"name,omitempty" validate:"omitempty,team_name"`
+	BracketID *openapi_types.UUID `json:"bracket_id,omitempty"`
+	CaptainID *openapi_types.UUID `json:"captain_id,omitempty"`
+	IsHidden  *bool               `json:"is_hidden,omitempty"`
+	Name      *string             `json:"name,omitempty" validate:"omitempty,team_name"`
 }
 
 // AdminUpdateUserRequest defines model for AdminUpdateUserRequest.
@@ -245,7 +252,7 @@ type AdminUpdateUserRequest struct {
 // AdminUpsertSolutionRequest defines model for AdminUpsertSolutionRequest.
 type AdminUpsertSolutionRequest struct {
 	// Content Markdown writeup content
-	Content string `json:"content"`
+	Content string `json:"content" validate:"required,max=524288"`
 }
 
 // AdminUserListResponse defines model for AdminUserListResponse.
@@ -293,11 +300,13 @@ type AppSettingsResponse struct {
 
 	// OauthGoogleEnabled Allow users to sign in via Google OAuth
 	OauthGoogleEnabled               *bool   `json:"oauth_google_enabled,omitempty"`
+	RateLimitCommentPerMinute        *int    `json:"rate_limit_comment_per_minute,omitempty"`
 	RateLimitForgotPasswordPerMinute *int    `json:"rate_limit_forgot_password_per_minute,omitempty"`
 	RateLimitGeneralIPPerMinute      *int    `json:"rate_limit_general_ip_per_minute,omitempty"`
 	RateLimitLoginPerMinute          *int    `json:"rate_limit_login_per_minute,omitempty"`
 	RateLimitLogoutPerMinute         *int    `json:"rate_limit_logout_per_minute,omitempty"`
 	RateLimitOauthCallbackPerMinute  *int    `json:"rate_limit_oauth_callback_per_minute,omitempty"`
+	RateLimitOauthRedirectPerMinute  *int    `json:"rate_limit_oauth_redirect_per_minute,omitempty"`
 	RateLimitRefreshPerMinute        *int    `json:"rate_limit_refresh_per_minute,omitempty"`
 	RateLimitRegisterPerMinute       *int    `json:"rate_limit_register_per_minute,omitempty"`
 	RateLimitResetPasswordPerMinute  *int    `json:"rate_limit_reset_password_per_minute,omitempty"`
@@ -354,7 +363,9 @@ type BackupData struct {
 
 // BanTeamRequest defines model for BanTeamRequest.
 type BanTeamRequest struct {
-	Reason string `json:"reason"`
+	// BanMembers If true, ban each team member as a user (they cannot create/join teams or participate in solo).
+	BanMembers *bool  `json:"ban_members,omitempty"`
+	Reason     string `json:"reason" validate:"required,min=1,max=500"`
 }
 
 // BanUserRequest defines model for BanUserRequest.
@@ -421,8 +432,10 @@ type ChallengeExport struct {
 
 // ChallengeFlagsResponse defines model for ChallengeFlagsResponse.
 type ChallengeFlagsResponse struct {
-	FlagFormatRegex   *string   `json:"flag_format_regex,omitempty"`
-	FlagRegex         *string   `json:"flag_regex,omitempty"`
+	FlagFormatRegex *string `json:"flag_format_regex,omitempty"`
+	FlagRegex       *string `json:"flag_regex,omitempty"`
+
+	// Flags Hashes of challenge flags (not plaintext); used for admin verification
 	Flags             *[]string `json:"flags,omitempty"`
 	IsCaseInsensitive *bool     `json:"is_case_insensitive,omitempty"`
 	IsRegex           *bool     `json:"is_regex,omitempty"`
@@ -513,24 +526,29 @@ type Competition struct {
 
 // CompetitionResponse defines model for CompetitionResponse.
 type CompetitionResponse struct {
-	EndTime    *string `json:"end_time,omitempty"`
-	FreezeTime *string `json:"freeze_time,omitempty"`
-	ID         *int    `json:"id,omitempty"`
-	IsPaused   *bool   `json:"is_paused,omitempty"`
-	IsPublic   *bool   `json:"is_public,omitempty"`
-	Mode       *string `json:"mode,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	StartTime  *string `json:"start_time,omitempty"`
-	Status     *string `json:"status,omitempty"`
+	EndTime                      *string `json:"end_time,omitempty"`
+	FreezeTime                   *string `json:"freeze_time,omitempty"`
+	ID                           *int    `json:"id,omitempty"`
+	IsPaused                     *bool   `json:"is_paused,omitempty"`
+	IsPublic                     *bool   `json:"is_public,omitempty"`
+	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
+	Mode                         *string `json:"mode,omitempty"`
+	Name                         *string `json:"name,omitempty"`
+	PausedAt                     *string `json:"paused_at,omitempty"`
+	StartTime                    *string `json:"start_time,omitempty"`
+	Status                       *string `json:"status,omitempty"`
 }
 
 // CompetitionStatusResponse defines model for CompetitionStatusResponse.
 type CompetitionStatusResponse struct {
-	EndTime           *string `json:"end_time,omitempty"`
-	Name              *string `json:"name,omitempty"`
-	StartTime         *string `json:"start_time,omitempty"`
-	Status            *string `json:"status,omitempty"`
-	SubmissionAllowed *bool   `json:"submission_allowed,omitempty"`
+	EndTime                      *string `json:"end_time,omitempty"`
+	FreezeTime                   *string `json:"freeze_time,omitempty"`
+	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
+	Name                         *string `json:"name,omitempty"`
+	PausedAt                     *string `json:"paused_at,omitempty"`
+	StartTime                    *string `json:"start_time,omitempty"`
+	Status                       *string `json:"status,omitempty"`
+	SubmissionAllowed            *bool   `json:"submission_allowed,omitempty"`
 }
 
 // ConfigResponse defines model for ConfigResponse.
@@ -556,7 +574,7 @@ type CreateAPITokenRequest struct {
 
 // CreateAwardRequest defines model for CreateAwardRequest.
 type CreateAwardRequest struct {
-	Description string `json:"description"`
+	Description string `json:"description" validate:"required,max=500"`
 	TeamID      string `json:"team_id"`
 	Value       int    `json:"value"`
 }
@@ -591,7 +609,7 @@ type CreateChallengeRequest struct {
 
 // CreateCommentRequest defines model for CreateCommentRequest.
 type CreateCommentRequest struct {
-	Content string `json:"content" validate:"required,not_empty"`
+	Content string `json:"content" validate:"required,not_empty,max=2000"`
 }
 
 // CreateFieldRequest defines model for CreateFieldRequest.
@@ -621,9 +639,9 @@ type CreateHintRequest struct {
 
 // CreateNotificationRequest defines model for CreateNotificationRequest.
 type CreateNotificationRequest struct {
-	Content  string                         `json:"content"`
+	Content  string                         `json:"content" validate:"required,max=5000"`
 	IsPinned *bool                          `json:"is_pinned,omitempty"`
-	Title    string                         `json:"title"`
+	Title    string                         `json:"title" validate:"required,max=200"`
 	Type     *CreateNotificationRequestType `json:"type,omitempty"`
 }
 
@@ -639,10 +657,15 @@ type CreatePageRequest struct {
 	Title      string  `json:"title"`
 }
 
+// CreateSoloTeamRequest defines model for CreateSoloTeamRequest.
+type CreateSoloTeamRequest struct {
+	ConfirmReset *bool `json:"confirm_reset,omitempty"`
+}
+
 // CreateTagRequest defines model for CreateTagRequest.
 type CreateTagRequest struct {
 	Color *string `json:"color,omitempty"`
-	Name  string  `json:"name"`
+	Name  string  `json:"name" validate:"required,max=50"`
 }
 
 // CreateTeamRequest defines model for CreateTeamRequest.
@@ -653,8 +676,8 @@ type CreateTeamRequest struct {
 
 // CreateUserNotificationRequest defines model for CreateUserNotificationRequest.
 type CreateUserNotificationRequest struct {
-	Content string                             `json:"content"`
-	Title   string                             `json:"title"`
+	Content string                             `json:"content" validate:"required,max=5000"`
+	Title   string                             `json:"title" validate:"required,max=200"`
 	Type    *CreateUserNotificationRequestType `json:"type,omitempty"`
 }
 
@@ -742,6 +765,9 @@ type GeneralStats struct {
 	UserCount      *int `json:"user_count,omitempty"`
 }
 
+// HealthResponse Health check result; keys are component names (e.g. db, redis, storage), values are "ok" or "error".
+type HealthResponse map[string]string
+
 // HealthcheckResponse defines model for HealthcheckResponse.
 type HealthcheckResponse struct {
 	Database *string `json:"database,omitempty"`
@@ -815,7 +841,7 @@ type ImportResult struct {
 // JoinTeamRequest defines model for JoinTeamRequest.
 type JoinTeamRequest struct {
 	ConfirmReset *bool  `json:"confirm_reset,omitempty"`
-	InviteToken  string `json:"invite_token"`
+	InviteToken  string `json:"invite_token" validate:"required,uuid"`
 }
 
 // LoginRequest defines model for LoginRequest.
@@ -965,7 +991,7 @@ type SetConfigRequestValueType string
 
 // SetHiddenRequest defines model for SetHiddenRequest.
 type SetHiddenRequest struct {
-	Hidden *bool `json:"hidden,omitempty"`
+	Hidden bool `json:"hidden"`
 }
 
 // SetTeamBracketRequest defines model for SetTeamBracketRequest.
@@ -1059,7 +1085,7 @@ type SubmissionTimeSeriesResponse struct {
 
 // SubmitFlagRequest defines model for SubmitFlagRequest.
 type SubmitFlagRequest struct {
-	Flag string `json:"flag" validate:"required,max=2048"`
+	Flag string `json:"flag" validate:"required,challenge_flag"`
 }
 
 // SubmitFlagResponse defines model for SubmitFlagResponse.
@@ -1100,7 +1126,7 @@ type TeamResponse struct {
 	CaptainID   *string `json:"captain_id,omitempty"`
 	CreatedAt   *string `json:"created_at,omitempty"`
 	ID          *string `json:"id,omitempty"`
-	InviteToken *string `json:"invite_token,omitempty"`
+	InviteToken *string `json:"invite_token"`
 	Name        *string `json:"name,omitempty"`
 }
 
@@ -1118,7 +1144,7 @@ type TeamWithMembersResponse struct {
 	CaptainID    *string `json:"captain_id,omitempty"`
 	CreatedAt    *string `json:"created_at,omitempty"`
 	ID           *string `json:"id,omitempty"`
-	InviteToken  *string `json:"invite_token,omitempty"`
+	InviteToken  *string `json:"invite_token"`
 	IsBanned     *bool   `json:"is_banned,omitempty"`
 
 	// MeetsMinSize True if the team has at least min_team_size members (or min is not set).
@@ -1166,12 +1192,12 @@ type TransferCaptainRequest struct {
 
 // UpdateAppSettingsRequest defines model for UpdateAppSettingsRequest.
 type UpdateAppSettingsRequest struct {
-	AppName          string `json:"app_name"`
-	CorsOrigins      string `json:"cors_origins"`
-	CsvExportMaxRows *int   `json:"csv_export_max_rows,omitempty"`
-	DefaultPerPage   *int   `json:"default_per_page,omitempty"`
-	FrontendURL      string `json:"frontend_url"`
-	MaxPerPage       *int   `json:"max_per_page,omitempty"`
+	AppName          *string `json:"app_name,omitempty"`
+	CorsOrigins      *string `json:"cors_origins,omitempty"`
+	CsvExportMaxRows *int    `json:"csv_export_max_rows,omitempty"`
+	DefaultPerPage   *int    `json:"default_per_page,omitempty"`
+	FrontendURL      *string `json:"frontend_url,omitempty"`
+	MaxPerPage       *int    `json:"max_per_page,omitempty"`
 
 	// MaxTeams Maximum number of teams allowed (0 = unlimited)
 	MaxTeams *int `json:"max_teams,omitempty"`
@@ -1181,11 +1207,13 @@ type UpdateAppSettingsRequest struct {
 
 	// OauthGoogleEnabled Allow users to sign in via Google OAuth
 	OauthGoogleEnabled               *bool                                      `json:"oauth_google_enabled,omitempty"`
+	RateLimitCommentPerMinute        *int                                       `json:"rate_limit_comment_per_minute,omitempty"`
 	RateLimitForgotPasswordPerMinute *int                                       `json:"rate_limit_forgot_password_per_minute,omitempty"`
 	RateLimitGeneralIPPerMinute      *int                                       `json:"rate_limit_general_ip_per_minute,omitempty"`
 	RateLimitLoginPerMinute          *int                                       `json:"rate_limit_login_per_minute,omitempty"`
 	RateLimitLogoutPerMinute         *int                                       `json:"rate_limit_logout_per_minute,omitempty"`
 	RateLimitOauthCallbackPerMinute  *int                                       `json:"rate_limit_oauth_callback_per_minute,omitempty"`
+	RateLimitOauthRedirectPerMinute  *int                                       `json:"rate_limit_oauth_redirect_per_minute,omitempty"`
 	RateLimitRefreshPerMinute        *int                                       `json:"rate_limit_refresh_per_minute,omitempty"`
 	RateLimitRegisterPerMinute       *int                                       `json:"rate_limit_register_per_minute,omitempty"`
 	RateLimitResetPasswordPerMinute  *int                                       `json:"rate_limit_reset_password_per_minute,omitempty"`
@@ -1193,8 +1221,8 @@ type UpdateAppSettingsRequest struct {
 	RateLimitVerifyEmailPerMinute    *int                                       `json:"rate_limit_verify_email_per_minute,omitempty"`
 	RegistrationOpen                 *bool                                      `json:"registration_open,omitempty"`
 	ResendEnabled                    *bool                                      `json:"resend_enabled,omitempty"`
-	ResendFromEmail                  string                                     `json:"resend_from_email"`
-	ResendFromName                   string                                     `json:"resend_from_name"`
+	ResendFromEmail                  *string                                    `json:"resend_from_email,omitempty"`
+	ResendFromName                   *string                                    `json:"resend_from_name,omitempty"`
 	ResetTTLHours                    *int                                       `json:"reset_ttl_hours,omitempty"`
 	ScoreboardVisible                *UpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty"`
 	SubmitLimitDurationMin           *int                                       `json:"submit_limit_duration_min,omitempty"`
@@ -1239,15 +1267,20 @@ type UpdateChallengeRequest struct {
 
 // UpdateCompetitionRequest defines model for UpdateCompetitionRequest.
 type UpdateCompetitionRequest struct {
-	AllowTeamSwitch *bool      `json:"allow_team_switch,omitempty"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	FlagRegex       *string    `json:"flag_regex,omitempty"`
-	FreezeTime      *time.Time `json:"freeze_time,omitempty"`
-	IsPaused        *bool      `json:"is_paused,omitempty"`
-	IsPublic        *bool      `json:"is_public,omitempty"`
-	Mode            *string    `json:"mode,omitempty"`
-	Name            string     `json:"name"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
+	AllowTeamSwitch              *bool      `json:"allow_team_switch,omitempty"`
+	ClearEndTime                 *bool      `json:"clear_end_time,omitempty"`
+	ClearFreezeTime              *bool      `json:"clear_freeze_time,omitempty"`
+	EndTime                      *time.Time `json:"end_time,omitempty"`
+	FlagRegex                    *string    `json:"flag_regex,omitempty"`
+	FreezeTime                   *time.Time `json:"freeze_time,omitempty"`
+	IsPaused                     *bool      `json:"is_paused,omitempty"`
+	IsPublic                     *bool      `json:"is_public,omitempty"`
+	KeepScoreboardFrozenAfterEnd *bool      `json:"keep_scoreboard_frozen_after_end,omitempty"`
+	MaxTeamSize                  *int       `json:"max_team_size,omitempty"`
+	MinTeamSize                  *int       `json:"min_team_size,omitempty"`
+	Mode                         *string    `json:"mode,omitempty"`
+	Name                         string     `json:"name"`
+	StartTime                    *time.Time `json:"start_time,omitempty"`
 }
 
 // UpdateFieldRequest defines model for UpdateFieldRequest.
@@ -1271,9 +1304,9 @@ type UpdateHintRequest struct {
 
 // UpdateNotificationRequest defines model for UpdateNotificationRequest.
 type UpdateNotificationRequest struct {
-	Content  string                         `json:"content"`
+	Content  string                         `json:"content" validate:"required,max=5000"`
 	IsPinned *bool                          `json:"is_pinned,omitempty"`
-	Title    string                         `json:"title"`
+	Title    string                         `json:"title" validate:"required,max=200"`
 	Type     *UpdateNotificationRequestType `json:"type,omitempty"`
 }
 
@@ -1291,7 +1324,7 @@ type UpdatePageRequest struct {
 
 // UpdateProfileRequest defines model for UpdateProfileRequest.
 type UpdateProfileRequest struct {
-	CurrentPassword *string `json:"current_password,omitempty"`
+	CurrentPassword *string `json:"current_password,omitempty" validate:"omitempty,max=72"`
 	Email           *string `json:"email,omitempty" validate:"omitempty,custom_email"`
 	Password        *string `json:"password,omitempty" validate:"omitempty,strong_password"`
 	Username        *string `json:"username,omitempty" validate:"omitempty,custom_username"`
@@ -1300,7 +1333,7 @@ type UpdateProfileRequest struct {
 // UpdateTagRequest defines model for UpdateTagRequest.
 type UpdateTagRequest struct {
 	Color *string `json:"color,omitempty"`
-	Name  string  `json:"name"`
+	Name  string  `json:"name" validate:"required,max=50"`
 }
 
 // UpdateTeamRequest defines model for UpdateTeamRequest.
@@ -1358,6 +1391,12 @@ type UserResponse struct {
 	Username *string `json:"username,omitempty"`
 }
 
+// VerifyEmailRequest defines model for VerifyEmailRequest.
+type VerifyEmailRequest struct {
+	// Token Verification token (from email link or copy-paste)
+	Token string `json:"token" validate:"required"`
+}
+
 // GetAdminAwardsParams defines parameters for GetAdminAwards.
 type GetAdminAwardsParams struct {
 	// TeamID Filter by team ID
@@ -1378,10 +1417,11 @@ type PostAdminChallengesChallengeIDFilesMultipartBodyType string
 
 // GetAdminExportParams defines parameters for GetAdminExport.
 type GetAdminExportParams struct {
-	IncludeUsers  *bool `form:"include_users,omitempty" json:"include_users,omitempty"`
-	IncludeTeams  *bool `form:"include_teams,omitempty" json:"include_teams,omitempty"`
-	IncludeSolves *bool `form:"include_solves,omitempty" json:"include_solves,omitempty"`
-	IncludeAwards *bool `form:"include_awards,omitempty" json:"include_awards,omitempty"`
+	IncludeUsers       *bool `form:"include_users,omitempty" json:"include_users,omitempty"`
+	IncludeTeams       *bool `form:"include_teams,omitempty" json:"include_teams,omitempty"`
+	IncludeSolves      *bool `form:"include_solves,omitempty" json:"include_solves,omitempty"`
+	IncludeHintUnlocks *bool `form:"include_hint_unlocks,omitempty" json:"include_hint_unlocks,omitempty"`
+	IncludeAwards      *bool `form:"include_awards,omitempty" json:"include_awards,omitempty"`
 }
 
 // GetAdminExportCsvParams defines parameters for GetAdminExportCsv.
@@ -1431,28 +1471,52 @@ type PostAdminImportCsvMultipartBody struct {
 // PostAdminImportCsvMultipartBodyTable defines parameters for PostAdminImportCsv.
 type PostAdminImportCsvMultipartBodyTable string
 
+// GetAdminStatisticsSolveMatrixParams defines parameters for GetAdminStatisticsSolveMatrix.
+type GetAdminStatisticsSolveMatrixParams struct {
+	// Live If true, return live data during freeze (admin only).
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
 // GetAdminSubmissionsParams defines parameters for GetAdminSubmissions.
 type GetAdminSubmissionsParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+
+	// Live If true, admin sees all submissions (ignores freeze). Only effective for admin.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetAdminSubmissionsChallengeChallengeIDParams defines parameters for GetAdminSubmissionsChallengeChallengeID.
 type GetAdminSubmissionsChallengeChallengeIDParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+
+	// Live If true, admin sees all submissions (ignores freeze). Only effective for admin.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetAdminSubmissionsChallengeChallengeIDStatsParams defines parameters for GetAdminSubmissionsChallengeChallengeIDStats.
+type GetAdminSubmissionsChallengeChallengeIDStatsParams struct {
+	// Live If true, admin sees live stats (ignores freeze). Only effective for admin.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetAdminSubmissionsTeamTeamIDParams defines parameters for GetAdminSubmissionsTeamTeamID.
 type GetAdminSubmissionsTeamTeamIDParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+
+	// Live If true, admin sees all submissions (ignores freeze). Only effective for admin.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetAdminSubmissionsUserUserIDParams defines parameters for GetAdminSubmissionsUserUserID.
 type GetAdminSubmissionsUserUserIDParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
+
+	// Live If true, admin sees all submissions (ignores freeze). Only effective for admin.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetAdminTeamsParams defines parameters for GetAdminTeams.
@@ -1510,12 +1574,6 @@ type PostAuthRefreshParams struct {
 	Authorization string `json:"Authorization"`
 }
 
-// GetAuthVerifyEmailParams defines parameters for GetAuthVerifyEmail.
-type GetAuthVerifyEmailParams struct {
-	// Token Verification token
-	Token string `form:"token" json:"token"`
-}
-
 // GetChallengesParams defines parameters for GetChallenges.
 type GetChallengesParams struct {
 	// Tag Filter challenges by tag ID
@@ -1525,16 +1583,30 @@ type GetChallengesParams struct {
 // GetChallengesChallengeIDFilesParams defines parameters for GetChallengesChallengeIDFiles.
 type GetChallengesChallengeIDFilesParams struct {
 	// Type File type: challenge or writeup
-	Type *string `form:"type,omitempty" json:"type,omitempty"`
+	Type *GetChallengesChallengeIDFilesParamsType `form:"type,omitempty" json:"type,omitempty"`
+}
+
+// GetChallengesChallengeIDFilesParamsType defines parameters for GetChallengesChallengeIDFiles.
+type GetChallengesChallengeIDFilesParamsType string
+
+// GetChallengesChallengeIDFirstBloodParams defines parameters for GetChallengesChallengeIDFirstBlood.
+type GetChallengesChallengeIDFirstBloodParams struct {
+	// Live If true and requester is admin, return live (non-frozen) first blood during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetFieldsParams defines parameters for GetFields.
 type GetFieldsParams struct {
-	EntityType GetFieldsParamsEntityType `form:"entity_type" json:"entity_type"`
+	EntityType *GetFieldsParamsEntityType `form:"entity_type,omitempty" json:"entity_type,omitempty"`
 }
 
 // GetFieldsParamsEntityType defines parameters for GetFields.
 type GetFieldsParamsEntityType string
+
+// GetFilesDownloadPathParams defines parameters for GetFilesDownloadPath.
+type GetFilesDownloadPathParams struct {
+	Token string `form:"token" json:"token"`
+}
 
 // GetNotificationsParams defines parameters for GetNotifications.
 type GetNotificationsParams struct {
@@ -1546,18 +1618,69 @@ type GetNotificationsParams struct {
 type GetScoreboardParams struct {
 	// Bracket Filter scoreboard by bracket (category) ID
 	Bracket *openapi_types.UUID `form:"bracket,omitempty" json:"bracket,omitempty"`
+
+	// Live If true and requester is admin, return live (non-frozen) scoreboard during freeze. Ignored for non-admins.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetScoreboardGraphParams defines parameters for GetScoreboardGraph.
 type GetScoreboardGraphParams struct {
 	// Top Number of top teams to include
 	Top *int `form:"top,omitempty" json:"top,omitempty"`
+
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsChallengesParams defines parameters for GetStatisticsChallenges.
+type GetStatisticsChallengesParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsChallengesSolvesPercentagesParams defines parameters for GetStatisticsChallengesSolvesPercentages.
+type GetStatisticsChallengesSolvesPercentagesParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsChallengesIDParams defines parameters for GetStatisticsChallengesID.
+type GetStatisticsChallengesIDParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsGeneralParams defines parameters for GetStatisticsGeneral.
+type GetStatisticsGeneralParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetStatisticsScoreboardParams defines parameters for GetStatisticsScoreboard.
 type GetStatisticsScoreboardParams struct {
 	// Limit Number of teams to include in history (default 10, max 50)
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsScoresDistributionParams defines parameters for GetStatisticsScoresDistribution.
+type GetStatisticsScoresDistributionParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsSubmissionsParams defines parameters for GetStatisticsSubmissions.
+type GetStatisticsSubmissionsParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsSubmissionsTypeParams defines parameters for GetStatisticsSubmissionsType.
+type GetStatisticsSubmissionsTypeParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
 // GetStatisticsSubmissionsTypeParamsType defines parameters for GetStatisticsSubmissionsType.
@@ -1571,14 +1694,14 @@ type GetTeamsParams struct {
 	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
-// GetTeamsMeFailsParams defines parameters for GetTeamsMeFails.
-type GetTeamsMeFailsParams struct {
+// GetTeamsIDFailsParams defines parameters for GetTeamsIDFails.
+type GetTeamsIDFailsParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
-// GetTeamsIDFailsParams defines parameters for GetTeamsIDFails.
-type GetTeamsIDFailsParams struct {
+// GetTeamsMeFailsParams defines parameters for GetTeamsMeFails.
+type GetTeamsMeFailsParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
@@ -1738,11 +1861,14 @@ type PostAuthRegisterJSONRequestBody = RegisterRequest
 // PostAuthResetPasswordJSONRequestBody defines body for PostAuthResetPassword for application/json ContentType.
 type PostAuthResetPasswordJSONRequestBody = ResetPasswordRequest
 
-// PostChallengesIDSubmitJSONRequestBody defines body for PostChallengesIDSubmit for application/json ContentType.
-type PostChallengesIDSubmitJSONRequestBody = SubmitFlagRequest
+// PostAuthVerifyEmailJSONRequestBody defines body for PostAuthVerifyEmail for application/json ContentType.
+type PostAuthVerifyEmailJSONRequestBody = VerifyEmailRequest
 
 // PostChallengesChallengeIDCommentsJSONRequestBody defines body for PostChallengesChallengeIDComments for application/json ContentType.
 type PostChallengesChallengeIDCommentsJSONRequestBody = CreateCommentRequest
+
+// PostChallengesChallengeIDSubmitJSONRequestBody defines body for PostChallengesChallengeIDSubmit for application/json ContentType.
+type PostChallengesChallengeIDSubmitJSONRequestBody = SubmitFlagRequest
 
 // PostTeamsJSONRequestBody defines body for PostTeams for application/json ContentType.
 type PostTeamsJSONRequestBody = CreateTeamRequest
@@ -1754,7 +1880,7 @@ type PostTeamsJoinJSONRequestBody = JoinTeamRequest
 type PatchTeamsMeJSONRequestBody = UpdateTeamRequest
 
 // PostTeamsSoloJSONRequestBody defines body for PostTeamsSolo for application/json ContentType.
-type PostTeamsSoloJSONRequestBody = CreateTeamRequest
+type PostTeamsSoloJSONRequestBody = CreateSoloTeamRequest
 
 // PostTeamsTransferCaptainJSONRequestBody defines body for PostTeamsTransferCaptain for application/json ContentType.
 type PostTeamsTransferCaptainJSONRequestBody = TransferCaptainRequest

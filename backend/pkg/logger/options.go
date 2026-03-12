@@ -27,9 +27,3 @@ func WithOutput(output OutputType) Option {
 		o.Output = output
 	}
 }
-
-func WithFileOptions(fileOpts FileOptions) Option {
-	return func(o *Options) {
-		o.FileOptions = fileOpts
-	}
-}

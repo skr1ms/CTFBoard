@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) CreateChallenge(token string, data map[string]any) string {
@@ -48,14 +49,13 @@ func (h *E2EHelper) CreateChallengeExpectStatus(token string, data map[string]an
 
 func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) string {
 	h.t.Helper()
-	hidden := false
 	return h.CreateChallenge(token, map[string]any{
 		"title":         title,
 		"description":   "Standard basic challenge",
 		"flag":          flag,
 		"points":        points,
 		"category":      "misc",
-		"is_hidden":     hidden,
+		"is_hidden":     false,
 		"initial_value": points,
 		"min_value":     points,
 		"decay":         1,
@@ -101,9 +101,9 @@ func (h *E2EHelper) DeleteChallengeExpectStatus(token, challengeID string, expec
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "delete challenge")
 }
 
-func (h *E2EHelper) SubmitFlag(token, challengeID, flag string, expectStatus int) *openapi.PostChallengesIDSubmitResponse {
+func (h *E2EHelper) SubmitFlag(token, challengeID, flag string, expectStatus int) *openapi.PostChallengesChallengeIDSubmitResponse {
 	h.t.Helper()
-	resp, err := h.client.PostChallengesIDSubmitWithResponse(context.Background(), challengeID, openapi.PostChallengesIDSubmitJSONRequestBody{Flag: flag}, WithBearerToken(token))
+	resp, err := h.client.PostChallengesChallengeIDSubmitWithResponse(context.Background(), challengeID, openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: flag}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "submit flag")
 	return resp
@@ -143,6 +143,14 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
 	}
 }
 
+func (h *E2EHelper) GetChallengeDetailExpectStatus(token, challengeID string, expectStatus int) *openapi.GetChallengesChallengeIDResponse {
+	h.t.Helper()
+	resp, err := h.client.GetChallengesChallengeIDWithResponse(context.Background(), challengeID, WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get challenge detail")
+	return resp
+}
+
 func (h *E2EHelper) SetChallengeRequirements(token, challengeID string, requirementIDs []string) {
 	h.t.Helper()
 	h.SetChallengeRequirementsExpectStatus(token, challengeID, requirementIDs, http.StatusNoContent)
@@ -159,19 +167,19 @@ func (h *E2EHelper) SetChallengeRequirementsExpectStatus(token, challengeID stri
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "set challenge requirements")
 }
 
-func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *openapi.GetChallengesIDFirstBloodResponse {
+func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *openapi.GetChallengesChallengeIDFirstBloodResponse {
 	h.t.Helper()
-	resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID, WithBearerToken(token))
+	resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "first-blood")
 	return resp
 }
 
-func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries int, sleep time.Duration) *openapi.GetChallengesIDFirstBloodResponse {
+func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries int, sleep time.Duration) *openapi.GetChallengesChallengeIDFirstBloodResponse {
 	h.t.Helper()
-	var last *openapi.GetChallengesIDFirstBloodResponse
+	var last *openapi.GetChallengesChallengeIDFirstBloodResponse
 	for i := 0; i < maxTries; i++ {
-		resp, err := h.client.GetChallengesIDFirstBloodWithResponse(context.Background(), challengeID, WithBearerToken(token))
+		resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 		require.NoError(h.t, err)
 		last = resp
 		if resp.StatusCode() == http.StatusOK {

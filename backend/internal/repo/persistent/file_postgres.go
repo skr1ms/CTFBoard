@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FileRepo struct {
@@ -36,7 +37,7 @@ func toEntityFile(f sqlc.File) *entity.File {
 		Filename:    f.Filename,
 		Size:        f.Size,
 		SHA256:      f.SHA256,
-		CreatedAt:   f.CreatedAt,
+		CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
 	}
 }
 
@@ -55,7 +56,7 @@ func (r *FileRepo) Create(ctx context.Context, file *entity.File) error {
 		Filename:    file.Filename,
 		Size:        file.Size,
 		SHA256:      file.SHA256,
-		CreatedAt:   file.CreatedAt,
+		CreatedAt:   timeToTimestamptz(&file.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("FileRepo - Create: %w", err)
@@ -100,6 +101,34 @@ func (r *FileRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, 
 	return out, nil
 }
 
+func (r *FileRepo) GetAllByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.File, error) {
+	rows, err := r.q(ctx).GetFilesByChallengeID(ctx, challengeID)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - GetAllByChallengeID: %w", err)
+	}
+	out := make([]*entity.File, 0, len(rows))
+	for _, f := range rows {
+		out = append(out, toEntityFile(f))
+	}
+	return out, nil
+}
+
+func (r *FileRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.File, error) {
+	if len(challengeIDs) == 0 {
+		return map[uuid.UUID][]*entity.File{}, nil
+	}
+	rows, err := r.q(ctx).GetFilesByChallengeIDs(ctx, challengeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - GetByChallengeIDs: %w", err)
+	}
+	out := make(map[uuid.UUID][]*entity.File)
+	for _, f := range rows {
+		ef := toEntityFile(f)
+		out[f.ChallengeID] = append(out[f.ChallengeID], ef)
+	}
+	return out, nil
+}
+
 func (r *FileRepo) GetAll(ctx context.Context) ([]*entity.File, error) {
 	rows, err := r.q(ctx).GetAllFiles(ctx)
 	if err != nil {
@@ -110,6 +139,25 @@ func (r *FileRepo) GetAll(ctx context.Context) ([]*entity.File, error) {
 		out = append(out, toEntityFile(f))
 	}
 	return out, nil
+}
+
+func (r *FileRepo) ListLocations(ctx context.Context, limit, offset int) ([]string, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - ListLocations - limit: %w", err)
+	}
+	offset32, err := intToInt32Safe(offset)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - ListLocations - offset: %w", err)
+	}
+	rows, err := r.q(ctx).ListFileLocations(ctx, sqlc.ListFileLocationsParams{
+		Limit:  limit32,
+		Offset: offset32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - ListLocations: %w", err)
+	}
+	return rows, nil
 }
 
 func (r *FileRepo) Delete(ctx context.Context, ID uuid.UUID) error {

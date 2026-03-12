@@ -3,10 +3,11 @@ package helper
 import (
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 type E2EHelper struct {
@@ -19,6 +20,10 @@ type E2EHelper struct {
 
 func (h *E2EHelper) Pool() *pgxpool.Pool {
 	return h.pool
+}
+
+func (h *E2EHelper) Redis() *redis.Client {
+	return h.redis
 }
 
 func NewE2EHelper(t *testing.T, _ any, pool *pgxpool.Pool, redisClient *redis.Client, baseURL string) *E2EHelper {

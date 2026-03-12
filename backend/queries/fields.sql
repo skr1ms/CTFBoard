@@ -25,6 +25,10 @@ DELETE FROM fields WHERE id = $1;
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values WHERE entity_id = $1;
 
+-- name: GetAllFieldValues :many
+SELECT id, field_id, entity_id, value, created_at
+FROM field_values ORDER BY field_id, entity_id;
+
 -- name: DeleteFieldValuesByEntityID :exec
 DELETE FROM field_values WHERE entity_id = $1;
 

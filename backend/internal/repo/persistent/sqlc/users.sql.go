@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const banUser = `-- name: BanUser :one
@@ -17,9 +17,9 @@ UPDATE users SET is_banned = TRUE, banned_at = $2, banned_reason = $3 WHERE id =
 `
 
 type BanUserParams struct {
-	ID           uuid.UUID  `json:"id"`
-	BannedAt     *time.Time `json:"banned_at"`
-	BannedReason *string    `json:"banned_reason"`
+	ID           uuid.UUID          `json:"id"`
+	BannedAt     pgtype.Timestamptz `json:"banned_at"`
+	BannedReason *string            `json:"banned_reason"`
 }
 
 func (q *Queries) BanUser(ctx context.Context, arg BanUserParams) (uuid.UUID, error) {
@@ -62,13 +62,13 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID  `json:"id"`
-	Username     string     `json:"username"`
-	Email        string     `json:"email"`
-	PasswordHash string     `json:"password_hash"`
-	Role         *string    `json:"role"`
-	IsVerified   *bool      `json:"is_verified"`
-	CreatedAt    *time.Time `json:"created_at"`
+	ID           uuid.UUID          `json:"id"`
+	Username     string             `json:"username"`
+	Email        string             `json:"email"`
+	PasswordHash string             `json:"password_hash"`
+	Role         *string            `json:"role"`
+	IsVerified   *bool              `json:"is_verified"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -91,12 +91,12 @@ RETURNING id
 `
 
 type CreateUserReturningIDParams struct {
-	Username     string     `json:"username"`
-	Email        string     `json:"email"`
-	PasswordHash string     `json:"password_hash"`
-	Role         *string    `json:"role"`
-	IsVerified   *bool      `json:"is_verified"`
-	CreatedAt    *time.Time `json:"created_at"`
+	Username     string             `json:"username"`
+	Email        string             `json:"email"`
+	PasswordHash string             `json:"password_hash"`
+	Role         *string            `json:"role"`
+	IsVerified   *bool              `json:"is_verified"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateUserReturningID(ctx context.Context, arg CreateUserReturningIDParams) (uuid.UUID, error) {
@@ -123,7 +123,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 ORDER BY created_at ASC
 `
@@ -149,6 +149,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 			&i.IsBanned,
 			&i.BannedAt,
 			&i.BannedReason,
+			&i.WasInBannedTeam,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -162,7 +163,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 WHERE email = $1
 `
@@ -182,13 +183,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.IsBanned,
 		&i.BannedAt,
 		&i.BannedReason,
+		&i.WasInBannedTeam,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 WHERE id = $1
 `
@@ -208,13 +210,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.IsBanned,
 		&i.BannedAt,
 		&i.BannedReason,
+		&i.WasInBannedTeam,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 WHERE username = $1
 `
@@ -234,13 +237,62 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.IsBanned,
 		&i.BannedAt,
 		&i.BannedReason,
+		&i.WasInBannedTeam,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
+const listUserIDsWithTeamIDNull = `-- name: ListUserIDsWithTeamIDNull :many
+SELECT id FROM users WHERE id = ANY($1::uuid[]) AND team_id IS NULL
+`
+
+func (q *Queries) ListUserIDsWithTeamIDNull(ctx context.Context, dollar_1 []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithTeamIDNull, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserIDsWithTeamIDNullAndNotBanned = `-- name: ListUserIDsWithTeamIDNullAndNotBanned :many
+SELECT id FROM users WHERE id = ANY($1::uuid[]) AND team_id IS NULL AND is_banned = false
+`
+
+func (q *Queries) ListUserIDsWithTeamIDNullAndNotBanned(ctx context.Context, dollar_1 []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithTeamIDNullAndNotBanned, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsersByTeamID = `-- name: ListUsersByTeamID :many
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 WHERE team_id = $1
 `
@@ -266,6 +318,48 @@ func (q *Queries) ListUsersByTeamID(ctx context.Context, teamID *uuid.UUID) ([]U
 			&i.IsBanned,
 			&i.BannedAt,
 			&i.BannedReason,
+			&i.WasInBannedTeam,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersByTeamIDs = `-- name: ListUsersByTeamIDs :many
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
+FROM users
+WHERE team_id = ANY($1::uuid[])
+ORDER BY team_id, created_at
+`
+
+func (q *Queries) ListUsersByTeamIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsersByTeamIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Username,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.IsVerified,
+			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.WasInBannedTeam,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -289,7 +383,7 @@ func (q *Queries) LockUser(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, created_at
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, created_at
 FROM users
 WHERE ($3::text IS NULL OR username ILIKE '%' || $3 || '%')
 ORDER BY created_at ASC
@@ -323,6 +417,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Use
 			&i.IsBanned,
 			&i.BannedAt,
 			&i.BannedReason,
+			&i.WasInBannedTeam,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -336,7 +431,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Use
 }
 
 const searchUsersByIP = `-- name: SearchUsersByIP :many
-SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.created_at
+SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.was_in_banned_team, u.created_at
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1
@@ -371,6 +466,7 @@ func (q *Queries) SearchUsersByIP(ctx context.Context, arg SearchUsersByIPParams
 			&i.IsBanned,
 			&i.BannedAt,
 			&i.BannedReason,
+			&i.WasInBannedTeam,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -381,6 +477,20 @@ func (q *Queries) SearchUsersByIP(ctx context.Context, arg SearchUsersByIPParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const setWasInBannedTeamByIDs = `-- name: SetWasInBannedTeamByIDs :exec
+UPDATE users SET was_in_banned_team = $1 WHERE id = ANY($2::uuid[])
+`
+
+type SetWasInBannedTeamByIDsParams struct {
+	WasInBannedTeam bool        `json:"was_in_banned_team"`
+	Column2         []uuid.UUID `json:"column_2"`
+}
+
+func (q *Queries) SetWasInBannedTeamByIDs(ctx context.Context, arg SetWasInBannedTeamByIDsParams) error {
+	_, err := q.db.Exec(ctx, setWasInBannedTeamByIDs, arg.WasInBannedTeam, arg.Column2)
+	return err
 }
 
 const unbanUser = `-- name: UnbanUser :one
@@ -479,14 +589,28 @@ func (q *Queries) UpdateUserTeamID(ctx context.Context, arg UpdateUserTeamIDPara
 	return id, err
 }
 
+const updateUserTeamIDBatch = `-- name: UpdateUserTeamIDBatch :exec
+UPDATE users SET team_id = $1 WHERE id = ANY($2::uuid[])
+`
+
+type UpdateUserTeamIDBatchParams struct {
+	TeamID  *uuid.UUID  `json:"team_id"`
+	Column2 []uuid.UUID `json:"column_2"`
+}
+
+func (q *Queries) UpdateUserTeamIDBatch(ctx context.Context, arg UpdateUserTeamIDBatchParams) error {
+	_, err := q.db.Exec(ctx, updateUserTeamIDBatch, arg.TeamID, arg.Column2)
+	return err
+}
+
 const updateUserVerified = `-- name: UpdateUserVerified :one
 UPDATE users SET is_verified = $2, verified_at = $3 WHERE id = $1 RETURNING id
 `
 
 type UpdateUserVerifiedParams struct {
-	ID         uuid.UUID  `json:"id"`
-	IsVerified *bool      `json:"is_verified"`
-	VerifiedAt *time.Time `json:"verified_at"`
+	ID         uuid.UUID          `json:"id"`
+	IsVerified *bool              `json:"is_verified"`
+	VerifiedAt pgtype.Timestamptz `json:"verified_at"`
 }
 
 func (q *Queries) UpdateUserVerified(ctx context.Context, arg UpdateUserVerifiedParams) (uuid.UUID, error) {

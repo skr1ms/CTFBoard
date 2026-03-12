@@ -5,82 +5,84 @@
 package sqlc
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type APIToken struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	TokenHash   string     `json:"token_hash"`
-	Description *string    `json:"description"`
-	ExpiresAt   *time.Time `json:"expires_at"`
-	LastUsedAt  *time.Time `json:"last_used_at"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	TokenHash   string             `json:"token_hash"`
+	Description *string            `json:"description"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	LastUsedAt  pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type AppSettings struct {
-	ID                               int32     `json:"id"`
-	AppName                          string    `json:"app_name"`
-	VerifyEmails                     bool      `json:"verify_emails"`
-	FrontendURL                      string    `json:"frontend_url"`
-	CORSOrigins                      string    `json:"cors_origins"`
-	ResendEnabled                    bool      `json:"resend_enabled"`
-	ResendFromEmail                  string    `json:"resend_from_email"`
-	ResendFromName                   string    `json:"resend_from_name"`
-	VerifyTTLHours                   int32     `json:"verify_ttl_hours"`
-	ResetTTLHours                    int32     `json:"reset_ttl_hours"`
-	SubmitLimitPerUser               int32     `json:"submit_limit_per_user"`
-	SubmitLimitDurationMin           int32     `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string    `json:"scoreboard_visible"`
-	RegistrationOpen                 bool      `json:"registration_open"`
-	DefaultPerPage                   int32     `json:"default_per_page"`
-	MaxPerPage                       int32     `json:"max_per_page"`
-	CSVExportMaxRows                 int32     `json:"csv_export_max_rows"`
-	RateLimitLoginPerMinute          int32     `json:"rate_limit_login_per_minute"`
-	RateLimitRegisterPerMinute       int32     `json:"rate_limit_register_per_minute"`
-	RateLimitForgotPasswordPerMinute int32     `json:"rate_limit_forgot_password_per_minute"`
-	RateLimitResetPasswordPerMinute  int32     `json:"rate_limit_reset_password_per_minute"`
-	RateLimitLogoutPerMinute         int32     `json:"rate_limit_logout_per_minute"`
-	RateLimitRefreshPerMinute        int32     `json:"rate_limit_refresh_per_minute"`
-	RateLimitScoreboardPerMinute     int32     `json:"rate_limit_scoreboard_per_minute"`
-	RateLimitGeneralIPPerMinute      int32     `json:"rate_limit_general_ip_per_minute"`
-	RateLimitVerifyEmailPerMinute    int32     `json:"rate_limit_verify_email_per_minute"`
-	RateLimitOAuthCallbackPerMinute  int32     `json:"rate_limit_oauth_callback_per_minute"`
-	MaxTeams                         int32     `json:"max_teams"`
-	WriteupEnabled                   bool      `json:"writeup_enabled"`
-	OAuthGithubEnabled               bool      `json:"oauth_github_enabled"`
-	OAuthGoogleEnabled               bool      `json:"oauth_google_enabled"`
-	UpdatedAt                        time.Time `json:"updated_at"`
+	ID                               int32              `json:"id"`
+	AppName                          string             `json:"app_name"`
+	VerifyEmails                     bool               `json:"verify_emails"`
+	FrontendURL                      string             `json:"frontend_url"`
+	CORSOrigins                      string             `json:"cors_origins"`
+	ResendEnabled                    bool               `json:"resend_enabled"`
+	ResendFromEmail                  string             `json:"resend_from_email"`
+	ResendFromName                   string             `json:"resend_from_name"`
+	VerifyTTLHours                   int32              `json:"verify_ttl_hours"`
+	ResetTTLHours                    int32              `json:"reset_ttl_hours"`
+	SubmitLimitPerUser               int32              `json:"submit_limit_per_user"`
+	SubmitLimitDurationMin           int32              `json:"submit_limit_duration_min"`
+	ScoreboardVisible                string             `json:"scoreboard_visible"`
+	RegistrationOpen                 bool               `json:"registration_open"`
+	DefaultPerPage                   int32              `json:"default_per_page"`
+	MaxPerPage                       int32              `json:"max_per_page"`
+	CSVExportMaxRows                 int32              `json:"csv_export_max_rows"`
+	RateLimitLoginPerMinute          int32              `json:"rate_limit_login_per_minute"`
+	RateLimitRegisterPerMinute       int32              `json:"rate_limit_register_per_minute"`
+	RateLimitForgotPasswordPerMinute int32              `json:"rate_limit_forgot_password_per_minute"`
+	RateLimitResetPasswordPerMinute  int32              `json:"rate_limit_reset_password_per_minute"`
+	RateLimitLogoutPerMinute         int32              `json:"rate_limit_logout_per_minute"`
+	RateLimitRefreshPerMinute        int32              `json:"rate_limit_refresh_per_minute"`
+	RateLimitScoreboardPerMinute     int32              `json:"rate_limit_scoreboard_per_minute"`
+	RateLimitGeneralIPPerMinute      int32              `json:"rate_limit_general_ip_per_minute"`
+	RateLimitVerifyEmailPerMinute    int32              `json:"rate_limit_verify_email_per_minute"`
+	RateLimitOAuthCallbackPerMinute  int32              `json:"rate_limit_oauth_callback_per_minute"`
+	RateLimitOAuthRedirectPerMinute  int32              `json:"rate_limit_oauth_redirect_per_minute"`
+	RateLimitCommentPerMinute        int32              `json:"rate_limit_comment_per_minute"`
+	MaxTeams                         int32              `json:"max_teams"`
+	WriteupEnabled                   bool               `json:"writeup_enabled"`
+	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
+	OAuthGoogleEnabled               bool               `json:"oauth_google_enabled"`
+	UpdatedAt                        pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuditLog struct {
-	ID         uuid.UUID  `json:"id"`
-	UserID     *uuid.UUID `json:"user_id"`
-	Action     string     `json:"action"`
-	EntityType string     `json:"entity_type"`
-	EntityID   *string    `json:"entity_id"`
-	IP         *string    `json:"ip"`
-	Details    []byte     `json:"details"`
-	CreatedAt  *time.Time `json:"created_at"`
+	ID         uuid.UUID          `json:"id"`
+	UserID     *uuid.UUID         `json:"user_id"`
+	Action     string             `json:"action"`
+	EntityType string             `json:"entity_type"`
+	EntityID   *string            `json:"entity_id"`
+	IP         *string            `json:"ip"`
+	Details    []byte             `json:"details"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 type Award struct {
-	ID          uuid.UUID  `json:"id"`
-	TeamID      uuid.UUID  `json:"team_id"`
-	Value       int32      `json:"value"`
-	Description string     `json:"description"`
-	CreatedBy   *uuid.UUID `json:"created_by"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID           uuid.UUID          `json:"id"`
+	TeamID       uuid.UUID          `json:"team_id"`
+	Value        int32              `json:"value"`
+	Description  string             `json:"description"`
+	CreatedBy    *uuid.UUID         `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	BannedTeamID *uuid.UUID         `json:"banned_team_id"`
 }
 
 type Bracket struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Description *string    `json:"description"`
-	IsDefault   *bool      `json:"is_default"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description *string            `json:"description"`
+	IsDefault   *bool              `json:"is_default"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type Challenge struct {
@@ -102,11 +104,11 @@ type Challenge struct {
 }
 
 type ChallengeOpen struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	ChallengeID uuid.UUID  `json:"challenge_id"`
-	IP          *string    `json:"ip"`
-	OpenedAt    *time.Time `json:"opened_at"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	IP          *string            `json:"ip"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
 }
 
 type ChallengeRequirement struct {
@@ -120,67 +122,69 @@ type ChallengeTag struct {
 }
 
 type Comment struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	ChallengeID uuid.UUID  `json:"challenge_id"`
-	Content     string     `json:"content"`
-	CreatedAt   *time.Time `json:"created_at"`
-	UpdatedAt   *time.Time `json:"updated_at"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Content     string             `json:"content"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Competition struct {
-	ID              int32      `json:"id"`
-	Name            string     `json:"name"`
-	StartTime       *time.Time `json:"start_time"`
-	EndTime         *time.Time `json:"end_time"`
-	FreezeTime      *time.Time `json:"freeze_time"`
-	IsPaused        *bool      `json:"is_paused"`
-	IsPublic        *bool      `json:"is_public"`
-	FlagRegex       *string    `json:"flag_regex"`
-	Mode            *string    `json:"mode"`
-	AllowTeamSwitch *bool      `json:"allow_team_switch"`
-	MinTeamSize     *int32     `json:"min_team_size"`
-	MaxTeamSize     *int32     `json:"max_team_size"`
-	CreatedAt       *time.Time `json:"created_at"`
-	UpdatedAt       *time.Time `json:"updated_at"`
+	ID                           int32              `json:"id"`
+	Name                         string             `json:"name"`
+	StartTime                    pgtype.Timestamptz `json:"start_time"`
+	EndTime                      pgtype.Timestamptz `json:"end_time"`
+	FreezeTime                   pgtype.Timestamptz `json:"freeze_time"`
+	IsPaused                     *bool              `json:"is_paused"`
+	PausedAt                     pgtype.Timestamptz `json:"paused_at"`
+	IsPublic                     *bool              `json:"is_public"`
+	FlagRegex                    *string            `json:"flag_regex"`
+	Mode                         *string            `json:"mode"`
+	AllowTeamSwitch              *bool              `json:"allow_team_switch"`
+	MinTeamSize                  *int32             `json:"min_team_size"`
+	MaxTeamSize                  *int32             `json:"max_team_size"`
+	KeepScoreboardFrozenAfterEnd bool               `json:"keep_scoreboard_frozen_after_end"`
+	CreatedAt                    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type CompetitionParam struct {
-	Key         string     `json:"key"`
-	Value       string     `json:"value"`
-	ValueType   string     `json:"value_type"`
-	Description *string    `json:"description"`
-	UpdatedAt   *time.Time `json:"updated_at"`
+	Key         string             `json:"key"`
+	Value       string             `json:"value"`
+	ValueType   string             `json:"value_type"`
+	Description *string            `json:"description"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Field struct {
-	ID         uuid.UUID  `json:"id"`
-	Name       string     `json:"name"`
-	FieldType  string     `json:"field_type"`
-	EntityType string     `json:"entity_type"`
-	Required   *bool      `json:"required"`
-	Options    []byte     `json:"options"`
-	OrderIndex *int32     `json:"order_index"`
-	CreatedAt  *time.Time `json:"created_at"`
+	ID         uuid.UUID          `json:"id"`
+	Name       string             `json:"name"`
+	FieldType  string             `json:"field_type"`
+	EntityType string             `json:"entity_type"`
+	Required   *bool              `json:"required"`
+	Options    []byte             `json:"options"`
+	OrderIndex *int32             `json:"order_index"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 type FieldValue struct {
-	ID        uuid.UUID  `json:"id"`
-	FieldID   uuid.UUID  `json:"field_id"`
-	EntityID  uuid.UUID  `json:"entity_id"`
-	Value     string     `json:"value"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	FieldID   uuid.UUID          `json:"field_id"`
+	EntityID  uuid.UUID          `json:"entity_id"`
+	Value     string             `json:"value"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type File struct {
-	ID          uuid.UUID `json:"id"`
-	Type        string    `json:"type"`
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	Location    string    `json:"location"`
-	Filename    string    `json:"filename"`
-	Size        int64     `json:"size"`
-	SHA256      string    `json:"sha256"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Type        string             `json:"type"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Location    string             `json:"location"`
+	Filename    string             `json:"filename"`
+	Size        int64              `json:"size"`
+	SHA256      string             `json:"sha256"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type Hint struct {
@@ -192,42 +196,43 @@ type Hint struct {
 }
 
 type HintUnlock struct {
-	ID         uuid.UUID  `json:"id"`
-	HintID     uuid.UUID  `json:"hint_id"`
-	TeamID     uuid.UUID  `json:"team_id"`
-	UnlockedAt *time.Time `json:"unlocked_at"`
+	ID           uuid.UUID          `json:"id"`
+	HintID       uuid.UUID          `json:"hint_id"`
+	TeamID       uuid.UUID          `json:"team_id"`
+	UnlockedAt   pgtype.Timestamptz `json:"unlocked_at"`
+	BannedTeamID *uuid.UUID         `json:"banned_team_id"`
 }
 
 type Notification struct {
-	ID        uuid.UUID  `json:"id"`
-	Title     string     `json:"title"`
-	Content   string     `json:"content"`
-	Type      *string    `json:"type"`
-	IsPinned  *bool      `json:"is_pinned"`
-	IsGlobal  *bool      `json:"is_global"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	Type      *string            `json:"type"`
+	IsPinned  *bool              `json:"is_pinned"`
+	IsGlobal  *bool              `json:"is_global"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type OAuthAccount struct {
-	ID             uuid.UUID  `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	Provider       string     `json:"provider"`
-	ProviderUserID string     `json:"provider_user_id"`
-	AccessToken    *string    `json:"access_token"`
-	RefreshToken   *string    `json:"refresh_token"`
-	ExpiresAt      *time.Time `json:"expires_at"`
-	CreatedAt      *time.Time `json:"created_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	AccessToken    *string            `json:"access_token"`
+	RefreshToken   *string            `json:"refresh_token"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type Page struct {
-	ID         uuid.UUID  `json:"id"`
-	Title      string     `json:"title"`
-	Slug       string     `json:"slug"`
-	Content    string     `json:"content"`
-	IsDraft    *bool      `json:"is_draft"`
-	OrderIndex *int32     `json:"order_index"`
-	CreatedAt  *time.Time `json:"created_at"`
-	UpdatedAt  *time.Time `json:"updated_at"`
+	ID         uuid.UUID          `json:"id"`
+	Title      string             `json:"title"`
+	Slug       string             `json:"slug"`
+	Content    string             `json:"content"`
+	IsDraft    *bool              `json:"is_draft"`
+	OrderIndex *int32             `json:"order_index"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Solution struct {
@@ -237,23 +242,27 @@ type Solution struct {
 }
 
 type Solve struct {
-	ID            uuid.UUID  `json:"id"`
-	UserID        uuid.UUID  `json:"user_id"`
-	TeamID        uuid.UUID  `json:"team_id"`
-	ChallengeID   uuid.UUID  `json:"challenge_id"`
-	SolvedAt      *time.Time `json:"solved_at"`
-	PointsAtSolve int32      `json:"points_at_solve"`
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	TeamID        uuid.UUID          `json:"team_id"`
+	ChallengeID   uuid.UUID          `json:"challenge_id"`
+	SolvedAt      pgtype.Timestamptz `json:"solved_at"`
+	PointsAtSolve int32              `json:"points_at_solve"`
+	BannedTeamID  *uuid.UUID         `json:"banned_team_id"`
+	BannedUserID  *uuid.UUID         `json:"banned_user_id"`
 }
 
 type Submission struct {
-	ID            uuid.UUID  `json:"id"`
-	UserID        uuid.UUID  `json:"user_id"`
-	TeamID        *uuid.UUID `json:"team_id"`
-	ChallengeID   uuid.UUID  `json:"challenge_id"`
-	SubmittedFlag string     `json:"submitted_flag"`
-	IsCorrect     bool       `json:"is_correct"`
-	IP            *string    `json:"ip"`
-	CreatedAt     *time.Time `json:"created_at"`
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	TeamID        *uuid.UUID         `json:"team_id"`
+	ChallengeID   uuid.UUID          `json:"challenge_id"`
+	SubmittedFlag string             `json:"submitted_flag"`
+	IsCorrect     bool               `json:"is_correct"`
+	IP            *string            `json:"ip"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	BannedTeamID  *uuid.UUID         `json:"banned_team_id"`
+	BannedUserID  *uuid.UUID         `json:"banned_user_id"`
 }
 
 type Tag struct {
@@ -263,70 +272,72 @@ type Tag struct {
 }
 
 type Team struct {
-	ID            uuid.UUID  `json:"id"`
-	Name          string     `json:"name"`
-	InviteToken   uuid.UUID  `json:"invite_token"`
-	CaptainID     uuid.UUID  `json:"captain_id"`
-	BracketID     *uuid.UUID `json:"bracket_id"`
-	IsSolo        *bool      `json:"is_solo"`
-	IsAutoCreated *bool      `json:"is_auto_created"`
-	IsBanned      *bool      `json:"is_banned"`
-	BannedAt      *time.Time `json:"banned_at"`
-	BannedReason  *string    `json:"banned_reason"`
-	IsHidden      *bool      `json:"is_hidden"`
-	CreatedAt     *time.Time `json:"created_at"`
-	DeletedAt     *time.Time `json:"deleted_at"`
+	ID                   uuid.UUID          `json:"id"`
+	Name                 string             `json:"name"`
+	InviteToken          uuid.UUID          `json:"invite_token"`
+	CaptainID            uuid.UUID          `json:"captain_id"`
+	BracketID            *uuid.UUID         `json:"bracket_id"`
+	IsSolo               *bool              `json:"is_solo"`
+	IsAutoCreated        *bool              `json:"is_auto_created"`
+	IsBanned             *bool              `json:"is_banned"`
+	BannedAt             pgtype.Timestamptz `json:"banned_at"`
+	BannedReason         *string            `json:"banned_reason"`
+	IsHidden             *bool              `json:"is_hidden"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
+	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 }
 
 type TeamAuditLog struct {
-	ID        uuid.UUID  `json:"id"`
-	TeamID    uuid.UUID  `json:"team_id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Action    string     `json:"action"`
-	Details   []byte     `json:"details"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	TeamID    uuid.UUID          `json:"team_id"`
+	UserID    *uuid.UUID         `json:"user_id"`
+	Action    string             `json:"action"`
+	Details   []byte             `json:"details"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type TrackingEntry struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	IP        string     `json:"ip"`
-	UserAgent *string    `json:"user_agent"`
-	TrackedAt *time.Time `json:"tracked_at"`
+	ID        uuid.UUID          `json:"id"`
+	UserID    uuid.UUID          `json:"user_id"`
+	IP        string             `json:"ip"`
+	UserAgent *string            `json:"user_agent"`
+	TrackedAt pgtype.Timestamptz `json:"tracked_at"`
 }
 
 type User struct {
-	ID           uuid.UUID  `json:"id"`
-	TeamID       *uuid.UUID `json:"team_id"`
-	Username     string     `json:"username"`
-	Email        string     `json:"email"`
-	PasswordHash string     `json:"password_hash"`
-	Role         *string    `json:"role"`
-	IsVerified   *bool      `json:"is_verified"`
-	VerifiedAt   *time.Time `json:"verified_at"`
-	IsBanned     bool       `json:"is_banned"`
-	BannedAt     *time.Time `json:"banned_at"`
-	BannedReason *string    `json:"banned_reason"`
-	CreatedAt    *time.Time `json:"created_at"`
+	ID              uuid.UUID          `json:"id"`
+	TeamID          *uuid.UUID         `json:"team_id"`
+	Username        string             `json:"username"`
+	Email           string             `json:"email"`
+	PasswordHash    string             `json:"password_hash"`
+	Role            *string            `json:"role"`
+	IsVerified      *bool              `json:"is_verified"`
+	VerifiedAt      pgtype.Timestamptz `json:"verified_at"`
+	IsBanned        bool               `json:"is_banned"`
+	BannedAt        pgtype.Timestamptz `json:"banned_at"`
+	BannedReason    *string            `json:"banned_reason"`
+	WasInBannedTeam bool               `json:"was_in_banned_team"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
 type UserNotification struct {
-	ID             uuid.UUID  `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	NotificationID *uuid.UUID `json:"notification_id"`
-	Title          *string    `json:"title"`
-	Content        *string    `json:"content"`
-	Type           *string    `json:"type"`
-	IsRead         *bool      `json:"is_read"`
-	CreatedAt      *time.Time `json:"created_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	NotificationID *uuid.UUID         `json:"notification_id"`
+	Title          *string            `json:"title"`
+	Content        *string            `json:"content"`
+	Type           *string            `json:"type"`
+	IsRead         *bool              `json:"is_read"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type VerificationToken struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Token     string     `json:"token"`
-	Type      string     `json:"type"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	UsedAt    *time.Time `json:"used_at"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	UserID    uuid.UUID          `json:"user_id"`
+	Token     string             `json:"token"`
+	Type      string             `json:"type"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }

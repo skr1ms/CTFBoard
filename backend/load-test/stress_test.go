@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/stretchr/testify/require"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
+
+	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func TestStress_FlagSubmit(t *testing.T) {
@@ -146,7 +147,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 				return "brute_single_user", nil
 			},
 		},
-	}, log)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	}, nil, log)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

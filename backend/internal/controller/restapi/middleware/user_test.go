@@ -6,16 +6,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	usermocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+	usermocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
 func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
@@ -35,7 +36,7 @@ func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
-	r.Use(InjectUser(userUC, nil))
+	r.Use(InjectUser(userUC, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		u, ok := GetUser(r.Context())
 		assert.True(t, ok)
@@ -66,7 +67,7 @@ func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
-	r.Use(InjectUser(userUC, nil))
+	r.Use(InjectUser(userUC, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

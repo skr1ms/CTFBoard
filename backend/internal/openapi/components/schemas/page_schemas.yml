@@ -39,8 +39,10 @@ schemas:
       slug:
         type: string
         maxLength: 100
+        pattern: "^[a-z0-9\\-]+$"
       content:
         type: string
+        maxLength: 50000
       is_draft:
         type: boolean
         default: true
@@ -59,8 +61,10 @@ schemas:
       slug:
         type: string
         maxLength: 100
+        pattern: "^[a-z0-9\\-]+$"
       content:
         type: string
+        maxLength: 50000
       is_draft:
         type: boolean
       order_index:

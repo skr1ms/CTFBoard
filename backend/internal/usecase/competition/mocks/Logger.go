@@ -5,9 +5,8 @@
 package mocks
 
 import (
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockLogger creates a new instance of MockLogger. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOAuthAccount = `-- name: CreateOAuthAccount :exec
@@ -18,13 +18,13 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateOAuthAccountParams struct {
-	ID             uuid.UUID  `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	Provider       string     `json:"provider"`
-	ProviderUserID string     `json:"provider_user_id"`
-	AccessToken    *string    `json:"access_token"`
-	RefreshToken   *string    `json:"refresh_token"`
-	ExpiresAt      *time.Time `json:"expires_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	AccessToken    *string            `json:"access_token"`
+	RefreshToken   *string            `json:"refresh_token"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) error {
@@ -110,13 +110,13 @@ DO UPDATE SET access_token = EXCLUDED.access_token,
 `
 
 type UpsertOAuthAccountParams struct {
-	ID             uuid.UUID  `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	Provider       string     `json:"provider"`
-	ProviderUserID string     `json:"provider_user_id"`
-	AccessToken    *string    `json:"access_token"`
-	RefreshToken   *string    `json:"refresh_token"`
-	ExpiresAt      *time.Time `json:"expires_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	AccessToken    *string            `json:"access_token"`
+	RefreshToken   *string            `json:"refresh_token"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) UpsertOAuthAccount(ctx context.Context, arg UpsertOAuthAccountParams) error {

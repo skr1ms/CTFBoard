@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/export: admin exports competition as JSON; returns 200 and JSON body.

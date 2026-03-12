@@ -1,5 +1,7 @@
 /tags:
   get:
+    operationId: GetTags
+    security: []
     description: Returns list of all tags
     responses:
       "200":
@@ -10,12 +12,21 @@
               items:
                 $ref: '../components/schemas.yml#/TagResponse'
               type: array
+      "400":
+        description: Bad Request
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get all tags
     tags:
       - Tags
 
 /admin/tags:
   post:
+    operationId: PostAdminTags
     description: Creates a new tag. Admin only.
     requestBody:
       content:
@@ -32,18 +43,32 @@
               $ref: '../components/schemas.yml#/TagResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create tag
     tags:
       - Admin
 
 "/admin/tags/{ID}":
   put:
+    operationId: PutAdminTagsID
     description: Updates a tag. Admin only.
     parameters:
       - name: ID
@@ -66,18 +91,36 @@
               $ref: '../components/schemas.yml#/TagResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update tag
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminTagsID
     description: Deletes a tag. Admin only.
     parameters:
       - name: ID
@@ -90,12 +133,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete tag
     tags:
       - Admin

@@ -4,24 +4,24 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestSubmissionUseCase_LogSubmission_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	userID, challengeID := uuid.New(), uuid.New()
 	teamID := uuid.New()
-	sub := h.NewSubmission(userID, &teamID, challengeID, "flag{test}", false)
+	sub := newTestSubmission(userID, &teamID, challengeID, "flag{test}", false)
 
-	deps.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+	d.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-	uc := h.CreateSubmissionUseCase()
+	uc := d.createSubmissionUseCase()
 	err := uc.LogSubmission(ctx, sub)
 
 	assert.NoError(t, err)
@@ -29,15 +29,14 @@ func TestSubmissionUseCase_LogSubmission_Success(t *testing.T) {
 
 func TestSubmissionUseCase_LogSubmission_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	userID, challengeID := uuid.New(), uuid.New()
-	sub := h.NewSubmission(userID, nil, challengeID, "flag", false)
+	sub := newTestSubmission(userID, nil, challengeID, "flag", false)
 
-	deps.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
+	d.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
-	uc := h.CreateSubmissionUseCase()
+	uc := d.createSubmissionUseCase()
 	err := uc.LogSubmission(ctx, sub)
 
 	assert.Error(t, err)
@@ -45,19 +44,18 @@ func TestSubmissionUseCase_LogSubmission_Error(t *testing.T) {
 
 func TestSubmissionUseCase_GetByChallenge_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	challengeID := uuid.New()
 	page, perPage := 1, 20
-	list := []*entity.SubmissionWithDetails{}
+	var list []*entity.SubmissionWithDetails
 	total := int64(0)
 
-	deps.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(list, nil)
-	deps.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(total, nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -66,17 +64,16 @@ func TestSubmissionUseCase_GetByChallenge_Success(t *testing.T) {
 
 func TestSubmissionUseCase_GetByChallenge_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	challengeID := uuid.New()
 	page, perPage := 1, 20
 
-	deps.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(nil, assert.AnError)
-	deps.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(int64(0), nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -84,19 +81,18 @@ func TestSubmissionUseCase_GetByChallenge_Error(t *testing.T) {
 
 func TestSubmissionUseCase_GetByUser_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
 	page, perPage := 1, 20
-	list := []*entity.SubmissionWithDetails{}
+	var list []*entity.SubmissionWithDetails
 	total := int64(0)
 
-	deps.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(list, nil)
-	deps.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(total, nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByUser(ctx, userID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByUser(ctx, userID, page, perPage, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -105,17 +101,16 @@ func TestSubmissionUseCase_GetByUser_Success(t *testing.T) {
 
 func TestSubmissionUseCase_GetByUser_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
 	page, perPage := 1, 20
 
-	deps.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(nil, assert.AnError)
-	deps.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(int64(0), nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByUser(ctx, userID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByUser(ctx, userID, page, perPage, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -123,19 +118,18 @@ func TestSubmissionUseCase_GetByUser_Error(t *testing.T) {
 
 func TestSubmissionUseCase_GetByTeam_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	teamID := uuid.New()
 	page, perPage := 1, 20
-	list := []*entity.SubmissionWithDetails{}
+	var list []*entity.SubmissionWithDetails
 	total := int64(0)
 
-	deps.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(list, nil)
-	deps.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(total, nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByTeam(ctx, teamID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByTeam(ctx, teamID, page, perPage, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -144,17 +138,16 @@ func TestSubmissionUseCase_GetByTeam_Success(t *testing.T) {
 
 func TestSubmissionUseCase_GetByTeam_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	teamID := uuid.New()
 	page, perPage := 1, 20
 
-	deps.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(nil, assert.AnError)
-	deps.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(int64(0), nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetByTeam(ctx, teamID, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetByTeam(ctx, teamID, page, perPage, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -162,18 +155,17 @@ func TestSubmissionUseCase_GetByTeam_Error(t *testing.T) {
 
 func TestSubmissionUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	page, perPage := 1, 20
-	list := []*entity.SubmissionWithDetails{}
+	var list []*entity.SubmissionWithDetails
 	total := int64(0)
 
-	deps.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(list, nil)
-	deps.submissionRepo.EXPECT().CountAll(mock.Anything).Return(total, nil)
+	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountAll(mock.Anything).Return(total, nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetAll(ctx, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetAll(ctx, page, perPage, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -182,16 +174,15 @@ func TestSubmissionUseCase_GetAll_Success(t *testing.T) {
 
 func TestSubmissionUseCase_GetAll_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	page, perPage := 1, 20
 
-	deps.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	deps.submissionRepo.EXPECT().CountAll(mock.Anything).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountAll(mock.Anything).Return(int64(0), nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetAll(ctx, page, perPage)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetAll(ctx, page, perPage, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -199,16 +190,15 @@ func TestSubmissionUseCase_GetAll_Error(t *testing.T) {
 
 func TestSubmissionUseCase_GetStats_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	challengeID := uuid.New()
 	stats := &entity.SubmissionStats{Total: 10, Correct: 3, Incorrect: 7}
 
-	deps.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(stats, nil)
+	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(stats, nil)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetStats(ctx, challengeID)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetStats(ctx, challengeID, false)
 
 	assert.NoError(t, err)
 	assert.Equal(t, stats.Total, got.Total)
@@ -217,15 +207,14 @@ func TestSubmissionUseCase_GetStats_Success(t *testing.T) {
 
 func TestSubmissionUseCase_GetStats_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCompetitionTestHelper(t)
-	deps := h.Deps()
+	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	challengeID := uuid.New()
 
-	deps.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(nil, assert.AnError)
 
-	uc := h.CreateSubmissionUseCase()
-	got, err := uc.GetStats(ctx, challengeID)
+	uc := d.createSubmissionUseCase()
+	got, err := uc.GetStats(ctx, challengeID, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)

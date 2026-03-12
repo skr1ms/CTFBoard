@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func TestIPTracking_ValidUser_TracksIP(t *testing.T) {
@@ -24,7 +25,7 @@ func TestIPTracking_ValidUser_TracksIP(t *testing.T) {
 	done := make(chan struct{})
 	trackingRepo.EXPECT().
 		Create(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, entry *entity.TrackingEntry) error {
+		RunAndReturn(func(_ context.Context, _ *entity.TrackingEntry) error {
 			close(done)
 			return nil
 		}).

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 const (

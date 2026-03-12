@@ -1,5 +1,6 @@
 /comments/{ID}:
   delete:
+    operationId: DeleteCommentsID
     description: Deletes own comment by ID.
     parameters:
       - description: Comment ID
@@ -31,6 +32,7 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete comment
     tags:
       - Comments

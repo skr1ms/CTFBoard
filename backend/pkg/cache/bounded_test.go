@@ -36,7 +36,7 @@ func TestBoundedCache_Eviction(t *testing.T) {
 	_, ok := cache.Get("a")
 	assert.False(t, ok)
 
-	val, ok := cache.Get(string(rune('a' + 5)))
+	val, ok := cache.Get(string('a' + 5))
 	assert.True(t, ok)
 	assert.Equal(t, 5, val)
 }

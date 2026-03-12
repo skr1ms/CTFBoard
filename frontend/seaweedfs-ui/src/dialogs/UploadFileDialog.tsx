@@ -7,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
+import Alert from '@mui/material/Alert'
 import { DropzoneAreaBase } from 'react-mui-dropzone'
 
 import { LocationContext } from '../context/LocationContextWrapper'
@@ -37,6 +38,7 @@ function UploadFileDialog(props: UploadFileDialogProps): React.ReactElement {
     const [filesFromZone, setFilesFromZone] = React.useState<File[]>(propsFiles ?? [])
     const [filesFromFolder, setFilesFromFolder] = React.useState<File[]>([])
     const [folder, setFolder] = React.useState('')
+    const [error, setError] = React.useState('')
 
     React.useEffect(() => {
         if (propsFiles !== undefined) setFilesFromZone([...propsFiles])
@@ -46,6 +48,7 @@ function UploadFileDialog(props: UploadFileDialogProps): React.ReactElement {
         setFolder('')
         setFilesFromZone([])
         setFilesFromFolder([])
+        setError('')
         close()
     }
 
@@ -82,29 +85,34 @@ function UploadFileDialog(props: UploadFileDialogProps): React.ReactElement {
     }
 
     async function submit(): Promise<void> {
-        let basePath = getFullPath(folder, context.currentLocation)
-        if (!basePath.endsWith('/')) basePath += '/'
+        setError('')
+        try {
+            let basePath = getFullPath(folder, context.currentLocation)
+            if (!basePath.endsWith('/')) basePath += '/'
 
-        const allDirs = new Set<string>()
-        for (const file of filesFromFolder) {
-            const rel = getRelativePath(file)
-            if (rel) getParentDirs(rel).forEach((d) => allDirs.add(d))
-        }
-        const sortedDirs = Array.from(allDirs).sort((a, b) => a.split('/').length - b.split('/').length)
-        for (const d of sortedDirs) {
-            await Filer.createFolder(basePath + d)
-        }
+            const allDirs = new Set<string>()
+            for (const file of filesFromFolder) {
+                const rel = getRelativePath(file)
+                if (rel) getParentDirs(rel).forEach((d) => allDirs.add(d))
+            }
+            const sortedDirs = Array.from(allDirs).sort((a, b) => a.split('/').length - b.split('/').length)
+            for (const d of sortedDirs) {
+                await Filer.createFolder(basePath + d)
+            }
 
-        for (const file of filesFromFolder) {
-            const rel = getRelativePath(file)
-            const targetPath = rel ? basePath + rel : basePath + file.name
-            await Filer.uploadFile(targetPath, file)
+            for (const file of filesFromFolder) {
+                const rel = getRelativePath(file)
+                const targetPath = rel ? basePath + rel : basePath + file.name
+                await Filer.uploadFile(targetPath, file)
+            }
+            for (const file of filesFromZone) {
+                await Filer.uploadFile(basePath + file.name, file)
+            }
+            context.refresh()
+            handleClose()
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Upload failed')
         }
-        for (const file of filesFromZone) {
-            await Filer.uploadFile(basePath + file.name, file)
-        }
-        context.refresh()
-        handleClose()
     }
 
     const totalCount = filesFromZone.length + filesFromFolder.length
@@ -123,6 +131,7 @@ function UploadFileDialog(props: UploadFileDialogProps): React.ReactElement {
                 Upload Files
             </DialogTitle>
             <DialogContent>
+                {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
                 <TextField
                     fullWidth
                     sx={{

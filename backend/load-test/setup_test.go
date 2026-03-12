@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,6 +18,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 var (
@@ -90,7 +91,7 @@ func setupContainerInfra(ctx context.Context) (func(), error) {
 	pgC, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("loadtest"),
-		postgres.WithUsername(entity.RoleUser),
+		postgres.WithUsername(string(entity.RoleUser)),
 		postgres.WithPassword("password"),
 		testcontainers.WithCmd("postgres", "-c", "max_connections=400"),
 		testcontainers.WithWaitStrategy(

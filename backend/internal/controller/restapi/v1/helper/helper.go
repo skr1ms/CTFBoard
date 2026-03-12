@@ -19,9 +19,14 @@ func RequireUser(w http.ResponseWriter, r *http.Request) (*entity.User, bool) {
 	return user, true
 }
 
+const maxPage = 10000
+
 func ClampPage(p *int) int {
 	if p == nil || *p < 1 {
 		return 1
+	}
+	if *p > maxPage {
+		return maxPage
 	}
 	return *p
 }
@@ -52,7 +57,7 @@ func ParseIntQuery(r *http.Request, key string) *int {
 		return nil
 	}
 	n, err := strconv.Atoi(q)
-	if err != nil || n < 0 {
+	if err != nil || n < 1 {
 		return nil
 	}
 	return &n

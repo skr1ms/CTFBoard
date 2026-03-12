@@ -6,6 +6,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
 
 import Filer from '../seaweedfs/filer'
 import { LocationContext } from '../context/LocationContextWrapper'
@@ -19,18 +20,25 @@ function TextFileDialog(props: DialogProps): React.ReactElement {
     const context = React.useContext(LocationContext)
     const theme = useTheme()
     const [form, setForm] = React.useState(blankForm)
+    const [error, setError] = React.useState('')
 
     function handleClose(): void {
         setForm(blankForm)
+        setError('')
         close()
     }
 
     async function submit(): Promise<void> {
-        const fullPath = getFullPath(form.name, context.currentLocation)
-        const file = new File([form.content], form.name, { type: 'text/richtext' })
-        await Filer.uploadFile(fullPath, file)
-        context.refresh()
-        handleClose()
+        setError('')
+        try {
+            const fullPath = getFullPath(form.name, context.currentLocation)
+            const file = new File([form.content], form.name, { type: 'text/richtext' })
+            await Filer.uploadFile(fullPath, file)
+            context.refresh()
+            handleClose()
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Create file failed')
+        }
     }
 
     function isValid(): boolean {
@@ -48,6 +56,7 @@ function TextFileDialog(props: DialogProps): React.ReactElement {
                 Create File
             </DialogTitle>
             <DialogContent>
+                {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
                 <TextField
                     required
                     fullWidth

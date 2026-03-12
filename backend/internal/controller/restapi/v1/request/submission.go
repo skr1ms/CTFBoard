@@ -3,9 +3,10 @@ package request
 import (
 	"net"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/google/uuid"
 )
 
 type AdminCreateSubmissionParams struct {
@@ -18,23 +19,12 @@ type AdminCreateSubmissionParams struct {
 }
 
 func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequest) (*AdminCreateSubmissionParams, error) {
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		return nil, helper.NewValidationErrorf("invalid user_id")
-	}
-
-	challengeID, err := uuid.Parse(req.ChallengeID)
-	if err != nil {
-		return nil, helper.NewValidationErrorf("invalid challenge_id")
-	}
-
+	userID := req.UserID
+	challengeID := req.ChallengeID
 	var teamID *uuid.UUID
 	if req.TeamID != nil {
-		parsed, err := uuid.Parse(*req.TeamID)
-		if err != nil {
-			return nil, helper.NewValidationErrorf("invalid team_id")
-		}
-		teamID = &parsed
+		t := *req.TeamID
+		teamID = &t
 	}
 
 	ip := ""
@@ -43,6 +33,11 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 			return nil, helper.NewValidationErrorf("invalid ip address format")
 		}
 		ip = *req.IP
+	}
+
+	const maxSubmittedFlagLen = 200
+	if len(req.SubmittedFlag) > maxSubmittedFlagLen {
+		return nil, helper.NewValidationErrorf("submitted_flag too long")
 	}
 
 	return &AdminCreateSubmissionParams{
@@ -55,9 +50,9 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 	}, nil
 }
 
-func AdminUpdateSubmissionRequestToParams(req *openapi.AdminUpdateSubmissionRequest) bool {
-	if req.IsCorrect != nil {
-		return *req.IsCorrect
+func AdminUpdateSubmissionRequestToParams(req *openapi.AdminUpdateSubmissionRequest) (*bool, error) {
+	if req == nil {
+		return nil, helper.NewValidationErrorf("is_correct is required")
 	}
-	return false
+	return &req.IsCorrect, nil
 }

@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // GET /challenges + POST /challenges/{ID}/submit: create challenge, submit correct flag, verify solved state; duplicate submit returns 409.
@@ -465,4 +466,51 @@ func TestChallenge_SubmitFlag_RequirementsMet_TwoRequirements(t *testing.T) {
 	resp := h.SubmitFlag(tokenUser, mainID, "flag{main}", http.StatusOK)
 	require.NotNil(t, resp.JSON200)
 	require.True(t, resp.JSON200.Correct)
+}
+
+// GET /challenges/{id}: when requirements not met (locked challenge) returns 404.
+func TestChallenge_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("detail_reqs_admin")
+	prereqID := h.CreateBasicChallenge(tokenAdmin, "Prereq Detail", "flag{prereq}", 50)
+	mainID := h.CreateBasicChallenge(tokenAdmin, "Main Locked", "flag{main}", 100)
+	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
+
+	suffix := uuid.New().String()[:8]
+	_, _, tokenUser := h.RegisterUserAndLogin("detail_reqs_user_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	h.GetChallengeDetailExpectStatus(tokenUser, mainID, http.StatusNotFound)
+}
+
+// POST /admin/challenges: create without initial_value/min_value/decay stays static; two solvers get same points.
+func TestChallenge_Create_WithoutDynamicParams_StaysStatic(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("static_create_admin")
+	challID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title": "Static Only Points", "description": "No dynamic params", "flag": "flag{static}",
+		"points": 300, "category": "misc", "is_hidden": false,
+	})
+	require.NotEmpty(t, challID)
+
+	suffix := uuid.New().String()[:8]
+	_, _, token1 := h.RegisterUserAndLogin("static_a_" + suffix)
+	h.CreateSoloTeam(token1, http.StatusCreated)
+	h.SubmitFlag(token1, challID, "flag{static}", http.StatusOK)
+
+	_, _, token2 := h.RegisterUserAndLogin("static_b_" + suffix)
+	h.CreateSoloTeam(token2, http.StatusCreated)
+	h.SubmitFlag(token2, challID, "flag{static}", http.StatusOK)
+
+	c1 := h.FindChallengeInList(token1, challID)
+	c2 := h.FindChallengeInList(token2, challID)
+	require.NotNil(t, c1.Points)
+	require.NotNil(t, c2.Points)
+	require.Equal(t, *c1.Points, *c2.Points, "static challenge: both solvers must get same points")
 }

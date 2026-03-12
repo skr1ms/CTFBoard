@@ -84,6 +84,13 @@ packages:
           pkgname: "mocks"
           structname: "MockTransactionManager"
 
+      UserRepository:
+        config:
+          dir: "internal/usecase/challenge/mocks"
+          filename: "UserRepository.go"
+          pkgname: "mocks"
+          structname: "MockUserRepository"
+
   github.com/TakuyaYagam1/AstroCTFb/internal/storage:
     interfaces:
       Provider:

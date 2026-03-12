@@ -16,4 +16,9 @@ var (
 		StatusCode: http.StatusForbidden,
 		Code:       "SETTINGS_CANNOT_CHANGE_DURING_COMPETITION",
 	}
+	ErrSettingsConflict = &HTTPError{
+		Err:        errors.New("settings were modified by another user, please retry"),
+		StatusCode: http.StatusConflict,
+		Code:       "SETTINGS_CONFLICT",
+	}
 )

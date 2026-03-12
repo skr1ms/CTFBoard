@@ -7,10 +7,9 @@ package mocks
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockFileRepository creates a new instance of MockFileRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -216,6 +215,74 @@ func (_c *MockFileRepository_GetAll_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// GetAllByChallengeID provides a mock function for the type MockFileRepository
+func (_mock *MockFileRepository) GetAllByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.File, error) {
+	ret := _mock.Called(ctx, challengeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllByChallengeID")
+	}
+
+	var r0 []*entity.File
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*entity.File, error)); ok {
+		return returnFunc(ctx, challengeID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*entity.File); ok {
+		r0 = returnFunc(ctx, challengeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.File)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, challengeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileRepository_GetAllByChallengeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllByChallengeID'
+type MockFileRepository_GetAllByChallengeID_Call struct {
+	*mock.Call
+}
+
+// GetAllByChallengeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+func (_e *MockFileRepository_Expecter) GetAllByChallengeID(ctx interface{}, challengeID interface{}) *MockFileRepository_GetAllByChallengeID_Call {
+	return &MockFileRepository_GetAllByChallengeID_Call{Call: _e.mock.On("GetAllByChallengeID", ctx, challengeID)}
+}
+
+func (_c *MockFileRepository_GetAllByChallengeID_Call) Run(run func(ctx context.Context, challengeID uuid.UUID)) *MockFileRepository_GetAllByChallengeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileRepository_GetAllByChallengeID_Call) Return(files []*entity.File, err error) *MockFileRepository_GetAllByChallengeID_Call {
+	_c.Call.Return(files, err)
+	return _c
+}
+
+func (_c *MockFileRepository_GetAllByChallengeID_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) ([]*entity.File, error)) *MockFileRepository_GetAllByChallengeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByChallengeID provides a mock function for the type MockFileRepository
 func (_mock *MockFileRepository) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
 	ret := _mock.Called(ctx, challengeID, fileType)
@@ -286,6 +353,74 @@ func (_c *MockFileRepository_GetByChallengeID_Call) Return(files []*entity.File,
 }
 
 func (_c *MockFileRepository_GetByChallengeID_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error)) *MockFileRepository_GetByChallengeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByChallengeIDs provides a mock function for the type MockFileRepository
+func (_mock *MockFileRepository) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.File, error) {
+	ret := _mock.Called(ctx, challengeIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByChallengeIDs")
+	}
+
+	var r0 map[uuid.UUID][]*entity.File
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]*entity.File, error)); ok {
+		return returnFunc(ctx, challengeIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]*entity.File); ok {
+		r0 = returnFunc(ctx, challengeIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]*entity.File)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, challengeIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileRepository_GetByChallengeIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByChallengeIDs'
+type MockFileRepository_GetByChallengeIDs_Call struct {
+	*mock.Call
+}
+
+// GetByChallengeIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeIDs []uuid.UUID
+func (_e *MockFileRepository_Expecter) GetByChallengeIDs(ctx interface{}, challengeIDs interface{}) *MockFileRepository_GetByChallengeIDs_Call {
+	return &MockFileRepository_GetByChallengeIDs_Call{Call: _e.mock.On("GetByChallengeIDs", ctx, challengeIDs)}
+}
+
+func (_c *MockFileRepository_GetByChallengeIDs_Call) Run(run func(ctx context.Context, challengeIDs []uuid.UUID)) *MockFileRepository_GetByChallengeIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileRepository_GetByChallengeIDs_Call) Return(uUIDToFiles map[uuid.UUID][]*entity.File, err error) *MockFileRepository_GetByChallengeIDs_Call {
+	_c.Call.Return(uUIDToFiles, err)
+	return _c
+}
+
+func (_c *MockFileRepository_GetByChallengeIDs_Call) RunAndReturn(run func(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.File, error)) *MockFileRepository_GetByChallengeIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -422,6 +557,80 @@ func (_c *MockFileRepository_GetByLocation_Call) Return(file *entity.File, err e
 }
 
 func (_c *MockFileRepository_GetByLocation_Call) RunAndReturn(run func(ctx context.Context, location string) (*entity.File, error)) *MockFileRepository_GetByLocation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListLocations provides a mock function for the type MockFileRepository
+func (_mock *MockFileRepository) ListLocations(ctx context.Context, limit int, offset int) ([]string, error) {
+	ret := _mock.Called(ctx, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListLocations")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) ([]string, error)); ok {
+		return returnFunc(ctx, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) []string); ok {
+		r0 = returnFunc(ctx, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = returnFunc(ctx, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileRepository_ListLocations_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListLocations'
+type MockFileRepository_ListLocations_Call struct {
+	*mock.Call
+}
+
+// ListLocations is a helper method to define mock.On call
+//   - ctx context.Context
+//   - limit int
+//   - offset int
+func (_e *MockFileRepository_Expecter) ListLocations(ctx interface{}, limit interface{}, offset interface{}) *MockFileRepository_ListLocations_Call {
+	return &MockFileRepository_ListLocations_Call{Call: _e.mock.On("ListLocations", ctx, limit, offset)}
+}
+
+func (_c *MockFileRepository_ListLocations_Call) Run(run func(ctx context.Context, limit int, offset int)) *MockFileRepository_ListLocations_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileRepository_ListLocations_Call) Return(strings []string, err error) *MockFileRepository_ListLocations_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockFileRepository_ListLocations_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int) ([]string, error)) *MockFileRepository_ListLocations_Call {
 	_c.Call.Return(run)
 	return _c
 }

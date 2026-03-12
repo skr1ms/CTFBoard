@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createFile = `-- name: CreateFile :exec
@@ -18,14 +18,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateFileParams struct {
-	ID          uuid.UUID `json:"id"`
-	Type        string    `json:"type"`
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	Location    string    `json:"location"`
-	Filename    string    `json:"filename"`
-	Size        int64     `json:"size"`
-	SHA256      string    `json:"sha256"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Type        string             `json:"type"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Location    string             `json:"location"`
+	Filename    string             `json:"filename"`
+	Size        int64              `json:"size"`
+	SHA256      string             `json:"sha256"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) error {
@@ -131,6 +131,42 @@ func (q *Queries) GetFileByLocation(ctx context.Context, location string) (File,
 	return i, err
 }
 
+const getFilesByChallengeID = `-- name: GetFilesByChallengeID :many
+SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+FROM files
+WHERE challenge_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetFilesByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]File, error) {
+	rows, err := q.db.Query(ctx, getFilesByChallengeID, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.ChallengeID,
+			&i.Location,
+			&i.Filename,
+			&i.Size,
+			&i.SHA256,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFilesByChallengeIDAndType = `-- name: GetFilesByChallengeIDAndType :many
 SELECT id, type, challenge_id, location, filename, size, sha256, created_at
 FROM files
@@ -165,6 +201,71 @@ func (q *Queries) GetFilesByChallengeIDAndType(ctx context.Context, arg GetFiles
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFilesByChallengeIDs = `-- name: GetFilesByChallengeIDs :many
+SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+FROM files
+WHERE challenge_id = ANY($1::uuid[])
+ORDER BY challenge_id, created_at DESC
+`
+
+func (q *Queries) GetFilesByChallengeIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]File, error) {
+	rows, err := q.db.Query(ctx, getFilesByChallengeIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.ChallengeID,
+			&i.Location,
+			&i.Filename,
+			&i.Size,
+			&i.SHA256,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFileLocations = `-- name: ListFileLocations :many
+SELECT location FROM files ORDER BY created_at DESC LIMIT $1 OFFSET $2
+`
+
+type ListFileLocationsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListFileLocations(ctx context.Context, arg ListFileLocationsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listFileLocations, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var location string
+		if err := rows.Scan(&location); err != nil {
+			return nil, err
+		}
+		items = append(items, location)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

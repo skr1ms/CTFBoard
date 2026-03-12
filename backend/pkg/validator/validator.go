@@ -26,7 +26,7 @@ type Validator interface {
 var (
 	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+$`)
 	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-	passwordRegex = regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$`)
+	passwordRegex = regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"|,.<>/?]+$`)
 	teamNameRegex = regexp.MustCompile(`^[a-zA-Z0-9\s._\-]+$`)
 	categoryRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-]+$`)
 )
@@ -70,7 +70,7 @@ func (cv *CustomValidator) ValidateVar(field any, tag string) error {
 
 // Password validation: length 6–72, allowlist, and at least one lowercase, one uppercase, one digit.
 //
-//nolint:gocyclo // character class checks
+
 func ValidateStrongPasswordField(fl validator.FieldLevel) bool {
 	password := fieldString(fl.Field())
 	if len(password) < 6 {
@@ -96,7 +96,6 @@ func ValidateStrongPasswordField(fl validator.FieldLevel) bool {
 	return hasLower && hasUpper && hasDigit
 }
 
-//nolint:gocyclo // character class checks
 func ValidatePassword(password string) bool {
 	if len(password) < 6 || len(password) > 72 {
 		return false
@@ -122,15 +121,23 @@ func validateStrongPassword(fl validator.FieldLevel) bool {
 	return ValidateStrongPasswordField(fl)
 }
 
+const (
+	maxUsernameLen = 50
+	maxEmailLen    = 254
+)
+
 func ValidateUsernameField(fl validator.FieldLevel) bool {
 	username := fieldString(fl.Field())
-	if username == "" || len(username) > 32 {
+	if username == "" || len(username) > maxUsernameLen {
 		return false
 	}
 	return usernameRegex.MatchString(username)
 }
 
 func ValidateUsername(username string) bool {
+	if username == "" || len(username) > maxUsernameLen {
+		return false
+	}
 	return usernameRegex.MatchString(username)
 }
 
@@ -140,13 +147,16 @@ func validateUsername(fl validator.FieldLevel) bool {
 
 func ValidateEmailField(fl validator.FieldLevel) bool {
 	email := fieldString(fl.Field())
-	if email == "" {
+	if email == "" || len(email) > maxEmailLen {
 		return false
 	}
 	return emailRegex.MatchString(email)
 }
 
 func ValidateEmail(email string) bool {
+	if email == "" || len(email) > maxEmailLen {
+		return false
+	}
 	return emailRegex.MatchString(email)
 }
 

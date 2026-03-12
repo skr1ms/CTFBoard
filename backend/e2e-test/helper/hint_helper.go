@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) CreateHint(token, challengeID, content string, cost int) string {

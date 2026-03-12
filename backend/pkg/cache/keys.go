@@ -1,13 +1,17 @@
 package cache
 
+import "strconv"
+
 const (
-	KeyScoreboard        = "scoreboard"
-	KeyScoreboardFrozen  = "scoreboard:frozen"
-	KeyCompetition       = "competition"
-	KeyAppSettings       = "app_settings"
-	KeyFailedLoginPrefix = "failed_login:"
-	KeyLimiterPrefix     = "limiter:"
-	PubSubScoreboard     = "scoreboard:updates"
+	KeyScoreboard              = "scoreboard"
+	KeyScoreboardFrozen        = "scoreboard:frozen"
+	KeyScoreboardFrozenPrefix  = "scoreboard:frozen:"
+	KeyScoreboardBracketPrefix = "scoreboard:bracket:"
+	KeyCompetition             = "competition"
+	KeyAppSettings             = "app_settings"
+	KeyFailedLoginPrefix       = "failed_login:"
+	KeyLimiterPrefix           = "limiter:"
+	PubSubScoreboard           = "scoreboard:updates"
 )
 
 func KeyUser(userID string) string {
@@ -24,4 +28,12 @@ func KeyScoreboardBracket(bracketID string) string {
 
 func KeyScoreboardBracketFrozen(bracketID string) string {
 	return "scoreboard:frozen:bracket:" + bracketID
+}
+
+func KeyScoreboardFrozenAt(freezeUnix int64) string {
+	return KeyScoreboardFrozenPrefix + strconv.FormatInt(freezeUnix, 10)
+}
+
+func KeyScoreboardBracketFrozenAt(bracketID string, freezeUnix int64) string {
+	return KeyScoreboardFrozenPrefix + strconv.FormatInt(freezeUnix, 10) + ":bracket:" + bracketID
 }

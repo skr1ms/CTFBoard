@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockSettingsRepository creates a new instance of MockSettingsRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -101,6 +100,68 @@ func (_c *MockSettingsRepository_Get_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetForUpdate provides a mock function for the type MockSettingsRepository
+func (_mock *MockSettingsRepository) GetForUpdate(ctx context.Context) (*entity.Settings, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForUpdate")
+	}
+
+	var r0 *entity.Settings
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*entity.Settings, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *entity.Settings); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Settings)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSettingsRepository_GetForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForUpdate'
+type MockSettingsRepository_GetForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockSettingsRepository_Expecter) GetForUpdate(ctx interface{}) *MockSettingsRepository_GetForUpdate_Call {
+	return &MockSettingsRepository_GetForUpdate_Call{Call: _e.mock.On("GetForUpdate", ctx)}
+}
+
+func (_c *MockSettingsRepository_GetForUpdate_Call) Run(run func(ctx context.Context)) *MockSettingsRepository_GetForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSettingsRepository_GetForUpdate_Call) Return(settings *entity.Settings, err error) *MockSettingsRepository_GetForUpdate_Call {
+	_c.Call.Return(settings, err)
+	return _c
+}
+
+func (_c *MockSettingsRepository_GetForUpdate_Call) RunAndReturn(run func(ctx context.Context) (*entity.Settings, error)) *MockSettingsRepository_GetForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function for the type MockSettingsRepository
 func (_mock *MockSettingsRepository) Update(ctx context.Context, s *entity.Settings) error {
 	ret := _mock.Called(ctx, s)
@@ -154,6 +215,63 @@ func (_c *MockSettingsRepository_Update_Call) Return(err error) *MockSettingsRep
 }
 
 func (_c *MockSettingsRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s *entity.Settings) error) *MockSettingsRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateIfCurrent provides a mock function for the type MockSettingsRepository
+func (_mock *MockSettingsRepository) UpdateIfCurrent(ctx context.Context, s *entity.Settings) error {
+	ret := _mock.Called(ctx, s)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateIfCurrent")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.Settings) error); ok {
+		r0 = returnFunc(ctx, s)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSettingsRepository_UpdateIfCurrent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateIfCurrent'
+type MockSettingsRepository_UpdateIfCurrent_Call struct {
+	*mock.Call
+}
+
+// UpdateIfCurrent is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s *entity.Settings
+func (_e *MockSettingsRepository_Expecter) UpdateIfCurrent(ctx interface{}, s interface{}) *MockSettingsRepository_UpdateIfCurrent_Call {
+	return &MockSettingsRepository_UpdateIfCurrent_Call{Call: _e.mock.On("UpdateIfCurrent", ctx, s)}
+}
+
+func (_c *MockSettingsRepository_UpdateIfCurrent_Call) Run(run func(ctx context.Context, s *entity.Settings)) *MockSettingsRepository_UpdateIfCurrent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.Settings
+		if args[1] != nil {
+			arg1 = args[1].(*entity.Settings)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSettingsRepository_UpdateIfCurrent_Call) Return(err error) *MockSettingsRepository_UpdateIfCurrent_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSettingsRepository_UpdateIfCurrent_Call) RunAndReturn(run func(ctx context.Context, s *entity.Settings) error) *MockSettingsRepository_UpdateIfCurrent_Call {
 	_c.Call.Return(run)
 	return _c
 }

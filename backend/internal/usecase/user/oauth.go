@@ -10,6 +10,10 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/google"
+
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
@@ -18,9 +22,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
-	"golang.org/x/oauth2/google"
 )
 
 const (
@@ -96,7 +97,6 @@ func (uc *OAuthUseCase) ValidateState(cookieState, queryState string) bool {
 	return hmac.Equal([]byte(parts[1]), []byte(expectedSig))
 }
 
-//nolint:gocyclo // provider dispatch + upsert + team auto-creation branches
 func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code string) (*jwt.TokenPair, error) {
 	oauthCfg, err := uc.oauthConfig(ctx, provider)
 	if err != nil {
@@ -174,10 +174,13 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 		return nil, fmt.Errorf("OAuthUseCase - loginExisting - GetByID: %w", err)
 	}
 	if user.IsBanned {
-		return nil, httperr.ErrUserBanned
+		return nil, httperr.ErrInvalidCredentials
+	}
+	if user.WasInBannedTeam && user.Role != entity.RoleAdmin {
+		return nil, httperr.ErrInvalidCredentials
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, user.Role)
+	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, string(user.Role))
 }
 
 // linkOAuthToExistingUser attaches an OAuth provider to an existing account (same email). Returns JWT for that user.
@@ -190,6 +193,9 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 ) (*jwt.TokenPair, error) {
 	if existingUser.IsBanned {
 		return nil, httperr.ErrUserBanned
+	}
+	if existingUser.WasInBannedTeam && existingUser.Role != entity.RoleAdmin {
+		return nil, httperr.ErrUserWasInBannedTeam
 	}
 
 	oauthAcc := &entity.OAuthAccount{
@@ -231,10 +237,9 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - Transaction: %w", err)
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(existingUser.ID, existingUser.Email, existingUser.Username, existingUser.Role)
+	return uc.deps.JWTService.GenerateTokenPair(existingUser.ID, existingUser.Email, existingUser.Username, string(existingUser.Role))
 }
 
-//nolint:gocognit,gocyclo // OAuth registration branches
 func (uc *OAuthUseCase) registerNewOAuthUser(
 	ctx context.Context,
 	profile *webapi.OAuthUserProfile,
@@ -308,7 +313,7 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 		return nil, fmt.Errorf("OAuthUseCase - registerNew - Transaction: %w", err)
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, user.Role)
+	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, string(user.Role))
 }
 
 func truncateUsername(s string) string {

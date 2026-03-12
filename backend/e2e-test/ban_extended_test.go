@@ -1,12 +1,14 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // POST /admin/teams/{ID}/ban: banned team cannot unlock hints; after unban can unlock again.
@@ -41,7 +43,7 @@ func TestBannedTeam_CannotUnlockHint(t *testing.T) {
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusForbidden)
 
 	t.Log("=== Admin unbans team ===")
-	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
+	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 
 	t.Log("=== After unban: hint unlock succeeds again ===")
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusOK)
@@ -80,10 +82,39 @@ func TestBannedTeam_CannotDownloadFile(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusForbidden)
 
 	t.Log("=== Admin unbans team ===")
-	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
+	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 
 	t.Log("=== After unban: file download accessible again ===")
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusOK)
+}
+
+func TestBannedTeam_DownloadByPathWithTokenRejectedAfterTeamBan(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := uuid.New().String()[:8]
+	_, tokenAdmin := h.SetupCompetition("admin_ban_dlpath_" + suffix)
+	h.EnableWriteups(tokenAdmin)
+
+	challID := h.CreateBasicChallenge(tokenAdmin, "Writeup Ban Path "+suffix, "flag{writeup_ban_path_"+suffix+"}", 100)
+	uploadResp := h.UploadChallengeFile(tokenAdmin, challID, "writeup.txt", "writeup content")
+	require.NotNil(t, uploadResp.JSON201)
+	fileID := uploadResp.JSON201.ID
+
+	_, _, tokenUser := h.RegisterUserAndLogin("user_ban_dlpath_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	h.SubmitFlag(tokenUser, challID, "flag{writeup_ban_path_"+suffix+"}", http.StatusOK)
+
+	downloadURL := h.GetFileDownloadURL(tokenUser, fileID)
+	require.NotEmpty(t, downloadURL)
+
+	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
+	require.NotNil(t, myTeam.JSON200)
+	teamID := *myTeam.JSON200.ID
+	h.BanTeam(tokenAdmin, teamID, "Ban team after URL issued", http.StatusOK)
+
+	h.GetFileDownloadByURLEXpectStatus(tokenUser, downloadURL, http.StatusForbidden)
 }
 
 // POST /admin/teams/{ID}/ban: all three actions (submit + hint + file) are blocked simultaneously.
@@ -122,4 +153,38 @@ func TestBannedTeam_AllActionsBlocked(t *testing.T) {
 	hintID2 := h.CreateHint(tokenAdmin, challID, "Second hint for all-ban", 0)
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusForbidden)
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusForbidden)
+}
+
+func TestBannedTeam_AdminMemberCanStillLogin(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := uuid.New().String()[:8]
+	_, tokenAdmin := h.SetupCompetition("admin_ban_adminmb_" + suffix)
+
+	_, _, tokenCap := h.RegisterUserAndLogin("cap_adminmb_" + suffix)
+	h.CreateTeam(tokenCap, "TeamAdminMb_"+suffix, http.StatusCreated)
+	team := h.GetMyTeam(tokenCap, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	inviteToken := *team.JSON200.InviteToken
+
+	emailB, passwordB, tokenMember := h.RegisterUserAndLogin("member_adminmb_" + suffix)
+	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
+
+	meResp := h.GetMe(tokenMember, http.StatusOK)
+	require.NotNil(t, meResp.JSON200)
+	require.NotNil(t, meResp.JSON200.ID)
+	userIDB := *meResp.JSON200.ID
+
+	_, err := h.Pool().Exec(context.Background(), "UPDATE users SET role = 'admin' WHERE id = $1", userIDB)
+	require.NoError(t, err)
+	h.InvalidateUserCache(userIDB)
+
+	teamID := *team.JSON200.ID
+	h.BanTeam(tokenAdmin, teamID, "Ban team without banning members", http.StatusOK)
+
+	loginResp := h.Login(emailB, passwordB, http.StatusOK)
+	require.NotNil(t, loginResp.JSON200)
+	require.NotNil(t, loginResp.JSON200.AccessToken)
 }

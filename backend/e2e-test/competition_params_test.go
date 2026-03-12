@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // PUT /admin/configs/{key} + GET /admin/configs: config is visible to admin.
@@ -76,4 +77,15 @@ func TestConfig_Delete_Success(t *testing.T) {
 
 	h.DeleteAdminConfig(tokenAdmin, key, http.StatusNoContent)
 	h.GetAdminConfigKey(tokenAdmin, key, http.StatusNotFound)
+}
+
+// PUT /admin/configs/{key}: invalid value_type returns 400.
+func TestConfig_Put_InvalidValueType_Returns400(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_config_inv_vt")
+	key := "k_inv_vt_" + uuid.New().String()[:8]
+	h.PutAdminConfig(tokenAdmin, key, "v", "invalid_type", "d", http.StatusBadRequest)
 }

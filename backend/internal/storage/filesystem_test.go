@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 )
 
 func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
@@ -27,7 +28,8 @@ func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
 	ctx := context.Background()
 	filename := "test-file.txt"
 	content := []byte("hello world")
-	path := storage.GenerateStoragePath(filename)
+	path, err := storage.GenerateStoragePath(filename)
+	require.NoError(t, err)
 
 	t.Run("Upload", func(t *testing.T) {
 		err := provider.Upload(ctx, path, bytes.NewReader(content), int64(len(content)), "text/plain")
@@ -89,16 +91,28 @@ func TestFilesystemProvider_PathTraversal(t *testing.T) {
 
 func TestGenerateStoragePath_Success(t *testing.T) {
 	t.Parallel()
-	path := storage.GenerateStoragePath("file.txt")
+	path, err := storage.GenerateStoragePath("file.txt")
+	require.NoError(t, err)
 	assert.NotEmpty(t, path)
 	assert.Contains(t, path, "file.txt")
 }
 
 func TestGenerateStoragePath_SanitizesFilename(t *testing.T) {
 	t.Parallel()
-	path := storage.GenerateStoragePath("/etc/passwd")
+	path, err := storage.GenerateStoragePath("/etc/passwd")
+	require.NoError(t, err)
 	assert.NotContains(t, path, "..")
 	assert.Contains(t, path, "passwd")
+}
+
+func TestGenerateStoragePath_RejectsDotDot(t *testing.T) {
+	t.Parallel()
+	_, err := storage.GenerateStoragePath("..")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, storage.ErrInvalidStorageFilename)
+	_, err = storage.GenerateStoragePath("a..b")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, storage.ErrInvalidStorageFilename)
 }
 
 func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {

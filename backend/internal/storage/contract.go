@@ -12,4 +12,5 @@ type Provider interface {
 	Delete(ctx context.Context, path string) error
 	GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error)
 	Ping(ctx context.Context) error
+	List(ctx context.Context, prefix string) ([]string, error)
 }

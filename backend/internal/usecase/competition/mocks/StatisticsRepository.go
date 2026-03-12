@@ -8,10 +8,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockStatisticsRepository creates a new instance of MockStatisticsRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -105,6 +104,80 @@ func (_c *MockStatisticsRepository_GetChallengeDetailStats_Call) Return(challeng
 }
 
 func (_c *MockStatisticsRepository_GetChallengeDetailStats_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error)) *MockStatisticsRepository_GetChallengeDetailStats_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetChallengeDetailStatsFrozen provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetChallengeDetailStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*entity.ChallengeDetailStats, error) {
+	ret := _mock.Called(ctx, challengeID, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChallengeDetailStatsFrozen")
+	}
+
+	var r0 *entity.ChallengeDetailStats
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (*entity.ChallengeDetailStats, error)); ok {
+		return returnFunc(ctx, challengeID, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) *entity.ChallengeDetailStats); ok {
+		r0 = returnFunc(ctx, challengeID, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.ChallengeDetailStats)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
+		r1 = returnFunc(ctx, challengeID, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChallengeDetailStatsFrozen'
+type MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call struct {
+	*mock.Call
+}
+
+// GetChallengeDetailStatsFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeID uuid.UUID
+//   - freezeTime time.Time
+func (_e *MockStatisticsRepository_Expecter) GetChallengeDetailStatsFrozen(ctx interface{}, challengeID interface{}, freezeTime interface{}) *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call {
+	return &MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call{Call: _e.mock.On("GetChallengeDetailStatsFrozen", ctx, challengeID, freezeTime)}
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time)) *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call) Return(challengeDetailStats *entity.ChallengeDetailStats, err error) *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call {
+	_c.Call.Return(challengeDetailStats, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*entity.ChallengeDetailStats, error)) *MockStatisticsRepository_GetChallengeDetailStatsFrozen_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -301,6 +374,74 @@ func (_c *MockStatisticsRepository_GetChallengeStats_Call) RunAndReturn(run func
 	return _c
 }
 
+// GetChallengeStatsFrozen provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetChallengeStatsFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.ChallengeStats, error) {
+	ret := _mock.Called(ctx, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChallengeStatsFrozen")
+	}
+
+	var r0 []*entity.ChallengeStats
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]*entity.ChallengeStats, error)); ok {
+		return returnFunc(ctx, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []*entity.ChallengeStats); ok {
+		r0 = returnFunc(ctx, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.ChallengeStats)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetChallengeStatsFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChallengeStatsFrozen'
+type MockStatisticsRepository_GetChallengeStatsFrozen_Call struct {
+	*mock.Call
+}
+
+// GetChallengeStatsFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - freezeTime time.Time
+func (_e *MockStatisticsRepository_Expecter) GetChallengeStatsFrozen(ctx interface{}, freezeTime interface{}) *MockStatisticsRepository_GetChallengeStatsFrozen_Call {
+	return &MockStatisticsRepository_GetChallengeStatsFrozen_Call{Call: _e.mock.On("GetChallengeStatsFrozen", ctx, freezeTime)}
+}
+
+func (_c *MockStatisticsRepository_GetChallengeStatsFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time)) *MockStatisticsRepository_GetChallengeStatsFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeStatsFrozen_Call) Return(challengeStatss []*entity.ChallengeStats, err error) *MockStatisticsRepository_GetChallengeStatsFrozen_Call {
+	_c.Call.Return(challengeStatss, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetChallengeStatsFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) ([]*entity.ChallengeStats, error)) *MockStatisticsRepository_GetChallengeStatsFrozen_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGeneralStats provides a mock function for the type MockStatisticsRepository
 func (_mock *MockStatisticsRepository) GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error) {
 	ret := _mock.Called(ctx)
@@ -359,6 +500,74 @@ func (_c *MockStatisticsRepository_GetGeneralStats_Call) Return(generalStats *en
 }
 
 func (_c *MockStatisticsRepository_GetGeneralStats_Call) RunAndReturn(run func(ctx context.Context) (*entity.GeneralStats, error)) *MockStatisticsRepository_GetGeneralStats_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGeneralStatsFrozen provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetGeneralStatsFrozen(ctx context.Context, freezeTime time.Time) (*entity.GeneralStats, error) {
+	ret := _mock.Called(ctx, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGeneralStatsFrozen")
+	}
+
+	var r0 *entity.GeneralStats
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) (*entity.GeneralStats, error)); ok {
+		return returnFunc(ctx, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) *entity.GeneralStats); ok {
+		r0 = returnFunc(ctx, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.GeneralStats)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetGeneralStatsFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGeneralStatsFrozen'
+type MockStatisticsRepository_GetGeneralStatsFrozen_Call struct {
+	*mock.Call
+}
+
+// GetGeneralStatsFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - freezeTime time.Time
+func (_e *MockStatisticsRepository_Expecter) GetGeneralStatsFrozen(ctx interface{}, freezeTime interface{}) *MockStatisticsRepository_GetGeneralStatsFrozen_Call {
+	return &MockStatisticsRepository_GetGeneralStatsFrozen_Call{Call: _e.mock.On("GetGeneralStatsFrozen", ctx, freezeTime)}
+}
+
+func (_c *MockStatisticsRepository_GetGeneralStatsFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time)) *MockStatisticsRepository_GetGeneralStatsFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetGeneralStatsFrozen_Call) Return(generalStats *entity.GeneralStats, err error) *MockStatisticsRepository_GetGeneralStatsFrozen_Call {
+	_c.Call.Return(generalStats, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetGeneralStatsFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) (*entity.GeneralStats, error)) *MockStatisticsRepository_GetGeneralStatsFrozen_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -693,6 +902,74 @@ func (_c *MockStatisticsRepository_GetSolveMatrix_Call) Return(solveMatrixRows [
 }
 
 func (_c *MockStatisticsRepository_GetSolveMatrix_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.SolveMatrixRow, error)) *MockStatisticsRepository_GetSolveMatrix_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSolveMatrixFrozen provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetSolveMatrixFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.SolveMatrixRow, error) {
+	ret := _mock.Called(ctx, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSolveMatrixFrozen")
+	}
+
+	var r0 []*entity.SolveMatrixRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]*entity.SolveMatrixRow, error)); ok {
+		return returnFunc(ctx, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []*entity.SolveMatrixRow); ok {
+		r0 = returnFunc(ctx, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.SolveMatrixRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetSolveMatrixFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSolveMatrixFrozen'
+type MockStatisticsRepository_GetSolveMatrixFrozen_Call struct {
+	*mock.Call
+}
+
+// GetSolveMatrixFrozen is a helper method to define mock.On call
+//   - ctx context.Context
+//   - freezeTime time.Time
+func (_e *MockStatisticsRepository_Expecter) GetSolveMatrixFrozen(ctx interface{}, freezeTime interface{}) *MockStatisticsRepository_GetSolveMatrixFrozen_Call {
+	return &MockStatisticsRepository_GetSolveMatrixFrozen_Call{Call: _e.mock.On("GetSolveMatrixFrozen", ctx, freezeTime)}
+}
+
+func (_c *MockStatisticsRepository_GetSolveMatrixFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time)) *MockStatisticsRepository_GetSolveMatrixFrozen_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetSolveMatrixFrozen_Call) Return(solveMatrixRows []*entity.SolveMatrixRow, err error) *MockStatisticsRepository_GetSolveMatrixFrozen_Call {
+	_c.Call.Return(solveMatrixRows, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetSolveMatrixFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) ([]*entity.SolveMatrixRow, error)) *MockStatisticsRepository_GetSolveMatrixFrozen_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -17,9 +17,10 @@ schemas:
     properties:
       name:
         type: string
-        maxLength: 100
+        maxLength: 200
       description:
         type: string
+        maxLength: 500
       is_default:
         type: boolean
         default: false
@@ -30,9 +31,10 @@ schemas:
     properties:
       name:
         type: string
-        maxLength: 100
+        maxLength: 200
       description:
         type: string
+        maxLength: 500
       is_default:
         type: boolean
     required:

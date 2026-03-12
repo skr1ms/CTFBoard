@@ -63,6 +63,26 @@ func (q *Queries) GetHintByID(ctx context.Context, id uuid.UUID) (Hint, error) {
 	return i, err
 }
 
+const getHintByIDForUpdate = `-- name: GetHintByIDForUpdate :one
+SELECT id, challenge_id, content, cost, order_index
+FROM hints
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetHintByIDForUpdate(ctx context.Context, id uuid.UUID) (Hint, error) {
+	row := q.db.QueryRow(ctx, getHintByIDForUpdate, id)
+	var i Hint
+	err := row.Scan(
+		&i.ID,
+		&i.ChallengeID,
+		&i.Content,
+		&i.Cost,
+		&i.OrderIndex,
+	)
+	return i, err
+}
+
 const getHintsByChallengeID = `-- name: GetHintsByChallengeID :many
 SELECT id, challenge_id, content, cost, order_index
 FROM hints
@@ -72,6 +92,39 @@ ORDER BY order_index ASC
 
 func (q *Queries) GetHintsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]Hint, error) {
 	rows, err := q.db.Query(ctx, getHintsByChallengeID, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Hint
+	for rows.Next() {
+		var i Hint
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChallengeID,
+			&i.Content,
+			&i.Cost,
+			&i.OrderIndex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getHintsByChallengeIDs = `-- name: GetHintsByChallengeIDs :many
+SELECT id, challenge_id, content, cost, order_index
+FROM hints
+WHERE challenge_id = ANY($1::uuid[])
+ORDER BY challenge_id, order_index ASC
+`
+
+func (q *Queries) GetHintsByChallengeIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Hint, error) {
+	rows, err := q.db.Query(ctx, getHintsByChallengeIDs, dollar_1)
 	if err != nil {
 		return nil, err
 	}

@@ -31,11 +31,6 @@ var (
 		StatusCode: http.StatusUnauthorized,
 		Code:       "INVALID_CREDENTIALS",
 	}
-	ErrUserNotVerified = &HTTPError{
-		Err:        errors.New("email not verified"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "USER_NOT_VERIFIED",
-	}
 	ErrNotAuthenticated = &HTTPError{
 		Err:        errors.New("not authenticated"),
 		StatusCode: http.StatusUnauthorized,
@@ -70,5 +65,10 @@ var (
 		Err:        errors.New("user is banned"),
 		StatusCode: http.StatusForbidden,
 		Code:       "USER_BANNED",
+	}
+	ErrCaptainCannotBeDeleted = &HTTPError{
+		Err:        errors.New("transfer captain first, then delete user"),
+		StatusCode: http.StatusConflict,
+		Code:       "CAPTAIN_CANNOT_BE_DELETED",
 	}
 )

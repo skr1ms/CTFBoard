@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type contextKey string

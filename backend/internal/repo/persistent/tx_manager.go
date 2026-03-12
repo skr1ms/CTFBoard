@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
 type txKey struct{}
@@ -41,21 +42,35 @@ func (tm *TransactionManager) Run(ctx context.Context, fn func(context.Context) 
 	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
 		return fn(ctx)
 	}
-	return tm.runInNewTx(ctx, "Run", pgx.ReadCommitted, fn)
+	return tm.runInNewTx(ctx, "Run", pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadWrite}, fn)
 }
 
-// runInNewTx starts a new transaction with the given isolation level and runs fn inside it.
-func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, isoLevel pgx.TxIsoLevel, fn func(context.Context) error) (retErr error) {
-	tx, err := tm.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: isoLevel})
+// ReadOnly executes fn inside a read-only transaction (no writes).
+// If ctx already carries a transaction, fn is called directly.
+// Use for scoreboard, statistics, and listing operations.
+func (tm *TransactionManager) ReadOnly(ctx context.Context, fn func(context.Context) error) (retErr error) {
+	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return fn(ctx)
+	}
+	return tm.runInNewTx(ctx, "ReadOnly", pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadOnly}, fn)
+}
+
+// runInNewTx starts a new transaction with the given options and runs fn inside it.
+func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pgx.TxOptions, fn func(context.Context) error) (retErr error) {
+	tx, err := tm.pool.BeginTx(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("TransactionManager - %s - BeginTx: %w", op, err)
 	}
 	var committed bool
 	defer func() {
-		retErr = tm.finishTx(op, recover(), committed, tx, ctx, retErr)
+		p := recover()
+		retErr = tm.finishTx(op, p, committed, tx, ctx, retErr)
+		if p != nil {
+			panic(p)
+		}
 	}()
 	ctxTx := context.WithValue(ctx, txKey{}, tx)
-	ctxTx = context.WithValue(ctxTx, isoLevelKey{}, isoLevel)
+	ctxTx = context.WithValue(ctxTx, isoLevelKey{}, opts.IsoLevel)
 	if err := fn(ctxTx); err != nil {
 		return fmt.Errorf("TransactionManager - %s - fn: %w", op, err)
 	}
@@ -109,5 +124,5 @@ func (tm *TransactionManager) RunSerializable(ctx context.Context, fn func(conte
 		}
 		return nil
 	}
-	return tm.runInNewTx(ctx, "RunSerializable", pgx.Serializable, fn)
+	return tm.runInNewTx(ctx, "RunSerializable", pgx.TxOptions{IsoLevel: pgx.Serializable, AccessMode: pgx.ReadWrite}, fn)
 }

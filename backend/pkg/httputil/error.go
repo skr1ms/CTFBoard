@@ -4,13 +4,25 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/go-chi/render"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type ErrorResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+type ValidationErrorItem struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+type ValidationErrorResponse struct {
+	Code    string                `json:"code"`
+	Message string                `json:"message"`
+	Errors  []ValidationErrorItem `json:"errors,omitempty"`
 }
 
 func codeFromStatus(status int) string {
@@ -27,6 +39,8 @@ func codeFromStatus(status int) string {
 		return "CONFLICT"
 	case http.StatusGone:
 		return "GONE"
+	case http.StatusPaymentRequired:
+		return "PAYMENT_REQUIRED"
 	case http.StatusTooManyRequests:
 		return "RATE_LIMIT_EXCEEDED"
 	default:
@@ -41,10 +55,14 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 		if code == "" {
 			code = codeFromStatus(httpErr.HTTPStatus())
 		}
+		message := httpErr.Error()
+		if httpErr.HTTPStatus() >= http.StatusInternalServerError {
+			message = "Internal server error"
+		}
 		render.Status(r, httpErr.HTTPStatus())
 		render.JSON(w, r, ErrorResponse{
 			Code:    code,
-			Message: httpErr.Error(),
+			Message: message,
 		})
 		return
 	}

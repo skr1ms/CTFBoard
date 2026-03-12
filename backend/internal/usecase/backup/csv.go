@@ -25,20 +25,37 @@ func isAllowedCSVTable(table string) bool {
 }
 
 func csvExportUsers(users []*entity.User) ([]byte, error) {
-	header := []string{"id", "username", "email", "role", "is_verified", "team_id", "created_at"}
+	header := []string{"id", "username", "email", "password_hash", "role", "team_id", "is_verified", "verified_at", "is_banned", "banned_at", "banned_reason", "created_at"}
 	rows := make([][]string, 0, len(users))
 	for _, u := range users {
 		teamID := ""
 		if u.TeamID != nil {
 			teamID = u.TeamID.String()
 		}
+		verifiedAt := ""
+		if u.VerifiedAt != nil {
+			verifiedAt = u.VerifiedAt.Format(time.RFC3339)
+		}
+		bannedAt := ""
+		if u.BannedAt != nil {
+			bannedAt = u.BannedAt.Format(time.RFC3339)
+		}
+		bannedReason := ""
+		if u.BannedReason != nil {
+			bannedReason = *u.BannedReason
+		}
 		rows = append(rows, []string{
 			u.ID.String(),
 			u.Username,
 			u.Email,
-			u.Role,
-			strconv.FormatBool(u.IsVerified),
+			"",
+			string(u.Role),
 			teamID,
+			strconv.FormatBool(u.IsVerified),
+			verifiedAt,
+			strconv.FormatBool(u.IsBanned),
+			bannedAt,
+			bannedReason,
 			u.CreatedAt.Format(time.RFC3339),
 		})
 	}
@@ -46,12 +63,16 @@ func csvExportUsers(users []*entity.User) ([]byte, error) {
 }
 
 func csvExportTeams(teams []*entity.Team) ([]byte, error) {
-	header := []string{"id", "name", "captain_id", "invite_token", "bracket_id", "is_solo", "is_banned", "banned_at", "banned_reason", "is_hidden", "created_at"}
+	header := []string{"id", "name", "captain_id", "invite_token", "invite_token_expires_at", "bracket_id", "is_solo", "is_banned", "banned_at", "banned_reason", "is_hidden", "created_at"}
 	rows := make([][]string, 0, len(teams))
 	for _, t := range teams {
 		bracketID := ""
 		if t.BracketID != nil {
 			bracketID = t.BracketID.String()
+		}
+		inviteExpires := ""
+		if t.InviteTokenExpiresAt != nil {
+			inviteExpires = t.InviteTokenExpiresAt.Format(time.RFC3339)
 		}
 		bannedAt := ""
 		if t.BannedAt != nil {
@@ -66,6 +87,7 @@ func csvExportTeams(teams []*entity.Team) ([]byte, error) {
 			t.Name,
 			t.CaptainID.String(),
 			t.InviteToken.String(),
+			inviteExpires,
 			bracketID,
 			strconv.FormatBool(t.IsSolo),
 			strconv.FormatBool(t.IsBanned),
@@ -79,27 +101,36 @@ func csvExportTeams(teams []*entity.Team) ([]byte, error) {
 }
 
 func csvExportChallenges(challenges []*entity.Challenge) ([]byte, error) {
-	header := []string{"id", "title", "description", "category", "points", "initial_value", "min_value", "decay", "solve_count", "is_hidden"}
+	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
 	rows := make([][]string, 0, len(challenges))
 	for _, c := range challenges {
+		flagFormat := ""
+		if c.FlagFormatRegex != nil {
+			flagFormat = *c.FlagFormatRegex
+		}
 		rows = append(rows, []string{
 			c.ID.String(),
 			c.Title,
 			c.Description,
 			c.Category,
+			c.FlagHash,
 			strconv.Itoa(c.Points),
 			strconv.Itoa(c.InitialValue),
 			strconv.Itoa(c.MinValue),
 			strconv.Itoa(c.Decay),
 			strconv.Itoa(c.SolveCount),
 			strconv.FormatBool(c.IsHidden),
+			strconv.FormatBool(c.IsRegex),
+			strconv.FormatBool(c.IsCaseInsensitive),
+			c.FlagRegex,
+			flagFormat,
 		})
 	}
 	return writeCSV(header, rows)
 }
 
 func csvExportSubmissions(subs []*entity.SubmissionWithDetails) ([]byte, error) {
-	header := []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at", "username", "team_name", "challenge_title"}
+	header := []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at"}
 	rows := make([][]string, 0, len(subs))
 	for _, s := range subs {
 		teamID := ""
@@ -115,36 +146,48 @@ func csvExportSubmissions(subs []*entity.SubmissionWithDetails) ([]byte, error) 
 			strconv.FormatBool(s.IsCorrect),
 			s.IP,
 			s.CreatedAt.Format(time.RFC3339),
-			s.Username,
-			s.TeamName,
-			s.ChallengeTitle,
 		})
 	}
 	return writeCSV(header, rows)
 }
 
 func csvExportSolves(solves []*entity.Solve) ([]byte, error) {
-	header := []string{"id", "user_id", "team_id", "challenge_id", "solved_at"}
+	header := []string{"id", "user_id", "team_id", "challenge_id", "solved_at", "points_at_solve", "banned_team_id", "banned_user_id"}
 	rows := make([][]string, 0, len(solves))
 	for _, s := range solves {
+		bannedTeamID := ""
+		if s.BannedTeamID != nil {
+			bannedTeamID = s.BannedTeamID.String()
+		}
+		bannedUserID := ""
+		if s.BannedUserID != nil {
+			bannedUserID = s.BannedUserID.String()
+		}
 		rows = append(rows, []string{
 			s.ID.String(),
 			s.UserID.String(),
 			s.TeamID.String(),
 			s.ChallengeID.String(),
 			s.SolvedAt.Format(time.RFC3339),
+			strconv.Itoa(s.PointsAtSolve),
+			bannedTeamID,
+			bannedUserID,
 		})
 	}
 	return writeCSV(header, rows)
 }
 
 func csvExportAwards(awards []*entity.Award) ([]byte, error) {
-	header := []string{"id", "team_id", "value", "description", "created_by", "created_at"}
+	header := []string{"id", "team_id", "value", "description", "created_by", "created_at", "banned_team_id"}
 	rows := make([][]string, 0, len(awards))
 	for _, a := range awards {
 		createdBy := ""
 		if a.CreatedBy != nil {
 			createdBy = a.CreatedBy.String()
+		}
+		bannedTeamID := ""
+		if a.BannedTeamID != nil {
+			bannedTeamID = a.BannedTeamID.String()
 		}
 		rows = append(rows, []string{
 			a.ID.String(),
@@ -153,6 +196,7 @@ func csvExportAwards(awards []*entity.Award) ([]byte, error) {
 			a.Description,
 			createdBy,
 			a.CreatedAt.Format(time.RFC3339),
+			bannedTeamID,
 		})
 	}
 	return writeCSV(header, rows)
@@ -174,6 +218,29 @@ func writeCSV(header []string, rows [][]string) ([]byte, error) {
 		return nil, fmt.Errorf("BackupUseCase - writeCSV - flush csv: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func csvNormalizeUserRoles(header []string, rows [][]string) [][]string {
+	roleIdx := -1
+	for i, h := range header {
+		if h == "role" {
+			roleIdx = i
+			break
+		}
+	}
+	if roleIdx < 0 {
+		return rows
+	}
+	out := make([][]string, len(rows))
+	for i, row := range rows {
+		rowCopy := make([]string, len(row))
+		copy(rowCopy, row)
+		if roleIdx < len(rowCopy) {
+			rowCopy[roleIdx] = string(entity.RoleUser)
+		}
+		out[i] = rowCopy
+	}
+	return out
 }
 
 func parseCSV(data []byte) ([]string, [][]string, error) {

@@ -5,15 +5,72 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 )
+
+type userTestDeps struct {
+	userRepo   *mocks.MockUserRepository
+	teamRepo   *mocks.MockTeamRepository
+	solveRepo  *mocks.MockSolveRepository
+	tm         *mocks.MockTransactionManager
+	jwtService *mocks.MockJWTService
+}
+
+func newUserTestDeps(t *testing.T) *userTestDeps {
+	t.Helper()
+	return &userTestDeps{
+		userRepo:   mocks.NewMockUserRepository(t),
+		teamRepo:   mocks.NewMockTeamRepository(t),
+		solveRepo:  mocks.NewMockSolveRepository(t),
+		tm:         mocks.NewMockTransactionManager(t),
+		jwtService: mocks.NewMockJWTService(t),
+	}
+}
+
+func (d *userTestDeps) createUseCase() *UserUseCase {
+	return NewUserUseCase(UserDeps{
+		UserRepo: d.userRepo, TeamRepo: d.teamRepo, SolveRepo: d.solveRepo,
+		TM: d.tm, JWTService: d.jwtService, FieldValidator: nil, FieldValueRepo: nil,
+	})
+}
+
+func (d *userTestDeps) setupLoginMocks(t *testing.T, email, password string) {
+	t.Helper()
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	user := &entity.User{
+		ID: uuid.New(), Username: "testuser", Email: email, PasswordHash: string(hashedPassword),
+	}
+	d.userRepo.EXPECT().GetByEmail(mock.Anything, email).Return(user, nil)
+	tokenPair := &jwt.TokenPair{
+		AccessToken: "access_token", RefreshToken: "refresh_token",
+		AccessExpiresAt: time.Now().Unix(), RefreshExpiresAt: time.Now().Unix(),
+	}
+	d.jwtService.EXPECT().GenerateTokenPair(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tokenPair, nil)
+}
+
+func userTestHashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+func newTestSolve(userID, challengeID uuid.UUID) *entity.Solve {
+	return &entity.Solve{
+		ID: uuid.New(), UserID: userID, ChallengeID: challengeID, SolvedAt: time.Now(),
+	}
+}
 
 type registerTestCase struct {
 	name          string
@@ -32,6 +89,7 @@ func registerTestCases() []registerTestCase {
 				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 					return fn(ctx)
 				}).Once()
+				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
 				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, httperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *entity.User) {
@@ -46,6 +104,7 @@ func registerTestCases() []registerTestCase {
 				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 					return fn(ctx)
 				}).Once()
+				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
 				userRepo.EXPECT().GetByUsername(mock.Anything, "existinguser").Return(&entity.User{}, nil).Once()
 			},
 			expectedError: true,
@@ -56,6 +115,7 @@ func registerTestCases() []registerTestCase {
 				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 					return fn(ctx)
 				}).Once()
+				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Maybe()
 				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "existing@example.com").Return(&entity.User{}, nil).Once()
 			},
@@ -67,6 +127,7 @@ func registerTestCases() []registerTestCase {
 				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 					return fn(ctx)
 				}).Once()
+				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
 				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
@@ -77,6 +138,7 @@ func registerTestCases() []registerTestCase {
 				tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 					return fn(ctx)
 				}).Once()
+				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
 				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, assert.AnError).Once()
 			},
@@ -94,9 +156,9 @@ func registerTestCases() []registerTestCase {
 
 func runRegisterTest(t *testing.T, tt registerTestCase) {
 	t.Helper()
-	h := NewUserTestHelper(t)
-	tt.setupMocks(h.Deps().userRepo, h.Deps().tm)
-	uc := h.CreateUseCase()
+	d := newUserTestDeps(t)
+	tt.setupMocks(d.userRepo, d.tm)
+	uc := d.createUseCase()
 	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password, nil)
 	if tt.expectedError {
 		assert.Error(t, err)
@@ -121,12 +183,15 @@ func TestUserUseCase_Register(t *testing.T) {
 
 func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
+	d := newUserTestDeps(t)
 	settingsRepo := mocks.NewMockSettingsRepository(t)
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
 	settingsRepo.EXPECT().Get(mock.Anything).Return(&entity.Settings{RegistrationOpen: false}, nil).Once()
 	uc := NewUserUseCase(UserDeps{
-		UserRepo: h.Deps().userRepo, TeamRepo: h.Deps().teamRepo, SolveRepo: h.Deps().solveRepo,
-		TM: h.Deps().tm, JWTService: h.Deps().jwtService, FieldValidator: nil, FieldValueRepo: nil,
+		UserRepo: d.userRepo, TeamRepo: d.teamRepo, SolveRepo: d.solveRepo,
+		TM: d.tm, JWTService: d.jwtService, FieldValidator: nil, FieldValueRepo: nil,
 		SettingsRepo: settingsRepo,
 	})
 	user, err := uc.Register(context.Background(), "testuser", "test@example.com", "password123", nil)
@@ -161,7 +226,7 @@ func loginTestCases() []loginTestCase {
 			name: "invalid password", email: "test@example.com", password: "wrongpassword",
 			setupMocks: func(t *testing.T, userRepo *mocks.MockUserRepository, _ *mocks.MockJWTService) {
 				t.Helper()
-				hashedPassword, err := hashPassword("password123")
+				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
 				user := &entity.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
@@ -179,7 +244,7 @@ func loginTestCases() []loginTestCase {
 			name: "user with valid uuid", email: "test@example.com", password: "password123",
 			setupMocks: func(t *testing.T, userRepo *mocks.MockUserRepository, jwtService *mocks.MockJWTService) {
 				t.Helper()
-				hashedPassword, err := hashPassword("password123")
+				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
 				user := &entity.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
@@ -191,7 +256,7 @@ func loginTestCases() []loginTestCase {
 			name: "GenerateTokenPair returns error", email: "test@example.com", password: "password123",
 			setupMocks: func(t *testing.T, userRepo *mocks.MockUserRepository, jwtService *mocks.MockJWTService) {
 				t.Helper()
-				hashedPassword, err := hashPassword("password123")
+				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
 				user := &entity.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
@@ -204,11 +269,11 @@ func loginTestCases() []loginTestCase {
 
 func runLoginTest(t *testing.T, tt loginTestCase) {
 	t.Helper()
-	h := NewUserTestHelper(t)
-	tt.setupMocks(t, h.Deps().userRepo, h.Deps().jwtService)
-	uc := h.CreateUseCase()
+	d := newUserTestDeps(t)
+	tt.setupMocks(t, d.userRepo, d.jwtService)
+	uc := d.createUseCase()
 	if tt.name == "successful login" {
-		h.SetupLoginMocks(tt.email, tt.password)
+		d.setupLoginMocks(t, tt.email, tt.password)
 	}
 	tokenPair, err := uc.Login(context.Background(), tt.email, tt.password)
 	if tt.expectedError {
@@ -233,8 +298,7 @@ func TestUserUseCase_Login(t *testing.T) {
 
 func TestUserUseCase_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newUserTestDeps(t)
 
 	userID := uuid.New()
 	expectedUser := &entity.User{
@@ -243,9 +307,9 @@ func TestUserUseCase_GetByID_Success(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(expectedUser, nil)
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(expectedUser, nil)
 
-	uc := h.CreateUseCase()
+	uc := d.createUseCase()
 
 	user, err := uc.GetByID(context.Background(), userID)
 
@@ -257,15 +321,14 @@ func TestUserUseCase_GetByID_Success(t *testing.T) {
 
 func TestUserUseCase_GetByID_Error(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newUserTestDeps(t)
 
 	userID := uuid.New()
 	expectedError := assert.AnError
 
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, expectedError)
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, expectedError)
 
-	uc := h.CreateUseCase()
+	uc := d.createUseCase()
 
 	user, err := uc.GetByID(context.Background(), userID)
 
@@ -275,8 +338,7 @@ func TestUserUseCase_GetByID_Error(t *testing.T) {
 
 func TestUserUseCase_GetProfile_Success(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newUserTestDeps(t)
 
 	userID := uuid.New()
 	user := &entity.User{
@@ -285,12 +347,12 @@ func TestUserUseCase_GetProfile_Success(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
-	solves := []*entity.Solve{h.NewSolve(userID, uuid.New())}
+	solves := []*entity.Solve{newTestSolve(userID, uuid.New())}
 
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(solves, nil)
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
+	d.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(solves, nil)
 
-	uc := h.CreateUseCase()
+	uc := d.createUseCase()
 
 	profile, err := uc.GetProfile(context.Background(), userID)
 
@@ -303,18 +365,17 @@ func TestUserUseCase_GetProfile_Success(t *testing.T) {
 
 func TestUserUseCase_GetProfile_GetByIDError(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newUserTestDeps(t)
 
 	userID := uuid.New()
 	expectedError := assert.AnError
 
-	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return([]*entity.Solve{}, nil)
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
+	d.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Return([]*entity.Solve{}, nil)
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
 		time.Sleep(50 * time.Millisecond)
 	}).Return(nil, expectedError)
 
-	uc := h.CreateUseCase()
+	uc := d.createUseCase()
 
 	profile, err := uc.GetProfile(context.Background(), userID)
 
@@ -324,8 +385,7 @@ func TestUserUseCase_GetProfile_GetByIDError(t *testing.T) {
 
 func TestUserUseCase_GetProfile_GetByUserIDError(t *testing.T) {
 	t.Parallel()
-	h := NewUserTestHelper(t)
-	deps := h.Deps()
+	d := newUserTestDeps(t)
 
 	userID := uuid.New()
 	user := &entity.User{
@@ -335,16 +395,108 @@ func TestUserUseCase_GetProfile_GetByUserIDError(t *testing.T) {
 	}
 	expectedError := assert.AnError
 
-	// Delay GetByUserID so GetByID completes first; avoids testify mock/context cancellation race.
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	deps.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
+	d.solveRepo.EXPECT().GetByUserID(mock.Anything, userID).Run(func(_ context.Context, _ uuid.UUID) {
 		time.Sleep(50 * time.Millisecond)
 	}).Return(nil, expectedError)
 
-	uc := h.CreateUseCase()
+	uc := d.createUseCase()
 
 	profile, err := uc.GetProfile(context.Background(), userID)
 
 	assert.Error(t, err)
 	assert.Nil(t, profile)
+}
+
+func TestUserUseCase_BanUser_Success_NoSoloTeam(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	user := &entity.User{ID: userID, Role: entity.RoleUser, TeamID: nil}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
+	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*entity.SolveWithDetails{}, nil).Once()
+	d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
+
+	uc := d.createUseCase()
+	err := uc.BanUser(context.Background(), userID, "reason", actorID)
+
+	assert.NoError(t, err)
+}
+
+func TestUserUseCase_BanUser_Success_HidesSoloTeamInTx(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	teamID := uuid.New()
+	user := &entity.User{ID: userID, Role: entity.RoleUser, TeamID: &teamID}
+	team := &entity.Team{ID: teamID, IsSolo: true, IsHidden: false}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
+	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*entity.SolveWithDetails{}, nil).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+	d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
+
+	uc := d.createUseCase()
+	err := uc.BanUser(context.Background(), userID, "reason", actorID)
+
+	assert.NoError(t, err)
+}
+
+func TestUserUseCase_UnbanUser_Success_ShowsSoloTeamInTx(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	teamID := uuid.New()
+	user := &entity.User{ID: userID, Role: entity.RoleUser, TeamID: &teamID, IsBanned: true}
+	team := &entity.Team{ID: teamID, IsSolo: true, IsHidden: true}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, false).Return(nil).Once()
+
+	uc := d.createUseCase()
+	err := uc.UnbanUser(context.Background(), userID, actorID)
+
+	assert.NoError(t, err)
+}
+
+func TestSanitizeCustomFieldValue(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "abc", sanitizeCustomFieldValue("abc"))
+	assert.Equal(t, "a  b", sanitizeCustomFieldValue("a \x00\x1b b"))
+	assert.Equal(t, "", sanitizeCustomFieldValue("\x00\x1f\x7f"))
+	assert.Equal(t, "x", sanitizeCustomFieldValue("  x  "))
+}
+
+func TestSanitizeCustomFields(t *testing.T) {
+	t.Parallel()
+	assert.Nil(t, sanitizeCustomFields(nil))
+	assert.Empty(t, sanitizeCustomFields(map[string]string{}))
+	out := sanitizeCustomFields(map[string]string{"k1": " v1 \x00 ", "k2": "v2"})
+	assert.Equal(t, "v1", out["k1"])
+	assert.Equal(t, "v2", out["k2"])
 }

@@ -13,7 +13,7 @@ var (
 	}
 	ErrUserMustBeInTeam = &HTTPError{
 		Err:        errors.New("user must be in a team"),
-		StatusCode: http.StatusForbidden,
+		StatusCode: http.StatusNotFound,
 		Code:       "USER_NOT_IN_TEAM",
 	}
 	ErrInvalidFlagFormat = &HTTPError{

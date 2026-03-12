@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CommentRepo struct {
@@ -39,8 +40,8 @@ func (r *CommentRepo) Create(ctx context.Context, comment *entity.Comment) error
 	if err != nil {
 		return fmt.Errorf("CommentRepo - Create: %w", err)
 	}
-	comment.CreatedAt = ptrTimeToTime(row.CreatedAt)
-	comment.UpdatedAt = ptrTimeToTime(row.UpdatedAt)
+	comment.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	comment.UpdatedAt = ptrTimeToTime(timestamptzToTime(row.UpdatedAt))
 	return nil
 }
 
@@ -59,6 +60,18 @@ func (r *CommentRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUI
 	rows, err := r.q(ctx).GetCommentsByChallengeID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("CommentRepo - GetByChallengeID: %w", err)
+	}
+	out := make([]*entity.Comment, len(rows))
+	for i, row := range rows {
+		out[i] = toEntityComment(row)
+	}
+	return out, nil
+}
+
+func (r *CommentRepo) GetAll(ctx context.Context) ([]*entity.Comment, error) {
+	rows, err := r.q(ctx).GetAllComments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("CommentRepo - GetAll: %w", err)
 	}
 	out := make([]*entity.Comment, len(rows))
 	for i, row := range rows {
@@ -93,7 +106,7 @@ func toEntityComment(row sqlc.Comment) *entity.Comment {
 		UserID:      row.UserID,
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
-		CreatedAt:   ptrTimeToTime(row.CreatedAt),
-		UpdatedAt:   ptrTimeToTime(row.UpdatedAt),
+		CreatedAt:   ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+		UpdatedAt:   ptrTimeToTime(timestamptzToTime(row.UpdatedAt)),
 	}
 }

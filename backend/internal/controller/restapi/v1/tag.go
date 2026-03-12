@@ -28,7 +28,11 @@ func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	name, color := request.CreateTagRequestToParams(&req)
+	name, color, err := request.CreateTagRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PostAdminTags", "CreateTagRequestToParams")
+		return
+	}
 	tag, err := h.challenge.TagUC.Create(r.Context(), name, color)
 	if h.OnError(w, r, err, "PostAdminTags", "Create") {
 		return
@@ -49,7 +53,11 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, ID strin
 	if !ok {
 		return
 	}
-	name, color := request.UpdateTagRequestToParams(&req)
+	name, color, err := request.UpdateTagRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PutAdminTagsID", "UpdateTagRequestToParams")
+		return
+	}
 	tag, err := h.challenge.TagUC.Update(r.Context(), tagIDParsed, name, color)
 	if h.OnError(w, r, err, "PutAdminTagsID", "Update") {
 		return

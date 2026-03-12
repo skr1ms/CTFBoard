@@ -1,5 +1,6 @@
 /user/tokens:
   get:
+    operationId: GetUserTokens
     description: Returns list of API tokens for current user
     responses:
       "200":
@@ -12,12 +13,18 @@
                 $ref: '../components/schemas.yml#/APITokenResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List my API tokens
     tags:
       - User
   post:
+    operationId: PostUserTokens
     description: Creates a new API token. Returns plaintext token once.
     requestBody:
       content:
@@ -34,16 +41,26 @@
               $ref: '../components/schemas.yml#/APITokenCreatedResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create API token
     tags:
       - User
 
 "/user/tokens/{ID}":
   delete:
+    operationId: DeleteUserTokensID
     description: Revokes an API token
     parameters:
       - name: ID
@@ -56,10 +73,19 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Revoke API token
     tags:
       - User

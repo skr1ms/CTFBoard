@@ -15,6 +15,7 @@ const (
 	TeamActionCaptainTransfer TeamAuditAction = "captain_transferred"
 	TeamActionDeleted         TeamAuditAction = "deleted"
 	TeamActionMemberKicked    TeamAuditAction = "member_kicked"
+	TeamActionMemberBanned    TeamAuditAction = "member_banned"
 	TeamActionBanned          TeamAuditAction = "banned"
 	TeamActionUnbanned        TeamAuditAction = "unbanned"
 )
@@ -22,7 +23,7 @@ const (
 type TeamAuditLog struct {
 	ID        uuid.UUID       `json:"id"`
 	TeamID    uuid.UUID       `json:"team_id"`
-	UserID    uuid.UUID       `json:"user_id"`
+	UserID    *uuid.UUID      `json:"user_id,omitempty"`
 	Action    TeamAuditAction `json:"action"`
 	Details   map[string]any  `json:"details,omitempty"`
 	CreatedAt time.Time       `json:"created_at"`

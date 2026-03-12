@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type OAuthRepo struct {
@@ -32,13 +33,13 @@ func toEntityOAuthAccount(o sqlc.OAuthAccount) *entity.OAuthAccount {
 		UserID:         o.UserID,
 		Provider:       o.Provider,
 		ProviderUserID: o.ProviderUserID,
-		CreatedAt:      ptrTimeToTime(o.CreatedAt),
+		CreatedAt:      ptrTimeToTime(timestamptzToTime(o.CreatedAt)),
 	}
 	if o.AccessToken != nil {
 		acc.AccessToken = *o.AccessToken
 	}
 	acc.RefreshToken = o.RefreshToken
-	acc.ExpiresAt = o.ExpiresAt
+	acc.ExpiresAt = timestamptzToTime(o.ExpiresAt)
 	return acc
 }
 
@@ -57,7 +58,7 @@ func (r *OAuthRepo) Create(ctx context.Context, acc *entity.OAuthAccount) error 
 		ProviderUserID: acc.ProviderUserID,
 		AccessToken:    accessToken,
 		RefreshToken:   acc.RefreshToken,
-		ExpiresAt:      acc.ExpiresAt,
+		ExpiresAt:      timeToTimestamptz(acc.ExpiresAt),
 	})
 	if err != nil {
 		if isPgUniqueViolation(err) {
@@ -83,7 +84,7 @@ func (r *OAuthRepo) Upsert(ctx context.Context, acc *entity.OAuthAccount) error 
 		ProviderUserID: acc.ProviderUserID,
 		AccessToken:    accessToken,
 		RefreshToken:   acc.RefreshToken,
-		ExpiresAt:      acc.ExpiresAt,
+		ExpiresAt:      timeToTimestamptz(acc.ExpiresAt),
 	})
 	if err != nil {
 		return fmt.Errorf("OAuthRepo - Upsert: %w", err)

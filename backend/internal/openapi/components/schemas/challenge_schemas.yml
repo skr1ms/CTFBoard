@@ -70,6 +70,7 @@ schemas:
       flag_format_regex:
         description: Optional regex for flag format validation for this challenge; overrides competition default
         example: '^CTF\{[a-zA-Z0-9_]+\}$'
+        maxLength: 1024
         type: string
       initial_value:
         example: 500
@@ -133,6 +134,7 @@ schemas:
       flag_format_regex:
         description: Optional regex for flag format validation for this challenge; overrides competition default
         example: '^CTF\{[a-zA-Z0-9_]+\}$'
+        maxLength: 1024
         type: string
       initial_value:
         example: 500
@@ -175,10 +177,10 @@ schemas:
     properties:
       flag:
         example: CTF{flag_here}
-        maxLength: 2048
+        maxLength: 200
         type: string
         x-oapi-codegen-extra-tags:
-          validate: "required,max=2048"
+          validate: "required,challenge_flag"
     required:
       - flag
     type: object
@@ -222,8 +224,9 @@ schemas:
     properties:
       content:
         type: string
+        maxLength: 2000
         x-oapi-codegen-extra-tags:
-          validate: "required,not_empty"
+          validate: "required,not_empty,max=2000"
     required:
       - content
     type: object
@@ -280,20 +283,6 @@ schemas:
         type: array
       first_blood:
         $ref: "#/schemas/response.FirstBloodResponse"
-    type: object
-  response.SolveEntry:
-    properties:
-      user_id:
-        type: string
-      username:
-        type: string
-      team_id:
-        type: string
-      team_name:
-        type: string
-      solved_at:
-        type: string
-        format: date-time
     type: object
   response.HintResponse:
     properties:
@@ -410,7 +399,10 @@ schemas:
     properties:
       content:
         description: Markdown writeup content
+        maxLength: 524288
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=524288"
     required:
       - content
     type: object
@@ -443,6 +435,7 @@ schemas:
   response.ChallengeFlagsResponse:
     properties:
       flags:
+        description: Hashes of challenge flags (not plaintext); used for admin verification
         items:
           type: string
         type: array
@@ -453,6 +446,7 @@ schemas:
       flag_regex:
         type: string
       flag_format_regex:
+        maxLength: 1024
         type: string
     type: object
   response.SubmitFlagResponse:

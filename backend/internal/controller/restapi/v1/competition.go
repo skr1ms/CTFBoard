@@ -7,6 +7,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // Get competition status
@@ -49,9 +50,19 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	comp := request.UpdateCompetitionRequestToEntity(&req)
+	optionals := &usecase.CompetitionUpdateOptionals{
+		IsPaused:                     req.IsPaused,
+		IsPublic:                     req.IsPublic,
+		AllowTeamSwitch:              req.AllowTeamSwitch,
+		MinTeamSize:                  req.MinTeamSize,
+		MaxTeamSize:                  req.MaxTeamSize,
+		ClearFreezeTime:              req.ClearFreezeTime,
+		ClearEndTime:                 req.ClearEndTime,
+		KeepScoreboardFrozenAfterEnd: req.KeepScoreboardFrozenAfterEnd,
+	}
 	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
 
-	err := h.comp.CompetitionUC.Update(r.Context(), comp, user.ID, clientIP)
+	err := h.comp.CompetitionUC.Update(r.Context(), comp, optionals, user.ID, clientIP)
 	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {
 		return
 	}

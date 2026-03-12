@@ -52,6 +52,38 @@ func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getAllComments = `-- name: GetAllComments :many
+SELECT id, user_id, challenge_id, content, created_at, updated_at
+FROM comments ORDER BY created_at ASC
+`
+
+func (q *Queries) GetAllComments(ctx context.Context) ([]Comment, error) {
+	rows, err := q.db.Query(ctx, getAllComments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Comment
+	for rows.Next() {
+		var i Comment
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.ChallengeID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCommentByID = `-- name: GetCommentByID :one
 SELECT id, user_id, challenge_id, content, created_at, updated_at
 FROM comments WHERE id = $1

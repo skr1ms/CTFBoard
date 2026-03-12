@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestAuditLogRepo_Create_Success(t *testing.T) {
@@ -20,7 +21,7 @@ func TestAuditLogRepo_Create_Success(t *testing.T) {
 	auditLog := &entity.AuditLog{
 		UserID:     &user.ID,
 		Action:     "create",
-		EntityType: entity.RoleUser,
+		EntityType: entity.AuditEntityUser,
 		EntityID:   user.ID.String(),
 		IP:         "127.0.0.1",
 		Details:    map[string]any{"foo": "bar"},
@@ -46,7 +47,7 @@ func TestAuditLogRepo_Create_Error_InvalidUUID(t *testing.T) {
 	auditLog := &entity.AuditLog{
 		UserID:     &nonExistentuuid,
 		Action:     "create",
-		EntityType: entity.RoleUser,
+		EntityType: entity.AuditEntityUser,
 		EntityID:   "something",
 		IP:         "127.0.0.1",
 	}

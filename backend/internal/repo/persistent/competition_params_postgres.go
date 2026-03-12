@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CompetitionParamRepo struct {
@@ -31,7 +32,7 @@ func toEntityCompetitionParam(row sqlc.CompetitionParam) *entity.CompetitionPara
 		Value:       row.Value,
 		ValueType:   entity.CompetitionParamValueType(row.ValueType),
 		Description: ptrStrToStr(row.Description),
-		UpdatedAt:   ptrTimeToTime(row.UpdatedAt),
+		UpdatedAt:   ptrTimeToTime(timestamptzToTime(row.UpdatedAt)),
 	}
 }
 
@@ -54,6 +55,17 @@ func (r *CompetitionParamRepo) GetByKey(ctx context.Context, key string) (*entit
 			return nil, httperr.ErrCompetitionParamNotFound
 		}
 		return nil, fmt.Errorf("CompetitionParamRepo - GetByKey: %w", err)
+	}
+	return toEntityCompetitionParam(row), nil
+}
+
+func (r *CompetitionParamRepo) GetByKeyForUpdate(ctx context.Context, key string) (*entity.CompetitionParam, error) {
+	row, err := r.q(ctx).GetConfigByKeyForUpdate(ctx, key)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, httperr.ErrCompetitionParamNotFound
+		}
+		return nil, fmt.Errorf("CompetitionParamRepo - GetByKeyForUpdate: %w", err)
 	}
 	return toEntityCompetitionParam(row), nil
 }

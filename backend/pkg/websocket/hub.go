@@ -33,6 +33,7 @@ type Hub struct {
 	clientCount  int64
 	redisClient  *redis.Client
 	redisChannel string
+	onTimeout    func(op string)
 }
 
 func NewHub(
@@ -48,6 +49,10 @@ func NewHub(
 		redisClient:  redisClient,
 		redisChannel: redisChannel,
 	}
+}
+
+func (h *Hub) SetTimeoutLogger(fn func(op string)) {
+	h.onTimeout = fn
 }
 
 func (h *Hub) closeDone() {
@@ -102,16 +107,28 @@ func (h *Hub) broadcastToClients(item broadcastItem) {
 }
 
 func (h *Hub) Register(client *Client) {
+	t := time.NewTimer(5 * time.Second)
+	defer t.Stop()
 	select {
 	case h.register <- client:
 	case <-h.done:
+	case <-t.C:
+		if h.onTimeout != nil {
+			h.onTimeout("register")
+		}
 	}
 }
 
 func (h *Hub) Unregister(client *Client) {
+	t := time.NewTimer(5 * time.Second)
+	defer t.Stop()
 	select {
 	case h.unregister <- client:
 	case <-h.done:
+	case <-t.C:
+		if h.onTimeout != nil {
+			h.onTimeout("unregister")
+		}
 	}
 }
 
@@ -122,6 +139,9 @@ func (h *Hub) Broadcast(data []byte) {
 	case h.broadcast <- broadcastItem{data: data}:
 	case <-h.done:
 	case <-t.C:
+		if h.onTimeout != nil {
+			h.onTimeout("broadcast")
+		}
 	}
 }
 

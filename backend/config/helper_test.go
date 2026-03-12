@@ -6,11 +6,12 @@ import (
 	"os"
 	"testing"
 
-	configmocks "github.com/TakuyaYagam1/AstroCTFb/config/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	configmocks "github.com/TakuyaYagam1/AstroCTFb/config/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func TestGetEnv_Success(t *testing.T) {

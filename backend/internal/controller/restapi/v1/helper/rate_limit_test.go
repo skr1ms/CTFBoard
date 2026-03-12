@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestGetRateLimitConfig_Success(t *testing.T) {
@@ -39,6 +40,7 @@ func TestGetRateLimitConfig_Success(t *testing.T) {
 	assert.Equal(t, 200, cfg.GeneralIPPerMinute)
 	assert.Equal(t, 15, cfg.VerifyEmailPerMinute)
 	assert.Equal(t, 25, cfg.OAuthCallbackPerMinute)
+	assert.Equal(t, 20, cfg.OAuthRedirectPerMinute)
 }
 
 func TestGetRateLimitConfig_ZeroValues_UsesDefaults(t *testing.T) {
@@ -58,6 +60,7 @@ func TestGetRateLimitConfig_ZeroValues_UsesDefaults(t *testing.T) {
 	assert.Equal(t, 100, cfg.GeneralIPPerMinute)
 	assert.Equal(t, 10, cfg.VerifyEmailPerMinute)
 	assert.Equal(t, 20, cfg.OAuthCallbackPerMinute)
+	assert.Equal(t, 20, cfg.OAuthRedirectPerMinute)
 }
 
 func TestGetRateLimitConfig_RepoError_ReturnsError(t *testing.T) {

@@ -2,12 +2,16 @@ package v1
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
+
+var pageSlugRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // Get published pages list
 // (GET /pages)
@@ -22,6 +26,10 @@ func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
 // Get page by slug
 // (GET /pages/{slug})
 func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug string) {
+	if slug == "" || !pageSlugRegex.MatchString(slug) {
+		h.OnError(w, r, httperr.ErrPageSlugInvalid, "GetPagesSlug", "ValidateSlug")
+		return
+	}
 	page, err := h.admin.PageUC.GetBySlug(r.Context(), slug)
 	if h.OnError(w, r, err, "GetPagesSlug", "GetBySlug") {
 		return
@@ -48,7 +56,10 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	title, slug, content, isDraft, orderIndex := request.CreatePageRequestToParams(&req)
+	title, slug, content, isDraft, orderIndex, err := request.CreatePageRequestToParams(&req)
+	if h.OnError(w, r, err, "PostAdminPages", "CreatePageRequestToParams") {
+		return
+	}
 	page, err := h.admin.PageUC.Create(r.Context(), title, slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
@@ -83,7 +94,10 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID stri
 	if !ok {
 		return
 	}
-	title, slug, content, isDraft, orderIndex := request.UpdatePageRequestToParams(&req)
+	title, slug, content, isDraft, orderIndex, err := request.UpdatePageRequestToParams(&req)
+	if h.OnError(w, r, err, "PutAdminPagesID", "UpdatePageRequestToParams") {
+		return
+	}
 	page, err := h.admin.PageUC.Update(r.Context(), pageID, title, slug, content, isDraft, orderIndex)
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return

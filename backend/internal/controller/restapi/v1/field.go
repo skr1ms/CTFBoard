@@ -14,7 +14,7 @@ import (
 // (GET /fields)
 func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openapi.GetFieldsParams) {
 	entityType := entity.EntityTypeUser
-	if params.EntityType == openapi.Team {
+	if params.EntityType != nil && *params.EntityType == openapi.Team {
 		entityType = entity.EntityTypeTeam
 	}
 	list, err := h.admin.FieldUC.GetByEntityType(r.Context(), entityType)
@@ -35,7 +35,7 @@ func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 	}
 	name, fieldType, entityType, required, options, orderIndex, err := request.CreateFieldRequestToParams(&req)
 	if err != nil {
-		h.OnError(w, r, helper.NewValidationErrorf("%s", err.Error()), "PostAdminFields", "CreateFieldRequestToParams")
+		h.OnError(w, r, err, "PostAdminFields", "CreateFieldRequestToParams")
 		return
 	}
 	field, err := h.admin.FieldUC.Create(r.Context(), name, fieldType, entityType, required, options, orderIndex)
@@ -60,7 +60,7 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, ID str
 	}
 	name, fieldType, required, options, orderIndex, err := request.UpdateFieldRequestToParams(&req)
 	if err != nil {
-		h.OnError(w, r, helper.NewValidationErrorf("%s", err.Error()), "PutAdminFieldsID", "UpdateFieldRequestToParams")
+		h.OnError(w, r, err, "PutAdminFieldsID", "UpdateFieldRequestToParams")
 		return
 	}
 	field, err := h.admin.FieldUC.Update(r.Context(), fieldIDParsed, name, fieldType, required, options, orderIndex)

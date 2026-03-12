@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type TrackingRepo struct {
@@ -68,7 +69,7 @@ func (r *TrackingRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit, o
 			UserID:    row.UserID,
 			IP:        row.IP,
 			UserAgent: ptrStrToStr(row.UserAgent),
-			TrackedAt: ptrTimeToTime(row.TrackedAt),
+			TrackedAt: ptrTimeToTime(timestamptzToTime(row.TrackedAt)),
 		})
 	}
 	return out, nil
@@ -125,7 +126,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 			UserID:      row.UserID,
 			ChallengeID: row.ChallengeID,
 			IP:          ptrStrToStr(row.IP),
-			OpenedAt:    ptrTimeToTime(row.OpenedAt),
+			OpenedAt:    ptrTimeToTime(timestamptzToTime(row.OpenedAt)),
 		})
 	}
 	return out, nil

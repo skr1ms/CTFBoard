@@ -217,7 +217,9 @@ func sendWrongFlag(ctx context.Context, client *http.Client, baseURL, token, cha
 	if err != nil {
 		return
 	}
-	_ = resp.Body.Close()
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 }
 
 func countReconnects(states []*wsConnState) int {

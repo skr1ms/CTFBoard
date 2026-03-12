@@ -43,7 +43,10 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 		return
 	}
 	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
-	params := request.SetConfigRequestToParams(&req)
+	params, err := request.SetConfigRequestToParams(&req)
+	if h.OnError(w, r, err, "PutAdminConfigsKey", "SetConfigRequestToParams") {
+		return
+	}
 	if h.OnError(w, r, h.admin.CompetitionParamUC.Set(r.Context(), key, params.Value, params.Description, params.ValueType, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
 		return
 	}
@@ -104,6 +107,12 @@ func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 
 	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return
+	}
+	if h.infra.RateLimitConfigCache != nil {
+		h.infra.RateLimitConfigCache.Invalidate()
+	}
+	if h.infra.ScoreboardVisibilityCache != nil {
+		h.infra.ScoreboardVisibilityCache.Invalidate()
 	}
 
 	helper.RenderOK(w, r, response.Message("settings updated"))

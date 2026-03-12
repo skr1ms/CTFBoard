@@ -7,11 +7,10 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockChallengeRepository creates a new instance of MockChallengeRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -39,6 +38,183 @@ type MockChallengeRepository_Expecter struct {
 
 func (_m *MockChallengeRepository) EXPECT() *MockChallengeRepository_Expecter {
 	return &MockChallengeRepository_Expecter{mock: &_m.Mock}
+}
+
+// BatchDecrementSolveCount provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) BatchDecrementSolveCount(ctx context.Context, ids []uuid.UUID) error {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchDecrementSolveCount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_BatchDecrementSolveCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchDecrementSolveCount'
+type MockChallengeRepository_BatchDecrementSolveCount_Call struct {
+	*mock.Call
+}
+
+// BatchDecrementSolveCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) BatchDecrementSolveCount(ctx interface{}, ids interface{}) *MockChallengeRepository_BatchDecrementSolveCount_Call {
+	return &MockChallengeRepository_BatchDecrementSolveCount_Call{Call: _e.mock.On("BatchDecrementSolveCount", ctx, ids)}
+}
+
+func (_c *MockChallengeRepository_BatchDecrementSolveCount_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockChallengeRepository_BatchDecrementSolveCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchDecrementSolveCount_Call) Return(err error) *MockChallengeRepository_BatchDecrementSolveCount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchDecrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) error) *MockChallengeRepository_BatchDecrementSolveCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchIncrementSolveCount provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) BatchIncrementSolveCount(ctx context.Context, ids []uuid.UUID) error {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchIncrementSolveCount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_BatchIncrementSolveCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchIncrementSolveCount'
+type MockChallengeRepository_BatchIncrementSolveCount_Call struct {
+	*mock.Call
+}
+
+// BatchIncrementSolveCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) BatchIncrementSolveCount(ctx interface{}, ids interface{}) *MockChallengeRepository_BatchIncrementSolveCount_Call {
+	return &MockChallengeRepository_BatchIncrementSolveCount_Call{Call: _e.mock.On("BatchIncrementSolveCount", ctx, ids)}
+}
+
+func (_c *MockChallengeRepository_BatchIncrementSolveCount_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockChallengeRepository_BatchIncrementSolveCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchIncrementSolveCount_Call) Return(err error) *MockChallengeRepository_BatchIncrementSolveCount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchIncrementSolveCount_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) error) *MockChallengeRepository_BatchIncrementSolveCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchUpdatePoints provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, points []int) error {
+	ret := _mock.Called(ctx, ids, points)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchUpdatePoints")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, []int) error); ok {
+		r0 = returnFunc(ctx, ids, points)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_BatchUpdatePoints_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchUpdatePoints'
+type MockChallengeRepository_BatchUpdatePoints_Call struct {
+	*mock.Call
+}
+
+// BatchUpdatePoints is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+//   - points []int
+func (_e *MockChallengeRepository_Expecter) BatchUpdatePoints(ctx interface{}, ids interface{}, points interface{}) *MockChallengeRepository_BatchUpdatePoints_Call {
+	return &MockChallengeRepository_BatchUpdatePoints_Call{Call: _e.mock.On("BatchUpdatePoints", ctx, ids, points)}
+}
+
+func (_c *MockChallengeRepository_BatchUpdatePoints_Call) Run(run func(ctx context.Context, ids []uuid.UUID, points []int)) *MockChallengeRepository_BatchUpdatePoints_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 []int
+		if args[2] != nil {
+			arg2 = args[2].([]int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchUpdatePoints_Call) Return(err error) *MockChallengeRepository_BatchUpdatePoints_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_BatchUpdatePoints_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID, points []int) error) *MockChallengeRepository_BatchUpdatePoints_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Create provides a mock function for the type MockChallengeRepository
@@ -348,6 +524,130 @@ func (_c *MockChallengeRepository_GetAll_Call) Return(vs []*repo.ChallengeWithSo
 }
 
 func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllRequirementPairs provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetAllRequirementPairs(ctx context.Context) ([]*entity.ChallengeRequirementPair, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllRequirementPairs")
+	}
+
+	var r0 []*entity.ChallengeRequirementPair
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.ChallengeRequirementPair, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.ChallengeRequirementPair); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.ChallengeRequirementPair)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetAllRequirementPairs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllRequirementPairs'
+type MockChallengeRepository_GetAllRequirementPairs_Call struct {
+	*mock.Call
+}
+
+// GetAllRequirementPairs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockChallengeRepository_Expecter) GetAllRequirementPairs(ctx interface{}) *MockChallengeRepository_GetAllRequirementPairs_Call {
+	return &MockChallengeRepository_GetAllRequirementPairs_Call{Call: _e.mock.On("GetAllRequirementPairs", ctx)}
+}
+
+func (_c *MockChallengeRepository_GetAllRequirementPairs_Call) Run(run func(ctx context.Context)) *MockChallengeRepository_GetAllRequirementPairs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllRequirementPairs_Call) Return(challengeRequirementPairs []*entity.ChallengeRequirementPair, err error) *MockChallengeRepository_GetAllRequirementPairs_Call {
+	_c.Call.Return(challengeRequirementPairs, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllRequirementPairs_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.ChallengeRequirementPair, error)) *MockChallengeRepository_GetAllRequirementPairs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllSolutions provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetAllSolutions(ctx context.Context) ([]*entity.SolutionBackup, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllSolutions")
+	}
+
+	var r0 []*entity.SolutionBackup
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.SolutionBackup, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.SolutionBackup); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.SolutionBackup)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetAllSolutions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllSolutions'
+type MockChallengeRepository_GetAllSolutions_Call struct {
+	*mock.Call
+}
+
+// GetAllSolutions is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockChallengeRepository_Expecter) GetAllSolutions(ctx interface{}) *MockChallengeRepository_GetAllSolutions_Call {
+	return &MockChallengeRepository_GetAllSolutions_Call{Call: _e.mock.On("GetAllSolutions", ctx)}
+}
+
+func (_c *MockChallengeRepository_GetAllSolutions_Call) Run(run func(ctx context.Context)) *MockChallengeRepository_GetAllSolutions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllSolutions_Call) Return(solutionBackups []*entity.SolutionBackup, err error) *MockChallengeRepository_GetAllSolutions_Call {
+	_c.Call.Return(solutionBackups, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllSolutions_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.SolutionBackup, error)) *MockChallengeRepository_GetAllSolutions_Call {
 	_c.Call.Return(run)
 	return _c
 }
