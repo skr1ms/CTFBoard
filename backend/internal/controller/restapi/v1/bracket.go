@@ -28,7 +28,10 @@ func (h *Server) PostAdminBrackets(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	name, description, isDefault := request.CreateBracketRequestToParams(&req)
+	name, description, isDefault, err := request.CreateBracketRequestToParams(&req)
+	if h.OnError(w, r, err, "PostAdminBrackets", "CreateBracketRequestToParams") {
+		return
+	}
 	bracket, err := h.comp.BracketUC.Create(r.Context(), name, description, isDefault)
 	if h.OnError(w, r, err, "PostAdminBrackets", "Create") {
 		return
@@ -63,7 +66,10 @@ func (h *Server) PutAdminBracketsID(w http.ResponseWriter, r *http.Request, ID s
 	if !ok {
 		return
 	}
-	name, description, isDefault := request.UpdateBracketRequestToParams(&req)
+	name, description, isDefault, err := request.UpdateBracketRequestToParams(&req)
+	if h.OnError(w, r, err, "PutAdminBracketsID", "UpdateBracketRequestToParams") {
+		return
+	}
 	bracket, err := h.comp.BracketUC.Update(r.Context(), bracketIDParsed, name, description, isDefault)
 	if h.OnError(w, r, err, "PutAdminBracketsID", "Update") {
 		return
@@ -97,7 +103,10 @@ func (h *Server) PatchAdminTeamsIDBracket(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	bracketID := request.SetTeamBracketRequestToParams(&req)
+	bracketID, err := request.SetTeamBracketRequestToParams(&req)
+	if h.OnError(w, r, err, "PatchAdminTeamsIDBracket", "SetTeamBracketRequestToParams") {
+		return
+	}
 	if h.OnError(w, r, h.team.TeamUC.SetBracket(r.Context(), teamIDParsed, bracketID), "PatchAdminTeamsIDBracket", "SetBracket") {
 		return
 	}

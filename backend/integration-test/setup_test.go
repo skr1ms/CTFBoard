@@ -10,20 +10,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 var (
-	globalPoolContainer *postgres.PostgresContainer
-	globalConnStr       string
-	containerOnce       sync.Once
-	containerErr        error
-	globalPool          *pgxpool.Pool
-	globalPoolOnce      sync.Once
+	_              *postgres.PostgresContainer
+	globalConnStr  string
+	containerOnce  sync.Once
+	containerErr   error
+	globalPool     *pgxpool.Pool
+	globalPoolOnce sync.Once
 )
 
 type TestPool struct {
@@ -34,7 +35,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 	if os.Getenv("USE_EXTERNAL_DB") != "true" {
 		containerOnce.Do(func() {
-			globalPoolContainer, globalConnStr, containerErr = startPostgresContainer(ctx)
+			_, globalConnStr, containerErr = startPostgresContainer(ctx)
 		})
 		if containerErr != nil {
 			fmt.Fprintf(os.Stderr, "failed to start container: %v\n", containerErr)
@@ -80,7 +81,7 @@ func startPostgresContainer(ctx context.Context) (*postgres.PostgresContainer, s
 	container, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("test"),
-		postgres.WithUsername(entity.RoleUser),
+		postgres.WithUsername(string(entity.RoleUser)),
 		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
@@ -210,7 +211,7 @@ func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time) VALUES (1, 'CTF Competition', NOW() - INTERVAL '1 hour', NOW() + INTERVAL '24 hours') ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours') ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
 	return err
 }
 

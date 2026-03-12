@@ -3,8 +3,9 @@ package migrator
 import (
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 func TestRun_InvalidMigrationsPath_Error(t *testing.T) {

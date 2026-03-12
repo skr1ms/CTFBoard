@@ -3,13 +3,15 @@ package helper
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetFields(entityType string, expectStatus int) *openapi.GetFieldsResponse {
 	h.t.Helper()
-	params := openapi.GetFieldsParams{EntityType: openapi.GetFieldsParamsEntityType(entityType)}
+	et := openapi.GetFieldsParamsEntityType(entityType)
+	params := openapi.GetFieldsParams{EntityType: &et}
 	resp, err := h.client.GetFieldsWithResponse(context.Background(), &params)
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get fields")

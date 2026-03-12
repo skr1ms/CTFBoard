@@ -1,5 +1,6 @@
 /challenges:
   get:
+    operationId: GetChallenges
     description: Returns list of all challenges with solved status for user's team
     parameters:
       - name: tag
@@ -22,14 +23,22 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (scoreboard visibility or team banned)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenges list
     tags:
       - Challenges
 
 /challenges/{challengeID}:
   get:
+    operationId: GetChallengesChallengeID
     description: Returns single challenge with details (files, hints, first blood)
     parameters:
       - description: Challenge ID
@@ -59,12 +68,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge by ID
     tags:
       - Challenges
 
 /challenges/{challengeID}/solves:
   get:
+    operationId: GetChallengesChallengeIDSolves
     description: Returns list of solves for a challenge
     parameters:
       - description: Challenge ID
@@ -96,17 +107,19 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge solves
     tags:
       - Challenges
 
-/challenges/{ID}/submit:
+/challenges/{challengeID}/submit:
   post:
+    operationId: PostChallengesChallengeIDSubmit
     description: "Verifies flag for challenge. Rate limit: 5 attempts per minute"
     parameters:
       - description: Challenge ID
         in: path
-        name: ID
+        name: challengeID
         required: true
         schema:
           type: string
@@ -149,7 +162,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
-        description: Conflict
+        description: Conflict (e.g. challenge already solved by team)
         content:
           application/json:
             schema:
@@ -162,20 +175,28 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Submit flag
     tags:
       - Challenges
 
-/challenges/{ID}/first-blood:
+/challenges/{challengeID}/first-blood:
   get:
-    description: Returns the first solver of a challenge
+    operationId: GetChallengesChallengeIDFirstBlood
+    description: Returns the first solver of a challenge. When competition is frozen, returns frozen view unless live=true and requester is admin.
     parameters:
       - description: Challenge ID
         in: path
-        name: ID
+        name: challengeID
         required: true
         schema:
           type: string
+      - name: live
+        in: query
+        description: If true and requester is admin, return live (non-frozen) first blood during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -183,18 +204,34 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/FirstBloodResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (scoreboard visibility or team banned)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
         content:
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get first blood
     tags:
       - Challenges
 
 /challenges/{challengeID}/files:
   get:
+    operationId: GetChallengesChallengeIDFiles
     description: Returns list of files attached to a challenge
     parameters:
       - description: Challenge ID
@@ -208,6 +245,7 @@
         name: type
         schema:
           type: string
+          enum: [challenge, writeup]
           default: challenge
     responses:
       "200":
@@ -226,12 +264,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge files
     tags:
       - Challenges
 
 /challenges/{challengeID}/hints:
   get:
+    operationId: GetChallengesChallengeIDHints
     description: Returns list of hints for a challenge. Content is hidden for non-unlocked hints.
     parameters:
       - description: Challenge ID
@@ -255,14 +295,28 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get hints for challenge
     tags:
       - Hints
 
 /challenges/{challengeID}/hints/{hintID}/unlock:
   post:
+    operationId: PostChallengesChallengeIDHintsHintIDUnlock
     description: Unlocks a hint by spending team points
     parameters:
       - description: Challenge ID
@@ -302,6 +356,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: User must be in a team
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
         content:
@@ -314,14 +374,22 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Unlock hint
     tags:
       - Hints
 
 /challenges/{challengeID}/comments:
   get:
+    operationId: GetChallengesChallengeIDComments
     description: Returns comments for a challenge. Available only after competition has ended.
     parameters:
       - description: Challenge ID
@@ -353,10 +421,12 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get comments for challenge
     tags:
       - Comments
   post:
+    operationId: PostChallengesChallengeIDComments
     description: Creates a comment for a challenge. Available only after competition has ended.
     parameters:
       - description: Challenge ID
@@ -398,12 +468,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create comment for challenge
     tags:
       - Comments
 
 "/challenges/{challengeID}/tags":
   get:
+    operationId: GetChallengesChallengeIDTags
     description: Returns list of tags for a challenge
     parameters:
       - description: Challenge ID
@@ -435,12 +507,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get tags for challenge
     tags:
       - Challenges
 
 "/challenges/{challengeID}/requirements":
   get:
+    operationId: GetChallengesChallengeIDRequirements
     description: Returns list of challenge requirements (prerequisites)
     parameters:
       - description: Challenge ID
@@ -472,12 +546,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge requirements
     tags:
       - Challenges
 
 "/admin/challenges/{challengeID}/requirements":
   put:
+    operationId: PutAdminChallengesChallengeIDRequirements
     description: Sets prerequisite challenges that must be solved before this challenge. Admin only.
     parameters:
       - description: Challenge ID
@@ -521,12 +597,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Set challenge requirements
     tags:
       - Admin
 
 "/challenges/solutions":
   get:
+    operationId: GetChallengesSolutions
     description: Returns all solutions for challenges solved by the requesting user's team. Requires writeup_enabled=true.
     responses:
       "200":
@@ -551,12 +629,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List all solutions for solved challenges
     tags:
       - Challenges
 
 "/challenges/{challengeID}/solution":
   get:
+    operationId: GetChallengesChallengeIDSolution
     description: Returns challenge solution/writeup if available and user has solved the challenge
     parameters:
       - description: Challenge ID
@@ -592,12 +672,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge solution
     tags:
       - Challenges
 
 "/admin/challenges/{challengeID}/flags":
   get:
+    operationId: GetAdminChallengesChallengeIDFlags
     description: Returns flags for a challenge. Admin only.
     parameters:
       - description: Challenge ID
@@ -633,12 +715,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge flags
     tags:
       - Admin
 
 /challenges/types:
   get:
+    operationId: GetChallengesTypes
     description: Returns list of available challenge types
     responses:
       "200":
@@ -649,6 +733,8 @@
               items:
                 type: string
               type: array
+      "400":
+        description: Bad Request
     security: []
     summary: Get challenge types
     tags:
@@ -656,6 +742,7 @@
 
 /admin/challenges:
   post:
+    operationId: PostAdminChallenges
     description: Creates new challenge. Admin only
     requestBody:
       content:
@@ -672,18 +759,32 @@
               $ref: '../components/schemas.yml#/ChallengeResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create challenge
     tags:
       - Admin
 
 "/admin/challenges/{ID}":
   put:
+    operationId: PutAdminChallengesID
     description: Updates challenge data. Admin only
     parameters:
       - name: ID
@@ -706,18 +807,36 @@
               $ref: '../components/schemas.yml#/ChallengeResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update challenge
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminChallengesID
     description: Deletes challenge. Admin only
     parameters:
       - name: ID
@@ -730,19 +849,33 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete challenge
     tags:
       - Admin
 
 "/admin/challenges/{challengeID}/files":
   post:
-    description: Uploads file attachment to a challenge. Admin only
+    operationId: PostAdminChallengesChallengeIDFiles
+    description: Uploads file attachment to a challenge. Admin only.
     parameters:
       - name: challengeID
         in: path
@@ -775,18 +908,32 @@
               $ref: '../components/schemas.yml#/UploadFileResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Upload file to challenge
     tags:
       - Admin
 
 "/admin/unlocks":
   get:
+    operationId: GetAdminUnlocks
     description: Returns paginated list of all hint unlocks. Admin only.
     parameters:
       - name: page
@@ -806,16 +953,26 @@
               $ref: '../components/schemas.yml#/HintUnlockListResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get all hint unlocks
     tags:
       - Admin
 
 "/admin/challenges/{challengeID}/solution":
   post:
+    operationId: PostAdminChallengesChallengeIDSolution
     description: Creates or updates challenge solution/writeup content. Admin only.
     parameters:
       - name: challengeID
@@ -838,18 +995,36 @@
               $ref: '../components/schemas.yml#/ChallengeSolutionResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Upsert challenge solution
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminChallengesChallengeIDSolution
     description: Deletes challenge solution/writeup. Admin only.
     parameters:
       - name: challengeID
@@ -862,16 +1037,32 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (challenge not found)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete challenge solution
     tags:
       - Admin
 
 "/admin/challenges/{challengeID}/hints":
   post:
+    operationId: PostAdminChallengesChallengeIDHints
     description: Creates a new hint for a challenge. Admin only.
     parameters:
       - name: challengeID
@@ -894,18 +1085,32 @@
               $ref: '../components/schemas.yml#/HintAdminResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create hint
     tags:
       - Admin
 
 "/admin/hints/{ID}":
   put:
+    operationId: PutAdminHintsID
     description: Updates hint data. Admin only.
     parameters:
       - name: ID
@@ -928,18 +1133,36 @@
               $ref: '../components/schemas.yml#/HintAdminResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update hint
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminHintsID
     description: Deletes hint. Admin only.
     parameters:
       - name: ID
@@ -952,12 +1175,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete hint
     tags:
       - Admin

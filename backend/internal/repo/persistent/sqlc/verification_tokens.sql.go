@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createVerificationToken = `-- name: CreateVerificationToken :exec
@@ -18,11 +18,11 @@ VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateVerificationTokenParams struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Token     string    `json:"token"`
-	Type      string    `json:"type"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        uuid.UUID          `json:"id"`
+	UserID    uuid.UUID          `json:"user_id"`
+	Token     string             `json:"token"`
+	Type      string             `json:"type"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error {
@@ -40,7 +40,7 @@ const deleteExpiredVerificationTokens = `-- name: DeleteExpiredVerificationToken
 DELETE FROM verification_tokens WHERE expires_at < $1
 `
 
-func (q *Queries) DeleteExpiredVerificationTokens(ctx context.Context, expiresAt time.Time) error {
+func (q *Queries) DeleteExpiredVerificationTokens(ctx context.Context, expiresAt pgtype.Timestamptz) error {
 	_, err := q.db.Exec(ctx, deleteExpiredVerificationTokens, expiresAt)
 	return err
 }

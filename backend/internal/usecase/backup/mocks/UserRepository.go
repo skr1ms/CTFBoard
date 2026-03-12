@@ -7,10 +7,9 @@ package mocks
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockUserRepository creates a new instance of MockUserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -38,6 +37,63 @@ type MockUserRepository_Expecter struct {
 
 func (_m *MockUserRepository) EXPECT() *MockUserRepository_Expecter {
 	return &MockUserRepository_Expecter{mock: &_m.Mock}
+}
+
+// AcquireAdvisoryLock provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
+	ret := _mock.Called(ctx, lockKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcquireAdvisoryLock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, lockKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_AcquireAdvisoryLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireAdvisoryLock'
+type MockUserRepository_AcquireAdvisoryLock_Call struct {
+	*mock.Call
+}
+
+// AcquireAdvisoryLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - lockKey int64
+func (_e *MockUserRepository_Expecter) AcquireAdvisoryLock(ctx interface{}, lockKey interface{}) *MockUserRepository_AcquireAdvisoryLock_Call {
+	return &MockUserRepository_AcquireAdvisoryLock_Call{Call: _e.mock.On("AcquireAdvisoryLock", ctx, lockKey)}
+}
+
+func (_c *MockUserRepository_AcquireAdvisoryLock_Call) Run(run func(ctx context.Context, lockKey int64)) *MockUserRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_AcquireAdvisoryLock_Call) Return(err error) *MockUserRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_AcquireAdvisoryLock_Call) RunAndReturn(run func(ctx context.Context, lockKey int64) error) *MockUserRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Ban provides a mock function for the type MockUserRepository
@@ -349,6 +405,142 @@ func (_c *MockUserRepository_Delete_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// FilterIDsByTeamIDNull provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) FilterIDsByTeamIDNull(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	ret := _mock.Called(ctx, userIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FilterIDsByTeamIDNull")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, userIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, userIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_FilterIDsByTeamIDNull_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FilterIDsByTeamIDNull'
+type MockUserRepository_FilterIDsByTeamIDNull_Call struct {
+	*mock.Call
+}
+
+// FilterIDsByTeamIDNull is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs []uuid.UUID
+func (_e *MockUserRepository_Expecter) FilterIDsByTeamIDNull(ctx interface{}, userIDs interface{}) *MockUserRepository_FilterIDsByTeamIDNull_Call {
+	return &MockUserRepository_FilterIDsByTeamIDNull_Call{Call: _e.mock.On("FilterIDsByTeamIDNull", ctx, userIDs)}
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNull_Call) Run(run func(ctx context.Context, userIDs []uuid.UUID)) *MockUserRepository_FilterIDsByTeamIDNull_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNull_Call) Return(uUIDs []uuid.UUID, err error) *MockUserRepository_FilterIDsByTeamIDNull_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNull_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error)) *MockUserRepository_FilterIDsByTeamIDNull_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FilterIDsByTeamIDNullAndNotBanned provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) FilterIDsByTeamIDNullAndNotBanned(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	ret := _mock.Called(ctx, userIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FilterIDsByTeamIDNullAndNotBanned")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, userIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, userIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FilterIDsByTeamIDNullAndNotBanned'
+type MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call struct {
+	*mock.Call
+}
+
+// FilterIDsByTeamIDNullAndNotBanned is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs []uuid.UUID
+func (_e *MockUserRepository_Expecter) FilterIDsByTeamIDNullAndNotBanned(ctx interface{}, userIDs interface{}) *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call {
+	return &MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call{Call: _e.mock.On("FilterIDsByTeamIDNullAndNotBanned", ctx, userIDs)}
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call) Run(run func(ctx context.Context, userIDs []uuid.UUID)) *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call) Return(uUIDs []uuid.UUID, err error) *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error)) *MockUserRepository_FilterIDsByTeamIDNullAndNotBanned_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAll provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) GetAll(ctx context.Context) ([]*entity.User, error) {
 	ret := _mock.Called(ctx)
@@ -611,6 +803,74 @@ func (_c *MockUserRepository_GetByTeamID_Call) Return(users []*entity.User, err 
 }
 
 func (_c *MockUserRepository_GetByTeamID_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error)) *MockUserRepository_GetByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByTeamIDs provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) GetByTeamIDs(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID][]*entity.User, error) {
+	ret := _mock.Called(ctx, teamIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByTeamIDs")
+	}
+
+	var r0 map[uuid.UUID][]*entity.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]*entity.User, error)); ok {
+		return returnFunc(ctx, teamIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]*entity.User); ok {
+		r0 = returnFunc(ctx, teamIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]*entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_GetByTeamIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTeamIDs'
+type MockUserRepository_GetByTeamIDs_Call struct {
+	*mock.Call
+}
+
+// GetByTeamIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamIDs []uuid.UUID
+func (_e *MockUserRepository_Expecter) GetByTeamIDs(ctx interface{}, teamIDs interface{}) *MockUserRepository_GetByTeamIDs_Call {
+	return &MockUserRepository_GetByTeamIDs_Call{Call: _e.mock.On("GetByTeamIDs", ctx, teamIDs)}
+}
+
+func (_c *MockUserRepository_GetByTeamIDs_Call) Run(run func(ctx context.Context, teamIDs []uuid.UUID)) *MockUserRepository_GetByTeamIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_GetByTeamIDs_Call) Return(uUIDToUsers map[uuid.UUID][]*entity.User, err error) *MockUserRepository_GetByTeamIDs_Call {
+	_c.Call.Return(uUIDToUsers, err)
+	return _c
+}
+
+func (_c *MockUserRepository_GetByTeamIDs_Call) RunAndReturn(run func(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID][]*entity.User, error)) *MockUserRepository_GetByTeamIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1014,6 +1274,69 @@ func (_c *MockUserRepository_SetVerified_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// SetWasInBannedTeamByIDs provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error {
+	ret := _mock.Called(ctx, userIDs, value)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetWasInBannedTeamByIDs")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, userIDs, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_SetWasInBannedTeamByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetWasInBannedTeamByIDs'
+type MockUserRepository_SetWasInBannedTeamByIDs_Call struct {
+	*mock.Call
+}
+
+// SetWasInBannedTeamByIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs []uuid.UUID
+//   - value bool
+func (_e *MockUserRepository_Expecter) SetWasInBannedTeamByIDs(ctx interface{}, userIDs interface{}, value interface{}) *MockUserRepository_SetWasInBannedTeamByIDs_Call {
+	return &MockUserRepository_SetWasInBannedTeamByIDs_Call{Call: _e.mock.On("SetWasInBannedTeamByIDs", ctx, userIDs, value)}
+}
+
+func (_c *MockUserRepository_SetWasInBannedTeamByIDs_Call) Run(run func(ctx context.Context, userIDs []uuid.UUID, value bool)) *MockUserRepository_SetWasInBannedTeamByIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetWasInBannedTeamByIDs_Call) Return(err error) *MockUserRepository_SetWasInBannedTeamByIDs_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_SetWasInBannedTeamByIDs_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID, value bool) error) *MockUserRepository_SetWasInBannedTeamByIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Unban provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) Unban(ctx context.Context, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID)
@@ -1355,6 +1678,69 @@ func (_c *MockUserRepository_UpdateTeamID_Call) Return(err error) *MockUserRepos
 }
 
 func (_c *MockUserRepository_UpdateTeamID_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error) *MockUserRepository_UpdateTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateTeamIDBatch provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UpdateTeamIDBatch(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID) error {
+	ret := _mock.Called(ctx, userIDs, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateTeamIDBatch")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, *uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userIDs, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UpdateTeamIDBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateTeamIDBatch'
+type MockUserRepository_UpdateTeamIDBatch_Call struct {
+	*mock.Call
+}
+
+// UpdateTeamIDBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs []uuid.UUID
+//   - teamID *uuid.UUID
+func (_e *MockUserRepository_Expecter) UpdateTeamIDBatch(ctx interface{}, userIDs interface{}, teamID interface{}) *MockUserRepository_UpdateTeamIDBatch_Call {
+	return &MockUserRepository_UpdateTeamIDBatch_Call{Call: _e.mock.On("UpdateTeamIDBatch", ctx, userIDs, teamID)}
+}
+
+func (_c *MockUserRepository_UpdateTeamIDBatch_Call) Run(run func(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID)) *MockUserRepository_UpdateTeamIDBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 *uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(*uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateTeamIDBatch_Call) Return(err error) *MockUserRepository_UpdateTeamIDBatch_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateTeamIDBatch_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID) error) *MockUserRepository_UpdateTeamIDBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FieldRepo struct {
@@ -72,7 +73,7 @@ func (r *FieldRepo) Create(ctx context.Context, field *entity.Field) error {
 		Required:   &required,
 		Options:    opts,
 		OrderIndex: orderIndex,
-		CreatedAt:  &createdAt,
+		CreatedAt:  timeToTimestamptz(&createdAt),
 	}); err != nil {
 		return fmt.Errorf("FieldRepo - Create: %w", err)
 	}
@@ -99,7 +100,7 @@ func (r *FieldRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Field, e
 		Required:   boolPtrToBool(row.Required),
 		Options:    opts,
 		OrderIndex: int32PtrToInt(row.OrderIndex),
-		CreatedAt:  ptrTimeToTime(row.CreatedAt),
+		CreatedAt:  ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
@@ -122,7 +123,7 @@ func (r *FieldRepo) GetByEntityType(ctx context.Context, entityType entity.Entit
 			Required:   boolPtrToBool(row.Required),
 			Options:    opts,
 			OrderIndex: int32PtrToInt(row.OrderIndex),
-			CreatedAt:  ptrTimeToTime(row.CreatedAt),
+			CreatedAt:  ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
@@ -147,7 +148,7 @@ func (r *FieldRepo) GetAll(ctx context.Context) ([]*entity.Field, error) {
 			Required:   boolPtrToBool(row.Required),
 			Options:    opts,
 			OrderIndex: int32PtrToInt(row.OrderIndex),
-			CreatedAt:  ptrTimeToTime(row.CreatedAt),
+			CreatedAt:  ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
@@ -210,14 +211,45 @@ func (r *FieldValueRepo) GetByEntityID(ctx context.Context, entityID uuid.UUID) 
 			FieldID:   row.FieldID,
 			EntityID:  row.EntityID,
 			Value:     row.Value,
-			CreatedAt: ptrTimeToTime(row.CreatedAt),
+			CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
 }
 
+func (r *FieldValueRepo) GetAll(ctx context.Context) ([]*entity.FieldValue, error) {
+	rows, err := r.q(ctx).GetAllFieldValues(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("FieldValueRepo - GetAll: %w", err)
+	}
+	out := make([]*entity.FieldValue, len(rows))
+	for i, row := range rows {
+		out[i] = &entity.FieldValue{
+			ID:        row.ID,
+			FieldID:   row.FieldID,
+			EntityID:  row.EntityID,
+			Value:     row.Value,
+			CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+		}
+	}
+	return out, nil
+}
+
+const maxFieldValueLength = 65536
+
+// SetValues replaces all field values for the given entity with the provided map.
+// It performs Delete then Insert and is not atomic on its own; callers must run
+// this inside a transaction (e.g. TransactionManager.Run) to avoid lost updates
+// under concurrent calls for the same entityID.
 func (r *FieldValueRepo) SetValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
 	return r.setValuesInner(ctx, entityID, values)
+}
+
+func (r *FieldValueRepo) DeleteByEntityID(ctx context.Context, entityID uuid.UUID) error {
+	if err := r.q(ctx).DeleteFieldValuesByEntityID(ctx, entityID); err != nil {
+		return fmt.Errorf("FieldValueRepo - DeleteByEntityID: %w", err)
+	}
+	return nil
 }
 
 func (r *FieldValueRepo) setValuesInner(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
@@ -226,6 +258,11 @@ func (r *FieldValueRepo) setValuesInner(ctx context.Context, entityID uuid.UUID,
 	}
 	if len(values) == 0 {
 		return nil
+	}
+	for _, value := range values {
+		if len(value) > maxFieldValueLength {
+			return httperr.NewValidationErrorf("field value exceeds maximum length (%d)", maxFieldValueLength)
+		}
 	}
 	now := time.Now()
 	qb := squirrel.Insert("field_values").

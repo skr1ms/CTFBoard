@@ -6,6 +6,10 @@ FROM configs ORDER BY key ASC;
 SELECT key, value, value_type, description, updated_at
 FROM configs WHERE key = $1;
 
+-- name: GetConfigByKeyForUpdate :one
+SELECT key, value, value_type, description, updated_at
+FROM configs WHERE key = $1 FOR UPDATE;
+
 -- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, updated_at)
 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)

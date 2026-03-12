@@ -92,10 +92,11 @@ func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 // (GET /admin/export)
 func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportParams) {
 	opts := entity.ExportOptions{
-		IncludeUsers:  params.IncludeUsers != nil && *params.IncludeUsers,
-		IncludeTeams:  params.IncludeTeams == nil || *params.IncludeTeams,
-		IncludeSolves: params.IncludeSolves != nil && *params.IncludeSolves,
-		IncludeAwards: params.IncludeAwards == nil || *params.IncludeAwards,
+		IncludeUsers:       params.IncludeUsers != nil && *params.IncludeUsers,
+		IncludeTeams:       params.IncludeTeams == nil || *params.IncludeTeams,
+		IncludeSolves:      params.IncludeSolves != nil && *params.IncludeSolves,
+		IncludeHintUnlocks: params.IncludeHintUnlocks != nil && *params.IncludeHintUnlocks,
+		IncludeAwards:      params.IncludeAwards == nil || *params.IncludeAwards,
 	}
 
 	data, err := h.admin.BackupUC.Export(r.Context(), opts)
@@ -104,7 +105,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	}
 
 	filename := fmt.Sprintf("ctf-backup-%s.json", time.Now().UTC().Format("20060102T150405Z"))
-	if err := helper.RenderJSONAttachment(w, r, data, filename); err != nil {
+	if err := helper.RenderJSONAttachment(w, data, filename); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExport - write")
 	}
 }
@@ -115,11 +116,12 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	includeFiles := params.IncludeFiles == nil || *params.IncludeFiles
 
 	opts := entity.ExportOptions{
-		IncludeUsers:  false,
-		IncludeTeams:  true,
-		IncludeSolves: false,
-		IncludeAwards: true,
-		IncludeFiles:  includeFiles,
+		IncludeUsers:       false,
+		IncludeTeams:       true,
+		IncludeSolves:      false,
+		IncludeHintUnlocks: false,
+		IncludeAwards:      true,
+		IncludeFiles:       includeFiles,
 	}
 
 	rc, err := h.admin.BackupUC.ExportZIP(r.Context(), opts)
@@ -157,33 +159,40 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 // Import competition backup from ZIP file
 // (POST /admin/import)
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
 	if !helper.ParseMultipartFormLimit(w, r, maxBackupZIPSize) {
 		return
 	}
 
 	var body openapi.PostAdminImportMultipartBody
-	helper.DecodeMultipartForm(r, &body)
-
-	if body.File.FileSize() == 0 {
-		h.OnError(w, r, helper.NewValidationErrorf("file is required"), "PostAdminImport", "FileRequired")
+	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
+		h.OnError(w, r, err, "PostAdminImport", "DecodeMultipartForm")
+		return
+	}
+	if !helper.RequireMultipartFile(w, r, h.OnError, "PostAdminImport", "FileRequired", body.File.FileSize()) {
 		return
 	}
 
 	var cm entity.ConflictMode
 	if body.ConflictMode != nil {
 		cm = entity.ConflictMode(*body.ConflictMode)
-	}
-	switch cm {
-	case entity.ConflictModeMerge, entity.ConflictModeOverwrite, entity.ConflictModeSkip:
-	case "":
+		if err := helper.ValidateMultipartEnum("conflict_mode", string(cm), []string{"merge", "overwrite", "skip"}); err != nil {
+			h.OnError(w, r, err, "PostAdminImport", "ConflictMode")
+			return
+		}
+	} else {
 		cm = entity.ConflictModeOverwrite
-	default:
-		h.OnError(w, r, helper.NewValidationErrorf("invalid conflict_mode: allowed values are merge, overwrite, skip"), "PostAdminImport", "ConflictMode")
-		return
 	}
 
 	data, err := body.File.Bytes()
 	if h.OnError(w, r, err, "PostAdminImport", "ReadFile") {
+		return
+	}
+	if len(data) < 2 || data[0] != 0x50 || data[1] != 0x4B {
+		h.OnError(w, r, helper.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
 		return
 	}
 
@@ -192,6 +201,8 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		ValidateFiles:      body.ValidateFiles != nil && *body.ValidateFiles,
 		ConflictMode:       cm,
 		PreserveAdminRoles: body.PreserveAdminRoles != nil && *body.PreserveAdminRoles,
+		AdminUserID:        &user.ID,
+		AdminIP:            helper.GetClientIP(r, h.infra.TrustedProxyCIDRs),
 	}
 
 	reader := bytes.NewReader(data)
@@ -236,14 +247,20 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body openapi.PostAdminImportCsvMultipartBody
-	helper.DecodeMultipartForm(r, &body)
-
-	if body.File.FileSize() == 0 {
-		h.OnError(w, r, helper.NewValidationErrorf("file is required"), "PostAdminImportCsv", "FileRequired")
+	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
+		h.OnError(w, r, err, "PostAdminImportCsv", "DecodeMultipartForm")
+		return
+	}
+	if !helper.RequireMultipartFile(w, r, h.OnError, "PostAdminImportCsv", "FileRequired", body.File.FileSize()) {
 		return
 	}
 	if body.Table == "" {
 		h.OnError(w, r, helper.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
+		return
+	}
+	allowedTables := []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
+	if err := helper.ValidateMultipartEnum("table", string(body.Table), allowedTables); err != nil {
+		h.OnError(w, r, err, "PostAdminImportCsv", "TableValidate")
 		return
 	}
 

@@ -34,6 +34,11 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
+-- name: GetUserNotificationByID :one
+SELECT id, user_id, notification_id, title, content, type, is_read, created_at
+FROM user_notifications
+WHERE id = $1 AND user_id = $2;
+
 -- name: MarkUserNotificationAsRead :exec
 UPDATE user_notifications
 SET is_read = TRUE

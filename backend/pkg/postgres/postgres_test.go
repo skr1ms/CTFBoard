@@ -3,8 +3,9 @@ package postgres
 import (
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 func TestNew_InvalidURL_Error(t *testing.T) {

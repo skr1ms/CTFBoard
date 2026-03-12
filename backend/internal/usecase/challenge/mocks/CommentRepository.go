@@ -7,10 +7,9 @@ package mocks
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockCommentRepository creates a new instance of MockCommentRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -150,6 +149,68 @@ func (_c *MockCommentRepository_Delete_Call) Return(err error) *MockCommentRepos
 }
 
 func (_c *MockCommentRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockCommentRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAll provides a mock function for the type MockCommentRepository
+func (_mock *MockCommentRepository) GetAll(ctx context.Context) ([]*entity.Comment, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAll")
+	}
+
+	var r0 []*entity.Comment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.Comment, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.Comment); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.Comment)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockCommentRepository_GetAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAll'
+type MockCommentRepository_GetAll_Call struct {
+	*mock.Call
+}
+
+// GetAll is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockCommentRepository_Expecter) GetAll(ctx interface{}) *MockCommentRepository_GetAll_Call {
+	return &MockCommentRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
+}
+
+func (_c *MockCommentRepository_GetAll_Call) Run(run func(ctx context.Context)) *MockCommentRepository_GetAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCommentRepository_GetAll_Call) Return(comments []*entity.Comment, err error) *MockCommentRepository_GetAll_Call {
+	_c.Call.Return(comments, err)
+	return _c
+}
+
+func (_c *MockCommentRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.Comment, error)) *MockCommentRepository_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }

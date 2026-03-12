@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetAdminSettings(token string) *openapi.GetAdminSettingsResponse {
@@ -21,14 +22,16 @@ func (h *E2EHelper) GetAdminSettingsExpectStatus(token string, expectStatus int)
 	return resp
 }
 
+func strPtr(s string) *string { return &s }
+
 func (h *E2EHelper) PutAdminSettings(token string, body map[string]any, expectStatus int) *openapi.PutAdminSettingsResponse {
 	h.t.Helper()
 	req := openapi.PutAdminSettingsJSONRequestBody{
-		AppName:         getStr(body, "app_name", ""),
-		CorsOrigins:     getStr(body, "cors_origins", ""),
-		FrontendURL:     getStr(body, "frontend_url", ""),
-		ResendFromEmail: getStr(body, "resend_from_email", ""),
-		ResendFromName:  getStr(body, "resend_from_name", ""),
+		AppName:         strPtr(getStr(body, "app_name", "")),
+		CorsOrigins:     strPtr(getStr(body, "cors_origins", "")),
+		FrontendURL:     strPtr(getStr(body, "frontend_url", "")),
+		ResendFromEmail: strPtr(getStr(body, "resend_from_email", "")),
+		ResendFromName:  strPtr(getStr(body, "resend_from_name", "")),
 	}
 	if v := getInt(body, "submit_limit_per_user"); v != 0 {
 		req.SubmitLimitPerUser = &v
@@ -67,11 +70,11 @@ func (h *E2EHelper) PutAdminSettings(token string, body map[string]any, expectSt
 func (h *E2EHelper) PutAdminSettingsExpectOneOf(token string, body map[string]any, allowedStatuses []int) *openapi.PutAdminSettingsResponse {
 	h.t.Helper()
 	req := openapi.PutAdminSettingsJSONRequestBody{
-		AppName:         getStr(body, "app_name", ""),
-		CorsOrigins:     getStr(body, "cors_origins", ""),
-		FrontendURL:     getStr(body, "frontend_url", ""),
-		ResendFromEmail: getStr(body, "resend_from_email", ""),
-		ResendFromName:  getStr(body, "resend_from_name", ""),
+		AppName:         strPtr(getStr(body, "app_name", "")),
+		CorsOrigins:     strPtr(getStr(body, "cors_origins", "")),
+		FrontendURL:     strPtr(getStr(body, "frontend_url", "")),
+		ResendFromEmail: strPtr(getStr(body, "resend_from_email", "")),
+		ResendFromName:  strPtr(getStr(body, "resend_from_name", "")),
 	}
 	if v := getInt(body, "submit_limit_per_user"); v != 0 {
 		req.SubmitLimitPerUser = &v

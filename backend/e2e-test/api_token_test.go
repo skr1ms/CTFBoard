@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // POST /user/tokens + GET /user/tokens: token is created and visible in list.

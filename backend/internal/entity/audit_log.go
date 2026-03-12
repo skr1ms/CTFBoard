@@ -12,17 +12,14 @@ type (
 )
 
 const (
-	AuditActionCreate AuditAction = "create"
-	AuditActionUpdate AuditAction = "update"
-	AuditActionDelete AuditAction = "delete"
-	AuditActionBan    AuditAction = "ban"
-	AuditActionUnban  AuditAction = "unban"
-
+	AuditActionUpdate      AuditAction     = "update"
+	AuditActionDelete      AuditAction     = "delete"
+	AuditActionImportErase AuditAction     = "import_erase"
 	AuditEntityChallenge   AuditEntityType = "challenge"
 	AuditEntityCompetition AuditEntityType = "competition"
-	AuditEntityTeam        AuditEntityType = "team"
-	AuditEntityUser        AuditEntityType = RoleUser
 	AuditEntityAppSettings AuditEntityType = "app_settings"
+	AuditEntityBackup      AuditEntityType = "backup"
+	AuditEntityUser        AuditEntityType = "user"
 )
 
 type AuditLog struct {

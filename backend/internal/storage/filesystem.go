@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -39,7 +41,7 @@ func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
 	}, nil
 }
 
-func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.Reader, size int64, contentType string) error {
+func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Reader, _ int64, _ string) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
 		if err := p.root.MkdirAll(dir, defaultDirMode); err != nil {
@@ -60,7 +62,7 @@ func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.
 	return nil
 }
 
-func (p *FilesystemProvider) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+func (p *FilesystemProvider) Download(_ context.Context, path string) (io.ReadCloser, error) {
 	file, err := p.root.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("FilesystemProvider - Download: %w", err)
@@ -72,7 +74,7 @@ func (p *FilesystemProvider) Close() error {
 	return p.root.Close()
 }
 
-func (p *FilesystemProvider) Delete(ctx context.Context, path string) error {
+func (p *FilesystemProvider) Delete(_ context.Context, path string) error {
 	if err := p.root.Remove(path); err != nil {
 		return fmt.Errorf("FilesystemProvider - Delete: %w", err)
 	}
@@ -93,14 +95,50 @@ func (p *FilesystemProvider) Ping(_ context.Context) error {
 	return nil
 }
 
-func (p *FilesystemProvider) GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error) {
+func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string, error) {
+	dir := filepath.Join(p.basePath, prefix)
+	var paths []string
+	err := filepath.WalkDir(dir, func(fullPath string, d os.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(p.basePath, fullPath)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FilesystemProvider - List: %w", err)
+	}
+	return paths, nil
+}
+
+func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ time.Duration) (string, error) {
 	return fmt.Sprintf("/api/v1/files/download/%s", path), nil
 }
 
-func GenerateStoragePath(filename string) string {
+var ErrInvalidStorageFilename = errors.New("invalid storage filename")
+
+func GenerateStoragePath(filename string) (string, error) {
 	safeName := filepath.Base(filename)
+	if safeName == "" || strings.Contains(safeName, "..") {
+		return "", ErrInvalidStorageFilename
+	}
 	h := sha256.New()
 	_, _ = fmt.Fprintf(h, "%d-%s", time.Now().UnixNano(), safeName)
 	hash := hex.EncodeToString(h.Sum(nil))[:hashPrefixLen]
-	return filepath.Join(hash, safeName)
+	return filepath.Join(hash, safeName), nil
 }

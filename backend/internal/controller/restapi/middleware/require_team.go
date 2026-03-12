@@ -34,7 +34,11 @@ func RequireTeamOrNotFound() func(http.Handler) http.Handler {
 				httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
 				return
 			}
-			if user.Role != entity.RoleAdmin && user.TeamID == nil {
+			if user.Role == entity.RoleAdmin {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if user.TeamID == nil {
 				httputil.HandleError(w, r, httperr.ErrUserNotInTeam)
 				return
 			}

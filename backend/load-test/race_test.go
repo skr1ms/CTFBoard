@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 const raceConcurrency = 50
 
-//nolint:funlen
 func TestRace_FlagSubmission(t *testing.T) {
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.RaceUserToken)
@@ -174,7 +175,6 @@ func TestRace_HintUnlock(t *testing.T) {
 	fmt.Printf("[race] PASS: %d concurrent unlocks --> 1 hint_unlock row in DB\n", raceConcurrency)
 }
 
-//nolint:funlen
 func TestRace_ConcurrentTeamCreation(t *testing.T) {
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
@@ -233,7 +233,7 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 			defer wg.Done()
 			<-start
 
-			body, err := json.Marshal(map[string]string{"name": "race_solo_team"})
+			body, err := json.Marshal(openapi.CreateSoloTeamRequest{})
 			if err != nil {
 				mu.Lock()
 				statusCounts[0]++

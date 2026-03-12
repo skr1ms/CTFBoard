@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createAPIToken = `-- name: CreateAPIToken :exec
@@ -18,12 +18,12 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateAPITokenParams struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	TokenHash   string     `json:"token_hash"`
-	Description *string    `json:"description"`
-	ExpiresAt   *time.Time `json:"expires_at"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	TokenHash   string             `json:"token_hash"`
+	Description *string            `json:"description"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error {
@@ -113,8 +113,8 @@ UPDATE api_tokens SET last_used_at = $2 WHERE id = $1
 `
 
 type UpdateAPITokenLastUsedParams struct {
-	ID         uuid.UUID  `json:"id"`
-	LastUsedAt *time.Time `json:"last_used_at"`
+	ID         uuid.UUID          `json:"id"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 }
 
 func (q *Queries) UpdateAPITokenLastUsed(ctx context.Context, arg UpdateAPITokenLastUsedParams) error {

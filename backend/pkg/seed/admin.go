@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, username, email, password string, log logger.Logger) error {

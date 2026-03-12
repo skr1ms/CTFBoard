@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 )
 
 const cacheTTL = 5 * time.Minute
@@ -74,33 +75,28 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.Settings, error) {
 	return s, nil
 }
 
-//nolint:gocognit,gocyclo // validation and competition checks
 func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actorID uuid.UUID, clientIP string) error {
-	current, err := uc.deps.Repo.Get(ctx)
-	if err != nil {
-		return fmt.Errorf("SettingsUseCase - Update - SettingsRepo.Get: %w", err)
-	}
-
-	// Preserve existing rate limit values when not explicitly provided (value == 0).
-	mergeRateLimits(s, current)
-
-	if uc.deps.CompRepo != nil {
-		comp, err := uc.deps.CompRepo.Get(ctx)
-		if err == nil {
-			status := comp.GetStatus()
-			if status == entity.CompetitionStatusActive || status == entity.CompetitionStatusFrozen || status == entity.CompetitionStatusPaused {
-				if s.ScoreboardVisible != current.ScoreboardVisible || s.RegistrationOpen != current.RegistrationOpen {
-					return httperr.ErrSettingsCannotChangeDuringCompetition
-				}
-			}
-		}
-	}
 	if err := uc.validate(s); err != nil {
 		return fmt.Errorf("SettingsUseCase - Update - validate: %w", err)
 	}
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.Repo.Update(ctx, s); err != nil {
-			return fmt.Errorf("SettingsUseCase - Update - SettingsRepo.Update: %w", err)
+		current, err := uc.deps.Repo.GetForUpdate(ctx)
+		if err != nil {
+			return fmt.Errorf("SettingsUseCase - Update - SettingsRepo.GetForUpdate: %w", err)
+		}
+		if uc.deps.CompRepo != nil {
+			comp, err := uc.deps.CompRepo.Get(ctx)
+			if err == nil {
+				status := comp.GetStatus()
+				if status == entity.CompetitionStatusActive || status == entity.CompetitionStatusFrozen || status == entity.CompetitionStatusPaused {
+					if s.ScoreboardVisible != current.ScoreboardVisible || s.RegistrationOpen != current.RegistrationOpen {
+						return httperr.ErrSettingsCannotChangeDuringCompetition
+					}
+				}
+			}
+		}
+		if err := uc.deps.Repo.UpdateIfCurrent(ctx, s); err != nil {
+			return fmt.Errorf("SettingsUseCase - Update - SettingsRepo.UpdateIfCurrent: %w", err)
 		}
 		auditLog := &entity.AuditLog{
 			UserID:     &actorID,
@@ -120,8 +116,9 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actor
 		return fmt.Errorf("SettingsUseCase - Update - TM.Run: %w", err)
 	}
 	if uc.deps.Redis != nil {
-		_ = uc.deps.Redis.Del(ctx, cache.KeyAppSettings) //nolint:errcheck // best-effort cache invalidation
+		_ = uc.deps.Redis.Del(context.WithoutCancel(ctx), cache.KeyAppSettings) //nolint:errcheck // best-effort cache invalidation
 	}
+	uc.sf.Forget(cache.KeyAppSettings)
 	return nil
 }
 
@@ -206,40 +203,11 @@ func validateRateLimits(s *entity.Settings) error {
 	if s.RateLimitOAuthCallbackPerMinute < 1 {
 		return httperr.NewValidationErrorf("rate_limit_oauth_callback_per_minute must be >= 1")
 	}
+	if s.RateLimitOAuthRedirectPerMinute < 1 {
+		return httperr.NewValidationErrorf("rate_limit_oauth_redirect_per_minute must be >= 1")
+	}
+	if s.RateLimitCommentPerMinute < 1 {
+		return httperr.NewValidationErrorf("rate_limit_comment_per_minute must be >= 1")
+	}
 	return nil
-}
-
-// mergeRateLimits copies rate limit fields from src into dst wherever dst has 0
-// (meaning the caller did not explicitly provide that field).
-func mergeRateLimits(dst, src *entity.Settings) {
-	if dst.RateLimitLoginPerMinute == 0 {
-		dst.RateLimitLoginPerMinute = src.RateLimitLoginPerMinute
-	}
-	if dst.RateLimitRegisterPerMinute == 0 {
-		dst.RateLimitRegisterPerMinute = src.RateLimitRegisterPerMinute
-	}
-	if dst.RateLimitForgotPasswordPerMinute == 0 {
-		dst.RateLimitForgotPasswordPerMinute = src.RateLimitForgotPasswordPerMinute
-	}
-	if dst.RateLimitResetPasswordPerMinute == 0 {
-		dst.RateLimitResetPasswordPerMinute = src.RateLimitResetPasswordPerMinute
-	}
-	if dst.RateLimitLogoutPerMinute == 0 {
-		dst.RateLimitLogoutPerMinute = src.RateLimitLogoutPerMinute
-	}
-	if dst.RateLimitRefreshPerMinute == 0 {
-		dst.RateLimitRefreshPerMinute = src.RateLimitRefreshPerMinute
-	}
-	if dst.RateLimitScoreboardPerMinute == 0 {
-		dst.RateLimitScoreboardPerMinute = src.RateLimitScoreboardPerMinute
-	}
-	if dst.RateLimitGeneralIPPerMinute == 0 {
-		dst.RateLimitGeneralIPPerMinute = src.RateLimitGeneralIPPerMinute
-	}
-	if dst.RateLimitVerifyEmailPerMinute == 0 {
-		dst.RateLimitVerifyEmailPerMinute = src.RateLimitVerifyEmailPerMinute
-	}
-	if dst.RateLimitOAuthCallbackPerMinute == 0 {
-		dst.RateLimitOAuthCallbackPerMinute = src.RateLimitOAuthCallbackPerMinute
-	}
 }

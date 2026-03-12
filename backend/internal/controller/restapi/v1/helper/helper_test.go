@@ -87,3 +87,10 @@ func TestParseIntQuery_Negative(t *testing.T) {
 	got := ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
+
+func TestParseIntQuery_Zero(t *testing.T) {
+	t.Parallel()
+	r := httptest.NewRequest(http.MethodGet, "/?limit=0", nil)
+	got := ParseIntQuery(r, "limit")
+	assert.Nil(t, got)
+}

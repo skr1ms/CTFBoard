@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type NotificationRepo struct {
@@ -42,12 +43,12 @@ func (r *NotificationRepo) Create(ctx context.Context, notif *entity.Notificatio
 		Type:      &typeStr,
 		IsPinned:  &notif.IsPinned,
 		IsGlobal:  &notif.IsGlobal,
-		CreatedAt: &notif.CreatedAt,
+		CreatedAt: timeToTimestamptz(&notif.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - Create: %w", err)
 	}
-	notif.CreatedAt = ptrTimeToTime(row.CreatedAt)
+	notif.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
 	return nil
 }
 
@@ -66,7 +67,7 @@ func (r *NotificationRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.N
 		Type:      entity.NotificationType(ptrStrToStr(row.Type)),
 		IsPinned:  boolPtrToBool(row.IsPinned),
 		IsGlobal:  boolPtrToBool(row.IsGlobal),
-		CreatedAt: ptrTimeToTime(row.CreatedAt),
+		CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
@@ -95,7 +96,7 @@ func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*en
 			Type:      entity.NotificationType(ptrStrToStr(row.Type)),
 			IsPinned:  boolPtrToBool(row.IsPinned),
 			IsGlobal:  boolPtrToBool(row.IsGlobal),
-			CreatedAt: ptrTimeToTime(row.CreatedAt),
+			CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
@@ -142,12 +143,12 @@ func (r *NotificationRepo) CreateUserNotification(ctx context.Context, userNotif
 		Content:        strPtrOrNil(userNotif.Content),
 		Type:           &typeStr,
 		IsRead:         &isRead,
-		CreatedAt:      &userNotif.CreatedAt,
+		CreatedAt:      timeToTimestamptz(&userNotif.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - CreateUserNotification: %w", err)
 	}
-	userNotif.CreatedAt = ptrTimeToTime(row.CreatedAt)
+	userNotif.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
 	return nil
 }
 
@@ -178,10 +179,33 @@ func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 			Content:        ptrStrToStr(row.Content),
 			Type:           entity.NotificationType(ptrStrToStr(row.Type)),
 			IsRead:         boolPtrToBool(row.IsRead),
-			CreatedAt:      ptrTimeToTime(row.CreatedAt),
+			CreatedAt:      ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
+}
+
+func (r *NotificationRepo) GetUserNotificationByID(ctx context.Context, ID, userID uuid.UUID) (*entity.UserNotification, error) {
+	row, err := r.q(ctx).GetUserNotificationByID(ctx, sqlc.GetUserNotificationByIDParams{
+		ID:     ID,
+		UserID: userID,
+	})
+	if err != nil {
+		if isNoRows(err) {
+			return nil, httperr.ErrNotificationNotFound
+		}
+		return nil, fmt.Errorf("NotificationRepo - GetUserNotificationByID: %w", err)
+	}
+	return &entity.UserNotification{
+		ID:             row.ID,
+		UserID:         row.UserID,
+		NotificationID: row.NotificationID,
+		Title:          ptrStrToStr(row.Title),
+		Content:        ptrStrToStr(row.Content),
+		Type:           entity.NotificationType(ptrStrToStr(row.Type)),
+		IsRead:         boolPtrToBool(row.IsRead),
+		CreatedAt:      ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+	}, nil
 }
 
 func (r *NotificationRepo) MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error {

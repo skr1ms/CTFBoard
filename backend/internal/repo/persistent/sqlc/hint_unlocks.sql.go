@@ -7,13 +7,13 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countAllHintUnlocks = `-- name: CountAllHintUnlocks :one
-SELECT COUNT(*)::int FROM hint_unlocks
+SELECT COUNT(*)::int FROM hint_unlocks WHERE banned_team_id IS NULL
 `
 
 func (q *Queries) CountAllHintUnlocks(ctx context.Context) (int32, error) {
@@ -24,7 +24,7 @@ func (q *Queries) CountAllHintUnlocks(ctx context.Context) (int32, error) {
 }
 
 const countHintUnlocksByTeamID = `-- name: CountHintUnlocksByTeamID :one
-SELECT COUNT(*)::int FROM hint_unlocks WHERE team_id = $1
+SELECT COUNT(*)::int FROM hint_unlocks WHERE team_id = $1 AND banned_team_id IS NULL
 `
 
 func (q *Queries) CountHintUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) (int32, error) {
@@ -34,10 +34,11 @@ func (q *Queries) CountHintUnlocksByTeamID(ctx context.Context, teamID uuid.UUID
 	return column_1, err
 }
 
-const createHintUnlock = `-- name: CreateHintUnlock :exec
+const createHintUnlock = `-- name: CreateHintUnlock :one
 INSERT INTO hint_unlocks (id, hint_id, team_id)
 VALUES ($1, $2, $3)
 ON CONFLICT (team_id, hint_id) DO NOTHING
+RETURNING id
 `
 
 type CreateHintUnlockParams struct {
@@ -46,8 +47,19 @@ type CreateHintUnlockParams struct {
 	TeamID uuid.UUID `json:"team_id"`
 }
 
-func (q *Queries) CreateHintUnlock(ctx context.Context, arg CreateHintUnlockParams) error {
-	_, err := q.db.Exec(ctx, createHintUnlock, arg.ID, arg.HintID, arg.TeamID)
+func (q *Queries) CreateHintUnlock(ctx context.Context, arg CreateHintUnlockParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createHintUnlock, arg.ID, arg.HintID, arg.TeamID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteHintUnlocksByTeamID = `-- name: DeleteHintUnlocksByTeamID :exec
+DELETE FROM hint_unlocks WHERE team_id = $1
+`
+
+func (q *Queries) DeleteHintUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteHintUnlocksByTeamID, teamID)
 	return err
 }
 
@@ -56,6 +68,7 @@ SELECT hu.id, hu.hint_id, hu.team_id, hu.unlocked_at,
     h.challenge_id, h.cost AS hint_cost
 FROM hint_unlocks hu
 JOIN hints h ON h.id = hu.hint_id
+WHERE hu.banned_team_id IS NULL
 ORDER BY hu.unlocked_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -66,12 +79,12 @@ type GetAllHintUnlocksParams struct {
 }
 
 type GetAllHintUnlocksRow struct {
-	ID          uuid.UUID  `json:"id"`
-	HintID      uuid.UUID  `json:"hint_id"`
-	TeamID      uuid.UUID  `json:"team_id"`
-	UnlockedAt  *time.Time `json:"unlocked_at"`
-	ChallengeID uuid.UUID  `json:"challenge_id"`
-	HintCost    int32      `json:"hint_cost"`
+	ID          uuid.UUID          `json:"id"`
+	HintID      uuid.UUID          `json:"hint_id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	UnlockedAt  pgtype.Timestamptz `json:"unlocked_at"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	HintCost    int32              `json:"hint_cost"`
 }
 
 func (q *Queries) GetAllHintUnlocks(ctx context.Context, arg GetAllHintUnlocksParams) ([]GetAllHintUnlocksRow, error) {
@@ -104,18 +117,26 @@ func (q *Queries) GetAllHintUnlocks(ctx context.Context, arg GetAllHintUnlocksPa
 const getAllHintUnlocksSimple = `-- name: GetAllHintUnlocksSimple :many
 SELECT id, hint_id, team_id, unlocked_at
 FROM hint_unlocks
+WHERE banned_team_id IS NULL
 ORDER BY unlocked_at
 `
 
-func (q *Queries) GetAllHintUnlocksSimple(ctx context.Context) ([]HintUnlock, error) {
+type GetAllHintUnlocksSimpleRow struct {
+	ID         uuid.UUID          `json:"id"`
+	HintID     uuid.UUID          `json:"hint_id"`
+	TeamID     uuid.UUID          `json:"team_id"`
+	UnlockedAt pgtype.Timestamptz `json:"unlocked_at"`
+}
+
+func (q *Queries) GetAllHintUnlocksSimple(ctx context.Context) ([]GetAllHintUnlocksSimpleRow, error) {
 	rows, err := q.db.Query(ctx, getAllHintUnlocksSimple)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []HintUnlock
+	var items []GetAllHintUnlocksSimpleRow
 	for rows.Next() {
-		var i HintUnlock
+		var i GetAllHintUnlocksSimpleRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.HintID,
@@ -135,7 +156,7 @@ func (q *Queries) GetAllHintUnlocksSimple(ctx context.Context) ([]HintUnlock, er
 const getHintUnlockByTeamAndHint = `-- name: GetHintUnlockByTeamAndHint :one
 SELECT id, hint_id, team_id, unlocked_at
 FROM hint_unlocks
-WHERE team_id = $1 AND hint_id = $2
+WHERE team_id = $1 AND hint_id = $2 AND banned_team_id IS NULL
 `
 
 type GetHintUnlockByTeamAndHintParams struct {
@@ -143,9 +164,16 @@ type GetHintUnlockByTeamAndHintParams struct {
 	HintID uuid.UUID `json:"hint_id"`
 }
 
-func (q *Queries) GetHintUnlockByTeamAndHint(ctx context.Context, arg GetHintUnlockByTeamAndHintParams) (HintUnlock, error) {
+type GetHintUnlockByTeamAndHintRow struct {
+	ID         uuid.UUID          `json:"id"`
+	HintID     uuid.UUID          `json:"hint_id"`
+	TeamID     uuid.UUID          `json:"team_id"`
+	UnlockedAt pgtype.Timestamptz `json:"unlocked_at"`
+}
+
+func (q *Queries) GetHintUnlockByTeamAndHint(ctx context.Context, arg GetHintUnlockByTeamAndHintParams) (GetHintUnlockByTeamAndHintRow, error) {
 	row := q.db.QueryRow(ctx, getHintUnlockByTeamAndHint, arg.TeamID, arg.HintID)
-	var i HintUnlock
+	var i GetHintUnlockByTeamAndHintRow
 	err := row.Scan(
 		&i.ID,
 		&i.HintID,
@@ -158,7 +186,7 @@ func (q *Queries) GetHintUnlockByTeamAndHint(ctx context.Context, arg GetHintUnl
 const getHintUnlockByTeamAndHintForUpdate = `-- name: GetHintUnlockByTeamAndHintForUpdate :one
 SELECT id, hint_id, team_id, unlocked_at
 FROM hint_unlocks
-WHERE team_id = $1 AND hint_id = $2
+WHERE team_id = $1 AND hint_id = $2 AND banned_team_id IS NULL
 FOR UPDATE
 `
 
@@ -167,9 +195,16 @@ type GetHintUnlockByTeamAndHintForUpdateParams struct {
 	HintID uuid.UUID `json:"hint_id"`
 }
 
-func (q *Queries) GetHintUnlockByTeamAndHintForUpdate(ctx context.Context, arg GetHintUnlockByTeamAndHintForUpdateParams) (HintUnlock, error) {
+type GetHintUnlockByTeamAndHintForUpdateRow struct {
+	ID         uuid.UUID          `json:"id"`
+	HintID     uuid.UUID          `json:"hint_id"`
+	TeamID     uuid.UUID          `json:"team_id"`
+	UnlockedAt pgtype.Timestamptz `json:"unlocked_at"`
+}
+
+func (q *Queries) GetHintUnlockByTeamAndHintForUpdate(ctx context.Context, arg GetHintUnlockByTeamAndHintForUpdateParams) (GetHintUnlockByTeamAndHintForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getHintUnlockByTeamAndHintForUpdate, arg.TeamID, arg.HintID)
-	var i HintUnlock
+	var i GetHintUnlockByTeamAndHintForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.HintID,
@@ -179,11 +214,43 @@ func (q *Queries) GetHintUnlockByTeamAndHintForUpdate(ctx context.Context, arg G
 	return i, err
 }
 
+const getHintUnlocksForBackup = `-- name: GetHintUnlocksForBackup :many
+SELECT id, hint_id, team_id, unlocked_at, banned_team_id
+FROM hint_unlocks
+ORDER BY unlocked_at
+`
+
+func (q *Queries) GetHintUnlocksForBackup(ctx context.Context) ([]HintUnlock, error) {
+	rows, err := q.db.Query(ctx, getHintUnlocksForBackup)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []HintUnlock
+	for rows.Next() {
+		var i HintUnlock
+		if err := rows.Scan(
+			&i.ID,
+			&i.HintID,
+			&i.TeamID,
+			&i.UnlockedAt,
+			&i.BannedTeamID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUnlockedHintIDs = `-- name: GetUnlockedHintIDs :many
 SELECT hu.hint_id
 FROM hint_unlocks hu
 JOIN hints h ON h.id = hu.hint_id
-WHERE hu.team_id = $1 AND h.challenge_id = $2
+WHERE hu.team_id = $1 AND h.challenge_id = $2 AND hu.banned_team_id IS NULL
 `
 
 type GetUnlockedHintIDsParams struct {
@@ -209,4 +276,22 @@ func (q *Queries) GetUnlockedHintIDs(ctx context.Context, arg GetUnlockedHintIDs
 		return nil, err
 	}
 	return items, nil
+}
+
+const restoreHintUnlocksByBannedTeamID = `-- name: RestoreHintUnlocksByBannedTeamID :exec
+UPDATE hint_unlocks SET banned_team_id = NULL WHERE banned_team_id = $1
+`
+
+func (q *Queries) RestoreHintUnlocksByBannedTeamID(ctx context.Context, bannedTeamID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, restoreHintUnlocksByBannedTeamID, bannedTeamID)
+	return err
+}
+
+const softBanHintUnlocksByTeamID = `-- name: SoftBanHintUnlocksByTeamID :exec
+UPDATE hint_unlocks SET banned_team_id = team_id WHERE team_id = $1 AND banned_team_id IS NULL
+`
+
+func (q *Queries) SoftBanHintUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, softBanHintUnlocksByTeamID, teamID)
+	return err
 }

@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // GET /brackets: returns created brackets.

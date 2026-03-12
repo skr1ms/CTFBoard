@@ -3,17 +3,25 @@ schemas:
     properties:
       is_correct:
         type: boolean
+    required:
+      - is_correct
     type: object
   request.AdminCreateSubmissionRequest:
     properties:
       user_id:
         type: string
+        format: uuid
       team_id:
         type: string
+        format: uuid
       challenge_id:
         type: string
+        format: uuid
       submitted_flag:
         type: string
+        maxLength: 200
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=200"
       is_correct:
         type: boolean
       ip:
@@ -72,9 +80,9 @@ schemas:
   response.FailListResponse:
     properties:
       data:
+        type: array
         items:
           $ref: "#/schemas/response.SubmissionResponse"
-        type: array
       meta:
         $ref: "#/schemas/response.PaginationMeta"
     type: object

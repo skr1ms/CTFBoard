@@ -36,6 +36,10 @@ schemas:
         type: integer
       rate_limit_oauth_callback_per_minute:
         type: integer
+      rate_limit_oauth_redirect_per_minute:
+        type: integer
+      rate_limit_comment_per_minute:
+        type: integer
       registration_open:
         type: boolean
       reset_ttl_hours:
@@ -75,6 +79,7 @@ schemas:
         type: string
       cors_origins:
         type: string
+        maxLength: 2048
       csv_export_max_rows:
         minimum: 1
         type: integer
@@ -123,6 +128,12 @@ schemas:
       rate_limit_oauth_callback_per_minute:
         minimum: 1
         type: integer
+      rate_limit_oauth_redirect_per_minute:
+        minimum: 1
+        type: integer
+      rate_limit_comment_per_minute:
+        minimum: 1
+        type: integer
       registration_open:
         type: boolean
       reset_ttl_hours:
@@ -164,10 +175,4 @@ schemas:
       oauth_google_enabled:
         type: boolean
         description: Allow users to sign in via Google OAuth
-    required:
-      - app_name
-      - cors_origins
-      - frontend_url
-      - resend_from_email
-      - resend_from_name
     type: object

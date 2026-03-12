@@ -1,5 +1,6 @@
 /admin/configs:
   get:
+    operationId: GetAdminConfigs
     description: Returns all dynamic configs. Admin only.
     responses:
       "200":
@@ -12,16 +13,26 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get all configs
     tags:
       - Admin
 
 "/admin/configs/{key}":
   get:
+    operationId: GetAdminConfigsKey
     description: Returns config by key. Admin only.
     parameters:
       - name: key
@@ -38,16 +49,30 @@
               $ref: '../components/schemas.yml#/ConfigResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get config by key
     tags:
       - Admin
   put:
+    operationId: PutAdminConfigsKey
     description: Set or update config. Admin only.
     parameters:
       - name: key
@@ -63,19 +88,37 @@
       required: true
     responses:
       "200":
-        description: OK
+        description: Config updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Set config
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminConfigsKey
     description: Delete config. Admin only.
     parameters:
       - name: key
@@ -88,12 +131,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete config
     tags:
       - Admin

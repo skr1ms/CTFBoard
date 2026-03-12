@@ -3,10 +3,11 @@ package helper
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	"github.com/google/uuid"
 )
 
 func DecodeAndValidateE[T any](r *http.Request, v validator.Validator) (T, error) {

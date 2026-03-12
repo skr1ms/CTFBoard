@@ -1,4 +1,14 @@
 schemas:
+  request.VerifyEmailRequest:
+    properties:
+      token:
+        type: string
+        description: Verification token (from email link or copy-paste)
+        x-oapi-codegen-extra-tags:
+          validate: "required"
+    required:
+      - token
+    type: object
   request.ForgotPasswordRequest:
     properties:
       email:

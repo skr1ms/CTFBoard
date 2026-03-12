@@ -1,17 +1,18 @@
 package wire
 
 import (
+	"github.com/google/wire"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	backup "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	notification "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
-	team "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
-	user "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/google/wire"
 )
 
 var RepoSet = wire.NewSet(
@@ -75,9 +76,9 @@ var UseCaseSet = wire.NewSet(
 	ProvideCompetitionGuard,
 	ProvideFailedLoginTracker,
 	ProvideUserUseCase,
+	ProvideChallengeUseCase,
 	ProvideTeamUseCase,
 	ProvideAwardUseCase,
-	ProvideChallengeUseCase,
 	ProvideHintUseCase,
 	ProvideCompetitionUseCase,
 	ProvideSolveUseCase,
@@ -109,6 +110,7 @@ var UseCaseSet = wire.NewSet(
 	wire.Bind(new(usecase.APITokenUseCase), new(*user.APITokenUseCase)),
 	wire.Bind(new(user.SoloTeamCreator), new(*team.TeamUseCase)),
 	wire.Bind(new(cache.ChallengeListCacheInvalidator), new(*challenge.ChallengeUseCase)),
+	wire.Bind(new(cache.ScoreboardCacheInvalidator), new(*cache.ScoreboardCacheService)),
 	wire.Bind(new(usecase.SubmissionBatcher), new(*competition.SubmissionBatcher)),
 )
 

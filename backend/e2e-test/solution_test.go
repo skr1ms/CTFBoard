@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // POST /admin/challenges/{challengeID}/solution: admin creates solution; returns 200 with content.

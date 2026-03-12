@@ -44,7 +44,6 @@ func (c *Client) ReadPump() {
 	}
 }
 
-//nolint:gocognit
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingInterval)
 	defer func() {

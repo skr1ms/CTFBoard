@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SubmissionRepo struct {
@@ -49,7 +50,7 @@ func (r *SubmissionRepo) Create(ctx context.Context, sub *entity.Submission) err
 		SubmittedFlag: sub.SubmittedFlag,
 		IsCorrect:     sub.IsCorrect,
 		IP:            ip,
-		CreatedAt:     &sub.CreatedAt,
+		CreatedAt:     timeToTimestamptz(&sub.CreatedAt),
 	}); err != nil {
 		return fmt.Errorf("SubmissionRepo - Create: %w", err)
 	}
@@ -86,6 +87,30 @@ func (r *SubmissionRepo) CreateBatch(ctx context.Context, subs []*entity.Submiss
 		)
 		if err != nil {
 			return fmt.Errorf("SubmissionRepo - CreateBatch - CopyFrom: %w", err)
+		}
+		return nil
+	}
+	type batchSender interface {
+		SendBatch(ctx context.Context, batch *pgx.Batch) pgx.BatchResults
+	}
+	if sender, ok := conn.(batchSender); ok {
+		batch := &pgx.Batch{}
+		for _, sub := range subs {
+			var ip *string
+			if sub.IP != "" {
+				ip = &sub.IP
+			}
+			batch.Queue(
+				"INSERT INTO submissions (id, user_id, team_id, challenge_id, submitted_flag, is_correct, ip, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+				sub.ID, sub.UserID, sub.TeamID, sub.ChallengeID, sub.SubmittedFlag, sub.IsCorrect, ip, sub.CreatedAt,
+			)
+		}
+		br := sender.SendBatch(ctx, batch)
+		defer br.Close()
+		for i := 0; i < batch.Len(); i++ {
+			if _, err := br.Exec(); err != nil {
+				return fmt.Errorf("SubmissionRepo - CreateBatch - batch exec: %w", err)
+			}
 		}
 		return nil
 	}
@@ -126,7 +151,47 @@ func (r *SubmissionRepo) GetByChallenge(ctx context.Context, challengeID uuid.UU
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
+			},
+			Username: row.Username,
+			TeamName: row.TeamName,
+		}
+	}
+	return result, nil
+}
+
+func (r *SubmissionRepo) GetByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByChallengeFrozen - limit: %w", err)
+	}
+	offset32, err := intToInt32Safe(offset)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByChallengeFrozen - offset: %w", err)
+	}
+	rows, err := r.q(ctx).GetSubmissionsByChallengeFrozen(ctx, sqlc.GetSubmissionsByChallengeFrozenParams{
+		ChallengeID: challengeID,
+		CreatedAt:   timeToTimestamptz(&freezeTime),
+		Limit:       limit32,
+		Offset:      offset32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByChallengeFrozen: %w", err)
+	}
+	result := make([]*entity.SubmissionWithDetails, len(rows))
+	for i, row := range rows {
+		result[i] = &entity.SubmissionWithDetails{
+			Submission: entity.Submission{
+				ID:            row.ID,
+				UserID:        row.UserID,
+				TeamID:        row.TeamID,
+				ChallengeID:   row.ChallengeID,
+				SubmittedFlag: row.SubmittedFlag,
+				IsCorrect:     row.IsCorrect,
+				IP:            ptrStrToStr(row.IP),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			Username: row.Username,
 			TeamName: row.TeamName,
@@ -164,7 +229,47 @@ func (r *SubmissionRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit,
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
+			},
+			ChallengeTitle:    row.ChallengeTitle,
+			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
+		}
+	}
+	return result, nil
+}
+
+func (r *SubmissionRepo) GetByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByUserFrozen - limit: %w", err)
+	}
+	offset32, err := intToInt32Safe(offset)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByUserFrozen - offset: %w", err)
+	}
+	rows, err := r.q(ctx).GetSubmissionsByUserFrozen(ctx, sqlc.GetSubmissionsByUserFrozenParams{
+		UserID:    userID,
+		CreatedAt: timeToTimestamptz(&freezeTime),
+		Limit:     limit32,
+		Offset:    offset32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByUserFrozen: %w", err)
+	}
+	result := make([]*entity.SubmissionWithDetails, len(rows))
+	for i, row := range rows {
+		result[i] = &entity.SubmissionWithDetails{
+			Submission: entity.Submission{
+				ID:            row.ID,
+				UserID:        row.UserID,
+				TeamID:        row.TeamID,
+				ChallengeID:   row.ChallengeID,
+				SubmittedFlag: row.SubmittedFlag,
+				IsCorrect:     row.IsCorrect,
+				IP:            ptrStrToStr(row.IP),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			ChallengeTitle:    row.ChallengeTitle,
 			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
@@ -202,7 +307,48 @@ func (r *SubmissionRepo) GetByTeam(ctx context.Context, teamID uuid.UUID, limit,
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
+			},
+			Username:          row.Username,
+			ChallengeTitle:    row.ChallengeTitle,
+			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
+		}
+	}
+	return result, nil
+}
+
+func (r *SubmissionRepo) GetByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByTeamFrozen - limit: %w", err)
+	}
+	offset32, err := intToInt32Safe(offset)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByTeamFrozen - offset: %w", err)
+	}
+	rows, err := r.q(ctx).GetSubmissionsByTeamFrozen(ctx, sqlc.GetSubmissionsByTeamFrozenParams{
+		TeamID:    &teamID,
+		CreatedAt: timeToTimestamptz(&freezeTime),
+		Limit:     limit32,
+		Offset:    offset32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetByTeamFrozen: %w", err)
+	}
+	result := make([]*entity.SubmissionWithDetails, len(rows))
+	for i, row := range rows {
+		result[i] = &entity.SubmissionWithDetails{
+			Submission: entity.Submission{
+				ID:            row.ID,
+				UserID:        row.UserID,
+				TeamID:        row.TeamID,
+				ChallengeID:   row.ChallengeID,
+				SubmittedFlag: row.SubmittedFlag,
+				IsCorrect:     row.IsCorrect,
+				IP:            ptrStrToStr(row.IP),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			Username:          row.Username,
 			ChallengeTitle:    row.ChallengeTitle,
@@ -240,7 +386,48 @@ func (r *SubmissionRepo) GetAll(ctx context.Context, limit, offset int) ([]*enti
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
+			},
+			Username:          row.Username,
+			TeamName:          row.TeamName,
+			ChallengeTitle:    row.ChallengeTitle,
+			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
+		}
+	}
+	return result, nil
+}
+
+func (r *SubmissionRepo) GetAllFrozen(ctx context.Context, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetAllFrozen - limit: %w", err)
+	}
+	offset32, err := intToInt32Safe(offset)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetAllFrozen - offset: %w", err)
+	}
+	rows, err := r.q(ctx).GetAllSubmissionsFrozen(ctx, sqlc.GetAllSubmissionsFrozenParams{
+		CreatedAt: timeToTimestamptz(&freezeTime),
+		Limit:     limit32,
+		Offset:    offset32,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetAllFrozen: %w", err)
+	}
+	result := make([]*entity.SubmissionWithDetails, len(rows))
+	for i, row := range rows {
+		result[i] = &entity.SubmissionWithDetails{
+			Submission: entity.Submission{
+				ID:            row.ID,
+				UserID:        row.UserID,
+				TeamID:        row.TeamID,
+				ChallengeID:   row.ChallengeID,
+				SubmittedFlag: row.SubmittedFlag,
+				IsCorrect:     row.IsCorrect,
+				IP:            ptrStrToStr(row.IP),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			Username:          row.Username,
 			TeamName:          row.TeamName,
@@ -259,10 +446,32 @@ func (r *SubmissionRepo) CountByChallenge(ctx context.Context, challengeID uuid.
 	return n, nil
 }
 
+func (r *SubmissionRepo) CountByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (int64, error) {
+	n, err := r.q(ctx).CountSubmissionsByChallengeFrozen(ctx, sqlc.CountSubmissionsByChallengeFrozenParams{
+		ChallengeID: challengeID,
+		CreatedAt:   timeToTimestamptz(&freezeTime),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("SubmissionRepo - CountByChallengeFrozen: %w", err)
+	}
+	return n, nil
+}
+
 func (r *SubmissionRepo) CountByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
 	n, err := r.q(ctx).CountSubmissionsByUser(ctx, userID)
 	if err != nil {
 		return 0, fmt.Errorf("SubmissionRepo - CountByUser: %w", err)
+	}
+	return n, nil
+}
+
+func (r *SubmissionRepo) CountByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time) (int64, error) {
+	n, err := r.q(ctx).CountSubmissionsByUserFrozen(ctx, sqlc.CountSubmissionsByUserFrozenParams{
+		UserID:    userID,
+		CreatedAt: timeToTimestamptz(&freezeTime),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("SubmissionRepo - CountByUserFrozen: %w", err)
 	}
 	return n, nil
 }
@@ -275,6 +484,17 @@ func (r *SubmissionRepo) CountByTeam(ctx context.Context, teamID uuid.UUID) (int
 	return n, nil
 }
 
+func (r *SubmissionRepo) CountByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time) (int64, error) {
+	n, err := r.q(ctx).CountSubmissionsByTeamFrozen(ctx, sqlc.CountSubmissionsByTeamFrozenParams{
+		TeamID:    &teamID,
+		CreatedAt: timeToTimestamptz(&freezeTime),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("SubmissionRepo - CountByTeamFrozen: %w", err)
+	}
+	return n, nil
+}
+
 func (r *SubmissionRepo) CountAll(ctx context.Context) (int64, error) {
 	n, err := r.q(ctx).CountAllSubmissions(ctx)
 	if err != nil {
@@ -283,10 +503,18 @@ func (r *SubmissionRepo) CountAll(ctx context.Context) (int64, error) {
 	return n, nil
 }
 
+func (r *SubmissionRepo) CountAllFrozen(ctx context.Context, freezeTime time.Time) (int64, error) {
+	n, err := r.q(ctx).CountAllSubmissionsFrozen(ctx, timeToTimestamptz(&freezeTime))
+	if err != nil {
+		return 0, fmt.Errorf("SubmissionRepo - CountAllFrozen: %w", err)
+	}
+	return n, nil
+}
+
 func (r *SubmissionRepo) CountFailedByIP(ctx context.Context, ip string, since time.Time) (int64, error) {
 	n, err := r.q(ctx).CountFailedSubmissionsByIP(ctx, sqlc.CountFailedSubmissionsByIPParams{
 		IP:        &ip,
-		CreatedAt: &since,
+		CreatedAt: timeToTimestamptz(&since),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("SubmissionRepo - CountFailedByIP: %w", err)
@@ -298,6 +526,21 @@ func (r *SubmissionRepo) GetStats(ctx context.Context, challengeID uuid.UUID) (*
 	row, err := r.q(ctx).GetSubmissionStats(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionRepo - GetStats: %w", err)
+	}
+	return &entity.SubmissionStats{
+		Total:     int(row.Total),
+		Correct:   int(row.Correct),
+		Incorrect: int(row.Incorrect),
+	}, nil
+}
+
+func (r *SubmissionRepo) GetStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*entity.SubmissionStats, error) {
+	row, err := r.q(ctx).GetSubmissionStatsFrozen(ctx, sqlc.GetSubmissionStatsFrozenParams{
+		ChallengeID: challengeID,
+		CreatedAt:   timeToTimestamptz(&freezeTime),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionRepo - GetStatsFrozen: %w", err)
 	}
 	return &entity.SubmissionStats{
 		Total:     int(row.Total),
@@ -334,7 +577,8 @@ func (r *SubmissionRepo) GetFailsByUser(ctx context.Context, userID uuid.UUID, l
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			ChallengeTitle:    row.ChallengeTitle,
 			ChallengeCategory: ptrStrToStr(row.ChallengeCategory),
@@ -379,7 +623,8 @@ func (r *SubmissionRepo) GetFailsByTeam(ctx context.Context, teamID uuid.UUID, l
 				SubmittedFlag: row.SubmittedFlag,
 				IsCorrect:     row.IsCorrect,
 				IP:            ptrStrToStr(row.IP),
-				CreatedAt:     ptrTimeToTime(row.CreatedAt),
+				CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+				BannedUserID:  row.BannedUserID,
 			},
 			Username:          row.Username,
 			ChallengeTitle:    row.ChallengeTitle,
@@ -414,7 +659,8 @@ func (r *SubmissionRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Sub
 			SubmittedFlag: row.SubmittedFlag,
 			IsCorrect:     row.IsCorrect,
 			IP:            ptrStrToStr(row.IP),
-			CreatedAt:     ptrTimeToTime(row.CreatedAt),
+			CreatedAt:     ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+			BannedUserID:  row.BannedUserID,
 		},
 		Username:          row.Username,
 		TeamName:          row.TeamName,
@@ -448,6 +694,34 @@ func (r *SubmissionRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) e
 	return nil
 }
 
+func (r *SubmissionRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).SoftBanSubmissionsByTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("SubmissionRepo - SoftBanByTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *SubmissionRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).RestoreSubmissionsByBannedTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("SubmissionRepo - RestoreByBannedTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *SubmissionRepo) SoftBanByUserID(ctx context.Context, userID uuid.UUID) error {
+	if err := r.q(ctx).SoftBanSubmissionsByUserID(ctx, userID); err != nil {
+		return fmt.Errorf("SubmissionRepo - SoftBanByUserID: %w", err)
+	}
+	return nil
+}
+
+func (r *SubmissionRepo) RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error {
+	if err := r.q(ctx).RestoreSubmissionsByBannedUserID(ctx, &userID); err != nil {
+		return fmt.Errorf("SubmissionRepo - RestoreByBannedUserID: %w", err)
+	}
+	return nil
+}
+
 func (r *SubmissionRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Submission, error) {
 	row, err := r.q(ctx).GetSubmissionByIDForUpdate(ctx, ID)
 	if err != nil {
@@ -463,12 +737,11 @@ func (r *SubmissionRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*e
 		ChallengeID:   row.ChallengeID,
 		SubmittedFlag: row.SubmittedFlag,
 		IsCorrect:     row.IsCorrect,
+		BannedUserID:  row.BannedUserID,
 	}
 	if row.IP != nil {
 		s.IP = *row.IP
 	}
-	if row.CreatedAt != nil {
-		s.CreatedAt = *row.CreatedAt
-	}
+	s.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
 	return s, nil
 }

@@ -69,7 +69,11 @@ func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	title, content, notifType, isPinned := request.CreateNotificationRequestToParams(&req)
+	title, content, notifType, isPinned, err := request.CreateNotificationRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PostAdminNotifications", "CreateNotificationRequestToParams")
+		return
+	}
 	notif, err := h.admin.NotifUC.CreateGlobal(r.Context(), title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PostAdminNotifications", "CreateGlobal") {
 		return
@@ -93,7 +97,11 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 		return
 	}
 
-	title, content, notifType := request.CreateUserNotificationRequestToParams(&req)
+	title, content, notifType, err := request.CreateUserNotificationRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "CreateUserNotificationRequestToParams")
+		return
+	}
 	userNotif, err := h.admin.NotifUC.CreatePersonal(r.Context(), userIDParsed, title, content, notifType)
 	if h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "CreatePersonal") {
 		return
@@ -117,7 +125,11 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	title, content, notifType, isPinned := request.UpdateNotificationRequestToParams(&req)
+	title, content, notifType, isPinned, err := request.UpdateNotificationRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PutAdminNotificationsID", "UpdateNotificationRequestToParams")
+		return
+	}
 	notif, err := h.admin.NotifUC.Update(r.Context(), notifIDParsed, title, content, notifType, isPinned)
 	if h.OnError(w, r, err, "PutAdminNotificationsID", "Update") {
 		return

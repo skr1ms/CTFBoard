@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
@@ -17,10 +18,10 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 				httputil.HandleError(w, r, err)
 				return
 			}
-
-			if !comp.IsSubmissionAllowed() {
+			now := time.Now()
+			if !comp.IsSubmissionAllowedAt(now) {
 				var httpErr *httperr.HTTPError
-				switch comp.GetStatus() { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
+				switch comp.GetStatusAt(now) { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
 				case entity.CompetitionStatusNotStarted:
 					httpErr = httperr.ErrCompetitionNotStarted
 				case entity.CompetitionStatusEnded:
@@ -47,7 +48,8 @@ func CompetitionEnded(competitionUC usecase.CompetitionUseCase) func(http.Handle
 				httputil.HandleError(w, r, err)
 				return
 			}
-			if comp.GetStatus() != entity.CompetitionStatusEnded {
+			now := time.Now()
+			if !comp.IsEffectivelyEnded(now) {
 				httputil.HandleError(w, r, httperr.ErrCommentsAvailableAfterEnd)
 				return
 			}

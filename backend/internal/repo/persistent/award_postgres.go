@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AwardRepo struct {
@@ -27,14 +29,26 @@ func (r *AwardRepo) q(ctx context.Context) *sqlc.Queries {
 	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
-func toEntityAward(a sqlc.Award) *entity.Award {
+func toEntityAwardFromRow(id, teamID uuid.UUID, value int32, description string, createdBy *uuid.UUID, createdAt pgtype.Timestamptz) *entity.Award {
 	return &entity.Award{
-		ID:          a.ID,
-		TeamID:      a.TeamID,
-		Value:       int(a.Value),
-		Description: a.Description,
-		CreatedBy:   a.CreatedBy,
-		CreatedAt:   ptrTimeToTime(a.CreatedAt),
+		ID:          id,
+		TeamID:      teamID,
+		Value:       int(value),
+		Description: description,
+		CreatedBy:   createdBy,
+		CreatedAt:   ptrTimeToTime(timestamptzToTime(createdAt)),
+	}
+}
+
+func toEntityAwardFromBackup(a sqlc.Award) *entity.Award {
+	return &entity.Award{
+		ID:           a.ID,
+		TeamID:       a.TeamID,
+		Value:        int(a.Value),
+		Description:  a.Description,
+		CreatedBy:    a.CreatedBy,
+		CreatedAt:    ptrTimeToTime(timestamptzToTime(a.CreatedAt)),
+		BannedTeamID: a.BannedTeamID,
 	}
 }
 
@@ -45,7 +59,7 @@ func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entit
 	}
 	out := make([]*entity.Award, 0, len(rows))
 	for _, a := range rows {
-		out = append(out, toEntityAward(a))
+		out = append(out, toEntityAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt))
 	}
 	return out, nil
 }
@@ -65,7 +79,19 @@ func (r *AwardRepo) GetAll(ctx context.Context) ([]*entity.Award, error) {
 	}
 	out := make([]*entity.Award, 0, len(rows))
 	for _, a := range rows {
-		out = append(out, toEntityAward(a))
+		out = append(out, toEntityAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt))
+	}
+	return out, nil
+}
+
+func (r *AwardRepo) GetAllForBackup(ctx context.Context) ([]*entity.Award, error) {
+	rows, err := r.q(ctx).GetAwardsForBackup(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("AwardRepo - GetAllForBackup: %w", err)
+	}
+	out := make([]*entity.Award, 0, len(rows))
+	for _, a := range rows {
+		out = append(out, toEntityAwardFromBackup(a))
 	}
 	return out, nil
 }
@@ -78,7 +104,7 @@ func (r *AwardRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Award, e
 		}
 		return nil, fmt.Errorf("AwardRepo - GetByID: %w", err)
 	}
-	return toEntityAward(a), nil
+	return toEntityAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt), nil
 }
 
 func (r *AwardRepo) Delete(ctx context.Context, ID uuid.UUID) error {
@@ -91,6 +117,20 @@ func (r *AwardRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 func (r *AwardRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error {
 	if err := r.q(ctx).DeleteAwardsByTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("AwardRepo - DeleteByTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *AwardRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).SoftBanAwardsByTeamID(ctx, teamID); err != nil {
+		return fmt.Errorf("AwardRepo - SoftBanByTeamID: %w", err)
+	}
+	return nil
+}
+
+func (r *AwardRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.q(ctx).RestoreAwardsByBannedTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("AwardRepo - RestoreByBannedTeamID: %w", err)
 	}
 	return nil
 }
@@ -108,7 +148,7 @@ func (r *AwardRepo) Create(ctx context.Context, a *entity.Award) error {
 		Value:       value,
 		Description: a.Description,
 		CreatedBy:   a.CreatedBy,
-		CreatedAt:   &a.CreatedAt,
+		CreatedAt:   timeToTimestamptz(&a.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("AwardRepo - Create: %w", err)

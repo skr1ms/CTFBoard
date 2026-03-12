@@ -36,6 +36,8 @@ type Settings struct {
 	RateLimitGeneralIPPerMinute      int       `json:"rate_limit_general_ip_per_minute"`
 	RateLimitVerifyEmailPerMinute    int       `json:"rate_limit_verify_email_per_minute"`
 	RateLimitOAuthCallbackPerMinute  int       `json:"rate_limit_oauth_callback_per_minute"`
+	RateLimitOAuthRedirectPerMinute  int       `json:"rate_limit_oauth_redirect_per_minute"`
+	RateLimitCommentPerMinute        int       `json:"rate_limit_comment_per_minute"`
 	MaxTeams                         int       `json:"max_teams"`
 	WriteupEnabled                   bool      `json:"writeup_enabled"`
 	OAuthGithubEnabled               bool      `json:"oauth_github_enabled"`

@@ -2,12 +2,19 @@ package load_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
@@ -33,11 +40,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
-	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 )
 
 type teamBracketGetterImpl struct {
@@ -130,13 +132,9 @@ func initLoadTestDeps(redisClient *redis.Client) (*loadTestDeps, error) {
 	}
 	revoker := jwt.NewRedisRevocationStore(redisClient)
 	jwtSvc, err := jwt.NewJWTService(
-		"test-access-secret-min-32-bytes!",
-		"test-refresh-secret-min32-bytes!",
-		24*time.Hour,
-		72*time.Hour,
-		revoker,
-		nil,
-	)
+		[]jwt.KeyEntry{{Kid: "0", Secret: "test-access-secret-min-32-bytes!"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "test-refresh-secret-min32-bytes!"}},
+		24*time.Hour, 72*time.Hour, revoker, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create jwt: %w", err)
 	}
@@ -178,7 +176,6 @@ func initLoadTestRepos(pool *pgxpool.Pool) *loadTestRepos {
 	}
 }
 
-//nolint:funlen
 func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage storage.Provider, hub *websocket.Hub, redisClient *redis.Client) *loadTestUseCases {
 	fieldValidator := settingsUC.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
@@ -261,7 +258,7 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, ChallengeRepo: repos.challengeRepo,
 		ScoreboardCache: scoreboardCache,
 	})
-	award := teamUC.NewAwardUseCase(teamUC.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache})
+	award := teamUC.NewAwardUseCase(teamUC.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache, CompRepo: repos.compRepo})
 	stats := competitionUC.NewStatisticsUseCase(competitionUC.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: c})
 	sub := competitionUC.NewSubmissionUseCase(competitionUC.SubmissionDeps{SubmissionRepo: repos.submissionRepo})
 	subBatcher := competitionUC.NewSubmissionBatcher(repos.submissionRepo, competitionUC.WithBatcherLogger(deps.log))
@@ -330,7 +327,7 @@ func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCa
 		})
 	})
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK")) //nolint:errcheck // health response best-effort
 	})
@@ -342,6 +339,10 @@ func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCa
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, "lt:resend", 100000, 24*time.Hour)
 	if err != nil {
 		panic("load-test: failed to create resend-verification rate limiter: " + err.Error())
+	}
+	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, "lt:reset-token", 100000, time.Minute)
+	if err != nil {
+		panic("load-test: failed to create reset-password-token rate limiter: " + err.Error())
 	}
 
 	deps := &v1helper.ServerDeps{
@@ -362,6 +363,7 @@ func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCa
 			TrustedProxyCIDRs:             nil,
 			ForgotPasswordRateLimiter:     forgotLimiter,
 			ResendVerificationRateLimiter: resendLimiter,
+			ResetPasswordTokenRateLimiter: resetTokenLimiter,
 		},
 	}
 
@@ -419,7 +421,7 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("[load-test] server error: %v\n", err)
 		}
 	}()

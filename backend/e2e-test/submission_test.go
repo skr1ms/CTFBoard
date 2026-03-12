@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 )
 
 // GET /admin/submissions/challenge/{challengeID}: submissions exist after a wrong flag submit.
@@ -143,14 +145,14 @@ func TestSubmission_AdminCreate_Success(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 	teamID := *team.JSON200.ID
 	userID := h.GetUserIDByEmail(email)
+	tid := openapi_types.UUID(uuid.MustParse(teamID))
 
-	isCorrect := false
 	resp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   challengeID,
-		UserID:        userID,
-		TeamID:        &teamID,
+		ChallengeID:   openapi_types.UUID(uuid.MustParse(challengeID)),
+		UserID:        openapi_types.UUID(uuid.MustParse(userID)),
+		TeamID:        &tid,
 		SubmittedFlag: "flag{manual}",
-		IsCorrect:     isCorrect,
+		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusCreated, resp.StatusCode(), resp.Body, "admin create submission")
@@ -165,8 +167,8 @@ func TestSubmission_AdminCreate_InvalidPayload(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_sub_bad")
 
 	resp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   "not-a-uuid",
-		UserID:        "not-a-uuid",
+		ChallengeID:   openapi_types.UUID(uuid.Nil),
+		UserID:        openapi_types.UUID(uuid.Nil),
 		SubmittedFlag: "",
 		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))
@@ -190,11 +192,12 @@ func TestSubmission_AdminGetByID_Success(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 	teamID := *team.JSON200.ID
 	userID := h.GetUserIDByEmail(email)
+	tid := openapi_types.UUID(uuid.MustParse(teamID))
 
 	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   challengeID,
-		UserID:        userID,
-		TeamID:        &teamID,
+		ChallengeID:   openapi_types.UUID(uuid.MustParse(challengeID)),
+		UserID:        openapi_types.UUID(uuid.MustParse(userID)),
+		TeamID:        &tid,
 		SubmittedFlag: "flag{manual_get}",
 		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))
@@ -239,11 +242,12 @@ func TestSubmission_AdminUpdate_Success(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 	teamID := *team.JSON200.ID
 	userID := h.GetUserIDByEmail(email)
+	tid := openapi_types.UUID(uuid.MustParse(teamID))
 
 	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   challengeID,
-		UserID:        userID,
-		TeamID:        &teamID,
+		ChallengeID:   openapi_types.UUID(uuid.MustParse(challengeID)),
+		UserID:        openapi_types.UUID(uuid.MustParse(userID)),
+		TeamID:        &tid,
 		SubmittedFlag: "flag{manual_patch}",
 		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))
@@ -253,7 +257,7 @@ func TestSubmission_AdminUpdate_Success(t *testing.T) {
 
 	isCorrect := true
 	patchResp, err := h.Client().PatchAdminSubmissionsIDWithResponse(context.Background(), *submissionID, openapi.AdminUpdateSubmissionRequest{
-		IsCorrect: &isCorrect,
+		IsCorrect: isCorrect,
 	}, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, patchResp.StatusCode(), patchResp.Body, "admin patch submission")
@@ -275,11 +279,12 @@ func TestSubmission_AdminUpdate_Forbidden(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 	teamID := *team.JSON200.ID
 	userID := h.GetUserIDByEmail(email)
+	tid := openapi_types.UUID(uuid.MustParse(teamID))
 
 	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   challengeID,
-		UserID:        userID,
-		TeamID:        &teamID,
+		ChallengeID:   openapi_types.UUID(uuid.MustParse(challengeID)),
+		UserID:        openapi_types.UUID(uuid.MustParse(userID)),
+		TeamID:        &tid,
 		SubmittedFlag: "flag{pf_manual}",
 		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))
@@ -289,7 +294,7 @@ func TestSubmission_AdminUpdate_Forbidden(t *testing.T) {
 
 	isCorrect := true
 	patchResp, err := h.Client().PatchAdminSubmissionsIDWithResponse(context.Background(), *submissionID, openapi.AdminUpdateSubmissionRequest{
-		IsCorrect: &isCorrect,
+		IsCorrect: isCorrect,
 	}, helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusForbidden, patchResp.StatusCode(), patchResp.Body, "admin patch submission forbidden")
@@ -311,11 +316,12 @@ func TestSubmission_AdminDelete_Success(t *testing.T) {
 	require.NotNil(t, team.JSON200)
 	teamID := *team.JSON200.ID
 	userID := h.GetUserIDByEmail(email)
+	tid := openapi_types.UUID(uuid.MustParse(teamID))
 
 	createResp, err := h.Client().PostAdminSubmissionsWithResponse(context.Background(), openapi.AdminCreateSubmissionRequest{
-		ChallengeID:   challengeID,
-		UserID:        userID,
-		TeamID:        &teamID,
+		ChallengeID:   openapi_types.UUID(uuid.MustParse(challengeID)),
+		UserID:        openapi_types.UUID(uuid.MustParse(userID)),
+		TeamID:        &tid,
 		SubmittedFlag: "flag{manual_del}",
 		IsCorrect:     false,
 	}, helper.WithBearerToken(tokenAdmin))

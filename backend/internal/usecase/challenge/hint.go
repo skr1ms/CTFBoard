@@ -5,16 +5,21 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 type HintUseCase struct {
 	deps HintDeps
+}
+
+type hintCompGetter interface {
+	Get(ctx context.Context) (*entity.Competition, error)
 }
 
 type HintDeps struct {
@@ -23,6 +28,7 @@ type HintDeps struct {
 	TM              repo.TransactionManager
 	SolveRepo       repo.SolveRepository
 	CompRepo        repo.CompetitionRepository
+	CompGetter      hintCompGetter
 	TeamRepo        repo.TeamRepository
 	UserRepo        repo.UserRepository
 	ChallengeRepo   repo.ChallengeRepository
@@ -36,6 +42,12 @@ func NewHintUseCase(deps HintDeps) *HintUseCase {
 }
 
 func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
+	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
+		return nil, err
+	}
+	if cost < 0 {
+		return nil, httperr.NewValidationErrorf("hint cost must be non-negative")
+	}
 	hint := &entity.Hint{
 		ChallengeID: challengeID,
 		Content:     content,
@@ -65,6 +77,22 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 	}
 	if challenge.IsHidden {
 		return nil, httperr.ErrChallengeNotFound
+	}
+	reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+	if err != nil {
+		return nil, fmt.Errorf("HintUseCase - GetByChallengeID - GetRequirements: %w", err)
+	}
+	if len(reqs) > 0 {
+		if teamID == nil || uc.deps.SolveRepo == nil {
+			return nil, httperr.ErrChallengeNotFound
+		}
+		met, err := requirementsMet(ctx, challengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+		if err != nil {
+			return nil, fmt.Errorf("HintUseCase - GetByChallengeID - requirementsMet: %w", err)
+		}
+		if !met {
+			return nil, httperr.ErrChallengeNotFound
+		}
 	}
 
 	hints, err := uc.deps.HintRepo.GetByChallengeID(ctx, challengeID)
@@ -105,19 +133,27 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 }
 
 func (uc *HintUseCase) Update(ctx context.Context, ID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
-	hint, err := uc.deps.HintRepo.GetByID(ctx, ID)
+	if cost < 0 {
+		return nil, httperr.NewValidationErrorf("hint cost must be non-negative")
+	}
+	var hint *entity.Hint
+	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		var err error
+		hint, err = uc.deps.HintRepo.GetByIDForUpdate(ctx, ID)
+		if err != nil {
+			return fmt.Errorf("HintUseCase - Update - HintRepo.GetByIDForUpdate: %w", err)
+		}
+		hint.Content = content
+		hint.Cost = cost
+		hint.OrderIndex = orderIndex
+		if err := uc.deps.HintRepo.Update(ctx, hint); err != nil {
+			return fmt.Errorf("HintUseCase - Update - HintRepo.Update: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - Update - HintRepo.GetByID: %w", err)
+		return nil, err
 	}
-
-	hint.Content = content
-	hint.Cost = cost
-	hint.OrderIndex = orderIndex
-
-	if err := uc.deps.HintRepo.Update(ctx, hint); err != nil {
-		return nil, fmt.Errorf("HintUseCase - Update - HintRepo.Update: %w", err)
-	}
-
 	return hint, nil
 }
 
@@ -131,9 +167,19 @@ func (uc *HintUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (*entity.Hint, error) {
 	var hint *entity.Hint
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		comp, err := uc.deps.CompRepo.Get(ctx)
-		if err != nil {
-			return fmt.Errorf("HintUseCase - UnlockHint - CompetitionRepo.Get: %w", err)
+		var comp *entity.Competition
+		if uc.deps.CompRepo != nil {
+			var errComp error
+			comp, errComp = uc.deps.CompRepo.GetForUpdate(ctx)
+			if errComp != nil {
+				return fmt.Errorf("HintUseCase - UnlockHint - CompRepo.GetForUpdate: %w", errComp)
+			}
+		}
+		if comp == nil {
+			comp, _ = uc.getCompetition(ctx)
+		}
+		if comp == nil {
+			return httperr.ErrCompetitionNotFound
 		}
 		if !comp.IsSubmissionAllowed() {
 			return httperr.ErrSubmissionNotAllowed
@@ -154,18 +200,31 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 		if challenge.IsHidden {
 			return httperr.ErrChallengeNotFound
 		}
+		if uc.deps.SolveRepo != nil {
+			met, errReq := requirementsMet(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+			if errReq != nil {
+				return fmt.Errorf("HintUseCase - UnlockHint - requirementsMet: %w", errReq)
+			}
+			if !met {
+				return httperr.ErrChallengeNotFound
+			}
+		}
 		return uc.unlockHintInTx(ctx, userID, teamID, hintID, hint, comp)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("HintUseCase - UnlockHint - TM.Run: %w", err)
 	}
 	if uc.deps.ScoreboardCache != nil {
+		comp, err := uc.getCompetition(ctx)
+		if err == nil && comp != nil && comp.IsFreezeActive() {
+			uc.deps.ScoreboardCache.InvalidateLiveOnly(ctx, teamID)
+			return hint, nil
+		}
 		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
 	}
 	return hint, nil
 }
 
-//nolint:gocognit,gocyclo // points deduction + penalty + team-size validation in one transaction
 func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintID uuid.UUID, hint *entity.Hint, comp *entity.Competition) error {
 	// Re-verify membership inside the transaction to close the TOCTOU window between
 	// RequireTeam middleware and the hint unlock: if the user was kicked between the
@@ -210,25 +269,44 @@ func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintI
 			return httperr.ErrTeamBelowMinSize
 		}
 	}
-	if err := uc.unlockHintCheckAlreadyUnlocked(ctx, teamID, hintID); err != nil {
-		return fmt.Errorf("HintUseCase - UnlockHint - check already unlocked: %w", err)
+	if uc.deps.SolveRepo != nil {
+		_, err := uc.deps.SolveRepo.GetByTeamAndChallenge(ctx, teamID, hint.ChallengeID)
+		if err == nil {
+			return httperr.ErrAlreadySolved
+		}
+		if !errors.Is(err, httperr.ErrSolveNotFound) {
+			return fmt.Errorf("HintUseCase - UnlockHint - SolveRepo.GetByTeamAndChallenge: %w", err)
+		}
+	}
+	hints, err := uc.deps.HintRepo.GetByChallengeID(ctx, hint.ChallengeID)
+	if err != nil {
+		return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.GetByChallengeID: %w", err)
+	}
+	unlockedIDs, err := uc.deps.HintRepo.GetUnlockedHintIDs(ctx, teamID, hint.ChallengeID)
+	if err != nil {
+		return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.GetUnlockedHintIDs: %w", err)
+	}
+	unlockedSet := make(map[uuid.UUID]struct{}, len(unlockedIDs))
+	for _, id := range unlockedIDs {
+		unlockedSet[id] = struct{}{}
+	}
+	for _, h := range hints {
+		if h.ID == hint.ID {
+			continue
+		}
+		mustBeUnlocked := h.OrderIndex < hint.OrderIndex ||
+			(h.OrderIndex == hint.OrderIndex && h.ID.String() < hint.ID.String())
+		if mustBeUnlocked {
+			if _, ok := unlockedSet[h.ID]; !ok {
+				return httperr.ErrHintOrderRequired
+			}
+		}
 	}
 	if err := uc.unlockHintChargeIfNeeded(ctx, teamID, hint); err != nil {
 		return fmt.Errorf("HintUseCase - UnlockHint - unlockHintChargeIfNeeded: %w", err)
 	}
 	if err := uc.deps.HintRepo.CreateUnlock(ctx, teamID, hintID); err != nil {
 		return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.CreateUnlock: %w", err)
-	}
-	return nil
-}
-
-func (uc *HintUseCase) unlockHintCheckAlreadyUnlocked(ctx context.Context, teamID, hintID uuid.UUID) error {
-	_, err := uc.deps.HintRepo.GetByTeamAndHintForUpdate(ctx, teamID, hintID)
-	if err == nil {
-		return httperr.ErrHintAlreadyUnlocked
-	}
-	if !errors.Is(err, httperr.ErrHintNotFound) {
-		return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.GetByTeamAndHintForUpdate: %w", err)
 	}
 	return nil
 }
@@ -270,4 +348,14 @@ func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*u
 		return nil, fmt.Errorf("HintUseCase - GetAllUnlocks: %w", err)
 	}
 	return result, nil
+}
+
+func (uc *HintUseCase) getCompetition(ctx context.Context) (*entity.Competition, error) {
+	if uc.deps.CompGetter != nil {
+		return uc.deps.CompGetter.Get(ctx)
+	}
+	if uc.deps.CompRepo != nil {
+		return uc.deps.CompRepo.Get(ctx)
+	}
+	return nil, nil
 }

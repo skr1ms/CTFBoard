@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestTeamRepo_Create(t *testing.T) {
@@ -403,7 +404,7 @@ func TestTeamRepo_CreateAuditLog_Success(t *testing.T) {
 
 	log := &entity.TeamAuditLog{
 		TeamID: team.ID,
-		UserID: team.CaptainID,
+		UserID: &team.CaptainID,
 		Action: entity.TeamActionCreated,
 	}
 	err := f.TeamRepo.CreateAuditLog(ctx, log)
@@ -424,7 +425,7 @@ func TestTeamRepo_CreateAuditLog_Error_CancelledContext(t *testing.T) {
 
 	log := &entity.TeamAuditLog{
 		TeamID: team.ID,
-		UserID: team.CaptainID,
+		UserID: &team.CaptainID,
 		Action: entity.TeamActionCreated,
 	}
 	err := f.TeamRepo.CreateAuditLog(ctx, log)

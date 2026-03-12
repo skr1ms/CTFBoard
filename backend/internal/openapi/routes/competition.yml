@@ -1,5 +1,7 @@
 /competition/status:
   get:
+    operationId: GetCompetitionStatus
+    security: []
     description: Returns competition status (public, no auth)
     responses:
       "200":
@@ -8,12 +10,15 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/CompetitionStatusResponse'
+      "400":
+        description: Bad Request
     summary: Get competition status
     tags:
       - Competition
 
 /admin/competition:
   get:
+    operationId: GetAdminCompetition
     description: Returns full competition config. Admin only.
     responses:
       "200":
@@ -24,14 +29,24 @@
               $ref: '../components/schemas.yml#/CompetitionResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get admin competition
     tags:
       - Admin
   put:
+    operationId: PutAdminCompetition
     description: Updates competition. Admin only.
     requestBody:
       content:
@@ -42,14 +57,31 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update competition
     tags:
       - Admin

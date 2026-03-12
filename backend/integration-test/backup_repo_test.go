@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
@@ -216,7 +217,7 @@ func TestBackupRepo_ImportUsersTx_Success(t *testing.T) {
 
 	data := &entity.BackupData{
 		Users: []entity.UserExport{
-			{ID: user.ID, Username: "updated_user", Email: user.Email, Role: user.Role, TeamID: &team.ID},
+			{ID: user.ID, Username: "updated_user", Email: user.Email, Role: string(user.Role), TeamID: &team.ID},
 		},
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
@@ -240,7 +241,7 @@ func TestBackupRepo_ImportUsersTx_Error_InvalidTeamID(t *testing.T) {
 	badTeamID := uuid.New()
 	data := &entity.BackupData{
 		Users: []entity.UserExport{
-			{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role, TeamID: &badTeamID},
+			{ID: user.ID, Username: user.Username, Email: user.Email, Role: string(user.Role), TeamID: &badTeamID},
 		},
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
@@ -399,7 +400,7 @@ func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 		{Team: *team, MemberIDs: []uuid.UUID{user.ID}},
 	}
 	data.Users = []entity.UserExport{
-		{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role, TeamID: &team.ID},
+		{ID: user.ID, Username: user.Username, Email: user.Email, Role: string(user.Role), TeamID: &team.ID},
 	}
 	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
 

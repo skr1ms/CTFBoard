@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createField = `-- name: CreateField :exec
@@ -18,14 +18,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateFieldParams struct {
-	ID         uuid.UUID  `json:"id"`
-	Name       string     `json:"name"`
-	FieldType  string     `json:"field_type"`
-	EntityType string     `json:"entity_type"`
-	Required   *bool      `json:"required"`
-	Options    []byte     `json:"options"`
-	OrderIndex *int32     `json:"order_index"`
-	CreatedAt  *time.Time `json:"created_at"`
+	ID         uuid.UUID          `json:"id"`
+	Name       string             `json:"name"`
+	FieldType  string             `json:"field_type"`
+	EntityType string             `json:"entity_type"`
+	Required   *bool              `json:"required"`
+	Options    []byte             `json:"options"`
+	OrderIndex *int32             `json:"order_index"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateField(ctx context.Context, arg CreateFieldParams) error {
@@ -58,6 +58,37 @@ DELETE FROM field_values WHERE entity_id = $1
 func (q *Queries) DeleteFieldValuesByEntityID(ctx context.Context, entityID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteFieldValuesByEntityID, entityID)
 	return err
+}
+
+const getAllFieldValues = `-- name: GetAllFieldValues :many
+SELECT id, field_id, entity_id, value, created_at
+FROM field_values ORDER BY field_id, entity_id
+`
+
+func (q *Queries) GetAllFieldValues(ctx context.Context) ([]FieldValue, error) {
+	rows, err := q.db.Query(ctx, getAllFieldValues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FieldValue
+	for rows.Next() {
+		var i FieldValue
+		if err := rows.Scan(
+			&i.ID,
+			&i.FieldID,
+			&i.EntityID,
+			&i.Value,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getAllFields = `-- name: GetAllFields :many
@@ -213,11 +244,11 @@ ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value
 `
 
 type UpsertFieldValueParams struct {
-	ID        uuid.UUID  `json:"id"`
-	FieldID   uuid.UUID  `json:"field_id"`
-	EntityID  uuid.UUID  `json:"entity_id"`
-	Value     string     `json:"value"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	FieldID   uuid.UUID          `json:"field_id"`
+	EntityID  uuid.UUID          `json:"entity_id"`
+	Value     string             `json:"value"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) UpsertFieldValue(ctx context.Context, arg UpsertFieldValueParams) error {

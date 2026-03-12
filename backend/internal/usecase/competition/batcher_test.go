@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 )
 
 func newSub() *entity.Submission {
@@ -180,21 +181,22 @@ func TestSubmissionBatcher_ConcurrentEnqueue_NoRace(t *testing.T) {
 	b.Stop()
 }
 
-func TestSubmissionBatcher_ChannelFull_Drops(t *testing.T) {
+func TestSubmissionBatcher_ChannelFull_SyncWrite(t *testing.T) {
 	t.Parallel()
 	repo := mocks.NewMockSubmissionRepository(t)
 
-	// Block all flushes so the channel fills up.
 	blocked := make(chan struct{})
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ []*entity.Submission) error {
 			<-blocked
 			return nil
 		}).Maybe()
+	for range 100 {
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	}
 
 	b := NewSubmissionBatcher(repo)
 
-	// Overflow the channel (defaultChannelBufSize = 1024)
 	for range defaultChannelBufSize + 100 {
 		b.Enqueue(newSub())
 	}

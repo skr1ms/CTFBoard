@@ -39,7 +39,11 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	description, expiresAt := request.CreateAPITokenRequestToParams(&req)
+	description, expiresAt, err := request.CreateAPITokenRequestToParams(&req)
+	if err != nil {
+		h.OnError(w, r, err, "PostUserTokens", "CreateAPITokenRequestToParams")
+		return
+	}
 	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), userIDParsed, description, expiresAt)
 	if h.OnError(w, r, err, "PostUserTokens", "Create") {
 		return

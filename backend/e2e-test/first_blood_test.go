@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // GET /challenges/{ID}/first-blood: first solver is credited as first blood; response contains username/team.

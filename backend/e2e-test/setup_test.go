@@ -12,6 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
+
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -21,7 +33,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	backup "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email"
@@ -37,17 +49,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type teamBracketGetter struct {
@@ -71,7 +72,7 @@ var (
 // Mocks
 type noOpMailer struct{}
 
-func (m *noOpMailer) Send(ctx context.Context, msg mailer.Message) error {
+func (m *noOpMailer) Send(context.Context, mailer.Message) error {
 	return nil
 }
 
@@ -120,7 +121,7 @@ func GetTestBaseURL() string {
 	return fmt.Sprintf("http://localhost:%s", testPort)
 }
 
-//nolint:gocognit,thelper // test helper: truncates and re-seeds all tables; t can be nil so t.Helper() is guarded
+//nolint:thelper // test helper: truncates and re-seeds all tables; t can be nil so t.Helper() is guarded
 func truncateE2EDB(ctx context.Context, t *testing.T) error {
 	if t != nil {
 		t.Helper()
@@ -140,8 +141,8 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 			return err
 		}
 		_, err = TestPool.Exec(ctx, `INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
-			VALUES (1, 'CTF Competition', false, true, 'flexible', true, 1, 10, NULL, NULL)
-			ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+			VALUES (1, 'CTF Competition', FALSE, TRUE, 'flexible', TRUE, 1, 10, NULL, NULL)
+			ON CONFLICT (id) DO UPDATE set name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
 		if err != nil {
 			return err
 		}
@@ -157,16 +158,16 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
 				updated_at
 			) VALUES (
-				1, 'AstroCTFb', true, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
-				false, 'noreply@astroctfb.local', 'AstroCTFb',
+				1, 'AstroCTFb', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
+				FALSE, 'noreply@astroctfb.local', 'AstroCTFb',
 				24, 1, 10, 1,
-				'public', true,
+				'public', TRUE,
 				1000, 1000,
 				1000, 1000,
 				1000, 1000,
 				1000, 1000,
 				1000, 1000,
-				NOW()
+				now()
 			) ON CONFLICT (id) DO UPDATE SET
 				rate_limit_login_per_minute = 1000,
 				rate_limit_register_per_minute = 1000,
@@ -209,7 +210,7 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 func resetCompetitionToActive() {
 	ctx := context.Background()
 	now := time.Now().UTC()
-	_, err := TestPool.Exec(ctx, `UPDATE competition SET is_paused = false, start_time = $1, end_time = $2, freeze_time = NULL, updated_at = NOW() WHERE id = 1`,
+	_, err := TestPool.Exec(ctx, `UPDATE competition SET is_paused = FALSE, start_time = $1, end_time = $2, freeze_time = NULL, updated_at = now() WHERE id = 1`,
 		now.Add(-1*time.Hour), now.Add(24*time.Hour))
 	if err != nil {
 		panic("resetCompetitionToActive: " + err.Error())
@@ -222,12 +223,42 @@ func resetCompetitionToActive() {
 // and the API PUT call. Pass nil for freezeTime to clear it.
 func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
 	ctx := context.Background()
-	_, err := TestPool.Exec(ctx, `UPDATE competition SET start_time = $1, end_time = $2, freeze_time = $3, is_paused = false, updated_at = NOW() WHERE id = 1`,
+	_, err := TestPool.Exec(ctx, `UPDATE competition SET start_time = $1, end_time = $2, freeze_time = $3, is_paused = FALSE, updated_at = now() WHERE id = 1`,
 		startTime, endTime, freezeTime)
 	if err != nil {
 		panic("setCompetitionTimes: " + err.Error())
 	}
 	_ = TestRedis.Del(ctx, "competition")
+}
+
+func setCompetitionPaused(paused bool) {
+	ctx := context.Background()
+	var err error
+	if paused {
+		_, err = TestPool.Exec(ctx, `UPDATE competition SET is_paused = TRUE, paused_at = NOW(), updated_at = now() WHERE id = 1`)
+	} else {
+		_, err = TestPool.Exec(ctx, `UPDATE competition SET is_paused = FALSE, paused_at = NULL, updated_at = now() WHERE id = 1`)
+	}
+	if err != nil {
+		panic("setCompetitionPaused: " + err.Error())
+	}
+	_ = TestRedis.Del(ctx, "competition")
+}
+
+func invalidateScoreboardCache(ctx context.Context) {
+	if TestRedis == nil {
+		return
+	}
+	c := cache.New(TestRedis)
+	if err := c.Del(ctx, cache.KeyScoreboard); err != nil {
+		return
+	}
+	if err := c.DeleteByPrefix(ctx, cache.KeyScoreboardFrozenPrefix); err != nil {
+		return
+	}
+	if err := c.DeleteByPrefix(ctx, cache.KeyScoreboardBracketPrefix); err != nil {
+		return
+	}
 }
 
 // Infrastructure Setup
@@ -246,7 +277,7 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	postgresC, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("test"),
-		postgres.WithUsername(entity.RoleUser),
+		postgres.WithUsername(string(entity.RoleUser)),
 		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
@@ -382,7 +413,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 
-	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE ID = 1", time.Now().Add(-24*time.Hour)); err != nil {
+	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
 		return fmt.Errorf("update competition start_time: %w", err)
 	}
 	return nil
@@ -504,7 +535,7 @@ func startTestServer() (func(), error) {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("Server error: %v\n", err)
 		}
 	}()
@@ -532,7 +563,10 @@ func initTestDeps() (*testDeps, error) {
 		panic("e2e: failed to create validator: " + err.Error())
 	}
 	jwtRevoker := jwt.NewRedisRevocationStore(TestRedis)
-	jwtService, err := jwt.NewJWTService("test-access-secret-min-32-bytes!", "test-refresh-secret-min32-bytes!", 24*time.Hour, 72*time.Hour, jwtRevoker, nil)
+	jwtService, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: "test-access-secret-min-32-bytes!"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "test-refresh-secret-min32-bytes!"}},
+		24*time.Hour, 72*time.Hour, jwtRevoker, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init JWT service: %w", err)
 	}
@@ -596,7 +630,6 @@ func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 	return tempStorageDir, fileStorage, hub, nil
 }
 
-//nolint:funlen // test wiring: all use-case constructors must be called here
 func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
@@ -647,6 +680,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		AuditLogRepo:    repos.auditLogRepo,
 		TM:              repos.tm,
 		Redis:           &cache.RedisKeyValueStore{Client: TestRedis},
+		ScoreboardCache: scoreboardCache,
 		Logger:          deps.logger,
 	})
 	challengeUC := challenge.NewChallengeUseCase(challenge.ChallengeDeps{
@@ -669,14 +703,16 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	})
 	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
 		HintRepo: repos.hintRepo, AwardRepo: repos.awardRepo,
-		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo, TeamRepo: repos.teamRepo,
-		UserRepo:        repos.userRepo,
-		ChallengeRepo:   repos.challengeRepo,
-		ScoreboardCache: scoreboardCache,
+		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo, CompGetter: compUC,
+		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo,
+		ChallengeRepo: repos.challengeRepo, ScoreboardCache: scoreboardCache,
 	})
-	awardUC := team.NewAwardUseCase(team.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache})
+	awardUC := team.NewAwardUseCase(team.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache, CompRepo: repos.compRepo})
 	statsUC := competition.NewStatisticsUseCase(competition.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: testCache})
-	submissionUC := competition.NewSubmissionUseCase(competition.SubmissionDeps{SubmissionRepo: repos.submissionRepo})
+	submissionUC := competition.NewSubmissionUseCase(competition.SubmissionDeps{
+		SubmissionRepo: repos.submissionRepo,
+		CompGetter:     compUC,
+	})
 	tagUC := challenge.NewTagUseCase(challenge.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
 	fieldUC := settings.NewFieldUseCase(settings.FieldDeps{FieldRepo: repos.fieldRepo})
 	pageUC := page.NewPageUseCase(page.PageDeps{PageRepo: repos.pageRepo})
@@ -684,10 +720,12 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	notifUC := notification.NewNotificationUseCase(notification.NotificationDeps{NotifRepo: repos.notificationRepo, Broadcaster: broadcaster})
 	apiTokenUC := user.NewAPITokenUseCase(user.APITokenDeps{Repo: repos.apiTokenRepo})
 	backupUC := backup.NewBackupUseCase(backup.BackupDeps{
-		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, HintRepo: repos.hintRepo,
+		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, TagRepo: repos.tagRepo, HintRepo: repos.hintRepo,
 		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, AwardRepo: repos.awardRepo,
 		SolveRepo: repos.solveRepo, SubmissionRepo: repos.submissionRepo, FileRepo: repos.fileRepo,
-		BackupRepo: repos.backupRepo, SettingsRepo: repos.SettingsRepo, Storage: fileStorage, TM: repos.tm, Logger: deps.logger,
+		BackupRepo: repos.backupRepo, SettingsRepo: repos.SettingsRepo, AuditLogRepo: repos.auditLogRepo,
+		BracketRepo: repos.bracketRepo, CommentRepo: repos.commentRepo, FieldRepo: repos.fieldRepo, FieldValueRepo: repos.fieldValueRepo,
+		Storage: fileStorage, TM: repos.tm, Logger: deps.logger,
 	})
 	settingsUC := settings.NewSettingsUseCase(settings.SettingsDeps{
 		Repo:         repos.SettingsRepo,
@@ -739,7 +777,7 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
-	r.Use(restapimiddleware.Logger(l))
+	r.Use(restapimiddleware.Logger(l, nil))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -753,6 +791,10 @@ func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, val
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:resend", 10, 24*time.Hour)
 	if err != nil {
 		panic("e2e: failed to create resend-verification rate limiter: " + err.Error())
+	}
+	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:reset-token", 20, time.Minute)
+	if err != nil {
+		panic("e2e: failed to create reset-password-token rate limiter: " + err.Error())
 	}
 
 	deps := &helper.ServerDeps{
@@ -772,6 +814,7 @@ func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, val
 			TrustedProxyCIDRs:             nil,
 			ForgotPasswordRateLimiter:     forgotLimiter,
 			ResendVerificationRateLimiter: resendLimiter,
+			ResetPasswordTokenRateLimiter: resetTokenLimiter,
 		},
 	}
 	r.Route("/api/v1", func(apiRouter chi.Router) {

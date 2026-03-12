@@ -1,13 +1,16 @@
 /fields:
   get:
+    operationId: GetFields
+    security: []
     description: Returns custom fields for registration (filter by entity_type)
     parameters:
       - name: entity_type
         in: query
-        required: true
+        required: false
         schema:
           type: string
           enum: [user, team]
+          default: user
     responses:
       "200":
         description: OK
@@ -17,12 +20,15 @@
               items:
                 $ref: '../components/schemas.yml#/FieldResponse'
               type: array
+      "400":
+        description: Bad Request
     summary: Get fields by entity type
     tags:
       - Fields
 
 /admin/fields:
   post:
+    operationId: PostAdminFields
     description: Creates a custom field. Admin only.
     requestBody:
       content:
@@ -39,18 +45,32 @@
               $ref: '../components/schemas.yml#/FieldResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create field
     tags:
       - Admin
 
 "/admin/fields/{ID}":
   put:
+    operationId: PutAdminFieldsID
     description: Updates a custom field. Admin only.
     parameters:
       - name: ID
@@ -73,18 +93,36 @@
               $ref: '../components/schemas.yml#/FieldResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update field
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminFieldsID
     description: Deletes a custom field. Admin only.
     parameters:
       - name: ID
@@ -97,12 +135,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete field
     tags:
       - Admin

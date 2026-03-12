@@ -1,5 +1,7 @@
 /brackets:
   get:
+    operationId: GetBrackets
+    security: []
     description: Returns list of all brackets (team categories)
     responses:
       "200":
@@ -10,12 +12,15 @@
               items:
                 $ref: '../components/schemas.yml#/BracketResponse'
               type: array
+      "400":
+        description: Bad Request
     summary: Get brackets list
     tags:
       - Brackets
 
 /admin/brackets:
   post:
+    operationId: PostAdminBrackets
     description: Creates a new bracket. Admin only.
     requestBody:
       content:
@@ -32,20 +37,38 @@
               $ref: '../components/schemas.yml#/BracketResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
         description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create bracket
     tags:
       - Admin
 
 "/admin/brackets/{ID}":
   get:
+    operationId: GetAdminBracketsID
     description: Returns bracket by ID. Admin only.
     parameters:
       - name: ID
@@ -62,16 +85,30 @@
               $ref: '../components/schemas.yml#/BracketResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get bracket by ID
     tags:
       - Admin
   put:
+    operationId: PutAdminBracketsID
     description: Updates a bracket. Admin only.
     parameters:
       - name: ID
@@ -94,20 +131,42 @@
               $ref: '../components/schemas.yml#/BracketResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
         description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update bracket
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminBracketsID
     description: Deletes a bracket. Admin only.
     parameters:
       - name: ID
@@ -120,12 +179,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete bracket
     tags:
       - Admin

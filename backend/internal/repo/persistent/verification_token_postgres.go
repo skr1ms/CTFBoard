@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type VerificationTokenRepo struct {
@@ -33,9 +34,9 @@ func toEntityVerificationToken(t sqlc.VerificationToken) *entity.VerificationTok
 		UserID:    t.UserID,
 		Token:     t.Token,
 		Type:      entity.TokenType(t.Type),
-		ExpiresAt: t.ExpiresAt,
-		UsedAt:    t.UsedAt,
-		CreatedAt: ptrTimeToTime(t.CreatedAt),
+		ExpiresAt: ptrTimeToTime(timestamptzToTime(t.ExpiresAt)),
+		UsedAt:    timestamptzToTime(t.UsedAt),
+		CreatedAt: ptrTimeToTime(timestamptzToTime(t.CreatedAt)),
 	}
 }
 
@@ -48,7 +49,7 @@ func (r *VerificationTokenRepo) Create(ctx context.Context, token *entity.Verifi
 		UserID:    token.UserID,
 		Token:     token.Token,
 		Type:      string(token.Type),
-		ExpiresAt: token.ExpiresAt,
+		ExpiresAt: timeToTimestamptz(&token.ExpiresAt),
 	})
 	if err != nil {
 		return fmt.Errorf("VerificationTokenRepo - Create: %w", err)
@@ -75,7 +76,8 @@ func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, ID uuid.UUID) erro
 }
 
 func (r *VerificationTokenRepo) DeleteExpired(ctx context.Context) error {
-	if err := r.q(ctx).DeleteExpiredVerificationTokens(ctx, time.Now()); err != nil {
+	expiresAt := time.Now()
+	if err := r.q(ctx).DeleteExpiredVerificationTokens(ctx, timeToTimestamptz(&expiresAt)); err != nil {
 		return fmt.Errorf("VerificationTokenRepo - DeleteExpired: %w", err)
 	}
 	return nil

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 type AwardUseCase struct {
@@ -21,6 +22,7 @@ type AwardDeps struct {
 	TeamRepo        repo.TeamRepository
 	TM              repo.TransactionManager
 	ScoreboardCache cache.ScoreboardCacheInvalidator
+	CompRepo        repo.CompetitionRepository
 }
 
 var _ usecase.AwardUseCase = (*AwardUseCase)(nil)
@@ -63,6 +65,13 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 	}
 
 	if uc.deps.ScoreboardCache != nil {
+		if uc.deps.CompRepo != nil {
+			comp, err := uc.deps.CompRepo.Get(ctx)
+			if err == nil && comp != nil && comp.IsFreezeActive() {
+				uc.deps.ScoreboardCache.InvalidateLiveOnly(ctx, teamID)
+				return award, nil
+			}
+		}
 		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
 	}
 	return award, nil

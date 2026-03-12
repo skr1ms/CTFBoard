@@ -4,24 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
-	competitionParamCacheTTL = 30 * time.Second
-	loadAllKey               = "competition_params:loadAll"
+	competitionParamCacheTTL  = 30 * time.Second
+	loadAllKey                = "competition_params:loadAll"
+	competitionParamKeyMaxLen = 100
 )
+
+var competitionParamKeyRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 type CompetitionParamUseCase struct {
 	deps     CompetitionParamDeps
@@ -54,6 +59,7 @@ func (uc *CompetitionParamUseCase) invalidate() {
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
 	uc.lastLoad = time.Time{}
+	uc.sf.Forget(loadAllKey)
 }
 
 func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
@@ -72,6 +78,10 @@ func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
 }
 
 func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*entity.CompetitionParam, error) {
+	key = strings.TrimSpace(key)
+	if err := validateCompetitionParamKey(key); err != nil {
+		return nil, err
+	}
 	uc.mu.RLock()
 	cacheValid := time.Since(uc.lastLoad) < competitionParamCacheTTL
 	if cacheValid {
@@ -148,10 +158,23 @@ func (uc *CompetitionParamUseCase) GetAll(ctx context.Context) ([]*entity.Compet
 	return list, nil
 }
 
-func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, description string, valueType entity.CompetitionParamValueType, actorID uuid.UUID, clientIP string) error {
-	key = strings.TrimSpace(key)
+func validateCompetitionParamKey(key string) error {
 	if key == "" {
 		return httperr.ErrCompetitionParamKeyRequired
+	}
+	if len(key) > competitionParamKeyMaxLen {
+		return httperr.NewValidationErrorf("config key must be at most %d characters", competitionParamKeyMaxLen)
+	}
+	if !competitionParamKeyRe.MatchString(key) {
+		return httperr.NewValidationErrorf("config key must contain only letters, digits, dots, underscores and hyphens")
+	}
+	return nil
+}
+
+func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, description string, valueType entity.CompetitionParamValueType, actorID uuid.UUID, clientIP string) error {
+	key = strings.TrimSpace(key)
+	if err := validateCompetitionParamKey(key); err != nil {
+		return err
 	}
 	if err := uc.validateValueType(valueType, value); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - validateValueType: %w", err)
@@ -190,12 +213,12 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 
 func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actorID uuid.UUID, clientIP string) error {
 	key = strings.TrimSpace(key)
-	if key == "" {
-		return httperr.ErrCompetitionParamKeyRequired
+	if err := validateCompetitionParamKey(key); err != nil {
+		return err
 	}
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if _, err := uc.deps.Repo.GetByKey(ctx, key); err != nil {
-			return fmt.Errorf("CompetitionParamUseCase - Delete - CompetitionParamRepo.GetByKey: %w", err)
+		if _, err := uc.deps.Repo.GetByKeyForUpdate(ctx, key); err != nil {
+			return fmt.Errorf("CompetitionParamUseCase - Delete - CompetitionParamRepo.GetByKeyForUpdate: %w", err)
 		}
 		if err := uc.deps.Repo.Delete(ctx, key); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Delete - CompetitionParamRepo.Delete: %w", err)

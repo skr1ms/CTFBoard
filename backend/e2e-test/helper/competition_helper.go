@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func parseTimeField(data map[string]any, key string) *time.Time {
@@ -136,4 +137,17 @@ func (h *E2EHelper) GetAdminCompetitionExpectStatus(token string, expectStatus i
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "admin competition")
 	return resp
+}
+
+func (h *E2EHelper) PollCompetitionStatus(expectedStatus string, timeout time.Duration) bool {
+	h.t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp := h.GetCompetitionStatus()
+		if resp.JSON200 != nil && resp.JSON200.Status != nil && *resp.JSON200.Status == expectedStatus {
+			return true
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return false
 }

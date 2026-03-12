@@ -1,5 +1,7 @@
 /notifications:
   get:
+    operationId: GetNotifications
+    security: []
     description: Returns list of global notifications
     parameters:
       - name: page
@@ -21,12 +23,21 @@
               items:
                 $ref: '../components/schemas.yml#/NotificationResponse'
               type: array
+      "400":
+        description: Bad Request
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get global notifications
     tags:
       - Notifications
 
 /user/notifications:
   get:
+    operationId: GetUserNotifications
     description: Returns list of notifications for current user
     parameters:
       - name: page
@@ -50,14 +61,20 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user notifications
     tags:
       - Notifications
 
 "/user/notifications/{ID}/read":
   patch:
+    operationId: PatchUserNotificationsIDRead
     description: Marks notification as read
     parameters:
       - name: ID
@@ -68,18 +85,38 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Mark notification as read
     tags:
       - Notifications
 
 /admin/notifications:
   post:
+    operationId: PostAdminNotifications
     description: Creates a global notification. Admin only.
     requestBody:
       content:
@@ -96,18 +133,32 @@
               $ref: '../components/schemas.yml#/NotificationResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create global notification
     tags:
       - Admin
 
 "/admin/notifications/user/{userID}":
   post:
+    operationId: PostAdminNotificationsUserUserID
     description: Creates a personal notification for a user. Admin only.
     parameters:
       - name: userID
@@ -130,18 +181,32 @@
               $ref: '../components/schemas.yml#/UserNotificationResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create personal notification
     tags:
       - Admin
 
 "/admin/notifications/{ID}":
   put:
+    operationId: PutAdminNotificationsID
     description: Updates a notification. Admin only.
     parameters:
       - name: ID
@@ -164,18 +229,36 @@
               $ref: '../components/schemas.yml#/NotificationResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update notification
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminNotificationsID
     description: Deletes a notification. Admin only.
     parameters:
       - name: ID
@@ -188,12 +271,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete notification
     tags:
       - Admin

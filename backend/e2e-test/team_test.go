@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 )
 
 // POST /teams/solo + GET /teams/my + POST /teams/join: captain creates solo team; player joins by invite_token; both see same team.
@@ -240,7 +242,7 @@ func TestTeam_Admin_Unban(t *testing.T) {
 	teamID := *team.JSON200.ID
 
 	h.BanTeam(tokenAdmin, teamID, "reason", http.StatusOK)
-	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
+	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 }
 
 // PATCH /admin/teams/{ID}/hidden: admin sets team hidden; returns 200.
@@ -651,7 +653,7 @@ func TestTeam_AdminAddMember_Success(t *testing.T) {
 	userID := h.GetUserIDByEmail(email2)
 	_ = email
 
-	resp, err := h.Client().PostAdminTeamsIDMembersWithResponse(context.Background(), teamID, openapi.AdminAddMemberRequest{UserID: userID}, helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().PostAdminTeamsIDMembersWithResponse(context.Background(), teamID, openapi.AdminAddMemberRequest{UserID: openapi_types.UUID(uuid.MustParse(userID))}, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "admin add member")
 }
@@ -671,7 +673,7 @@ func TestTeam_AdminAddMember_UserNotFound(t *testing.T) {
 	require.NotNil(t, myTeam.JSON200)
 	teamID := *myTeam.JSON200.ID
 
-	resp, err := h.Client().PostAdminTeamsIDMembersWithResponse(context.Background(), teamID, openapi.AdminAddMemberRequest{UserID: uuid.New().String()}, helper.WithBearerToken(tokenAdmin))
+	resp, err := h.Client().PostAdminTeamsIDMembersWithResponse(context.Background(), teamID, openapi.AdminAddMemberRequest{UserID: openapi_types.UUID(uuid.New())}, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "admin add member user not found")
 }
@@ -782,7 +784,7 @@ func TestTeam_GetSolves_Success(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get team id solves")
 }
 
-// GET /teams/{ID}/solves: team not found returns 404.
+// GET /teams/{ID}/solves: non-member gets 403 (access control; does not reveal if team exists).
 func TestTeam_GetSolves_NotFound(t *testing.T) {
 	t.Helper()
 	t.Parallel()
@@ -794,7 +796,7 @@ func TestTeam_GetSolves_NotFound(t *testing.T) {
 
 	resp, err := h.Client().GetTeamsIDSolvesWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "get team id solves not found")
+	helper.RequireStatus(t, http.StatusForbidden, resp.StatusCode(), resp.Body, "get team id solves not own team")
 }
 
 // GET /teams/me/fails: authed gets own team fails.

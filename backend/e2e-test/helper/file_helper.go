@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) DeleteChallengeFile(token, fileID string, expectStatus int) *openapi.DeleteAdminFilesIDResponse {
@@ -69,22 +70,39 @@ func (h *E2EHelper) GetFilesIDDownloadExpectStatus(token, fileID string, expectS
 	return resp
 }
 
-func (h *E2EHelper) DownloadFileContent(token, rawURL string) string {
-	h.t.Helper()
-	downloadURL := rawURL
-	if len(downloadURL) > 0 && downloadURL[0] == '/' {
-		downloadURL = h.baseURL + downloadURL
-	} else {
-		parsed, err := url.Parse(downloadURL)
-		if err == nil {
-			baseParsed, err2 := url.Parse(h.baseURL)
-			if err2 == nil {
-				parsed.Scheme = baseParsed.Scheme
-				parsed.Host = baseParsed.Host
-				downloadURL = parsed.String()
-			}
+func (h *E2EHelper) downloadURLToAbsolute(rawURL string) string {
+	if len(rawURL) > 0 && rawURL[0] == '/' {
+		return h.baseURL + rawURL
+	}
+	parsed, err := url.Parse(rawURL)
+	if err == nil {
+		baseParsed, err2 := url.Parse(h.baseURL)
+		if err2 == nil {
+			parsed.Scheme = baseParsed.Scheme
+			parsed.Host = baseParsed.Host
+			return parsed.String()
 		}
 	}
+	return rawURL
+}
+
+func (h *E2EHelper) GetFileDownloadByURLEXpectStatus(token, rawURL string, expectStatus int) {
+	h.t.Helper()
+	downloadURL := h.downloadURLToAbsolute(rawURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, downloadURL, nil)
+	require.NoError(h.t, err)
+	require.NoError(h.t, WithBearerToken(token)(context.Background(), req))
+	rsp, err := http.DefaultClient.Do(req)
+	require.NoError(h.t, err)
+	defer rsp.Body.Close()
+	body, err := io.ReadAll(rsp.Body)
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, rsp.StatusCode, body, "GET download by URL")
+}
+
+func (h *E2EHelper) DownloadFileContent(token, rawURL string) string {
+	h.t.Helper()
+	downloadURL := h.downloadURLToAbsolute(rawURL)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, downloadURL, nil)
 	require.NoError(h.t, err)
 	require.NoError(h.t, WithBearerToken(token)(context.Background(), req))

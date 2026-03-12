@@ -20,6 +20,30 @@ func (q *Queries) DeleteSolution(ctx context.Context, challengeID uuid.UUID) err
 	return err
 }
 
+const getAllSolutions = `-- name: GetAllSolutions :many
+SELECT id, challenge_id, content FROM solutions ORDER BY challenge_id
+`
+
+func (q *Queries) GetAllSolutions(ctx context.Context) ([]Solution, error) {
+	rows, err := q.db.Query(ctx, getAllSolutions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Solution
+	for rows.Next() {
+		var i Solution
+		if err := rows.Scan(&i.ID, &i.ChallengeID, &i.Content); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSolutionByChallengeID = `-- name: GetSolutionByChallengeID :one
 SELECT id, challenge_id, content FROM solutions WHERE challenge_id = $1
 `
@@ -39,10 +63,12 @@ SELECT
     c.category AS challenge_category
 FROM solutions s
 JOIN challenges c ON c.id = s.challenge_id
-WHERE EXISTS (
+WHERE c.is_hidden = false
+  AND EXISTS (
     SELECT 1 FROM solves sv
     WHERE sv.challenge_id = s.challenge_id
       AND sv.team_id = $1
+      AND sv.banned_team_id IS NULL AND sv.banned_user_id IS NULL
 )
 ORDER BY c.category, c.title
 `

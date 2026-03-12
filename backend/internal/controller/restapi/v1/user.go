@@ -2,6 +2,8 @@ package v1
 
 import (
 	"errors"
+	"io"
+	"net"
 	"net/http"
 	"strings"
 
@@ -84,9 +86,8 @@ func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params 
 		if errors.Is(err, helper.ErrUserBanned) {
 			mapped = helper.ErrUserBanned
 		}
-		if h.OnError(w, r, mapped, "PostAuthRefresh", "RefreshTokens") {
-			return
-		}
+		h.OnError(w, r, mapped, "PostAuthRefresh", "RefreshTokens")
+		return
 	}
 	helper.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
@@ -116,10 +117,16 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 			refreshToken = t
 		}
 	}
-	if refreshToken == "" {
-		var body openapi.LogoutRequest
-		if err := helper.DecodeJSON(r, &body); err == nil && body.RefreshToken != nil {
-			refreshToken = *body.RefreshToken
+	if refreshToken == "" && r.Body != nil && r.ContentLength != 0 {
+		r.Body = io.NopCloser(io.LimitReader(r.Body, 4096))
+		req, ok := helper.DecodeAndValidate[openapi.LogoutRequest](
+			w, r, h.infra.Validator, h.infra.Logger, "PostAuthLogout",
+		)
+		if !ok {
+			return
+		}
+		if req.RefreshToken != nil {
+			refreshToken = *req.RefreshToken
 		}
 	}
 	if refreshToken == "" {
@@ -144,8 +151,12 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 // (GET /users)
 func (h *Server) GetUsers(w http.ResponseWriter, r *http.Request, params openapi.GetUsersParams) {
 	q := ""
-	if params.Q != nil {
-		q = *params.Q
+	if params.Q != nil && *params.Q != "" {
+		if !helper.ValidateSearchQ(*params.Q) {
+			h.OnError(w, r, helper.NewValidationErrorf("invalid search query"), "GetUsers", "Q")
+			return
+		}
+		q = helper.SanitizeSearchQ(*params.Q, 100)
 	}
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
@@ -185,6 +196,15 @@ func (h *Server) GetUsersIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+	if user.ID != userIDParsed && user.Role != entity.RoleAdmin {
+		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDSolves", "AccessCheck")
+		return
+	}
+
 	solves, err := h.user.UserUC.GetUserSolves(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetUsersIDSolves", "GetUserSolves") {
 		return
@@ -208,7 +228,7 @@ func (h *Server) GetUsersMeFails(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFailList(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	helper.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // Get user's failed submissions by user ID
@@ -235,7 +255,7 @@ func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFailList(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	helper.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // Get current user's awards
@@ -262,6 +282,15 @@ func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+	if user.ID != userIDParsed && user.Role != entity.RoleAdmin {
+		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDAwards", "AccessCheck")
+		return
+	}
+
 	awards, err := h.user.UserUC.GetUserAwards(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetUsersIDAwards", "GetUserAwards") {
 		return
@@ -272,14 +301,30 @@ func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID str
 
 // List users (admin) with search and pagination
 // (GET /admin/users)
+var allowedUserListFields = map[string]bool{"username": true, "ip": true}
+
 func (h *Server) GetAdminUsers(w http.ResponseWriter, r *http.Request, params openapi.GetAdminUsersParams) {
-	var q *string
-	if params.Q != nil && *params.Q != "" {
-		q = params.Q
-	}
 	field := defaultUserSortField
 	if params.Field != nil {
 		field = string(*params.Field)
+	}
+	if !allowedUserListFields[field] {
+		h.OnError(w, r, helper.NewValidationErrorf("field must be one of: username, ip"), "GetAdminUsers", "Field")
+		return
+	}
+	var q *string
+	if params.Q != nil && *params.Q != "" {
+		raw := *params.Q
+		if !helper.ValidateSearchQ(raw) {
+			h.OnError(w, r, helper.NewValidationErrorf("invalid search query"), "GetAdminUsers", "Q")
+			return
+		}
+		if field == "ip" && net.ParseIP(raw) == nil {
+			h.OnError(w, r, helper.NewValidationErrorf("invalid IP address"), "GetAdminUsers", "Q")
+			return
+		}
+		s := helper.SanitizeSearchQ(raw, 100)
+		q = &s
 	}
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
@@ -347,12 +392,7 @@ func (h *Server) DeleteAdminUsersID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	if actor.ID == userIDParsed {
-		h.OnError(w, r, helper.NewValidationErrorf("cannot delete your own account"), "DeleteAdminUsersID", "SelfDelete")
-		return
-	}
-
-	if h.OnError(w, r, h.user.UserUC.AdminDelete(r.Context(), userIDParsed), "DeleteAdminUsersID", "AdminDelete") {
+	if h.OnError(w, r, h.user.UserUC.AdminDelete(r.Context(), userIDParsed, actor.ID), "DeleteAdminUsersID", "AdminDelete") {
 		return
 	}
 
@@ -445,7 +485,7 @@ func (h *Server) GetUsersMeSubmissions(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
+	helper.RenderOK(w, r, response.FromSubmissionListPublic(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get user IP tracking (admin)

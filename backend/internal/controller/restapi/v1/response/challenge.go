@@ -9,6 +9,9 @@ import (
 )
 
 func FromChallenge(c *entity.Challenge) openapi.ChallengeResponse {
+	if c == nil {
+		return openapi.ChallengeResponse{}
+	}
 	return openapi.ChallengeResponse{
 		ID:          ptr(c.ID.String()),
 		Title:       ptr(c.Title),
@@ -21,6 +24,9 @@ func FromChallenge(c *entity.Challenge) openapi.ChallengeResponse {
 }
 
 func FromChallengeWithSolved(cws *entity.ChallengeWithSolved) openapi.ChallengeResponse {
+	if cws == nil {
+		return openapi.ChallengeResponse{}
+	}
 	res := FromChallenge(cws.Challenge)
 	res.Solved = ptr(cws.Solved)
 	return res
@@ -190,10 +196,10 @@ func FromChallengeSolution(sol *entity.ChallengeSolution, downloadURLs map[strin
 	return res
 }
 
-func FromChallengeSolutionEntryList(entries []*entity.ChallengeSolutionEntry, downloadURLsByEntry func(e *entity.ChallengeSolutionEntry) map[string]string) []openapi.ChallengeSolutionEntry {
+func FromChallengeSolutionEntryList(entries []*entity.ChallengeSolutionEntry, downloadURLs map[string]string) []openapi.ChallengeSolutionEntry {
 	res := make([]openapi.ChallengeSolutionEntry, len(entries))
 	for i, entry := range entries {
-		res[i] = FromChallengeSolutionEntry(entry, downloadURLsByEntry(entry))
+		res[i] = FromChallengeSolutionEntry(entry, downloadURLs)
 	}
 	return res
 }

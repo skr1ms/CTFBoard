@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createAuditLog = `-- name: CreateAuditLog :one
@@ -28,8 +28,8 @@ type CreateAuditLogParams struct {
 }
 
 type CreateAuditLogRow struct {
-	ID        uuid.UUID  `json:"id"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (CreateAuditLogRow, error) {

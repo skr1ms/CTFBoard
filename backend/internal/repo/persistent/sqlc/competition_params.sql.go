@@ -67,6 +67,24 @@ func (q *Queries) GetConfigByKey(ctx context.Context, key string) (CompetitionPa
 	return i, err
 }
 
+const getConfigByKeyForUpdate = `-- name: GetConfigByKeyForUpdate :one
+SELECT key, value, value_type, description, updated_at
+FROM configs WHERE key = $1 FOR UPDATE
+`
+
+func (q *Queries) GetConfigByKeyForUpdate(ctx context.Context, key string) (CompetitionParam, error) {
+	row := q.db.QueryRow(ctx, getConfigByKeyForUpdate, key)
+	var i CompetitionParam
+	err := row.Scan(
+		&i.Key,
+		&i.Value,
+		&i.ValueType,
+		&i.Description,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const upsertConfig = `-- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, updated_at)
 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)

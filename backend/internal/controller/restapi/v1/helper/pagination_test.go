@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
 )
 
 func TestNormalizePerPage_Default(t *testing.T) {

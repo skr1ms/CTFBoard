@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockBackupRepository creates a new instance of MockBackupRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -204,6 +203,63 @@ func (_c *MockBackupRepository_ImportAwards_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// ImportBrackets provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportBrackets(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportBrackets")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportBrackets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportBrackets'
+type MockBackupRepository_ImportBrackets_Call struct {
+	*mock.Call
+}
+
+// ImportBrackets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportBrackets(ctx interface{}, data interface{}) *MockBackupRepository_ImportBrackets_Call {
+	return &MockBackupRepository_ImportBrackets_Call{Call: _e.mock.On("ImportBrackets", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportBrackets_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportBrackets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportBrackets_Call) Return(err error) *MockBackupRepository_ImportBrackets_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportBrackets_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportBrackets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ImportCSV provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) ImportCSV(ctx context.Context, tableName string, header []string, rows [][]string) (int, []string, error) {
 	ret := _mock.Called(ctx, tableName, header, rows)
@@ -290,6 +346,120 @@ func (_c *MockBackupRepository_ImportCSV_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// ImportChallengeRequirements provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportChallengeRequirements(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportChallengeRequirements")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportChallengeRequirements_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportChallengeRequirements'
+type MockBackupRepository_ImportChallengeRequirements_Call struct {
+	*mock.Call
+}
+
+// ImportChallengeRequirements is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportChallengeRequirements(ctx interface{}, data interface{}) *MockBackupRepository_ImportChallengeRequirements_Call {
+	return &MockBackupRepository_ImportChallengeRequirements_Call{Call: _e.mock.On("ImportChallengeRequirements", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportChallengeRequirements_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportChallengeRequirements_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeRequirements_Call) Return(err error) *MockBackupRepository_ImportChallengeRequirements_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeRequirements_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportChallengeRequirements_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportChallengeTags provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportChallengeTags(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportChallengeTags")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportChallengeTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportChallengeTags'
+type MockBackupRepository_ImportChallengeTags_Call struct {
+	*mock.Call
+}
+
+// ImportChallengeTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportChallengeTags(ctx interface{}, data interface{}) *MockBackupRepository_ImportChallengeTags_Call {
+	return &MockBackupRepository_ImportChallengeTags_Call{Call: _e.mock.On("ImportChallengeTags", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportChallengeTags_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportChallengeTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeTags_Call) Return(err error) *MockBackupRepository_ImportChallengeTags_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeTags_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportChallengeTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ImportChallenges provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) ImportChallenges(ctx context.Context, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, data)
@@ -347,6 +517,63 @@ func (_c *MockBackupRepository_ImportChallenges_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// ImportComments provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportComments(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportComments")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportComments'
+type MockBackupRepository_ImportComments_Call struct {
+	*mock.Call
+}
+
+// ImportComments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportComments(ctx interface{}, data interface{}) *MockBackupRepository_ImportComments_Call {
+	return &MockBackupRepository_ImportComments_Call{Call: _e.mock.On("ImportComments", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportComments_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportComments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportComments_Call) Return(err error) *MockBackupRepository_ImportComments_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportComments_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportComments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ImportCompetition provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) ImportCompetition(ctx context.Context, comp *entity.Competition) error {
 	ret := _mock.Called(ctx, comp)
@@ -400,6 +627,120 @@ func (_c *MockBackupRepository_ImportCompetition_Call) Return(err error) *MockBa
 }
 
 func (_c *MockBackupRepository_ImportCompetition_Call) RunAndReturn(run func(ctx context.Context, comp *entity.Competition) error) *MockBackupRepository_ImportCompetition_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportFieldValues provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportFieldValues(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportFieldValues")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportFieldValues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportFieldValues'
+type MockBackupRepository_ImportFieldValues_Call struct {
+	*mock.Call
+}
+
+// ImportFieldValues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportFieldValues(ctx interface{}, data interface{}) *MockBackupRepository_ImportFieldValues_Call {
+	return &MockBackupRepository_ImportFieldValues_Call{Call: _e.mock.On("ImportFieldValues", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportFieldValues_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportFieldValues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportFieldValues_Call) Return(err error) *MockBackupRepository_ImportFieldValues_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportFieldValues_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportFieldValues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportFields provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportFields(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportFields")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportFields'
+type MockBackupRepository_ImportFields_Call struct {
+	*mock.Call
+}
+
+// ImportFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportFields(ctx interface{}, data interface{}) *MockBackupRepository_ImportFields_Call {
+	return &MockBackupRepository_ImportFields_Call{Call: _e.mock.On("ImportFields", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportFields_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportFields_Call) Return(err error) *MockBackupRepository_ImportFields_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportFields_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportFields_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -518,6 +859,63 @@ func (_c *MockBackupRepository_ImportHintUnlocks_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// ImportSolutions provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportSolutions(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportSolutions")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportSolutions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportSolutions'
+type MockBackupRepository_ImportSolutions_Call struct {
+	*mock.Call
+}
+
+// ImportSolutions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportSolutions(ctx interface{}, data interface{}) *MockBackupRepository_ImportSolutions_Call {
+	return &MockBackupRepository_ImportSolutions_Call{Call: _e.mock.On("ImportSolutions", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportSolutions_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportSolutions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportSolutions_Call) Return(err error) *MockBackupRepository_ImportSolutions_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportSolutions_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportSolutions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ImportSolves provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) ImportSolves(ctx context.Context, data *entity.BackupData) error {
 	ret := _mock.Called(ctx, data)
@@ -571,6 +969,63 @@ func (_c *MockBackupRepository_ImportSolves_Call) Return(err error) *MockBackupR
 }
 
 func (_c *MockBackupRepository_ImportSolves_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportSolves_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportTags provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportTags(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportTags")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportTags'
+type MockBackupRepository_ImportTags_Call struct {
+	*mock.Call
+}
+
+// ImportTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) ImportTags(ctx interface{}, data interface{}) *MockBackupRepository_ImportTags_Call {
+	return &MockBackupRepository_ImportTags_Call{Call: _e.mock.On("ImportTags", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportTags_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_ImportTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportTags_Call) Return(err error) *MockBackupRepository_ImportTags_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportTags_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_ImportTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -697,6 +1152,63 @@ func (_c *MockBackupRepository_ImportUsers_Call) Return(err error) *MockBackupRe
 }
 
 func (_c *MockBackupRepository_ImportUsers_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error) *MockBackupRepository_ImportUsers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateUserTeamIDs provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) UpdateUserTeamIDs(ctx context.Context, data *entity.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateUserTeamIDs")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *entity.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_UpdateUserTeamIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateUserTeamIDs'
+type MockBackupRepository_UpdateUserTeamIDs_Call struct {
+	*mock.Call
+}
+
+// UpdateUserTeamIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *entity.BackupData
+func (_e *MockBackupRepository_Expecter) UpdateUserTeamIDs(ctx interface{}, data interface{}) *MockBackupRepository_UpdateUserTeamIDs_Call {
+	return &MockBackupRepository_UpdateUserTeamIDs_Call{Call: _e.mock.On("UpdateUserTeamIDs", ctx, data)}
+}
+
+func (_c *MockBackupRepository_UpdateUserTeamIDs_Call) Run(run func(ctx context.Context, data *entity.BackupData)) *MockBackupRepository_UpdateUserTeamIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *entity.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*entity.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_UpdateUserTeamIDs_Call) Return(err error) *MockBackupRepository_UpdateUserTeamIDs_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_UpdateUserTeamIDs_Call) RunAndReturn(run func(ctx context.Context, data *entity.BackupData) error) *MockBackupRepository_UpdateUserTeamIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/stretchr/testify/require"
 )
 
 // POST /challenges/{challengeID}/hints/{hintID}/unlock: hint locked until user has points; unlock deducts cost; score reflects deduction.
@@ -147,6 +148,25 @@ func TestHint_Unlock_NotFound(t *testing.T) {
 	_, _, tokenUser := h.RegisterUserAndLogin("unlock_user")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.UnlockHint(tokenUser, challengeID, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
+}
+
+// GET /challenges/{id}/hints: when challenge has unmet requirements (locked) returns 404.
+func TestHint_LockedChallenge_HintsReturnNotFound(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := helper.UID()
+	_, tokenAdmin := h.SetupCompetition("admin_hint_locked_" + suffix)
+	prereqID := h.CreateBasicChallenge(tokenAdmin, "Prereq Hint", "flag{ph}", 50)
+	mainID := h.CreateBasicChallenge(tokenAdmin, "Main Hint Locked", "flag{mh}", 100)
+	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
+	h.CreateHint(tokenAdmin, mainID, "Hint on locked challenge", 0)
+
+	_, _, tokenUser := h.RegisterUserAndLogin("hint_locked_user_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	h.GetChallengesChallengeIDHintsExpectStatus(tokenUser, mainID, http.StatusNotFound)
 }
 
 // GET /admin/unlocks: admin lists all hint unlocks paginated.

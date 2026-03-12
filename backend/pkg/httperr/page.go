@@ -21,6 +21,11 @@ var (
 		StatusCode: http.StatusBadRequest,
 		Code:       "PAGE_SLUG_REQUIRED",
 	}
+	ErrPageSlugInvalid = &HTTPError{
+		Err:        errors.New("invalid page slug format"),
+		StatusCode: http.StatusBadRequest,
+		Code:       "PAGE_SLUG_INVALID",
+	}
 	ErrPageTitleRequired = &HTTPError{
 		Err:        errors.New("title is required"),
 		StatusCode: http.StatusBadRequest,

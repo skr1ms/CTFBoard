@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
-	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -46,11 +46,13 @@ type SolveDeps struct {
 
 var _ usecase.SolveUseCase = (*SolveUseCase)(nil)
 
-// localCacheRegistrar is a structural interface satisfied by cache.ScoreboardCacheService.
-// Using a local interface avoids importing the concrete type and keeps the dependency
-// flowing in the right direction.
 type localCacheRegistrar interface {
 	RegisterLocalCache(fn func())
+}
+
+type localCacheLiveOnlyRegistrar interface {
+	RegisterLocalCache(fn func())
+	RegisterLocalCacheLiveOnly(fn func(keys []string))
 }
 
 func NewSolveUseCase(deps SolveDeps) *SolveUseCase {
@@ -61,9 +63,10 @@ func NewSolveUseCase(deps SolveDeps) *SolveUseCase {
 		deps:            deps,
 		localScoreCache: cache.NewTTLCache[string, []*entity.ScoreboardEntry](localScoreboardTTL, localScoreCacheCapacity),
 	}
-	// If the scoreboard cache service supports local-cache registration, hook in
-	// so that external invalidations (awards, bans, etc.) also clear localScoreCache.
-	if r, ok := deps.ScoreboardCache.(localCacheRegistrar); ok {
+	if r, ok := deps.ScoreboardCache.(localCacheLiveOnlyRegistrar); ok {
+		r.RegisterLocalCache(uc.ClearLocalScoreCache)
+		r.RegisterLocalCacheLiveOnly(uc.ClearLocalScoreCacheLiveOnly)
+	} else if r, ok := deps.ScoreboardCache.(localCacheRegistrar); ok {
 		r.RegisterLocalCache(uc.ClearLocalScoreCache)
 	}
 	return uc
@@ -92,7 +95,13 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *entity.Solve) error {
 		uc.deps.ChallengeListCache.InvalidateForTeam(ctx, solve.TeamID)
 	}
 	if uc.deps.Broadcaster != nil && solvedChallenge != nil {
-		uc.deps.Broadcaster.NotifySolve(solve.TeamID, solvedChallenge.Title, solvedChallenge.Points, isFirstBlood)
+		comp, err := uc.getCompetition(ctx)
+		if err != nil && uc.deps.Logger != nil {
+			uc.deps.Logger.WithError(err).Warn("SolveUseCase - Create - getCompetition")
+		}
+		if comp == nil || !comp.IsFreezeActive() {
+			uc.deps.Broadcaster.NotifySolve(solve.TeamID, solvedChallenge.Title, solvedChallenge.Points, isFirstBlood)
+		}
 	}
 	return nil
 }
@@ -115,23 +124,25 @@ func (uc *SolveUseCase) getCompetition(ctx context.Context) (*entity.Competition
 	return nil, nil
 }
 
-//nolint:gocognit,gocyclo // team resolution + ban + competition-time + mode + min-size checks
 func (uc *SolveUseCase) solveCreateResolveTeamID(ctx context.Context, solve *entity.Solve) error {
+	if err := uc.deps.UserRepo.Lock(ctx, solve.UserID); err != nil {
+		return fmt.Errorf("SolveUseCase - Create - UserRepo.Lock: %w", err)
+	}
+	user, err := uc.deps.UserRepo.GetByID(ctx, solve.UserID)
+	if err != nil {
+		return fmt.Errorf("SolveUseCase - Create - UserRepo.GetByID: %w", err)
+	}
+	if user.IsBanned {
+		return httperr.ErrUserBanned
+	}
 	if solve.TeamID == uuid.Nil {
-		if err := uc.deps.UserRepo.Lock(ctx, solve.UserID); err != nil {
-			return fmt.Errorf("SolveUseCase - Create - UserRepo.Lock: %w", err)
-		}
-		user, err := uc.deps.UserRepo.GetByID(ctx, solve.UserID)
-		if err != nil {
-			return fmt.Errorf("SolveUseCase - Create - UserRepo.GetByID: %w", err)
-		}
-		if user.IsBanned {
-			return httperr.ErrUserBanned
-		}
 		if user.TeamID == nil {
 			return httperr.ErrNoTeamSelected
 		}
 		solve.TeamID = *user.TeamID
+	}
+	if user.TeamID == nil || *user.TeamID != solve.TeamID {
+		return httperr.ErrNoTeamSelected
 	}
 	if uc.deps.TeamRepo != nil {
 		if err := uc.deps.TeamRepo.Lock(ctx, solve.TeamID); err != nil {
@@ -144,9 +155,19 @@ func (uc *SolveUseCase) solveCreateResolveTeamID(ctx context.Context, solve *ent
 		if team.IsBanned {
 			return httperr.ErrTeamBanned
 		}
-		comp, err := uc.getCompetition(ctx)
-		if err != nil {
-			return fmt.Errorf("SolveUseCase - Create - getCompetition: %w", err)
+		var comp *entity.Competition
+		if uc.deps.CompetitionRepo != nil {
+			c, errGet := uc.deps.CompetitionRepo.GetForUpdate(ctx)
+			if errGet != nil && !errors.Is(errGet, httperr.ErrCompetitionNotFound) {
+				return fmt.Errorf("SolveUseCase - Create - CompetitionRepo.GetForUpdate: %w", errGet)
+			}
+			comp = c
+		} else {
+			c, errGet := uc.getCompetition(ctx)
+			if errGet != nil {
+				return fmt.Errorf("SolveUseCase - Create - getCompetition: %w", errGet)
+			}
+			comp = c
 		}
 		if comp != nil {
 			if !comp.IsSubmissionAllowed() {
@@ -180,59 +201,45 @@ func (uc *SolveUseCase) solveCreateUpsert(ctx context.Context, solve *entity.Sol
 	if challenge.IsHidden {
 		return nil, false, httperr.ErrChallengeNotFound
 	}
-	existing, err := uc.deps.SolveRepo.GetByTeamAndChallengeForUpdate(ctx, solve.TeamID, solve.ChallengeID)
-	if err == nil && existing != nil {
-		return nil, false, httperr.ErrAlreadySolved
-	}
-	if err != nil && !errors.Is(err, httperr.ErrSolveNotFound) {
-		return nil, false, fmt.Errorf("SolveUseCase - Create - SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
-	}
-	newCount, err := uc.deps.ChallengeRepo.IncrementSolveCount(ctx, solve.ChallengeID)
+	solveCount, err := RecordSolveInTx(ctx, solve, challenge, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
 	if err != nil {
-		return nil, false, fmt.Errorf("SolveUseCase - Create - ChallengeRepo.IncrementSolveCount: %w", err)
+		return nil, false, fmt.Errorf("SolveUseCase - Create - RecordSolveInTx: %w", err)
 	}
-	isFirstBlood := newCount == 1
-	pointsAtSolve, err := scoring.ApplySolveScore(ctx,
-		challenge.InitialValue, challenge.MinValue, challenge.Decay, challenge.Points, newCount,
-		func(ctx context.Context, pts int) error {
-			if err := uc.deps.ChallengeRepo.UpdatePoints(ctx, challenge.ID, pts); err != nil {
-				return fmt.Errorf("SolveUseCase - Create - ChallengeRepo.UpdatePoints: %w", err)
-			}
-			challenge.Points = pts
-			return nil
-		},
-	)
-	if err != nil {
-		return nil, false, fmt.Errorf("SolveUseCase - Create - ApplySolveScore: %w", err)
-	}
-	solve.PointsAtSolve = pointsAtSolve
-	if err := uc.deps.SolveRepo.Create(ctx, solve); err != nil {
-		return nil, false, fmt.Errorf("SolveUseCase - Create - SolveRepo.Create: %w", err)
-	}
-	return challenge, isFirstBlood, nil
+	return challenge, solveCount == 1, nil
 }
 
-func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID) ([]*entity.ScoreboardEntry, error) {
+func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID, forceLive bool) ([]*entity.ScoreboardEntry, error) {
 	comp, err := uc.getCompetition(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("SolveUseCase - GetScoreboard - getCompetition: %w", err)
 	}
 
-	cacheKey, frozen := uc.getScoreboardCacheKey(comp, bracketID)
+	cacheKey, frozen := uc.getScoreboardCacheKey(comp, bracketID, forceLive)
 
 	if entries, ok := uc.localScoreCache.Get(cacheKey); ok {
 		return entries, nil
 	}
 
 	v, err, _ := uc.scoreboardSF.Do(cacheKey, func() (any, error) {
+		sfCtx := context.WithoutCancel(ctx)
 		if entries, ok := uc.localScoreCache.Get(cacheKey); ok {
 			return entries, nil
 		}
-		entries, err := cache.GetOrLoad(uc.deps.Cache, ctx, cacheKey, scoreboardRedisTTL, func() ([]*entity.ScoreboardEntry, error) {
-			if frozen {
-				return uc.deps.SolveRepo.GetScoreboardByBracketFrozen(ctx, *comp.FreezeTime, bracketID)
+		entries, err := cache.GetOrLoad(uc.deps.Cache, sfCtx, cacheKey, scoreboardRedisTTL, func() ([]*entity.ScoreboardEntry, error) {
+			var result []*entity.ScoreboardEntry
+			errRO := uc.deps.TM.ReadOnly(sfCtx, func(roCtx context.Context) error {
+				var err2 error
+				if frozen {
+					result, err2 = uc.deps.SolveRepo.GetScoreboardByBracketFrozen(roCtx, *comp.FreezeTime, bracketID)
+				} else {
+					result, err2 = uc.deps.SolveRepo.GetScoreboardByBracket(roCtx, bracketID)
+				}
+				return err2
+			})
+			if errRO != nil {
+				return nil, errRO
 			}
-			return uc.deps.SolveRepo.GetScoreboardByBracket(ctx, bracketID)
+			return result, nil
 		})
 		if err != nil {
 			return nil, fmt.Errorf("SolveUseCase - GetScoreboard - cache.GetOrLoad: %w", err)
@@ -250,35 +257,49 @@ func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID)
 	return entries, nil
 }
 
-func (uc *SolveUseCase) getScoreboardCacheKey(comp *entity.Competition, bracketID *uuid.UUID) (string, bool) {
-	frozen := comp != nil && comp.GetStatus() == entity.CompetitionStatusFrozen
+// getScoreboardCacheKey returns the cache key and whether the scoreboard is frozen.
+// When the competition ends naturally (end_time passes without admin Update), the next
+// request uses the live key because IsFreezeActive() is false; frozen cache entries
+// may still be present until TTL expiry (localScoreboardTTL + scoreboardRedisTTL).
+// Frozen keys include freeze_time so that cache is invalidated when freeze_time shifts (e.g. on unpause).
+func (uc *SolveUseCase) getScoreboardCacheKey(comp *entity.Competition, bracketID *uuid.UUID, forceLive bool) (string, bool) {
+	frozen := !forceLive && comp != nil && comp.IsFreezeActive()
 	if bracketID == nil || *bracketID == uuid.Nil {
 		if frozen {
-			return cache.KeyScoreboardFrozen, true
+			return cache.KeyScoreboardFrozenAt(comp.FreezeTime.Unix()), true
 		}
 		return cache.KeyScoreboard, false
 	}
 	idStr := bracketID.String()
 	if frozen {
-		return cache.KeyScoreboardBracketFrozen(idStr), true
+		return cache.KeyScoreboardBracketFrozenAt(idStr, comp.FreezeTime.Unix()), true
 	}
 	return cache.KeyScoreboardBracket(idStr), false
 }
 
 func (uc *SolveUseCase) invalidateScoreboardCache(ctx context.Context, teamID uuid.UUID) {
-	if uc.deps.ScoreboardCache != nil {
-		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
+	if uc.deps.ScoreboardCache == nil {
+		return
 	}
+	comp, err := uc.getCompetition(ctx)
+	if err == nil && comp != nil && comp.IsFreezeActive() {
+		uc.deps.ScoreboardCache.InvalidateLiveOnly(ctx, teamID)
+		return
+	}
+	uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
 }
 
-// ClearLocalScoreCache evicts all entries from the in-process scoreboard TTL
-// cache. It is registered as a hook on ScoreboardCacheService so that external
-// invalidations (e.g. award creation, team ban) also clear this layer.
 func (uc *SolveUseCase) ClearLocalScoreCache() {
 	uc.localScoreCache.DeleteAll()
 }
 
-func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*entity.FirstBloodEntry, error) {
+func (uc *SolveUseCase) ClearLocalScoreCacheLiveOnly(keys []string) {
+	for _, key := range keys {
+		uc.localScoreCache.Delete(key)
+	}
+}
+
+func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*entity.FirstBloodEntry, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveUseCase - GetFirstBlood - ChallengeRepo.GetByID: %w", err)
@@ -286,6 +307,19 @@ func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID
 	if challenge.IsHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
+
+	comp, err := uc.getCompetition(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("SolveUseCase - GetFirstBlood - getCompetition: %w", err)
+	}
+	if !forceLive && comp != nil && comp.IsFreezeActive() {
+		entry, err := uc.deps.SolveRepo.GetFirstBloodFrozen(ctx, challengeID, *comp.FreezeTime)
+		if err != nil {
+			return nil, fmt.Errorf("SolveUseCase - GetFirstBlood - SolveRepo.GetFirstBloodFrozen: %w", err)
+		}
+		return entry, nil
+	}
+
 	entry, err := uc.deps.SolveRepo.GetFirstBlood(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveUseCase - GetFirstBlood - SolveRepo.GetFirstBlood: %w", err)

@@ -1,5 +1,6 @@
 /admin/settings:
   get:
+    operationId: GetAdminSettings
     description: Returns app settings. Admin only.
     responses:
       "200":
@@ -10,14 +11,24 @@
               $ref: '../components/schemas.yml#/AppSettingsResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get admin settings
     tags:
       - Admin
   put:
+    operationId: PutAdminSettings
     description: Updates app settings. Admin only.
     requestBody:
       content:
@@ -28,14 +39,31 @@
     responses:
       "200":
         description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Update admin settings
     tags:
       - Admin

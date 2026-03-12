@@ -76,8 +76,6 @@ jobs:
         run: go list -json -m all > go.list
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@main
-        with:
-          file: backend/go.list
 
   test:
     name: runner / tests
@@ -93,10 +91,27 @@ jobs:
           go mod download
           make test-race
 
+  codegen-verify:
+    name: runner / codegen-verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Install tools and generate
+        working-directory: backend
+        run: |
+          go mod download
+          make install-tools
+          make generate
+      - name: Verify codegen is up to date
+        run: git diff --exit-code
+
   backend-build:
     name: runner / backend-build
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test]
+    needs: [golangci-lint, test, codegen-verify]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -117,7 +132,7 @@ jobs:
   backend-build-cleanup:
     name: runner / backend-build-cleanup
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test]
+    needs: [golangci-lint, test, codegen-verify]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -138,7 +153,7 @@ jobs:
   backend-docker-build:
     name: runner / backend-docker-build
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test]
+    needs: [golangci-lint, test, codegen-verify]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -173,7 +188,7 @@ jobs:
           if [ "$LOAD_TEST_SHORT" = "true" ]; then
             make test-load-report
           else
-            make test-load-report LOAD_TEST_SOAK=1
+            make test-load-report-full
           fi
       - name: Upload load test reports
         if: always()

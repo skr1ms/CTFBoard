@@ -1,5 +1,6 @@
 /admin/awards:
   get:
+    operationId: GetAdminAwards
     description: Returns list of all awards. Admin only.
     parameters:
       - name: team_id
@@ -19,14 +20,24 @@
               type: array
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: List all awards
     tags:
       - Admin
   post:
+    operationId: PostAdminAwards
     description: Creates a new award (bonus or penalty) for a team. Admin only.
     requestBody:
       content:
@@ -62,12 +73,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Create award
     tags:
       - Admin
 
 "/admin/awards/{ID}":
   get:
+    operationId: GetAdminAwardsID
     description: Returns a specific award by ID. Admin only.
     parameters:
       - description: Award ID
@@ -85,16 +98,30 @@
               $ref: '../components/schemas.yml#/AwardResponse'
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get award by ID
     tags:
       - Admin
   delete:
+    operationId: DeleteAdminAwardsID
     description: Deletes an award. Admin only.
     parameters:
       - description: Award ID
@@ -108,18 +135,32 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete award
     tags:
       - Admin
 
 "/admin/awards/team/{teamID}":
   get:
+    operationId: GetAdminAwardsTeamTeamID
     description: Returns list of awards for a team. Admin only.
     parameters:
       - description: Team ID
@@ -155,8 +196,15 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (team does not exist)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get awards by team
     tags:
       - Admin

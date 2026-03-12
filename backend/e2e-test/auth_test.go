@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // POST /auth/register + POST /auth/login + GET /auth/me via generated OpenAPI client.
@@ -227,6 +228,64 @@ func TestAuth_Refresh_InvalidToken(t *testing.T) {
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "refresh without token")
 
 	h.Refresh("invalid-refresh-token", http.StatusUnauthorized)
+}
+
+// POST /auth/refresh: admin with WasInBannedTeam can refresh tokens (policy allows admins).
+func TestAuth_Refresh_AdminWasInBannedTeam_Success(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	email, password, tokenAdmin := h.RegisterAdmin("admin_refresh_ban_" + helper.UID())
+	me := h.GetMe(tokenAdmin, http.StatusOK)
+	require.NotNil(t, me.JSON200)
+	require.NotNil(t, me.JSON200.ID)
+	adminID := *me.JSON200.ID
+
+	_, err := h.Pool().Exec(context.Background(), "UPDATE users SET was_in_banned_team = true WHERE id = $1", adminID)
+	require.NoError(t, err)
+	if h.Redis() != nil {
+		var cursor uint64
+		for {
+			keys, next, err := h.Redis().Scan(context.Background(), cursor, "user:*", 100).Result()
+			require.NoError(t, err)
+			if len(keys) > 0 {
+				require.NoError(t, h.Redis().Del(context.Background(), keys...).Err())
+			}
+			cursor = next
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+
+	loginResp := h.Login(email, password, http.StatusOK)
+	require.NotNil(t, loginResp.JSON200)
+	require.NotNil(t, loginResp.JSON200.RefreshToken)
+	refreshToken := "Bearer " + *loginResp.JSON200.RefreshToken
+
+	refreshResp := h.Refresh(refreshToken, http.StatusOK)
+	helper.RequireRefreshOK(t, refreshResp)
+}
+
+// POST /auth/register: invalid custom_fields key (non-UUID) returns 400.
+func TestAuth_Register_InvalidCustomFieldKey_Returns400(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	uid := helper.UID()
+	username := "reg_inv_cf_" + uid
+	email := username + "@example.com"
+	password := "ValidPass1"
+	invalidKey := "not-a-uuid"
+	req := openapi.PostAuthRegisterJSONRequestBody{
+		Username:     &username,
+		Email:        &email,
+		Password:     &password,
+		CustomFields: &map[string]string{invalidKey: "value"},
+	}
+	resp, err := h.Client().PostAuthRegisterWithResponse(context.Background(), req)
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusBadRequest, resp.StatusCode(), resp.Body, "register invalid custom field key")
 }
 
 // POST /auth/logout: valid refresh token returns 204 NoContent.

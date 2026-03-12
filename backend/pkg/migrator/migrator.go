@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 )
 
 func Run(cfg *config.DB) error {

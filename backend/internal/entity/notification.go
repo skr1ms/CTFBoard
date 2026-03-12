@@ -15,6 +15,15 @@ const (
 	NotificationError   NotificationType = "error"
 )
 
+func (t NotificationType) IsValid() bool {
+	switch t {
+	case NotificationInfo, NotificationWarning, NotificationSuccess, NotificationError:
+		return true
+	default:
+		return false
+	}
+}
+
 type Notification struct {
 	ID        uuid.UUID        `json:"id"`
 	Title     string           `json:"title"`

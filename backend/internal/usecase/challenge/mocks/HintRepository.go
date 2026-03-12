@@ -7,10 +7,9 @@ package mocks
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 // NewMockHintRepository creates a new instance of MockHintRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -343,6 +342,63 @@ func (_c *MockHintRepository_Delete_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// DeleteUnlocksByTeamID provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) DeleteUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteUnlocksByTeamID")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockHintRepository_DeleteUnlocksByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteUnlocksByTeamID'
+type MockHintRepository_DeleteUnlocksByTeamID_Call struct {
+	*mock.Call
+}
+
+// DeleteUnlocksByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockHintRepository_Expecter) DeleteUnlocksByTeamID(ctx interface{}, teamID interface{}) *MockHintRepository_DeleteUnlocksByTeamID_Call {
+	return &MockHintRepository_DeleteUnlocksByTeamID_Call{Call: _e.mock.On("DeleteUnlocksByTeamID", ctx, teamID)}
+}
+
+func (_c *MockHintRepository_DeleteUnlocksByTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockHintRepository_DeleteUnlocksByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_DeleteUnlocksByTeamID_Call) Return(err error) *MockHintRepository_DeleteUnlocksByTeamID_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockHintRepository_DeleteUnlocksByTeamID_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockHintRepository_DeleteUnlocksByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAll provides a mock function for the type MockHintRepository
 func (_mock *MockHintRepository) GetAll(ctx context.Context, limit int, offset int) ([]*entity.HintUnlockWithDetails, error) {
 	ret := _mock.Called(ctx, limit, offset)
@@ -479,6 +535,68 @@ func (_c *MockHintRepository_GetAllUnlocks_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// GetAllUnlocksForBackup provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) GetAllUnlocksForBackup(ctx context.Context) ([]*entity.HintUnlock, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllUnlocksForBackup")
+	}
+
+	var r0 []*entity.HintUnlock
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*entity.HintUnlock, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*entity.HintUnlock); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entity.HintUnlock)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockHintRepository_GetAllUnlocksForBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllUnlocksForBackup'
+type MockHintRepository_GetAllUnlocksForBackup_Call struct {
+	*mock.Call
+}
+
+// GetAllUnlocksForBackup is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockHintRepository_Expecter) GetAllUnlocksForBackup(ctx interface{}) *MockHintRepository_GetAllUnlocksForBackup_Call {
+	return &MockHintRepository_GetAllUnlocksForBackup_Call{Call: _e.mock.On("GetAllUnlocksForBackup", ctx)}
+}
+
+func (_c *MockHintRepository_GetAllUnlocksForBackup_Call) Run(run func(ctx context.Context)) *MockHintRepository_GetAllUnlocksForBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_GetAllUnlocksForBackup_Call) Return(hintUnlocks []*entity.HintUnlock, err error) *MockHintRepository_GetAllUnlocksForBackup_Call {
+	_c.Call.Return(hintUnlocks, err)
+	return _c
+}
+
+func (_c *MockHintRepository_GetAllUnlocksForBackup_Call) RunAndReturn(run func(ctx context.Context) ([]*entity.HintUnlock, error)) *MockHintRepository_GetAllUnlocksForBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByChallengeID provides a mock function for the type MockHintRepository
 func (_mock *MockHintRepository) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error) {
 	ret := _mock.Called(ctx, challengeID)
@@ -547,6 +665,74 @@ func (_c *MockHintRepository_GetByChallengeID_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// GetByChallengeIDs provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.Hint, error) {
+	ret := _mock.Called(ctx, challengeIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByChallengeIDs")
+	}
+
+	var r0 map[uuid.UUID][]*entity.Hint
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]*entity.Hint, error)); ok {
+		return returnFunc(ctx, challengeIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]*entity.Hint); ok {
+		r0 = returnFunc(ctx, challengeIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]*entity.Hint)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, challengeIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockHintRepository_GetByChallengeIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByChallengeIDs'
+type MockHintRepository_GetByChallengeIDs_Call struct {
+	*mock.Call
+}
+
+// GetByChallengeIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - challengeIDs []uuid.UUID
+func (_e *MockHintRepository_Expecter) GetByChallengeIDs(ctx interface{}, challengeIDs interface{}) *MockHintRepository_GetByChallengeIDs_Call {
+	return &MockHintRepository_GetByChallengeIDs_Call{Call: _e.mock.On("GetByChallengeIDs", ctx, challengeIDs)}
+}
+
+func (_c *MockHintRepository_GetByChallengeIDs_Call) Run(run func(ctx context.Context, challengeIDs []uuid.UUID)) *MockHintRepository_GetByChallengeIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_GetByChallengeIDs_Call) Return(uUIDToHints map[uuid.UUID][]*entity.Hint, err error) *MockHintRepository_GetByChallengeIDs_Call {
+	_c.Call.Return(uUIDToHints, err)
+	return _c
+}
+
+func (_c *MockHintRepository_GetByChallengeIDs_Call) RunAndReturn(run func(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.Hint, error)) *MockHintRepository_GetByChallengeIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function for the type MockHintRepository
 func (_mock *MockHintRepository) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
 	ret := _mock.Called(ctx, ID)
@@ -611,6 +797,74 @@ func (_c *MockHintRepository_GetByID_Call) Return(hint *entity.Hint, err error) 
 }
 
 func (_c *MockHintRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Hint, error)) *MockHintRepository_GetByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByIDForUpdate provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDForUpdate")
+	}
+
+	var r0 *entity.Hint
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*entity.Hint, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *entity.Hint); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Hint)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockHintRepository_GetByIDForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDForUpdate'
+type MockHintRepository_GetByIDForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetByIDForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockHintRepository_Expecter) GetByIDForUpdate(ctx interface{}, ID interface{}) *MockHintRepository_GetByIDForUpdate_Call {
+	return &MockHintRepository_GetByIDForUpdate_Call{Call: _e.mock.On("GetByIDForUpdate", ctx, ID)}
+}
+
+func (_c *MockHintRepository_GetByIDForUpdate_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockHintRepository_GetByIDForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_GetByIDForUpdate_Call) Return(hint *entity.Hint, err error) *MockHintRepository_GetByIDForUpdate_Call {
+	_c.Call.Return(hint, err)
+	return _c
+}
+
+func (_c *MockHintRepository_GetByIDForUpdate_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*entity.Hint, error)) *MockHintRepository_GetByIDForUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -833,6 +1087,120 @@ func (_c *MockHintRepository_GetUnlockedHintIDs_Call) Return(uUIDs []uuid.UUID, 
 }
 
 func (_c *MockHintRepository_GetUnlockedHintIDs_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, challengeID uuid.UUID) ([]uuid.UUID, error)) *MockHintRepository_GetUnlockedHintIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RestoreUnlocksByBannedTeamID provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) RestoreUnlocksByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RestoreUnlocksByBannedTeamID")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockHintRepository_RestoreUnlocksByBannedTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RestoreUnlocksByBannedTeamID'
+type MockHintRepository_RestoreUnlocksByBannedTeamID_Call struct {
+	*mock.Call
+}
+
+// RestoreUnlocksByBannedTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockHintRepository_Expecter) RestoreUnlocksByBannedTeamID(ctx interface{}, teamID interface{}) *MockHintRepository_RestoreUnlocksByBannedTeamID_Call {
+	return &MockHintRepository_RestoreUnlocksByBannedTeamID_Call{Call: _e.mock.On("RestoreUnlocksByBannedTeamID", ctx, teamID)}
+}
+
+func (_c *MockHintRepository_RestoreUnlocksByBannedTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockHintRepository_RestoreUnlocksByBannedTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_RestoreUnlocksByBannedTeamID_Call) Return(err error) *MockHintRepository_RestoreUnlocksByBannedTeamID_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockHintRepository_RestoreUnlocksByBannedTeamID_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockHintRepository_RestoreUnlocksByBannedTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SoftBanUnlocksByTeamID provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) SoftBanUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SoftBanUnlocksByTeamID")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockHintRepository_SoftBanUnlocksByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SoftBanUnlocksByTeamID'
+type MockHintRepository_SoftBanUnlocksByTeamID_Call struct {
+	*mock.Call
+}
+
+// SoftBanUnlocksByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockHintRepository_Expecter) SoftBanUnlocksByTeamID(ctx interface{}, teamID interface{}) *MockHintRepository_SoftBanUnlocksByTeamID_Call {
+	return &MockHintRepository_SoftBanUnlocksByTeamID_Call{Call: _e.mock.On("SoftBanUnlocksByTeamID", ctx, teamID)}
+}
+
+func (_c *MockHintRepository_SoftBanUnlocksByTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockHintRepository_SoftBanUnlocksByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_SoftBanUnlocksByTeamID_Call) Return(err error) *MockHintRepository_SoftBanUnlocksByTeamID_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockHintRepository_SoftBanUnlocksByTeamID_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) error) *MockHintRepository_SoftBanUnlocksByTeamID_Call {
 	_c.Call.Return(run)
 	return _c
 }

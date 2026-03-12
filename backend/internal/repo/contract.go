@@ -4,9 +4,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
+
+type SolveForPointsRecalc struct {
+	ID           uuid.UUID
+	ChallengeID  uuid.UUID
+	SolvedAt     time.Time
+	InitialValue int
+	MinValue     int
+	Decay        int
+}
 
 // =============================================================================
 // Shared
@@ -18,6 +28,7 @@ type (
 	TransactionManager interface {
 		Run(ctx context.Context, fn func(context.Context) error) error
 		RunSerializable(ctx context.Context, fn func(context.Context) error) error
+		ReadOnly(ctx context.Context, fn func(context.Context) error) error
 	}
 )
 
@@ -32,12 +43,16 @@ type (
 		GetByEmail(ctx context.Context, email string) (*entity.User, error)
 		GetByUsername(ctx context.Context, username string) (*entity.User, error)
 		GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error)
+		GetByTeamIDs(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID][]*entity.User, error)
 		GetAll(ctx context.Context) ([]*entity.User, error)
 		Search(ctx context.Context, search *string, limit, offset int) ([]*entity.User, error)
 		CountSearch(ctx context.Context, search *string) (int64, error)
 		SearchByIP(ctx context.Context, ip string, limit, offset int) ([]*entity.User, error)
 		CountSearchByIP(ctx context.Context, ip string) (int64, error)
 		UpdateTeamID(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error
+		UpdateTeamIDBatch(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID) error
+		FilterIDsByTeamIDNull(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error)
+		FilterIDsByTeamIDNullAndNotBanned(ctx context.Context, userIDs []uuid.UUID) ([]uuid.UUID, error)
 		SetVerified(ctx context.Context, userID uuid.UUID) error
 		SetUnverified(ctx context.Context, userID uuid.UUID) error
 		UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string) error
@@ -47,6 +62,8 @@ type (
 		Lock(ctx context.Context, userID uuid.UUID) error
 		Ban(ctx context.Context, userID uuid.UUID, reason string) error
 		Unban(ctx context.Context, userID uuid.UUID) error
+		SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error
+		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 	}
 )
 
@@ -77,11 +94,13 @@ type (
 		UpdateAdmin(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) error
 		UpdateName(ctx context.Context, teamID uuid.UUID, name string) error
 		UpdateCaptain(ctx context.Context, teamID, newCaptainID uuid.UUID) error
+		UpdateInviteToken(ctx context.Context, teamID, inviteToken uuid.UUID, expiresAt *time.Time) error
 		Lock(ctx context.Context, teamID uuid.UUID) error
 		// AcquireAdvisoryLock acquires a session-level advisory lock for the duration
 		// of the current transaction. Used to serialize team-count checks.
 		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 		CreateAuditLog(ctx context.Context, log *entity.TeamAuditLog) error
+		GetLatestAuditLogByTeamIDAndAction(ctx context.Context, teamID uuid.UUID, action string) (*entity.TeamAuditLog, error)
 	}
 )
 
@@ -115,12 +134,17 @@ type (
 		Delete(ctx context.Context, ID uuid.UUID) error
 		IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error)
 		DecrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error)
+		BatchDecrementSolveCount(ctx context.Context, ids []uuid.UUID) error
+		BatchIncrementSolveCount(ctx context.Context, ids []uuid.UUID) error
+		BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, points []int) error
 		UpdatePoints(ctx context.Context, ID uuid.UUID, points int) error
 		SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error
 		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
 		GetFlags(ctx context.Context, ID uuid.UUID) (*ChallengeFlags, error)
 		GetRequirements(ctx context.Context, ID uuid.UUID) ([]*ChallengeRequirement, error)
+		GetAllRequirementPairs(ctx context.Context) ([]*entity.ChallengeRequirementPair, error)
 		GetSolution(ctx context.Context, ID uuid.UUID) (*ChallengeSolution, error)
+		GetAllSolutions(ctx context.Context) ([]*entity.SolutionBackup, error)
 		ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*ChallengeSolutionEntry, error)
 		UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*ChallengeSolution, error)
 		DeleteSolution(ctx context.Context, challengeID uuid.UUID) error
@@ -154,7 +178,9 @@ type (
 	HintRepository interface {
 		Create(ctx context.Context, hint *entity.Hint) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error)
+		GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Hint, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Hint, error)
+		GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.Hint, error)
 		Update(ctx context.Context, hint *entity.Hint) error
 		Delete(ctx context.Context, ID uuid.UUID) error
 		GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUID) (*entity.HintUnlock, error)
@@ -162,9 +188,13 @@ type (
 		GetUnlockedHintIDs(ctx context.Context, teamID, challengeID uuid.UUID) ([]uuid.UUID, error)
 		GetAll(ctx context.Context, limit, offset int) ([]*entity.HintUnlockWithDetails, error)
 		GetAllUnlocks(ctx context.Context) ([]*entity.HintUnlock, error)
+		GetAllUnlocksForBackup(ctx context.Context) ([]*entity.HintUnlock, error)
 		CountAll(ctx context.Context) (int, error)
 		CountByTeamID(ctx context.Context, teamID uuid.UUID) (int, error)
 		CreateUnlock(ctx context.Context, teamID, hintID uuid.UUID) error
+		DeleteUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error
+		RestoreUnlocksByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
 	}
 )
 
@@ -178,7 +208,10 @@ type (
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.File, error)
 		GetByLocation(ctx context.Context, location string) (*entity.File, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error)
+		GetAllByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.File, error)
+		GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*entity.File, error)
 		GetAll(ctx context.Context) ([]*entity.File, error)
+		ListLocations(ctx context.Context, limit, offset int) ([]string, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
 )
@@ -202,17 +235,27 @@ type (
 		GetByTeamAndChallengeForUpdate(ctx context.Context, teamID, challengeID uuid.UUID) (*entity.Solve, error)
 		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Solve, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.SolveWithDetails, error)
+		GetByChallengeIDFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) ([]*entity.SolveWithDetails, error)
+		GetSolveCountsFrozen(ctx context.Context, freezeTime time.Time) (map[uuid.UUID]int, error)
 		GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]*entity.SolveWithDetails, error)
 		GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]*entity.SolveWithDetails, error)
 		GetAll(ctx context.Context) ([]*entity.Solve, error)
+		GetAllForBackup(ctx context.Context) ([]*entity.Solve, error)
 		GetScoreboard(ctx context.Context) ([]*ScoreboardEntry, error)
 		GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*ScoreboardEntry, error)
 		GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]*ScoreboardEntry, error)
 		GetScoreboardByBracketFrozen(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*ScoreboardEntry, error)
 		GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*FirstBloodEntry, error)
+		GetFirstBloodFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*FirstBloodEntry, error)
 		GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, error)
 		DeleteByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error
+		RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByTeamIDAndUserID(ctx context.Context, teamID, userID uuid.UUID) error
+		RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error
+		GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*SolveForPointsRecalc, error)
+		BatchUpdateSolvePoints(ctx context.Context, solveIDs []uuid.UUID, points []int) error
 	}
 )
 
@@ -226,9 +269,12 @@ type (
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.Award, error)
 		GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error)
 		GetAll(ctx context.Context) ([]*entity.Award, error)
+		GetAllForBackup(ctx context.Context) ([]*entity.Award, error)
 		GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error
+		RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
 	}
 )
 
@@ -239,6 +285,7 @@ type (
 type (
 	CompetitionRepository interface {
 		Get(ctx context.Context) (*entity.Competition, error)
+		GetForUpdate(ctx context.Context) (*entity.Competition, error)
 		Update(ctx context.Context, competition *entity.Competition) error
 	}
 )
@@ -250,7 +297,9 @@ type (
 type (
 	SettingsRepository interface {
 		Get(ctx context.Context) (*entity.Settings, error)
+		GetForUpdate(ctx context.Context) (*entity.Settings, error)
 		Update(ctx context.Context, s *entity.Settings) error
+		UpdateIfCurrent(ctx context.Context, s *entity.Settings) error
 	}
 )
 
@@ -262,6 +311,7 @@ type (
 	CompetitionParamRepository interface {
 		GetAll(ctx context.Context) ([]*entity.CompetitionParam, error)
 		GetByKey(ctx context.Context, key string) (*entity.CompetitionParam, error)
+		GetByKeyForUpdate(ctx context.Context, key string) (*entity.CompetitionParam, error)
 		Upsert(ctx context.Context, p *entity.CompetitionParam) error
 		Delete(ctx context.Context, key string) error
 	}
@@ -278,22 +328,35 @@ type (
 		GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Submission, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.SubmissionWithDetails, error)
 		GetByChallenge(ctx context.Context, challengeID uuid.UUID, limit, offset int) ([]*entity.SubmissionWithDetails, error)
+		GetByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		GetByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*entity.SubmissionWithDetails, error)
+		GetByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		GetByTeam(ctx context.Context, teamID uuid.UUID, limit, offset int) ([]*entity.SubmissionWithDetails, error)
+		GetByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		GetAll(ctx context.Context, limit, offset int) ([]*entity.SubmissionWithDetails, error)
+		GetAllFrozen(ctx context.Context, freezeTime time.Time, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		GetFailsByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		CountFailsByUser(ctx context.Context, userID uuid.UUID) (int64, error)
 		GetFailsByTeam(ctx context.Context, teamID uuid.UUID, limit, offset int) ([]*entity.SubmissionWithDetails, error)
 		CountFailsByTeam(ctx context.Context, teamID uuid.UUID) (int64, error)
 		CountByChallenge(ctx context.Context, challengeID uuid.UUID) (int64, error)
+		CountByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (int64, error)
 		CountByUser(ctx context.Context, userID uuid.UUID) (int64, error)
+		CountByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time) (int64, error)
 		CountByTeam(ctx context.Context, teamID uuid.UUID) (int64, error)
+		CountByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time) (int64, error)
 		CountAll(ctx context.Context) (int64, error)
+		CountAllFrozen(ctx context.Context, freezeTime time.Time) (int64, error)
 		CountFailedByIP(ctx context.Context, ip string, since time.Time) (int64, error)
 		GetStats(ctx context.Context, challengeID uuid.UUID) (*entity.SubmissionStats, error)
+		GetStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*entity.SubmissionStats, error)
 		Update(ctx context.Context, ID uuid.UUID, isCorrect bool) error
 		Delete(ctx context.Context, ID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error
+		RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByUserID(ctx context.Context, userID uuid.UUID) error
+		RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error
 	}
 )
 
@@ -304,8 +367,11 @@ type (
 type (
 	StatisticsRepository interface {
 		GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error)
+		GetGeneralStatsFrozen(ctx context.Context, freezeTime time.Time) (*entity.GeneralStats, error)
 		GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error)
+		GetChallengeStatsFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.ChallengeStats, error)
 		GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*entity.ChallengeDetailStats, error)
+		GetChallengeDetailStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*entity.ChallengeDetailStats, error)
 		GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error)
 		GetScoreboardHistoryFrozen(ctx context.Context, freezeTime time.Time, limit int) ([]*entity.ScoreboardHistoryEntry, error)
 		GetChallengeSolvePercentages(ctx context.Context) ([]*entity.ChallengeSolvePercentage, error)
@@ -319,6 +385,7 @@ type (
 		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error)
 		GetUserRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error)
 		GetSolveMatrix(ctx context.Context) ([]*entity.SolveMatrixRow, error)
+		GetSolveMatrixFrozen(ctx context.Context, freezeTime time.Time) ([]*entity.SolveMatrixRow, error)
 	}
 )
 
@@ -374,6 +441,7 @@ type (
 		Delete(ctx context.Context, ID uuid.UUID) error
 		CreateUserNotification(ctx context.Context, userNotif *entity.UserNotification) error
 		GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*entity.UserNotification, error)
+		GetUserNotificationByID(ctx context.Context, ID, userID uuid.UUID) (*entity.UserNotification, error)
 		MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error
 		CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 		DeleteUserNotification(ctx context.Context, ID, userID uuid.UUID) error
@@ -428,7 +496,9 @@ type (
 
 	FieldValueRepository interface {
 		GetByEntityID(ctx context.Context, entityID uuid.UUID) ([]*entity.FieldValue, error)
+		GetAll(ctx context.Context) ([]*entity.FieldValue, error)
 		SetValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error
+		DeleteByEntityID(ctx context.Context, entityID uuid.UUID) error
 	}
 )
 
@@ -455,6 +525,7 @@ type (
 		Create(ctx context.Context, comment *entity.Comment) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.Comment, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Comment, error)
+		GetAll(ctx context.Context) ([]*entity.Comment, error)
 		Update(ctx context.Context, comment *entity.Comment) error
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
@@ -482,13 +553,22 @@ type (
 		EraseAllTables(ctx context.Context) error
 		EraseTables(ctx context.Context, tables []string) error
 		ImportCompetition(ctx context.Context, comp *entity.Competition) error
+		ImportTags(ctx context.Context, data *entity.BackupData) error
 		ImportChallenges(ctx context.Context, data *entity.BackupData) error
-		ImportTeams(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportChallengeTags(ctx context.Context, data *entity.BackupData) error
 		ImportUsers(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error
+		ImportTeams(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error
+		UpdateUserTeamIDs(ctx context.Context, data *entity.BackupData) error
 		ImportAwards(ctx context.Context, data *entity.BackupData) error
 		ImportSolves(ctx context.Context, data *entity.BackupData) error
 		ImportHintUnlocks(ctx context.Context, data *entity.BackupData) error
 		ImportFileMetadata(ctx context.Context, data *entity.BackupData) error
+		ImportBrackets(ctx context.Context, data *entity.BackupData) error
+		ImportChallengeRequirements(ctx context.Context, data *entity.BackupData) error
+		ImportSolutions(ctx context.Context, data *entity.BackupData) error
+		ImportComments(ctx context.Context, data *entity.BackupData) error
+		ImportFields(ctx context.Context, data *entity.BackupData) error
+		ImportFieldValues(ctx context.Context, data *entity.BackupData) error
 		ImportCSV(ctx context.Context, tableName string, header []string, rows [][]string) (int, []string, error)
 	}
 )

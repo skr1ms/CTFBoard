@@ -1,9 +1,10 @@
 package request
 
 import (
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/google/uuid"
 )
 
 func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, confirmReset bool) {
@@ -12,6 +13,13 @@ func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, con
 		confirmReset = *req.ConfirmReset
 	}
 	return req.Name, confirmReset
+}
+
+func CreateSoloTeamRequestToParams(req *openapi.CreateSoloTeamRequest) bool {
+	if req.ConfirmReset != nil {
+		return *req.ConfirmReset
+	}
+	return false
 }
 
 func JoinTeamRequestToParams(req *openapi.JoinTeamRequest) (inviteToken string, confirmReset bool) {
@@ -33,37 +41,33 @@ func TransferCaptainRequestToParams(req *openapi.TransferCaptainRequest) (uuid.U
 	return parsed, nil
 }
 
-func BanTeamRequestToParams(req *openapi.BanTeamRequest) string {
-	return req.Reason
+func BanTeamRequestToParams(req *openapi.BanTeamRequest) (reason string, banMembers bool) {
+	reason = req.Reason
+	banMembers = derefOr(req.BanMembers, false)
+	return reason, banMembers
 }
 
-func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) bool {
-	if req.Hidden != nil {
-		return *req.Hidden
-	}
-	return false
+func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) (*bool, error) {
+	v := req.Hidden
+	return &v, nil
 }
 
 func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *string, captainID, bracketID *uuid.UUID, isHidden *bool, err error) {
 	name = req.Name
+	if name != nil && *name == "" {
+		err = helper.NewValidationErrorf("name cannot be empty")
+		return name, captainID, bracketID, isHidden, err
+	}
 	isHidden = req.IsHidden
 
 	if req.CaptainID != nil {
-		parsed, parseErr := uuid.Parse(*req.CaptainID)
-		if parseErr != nil {
-			err = helper.NewValidationErrorf("invalid captain_id")
-			return name, captainID, bracketID, isHidden, err
-		}
-		captainID = &parsed
+		c := *req.CaptainID
+		captainID = &c
 	}
 
 	if req.BracketID != nil {
-		parsed, parseErr := uuid.Parse(*req.BracketID)
-		if parseErr != nil {
-			err = helper.NewValidationErrorf("invalid bracket_id")
-			return name, captainID, bracketID, isHidden, err
-		}
-		bracketID = &parsed
+		b := *req.BracketID
+		bracketID = &b
 	}
 
 	return name, captainID, bracketID, isHidden, err
@@ -74,9 +78,5 @@ func UpdateTeamRequestToParams(req *openapi.UpdateTeamRequest) string {
 }
 
 func AdminAddMemberRequestToParams(req *openapi.AdminAddMemberRequest) (uuid.UUID, error) {
-	parsed, err := uuid.Parse(req.UserID)
-	if err != nil {
-		return uuid.Nil, helper.NewValidationErrorf("invalid user_id")
-	}
-	return parsed, nil
+	return req.UserID, nil
 }

@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/google/uuid"
 )
 
 type contextKey string
@@ -60,11 +61,14 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.L
 	if user.IsBanned {
 		return nil, false
 	}
+	if user.WasInBannedTeam && user.Role != entity.RoleAdmin {
+		return nil, false
+	}
 	if err := apiTokenUC.UpdateLastUsedAt(r.Context(), token.ID); err != nil {
 		log.WithError(err).Warn("middleware - Auth - UpdateLastUsedAt: failed to update api token last_used_at")
 	}
 	ctx := context.WithValue(r.Context(), httputil.UserIDKey, user.ID.String())
-	ctx = context.WithValue(ctx, UserRoleKey, user.Role)
+	ctx = context.WithValue(ctx, UserRoleKey, string(user.Role))
 	ctx = context.WithValue(ctx, userContextKey, user)
 	return ctx, true
 }

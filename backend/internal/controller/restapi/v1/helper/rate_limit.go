@@ -20,11 +20,13 @@ const (
 	defaultGeneralIPPerMin      = 100
 	defaultVerifyEmailPerMin    = 10
 	defaultOAuthCallbackPerMin  = 20
+	defaultOAuthRedirectPerMin  = 20
 	defaultHintUnlockMinFloor   = 30
 	defaultSubmitPerUser        = 10
 	defaultSubmitDurationMin    = 1
 	submitIPMultiplier          = 3
 	hintUnlockMultiplier        = 3
+	defaultCommentPerMinute     = 30
 )
 
 type RateLimitConfig struct {
@@ -38,9 +40,11 @@ type RateLimitConfig struct {
 	GeneralIPPerMinute      int
 	VerifyEmailPerMinute    int
 	OAuthCallbackPerMinute  int
+	OAuthRedirectPerMinute  int
 	SubmitUserPerMinute     int
 	SubmitIPPerMinute       int
 	HintUnlockUserPerMinute int
+	CommentPerMinute        int
 }
 
 type RateLimitConfigCache struct {
@@ -93,6 +97,14 @@ func (c *RateLimitConfigCache) GetStale() *RateLimitConfig {
 	return c.cfg
 }
 
+func (c *RateLimitConfigCache) Invalidate() {
+	c.sf.Forget(rateLimitConfigCacheKey)
+	c.mu.Lock()
+	c.cfg = nil
+	c.fetchedAt = time.Time{}
+	c.mu.Unlock()
+}
+
 func GetRateLimitConfig(ctx context.Context, getter SettingsGetter) (*RateLimitConfig, error) {
 	settings, err := getter.Get(ctx)
 	if err != nil {
@@ -122,9 +134,11 @@ func GetRateLimitConfig(ctx context.Context, getter SettingsGetter) (*RateLimitC
 		GeneralIPPerMinute:      getOrDefault(settings.RateLimitGeneralIPPerMinute, defaultGeneralIPPerMin),
 		VerifyEmailPerMinute:    getOrDefault(settings.RateLimitVerifyEmailPerMinute, defaultVerifyEmailPerMin),
 		OAuthCallbackPerMinute:  getOrDefault(settings.RateLimitOAuthCallbackPerMinute, defaultOAuthCallbackPerMin),
+		OAuthRedirectPerMinute:  getOrDefault(settings.RateLimitOAuthRedirectPerMinute, defaultOAuthRedirectPerMin),
 		SubmitUserPerMinute:     submitUserPerMin,
 		SubmitIPPerMinute:       submitUserPerMin * submitIPMultiplier,
 		HintUnlockUserPerMinute: hintUnlockUserPerMin,
+		CommentPerMinute:        getOrDefault(settings.RateLimitCommentPerMinute, defaultCommentPerMinute),
 	}, nil
 }
 

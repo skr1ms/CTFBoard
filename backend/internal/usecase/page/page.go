@@ -2,15 +2,17 @@ package page
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -44,6 +46,9 @@ func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*entity.Page
 	page, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetBySlug - PageRepo.GetBySlug: %w", err)
+	}
+	if page == nil {
+		return nil, httperr.ErrPageNotFound
 	}
 	if page.IsDraft {
 		return nil, httperr.ErrPageNotFound
@@ -108,6 +113,13 @@ func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, co
 	}
 	if !slugRe.MatchString(slug) {
 		return nil, httperr.NewValidationErrorf("slug must match ^[a-z0-9]+(?:-[a-z0-9]+)*$")
+	}
+	existing, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
+	if err != nil && !errors.Is(err, httperr.ErrPageNotFound) {
+		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetBySlug: %w", err)
+	}
+	if existing != nil && existing.ID != ID {
+		return nil, httperr.ErrPageSlugConflict
 	}
 	page.Title = title
 	page.Slug = slug

@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
@@ -155,6 +156,9 @@ func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return
 	}
@@ -164,9 +168,6 @@ func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 	status := 0
 	if resp != nil {
 		status = resp.StatusCode
-		if resp.Body != nil {
-			resp.Body.Close()
-		}
 	}
 	if status == http.StatusNotFound {
 		return
@@ -216,20 +217,17 @@ func TestWebSocket_Connect_Unauthorized(t *testing.T) {
 	defer cancel()
 
 	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if conn != nil {
 		conn.Close(websocket.StatusNormalClosure, "")
 	}
 	if err != nil {
-		// dial error means server rejected the upgrade - acceptable
 		return
 	}
-	if resp != nil {
-		if resp.Body != nil {
-			resp.Body.Close()
-		}
-		if resp.StatusCode == http.StatusUnauthorized {
-			return
-		}
+	if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+		return
 	}
 	t.Fatalf("expected dial error or 401 for unauthenticated ws connect, got status=%v err=%v", func() int {
 		if resp != nil {

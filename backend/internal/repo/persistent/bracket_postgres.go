@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type BracketRepo struct {
@@ -45,7 +46,7 @@ func (r *BracketRepo) Create(ctx context.Context, bracket *entity.Bracket) error
 		Name:        bracket.Name,
 		Description: desc,
 		IsDefault:   isDefault,
-		CreatedAt:   createdAt,
+		CreatedAt:   timeToTimestamptz(createdAt),
 	})
 	if err != nil {
 		if isPgUniqueViolation(err) {
@@ -139,6 +140,6 @@ func toEntityBracket(row sqlc.Bracket) *entity.Bracket {
 		Name:        row.Name,
 		Description: desc,
 		IsDefault:   isDefault,
-		CreatedAt:   ptrTimeToTime(row.CreatedAt),
+		CreatedAt:   ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
 	}
 }

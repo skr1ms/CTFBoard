@@ -31,6 +31,11 @@ var (
 		StatusCode: http.StatusForbidden,
 		Code:       "WEBSOCKET_ORIGIN_NOT_CONFIGURED",
 	}
+	ErrWebsocketWildcardOriginNotAllowed = &HTTPError{
+		Err:        errors.New("ALLOWED_ORIGINS=* is not allowed for security; set explicit origins"),
+		StatusCode: http.StatusForbidden,
+		Code:       "WEBSOCKET_WILDCARD_ORIGIN_NOT_ALLOWED",
+	}
 	ErrInvalidID = &HTTPError{
 		Err:        errors.New("invalid ID"),
 		StatusCode: http.StatusBadRequest,

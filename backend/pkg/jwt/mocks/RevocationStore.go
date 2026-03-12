@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -104,6 +105,78 @@ func (_c *MockRevocationStore_IsRevoked_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// IsUserRevoked provides a mock function for the type MockRevocationStore
+func (_mock *MockRevocationStore) IsUserRevoked(ctx context.Context, userID uuid.UUID, issuedAt int64) (bool, error) {
+	ret := _mock.Called(ctx, userID, issuedAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsUserRevoked")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int64) (bool, error)); ok {
+		return returnFunc(ctx, userID, issuedAt)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int64) bool); ok {
+		r0 = returnFunc(ctx, userID, issuedAt)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int64) error); ok {
+		r1 = returnFunc(ctx, userID, issuedAt)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRevocationStore_IsUserRevoked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsUserRevoked'
+type MockRevocationStore_IsUserRevoked_Call struct {
+	*mock.Call
+}
+
+// IsUserRevoked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - issuedAt int64
+func (_e *MockRevocationStore_Expecter) IsUserRevoked(ctx interface{}, userID interface{}, issuedAt interface{}) *MockRevocationStore_IsUserRevoked_Call {
+	return &MockRevocationStore_IsUserRevoked_Call{Call: _e.mock.On("IsUserRevoked", ctx, userID, issuedAt)}
+}
+
+func (_c *MockRevocationStore_IsUserRevoked_Call) Run(run func(ctx context.Context, userID uuid.UUID, issuedAt int64)) *MockRevocationStore_IsUserRevoked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRevocationStore_IsUserRevoked_Call) Return(b bool, err error) *MockRevocationStore_IsUserRevoked_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockRevocationStore_IsUserRevoked_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, issuedAt int64) (bool, error)) *MockRevocationStore_IsUserRevoked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Revoke provides a mock function for the type MockRevocationStore
 func (_mock *MockRevocationStore) Revoke(ctx context.Context, jti string, ttl time.Duration) error {
 	ret := _mock.Called(ctx, jti, ttl)
@@ -163,6 +236,69 @@ func (_c *MockRevocationStore_Revoke_Call) Return(err error) *MockRevocationStor
 }
 
 func (_c *MockRevocationStore_Revoke_Call) RunAndReturn(run func(ctx context.Context, jti string, ttl time.Duration) error) *MockRevocationStore_Revoke_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeUserTokens provides a mock function for the type MockRevocationStore
+func (_mock *MockRevocationStore) RevokeUserTokens(ctx context.Context, userID uuid.UUID, ttl time.Duration) error {
+	ret := _mock.Called(ctx, userID, ttl)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeUserTokens")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Duration) error); ok {
+		r0 = returnFunc(ctx, userID, ttl)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRevocationStore_RevokeUserTokens_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeUserTokens'
+type MockRevocationStore_RevokeUserTokens_Call struct {
+	*mock.Call
+}
+
+// RevokeUserTokens is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - ttl time.Duration
+func (_e *MockRevocationStore_Expecter) RevokeUserTokens(ctx interface{}, userID interface{}, ttl interface{}) *MockRevocationStore_RevokeUserTokens_Call {
+	return &MockRevocationStore_RevokeUserTokens_Call{Call: _e.mock.On("RevokeUserTokens", ctx, userID, ttl)}
+}
+
+func (_c *MockRevocationStore_RevokeUserTokens_Call) Run(run func(ctx context.Context, userID uuid.UUID, ttl time.Duration)) *MockRevocationStore_RevokeUserTokens_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 time.Duration
+		if args[2] != nil {
+			arg2 = args[2].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRevocationStore_RevokeUserTokens_Call) Return(err error) *MockRevocationStore_RevokeUserTokens_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRevocationStore_RevokeUserTokens_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ttl time.Duration) error) *MockRevocationStore_RevokeUserTokens_Call {
 	_c.Call.Return(run)
 	return _c
 }

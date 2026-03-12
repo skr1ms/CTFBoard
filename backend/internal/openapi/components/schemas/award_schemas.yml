@@ -41,6 +41,9 @@ schemas:
         type: integer
       description:
         type: string
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=500"
     required:
       - team_id
       - value

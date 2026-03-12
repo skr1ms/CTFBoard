@@ -1,5 +1,57 @@
-/files/{ID}/download:
+/files/download/{path}:
   get:
+    operationId: GetFilesDownloadPath
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Stream file download (server route GET /files/download/*)
+    description: "Stream file by path and token query parameter. Server implementation uses chi route GET /files/download/* (wildcard); the path parameter below is the logical path (everything after the prefix, may contain slashes). Used after GET /files/{ID}/download returns a URL. Query parameter token is required."
+    parameters:
+      - in: path
+        name: path
+        required: true
+        schema:
+          type: string
+          description: "Logical file path. In the server implementation the chi route is GET /files/download/*; this path is the value of the wildcard (e.g. 16-hex-chars/filename or segment1/segment2/file.txt)."
+      - in: query
+        name: token
+        required: true
+        schema:
+          type: string
+          description: "Download token from GET /files/{ID}/download response"
+    responses:
+      "200":
+        description: File stream
+      "400":
+        description: Bad Request (invalid path or missing token)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (challenge visibility or team banned)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    tags:
+      - Challenges
+
+/files/by-id/{ID}/download:
+  get:
+    operationId: GetFilesIDDownload
     description: Returns presigned URL for file download
     parameters:
       - description: File ID
@@ -21,6 +73,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (competition not started or team banned)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
         content:
@@ -29,12 +87,14 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get download URL
     tags:
       - Challenges
 
 /admin/files/{ID}:
   delete:
+    operationId: DeleteAdminFilesID
     description: Deletes file from storage. Admin only
     parameters:
       - name: ID
@@ -47,12 +107,25 @@
         description: No Content
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete file
     tags:
       - Admin

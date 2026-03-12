@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) RegisterLoginAndGetMe(ctx context.Context, username, email, password string) *openapi.MeResponse {
@@ -100,7 +101,7 @@ func (h *E2EHelper) VerifyEmail(token string) {
 
 func (h *E2EHelper) VerifyEmailExpectStatus(token string, expectStatus int) {
 	h.t.Helper()
-	resp, err := h.client.GetAuthVerifyEmailWithResponse(context.Background(), &openapi.GetAuthVerifyEmailParams{Token: token})
+	resp, err := h.client.PostAuthVerifyEmailWithResponse(context.Background(), openapi.VerifyEmailRequest{Token: token})
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "verify-email")
 }
@@ -219,4 +220,33 @@ func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
 	_, _, token := h.RegisterAdmin(username)
 	h.StartCompetition(token)
 	return username, token
+}
+
+func (h *E2EHelper) GetMe(token string, expectStatus int) *openapi.GetAuthMeResponse {
+	h.t.Helper()
+	resp, err := h.client.GetAuthMeWithResponse(context.Background(), WithBearerToken(token))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get auth me")
+	return resp
+}
+
+func (h *E2EHelper) BanUser(tokenAdmin, userID, reason string, expectStatus int) {
+	h.t.Helper()
+	resp, err := h.client.PostAdminUsersIDBanWithResponse(context.Background(), userID, openapi.PostAdminUsersIDBanJSONRequestBody{Reason: reason}, WithBearerToken(tokenAdmin))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "ban user")
+}
+
+func (h *E2EHelper) UnbanUser(tokenAdmin, userID string, expectStatus int) {
+	h.t.Helper()
+	resp, err := h.client.DeleteAdminUsersIDBanWithResponse(context.Background(), userID, WithBearerToken(tokenAdmin))
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "unban user")
+}
+
+func (h *E2EHelper) InvalidateUserCache(userID string) {
+	h.t.Helper()
+	if h.redis != nil {
+		_ = h.redis.Del(context.Background(), "user:"+userID)
+	}
 }

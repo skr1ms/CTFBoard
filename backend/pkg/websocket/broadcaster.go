@@ -48,6 +48,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		Timestamp: now,
 	}
 	go func() {
+		// Best-effort: bounded by timeout, detached from caller.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		b.hub.BroadcastEvent(ctx, solveEv)
@@ -73,6 +74,7 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		Timestamp: now,
 	}
 	go func() {
+		// Best-effort: bounded by timeout, detached from caller.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		b.hub.BroadcastEvent(ctx, ev)

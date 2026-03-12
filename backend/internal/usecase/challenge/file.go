@@ -15,12 +15,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 type FileUseCase struct {
@@ -44,6 +45,9 @@ func NewFileUseCase(deps FileDeps) *FileUseCase {
 }
 
 func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType, filename string, reader io.Reader, size int64, contentType string) (*entity.File, error) {
+	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
+		return nil, err
+	}
 	tempFile, err := os.CreateTemp("", "upload-*")
 	if err != nil {
 		return nil, fmt.Errorf("FileUseCase - Upload - os.CreateTemp: %w", err)
@@ -65,7 +69,10 @@ func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileTy
 	}
 
 	sha256Hash := hex.EncodeToString(hash.Sum(nil))
-	storagePath := storage.GenerateStoragePath(filename)
+	storagePath, err := storage.GenerateStoragePath(filename)
+	if err != nil {
+		return nil, fmt.Errorf("FileUseCase - Upload - GenerateStoragePath: %w", err)
+	}
 
 	if err := uc.deps.Storage.Upload(ctx, storagePath, tempFile, size, contentType); err != nil {
 		return nil, fmt.Errorf("FileUseCase - Upload - Storage.Put: %w", err)
@@ -138,6 +145,22 @@ func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challenge
 		}
 		if challenge.IsHidden {
 			return nil, httperr.ErrChallengeNotFound
+		}
+		reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+		if err != nil {
+			return nil, fmt.Errorf("FileUseCase - GetByChallengeIDWithAccess - GetRequirements: %w", err)
+		}
+		if len(reqs) > 0 {
+			if teamID == nil || uc.deps.SolveRepo == nil {
+				return nil, httperr.ErrChallengeNotFound
+			}
+			met, err := requirementsMet(ctx, challengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+			if err != nil {
+				return nil, fmt.Errorf("FileUseCase - GetByChallengeIDWithAccess - requirementsMet: %w", err)
+			}
+			if !met {
+				return nil, httperr.ErrChallengeNotFound
+			}
 		}
 	}
 	if fileType == entity.FileTypeWriteup && !isAdmin {
@@ -216,6 +239,22 @@ func (uc *FileUseCase) GetDownloadURLWithAccess(ctx context.Context, fileID uuid
 		}
 		if challenge.IsHidden {
 			return "", httperr.ErrChallengeNotFound
+		}
+		reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, file.ChallengeID)
+		if err != nil {
+			return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - GetRequirements: %w", err)
+		}
+		if len(reqs) > 0 {
+			if teamID == nil || uc.deps.SolveRepo == nil {
+				return "", httperr.ErrChallengeNotFound
+			}
+			met, err := requirementsMet(ctx, file.ChallengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+			if err != nil {
+				return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - requirementsMet: %w", err)
+			}
+			if !met {
+				return "", httperr.ErrChallengeNotFound
+			}
 		}
 	}
 	if file.Type == entity.FileTypeWriteup && !isAdmin {

@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 func TestDecodeJSON_Success(t *testing.T) {
@@ -28,6 +29,25 @@ func TestDecodeJSON_Success(t *testing.T) {
 func TestDecodeJSON_Error(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("invalid json")))
+	var result map[string]string
+	err := DecodeJSON(r, &result)
+	assert.Error(t, err)
+}
+
+func TestDecodeJSON_DisallowUnknownFields(t *testing.T) {
+	t.Parallel()
+	type Req struct {
+		Name string `json:"name"`
+	}
+	r := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{"name":"a","unknown":1}`)))
+	var result Req
+	err := DecodeJSON(r, &result)
+	assert.Error(t, err)
+}
+
+func TestDecodeJSON_TrailingData(t *testing.T) {
+	t.Parallel()
+	r := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{"key":"value"}x`)))
 	var result map[string]string
 	err := DecodeJSON(r, &result)
 	assert.Error(t, err)

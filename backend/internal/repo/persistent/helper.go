@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func isNoRows(err error) bool {
@@ -19,11 +20,30 @@ func isPgUniqueViolation(err error) bool {
 	return err != nil && errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+func isPgForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return err != nil && errors.As(err, &pgErr) && pgErr.Code == "23503"
+}
+
 func ptrTimeToTime(t *time.Time) time.Time {
 	if t == nil {
 		return time.Time{}
 	}
 	return *t
+}
+
+func timestamptzToTime(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	return &t.Time
+}
+
+func timeToTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
 func timeFromNullableAny(v any) time.Time {

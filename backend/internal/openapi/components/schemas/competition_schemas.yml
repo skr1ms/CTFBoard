@@ -11,9 +11,13 @@ schemas:
         type: boolean
       is_public:
         type: boolean
+      keep_scoreboard_frozen_after_end:
+        type: boolean
       mode:
         type: string
       name:
+        type: string
+      paused_at:
         type: string
       start_time:
         type: string
@@ -24,7 +28,13 @@ schemas:
     properties:
       end_time:
         type: string
+      freeze_time:
+        type: string
+      keep_scoreboard_frozen_after_end:
+        type: boolean
       name:
+        type: string
+      paused_at:
         type: string
       start_time:
         type: string
@@ -54,6 +64,10 @@ schemas:
     properties:
       allow_team_switch:
         type: boolean
+      clear_end_time:
+        type: boolean
+      clear_freeze_time:
+        type: boolean
       end_time:
         format: date-time
         type: string
@@ -66,6 +80,14 @@ schemas:
         type: boolean
       is_public:
         type: boolean
+      keep_scoreboard_frozen_after_end:
+        type: boolean
+      max_team_size:
+        type: integer
+        minimum: 0
+      min_team_size:
+        type: integer
+        minimum: 0
       mode:
         type: string
       name:

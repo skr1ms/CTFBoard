@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // PUT /admin/competition + POST /admin/challenges + POST /challenges/{ID}/submit + GET /scoreboard: full CTF lifecycle from setup to scoreboard.
@@ -276,7 +277,7 @@ func TestFullCTFFlow(t *testing.T) {
 
 // PUT /admin/settings: invalid values (submit_limit_per_user 0, verify_ttl out of range, etc.) return 400.
 //
-//nolint:funlen
+
 func TestSettingsValidationErrors(t *testing.T) {
 	t.Helper()
 	t.Parallel()
@@ -471,7 +472,7 @@ func TestBannedTeamBehavior(t *testing.T) {
 
 	h.SubmitFlag(tokenUser, challengeID, "flag{wrong}", http.StatusForbidden)
 
-	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
+	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 
 	unbannedTeam := h.GetMyTeam(tokenUser, http.StatusOK)
 	require.NotNil(t, unbannedTeam.JSON200)
@@ -528,7 +529,7 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 	}
 	assert.False(t, bannedTeamFound, "Banned team should not appear in scoreboard")
 
-	h.UnbanTeam(tokenAdmin, teamID, http.StatusOK)
+	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 	h.AssertTeamScore(tokenUser, userName, 200)
 }
 

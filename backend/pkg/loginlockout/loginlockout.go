@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 const (
@@ -36,6 +37,9 @@ func NewTracker(client *redis.Client, maxAttempts int, ttl time.Duration) *Track
 
 // IsLocked returns true if the email has exceeded the failed attempt limit.
 func (t *Tracker) IsLocked(ctx context.Context, email string) (bool, error) {
+	if email == "" {
+		return false, nil
+	}
 	key := cache.KeyFailedLoginPrefix + email
 	n, err := t.client.Get(ctx, key).Int()
 	if errors.Is(err, redis.Nil) {
@@ -47,8 +51,22 @@ func (t *Tracker) IsLocked(ctx context.Context, email string) (bool, error) {
 	return n >= t.max, nil
 }
 
+func (t *Tracker) ClearFailed(ctx context.Context, email string) error {
+	if email == "" {
+		return nil
+	}
+	key := cache.KeyFailedLoginPrefix + email
+	if err := t.client.Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("loginlockout ClearFailed: %w", err)
+	}
+	return nil
+}
+
 // RecordFailed increments the failed attempt count for the email and sets TTL on first failure.
 func (t *Tracker) RecordFailed(ctx context.Context, email string) error {
+	if email == "" {
+		return nil
+	}
 	key := cache.KeyFailedLoginPrefix + email
 	pipe := t.client.Pipeline()
 	pipe.Incr(ctx, key)

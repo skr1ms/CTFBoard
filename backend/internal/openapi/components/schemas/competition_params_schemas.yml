@@ -21,6 +21,7 @@ schemas:
     properties:
       value:
         type: string
+        maxLength: 10000
       value_type:
         enum:
           - string

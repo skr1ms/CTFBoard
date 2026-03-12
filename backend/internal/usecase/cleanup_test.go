@@ -4,38 +4,58 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
 )
+
+type cleanupTestDeps struct {
+	teamRepo *mocks.MockTeamRepository
+}
+
+func newCleanupTestDeps(t *testing.T) *cleanupTestDeps {
+	t.Helper()
+	return &cleanupTestDeps{teamRepo: mocks.NewMockTeamRepository(t)}
+}
+
+func (d *cleanupTestDeps) createUseCase() *CleanupUseCase {
+	return NewCleanupUseCase(CleanupDeps{TeamRepo: d.teamRepo})
+}
+
+func defaultCleanupOlderThan() time.Duration {
+	return 24 * time.Hour
+}
 
 func TestCleanupUseCase_CleanupDeletedTeams_Success(t *testing.T) {
 	t.Parallel()
-	h := NewCleanupTestHelper(t)
+	d := newCleanupTestDeps(t)
 	ctx := context.Background()
 
-	h.TeamRepo.EXPECT().
+	d.teamRepo.EXPECT().
 		HardDeleteTeams(ctx, mock.MatchedBy(func(t interface{ IsZero() bool }) bool { return !t.IsZero() })).
 		Return(nil).Once()
 
-	err := h.CreateUseCase().CleanupDeletedTeams(ctx, h.DefaultOlderThan())
+	err := d.createUseCase().CleanupDeletedTeams(ctx, defaultCleanupOlderThan())
 	assert.NoError(t, err)
-	h.TeamRepo.AssertExpectations(t)
+	d.teamRepo.AssertExpectations(t)
 }
 
 func TestCleanupUseCase_CleanupDeletedTeams_Error(t *testing.T) {
 	t.Parallel()
-	h := NewCleanupTestHelper(t)
+	d := newCleanupTestDeps(t)
 	ctx := context.Background()
 	expectedErr := errors.New("db error")
 
-	h.TeamRepo.EXPECT().
+	d.teamRepo.EXPECT().
 		HardDeleteTeams(ctx, mock.MatchedBy(func(t interface{ IsZero() bool }) bool { return !t.IsZero() })).
 		Return(expectedErr).Once()
 
-	err := h.CreateUseCase().CleanupDeletedTeams(ctx, h.DefaultOlderThan())
+	err := d.createUseCase().CleanupDeletedTeams(ctx, defaultCleanupOlderThan())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CleanupUseCase")
 	assert.Contains(t, err.Error(), expectedErr.Error())
-	h.TeamRepo.AssertExpectations(t)
+	d.teamRepo.AssertExpectations(t)
 }

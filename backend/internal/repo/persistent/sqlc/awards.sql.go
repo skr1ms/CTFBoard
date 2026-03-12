@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createAward = `-- name: CreateAward :exec
@@ -18,12 +18,12 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateAwardParams struct {
-	ID          uuid.UUID  `json:"id"`
-	TeamID      uuid.UUID  `json:"team_id"`
-	Value       int32      `json:"value"`
-	Description string     `json:"description"`
-	CreatedBy   *uuid.UUID `json:"created_by"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	Value       int32              `json:"value"`
+	Description string             `json:"description"`
+	CreatedBy   *uuid.UUID         `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateAward(ctx context.Context, arg CreateAwardParams) error {
@@ -59,18 +59,28 @@ func (q *Queries) DeleteAwardsByTeamID(ctx context.Context, teamID uuid.UUID) er
 const getAllAwards = `-- name: GetAllAwards :many
 SELECT id, team_id, value, description, created_by, created_at
 FROM awards
+WHERE banned_team_id IS NULL
 ORDER BY created_at ASC
 `
 
-func (q *Queries) GetAllAwards(ctx context.Context) ([]Award, error) {
+type GetAllAwardsRow struct {
+	ID          uuid.UUID          `json:"id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	Value       int32              `json:"value"`
+	Description string             `json:"description"`
+	CreatedBy   *uuid.UUID         `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetAllAwards(ctx context.Context) ([]GetAllAwardsRow, error) {
 	rows, err := q.db.Query(ctx, getAllAwards)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Award
+	var items []GetAllAwardsRow
 	for rows.Next() {
-		var i Award
+		var i GetAllAwardsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TeamID,
@@ -92,12 +102,21 @@ func (q *Queries) GetAllAwards(ctx context.Context) ([]Award, error) {
 const getAwardByID = `-- name: GetAwardByID :one
 SELECT id, team_id, value, description, created_by, created_at
 FROM awards
-WHERE id = $1
+WHERE id = $1 AND banned_team_id IS NULL
 `
 
-func (q *Queries) GetAwardByID(ctx context.Context, id uuid.UUID) (Award, error) {
+type GetAwardByIDRow struct {
+	ID          uuid.UUID          `json:"id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	Value       int32              `json:"value"`
+	Description string             `json:"description"`
+	CreatedBy   *uuid.UUID         `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetAwardByID(ctx context.Context, id uuid.UUID) (GetAwardByIDRow, error) {
 	row := q.db.QueryRow(ctx, getAwardByID, id)
-	var i Award
+	var i GetAwardByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.TeamID,
@@ -112,19 +131,28 @@ func (q *Queries) GetAwardByID(ctx context.Context, id uuid.UUID) (Award, error)
 const getAwardsByTeamID = `-- name: GetAwardsByTeamID :many
 SELECT id, team_id, value, description, created_by, created_at
 FROM awards
-WHERE team_id = $1
+WHERE team_id = $1 AND banned_team_id IS NULL
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetAwardsByTeamID(ctx context.Context, teamID uuid.UUID) ([]Award, error) {
+type GetAwardsByTeamIDRow struct {
+	ID          uuid.UUID          `json:"id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	Value       int32              `json:"value"`
+	Description string             `json:"description"`
+	CreatedBy   *uuid.UUID         `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetAwardsByTeamID(ctx context.Context, teamID uuid.UUID) ([]GetAwardsByTeamIDRow, error) {
 	rows, err := q.db.Query(ctx, getAwardsByTeamID, teamID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Award
+	var items []GetAwardsByTeamIDRow
 	for rows.Next() {
-		var i Award
+		var i GetAwardsByTeamIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TeamID,
@@ -143,8 +171,42 @@ func (q *Queries) GetAwardsByTeamID(ctx context.Context, teamID uuid.UUID) ([]Aw
 	return items, nil
 }
 
+const getAwardsForBackup = `-- name: GetAwardsForBackup :many
+SELECT id, team_id, value, description, created_by, created_at, banned_team_id
+FROM awards
+ORDER BY created_at ASC
+`
+
+func (q *Queries) GetAwardsForBackup(ctx context.Context) ([]Award, error) {
+	rows, err := q.db.Query(ctx, getAwardsForBackup)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Award
+	for rows.Next() {
+		var i Award
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Value,
+			&i.Description,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.BannedTeamID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTeamTotalAwards = `-- name: GetTeamTotalAwards :one
-SELECT COALESCE(SUM(value), 0)::int FROM awards WHERE team_id = $1
+SELECT COALESCE(SUM(value), 0)::int FROM awards WHERE team_id = $1 AND banned_team_id IS NULL
 `
 
 func (q *Queries) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int32, error) {
@@ -152,4 +214,22 @@ func (q *Queries) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (int
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const restoreAwardsByBannedTeamID = `-- name: RestoreAwardsByBannedTeamID :exec
+UPDATE awards SET banned_team_id = NULL WHERE banned_team_id = $1
+`
+
+func (q *Queries) RestoreAwardsByBannedTeamID(ctx context.Context, bannedTeamID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, restoreAwardsByBannedTeamID, bannedTeamID)
+	return err
+}
+
+const softBanAwardsByTeamID = `-- name: SoftBanAwardsByTeamID :exec
+UPDATE awards SET banned_team_id = team_id WHERE team_id = $1 AND banned_team_id IS NULL
+`
+
+func (q *Queries) SoftBanAwardsByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, softBanAwardsByTeamID, teamID)
+	return err
 }

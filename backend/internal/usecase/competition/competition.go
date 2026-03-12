@@ -7,19 +7,21 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
-	localCompTTL  = 5 * time.Second
-	redisCacheTTL = 30 * time.Second
+	localCompTTL             = 5 * time.Second
+	redisCacheTTL            = 15 * time.Second
+	boundaryInvalidateWindow = 25 * time.Second
 )
 
 type CompetitionUseCase struct {
@@ -29,12 +31,18 @@ type CompetitionUseCase struct {
 	localCompAt atomic.Int64 // unix nano of last store
 }
 
+type StatisticsCacheInvalidator interface {
+	InvalidateStatistics(ctx context.Context) error
+}
+
 type CompetitionDeps struct {
-	CompetitionRepo repo.CompetitionRepository
-	AuditLogRepo    repo.AuditLogRepository
-	TM              repo.TransactionManager
-	Redis           cache.KeyValueStore
-	Logger          logger.Logger
+	CompetitionRepo       repo.CompetitionRepository
+	AuditLogRepo          repo.AuditLogRepository
+	TM                    repo.TransactionManager
+	Redis                 cache.KeyValueStore
+	StatsCacheInvalidator StatisticsCacheInvalidator
+	ScoreboardCache       cache.ScoreboardCacheInvalidator
+	Logger                logger.Logger
 }
 
 var _ usecase.CompetitionUseCase = (*CompetitionUseCase)(nil)
@@ -46,13 +54,42 @@ func NewCompetitionUseCase(deps CompetitionDeps) *CompetitionUseCase {
 	return &CompetitionUseCase{deps: deps}
 }
 
-//nolint:gocognit // multi-layer cache (local → Redis → DB) with frozen-scoreboard branching
+func competitionCacheStale(comp *entity.Competition, now time.Time) bool {
+	if comp == nil {
+		return false
+	}
+	if comp.StartTime != nil && now.After(*comp.StartTime) && now.Sub(*comp.StartTime) < boundaryInvalidateWindow {
+		return true
+	}
+	if comp.EndTime != nil && now.After(*comp.EndTime) && now.Sub(*comp.EndTime) < boundaryInvalidateWindow {
+		return true
+	}
+	if comp.FreezeTime != nil && now.After(*comp.FreezeTime) && now.Sub(*comp.FreezeTime) < boundaryInvalidateWindow {
+		return true
+	}
+	return false
+}
+
 func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, error) {
-	// Fast path: in-process cache avoids Redis round-trip on every middleware call.
+	now := time.Now()
 	if cached := uc.localComp.Load(); cached != nil {
-		age := time.Duration(time.Now().UnixNano() - uc.localCompAt.Load())
-		if age < localCompTTL {
+		age := time.Duration(now.UnixNano() - uc.localCompAt.Load())
+		if age < localCompTTL && !competitionCacheStale(cached, now) {
 			return cached, nil
+		}
+		if competitionCacheStale(cached, now) {
+			uc.localComp.Store(nil)
+			uc.localCompAt.Store(0)
+			if uc.deps.Redis != nil {
+				if err := uc.deps.Redis.Del(ctx, cache.KeyCompetition); err != nil && uc.deps.Logger != nil {
+					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - Redis.Del")
+				}
+			}
+			if uc.deps.StatsCacheInvalidator != nil {
+				if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx); err != nil && uc.deps.Logger != nil {
+					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - InvalidateStatistics")
+				}
+			}
 		}
 	}
 
@@ -61,8 +98,18 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 		if err == nil {
 			var comp entity.Competition
 			if err := json.Unmarshal([]byte(val), &comp); err == nil {
-				uc.storeLocal(&comp)
-				return &comp, nil
+				if !competitionCacheStale(&comp, time.Now()) {
+					uc.storeLocal(&comp)
+					return &comp, nil
+				}
+				if err := uc.deps.Redis.Del(ctx, cache.KeyCompetition); err != nil && uc.deps.Logger != nil {
+					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - Redis.Del stale")
+				}
+				if uc.deps.StatsCacheInvalidator != nil {
+					if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx); err != nil && uc.deps.Logger != nil {
+						uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - InvalidateStatistics stale")
+					}
+				}
 			}
 		}
 	}
@@ -108,49 +155,14 @@ func timePtrEqual(a, b *time.Time) bool {
 	return ta.Equal(tb)
 }
 
-//nolint:gocyclo,gocognit // status and field checks
-func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition, actorID uuid.UUID, clientIP string) error {
-	current, err := uc.deps.CompetitionRepo.Get(ctx)
-	if err != nil {
-		return fmt.Errorf("CompetitionUseCase - Update - CompetitionRepo.Get: %w", err)
+func derefBool(p *bool, def bool) bool {
+	if p == nil {
+		return def
 	}
+	return *p
+}
 
-	// MinTeamSize and MaxTeamSize are not part of UpdateCompetitionRequest (they are
-	// configured at startup via env). Preserve the current DB values to avoid zeroing
-	// them out on every PUT /admin/competition.
-	if comp.MinTeamSize == 0 {
-		comp.MinTeamSize = current.MinTeamSize
-	}
-	if comp.MaxTeamSize == 0 {
-		comp.MaxTeamSize = current.MaxTeamSize
-	}
-
-	if comp.Mode != "" && !comp.Mode.IsValid() {
-		return httperr.NewValidationErrorf("invalid competition mode %q: must be solo_only, teams_only, or flexible", comp.Mode)
-	}
-	if comp.Mode == "" {
-		comp.Mode = current.Mode
-	}
-
-	status := current.GetStatus()
-	if status == entity.CompetitionStatusActive || status == entity.CompetitionStatusFrozen || status == entity.CompetitionStatusPaused {
-		if comp.StartTime == nil {
-			comp.StartTime = current.StartTime
-		}
-		if comp.EndTime == nil {
-			comp.EndTime = current.EndTime
-		}
-		if comp.FreezeTime == nil {
-			comp.FreezeTime = current.FreezeTime
-		}
-		if comp.Mode != current.Mode ||
-			comp.AllowTeamSwitch != current.AllowTeamSwitch ||
-			!timePtrEqual(comp.StartTime, current.StartTime) ||
-			!timePtrEqual(comp.EndTime, current.EndTime) ||
-			!timePtrEqual(comp.FreezeTime, current.FreezeTime) {
-			return httperr.ErrCompetitionActiveCannotUpdate
-		}
-	}
+func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition, optionals *usecase.CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error {
 	auditLog := &entity.AuditLog{
 		UserID:     &actorID,
 		Action:     entity.AuditActionUpdate,
@@ -161,7 +173,30 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 			"message": "competition settings updated",
 		},
 	}
-	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+	now := time.Now()
+	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		current, err := uc.deps.CompetitionRepo.GetForUpdate(ctx)
+		if err != nil {
+			return fmt.Errorf("CompetitionUseCase - Update - CompetitionRepo.GetForUpdate: %w", err)
+		}
+		status := current.GetStatusAt(now)
+		uc.mergeDefaults(comp, current, optionals)
+		if err := uc.validateCompetitionFields(comp); err != nil {
+			return err
+		}
+		if err := uc.validateCompetitionTimes(comp); err != nil {
+			return err
+		}
+		if comp.Mode != "" && !comp.Mode.IsValid() {
+			return httperr.NewValidationErrorf("invalid competition mode %q: must be solo_only, teams_only, or flexible", comp.Mode)
+		}
+		if err := uc.validateActiveConstraints(comp, current, status); err != nil {
+			return err
+		}
+		uc.applyPauseTransition(comp, current, now)
+		if err := uc.validateCompetitionTimesAfterUnpause(comp, current); err != nil {
+			return err
+		}
 		if err := uc.deps.CompetitionRepo.Update(ctx, comp); err != nil {
 			return fmt.Errorf("CompetitionUseCase - Update - CompetitionRepo.Update: %w", err)
 		}
@@ -173,15 +208,180 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 	if err != nil {
 		return fmt.Errorf("CompetitionUseCase - Update - TM.Run: %w", err)
 	}
-	// Invalidate in-process cache so the next Get() re-fetches fresh data.
 	uc.localComp.Store(nil)
 	uc.localCompAt.Store(0)
+	uc.sf.Forget(cache.KeyCompetition)
+	postCtx := context.WithoutCancel(ctx)
 	if uc.deps.Redis != nil {
-		if err := uc.deps.Redis.Del(ctx, cache.KeyCompetition); err != nil {
+		if err := uc.deps.Redis.Del(postCtx, cache.KeyCompetition); err != nil {
 			uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate cache; stale data for up to 5s")
 		}
 	}
+	if uc.deps.StatsCacheInvalidator != nil {
+		if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(postCtx); err != nil {
+			uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate statistics cache")
+		}
+	}
+	if uc.deps.ScoreboardCache != nil {
+		uc.deps.ScoreboardCache.InvalidateAll(postCtx)
+	}
 	return nil
+}
+
+func (uc *CompetitionUseCase) mergeDefaults(comp, current *entity.Competition, optionals *usecase.CompetitionUpdateOptionals) {
+	if comp.StartTime == nil {
+		comp.StartTime = current.StartTime
+	}
+	if optionals != nil && optionals.ClearEndTime != nil && *optionals.ClearEndTime {
+		comp.EndTime = nil
+	} else if comp.EndTime == nil {
+		comp.EndTime = current.EndTime
+	}
+	if optionals != nil && optionals.ClearFreezeTime != nil && *optionals.ClearFreezeTime {
+		comp.FreezeTime = nil
+	} else if comp.FreezeTime == nil {
+		comp.FreezeTime = current.FreezeTime
+	}
+	if comp.Mode == "" {
+		comp.Mode = current.Mode
+	}
+	if optionals != nil && optionals.MinTeamSize != nil {
+		comp.MinTeamSize = *optionals.MinTeamSize
+	} else {
+		comp.MinTeamSize = current.MinTeamSize
+	}
+	if optionals != nil && optionals.MaxTeamSize != nil {
+		comp.MaxTeamSize = *optionals.MaxTeamSize
+	} else {
+		comp.MaxTeamSize = current.MaxTeamSize
+	}
+	if optionals != nil {
+		comp.IsPaused = derefBool(optionals.IsPaused, current.IsPaused)
+		comp.IsPublic = derefBool(optionals.IsPublic, current.IsPublic)
+		comp.AllowTeamSwitch = derefBool(optionals.AllowTeamSwitch, current.AllowTeamSwitch)
+		comp.KeepScoreboardFrozenAfterEnd = derefBool(optionals.KeepScoreboardFrozenAfterEnd, current.KeepScoreboardFrozenAfterEnd)
+	} else {
+		comp.IsPaused = current.IsPaused
+		comp.IsPublic = current.IsPublic
+		comp.AllowTeamSwitch = current.AllowTeamSwitch
+		comp.KeepScoreboardFrozenAfterEnd = current.KeepScoreboardFrozenAfterEnd
+	}
+}
+
+func (uc *CompetitionUseCase) validateCompetitionFields(comp *entity.Competition) error {
+	if len(comp.Name) == 0 || len(comp.Name) > 200 {
+		return httperr.NewValidationErrorf("competition name must be 1-200 characters")
+	}
+	if comp.FlagRegex != nil && len(*comp.FlagRegex) > 500 {
+		return httperr.NewValidationErrorf("flag_regex must be at most 500 characters")
+	}
+	if comp.MinTeamSize < 0 {
+		return httperr.NewValidationErrorf("min_team_size must be >= 0")
+	}
+	if comp.MaxTeamSize < 0 {
+		return httperr.NewValidationErrorf("max_team_size must be >= 0")
+	}
+	if comp.MinTeamSize > 0 && comp.MaxTeamSize > 0 && comp.MinTeamSize > comp.MaxTeamSize {
+		return httperr.NewValidationErrorf("min_team_size must be <= max_team_size")
+	}
+	return nil
+}
+
+func (uc *CompetitionUseCase) validateCompetitionTimes(comp *entity.Competition) error {
+	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
+		return httperr.NewValidationErrorf("end_time must be after start_time")
+	}
+	if comp.FreezeTime != nil && comp.EndTime != nil && !comp.FreezeTime.Before(*comp.EndTime) {
+		return httperr.NewValidationErrorf("freeze_time must be before end_time")
+	}
+	if comp.FreezeTime != nil && comp.StartTime != nil && comp.FreezeTime.Before(*comp.StartTime) {
+		return httperr.NewValidationErrorf("freeze_time must be after start_time")
+	}
+	return nil
+}
+
+func (uc *CompetitionUseCase) validateCompetitionTimesAfterUnpause(comp, current *entity.Competition) error {
+	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
+		return httperr.NewValidationErrorf("end_time must be after start_time")
+	}
+	if comp.FreezeTime != nil && comp.EndTime != nil && !comp.FreezeTime.Before(*comp.EndTime) {
+		if current.IsPaused && current.PausedAt != nil && comp.FreezeTime != nil &&
+			current.FreezeTime != nil && current.PausedAt.Before(*current.FreezeTime) {
+			return httperr.NewValidationErrorf("unpausing shifts freeze_time by the pause duration; result would be after end_time — set a later end_time or clear freeze_time")
+		}
+		return httperr.NewValidationErrorf("freeze_time must be before end_time")
+	}
+	if comp.FreezeTime != nil && comp.StartTime != nil && comp.FreezeTime.Before(*comp.StartTime) {
+		return httperr.NewValidationErrorf("freeze_time must be after start_time")
+	}
+	return nil
+}
+
+func (uc *CompetitionUseCase) validateActiveConstraints(comp, current *entity.Competition, status entity.CompetitionStatus) error {
+	if status != entity.CompetitionStatusActive && status != entity.CompetitionStatusFrozen && status != entity.CompetitionStatusPaused {
+		return nil
+	}
+	if comp.Mode != current.Mode || !timePtrEqual(comp.StartTime, current.StartTime) {
+		return httperr.ErrCompetitionActiveCannotUpdate
+	}
+	if comp.MinTeamSize != current.MinTeamSize || comp.MaxTeamSize != current.MaxTeamSize {
+		return httperr.ErrCompetitionActiveCannotUpdate
+	}
+	if comp.AllowTeamSwitch != current.AllowTeamSwitch {
+		return httperr.ErrCompetitionActiveCannotUpdate
+	}
+	return nil
+}
+
+func (uc *CompetitionUseCase) applyPauseTransition(comp, current *entity.Competition, now time.Time) {
+	wasPaused := current.IsPaused
+	isPausing := comp.IsPaused
+
+	if !wasPaused && isPausing {
+		comp.PausedAt = &now
+		return
+	}
+
+	if wasPaused && !isPausing {
+		pausedAt := current.PausedAt
+		if pausedAt == nil {
+			if uc.deps.Logger != nil {
+				uc.deps.Logger.Warn("CompetitionUseCase - applyPauseTransition: competition was paused but paused_at was nil; using now as fallback")
+			}
+			pausedAt = &now
+		}
+		if comp.EndTime != nil && !pausedAt.Before(*comp.EndTime) {
+			comp.PausedAt = nil
+			return
+		}
+		effectivePausedAt := pausedAt
+		if comp.StartTime != nil && pausedAt.Before(*comp.StartTime) {
+			effectivePausedAt = comp.StartTime
+		}
+		pauseDuration := now.Sub(*effectivePausedAt)
+		if pauseDuration <= 0 {
+			comp.PausedAt = nil
+			return
+		}
+		endTimeUnchanged := comp.EndTime != nil && timePtrEqual(comp.EndTime, current.EndTime)
+		if endTimeUnchanged {
+			shifted := comp.EndTime.Add(pauseDuration)
+			comp.EndTime = &shifted
+		}
+		freezeTimeUnchanged := comp.FreezeTime != nil && timePtrEqual(comp.FreezeTime, current.FreezeTime)
+		if freezeTimeUnchanged && pausedAt.Before(*comp.FreezeTime) {
+			shifted := comp.FreezeTime.Add(pauseDuration)
+			comp.FreezeTime = &shifted
+		}
+		comp.PausedAt = nil
+		return
+	}
+
+	if !isPausing {
+		comp.PausedAt = nil
+	} else {
+		comp.PausedAt = current.PausedAt
+	}
 }
 
 func (uc *CompetitionUseCase) GetStatus(ctx context.Context) (entity.CompetitionStatus, error) {
@@ -200,4 +400,17 @@ func (uc *CompetitionUseCase) IsSubmissionAllowed(ctx context.Context) (bool, er
 	}
 
 	return comp.IsSubmissionAllowed(), nil
+}
+
+const statsCachePrefix = "stats:"
+
+type StatsCacheInvalidatorImpl struct {
+	Cache *cache.Cache
+}
+
+func (s *StatsCacheInvalidatorImpl) InvalidateStatistics(ctx context.Context) error {
+	if s == nil || s.Cache == nil {
+		return nil
+	}
+	return s.Cache.DeleteByPrefix(ctx, statsCachePrefix)
 }

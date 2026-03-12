@@ -7,12 +7,14 @@ package sqlc
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getCompetition = `-- name: GetCompetition :one
-SELECT id, name, start_time, end_time, freeze_time, is_paused, is_public,
-       flag_regex, mode, allow_team_switch, min_team_size, max_team_size, created_at, updated_at
+SELECT id, name, start_time, end_time, freeze_time, is_paused, paused_at, is_public,
+       flag_regex, mode, allow_team_switch, min_team_size, max_team_size,
+       keep_scoreboard_frozen_after_end, created_at, updated_at
 FROM competition
 WHERE id = 1
 `
@@ -27,12 +29,47 @@ func (q *Queries) GetCompetition(ctx context.Context) (Competition, error) {
 		&i.EndTime,
 		&i.FreezeTime,
 		&i.IsPaused,
+		&i.PausedAt,
 		&i.IsPublic,
 		&i.FlagRegex,
 		&i.Mode,
 		&i.AllowTeamSwitch,
 		&i.MinTeamSize,
 		&i.MaxTeamSize,
+		&i.KeepScoreboardFrozenAfterEnd,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getCompetitionForUpdate = `-- name: GetCompetitionForUpdate :one
+SELECT id, name, start_time, end_time, freeze_time, is_paused, paused_at, is_public,
+       flag_regex, mode, allow_team_switch, min_team_size, max_team_size,
+       keep_scoreboard_frozen_after_end, created_at, updated_at
+FROM competition
+WHERE id = 1
+FOR UPDATE
+`
+
+func (q *Queries) GetCompetitionForUpdate(ctx context.Context) (Competition, error) {
+	row := q.db.QueryRow(ctx, getCompetitionForUpdate)
+	var i Competition
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.StartTime,
+		&i.EndTime,
+		&i.FreezeTime,
+		&i.IsPaused,
+		&i.PausedAt,
+		&i.IsPublic,
+		&i.FlagRegex,
+		&i.Mode,
+		&i.AllowTeamSwitch,
+		&i.MinTeamSize,
+		&i.MaxTeamSize,
+		&i.KeepScoreboardFrozenAfterEnd,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -46,28 +83,32 @@ UPDATE competition SET
     end_time = $3,
     freeze_time = $4,
     is_paused = $5,
-    is_public = $6,
-    flag_regex = $7,
-    mode = $8,
-    allow_team_switch = $9,
-    min_team_size = $10,
-    max_team_size = $11,
+    paused_at = $6,
+    is_public = $7,
+    flag_regex = $8,
+    mode = $9,
+    allow_team_switch = $10,
+    min_team_size = $11,
+    max_team_size = $12,
+    keep_scoreboard_frozen_after_end = $13,
     updated_at = NOW()
 WHERE id = 1
 `
 
 type UpdateCompetitionParams struct {
-	Name            string     `json:"name"`
-	StartTime       *time.Time `json:"start_time"`
-	EndTime         *time.Time `json:"end_time"`
-	FreezeTime      *time.Time `json:"freeze_time"`
-	IsPaused        *bool      `json:"is_paused"`
-	IsPublic        *bool      `json:"is_public"`
-	FlagRegex       *string    `json:"flag_regex"`
-	Mode            *string    `json:"mode"`
-	AllowTeamSwitch *bool      `json:"allow_team_switch"`
-	MinTeamSize     *int32     `json:"min_team_size"`
-	MaxTeamSize     *int32     `json:"max_team_size"`
+	Name                         string             `json:"name"`
+	StartTime                    pgtype.Timestamptz `json:"start_time"`
+	EndTime                      pgtype.Timestamptz `json:"end_time"`
+	FreezeTime                   pgtype.Timestamptz `json:"freeze_time"`
+	IsPaused                     *bool              `json:"is_paused"`
+	PausedAt                     pgtype.Timestamptz `json:"paused_at"`
+	IsPublic                     *bool              `json:"is_public"`
+	FlagRegex                    *string            `json:"flag_regex"`
+	Mode                         *string            `json:"mode"`
+	AllowTeamSwitch              *bool              `json:"allow_team_switch"`
+	MinTeamSize                  *int32             `json:"min_team_size"`
+	MaxTeamSize                  *int32             `json:"max_team_size"`
+	KeepScoreboardFrozenAfterEnd bool               `json:"keep_scoreboard_frozen_after_end"`
 }
 
 func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionParams) error {
@@ -77,12 +118,14 @@ func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionPa
 		arg.EndTime,
 		arg.FreezeTime,
 		arg.IsPaused,
+		arg.PausedAt,
 		arg.IsPublic,
 		arg.FlagRegex,
 		arg.Mode,
 		arg.AllowTeamSwitch,
 		arg.MinTeamSize,
 		arg.MaxTeamSize,
+		arg.KeepScoreboardFrozenAfterEnd,
 	)
 	return err
 }

@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"golang.org/x/sync/errgroup"
 )
 
 const buildDownloadURLsConcurrency = 10
@@ -77,27 +79,20 @@ func NewServer(deps *helper.ServerDeps) *Server {
 	}
 }
 
-// buildDownloadURLs generates presigned URLs for files. If GetDownloadURL fails for
-// a file, the error is logged and that file is omitted from the result. The client
-// receives a map that may have fewer entries than files - absent keys indicate URL
-// generation failed for those files.
-func (h *Server) buildDownloadURLs(ctx context.Context, files []*entity.File) map[string]string {
+func (h *Server) buildDownloadURLs(ctx context.Context, files []*entity.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error) {
 	if len(files) == 0 {
-		return nil
+		return nil, nil
 	}
-
 	urls := make(map[string]string, len(files))
 	var mu sync.Mutex
-
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(buildDownloadURLsConcurrency)
-
 	for _, f := range files {
+		f := f
 		g.Go(func() error {
-			u, err := h.challenge.FileUC.GetDownloadURL(gCtx, f.ID)
+			u, err := h.challenge.FileUC.GetDownloadURLWithAccess(gCtx, f.ID, teamID, isAdmin)
 			if err != nil {
-				h.infra.Logger.WithError(err).Error("restapi - v1 - buildDownloadURLs - GetDownloadURL")
-				return nil
+				return err
 			}
 			mu.Lock()
 			urls[f.ID.String()] = u
@@ -106,8 +101,8 @@ func (h *Server) buildDownloadURLs(ctx context.Context, files []*entity.File) ma
 		})
 	}
 	if err := g.Wait(); err != nil {
-		h.infra.Logger.WithError(err).Error("restapi - v1 - buildDownloadURLs - g.Wait")
+		h.infra.Logger.WithError(err).Error("restapi - v1 - buildDownloadURLs - GetDownloadURLWithAccess")
+		return nil, err
 	}
-
-	return urls
+	return urls, nil
 }

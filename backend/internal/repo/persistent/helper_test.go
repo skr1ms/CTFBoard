@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,6 +45,45 @@ func TestPtrTimeToTime_Error(t *testing.T) {
 	t.Parallel()
 	got := ptrTimeToTime(nil)
 	assert.True(t, got.IsZero())
+}
+
+func TestTimestamptzToTime_Valid(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
+	in := pgtype.Timestamptz{Time: ts, Valid: true}
+	got := timestamptzToTime(in)
+	require.NotNil(t, got)
+	assert.Equal(t, ts, *got)
+}
+
+func TestTimestamptzToTime_Invalid(t *testing.T) {
+	t.Parallel()
+	got := timestamptzToTime(pgtype.Timestamptz{})
+	assert.Nil(t, got)
+}
+
+func TestTimeToTimestamptz_Valid(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
+	got := timeToTimestamptz(&ts)
+	assert.True(t, got.Valid)
+	assert.Equal(t, ts, got.Time)
+}
+
+func TestTimeToTimestamptz_Nil(t *testing.T) {
+	t.Parallel()
+	got := timeToTimestamptz(nil)
+	assert.False(t, got.Valid)
+	assert.True(t, got.Time.IsZero())
+}
+
+func TestTimestamptzToTime_TimeToTimestamptz_Roundtrip(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
+	pg := timeToTimestamptz(&ts)
+	back := timestamptzToTime(pg)
+	require.NotNil(t, back)
+	assert.Equal(t, ts, *back)
 }
 
 func TestTimeFromNullableAny_Success(t *testing.T) {

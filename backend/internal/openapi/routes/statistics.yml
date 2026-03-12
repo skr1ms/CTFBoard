@@ -1,6 +1,14 @@
 /statistics/challenges:
   get:
-    description: Returns statistics for all challenges including solve counts
+    operationId: GetStatisticsChallenges
+    description: Returns statistics for all challenges including solve counts. When frozen, use live=true (admin) for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -10,6 +18,8 @@
               items:
                 $ref: '../components/schemas.yml#/ChallengeStats'
               type: array
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -18,13 +28,15 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge statistics
     tags:
       - Statistics
 
 /statistics/challenges/{ID}:
   get:
-    description: Returns detailed statistics for a single challenge (solves, first blood, percentage)
+    operationId: GetStatisticsChallengesID
+    description: Returns detailed statistics for a single challenge (solves, first blood, percentage). When frozen, use live=true (admin) for live data.
     parameters:
       - name: ID
         in: path
@@ -32,6 +44,12 @@
         schema:
           type: string
           format: uuid
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -59,13 +77,22 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge detail statistics
     tags:
       - Statistics
 
 /statistics/general:
   get:
-    description: Returns general platform statistics (counts of users, teams, challenges, solves)
+    operationId: GetStatisticsGeneral
+    description: Returns general platform statistics (counts of users, teams, challenges, solves). When frozen, use live=true (admin) for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -73,6 +100,8 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/GeneralStats'
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -81,13 +110,15 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get general statistics
     tags:
       - Statistics
 
 /statistics/scoreboard:
   get:
-    description: Returns scoreboard history for graph visualization. Default limit 10 (max 50)
+    operationId: GetStatisticsScoreboard
+    description: Returns scoreboard history for graph visualization. Default limit 10 (max 50). When frozen, use live=true (admin) for live data.
     parameters:
       - name: limit
         in: query
@@ -97,6 +128,12 @@
           maximum: 50
           default: 10
         description: Number of teams to include in history (default 10, max 50)
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -106,6 +143,8 @@
               items:
                 $ref: '../components/schemas.yml#/ScoreboardHistoryEntry'
               type: array
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -114,13 +153,22 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get scoreboard history
     tags:
       - Statistics
 
 /statistics/challenges/solves/percentages:
   get:
-    description: Returns solve percentage for each challenge
+    operationId: GetStatisticsChallengesSolvesPercentages
+    description: Returns solve percentage for each challenge. When frozen, use live=true (admin) for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -130,6 +178,8 @@
               items:
                 $ref: '../components/schemas.yml#/ChallengeSolvePercentage'
               type: array
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -138,13 +188,22 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get challenge solve percentages
     tags:
       - Statistics
 
 /statistics/scores/distribution:
   get:
-    description: Returns distribution of team scores across ranges
+    operationId: GetStatisticsScoresDistribution
+    description: Returns distribution of team scores across ranges. When frozen, use live=true (admin) for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -154,6 +213,8 @@
               items:
                 $ref: '../components/schemas.yml#/ScoreDistributionBucket'
               type: array
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -162,13 +223,22 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get score distribution
     tags:
       - Statistics
 
 /statistics/submissions:
   get:
-    description: Returns aggregated submission statistics per day
+    operationId: GetStatisticsSubmissions
+    description: Returns aggregated submission statistics per day. When frozen, use live=true (admin) for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -176,6 +246,8 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/SubmissionTimeSeriesResponse'
+      "400":
+        description: Bad Request
       "500":
         description: Internal Server Error
         content:
@@ -184,13 +256,15 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submission statistics
     tags:
       - Statistics
 
 /statistics/submissions/{type}:
   get:
-    description: Returns submission statistics per day filtered by type (correct or incorrect)
+    operationId: GetStatisticsSubmissionsType
+    description: Returns submission statistics per day filtered by type (correct or incorrect). When frozen, use live=true (admin) for live data.
     parameters:
       - name: type
         in: path
@@ -199,6 +273,12 @@
           type: string
           enum: [correct, incorrect]
         description: Submission type filter
+      - name: live
+        in: query
+        description: If true and requester is admin, return live data during freeze.
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -222,13 +302,15 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get submission statistics by type
     tags:
       - Statistics
 
 /statistics/teams:
   get:
-    description: Returns team registration statistics per day. Admin only.
+    operationId: GetStatisticsTeams
+    description: Returns team registration statistics per day. Requires authentication and scoreboard visibility.
     responses:
       "200":
         description: OK
@@ -240,6 +322,16 @@
               type: array
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -248,13 +340,15 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get team registration statistics
     tags:
       - Statistics
 
 /statistics/users:
   get:
-    description: Returns user registration statistics per day. Admin only.
+    operationId: GetStatisticsUsers
+    description: Returns user registration statistics per day. Requires authentication and scoreboard visibility.
     responses:
       "200":
         description: OK
@@ -264,8 +358,18 @@
               items:
                 $ref: '../components/schemas.yml#/RegistrationTimePoint'
               type: array
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -274,13 +378,22 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get user registration statistics
     tags:
       - Statistics
 
 /admin/statistics/solve-matrix:
   get:
-    description: Returns solve matrix showing which teams solved which challenges. Admin only.
+    operationId: GetAdminStatisticsSolveMatrix
+    description: Returns solve matrix showing which teams solved which challenges. Admin only. When frozen, use live=true for live data.
+    parameters:
+      - name: live
+        in: query
+        description: If true, return live data during freeze (admin only).
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -292,6 +405,10 @@
               type: array
       "403":
         description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -300,6 +417,7 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Get solve matrix
     tags:
       - Statistics

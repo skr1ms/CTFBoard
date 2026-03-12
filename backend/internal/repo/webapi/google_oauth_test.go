@@ -18,12 +18,14 @@ func TestGoogleAPI_FetchUserProfile_Success(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer mytoken", r.Header.Get("Authorization"))
-		json.NewEncoder(w).Encode(googleUserInfo{
+		if err := json.NewEncoder(w).Encode(googleUserInfo{
 			ID:            "g123",
 			Email:         "alice@gmail.com",
 			VerifiedEmail: true,
 			Name:          "Alice",
-		})
+		}); err != nil {
+			return
+		}
 	}))
 	defer srv.Close()
 
@@ -38,12 +40,14 @@ func TestGoogleAPI_FetchUserProfile_Success(t *testing.T) {
 func TestGoogleAPI_FetchUserProfile_EmptyName_FallsBackToEmail(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		json.NewEncoder(w).Encode(googleUserInfo{
+		if err := json.NewEncoder(w).Encode(googleUserInfo{
 			ID:            "g456",
 			Email:         "noname@gmail.com",
 			VerifiedEmail: true,
 			Name:          "",
-		})
+		}); err != nil {
+			return
+		}
 	}))
 	defer srv.Close()
 
@@ -56,12 +60,14 @@ func TestGoogleAPI_FetchUserProfile_EmptyName_FallsBackToEmail(t *testing.T) {
 func TestGoogleAPI_FetchUserProfile_UnverifiedEmail_ReturnsError(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		json.NewEncoder(w).Encode(googleUserInfo{
+		if err := json.NewEncoder(w).Encode(googleUserInfo{
 			ID:            "g789",
 			Email:         "unverified@gmail.com",
 			VerifiedEmail: false,
 			Name:          "Bob",
-		})
+		}); err != nil {
+			return
+		}
 	}))
 	defer srv.Close()
 
@@ -75,7 +81,9 @@ func TestGoogleAPI_FetchUserProfile_NonOKStatus_ReturnsError(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorized"))
+		if _, err := w.Write([]byte("Unauthorized")); err != nil {
+			return
+		}
 	}))
 	defer srv.Close()
 
@@ -88,7 +96,9 @@ func TestGoogleAPI_FetchUserProfile_NonOKStatus_ReturnsError(t *testing.T) {
 func TestGoogleAPI_FetchUserProfile_MalformedJSON_ReturnsError(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("not json at all"))
+		if _, err := w.Write([]byte("not json at all")); err != nil {
+			return
+		}
 	}))
 	defer srv.Close()
 

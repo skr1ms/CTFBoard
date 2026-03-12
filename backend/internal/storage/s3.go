@@ -107,6 +107,18 @@ func (p *S3Provider) Delete(ctx context.Context, path string) error {
 	return nil
 }
 
+func (p *S3Provider) List(ctx context.Context, prefix string) ([]string, error) {
+	opts := minio.ListObjectsOptions{Prefix: prefix, Recursive: true}
+	var paths []string
+	for obj := range p.client.ListObjects(ctx, p.bucket, opts) {
+		if obj.Err != nil {
+			return nil, fmt.Errorf("S3Provider - List: %w", obj.Err)
+		}
+		paths = append(paths, obj.Key)
+	}
+	return paths, nil
+}
+
 func (p *S3Provider) Ping(ctx context.Context) error {
 	_, err := p.client.BucketExists(ctx, p.bucket)
 	if err != nil {

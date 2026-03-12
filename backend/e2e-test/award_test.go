@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // POST /admin/awards: create bonus; GET /scoreboard reflects team score = solves + award.
@@ -253,7 +254,7 @@ func TestAward_TeamByID_Success(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get teams id awards")
 }
 
-// GET /teams/{ID}/awards: team not found returns 404.
+// GET /teams/{ID}/awards: non-member gets 403 (access control; does not reveal if team exists).
 func TestAward_TeamByID_NotFound(t *testing.T) {
 	t.Helper()
 	t.Parallel()
@@ -265,5 +266,5 @@ func TestAward_TeamByID_NotFound(t *testing.T) {
 
 	resp, err := h.Client().GetTeamsIDAwardsWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "get teams id awards not found")
+	helper.RequireStatus(t, http.StatusForbidden, resp.StatusCode(), resp.Body, "get teams id awards not own team")
 }

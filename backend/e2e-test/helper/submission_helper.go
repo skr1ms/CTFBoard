@@ -3,13 +3,18 @@ package helper
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetAdminSubmissions(token string, page, perPage, expectStatus int) *openapi.GetAdminSubmissionsResponse {
+	return h.GetAdminSubmissionsWithLive(token, nil, page, perPage, expectStatus)
+}
+
+func (h *E2EHelper) GetAdminSubmissionsWithLive(token string, live *bool, page, perPage, expectStatus int) *openapi.GetAdminSubmissionsResponse {
 	h.t.Helper()
-	params := &openapi.GetAdminSubmissionsParams{Page: &page, PerPage: &perPage}
+	params := &openapi.GetAdminSubmissionsParams{Page: &page, PerPage: &perPage, Live: live}
 	resp, err := h.client.GetAdminSubmissionsWithResponse(context.Background(), params, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "admin submissions")
@@ -27,7 +32,7 @@ func (h *E2EHelper) GetAdminSubmissionsByChallenge(token, challengeID string, pa
 
 func (h *E2EHelper) GetAdminSubmissionStatsByChallenge(token, challengeID string, expectStatus int) *openapi.GetAdminSubmissionsChallengeChallengeIDStatsResponse {
 	h.t.Helper()
-	resp, err := h.client.GetAdminSubmissionsChallengeChallengeIDStatsWithResponse(context.Background(), challengeID, WithBearerToken(token))
+	resp, err := h.client.GetAdminSubmissionsChallengeChallengeIDStatsWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "admin submission stats by challenge")
 	return resp

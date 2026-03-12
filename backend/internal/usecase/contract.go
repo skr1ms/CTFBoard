@@ -5,10 +5,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 )
 
 const (
@@ -51,7 +52,7 @@ type (
 		GetUserAwards(ctx context.Context, userID uuid.UUID) ([]*entity.Award, error)
 		AdminCreate(ctx context.Context, username, email, password, role string) (*entity.User, error)
 		AdminUpdate(ctx context.Context, userID uuid.UUID, username, email, role, password *string, isVerified *bool) (*entity.User, error)
-		AdminDelete(ctx context.Context, userID uuid.UUID) error
+		AdminDelete(ctx context.Context, userID, actorID uuid.UUID) error
 		BanUser(ctx context.Context, userID uuid.UUID, reason string, actorID uuid.UUID) error
 		UnbanUser(ctx context.Context, userID, actorID uuid.UUID) error
 		UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, currentPassword, newPassword *string) (*entity.User, error)
@@ -66,9 +67,7 @@ type (
 type ConfirmReason string
 
 const (
-	ConfirmReasonNone          ConfirmReason = ""
 	ConfirmReasonSoloTeamReset ConfirmReason = "solo_team_reset"
-	ConfirmReasonProgressLoss  ConfirmReason = "progress_loss"
 )
 
 type (
@@ -99,7 +98,7 @@ type (
 		CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*entity.Team, error)
 		DisbandTeam(ctx context.Context, captainID uuid.UUID) error
 		KickMember(ctx context.Context, captainID, targetUserID uuid.UUID) error
-		BanTeam(ctx context.Context, teamID uuid.UUID, reason string, actorID uuid.UUID) error
+		BanTeam(ctx context.Context, teamID uuid.UUID, reason string, banMembers bool, actorID uuid.UUID) error
 		UnbanTeam(ctx context.Context, teamID, actorID uuid.UUID) error
 		SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error
 		SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error
@@ -115,6 +114,7 @@ type (
 		AdminRemoveMember(ctx context.Context, teamID, userID uuid.UUID) error
 		UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*entity.Team, error)
 		GetInviteToken(ctx context.Context, captainID uuid.UUID) (*entity.Team, error)
+		RegenerateInviteToken(ctx context.Context, captainID uuid.UUID) (*entity.Team, error)
 	}
 )
 
@@ -155,12 +155,12 @@ type (
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Challenge, error)
 		Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*entity.Challenge, error)
-		Update(ctx context.Context, ID uuid.UUID, title, description, category string, points, initialValue, minValue, decay int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*entity.Challenge, error)
+		Update(ctx context.Context, ID uuid.UUID, title, description, category string, points int, initialValue, minValue, decay *int, flag string, isHidden, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*entity.Challenge, error)
 		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
 		SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID) (bool, error)
 		InvalidateScoreboardCache(ctx context.Context)
 		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
-		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID) error
+		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
 		AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error
 	}
 )
@@ -236,10 +236,21 @@ type (
 // Competition
 // =============================================================================
 
+type CompetitionUpdateOptionals struct {
+	IsPaused                     *bool
+	IsPublic                     *bool
+	AllowTeamSwitch              *bool
+	MinTeamSize                  *int
+	MaxTeamSize                  *int
+	ClearFreezeTime              *bool
+	ClearEndTime                 *bool
+	KeepScoreboardFrozenAfterEnd *bool
+}
+
 type (
 	CompetitionUseCase interface {
 		Get(ctx context.Context) (*entity.Competition, error)
-		Update(ctx context.Context, comp *entity.Competition, actorID uuid.UUID, clientIP string) error
+		Update(ctx context.Context, comp *entity.Competition, optionals *CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error
 		GetStatus(ctx context.Context) (entity.CompetitionStatus, error)
 		IsSubmissionAllowed(ctx context.Context) (bool, error)
 	}
@@ -264,8 +275,8 @@ type (
 type (
 	SolveUseCase interface {
 		Create(ctx context.Context, solve *entity.Solve) error
-		GetScoreboard(ctx context.Context, bracketID *uuid.UUID) ([]*entity.ScoreboardEntry, error)
-		GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*entity.FirstBloodEntry, error)
+		GetScoreboard(ctx context.Context, bracketID *uuid.UUID, forceLive bool) ([]*entity.ScoreboardEntry, error)
+		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*entity.FirstBloodEntry, error)
 	}
 )
 
@@ -275,18 +286,18 @@ type (
 
 type (
 	StatisticsUseCase interface {
-		GetGeneralStats(ctx context.Context) (*entity.GeneralStats, error)
-		GetChallengeStats(ctx context.Context) ([]*entity.ChallengeStats, error)
-		GetChallengeDetailStats(ctx context.Context, challengeID string) (*entity.ChallengeDetailStats, error)
-		GetScoreboardHistory(ctx context.Context, limit int) ([]*entity.ScoreboardHistoryEntry, error)
-		GetScoreboardGraph(ctx context.Context, topN int) (*entity.ScoreboardGraph, error)
-		GetChallengeSolvePercentages(ctx context.Context) ([]*entity.ChallengeSolvePercentage, error)
-		GetScoreDistribution(ctx context.Context) ([]*entity.ScoreDistributionBucket, error)
-		GetSubmissionTimeSeries(ctx context.Context) (*entity.SubmissionTimeSeriesStats, error)
-		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect bool) ([]*entity.RegistrationTimePoint, error)
+		GetGeneralStats(ctx context.Context, forceLive bool) (*entity.GeneralStats, error)
+		GetChallengeStats(ctx context.Context, forceLive bool) ([]*entity.ChallengeStats, error)
+		GetChallengeDetailStats(ctx context.Context, challengeID string, forceLive bool) (*entity.ChallengeDetailStats, error)
+		GetScoreboardHistory(ctx context.Context, limit int, forceLive bool) ([]*entity.ScoreboardHistoryEntry, error)
+		GetScoreboardGraph(ctx context.Context, topN int, forceLive bool) (*entity.ScoreboardGraph, error)
+		GetChallengeSolvePercentages(ctx context.Context, forceLive bool) ([]*entity.ChallengeSolvePercentage, error)
+		GetScoreDistribution(ctx context.Context, forceLive bool) ([]*entity.ScoreDistributionBucket, error)
+		GetSubmissionTimeSeries(ctx context.Context, forceLive bool) (*entity.SubmissionTimeSeriesStats, error)
+		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect, forceLive bool) ([]*entity.RegistrationTimePoint, error)
 		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error)
 		GetUserRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error)
-		GetSolveMatrix(ctx context.Context) ([]*entity.SolveMatrixRow, error)
+		GetSolveMatrix(ctx context.Context, forceLive bool) ([]*entity.SolveMatrixRow, error)
 	}
 )
 
@@ -314,11 +325,11 @@ type (
 		LogSubmission(ctx context.Context, sub *entity.Submission) error
 		AdminCreate(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) (*entity.SubmissionWithDetails, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*entity.SubmissionWithDetails, error)
-		GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int) (*Paginated[*entity.SubmissionWithDetails], error)
-		GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*Paginated[*entity.SubmissionWithDetails], error)
-		GetByTeam(ctx context.Context, teamID uuid.UUID, page, perPage int) (*Paginated[*entity.SubmissionWithDetails], error)
-		GetAll(ctx context.Context, page, perPage int) (*Paginated[*entity.SubmissionWithDetails], error)
-		GetStats(ctx context.Context, challengeID uuid.UUID) (*entity.SubmissionStats, error)
+		GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*entity.SubmissionWithDetails], error)
+		GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*entity.SubmissionWithDetails], error)
+		GetByTeam(ctx context.Context, teamID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*entity.SubmissionWithDetails], error)
+		GetAll(ctx context.Context, page, perPage int, forceLive bool) (*Paginated[*entity.SubmissionWithDetails], error)
+		GetStats(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*entity.SubmissionStats, error)
 		Update(ctx context.Context, ID uuid.UUID, isCorrect bool) (*entity.SubmissionWithDetails, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
@@ -499,6 +510,7 @@ type (
 // Cleaner describes the cleanup use case used by the standalone cleanup command.
 type Cleaner interface {
 	CleanupDeletedTeams(ctx context.Context, olderThan time.Duration) error
+	CleanupOrphanedStorageFiles(ctx context.Context, prefix string) (int, error)
 }
 
 // =============================================================================
@@ -547,20 +559,4 @@ func FetchPage[T any](
 		return nil, err
 	}
 	return NewPaginated(items, total, page, perPage), nil
-}
-
-func ClampPagination(page, perPage, maxPerPage int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if maxPerPage <= 0 {
-		maxPerPage = DefaultMaxPerPage
-	}
-	if perPage < 1 {
-		perPage = DefaultPerPage
-	}
-	if perPage > maxPerPage {
-		perPage = maxPerPage
-	}
-	return page, perPage
 }

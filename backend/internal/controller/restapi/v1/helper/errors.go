@@ -27,10 +27,10 @@ var (
 	ErrAccessDenied          = httperr.ErrAccessDenied
 	ErrUserMustBeInTeam      = httperr.ErrUserMustBeInTeam
 	ErrUserNotInTeam         = httperr.ErrUserNotInTeam
-	ErrWriteupsDisabled      = httperr.ErrWriteupsDisabled
-	ErrOAuthStateMissing     = httperr.ErrOAuthStateMissing
-	ErrOAuthStateMismatch    = httperr.ErrOAuthStateMismatch
-	ErrInvalidFrontendURL    = httperr.ErrInvalidFrontendURL
-	ErrAwardTeamIDRequired   = httperr.ErrAwardTeamIDRequired
-	ErrAlreadySolved         = httperr.ErrAlreadySolved
+
+	ErrWriteupsDisabled   = httperr.ErrWriteupsDisabled
+	ErrOAuthStateMissing  = httperr.ErrOAuthStateMissing
+	ErrOAuthStateMismatch = httperr.ErrOAuthStateMismatch
+
+	ErrAlreadySolved = httperr.ErrAlreadySolved
 )

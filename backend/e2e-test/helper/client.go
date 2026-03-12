@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func getStr(m map[string]any, key, def string) string {
@@ -58,13 +59,6 @@ func getStrSlice(m map[string]any, key string) []string {
 	return nil
 }
 
-func GetAPIClient(t *testing.T, baseURL string) *openapi.ClientWithResponses {
-	t.Helper()
-	client, err := openapi.NewClientWithResponses(baseURL + "/api/v1")
-	require.NoError(t, err)
-	return client
-}
-
 func WithBearerToken(token string) openapi.RequestEditorFn {
 	return func(_ context.Context, req *http.Request) error {
 		if token != "" && !strings.HasPrefix(token, "Bearer ") {
@@ -78,11 +72,6 @@ func WithBearerToken(token string) openapi.RequestEditorFn {
 func RequireStatus(t *testing.T, expect, actual int, body []byte, label string) {
 	t.Helper()
 	require.Equal(t, expect, actual, "%s: %s", label, body)
-}
-
-func RequireRegisterCreated(t *testing.T, resp *openapi.PostAuthRegisterResponse) {
-	t.Helper()
-	RequireStatus(t, http.StatusCreated, resp.StatusCode(), resp.Body, "register")
 }
 
 func RequireLoginOK(t *testing.T, resp *openapi.PostAuthLoginResponse) string {

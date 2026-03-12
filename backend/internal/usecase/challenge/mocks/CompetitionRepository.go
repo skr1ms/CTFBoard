@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockCompetitionRepository creates a new instance of MockCompetitionRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -97,6 +96,68 @@ func (_c *MockCompetitionRepository_Get_Call) Return(competition *entity.Competi
 }
 
 func (_c *MockCompetitionRepository_Get_Call) RunAndReturn(run func(ctx context.Context) (*entity.Competition, error)) *MockCompetitionRepository_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetForUpdate provides a mock function for the type MockCompetitionRepository
+func (_mock *MockCompetitionRepository) GetForUpdate(ctx context.Context) (*entity.Competition, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForUpdate")
+	}
+
+	var r0 *entity.Competition
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*entity.Competition, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *entity.Competition); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entity.Competition)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockCompetitionRepository_GetForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForUpdate'
+type MockCompetitionRepository_GetForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockCompetitionRepository_Expecter) GetForUpdate(ctx interface{}) *MockCompetitionRepository_GetForUpdate_Call {
+	return &MockCompetitionRepository_GetForUpdate_Call{Call: _e.mock.On("GetForUpdate", ctx)}
+}
+
+func (_c *MockCompetitionRepository_GetForUpdate_Call) Run(run func(ctx context.Context)) *MockCompetitionRepository_GetForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCompetitionRepository_GetForUpdate_Call) Return(competition *entity.Competition, err error) *MockCompetitionRepository_GetForUpdate_Call {
+	_c.Call.Return(competition, err)
+	return _c
+}
+
+func (_c *MockCompetitionRepository_GetForUpdate_Call) RunAndReturn(run func(ctx context.Context) (*entity.Competition, error)) *MockCompetitionRepository_GetForUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ChallengeRepo struct {
@@ -27,27 +28,45 @@ func (r *ChallengeRepo) q(ctx context.Context) *sqlc.Queries {
 	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
-func toEntityChallenge(ID uuid.UUID, title, description string, category *string, points *int32, initialValue, minValue, decay, solveCount int32, flagHash string, isHidden, isRegex, isCaseInsensitive *bool, flagRegex, flagFormatRegex *string) *entity.Challenge {
+type challengeRow struct {
+	ID                uuid.UUID
+	Title             string
+	Description       string
+	Category          *string
+	Points            *int32
+	InitialValue      int32
+	MinValue          int32
+	Decay             int32
+	SolveCount        int32
+	FlagHash          string
+	IsHidden          *bool
+	IsRegex           *bool
+	IsCaseInsensitive *bool
+	FlagRegex         *string
+	FlagFormatRegex   *string
+}
+
+func toEntityChallenge(r challengeRow) *entity.Challenge {
 	var pts int
-	if points != nil {
-		pts = int(*points)
+	if r.Points != nil {
+		pts = int(*r.Points)
 	}
 	return &entity.Challenge{
-		ID:                ID,
-		Title:             title,
-		Description:       description,
-		Category:          ptrStrToStr(category),
+		ID:                r.ID,
+		Title:             r.Title,
+		Description:       r.Description,
+		Category:          ptrStrToStr(r.Category),
 		Points:            pts,
-		InitialValue:      int(initialValue),
-		MinValue:          int(minValue),
-		Decay:             int(decay),
-		SolveCount:        int(solveCount),
-		FlagHash:          flagHash,
-		IsHidden:          boolPtrToBool(isHidden),
-		IsRegex:           boolPtrToBool(isRegex),
-		IsCaseInsensitive: boolPtrToBool(isCaseInsensitive),
-		FlagRegex:         ptrStrToStr(flagRegex),
-		FlagFormatRegex:   flagFormatRegex,
+		InitialValue:      int(r.InitialValue),
+		MinValue:          int(r.MinValue),
+		Decay:             int(r.Decay),
+		SolveCount:        int(r.SolveCount),
+		FlagHash:          r.FlagHash,
+		IsHidden:          boolPtrToBool(r.IsHidden),
+		IsRegex:           boolPtrToBool(r.IsRegex),
+		IsCaseInsensitive: boolPtrToBool(r.IsCaseInsensitive),
+		FlagRegex:         ptrStrToStr(r.FlagRegex),
+		FlagFormatRegex:   r.FlagFormatRegex,
 	}
 }
 
@@ -59,7 +78,12 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Chal
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetByID: %w", err)
 	}
-	return toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex), nil
+	return toEntityChallenge(challengeRow{
+		ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+		FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+		FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+	}), nil
 }
 
 func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*entity.Challenge, error) {
@@ -72,7 +96,12 @@ func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid
 	}
 	out := make(map[uuid.UUID]*entity.Challenge, len(rows))
 	for _, row := range rows {
-		out[row.ID] = toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex)
+		out[row.ID] = toEntityChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		})
 	}
 	return out, nil
 }
@@ -85,8 +114,13 @@ func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
-			Solved:    row.Solved == 1,
+			Challenge: toEntityChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			}),
+			Solved: row.Solved == 1,
 		})
 	}
 	return out, nil
@@ -100,8 +134,13 @@ func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
-			Solved:    false,
+			Challenge: toEntityChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			}),
+			Solved: false,
 		})
 	}
 	return out, nil
@@ -115,8 +154,13 @@ func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*r
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
-			Solved:    row.Solved == 1,
+			Challenge: toEntityChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			}),
+			Solved: row.Solved == 1,
 		})
 	}
 	return out, nil
@@ -130,8 +174,13 @@ func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.Challeng
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex),
-			Solved:    false,
+			Challenge: toEntityChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			}),
+			Solved: false,
 		})
 	}
 	return out, nil
@@ -214,6 +263,21 @@ func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*r
 	return out, nil
 }
 
+func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*entity.ChallengeRequirementPair, error) {
+	rows, err := r.q(ctx).GetAllChallengeRequirements(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAllRequirementPairs: %w", err)
+	}
+	out := make([]*entity.ChallengeRequirementPair, len(rows))
+	for i, row := range rows {
+		out[i] = &entity.ChallengeRequirementPair{
+			ChallengeID:         row.ChallengeID,
+			RequiredChallengeID: row.RequiredChallengeID,
+		}
+	}
+	return out, nil
+}
+
 func (r *ChallengeRepo) SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error {
 	if err := r.q(ctx).DeleteChallengeRequirements(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - Delete: %w", err)
@@ -263,7 +327,7 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   f.CreatedAt,
+			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
 		})
 	}
 	return &repo.ChallengeSolution{
@@ -271,6 +335,22 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 		Content:     row.Content,
 		Files:       entityFiles,
 	}, nil
+}
+
+func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*entity.SolutionBackup, error) {
+	rows, err := r.q(ctx).GetAllSolutions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAllSolutions: %w", err)
+	}
+	out := make([]*entity.SolutionBackup, len(rows))
+	for i, row := range rows {
+		out[i] = &entity.SolutionBackup{
+			ID:          row.ID,
+			ChallengeID: row.ChallengeID,
+			Content:     row.Content,
+		}
+	}
+	return out, nil
 }
 
 func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error) {
@@ -302,7 +382,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   f.CreatedAt,
+			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
 		})
 	}
 
@@ -352,7 +432,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   f.CreatedAt,
+			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
 		})
 	}
 	return &repo.ChallengeSolution{
@@ -376,7 +456,12 @@ func (r *ChallengeRepo) GetMissingChallengesByTeamID(ctx context.Context, teamID
 	}
 	out := make([]*entity.Challenge, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex))
+		out = append(out, toEntityChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		}))
 	}
 	return out, nil
 }
@@ -388,7 +473,12 @@ func (r *ChallengeRepo) GetMissingChallengesByUserID(ctx context.Context, userID
 	}
 	out := make([]*entity.Challenge, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex))
+		out = append(out, toEntityChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		}))
 	}
 	return out, nil
 }
@@ -482,7 +572,12 @@ func (r *ChallengeRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*en
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetByIDForUpdate: %w", err)
 	}
-	return toEntityChallenge(row.ID, row.Title, row.Description, row.Category, row.Points, row.InitialValue, row.MinValue, row.Decay, row.SolveCount, row.FlagHash, row.IsHidden, row.IsRegex, row.IsCaseInsensitive, row.FlagRegex, row.FlagFormatRegex), nil
+	return toEntityChallenge(challengeRow{
+		ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+		FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+		FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+	}), nil
 }
 
 func (r *ChallengeRepo) DecrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
@@ -494,6 +589,47 @@ func (r *ChallengeRepo) DecrementSolveCount(ctx context.Context, ID uuid.UUID) (
 		return 0, fmt.Errorf("ChallengeRepo - DecrementSolveCount: %w", err)
 	}
 	return int(n), nil
+}
+
+func (r *ChallengeRepo) BatchDecrementSolveCount(ctx context.Context, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := r.q(ctx).BatchDecrementChallengeSolveCount(ctx, ids); err != nil {
+		return fmt.Errorf("ChallengeRepo - BatchDecrementSolveCount: %w", err)
+	}
+	return nil
+}
+
+func (r *ChallengeRepo) BatchIncrementSolveCount(ctx context.Context, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := r.q(ctx).BatchIncrementChallengeSolveCount(ctx, ids); err != nil {
+		return fmt.Errorf("ChallengeRepo - BatchIncrementSolveCount: %w", err)
+	}
+	return nil
+}
+
+func (r *ChallengeRepo) BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, points []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if len(ids) != len(points) {
+		return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: ids and points length mismatch (%d != %d)", len(ids), len(points))
+	}
+	pts := make([]int32, len(points))
+	for i, p := range points {
+		v, err := intToInt32Safe(p)
+		if err != nil {
+			return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: %w", err)
+		}
+		pts[i] = v
+	}
+	if err := r.q(ctx).BatchUpdateChallengePoints(ctx, sqlc.BatchUpdateChallengePointsParams{Column1: ids, Column2: pts}); err != nil {
+		return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: %w", err)
+	}
+	return nil
 }
 
 func (r *ChallengeRepo) SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {

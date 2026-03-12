@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
 )
 
 // NotificationBroadcaster broadcasts a notification to connected WebSocket clients. Optional.
@@ -36,6 +37,9 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 	if title == "" || content == "" {
 		return nil, httperr.ErrNotificationTitleContentRequired
 	}
+	if !notifType.IsValid() {
+		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
+	}
 	notif := &entity.Notification{
 		ID:        uuid.New(),
 		Title:     title,
@@ -57,6 +61,9 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType entity.NotificationType) (*entity.UserNotification, error) {
 	if title == "" || content == "" {
 		return nil, httperr.ErrNotificationTitleContentRequired
+	}
+	if !notifType.IsValid() {
+		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
 	userNotif := &entity.UserNotification{
 		ID:             uuid.New(),
@@ -93,6 +100,9 @@ func (uc *NotificationUseCase) GetUserNotifications(ctx context.Context, userID 
 }
 
 func (uc *NotificationUseCase) MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error {
+	if _, err := uc.deps.NotifRepo.GetUserNotificationByID(ctx, ID, userID); err != nil {
+		return fmt.Errorf("NotificationUseCase - MarkAsRead - GetUserNotificationByID: %w", err)
+	}
 	if err := uc.deps.NotifRepo.MarkAsRead(ctx, ID, userID); err != nil {
 		return fmt.Errorf("NotificationUseCase - MarkAsRead - NotificationRepo.MarkAsRead: %w", err)
 	}
@@ -108,6 +118,9 @@ func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID
 }
 
 func (uc *NotificationUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, notifType entity.NotificationType, isPinned bool) (*entity.Notification, error) {
+	if !notifType.IsValid() {
+		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
+	}
 	notif, err := uc.deps.NotifRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("NotificationUseCase - Update - NotificationRepo.GetByID: %w", err)

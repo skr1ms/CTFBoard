@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countUnreadUserNotifications = `-- name: CountUnreadUserNotifications :one
@@ -30,13 +30,13 @@ RETURNING id, title, content, type, is_pinned, is_global, created_at
 `
 
 type CreateNotificationParams struct {
-	ID        uuid.UUID  `json:"id"`
-	Title     string     `json:"title"`
-	Content   string     `json:"content"`
-	Type      *string    `json:"type"`
-	IsPinned  *bool      `json:"is_pinned"`
-	IsGlobal  *bool      `json:"is_global"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	Type      *string            `json:"type"`
+	IsPinned  *bool              `json:"is_pinned"`
+	IsGlobal  *bool              `json:"is_global"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
@@ -69,14 +69,14 @@ RETURNING id, user_id, notification_id, title, content, type, is_read, created_a
 `
 
 type CreateUserNotificationParams struct {
-	ID             uuid.UUID  `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	NotificationID *uuid.UUID `json:"notification_id"`
-	Title          *string    `json:"title"`
-	Content        *string    `json:"content"`
-	Type           *string    `json:"type"`
-	IsRead         *bool      `json:"is_read"`
-	CreatedAt      *time.Time `json:"created_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	NotificationID *uuid.UUID         `json:"notification_id"`
+	Title          *string            `json:"title"`
+	Content        *string            `json:"content"`
+	Type           *string            `json:"type"`
+	IsRead         *bool              `json:"is_read"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateUserNotification(ctx context.Context, arg CreateUserNotificationParams) (UserNotification, error) {
@@ -183,6 +183,33 @@ func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notifi
 		&i.Type,
 		&i.IsPinned,
 		&i.IsGlobal,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserNotificationByID = `-- name: GetUserNotificationByID :one
+SELECT id, user_id, notification_id, title, content, type, is_read, created_at
+FROM user_notifications
+WHERE id = $1 AND user_id = $2
+`
+
+type GetUserNotificationByIDParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetUserNotificationByID(ctx context.Context, arg GetUserNotificationByIDParams) (UserNotification, error) {
+	row := q.db.QueryRow(ctx, getUserNotificationByID, arg.ID, arg.UserID)
+	var i UserNotification
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.NotificationID,
+		&i.Title,
+		&i.Content,
+		&i.Type,
+		&i.IsRead,
 		&i.CreatedAt,
 	)
 	return i, err

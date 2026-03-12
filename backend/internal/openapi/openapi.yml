@@ -3,7 +3,19 @@ info:
   contact:
     email: skr1ms13666@gmail.com
     name: API Support
-  description: REST API for managing CTF competition
+  description: |
+    REST API for managing CTF competition.
+
+    Path parameters use PascalCase (ID, challengeID, teamID, userID, hintID) for consistency with generated code.
+
+    Common error response codes (body is ErrorResponse or ValidationErrorResponse with code and message; for 400 validation errors the body may include an "errors" array of { field, message }):
+    - 400 Bad Request: validation error, invalid parameter (e.g. INVALID_FLAG_FORMAT, VALIDATION_ERROR with errors array).
+    - 401 Unauthorized: missing or invalid auth (e.g. UNAUTHORIZED, token expired).
+    - 403 Forbidden: insufficient rights (e.g. USER_NOT_IN_TEAM, REQUIREMENTS_NOT_MET, team/user banned).
+    - 404 Not Found: resource or team not found (e.g. USER_NOT_IN_TEAM when no team for /teams/me/*).
+    - 409 Conflict: state conflict (e.g. challenge already solved, username/email taken).
+    - 410 Gone: resource no longer available (e.g. invite token expired).
+    - 429 Too Many Requests: rate limit exceeded.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -14,8 +26,83 @@ info:
 servers:
   - url: https://api.ctfleague.ru/api/v1
   - url: http://api.ctfleague.ru/api/v1
+  - url: https://api.ctfleague.ru
+    description: Infrastructure (health, metrics, docs)
+  - url: http://api.ctfleague.ru
+    description: Infrastructure (health, metrics, docs)
+
+security:
+  - BearerAuth: []
+  - ApiTokenAuth: []
 
 paths:
+  /health:
+    get:
+      summary: Health check
+      description: |
+        Checks DB, Redis, and storage connectivity. Returns 200 if all ok, 503 otherwise.
+        Implemented as a custom handler (not via ServerInterface); available at /health and /api/v1/health.
+      tags: [Infrastructure]
+      operationId: GetHealth
+      security: []
+      responses:
+        '200':
+          description: All systems operational
+          content:
+            application/json:
+              schema:
+                $ref: './components/schemas.yml#/HealthResponse'
+        '503':
+          description: One or more systems unavailable
+          content:
+            application/json:
+              schema:
+                $ref: './components/schemas.yml#/HealthResponse'
+        '400':
+          description: Bad Request
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: |
+        Exposes Prometheus metrics. Access may be restricted by config.
+        Implemented as a custom handler; available at /metrics and /api/v1/metrics.
+      tags: [Infrastructure]
+      operationId: GetMetrics
+      security: []
+      responses:
+        '200':
+          description: Metrics in Prometheus exposition format
+        '400':
+          description: Bad Request
+  /openapi.json:
+    get:
+      summary: OpenAPI specification
+      description: |
+        Returns the OpenAPI 3.0 specification in JSON.
+        Implemented as a custom handler; available at /openapi.json and /api/v1/openapi.json.
+      tags: [Infrastructure]
+      operationId: GetOpenAPI
+      security: []
+      responses:
+        '200':
+          description: OpenAPI 3.0 JSON document
+        '400':
+          description: Bad Request
+  /swagger/index.html:
+    get:
+      summary: Swagger UI
+      description: |
+        Interactive API documentation (Swagger UI). Served under /swagger/*.
+        Implemented as a custom handler; available at /swagger/* and /api/v1/swagger/*.
+      tags: [Infrastructure]
+      operationId: GetSwaggerUI
+      security: []
+      responses:
+        '200':
+          description: Swagger UI HTML
+        '400':
+          description: Bad Request
+
   # Auth (auth.go)
   /auth/login:
     $ref: './routes/auth.yml#/~1auth~1login'
@@ -109,16 +196,16 @@ paths:
     $ref: './routes/team.yml#/~1teams~1transfer-captain'
   /teams/me/solves:
     $ref: './routes/team.yml#/~1teams~1me~1solves'
-  /teams/{ID}/solves:
-    $ref: './routes/team.yml#/~1teams~1{ID}~1solves'
+  /teams/solves/{teamID}:
+    $ref: './routes/team.yml#/~1teams~1solves~1{teamID}'
   /teams/me/fails:
     $ref: './routes/team.yml#/~1teams~1me~1fails'
-  /teams/{ID}/fails:
-    $ref: './routes/team.yml#/~1teams~1{ID}~1fails'
+  /teams/fails/{teamID}:
+    $ref: './routes/team.yml#/~1teams~1fails~1{teamID}'
   /teams/me/awards:
     $ref: './routes/team.yml#/~1teams~1me~1awards'
-  /teams/{ID}/awards:
-    $ref: './routes/team.yml#/~1teams~1{ID}~1awards'
+  /teams/awards/{teamID}:
+    $ref: './routes/team.yml#/~1teams~1awards~1{teamID}'
 
   # Challenge (challenge.go)
   /challenges:
@@ -131,10 +218,10 @@ paths:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1solves'
   /challenges/{challengeID}/tags:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1tags'
-  /challenges/{ID}/submit:
-    $ref: './routes/challenge.yml#/~1challenges~1{ID}~1submit'
-  /challenges/{ID}/first-blood:
-    $ref: './routes/challenge.yml#/~1challenges~1{ID}~1first-blood'
+  /challenges/{challengeID}/submit:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1submit'
+  /challenges/{challengeID}/first-blood:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1first-blood'
   /challenges/{challengeID}/files:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1files'
   /challenges/{challengeID}/hints:
@@ -149,8 +236,10 @@ paths:
     $ref: './routes/comment.yml#/~1comments~1{ID}'
 
   # File (file.go)
-  /files/{ID}/download:
-    $ref: './routes/file.yml#/~1files~1{ID}~1download'
+  /files/download/{path}:
+    $ref: './routes/file.yml#/~1files~1download~1{path}'
+  /files/by-id/{ID}/download:
+    $ref: './routes/file.yml#/~1files~1by-id~1{ID}~1download'
 
   # Scoreboard (scoreboard.go)
   /scoreboard:

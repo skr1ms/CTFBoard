@@ -7,12 +7,14 @@ import (
 )
 
 type Solve struct {
-	ID            uuid.UUID `json:"id"`
-	UserID        uuid.UUID `json:"user_id"`
-	TeamID        uuid.UUID `json:"team_id"`
-	ChallengeID   uuid.UUID `json:"challenge_id"`
-	SolvedAt      time.Time `json:"solved_at"`
-	PointsAtSolve int       `json:"points_at_solve"`
+	ID            uuid.UUID  `json:"id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	TeamID        uuid.UUID  `json:"team_id"`
+	ChallengeID   uuid.UUID  `json:"challenge_id"`
+	SolvedAt      time.Time  `json:"solved_at"`
+	PointsAtSolve int        `json:"points_at_solve"`
+	BannedTeamID  *uuid.UUID `json:"banned_team_id,omitempty"`
+	BannedUserID  *uuid.UUID `json:"banned_user_id,omitempty"`
 }
 
 type SolveWithDetails struct {

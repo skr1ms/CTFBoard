@@ -5,20 +5,21 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestHintUseCase_Create_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
-	deps.hintRepo.On("Create", mock.Anything, mock.MatchedBy(func(h *entity.Hint) bool {
+	d.challengeRepo.On("GetByID", mock.Anything, mock.Anything).Return(&entity.Challenge{}, nil).Once()
+	d.hintRepo.On("Create", mock.Anything, mock.MatchedBy(func(h *entity.Hint) bool {
 		return h.Content == "test hint" && h.Cost == 50
 	})).Return(nil).Run(func(args mock.Arguments) {
 		h, ok := args.Get(1).(*entity.Hint)
@@ -38,11 +39,11 @@ func TestHintUseCase_Create_Success(t *testing.T) {
 
 func TestHintUseCase_Create_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
-	deps.hintRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("db error"))
+	d.challengeRepo.On("GetByID", mock.Anything, mock.Anything).Return(&entity.Challenge{}, nil).Once()
+	d.hintRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
 	hint, err := uc.Create(context.Background(), uuid.New(), "test hint", 50, 0)
 
@@ -52,13 +53,12 @@ func TestHintUseCase_Create_Error(t *testing.T) {
 
 func TestHintUseCase_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{ID: hintID, Content: "Secret hint", Cost: 50}
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
 
 	result, err := uc.GetByID(context.Background(), hintID)
 
@@ -69,12 +69,11 @@ func TestHintUseCase_GetByID_Success(t *testing.T) {
 
 func TestHintUseCase_GetByID_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
 
 	result, err := uc.GetByID(context.Background(), hintID)
 
@@ -85,9 +84,8 @@ func TestHintUseCase_GetByID_Error(t *testing.T) {
 
 func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
@@ -97,9 +95,10 @@ func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
 	hints := []*entity.Hint{{ID: hint1ID, ChallengeID: challengeID, Content: "Hint 1", Cost: 10, OrderIndex: 0}, {ID: hint2ID, ChallengeID: challengeID, Content: "Hint 2", Cost: 20, OrderIndex: 1}}
 
 	challenge := &entity.Challenge{ID: challengeID, IsHidden: false}
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	deps.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
-	deps.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{hint1ID}, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{hint1ID}, nil)
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -115,15 +114,15 @@ func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
 
 func TestHintUseCase_GetByChallengeID_RepoError(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
 
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(nil, errors.New("db error"))
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -133,18 +132,18 @@ func TestHintUseCase_GetByChallengeID_RepoError(t *testing.T) {
 
 func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	challengeID := uuid.New()
 	teamID := uuid.New()
 
 	hints := []*entity.Hint{{ID: uuid.New(), ChallengeID: challengeID}}
 
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
-	deps.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return(nil, errors.New("db error"))
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
 
@@ -154,15 +153,17 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 
 func TestHintUseCase_Update_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{ID: hintID, Content: "Old content", Cost: 50, OrderIndex: 0}
 
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.hintRepo.On("Update", mock.Anything, mock.MatchedBy(func(h *entity.Hint) bool {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
+	d.hintRepo.On("Update", mock.Anything, mock.MatchedBy(func(h *entity.Hint) bool {
 		return h.Content == "New content" && h.Cost == 100 && h.OrderIndex == 1
 	})).Return(nil)
 
@@ -176,13 +177,15 @@ func TestHintUseCase_Update_Success(t *testing.T) {
 
 func TestHintUseCase_Update_NotFound(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
 
 	result, err := uc.Update(context.Background(), hintID, "New content", 100, 1)
 
@@ -193,15 +196,17 @@ func TestHintUseCase_Update_NotFound(t *testing.T) {
 
 func TestHintUseCase_Update_RepoError(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 	hint := &entity.Hint{ID: hintID, Content: "Old content", Cost: 50}
 
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.hintRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("db error"))
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
+	d.hintRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
 	result, err := uc.Update(context.Background(), hintID, "New content", 100, 1)
 
@@ -211,13 +216,12 @@ func TestHintUseCase_Update_RepoError(t *testing.T) {
 
 func TestHintUseCase_Delete_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 
-	deps.hintRepo.On("Delete", mock.Anything, hintID).Return(nil)
+	d.hintRepo.On("Delete", mock.Anything, hintID).Return(nil)
 
 	err := uc.Delete(context.Background(), hintID)
 
@@ -226,13 +230,12 @@ func TestHintUseCase_Delete_Success(t *testing.T) {
 
 func TestHintUseCase_Delete_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	hintID := uuid.New()
 
-	deps.hintRepo.On("Delete", mock.Anything, hintID).Return(errors.New("db error"))
+	d.hintRepo.On("Delete", mock.Anything, hintID).Return(errors.New("db error"))
 
 	err := uc.Delete(context.Background(), hintID)
 
@@ -241,32 +244,37 @@ func TestHintUseCase_Delete_Error(t *testing.T) {
 
 func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
+	userID := uuid.New()
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Content: "Secret hint", Cost: 50}
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
-	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
-	deps.hintRepo.On("GetByTeamAndHintForUpdate", mock.Anything, teamID, hintID).Return(nil, httperr.ErrHintNotFound)
-	deps.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(100, nil)
-	deps.awardRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return([]*entity.Hint{hint}, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{}, nil)
+	d.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(nil)
+	d.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(100, nil)
+	d.awardRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
 		return a.Value == -50 && a.TeamID == teamID
 	})).Return(nil)
-	deps.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(nil)
 
-	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, unlocked)
@@ -276,50 +284,54 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 
 func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
+	userID := uuid.New()
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Content: "Free hint", Cost: 0}
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
-	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
-	deps.hintRepo.On("GetByTeamAndHintForUpdate", mock.Anything, teamID, hintID).Return(nil, httperr.ErrHintNotFound)
-	deps.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(nil)
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return([]*entity.Hint{hint}, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{}, nil)
+	d.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(nil)
 
-	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, unlocked)
 	assert.Equal(t, "Free hint", unlocked.Content)
-	deps.awardRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-	deps.solveRepo.AssertNotCalled(t, "GetTeamScore", mock.Anything, mock.Anything)
+	d.awardRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	d.solveRepo.AssertNotCalled(t, "GetTeamScore", mock.Anything, mock.Anything)
 }
 
 func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, httperr.ErrHintNotFound)
 
 	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), uuid.New(), challengeID, hintID)
 
@@ -330,16 +342,15 @@ func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
 
 func TestHintUseCase_UnlockHint_TM_Run_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
 	expectedErr := errors.New("run tx")
-	deps.tm.On("Run", mock.Anything, mock.Anything).Return(expectedErr)
+	d.tm.On("Run", mock.Anything, mock.Anything).Return(expectedErr)
 
 	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
 
@@ -350,27 +361,37 @@ func TestHintUseCase_UnlockHint_TM_Run_Error(t *testing.T) {
 
 func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
+	userID := uuid.New()
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Cost: 50}
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
-	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
-	deps.hintRepo.On("GetByTeamAndHintForUpdate", mock.Anything, teamID, hintID).Return(&entity.HintUnlock{}, nil)
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return([]*entity.Hint{hint}, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{}, nil)
+	d.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(200, nil)
+	d.awardRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
+		return a.TeamID == teamID && a.Value == -50
+	})).Return(nil)
+	d.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(httperr.ErrHintAlreadyUnlocked)
 
-	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, httperr.ErrHintAlreadyUnlocked))
@@ -379,49 +400,114 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 
 func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
+	userID := uuid.New()
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
 	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Cost: 100}
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
-	deps.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
-	deps.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
-	deps.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
-	deps.hintRepo.On("GetByTeamAndHintForUpdate", mock.Anything, teamID, hintID).Return(nil, httperr.ErrHintNotFound)
-	deps.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(50, nil)
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
+	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return([]*entity.Hint{hint}, nil)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{}, nil)
+	d.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(50, nil)
 
-	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, httperr.ErrInsufficientPoints))
 	assert.Nil(t, unlocked)
 }
 
+func TestHintUseCase_UnlockHint_BannedUser(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
+
+	userID := uuid.New()
+	teamID := uuid.New()
+	challengeID := uuid.New()
+	hintID := uuid.New()
+
+	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Content: "Hint", Cost: 0}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &teamID, IsBanned: true}, nil)
+
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, httperr.ErrUserBanned))
+	assert.Nil(t, unlocked)
+	d.teamRepo.AssertNotCalled(t, "Lock", mock.Anything, mock.Anything)
+}
+
+func TestHintUseCase_UnlockHint_UserNotInTeam(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
+
+	userID := uuid.New()
+	teamID := uuid.New()
+	otherTeamID := uuid.New()
+	challengeID := uuid.New()
+	hintID := uuid.New()
+
+	hint := &entity.Hint{ID: hintID, ChallengeID: challengeID, Content: "Hint", Cost: 0}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(hint, nil)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&entity.Challenge{ID: challengeID, IsHidden: false}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*entity.ChallengeRequirement{}, nil)
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
+	d.userRepo.On("GetByID", mock.Anything, userID).Return(&entity.User{ID: userID, TeamID: &otherTeamID, IsBanned: false}, nil)
+
+	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, httperr.ErrTeamMemberNotFound))
+	assert.Nil(t, unlocked)
+	d.teamRepo.AssertNotCalled(t, "Lock", mock.Anything, mock.Anything)
+}
+
 func TestHintUseCase_UnlockHint_Error(t *testing.T) {
 	t.Parallel()
-	h := NewChallengeTestHelper(t)
-	deps := h.Deps()
-	uc, _ := h.CreateHintUseCase()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createHintUseCase()
 
 	teamID := uuid.New()
 	challengeID := uuid.New()
 	hintID := uuid.New()
 
-	deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	deps.compRepo.On("Get", mock.Anything).Return(h.NewActiveCompetition(), nil)
-	deps.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, errors.New("db error"))
+	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
+	d.hintRepo.On("GetByID", mock.Anything, hintID).Return(nil, errors.New("db error"))
 
 	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), teamID, challengeID, hintID)
 

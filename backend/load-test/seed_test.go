@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 const (
@@ -266,7 +267,6 @@ func seedUsers(ctx context.Context, client *openapi.ClientWithResponses, _ *pgxp
 	return tokens, nil
 }
 
-//nolint:gocyclo
 func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, idx int) seedResult {
 	username := fmt.Sprintf("lt_user_%04d", idx)
 	email := fmt.Sprintf("lt_user_%04d@loadtest.local", idx)
@@ -297,8 +297,7 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
-	teamName := fmt.Sprintf("lt_team_%04d", idx)
-	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{Name: teamName}, authFn)
+	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{}, authFn)
 	if err != nil {
 		return seedResult{err: fmt.Errorf("create team user %d: %w", idx, err)}
 	}
@@ -365,7 +364,7 @@ func seedRaceUser(
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
-	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{Name: "lt_race_team"}, authFn)
+	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{}, authFn)
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("create race team: %w", err)
 	}

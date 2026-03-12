@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).

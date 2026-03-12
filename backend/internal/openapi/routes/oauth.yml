@@ -1,5 +1,6 @@
 "/auth/oauth/{provider}":
   get:
+    operationId: GetAuthOauthProvider
     description: Redirects the user to the OAuth provider's authorization page
     parameters:
       - description: OAuth provider name (e.g. github, google)
@@ -9,6 +10,8 @@
         schema:
           type: string
     responses:
+      "200":
+        description: OK (fallback; normally 302 redirect)
       "302":
         description: Redirect to OAuth provider
       "400":
@@ -24,6 +27,7 @@
 
 "/auth/oauth/{provider}/callback":
   get:
+    operationId: GetAuthOauthProviderCallback
     description: Handles the OAuth provider callback, exchanges code for tokens and redirects to the frontend
     parameters:
       - description: OAuth provider name (e.g. github, google)
@@ -43,10 +47,30 @@
         schema:
           type: string
     responses:
+      "200":
+        description: OK (fallback; normally 302 redirect)
       "302":
         description: Redirect to frontend with tokens in fragment
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
         content:
           application/json:
             schema:

@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 var (
@@ -53,6 +54,31 @@ func newMemRateLimiter() *memRateLimiter {
 	}
 }
 
+func (m *memRateLimiter) purgeStale() {
+	now := time.Now()
+	for k, e := range m.entries {
+		if now.After(e.expires) {
+			delete(m.entries, k)
+		}
+	}
+}
+
+func (m *memRateLimiter) evictOldest() {
+	var oldestKey string
+	var oldestExpires time.Time
+	first := true
+	for k, e := range m.entries {
+		if first || e.expires.Before(oldestExpires) {
+			oldestKey = k
+			oldestExpires = e.expires
+			first = false
+		}
+	}
+	if oldestKey != "" {
+		delete(m.entries, oldestKey)
+	}
+}
+
 func (m *memRateLimiter) incr(key string, window time.Duration) int64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -60,8 +86,13 @@ func (m *memRateLimiter) incr(key string, window time.Duration) int64 {
 	now := time.Now()
 	e, ok := m.entries[key]
 	if !ok || now.After(e.expires) {
-		if !ok && len(m.entries) >= m.maxKeys {
-			return 0
+		if !ok {
+			if len(m.entries) >= m.maxKeys {
+				m.purgeStale()
+				if len(m.entries) >= m.maxKeys {
+					m.evictOldest()
+				}
+			}
 		}
 		e = &memRateLimitEntry{count: 1, expires: now.Add(window)}
 		m.entries[key] = e
@@ -79,7 +110,6 @@ end
 return count
 `)
 
-//nolint:gocognit // config branches and key extraction
 func RateLimitFromConfig(
 	client *redis.Client,
 	keyPrefix string,
@@ -88,6 +118,7 @@ func RateLimitFromConfig(
 	getter SettingsGetter,
 	getLimit func(*RateLimitConfig) int64,
 	keyFunc func(*http.Request) (string, error),
+	trustedProxyCIDRs []string,
 	log logger.Logger,
 ) func(next http.Handler) http.Handler {
 	initDynamicRateLimitMetrics()
@@ -122,7 +153,7 @@ func RateLimitFromConfig(
 
 			key, err := keyFunc(r)
 			if err != nil || key == "" {
-				key = GetClientIP(r, nil)
+				key = GetClientIP(r, trustedProxyCIDRs)
 			}
 			redisKey := dynamicLimitKeyPrefix + keyPrefix + ":" + key
 

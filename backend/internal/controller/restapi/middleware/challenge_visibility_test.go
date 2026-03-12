@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestChallengeVisibility_Success(t *testing.T) {
@@ -28,7 +29,7 @@ func TestChallengeVisibility_Success(t *testing.T) {
 
 	compRepo.On("Get", mock.Anything).Return(comp, nil)
 
-	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -54,7 +55,7 @@ func TestChallengeVisibility_Forbidden(t *testing.T) {
 
 	compRepo.On("Get", mock.Anything).Return(comp, nil)
 
-	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -71,7 +72,7 @@ func TestChallengeVisibility_AdminBypass(t *testing.T) {
 	compRepo := mocks.NewMockCompetitionRepository(t)
 	uc := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
-	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

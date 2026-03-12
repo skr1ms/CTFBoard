@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const clearAllDefaultBrackets = `-- name: ClearAllDefaultBrackets :exec
@@ -28,11 +28,11 @@ RETURNING id, name, description, is_default, created_at
 `
 
 type CreateBracketParams struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Description *string    `json:"description"`
-	IsDefault   *bool      `json:"is_default"`
-	CreatedAt   *time.Time `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description *string            `json:"description"`
+	IsDefault   *bool              `json:"is_default"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateBracket(ctx context.Context, arg CreateBracketParams) (Bracket, error) {

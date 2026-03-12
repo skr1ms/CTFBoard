@@ -7,9 +7,9 @@ package sqlc
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTeamAuditLog = `-- name: CreateTeamAuditLog :exec
@@ -18,12 +18,12 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateTeamAuditLogParams struct {
-	ID        uuid.UUID  `json:"id"`
-	TeamID    uuid.UUID  `json:"team_id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Action    string     `json:"action"`
-	Details   []byte     `json:"details"`
-	CreatedAt *time.Time `json:"created_at"`
+	ID        uuid.UUID          `json:"id"`
+	TeamID    uuid.UUID          `json:"team_id"`
+	UserID    *uuid.UUID         `json:"user_id"`
+	Action    string             `json:"action"`
+	Details   []byte             `json:"details"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateTeamAuditLog(ctx context.Context, arg CreateTeamAuditLogParams) error {
@@ -36,4 +36,31 @@ func (q *Queries) CreateTeamAuditLog(ctx context.Context, arg CreateTeamAuditLog
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const getLatestTeamAuditLogByTeamIDAndAction = `-- name: GetLatestTeamAuditLogByTeamIDAndAction :one
+SELECT id, team_id, user_id, action, details, created_at
+FROM team_audit_log
+WHERE team_id = $1 AND action = $2
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetLatestTeamAuditLogByTeamIDAndActionParams struct {
+	TeamID uuid.UUID `json:"team_id"`
+	Action string    `json:"action"`
+}
+
+func (q *Queries) GetLatestTeamAuditLogByTeamIDAndAction(ctx context.Context, arg GetLatestTeamAuditLogByTeamIDAndActionParams) (TeamAuditLog, error) {
+	row := q.db.QueryRow(ctx, getLatestTeamAuditLogByTeamIDAndAction, arg.TeamID, arg.Action)
+	var i TeamAuditLog
+	err := row.Scan(
+		&i.ID,
+		&i.TeamID,
+		&i.UserID,
+		&i.Action,
+		&i.Details,
+		&i.CreatedAt,
+	)
+	return i, err
 }

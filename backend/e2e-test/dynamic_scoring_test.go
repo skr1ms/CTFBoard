@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // POST /challenges/{ID}/submit (dynamic scoring): first solver gets initial_value; second solver gets decayed score; GET /scoreboard reflects correct points.

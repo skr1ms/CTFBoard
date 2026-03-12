@@ -26,6 +26,9 @@ export default class Folder implements FileEntry {
       },
     })
     const text = await response.text()
+    if (!response.ok) {
+      throw new Error(`Failed to list folder: ${response.status} ${response.statusText}${text ? ` - ${text.slice(0, 100)}` : ''}`)
+    }
     let data: FilerListResponse
     try {
       data = JSON.parse(text) as FilerListResponse

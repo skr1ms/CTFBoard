@@ -3,8 +3,9 @@ package helper
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 func (h *E2EHelper) GetAdminConfigs(token string, expectStatus int) *openapi.GetAdminConfigsResponse {

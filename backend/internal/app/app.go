@@ -9,7 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/wire"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
@@ -21,7 +24,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/postgres"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/seed"
 	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
-	"github.com/google/uuid"
 )
 
 const (
@@ -59,7 +61,10 @@ func Run(cfg *config.Config, l logger.Logger) {
 		return
 	}
 
-	storageProvider, err := provideStorage(cfg, l)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	storageProvider, err := provideStorage(ctx, cfg, l)
 	if err != nil {
 		l.WithError(err).Error("failed to create storage provider")
 		return
@@ -72,16 +77,22 @@ func Run(cfg *config.Config, l logger.Logger) {
 		}()
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
 	jwtRevoker := jwt.NewRedisRevocationStore(redisClient)
-	jwtService, err := jwt.NewJWTService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker, nil)
+	accessKeys := make([]jwt.KeyEntry, len(cfg.AccessKeys))
+	for i, k := range cfg.AccessKeys {
+		accessKeys[i] = jwt.KeyEntry{Kid: k.Kid, Secret: k.Secret}
+	}
+	refreshKeys := make([]jwt.KeyEntry, len(cfg.RefreshKeys))
+	for i, k := range cfg.RefreshKeys {
+		refreshKeys[i] = jwt.KeyEntry{Kid: k.Kid, Secret: k.Secret}
+	}
+	jwtService, err := jwt.NewJWTService(accessKeys, refreshKeys, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker, nil)
 	if err != nil {
 		l.WithError(err).Error("failed to create JWT service")
 		return
 	}
 	wsHub := pkgWS.NewHub(redisClient, cache.PubSubScoreboard)
+	wsHub.SetTimeoutLogger(func(op string) { l.Warn("websocket hub operation timed out", logger.Fields{"op": op}) })
 	go wsHub.Run(ctx)
 	go wsHub.SubscribeToRedis(ctx)
 
@@ -104,7 +115,10 @@ func Run(cfg *config.Config, l logger.Logger) {
 		if u.IsBanned {
 			return "", "", "", httperr.ErrUserBanned
 		}
-		return u.Email, u.Username, u.Role, nil
+		if u.WasInBannedTeam && u.Role != entity.RoleAdmin {
+			return "", "", "", httperr.ErrUserBanned
+		}
+		return u.Email, u.Username, string(u.Role), nil
 	})
 
 	if app.SubmissionBatcher != nil {
@@ -148,7 +162,7 @@ func runServerUntilShutdown(ctx context.Context, server *http.Server, port strin
 	}
 }
 
-func provideStorage(cfg *config.Config, l logger.Logger) (storage.Provider, error) {
+func provideStorage(ctx context.Context, cfg *config.Config, l logger.Logger) (storage.Provider, error) {
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
 			cfg.S3Endpoint,
@@ -162,7 +176,7 @@ func provideStorage(cfg *config.Config, l logger.Logger) (storage.Provider, erro
 		if err != nil {
 			return nil, fmt.Errorf("app - provideStorage - NewS3Provider: %w", err)
 		}
-		if err := s3Provider.EnsureBucket(context.Background()); err != nil {
+		if err := s3Provider.EnsureBucket(ctx); err != nil {
 			return nil, fmt.Errorf("app - provideStorage - EnsureBucket: %w", err)
 		}
 		l.Info("Using S3 storage provider", map[string]any{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})

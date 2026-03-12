@@ -7,9 +7,27 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
+
+func sanitizeContentDispositionFilename(name string) string {
+	name = filepath.Base(name)
+	var b strings.Builder
+	for _, r := range name {
+		if r < 32 || r == 127 || r == '"' || r == '\\' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	s := b.String()
+	if s == "" {
+		return "download"
+	}
+	return s
+}
 
 func RenderOK[T any](w http.ResponseWriter, r *http.Request, data T) {
 	httputil.RenderOK(w, r, data)
@@ -35,13 +53,13 @@ func RenderText(w http.ResponseWriter, r *http.Request, status int, contentType,
 // attachment. It encodes into a buffer first so headers are only sent after a
 // successful encode, avoiding partial responses on error. Returns an error if
 // encoding or writing fails.
-func RenderJSONAttachment[T any](w http.ResponseWriter, r *http.Request, data T, filename string) error {
+func RenderJSONAttachment[T any](w http.ResponseWriter, data T, filename string) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(data); err != nil {
 		return fmt.Errorf("encode json attachment: %w", err)
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": sanitizeContentDispositionFilename(filename)}))
 	_, err := w.Write(buf.Bytes())
 	return err
 }
@@ -50,7 +68,7 @@ func RenderJSONAttachment[T any](w http.ResponseWriter, r *http.Request, data T,
 // attachment filename. The caller is responsible for closing rc.
 func RenderStream(w http.ResponseWriter, contentType, filename string, rc io.Reader) error {
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": sanitizeContentDispositionFilename(filename)}))
 	_, err := io.Copy(w, rc)
 	return err
 }
@@ -59,7 +77,7 @@ func RenderStream(w http.ResponseWriter, contentType, filename string, rc io.Rea
 // attachment filename.
 func RenderBytes(w http.ResponseWriter, contentType, filename string, data []byte) error {
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": sanitizeContentDispositionFilename(filename)}))
 	_, err := w.Write(data)
 	return err
 }

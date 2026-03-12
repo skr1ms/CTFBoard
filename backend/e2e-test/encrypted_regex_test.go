@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
 // POST /challenges/{ID}/submit with is_regex flag: invalid pattern 400; valid pattern 200; duplicate 409 with ALREADY_SOLVED.

@@ -1,5 +1,9 @@
 /ws:
   get:
+    operationId: GetWs
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
     summary: WebSocket connection
     description: |
       Establishes a WebSocket connection for real-time scoreboard updates and notifications.
@@ -101,5 +105,15 @@
     tags:
       - Events
     responses:
+      "200":
+        description: OK (before upgrade)
       "101":
         description: Switching Protocols - WebSocket connection established
+      "400":
+        description: Bad Request
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'

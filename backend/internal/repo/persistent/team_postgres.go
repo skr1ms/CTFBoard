@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type TeamRepo struct {
@@ -28,20 +29,21 @@ func (r *TeamRepo) q(ctx context.Context) *sqlc.Queries {
 	return sqlc.New(ExtractDB(ctx, r.pool))
 }
 
-func toEntityTeam(ID uuid.UUID, name string, inviteToken, captainID uuid.UUID, bracketID *uuid.UUID, isSolo, isAutoCreated, isBanned, isHidden *bool, bannedAt *time.Time, bannedReason *string, createdAt *time.Time) *entity.Team {
+func toEntityTeam(ID uuid.UUID, name string, inviteToken uuid.UUID, inviteTokenExpiresAt *time.Time, captainID uuid.UUID, bracketID *uuid.UUID, isSolo, isAutoCreated, isBanned, isHidden *bool, bannedAt *time.Time, bannedReason *string, createdAt *time.Time) *entity.Team {
 	return &entity.Team{
-		ID:            ID,
-		Name:          name,
-		InviteToken:   inviteToken,
-		CaptainID:     captainID,
-		BracketID:     bracketID,
-		IsSolo:        boolPtrToBool(isSolo),
-		IsAutoCreated: boolPtrToBool(isAutoCreated),
-		IsBanned:      boolPtrToBool(isBanned),
-		BannedAt:      bannedAt,
-		BannedReason:  bannedReason,
-		IsHidden:      boolPtrToBool(isHidden),
-		CreatedAt:     ptrTimeToTime(createdAt),
+		ID:                   ID,
+		Name:                 name,
+		InviteToken:          inviteToken,
+		InviteTokenExpiresAt: inviteTokenExpiresAt,
+		CaptainID:            captainID,
+		BracketID:            bracketID,
+		IsSolo:               boolPtrToBool(isSolo),
+		IsAutoCreated:        boolPtrToBool(isAutoCreated),
+		IsBanned:             boolPtrToBool(isBanned),
+		BannedAt:             bannedAt,
+		BannedReason:         bannedReason,
+		IsHidden:             boolPtrToBool(isHidden),
+		CreatedAt:            ptrTimeToTime(createdAt),
 	}
 }
 
@@ -53,7 +55,7 @@ func (r *TeamRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Team, err
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByID: %w", err)
 	}
-	return toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)), nil
 }
 
 func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*entity.Team, error) {
@@ -67,7 +69,7 @@ func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) 
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByInviteToken: %w", err)
 	}
-	return toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)), nil
 }
 
 func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, error) {
@@ -78,7 +80,7 @@ func (r *TeamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 		}
 		return nil, fmt.Errorf("TeamRepo - GetByName: %w", err)
 	}
-	return toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)), nil
 }
 
 func (r *TeamRepo) Delete(ctx context.Context, ID uuid.UUID) error {
@@ -90,7 +92,7 @@ func (r *TeamRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 }
 
 func (r *TeamRepo) HardDeleteTeams(ctx context.Context, cutoffDate time.Time) error {
-	if err := r.q(ctx).HardDeleteTeamsBefore(ctx, &cutoffDate); err != nil {
+	if err := r.q(ctx).HardDeleteTeamsBefore(ctx, timeToTimestamptz(&cutoffDate)); err != nil {
 		return fmt.Errorf("TeamRepo - HardDeleteTeams: %w", err)
 	}
 	return nil
@@ -104,7 +106,7 @@ func (r *TeamRepo) GetSoloTeamByUserID(ctx context.Context, userID uuid.UUID) (*
 		}
 		return nil, fmt.Errorf("TeamRepo - GetSoloTeamByUserID: %w", err)
 	}
-	return toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt), nil
+	return toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)), nil
 }
 
 func (r *TeamRepo) CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error) {
@@ -127,7 +129,7 @@ func (r *TeamRepo) Ban(ctx context.Context, teamID uuid.UUID, reason string) err
 	bannedAt := time.Now()
 	_, err := r.q(ctx).BanTeam(ctx, sqlc.BanTeamParams{
 		ID:           teamID,
-		BannedAt:     &bannedAt,
+		BannedAt:     timeToTimestamptz(&bannedAt),
 		BannedReason: &reason,
 	})
 	if err != nil {
@@ -168,7 +170,7 @@ func (r *TeamRepo) GetAll(ctx context.Context) ([]*entity.Team, error) {
 	}
 	out := make([]*entity.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt))
+		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)))
 	}
 	return out, nil
 }
@@ -203,7 +205,7 @@ func (r *TeamRepo) Search(ctx context.Context, search *string, limit, offset int
 	}
 	out := make([]*entity.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt))
+		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)))
 	}
 	return out, nil
 }
@@ -235,7 +237,7 @@ func (r *TeamRepo) SearchAdmin(ctx context.Context, search *string, limit, offse
 	}
 	out := make([]*entity.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, row.BannedAt, row.BannedReason, row.CreatedAt))
+		out = append(out, toEntityTeam(row.ID, row.Name, row.InviteToken, timestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, timestamptzToTime(row.BannedAt), row.BannedReason, timestamptzToTime(row.CreatedAt)))
 	}
 	return out, nil
 }
@@ -283,14 +285,18 @@ func (r *TeamRepo) UpdateName(ctx context.Context, teamID uuid.UUID, name string
 func (r *TeamRepo) Create(ctx context.Context, team *entity.Team) error {
 	team.CreatedAt = time.Now()
 	id, err := r.q(ctx).CreateTeamReturningID(ctx, sqlc.CreateTeamReturningIDParams{
-		Name:          team.Name,
-		InviteToken:   team.InviteToken,
-		CaptainID:     team.CaptainID,
-		IsSolo:        &team.IsSolo,
-		IsAutoCreated: &team.IsAutoCreated,
-		CreatedAt:     &team.CreatedAt,
+		Name:                 team.Name,
+		InviteToken:          team.InviteToken,
+		CaptainID:            team.CaptainID,
+		IsSolo:               &team.IsSolo,
+		IsAutoCreated:        &team.IsAutoCreated,
+		CreatedAt:            timeToTimestamptz(&team.CreatedAt),
+		InviteTokenExpiresAt: timeToTimestamptz(team.InviteTokenExpiresAt),
 	})
 	if err != nil {
+		if isPgUniqueViolation(err) {
+			return httperr.ErrTeamAlreadyExists
+		}
 		return fmt.Errorf("TeamRepo - Create: %w", err)
 	}
 	team.ID = id
@@ -330,6 +336,21 @@ func (r *TeamRepo) UpdateCaptain(ctx context.Context, teamID, newCaptainID uuid.
 	return nil
 }
 
+func (r *TeamRepo) UpdateInviteToken(ctx context.Context, teamID, inviteToken uuid.UUID, expiresAt *time.Time) error {
+	_, err := r.q(ctx).UpdateInviteToken(ctx, sqlc.UpdateInviteTokenParams{
+		ID:                   teamID,
+		InviteToken:          inviteToken,
+		InviteTokenExpiresAt: timeToTimestamptz(expiresAt),
+	})
+	if err != nil {
+		if isNoRows(err) {
+			return httperr.ErrTeamNotFound
+		}
+		return fmt.Errorf("TeamRepo - UpdateInviteToken: %w", err)
+	}
+	return nil
+}
+
 func (r *TeamRepo) CreateAuditLog(ctx context.Context, log *entity.TeamAuditLog) error {
 	log.ID = uuid.New()
 	log.CreatedAt = time.Now()
@@ -347,10 +368,38 @@ func (r *TeamRepo) CreateAuditLog(ctx context.Context, log *entity.TeamAuditLog)
 		UserID:    log.UserID,
 		Action:    string(log.Action),
 		Details:   detailsJSON,
-		CreatedAt: &log.CreatedAt,
+		CreatedAt: timeToTimestamptz(&log.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("TeamRepo - CreateAuditLog: %w", err)
 	}
 	return nil
+}
+
+func (r *TeamRepo) GetLatestAuditLogByTeamIDAndAction(ctx context.Context, teamID uuid.UUID, action string) (*entity.TeamAuditLog, error) {
+	row, err := r.q(ctx).GetLatestTeamAuditLogByTeamIDAndAction(ctx, sqlc.GetLatestTeamAuditLogByTeamIDAndActionParams{
+		TeamID: teamID,
+		Action: action,
+	})
+	if err != nil {
+		if isNoRows(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("TeamRepo - GetLatestAuditLogByTeamIDAndAction: %w", err)
+	}
+	var details map[string]any
+	if len(row.Details) > 0 {
+		if err := json.Unmarshal(row.Details, &details); err != nil {
+			return nil, fmt.Errorf("TeamRepo - GetLatestAuditLogByTeamIDAndAction - Unmarshal details: %w", err)
+		}
+	}
+	createdAt := ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	return &entity.TeamAuditLog{
+		ID:        row.ID,
+		TeamID:    row.TeamID,
+		UserID:    row.UserID,
+		Action:    entity.TeamAuditAction(row.Action),
+		Details:   details,
+		CreatedAt: createdAt,
+	}, nil
 }

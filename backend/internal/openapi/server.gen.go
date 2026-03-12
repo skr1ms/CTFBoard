@@ -158,7 +158,7 @@ type ServerInterface interface {
 	PutAdminSettings(w http.ResponseWriter, r *http.Request)
 	// Get solve matrix
 	// (GET /admin/statistics/solve-matrix)
-	GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request)
+	GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsSolveMatrixParams)
 	// Get all submissions
 	// (GET /admin/submissions)
 	GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params GetAdminSubmissionsParams)
@@ -170,7 +170,7 @@ type ServerInterface interface {
 	GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, r *http.Request, challengeID string, params GetAdminSubmissionsChallengeChallengeIDParams)
 	// Get submission stats by challenge
 	// (GET /admin/submissions/challenge/{challengeID}/stats)
-	GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, challengeID string)
+	GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, challengeID string, params GetAdminSubmissionsChallengeChallengeIDStatsParams)
 	// Get submissions by team
 	// (GET /admin/submissions/team/{teamID})
 	GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string, params GetAdminSubmissionsTeamTeamIDParams)
@@ -289,8 +289,8 @@ type ServerInterface interface {
 	// (POST /auth/reset-password)
 	PostAuthResetPassword(w http.ResponseWriter, r *http.Request)
 	// Verify email
-	// (GET /auth/verify-email)
-	GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request, params GetAuthVerifyEmailParams)
+	// (POST /auth/verify-email)
+	PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request)
 	// Get brackets list
 	// (GET /brackets)
 	GetBrackets(w http.ResponseWriter, r *http.Request)
@@ -303,12 +303,6 @@ type ServerInterface interface {
 	// Get challenge types
 	// (GET /challenges/types)
 	GetChallengesTypes(w http.ResponseWriter, r *http.Request)
-	// Get first blood
-	// (GET /challenges/{ID}/first-blood)
-	GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request, id string)
-	// Submit flag
-	// (POST /challenges/{ID}/submit)
-	PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, id string)
 	// Get challenge by ID
 	// (GET /challenges/{challengeID})
 	GetChallengesChallengeID(w http.ResponseWriter, r *http.Request, challengeID string)
@@ -321,6 +315,9 @@ type ServerInterface interface {
 	// Get challenge files
 	// (GET /challenges/{challengeID}/files)
 	GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params GetChallengesChallengeIDFilesParams)
+	// Get first blood
+	// (GET /challenges/{challengeID}/first-blood)
+	GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *http.Request, challengeID string, params GetChallengesChallengeIDFirstBloodParams)
 	// Get hints for challenge
 	// (GET /challenges/{challengeID}/hints)
 	GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string)
@@ -336,6 +333,9 @@ type ServerInterface interface {
 	// Get challenge solves
 	// (GET /challenges/{challengeID}/solves)
 	GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Submit flag
+	// (POST /challenges/{challengeID}/submit)
+	PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.Request, challengeID string)
 	// Get tags for challenge
 	// (GET /challenges/{challengeID}/tags)
 	GetChallengesChallengeIDTags(w http.ResponseWriter, r *http.Request, challengeID string)
@@ -352,14 +352,26 @@ type ServerInterface interface {
 	// (GET /fields)
 	GetFields(w http.ResponseWriter, r *http.Request, params GetFieldsParams)
 	// Get download URL
-	// (GET /files/{ID}/download)
+	// (GET /files/by-id/{ID}/download)
 	GetFilesIDDownload(w http.ResponseWriter, r *http.Request, id string)
+	// Stream file download (server route GET /files/download/*)
+	// (GET /files/download/{path})
+	GetFilesDownloadPath(w http.ResponseWriter, r *http.Request, path string, params GetFilesDownloadPathParams)
 	// Health check
+	// (GET /health)
+	GetHealth(w http.ResponseWriter, r *http.Request)
+	// Health check (liveness)
 	// (GET /healthcheck)
 	GetHealthcheck(w http.ResponseWriter, r *http.Request)
+	// Prometheus metrics
+	// (GET /metrics)
+	GetMetrics(w http.ResponseWriter, r *http.Request)
 	// Get global notifications
 	// (GET /notifications)
 	GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams)
+	// OpenAPI specification
+	// (GET /openapi.json)
+	GetOpenAPI(w http.ResponseWriter, r *http.Request)
 	// Get published pages list
 	// (GET /pages)
 	GetPages(w http.ResponseWriter, r *http.Request)
@@ -380,34 +392,37 @@ type ServerInterface interface {
 	GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams)
 	// Get challenge statistics
 	// (GET /statistics/challenges)
-	GetStatisticsChallenges(w http.ResponseWriter, r *http.Request)
+	GetStatisticsChallenges(w http.ResponseWriter, r *http.Request, params GetStatisticsChallengesParams)
 	// Get challenge solve percentages
 	// (GET /statistics/challenges/solves/percentages)
-	GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter, r *http.Request)
+	GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter, r *http.Request, params GetStatisticsChallengesSolvesPercentagesParams)
 	// Get challenge detail statistics
 	// (GET /statistics/challenges/{ID})
-	GetStatisticsChallengesID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	GetStatisticsChallengesID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetStatisticsChallengesIDParams)
 	// Get general statistics
 	// (GET /statistics/general)
-	GetStatisticsGeneral(w http.ResponseWriter, r *http.Request)
+	GetStatisticsGeneral(w http.ResponseWriter, r *http.Request, params GetStatisticsGeneralParams)
 	// Get scoreboard history
 	// (GET /statistics/scoreboard)
 	GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request, params GetStatisticsScoreboardParams)
 	// Get score distribution
 	// (GET /statistics/scores/distribution)
-	GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.Request)
+	GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.Request, params GetStatisticsScoresDistributionParams)
 	// Get submission statistics
 	// (GET /statistics/submissions)
-	GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request)
+	GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request, params GetStatisticsSubmissionsParams)
 	// Get submission statistics by type
 	// (GET /statistics/submissions/{type})
-	GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType GetStatisticsSubmissionsTypeParamsType)
+	GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType GetStatisticsSubmissionsTypeParamsType, params GetStatisticsSubmissionsTypeParams)
 	// Get team registration statistics
 	// (GET /statistics/teams)
 	GetStatisticsTeams(w http.ResponseWriter, r *http.Request)
 	// Get user registration statistics
 	// (GET /statistics/users)
 	GetStatisticsUsers(w http.ResponseWriter, r *http.Request)
+	// Swagger UI
+	// (GET /swagger/index.html)
+	GetSwaggerUI(w http.ResponseWriter, r *http.Request)
 	// Get all tags
 	// (GET /tags)
 	GetTags(w http.ResponseWriter, r *http.Request)
@@ -417,6 +432,12 @@ type ServerInterface interface {
 	// Create team
 	// (POST /teams)
 	PostTeams(w http.ResponseWriter, r *http.Request)
+	// Get team awards
+	// (GET /teams/awards/{teamID})
+	GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, teamID string)
+	// Get team fails
+	// (GET /teams/fails/{teamID})
+	GetTeamsIDFails(w http.ResponseWriter, r *http.Request, teamID string, params GetTeamsIDFailsParams)
 	// Join team
 	// (POST /teams/join)
 	PostTeamsJoin(w http.ResponseWriter, r *http.Request)
@@ -438,6 +459,9 @@ type ServerInterface interface {
 	// Get team invite token
 	// (GET /teams/me/invite)
 	GetTeamsMeInvite(w http.ResponseWriter, r *http.Request)
+	// Regenerate team invite token
+	// (POST /teams/me/invite)
+	PostTeamsMeInvite(w http.ResponseWriter, r *http.Request)
 	// Get my team solves
 	// (GET /teams/me/solves)
 	GetTeamsMeSolves(w http.ResponseWriter, r *http.Request)
@@ -450,21 +474,15 @@ type ServerInterface interface {
 	// Create solo team
 	// (POST /teams/solo)
 	PostTeamsSolo(w http.ResponseWriter, r *http.Request)
+	// Get team solves
+	// (GET /teams/solves/{teamID})
+	GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, teamID string)
 	// Transfer captainship
 	// (POST /teams/transfer-captain)
 	PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request)
 	// Get team by ID
 	// (GET /teams/{ID})
 	GetTeamsID(w http.ResponseWriter, r *http.Request, id string)
-	// Get team awards
-	// (GET /teams/{ID}/awards)
-	GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, id string)
-	// Get team fails
-	// (GET /teams/{ID}/fails)
-	GetTeamsIDFails(w http.ResponseWriter, r *http.Request, id string, params GetTeamsIDFailsParams)
-	// Get team solves
-	// (GET /teams/{ID}/solves)
-	GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, id string)
 	// Get Terms of Service
 	// (GET /tos)
 	GetTos(w http.ResponseWriter, r *http.Request)
@@ -803,7 +821,7 @@ func (_ Unimplemented) PutAdminSettings(w http.ResponseWriter, r *http.Request) 
 
 // Get solve matrix
 // (GET /admin/statistics/solve-matrix)
-func (_ Unimplemented) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsSolveMatrixParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -827,7 +845,7 @@ func (_ Unimplemented) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWr
 
 // Get submission stats by challenge
 // (GET /admin/submissions/challenge/{challengeID}/stats)
-func (_ Unimplemented) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, challengeID string) {
+func (_ Unimplemented) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, challengeID string, params GetAdminSubmissionsChallengeChallengeIDStatsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1066,8 +1084,8 @@ func (_ Unimplemented) PostAuthResetPassword(w http.ResponseWriter, r *http.Requ
 }
 
 // Verify email
-// (GET /auth/verify-email)
-func (_ Unimplemented) GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request, params GetAuthVerifyEmailParams) {
+// (POST /auth/verify-email)
+func (_ Unimplemented) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1095,18 +1113,6 @@ func (_ Unimplemented) GetChallengesTypes(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Get first blood
-// (GET /challenges/{ID}/first-blood)
-func (_ Unimplemented) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Submit flag
-// (POST /challenges/{ID}/submit)
-func (_ Unimplemented) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 // Get challenge by ID
 // (GET /challenges/{challengeID})
 func (_ Unimplemented) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request, challengeID string) {
@@ -1128,6 +1134,12 @@ func (_ Unimplemented) PostChallengesChallengeIDComments(w http.ResponseWriter, 
 // Get challenge files
 // (GET /challenges/{challengeID}/files)
 func (_ Unimplemented) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params GetChallengesChallengeIDFilesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get first blood
+// (GET /challenges/{challengeID}/first-blood)
+func (_ Unimplemented) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *http.Request, challengeID string, params GetChallengesChallengeIDFirstBloodParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1158,6 +1170,12 @@ func (_ Unimplemented) GetChallengesChallengeIDSolution(w http.ResponseWriter, r
 // Get challenge solves
 // (GET /challenges/{challengeID}/solves)
 func (_ Unimplemented) GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.Request, challengeID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Submit flag
+// (POST /challenges/{challengeID}/submit)
+func (_ Unimplemented) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.Request, challengeID string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1192,20 +1210,44 @@ func (_ Unimplemented) GetFields(w http.ResponseWriter, r *http.Request, params 
 }
 
 // Get download URL
-// (GET /files/{ID}/download)
+// (GET /files/by-id/{ID}/download)
 func (_ Unimplemented) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Stream file download (server route GET /files/download/*)
+// (GET /files/download/{path})
+func (_ Unimplemented) GetFilesDownloadPath(w http.ResponseWriter, r *http.Request, path string, params GetFilesDownloadPathParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Health check
+// (GET /health)
+func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Health check (liveness)
 // (GET /healthcheck)
 func (_ Unimplemented) GetHealthcheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Prometheus metrics
+// (GET /metrics)
+func (_ Unimplemented) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get global notifications
 // (GET /notifications)
 func (_ Unimplemented) GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// OpenAPI specification
+// (GET /openapi.json)
+func (_ Unimplemented) GetOpenAPI(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1247,25 +1289,25 @@ func (_ Unimplemented) GetScoreboardGraph(w http.ResponseWriter, r *http.Request
 
 // Get challenge statistics
 // (GET /statistics/challenges)
-func (_ Unimplemented) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request, params GetStatisticsChallengesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get challenge solve percentages
 // (GET /statistics/challenges/solves/percentages)
-func (_ Unimplemented) GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter, r *http.Request, params GetStatisticsChallengesSolvesPercentagesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get challenge detail statistics
 // (GET /statistics/challenges/{ID})
-func (_ Unimplemented) GetStatisticsChallengesID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (_ Unimplemented) GetStatisticsChallengesID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetStatisticsChallengesIDParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get general statistics
 // (GET /statistics/general)
-func (_ Unimplemented) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request, params GetStatisticsGeneralParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1277,19 +1319,19 @@ func (_ Unimplemented) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Re
 
 // Get score distribution
 // (GET /statistics/scores/distribution)
-func (_ Unimplemented) GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.Request, params GetStatisticsScoresDistributionParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get submission statistics
 // (GET /statistics/submissions)
-func (_ Unimplemented) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request, params GetStatisticsSubmissionsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get submission statistics by type
 // (GET /statistics/submissions/{type})
-func (_ Unimplemented) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType GetStatisticsSubmissionsTypeParamsType) {
+func (_ Unimplemented) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType GetStatisticsSubmissionsTypeParamsType, params GetStatisticsSubmissionsTypeParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1302,6 +1344,12 @@ func (_ Unimplemented) GetStatisticsTeams(w http.ResponseWriter, r *http.Request
 // Get user registration statistics
 // (GET /statistics/users)
 func (_ Unimplemented) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Swagger UI
+// (GET /swagger/index.html)
+func (_ Unimplemented) GetSwaggerUI(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1320,6 +1368,18 @@ func (_ Unimplemented) GetTeams(w http.ResponseWriter, r *http.Request, params G
 // Create team
 // (POST /teams)
 func (_ Unimplemented) PostTeams(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get team awards
+// (GET /teams/awards/{teamID})
+func (_ Unimplemented) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, teamID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get team fails
+// (GET /teams/fails/{teamID})
+func (_ Unimplemented) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, teamID string, params GetTeamsIDFailsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1365,6 +1425,12 @@ func (_ Unimplemented) GetTeamsMeInvite(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Regenerate team invite token
+// (POST /teams/me/invite)
+func (_ Unimplemented) PostTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get my team solves
 // (GET /teams/me/solves)
 func (_ Unimplemented) GetTeamsMeSolves(w http.ResponseWriter, r *http.Request) {
@@ -1389,6 +1455,12 @@ func (_ Unimplemented) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get team solves
+// (GET /teams/solves/{teamID})
+func (_ Unimplemented) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, teamID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Transfer captainship
 // (POST /teams/transfer-captain)
 func (_ Unimplemented) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request) {
@@ -1398,24 +1470,6 @@ func (_ Unimplemented) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.R
 // Get team by ID
 // (GET /teams/{ID})
 func (_ Unimplemented) GetTeamsID(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get team awards
-// (GET /teams/{ID}/awards)
-func (_ Unimplemented) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get team fails
-// (GET /teams/{ID}/fails)
-func (_ Unimplemented) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, id string, params GetTeamsIDFailsParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get team solves
-// (GET /teams/{ID}/solves)
-func (_ Unimplemented) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1533,6 +1587,8 @@ func (siw *ServerInterfaceWrapper) GetAdminAwards(w http.ResponseWriter, r *http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -1563,6 +1619,8 @@ func (siw *ServerInterfaceWrapper) PostAdminAwards(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1595,6 +1653,8 @@ func (siw *ServerInterfaceWrapper) GetAdminAwardsTeamTeamID(w http.ResponseWrite
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1625,6 +1685,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminAwardsID(w http.ResponseWriter, r 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1657,6 +1719,8 @@ func (siw *ServerInterfaceWrapper) GetAdminAwardsID(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1676,6 +1740,8 @@ func (siw *ServerInterfaceWrapper) PostAdminBrackets(w http.ResponseWriter, r *h
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1708,6 +1774,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminBracketsID(w http.ResponseWriter, 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1738,6 +1806,8 @@ func (siw *ServerInterfaceWrapper) GetAdminBracketsID(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1770,6 +1840,8 @@ func (siw *ServerInterfaceWrapper) PutAdminBracketsID(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1789,6 +1861,8 @@ func (siw *ServerInterfaceWrapper) PostAdminChallenges(w http.ResponseWriter, r 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1821,6 +1895,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminChallengesID(w http.ResponseWriter
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1851,6 +1927,8 @@ func (siw *ServerInterfaceWrapper) PutAdminChallengesID(w http.ResponseWriter, r
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1883,6 +1961,8 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDFiles(w http.Re
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1913,6 +1993,8 @@ func (siw *ServerInterfaceWrapper) GetAdminChallengesChallengeIDFlags(w http.Res
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -1945,6 +2027,8 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDHints(w http.Re
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1975,6 +2059,8 @@ func (siw *ServerInterfaceWrapper) PutAdminChallengesChallengeIDRequirements(w h
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2007,6 +2093,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminChallengesChallengeIDSolution(w ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2038,6 +2126,8 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDSolution(w http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2057,6 +2147,8 @@ func (siw *ServerInterfaceWrapper) GetAdminCompetition(w http.ResponseWriter, r 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2078,6 +2170,8 @@ func (siw *ServerInterfaceWrapper) PutAdminCompetition(w http.ResponseWriter, r 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2097,6 +2191,8 @@ func (siw *ServerInterfaceWrapper) GetAdminConfigs(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2129,6 +2225,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminConfigsKey(w http.ResponseWriter, 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2159,6 +2257,8 @@ func (siw *ServerInterfaceWrapper) GetAdminConfigsKey(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2191,6 +2291,8 @@ func (siw *ServerInterfaceWrapper) PutAdminConfigsKey(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2212,6 +2314,8 @@ func (siw *ServerInterfaceWrapper) GetAdminExport(w http.ResponseWriter, r *http
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2242,6 +2346,14 @@ func (siw *ServerInterfaceWrapper) GetAdminExport(w http.ResponseWriter, r *http
 		return
 	}
 
+	// ------------- Optional query parameter "include_hint_unlocks" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "include_hint_unlocks", r.URL.Query(), &params.IncludeHintUnlocks)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_hint_unlocks", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "include_awards" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "include_awards", r.URL.Query(), &params.IncludeAwards)
@@ -2269,6 +2381,8 @@ func (siw *ServerInterfaceWrapper) GetAdminExportCsv(w http.ResponseWriter, r *h
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2310,6 +2424,8 @@ func (siw *ServerInterfaceWrapper) GetAdminExportZip(w http.ResponseWriter, r *h
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -2340,6 +2456,8 @@ func (siw *ServerInterfaceWrapper) PostAdminFields(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2372,6 +2490,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminFieldsID(w http.ResponseWriter, r 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2402,6 +2522,8 @@ func (siw *ServerInterfaceWrapper) PutAdminFieldsID(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2434,6 +2556,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminFilesID(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2464,6 +2588,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminHintsID(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2496,6 +2622,8 @@ func (siw *ServerInterfaceWrapper) PutAdminHintsID(w http.ResponseWriter, r *htt
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2515,6 +2643,8 @@ func (siw *ServerInterfaceWrapper) PostAdminImport(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2536,6 +2666,8 @@ func (siw *ServerInterfaceWrapper) PostAdminImportCsv(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2555,6 +2687,8 @@ func (siw *ServerInterfaceWrapper) PostAdminNotifications(w http.ResponseWriter,
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2587,6 +2721,8 @@ func (siw *ServerInterfaceWrapper) PostAdminNotificationsUserUserID(w http.Respo
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2617,6 +2753,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminNotificationsID(w http.ResponseWri
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2649,6 +2787,8 @@ func (siw *ServerInterfaceWrapper) PutAdminNotificationsID(w http.ResponseWriter
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2669,6 +2809,8 @@ func (siw *ServerInterfaceWrapper) GetAdminPages(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2688,6 +2830,8 @@ func (siw *ServerInterfaceWrapper) PostAdminPages(w http.ResponseWriter, r *http
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2720,6 +2864,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminPagesID(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2750,6 +2896,8 @@ func (siw *ServerInterfaceWrapper) GetAdminPagesID(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2782,6 +2930,8 @@ func (siw *ServerInterfaceWrapper) PutAdminPagesID(w http.ResponseWriter, r *htt
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2801,6 +2951,8 @@ func (siw *ServerInterfaceWrapper) PostAdminReset(w http.ResponseWriter, r *http
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2822,6 +2974,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSettings(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2842,6 +2996,8 @@ func (siw *ServerInterfaceWrapper) PutAdminSettings(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2858,14 +3014,29 @@ func (siw *ServerInterfaceWrapper) PutAdminSettings(w http.ResponseWriter, r *ht
 // GetAdminStatisticsSolveMatrix operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminStatisticsSolveMatrixParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAdminStatisticsSolveMatrix(w, r)
+		siw.Handler.GetAdminStatisticsSolveMatrix(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2883,6 +3054,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissions(w http.ResponseWriter, r 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2905,6 +3078,14 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissions(w http.ResponseWriter, r 
 		return
 	}
 
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminSubmissions(w, r, params)
 	}))
@@ -2922,6 +3103,8 @@ func (siw *ServerInterfaceWrapper) PostAdminSubmissions(w http.ResponseWriter, r
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -2954,6 +3137,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsChallengeChallengeID(w htt
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -2972,6 +3157,14 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsChallengeChallengeID(w htt
 	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -3004,10 +3197,23 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsChallengeChallengeIDStats(
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminSubmissionsChallengeChallengeIDStatsParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAdminSubmissionsChallengeChallengeIDStats(w, r, challengeID)
+		siw.Handler.GetAdminSubmissionsChallengeChallengeIDStats(w, r, challengeID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3035,6 +3241,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsTeamTeamID(w http.Response
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -3053,6 +3261,14 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsTeamTeamID(w http.Response
 	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -3085,6 +3301,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsUserUserID(w http.Response
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -3103,6 +3321,14 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsUserUserID(w http.Response
 	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -3135,6 +3361,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminSubmissionsID(w http.ResponseWrite
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3165,6 +3393,8 @@ func (siw *ServerInterfaceWrapper) GetAdminSubmissionsID(w http.ResponseWriter, 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3197,6 +3427,8 @@ func (siw *ServerInterfaceWrapper) PatchAdminSubmissionsID(w http.ResponseWriter
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3216,6 +3448,8 @@ func (siw *ServerInterfaceWrapper) PostAdminTags(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3248,6 +3482,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminTagsID(w http.ResponseWriter, r *h
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3279,6 +3515,8 @@ func (siw *ServerInterfaceWrapper) PutAdminTagsID(w http.ResponseWriter, r *http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3300,6 +3538,8 @@ func (siw *ServerInterfaceWrapper) GetAdminTeams(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3359,6 +3599,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminTeamsID(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3389,6 +3631,8 @@ func (siw *ServerInterfaceWrapper) PatchAdminTeamsID(w http.ResponseWriter, r *h
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3421,6 +3665,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminTeamsIDBan(w http.ResponseWriter, 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3451,6 +3697,8 @@ func (siw *ServerInterfaceWrapper) PostAdminTeamsIDBan(w http.ResponseWriter, r 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3483,6 +3731,8 @@ func (siw *ServerInterfaceWrapper) PatchAdminTeamsIDBracket(w http.ResponseWrite
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3513,6 +3763,8 @@ func (siw *ServerInterfaceWrapper) PatchAdminTeamsIDHidden(w http.ResponseWriter
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3545,6 +3797,8 @@ func (siw *ServerInterfaceWrapper) GetAdminTeamsIDMembers(w http.ResponseWriter,
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3575,6 +3829,8 @@ func (siw *ServerInterfaceWrapper) PostAdminTeamsIDMembers(w http.ResponseWriter
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3616,6 +3872,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminTeamsIDMembersUserID(w http.Respon
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3647,6 +3905,8 @@ func (siw *ServerInterfaceWrapper) GetAdminTeamsIDMissingChallenges(w http.Respo
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3668,6 +3928,8 @@ func (siw *ServerInterfaceWrapper) GetAdminUnlocks(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3709,6 +3971,8 @@ func (siw *ServerInterfaceWrapper) GetAdminUsers(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3765,6 +4029,8 @@ func (siw *ServerInterfaceWrapper) PostAdminUsers(w http.ResponseWriter, r *http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3795,6 +4061,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminUsersID(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3827,6 +4095,8 @@ func (siw *ServerInterfaceWrapper) PatchAdminUsersID(w http.ResponseWriter, r *h
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3857,6 +4127,8 @@ func (siw *ServerInterfaceWrapper) DeleteAdminUsersIDBan(w http.ResponseWriter, 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -3889,6 +4161,8 @@ func (siw *ServerInterfaceWrapper) PostAdminUsersIDBan(w http.ResponseWriter, r 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3920,6 +4194,8 @@ func (siw *ServerInterfaceWrapper) GetAdminUsersIDMissingChallenges(w http.Respo
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3950,6 +4226,8 @@ func (siw *ServerInterfaceWrapper) GetAdminUsersIDTracking(w http.ResponseWriter
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4058,6 +4336,8 @@ func (siw *ServerInterfaceWrapper) GetAuthMe(w http.ResponseWriter, r *http.Requ
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4077,6 +4357,8 @@ func (siw *ServerInterfaceWrapper) PatchAuthMe(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4225,6 +4507,8 @@ func (siw *ServerInterfaceWrapper) PostAuthResendVerification(w http.ResponseWri
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4252,31 +4536,11 @@ func (siw *ServerInterfaceWrapper) PostAuthResetPassword(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
-// GetAuthVerifyEmail operation middleware
-func (siw *ServerInterfaceWrapper) GetAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetAuthVerifyEmailParams
-
-	// ------------- Required query parameter "token" -------------
-
-	if paramValue := r.URL.Query().Get("token"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "token", r.URL.Query(), &params.Token)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
-		return
-	}
+// PostAuthVerifyEmail operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAuthVerifyEmail(w, r, params)
+		siw.Handler.PostAuthVerifyEmail(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4309,6 +4573,8 @@ func (siw *ServerInterfaceWrapper) GetChallenges(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -4340,6 +4606,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesSolutions(w http.ResponseWriter,
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4367,62 +4635,6 @@ func (siw *ServerInterfaceWrapper) GetChallengesTypes(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
-// GetChallengesIDFirstBlood operation middleware
-func (siw *ServerInterfaceWrapper) GetChallengesIDFirstBlood(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "ID" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetChallengesIDFirstBlood(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// PostChallengesIDSubmit operation middleware
-func (siw *ServerInterfaceWrapper) PostChallengesIDSubmit(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "ID" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostChallengesIDSubmit(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // GetChallengesChallengeID operation middleware
 func (siw *ServerInterfaceWrapper) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request) {
 
@@ -4440,6 +4652,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeID(w http.ResponseWrite
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4472,6 +4686,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDComments(w http.Respo
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4502,6 +4718,8 @@ func (siw *ServerInterfaceWrapper) PostChallengesChallengeIDComments(w http.Resp
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4534,6 +4752,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDFiles(w http.Response
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -4549,6 +4769,50 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDFiles(w http.Response
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetChallengesChallengeIDFiles(w, r, challengeID, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetChallengesChallengeIDFirstBlood operation middleware
+func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetChallengesChallengeIDFirstBloodParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetChallengesChallengeIDFirstBlood(w, r, challengeID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4575,6 +4839,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDHints(w http.Response
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4616,6 +4882,8 @@ func (siw *ServerInterfaceWrapper) PostChallengesChallengeIDHintsHintIDUnlock(w 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4646,6 +4914,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDRequirements(w http.R
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4678,6 +4948,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDSolution(w http.Respo
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4709,10 +4981,45 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDSolves(w http.Respons
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetChallengesChallengeIDSolves(w, r, challengeID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostChallengesChallengeIDSubmit operation middleware
+func (siw *ServerInterfaceWrapper) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostChallengesChallengeIDSubmit(w, r, challengeID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4739,6 +5046,8 @@ func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDTags(w http.ResponseW
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -4771,6 +5080,8 @@ func (siw *ServerInterfaceWrapper) DeleteCommentsID(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4801,6 +5112,14 @@ func (siw *ServerInterfaceWrapper) GetCompetitionStatus(w http.ResponseWriter, r
 // GetDebug operation middleware
 func (siw *ServerInterfaceWrapper) GetDebug(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDebug(w, r)
 	}))
@@ -4820,16 +5139,9 @@ func (siw *ServerInterfaceWrapper) GetFields(w http.ResponseWriter, r *http.Requ
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetFieldsParams
 
-	// ------------- Required query parameter "entity_type" -------------
+	// ------------- Optional query parameter "entity_type" -------------
 
-	if paramValue := r.URL.Query().Get("entity_type"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "entity_type"})
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "entity_type", r.URL.Query(), &params.EntityType)
+	err = runtime.BindQueryParameter("form", true, false, "entity_type", r.URL.Query(), &params.EntityType)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entity_type", Err: err})
 		return
@@ -4864,10 +5176,77 @@ func (siw *ServerInterfaceWrapper) GetFilesIDDownload(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetFilesIDDownload(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFilesDownloadPath operation middleware
+func (siw *ServerInterfaceWrapper) GetFilesDownloadPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", chi.URLParam(r, "path"), &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetFilesDownloadPathParams
+
+	// ------------- Required query parameter "token" -------------
+
+	if paramValue := r.URL.Query().Get("token"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "token", r.URL.Query(), &params.Token)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFilesDownloadPath(w, r, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHealth(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4882,6 +5261,20 @@ func (siw *ServerInterfaceWrapper) GetHealthcheck(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealthcheck(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMetrics operation middleware
+func (siw *ServerInterfaceWrapper) GetMetrics(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMetrics(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4917,6 +5310,20 @@ func (siw *ServerInterfaceWrapper) GetNotifications(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetNotifications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOpenAPI operation middleware
+func (siw *ServerInterfaceWrapper) GetOpenAPI(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOpenAPI(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4998,6 +5405,14 @@ func (siw *ServerInterfaceWrapper) GetScoreboard(w http.ResponseWriter, r *http.
 
 	var err error
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetScoreboardParams
 
@@ -5006,6 +5421,14 @@ func (siw *ServerInterfaceWrapper) GetScoreboard(w http.ResponseWriter, r *http.
 	err = runtime.BindQueryParameter("form", true, false, "bracket", r.URL.Query(), &params.Bracket)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bracket", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -5025,6 +5448,14 @@ func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *
 
 	var err error
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetScoreboardGraphParams
 
@@ -5033,6 +5464,14 @@ func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *
 	err = runtime.BindQueryParameter("form", true, false, "top", r.URL.Query(), &params.Top)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "top", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -5050,14 +5489,29 @@ func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *
 // GetStatisticsChallenges operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsChallengesParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsChallenges(w, r)
+		siw.Handler.GetStatisticsChallenges(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5070,14 +5524,29 @@ func (siw *ServerInterfaceWrapper) GetStatisticsChallenges(w http.ResponseWriter
 // GetStatisticsChallengesSolvesPercentages operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsChallengesSolvesPercentagesParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsChallengesSolvesPercentages(w, r)
+		siw.Handler.GetStatisticsChallengesSolvesPercentages(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5105,10 +5574,23 @@ func (siw *ServerInterfaceWrapper) GetStatisticsChallengesID(w http.ResponseWrit
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsChallengesIDParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsChallengesID(w, r, id)
+		siw.Handler.GetStatisticsChallengesID(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5121,14 +5603,29 @@ func (siw *ServerInterfaceWrapper) GetStatisticsChallengesID(w http.ResponseWrit
 // GetStatisticsGeneral operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsGeneralParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsGeneral(w, r)
+		siw.Handler.GetStatisticsGeneral(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5147,6 +5644,8 @@ func (siw *ServerInterfaceWrapper) GetStatisticsScoreboard(w http.ResponseWriter
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -5157,6 +5656,14 @@ func (siw *ServerInterfaceWrapper) GetStatisticsScoreboard(w http.ResponseWriter
 	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
 		return
 	}
 
@@ -5174,14 +5681,29 @@ func (siw *ServerInterfaceWrapper) GetStatisticsScoreboard(w http.ResponseWriter
 // GetStatisticsScoresDistribution operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsScoresDistributionParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsScoresDistribution(w, r)
+		siw.Handler.GetStatisticsScoresDistribution(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5194,14 +5716,29 @@ func (siw *ServerInterfaceWrapper) GetStatisticsScoresDistribution(w http.Respon
 // GetStatisticsSubmissions operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsSubmissionsParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsSubmissions(w, r)
+		siw.Handler.GetStatisticsSubmissions(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5229,10 +5766,23 @@ func (siw *ServerInterfaceWrapper) GetStatisticsSubmissionsType(w http.ResponseW
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsSubmissionsTypeParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "live", r.URL.Query(), &params.Live)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsSubmissionsType(w, r, pType)
+		siw.Handler.GetStatisticsSubmissionsType(w, r, pType, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5248,6 +5798,8 @@ func (siw *ServerInterfaceWrapper) GetStatisticsTeams(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5269,10 +5821,26 @@ func (siw *ServerInterfaceWrapper) GetStatisticsUsers(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetStatisticsUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSwaggerUI operation middleware
+func (siw *ServerInterfaceWrapper) GetSwaggerUI(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSwaggerUI(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5304,6 +5872,8 @@ func (siw *ServerInterfaceWrapper) GetTeams(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5352,10 +5922,97 @@ func (siw *ServerInterfaceWrapper) PostTeams(w http.ResponseWriter, r *http.Requ
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostTeams(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTeamsIDAwards operation middleware
+func (siw *ServerInterfaceWrapper) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "teamID" -------------
+	var teamID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "teamID", chi.URLParam(r, "teamID"), &teamID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "teamID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTeamsIDAwards(w, r, teamID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTeamsIDFails operation middleware
+func (siw *ServerInterfaceWrapper) GetTeamsIDFails(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "teamID" -------------
+	var teamID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "teamID", chi.URLParam(r, "teamID"), &teamID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "teamID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTeamsIDFailsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "per_page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTeamsIDFails(w, r, teamID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5371,6 +6028,8 @@ func (siw *ServerInterfaceWrapper) PostTeamsJoin(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5392,6 +6051,8 @@ func (siw *ServerInterfaceWrapper) PostTeamsLeave(w http.ResponseWriter, r *http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5411,6 +6072,8 @@ func (siw *ServerInterfaceWrapper) DeleteTeamsMe(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5432,6 +6095,8 @@ func (siw *ServerInterfaceWrapper) PatchTeamsMe(w http.ResponseWriter, r *http.R
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5451,6 +6116,8 @@ func (siw *ServerInterfaceWrapper) GetTeamsMeAwards(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5473,6 +6140,8 @@ func (siw *ServerInterfaceWrapper) GetTeamsMeFails(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5513,10 +6182,34 @@ func (siw *ServerInterfaceWrapper) GetTeamsMeInvite(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTeamsMeInvite(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostTeamsMeInvite operation middleware
+func (siw *ServerInterfaceWrapper) PostTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostTeamsMeInvite(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5532,6 +6225,8 @@ func (siw *ServerInterfaceWrapper) GetTeamsMeSolves(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5564,6 +6259,8 @@ func (siw *ServerInterfaceWrapper) DeleteTeamsMembersID(w http.ResponseWriter, r
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5583,6 +6280,8 @@ func (siw *ServerInterfaceWrapper) GetTeamsMy(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5604,10 +6303,45 @@ func (siw *ServerInterfaceWrapper) PostTeamsSolo(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostTeamsSolo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTeamsIDSolves operation middleware
+func (siw *ServerInterfaceWrapper) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "teamID" -------------
+	var teamID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "teamID", chi.URLParam(r, "teamID"), &teamID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "teamID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTeamsIDSolves(w, r, teamID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5623,6 +6357,8 @@ func (siw *ServerInterfaceWrapper) PostTeamsTransferCaptain(w http.ResponseWrite
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5655,122 +6391,12 @@ func (siw *ServerInterfaceWrapper) GetTeamsID(w http.ResponseWriter, r *http.Req
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTeamsID(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetTeamsIDAwards operation middleware
-func (siw *ServerInterfaceWrapper) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "ID" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetTeamsIDAwards(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetTeamsIDFails operation middleware
-func (siw *ServerInterfaceWrapper) GetTeamsIDFails(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "ID" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetTeamsIDFailsParams
-
-	// ------------- Optional query parameter "page" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
-		return
-	}
-
-	// ------------- Optional query parameter "per_page" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetTeamsIDFails(w, r, id, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetTeamsIDSolves operation middleware
-func (siw *ServerInterfaceWrapper) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "ID" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetTeamsIDSolves(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5802,6 +6428,8 @@ func (siw *ServerInterfaceWrapper) GetUserNotifications(w http.ResponseWriter, r
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5853,6 +6481,8 @@ func (siw *ServerInterfaceWrapper) PatchUserNotificationsIDRead(w http.ResponseW
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5873,6 +6503,8 @@ func (siw *ServerInterfaceWrapper) GetUserTokens(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5892,6 +6524,8 @@ func (siw *ServerInterfaceWrapper) PostUserTokens(w http.ResponseWriter, r *http
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5924,6 +6558,8 @@ func (siw *ServerInterfaceWrapper) DeleteUserTokensID(w http.ResponseWriter, r *
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -5945,6 +6581,8 @@ func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -5993,6 +6631,8 @@ func (siw *ServerInterfaceWrapper) GetUsersMeAwards(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6014,6 +6654,8 @@ func (siw *ServerInterfaceWrapper) GetUsersMeFails(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -6054,6 +6696,8 @@ func (siw *ServerInterfaceWrapper) GetUsersMeSolves(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6075,6 +6719,8 @@ func (siw *ServerInterfaceWrapper) GetUsersMeSubmissions(w http.ResponseWriter, 
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -6122,6 +6768,14 @@ func (siw *ServerInterfaceWrapper) GetUsersID(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetUsersID(w, r, id)
 	}))
@@ -6150,6 +6804,8 @@ func (siw *ServerInterfaceWrapper) GetUsersIDAwards(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -6181,6 +6837,8 @@ func (siw *ServerInterfaceWrapper) GetUsersIDFails(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -6232,6 +6890,8 @@ func (siw *ServerInterfaceWrapper) GetUsersIDSolves(w http.ResponseWriter, r *ht
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6247,6 +6907,14 @@ func (siw *ServerInterfaceWrapper) GetUsersIDSolves(w http.ResponseWriter, r *ht
 
 // GetWs operation middleware
 func (siw *ServerInterfaceWrapper) GetWs(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetWs(w, r)
@@ -6646,7 +7314,7 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/reset-password", wrapper.PostAuthResetPassword)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/auth/verify-email", wrapper.GetAuthVerifyEmail)
+		r.Post(options.BaseURL+"/auth/verify-email", wrapper.PostAuthVerifyEmail)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/brackets", wrapper.GetBrackets)
@@ -6661,12 +7329,6 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/challenges/types", wrapper.GetChallengesTypes)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/challenges/{ID}/first-blood", wrapper.GetChallengesIDFirstBlood)
-	})
-	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/challenges/{ID}/submit", wrapper.PostChallengesIDSubmit)
-	})
-	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
 	})
 	r.Group(func(r chi.Router) {
@@ -6677,6 +7339,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/challenges/{challengeID}/first-blood", wrapper.GetChallengesChallengeIDFirstBlood)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
@@ -6694,6 +7359,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/challenges/{challengeID}/solves", wrapper.GetChallengesChallengeIDSolves)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/challenges/{challengeID}/submit", wrapper.PostChallengesChallengeIDSubmit)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
 	})
 	r.Group(func(r chi.Router) {
@@ -6709,13 +7377,25 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/fields", wrapper.GetFields)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/files/{ID}/download", wrapper.GetFilesIDDownload)
+		r.Get(options.BaseURL+"/files/by-id/{ID}/download", wrapper.GetFilesIDDownload)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/files/download/{path}", wrapper.GetFilesDownloadPath)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/health", wrapper.GetHealth)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/healthcheck", wrapper.GetHealthcheck)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/metrics", wrapper.GetMetrics)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/notifications", wrapper.GetNotifications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/openapi.json", wrapper.GetOpenAPI)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/pages", wrapper.GetPages)
@@ -6766,6 +7446,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/statistics/users", wrapper.GetStatisticsUsers)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/swagger/index.html", wrapper.GetSwaggerUI)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tags", wrapper.GetTags)
 	})
 	r.Group(func(r chi.Router) {
@@ -6773,6 +7456,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/teams", wrapper.PostTeams)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/teams/awards/{teamID}", wrapper.GetTeamsIDAwards)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/teams/fails/{teamID}", wrapper.GetTeamsIDFails)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/teams/join", wrapper.PostTeamsJoin)
@@ -6796,6 +7485,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/teams/me/invite", wrapper.GetTeamsMeInvite)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/teams/me/invite", wrapper.PostTeamsMeInvite)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/teams/me/solves", wrapper.GetTeamsMeSolves)
 	})
 	r.Group(func(r chi.Router) {
@@ -6808,19 +7500,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/teams/solo", wrapper.PostTeamsSolo)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/teams/solves/{teamID}", wrapper.GetTeamsIDSolves)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/teams/transfer-captain", wrapper.PostTeamsTransferCaptain)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/teams/{ID}", wrapper.GetTeamsID)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/teams/{ID}/awards", wrapper.GetTeamsIDAwards)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/teams/{ID}/fails", wrapper.GetTeamsIDFails)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/teams/{ID}/solves", wrapper.GetTeamsIDSolves)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/tos", wrapper.GetTos)

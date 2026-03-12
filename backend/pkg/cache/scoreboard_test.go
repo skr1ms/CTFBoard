@@ -4,12 +4,11 @@ import (
 	"context"
 	"testing"
 
-	cachemocks "github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mocks"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	cachemocks "github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mocks"
 )
 
 func TestNewScoreboardCacheService(t *testing.T) {
@@ -46,19 +45,12 @@ func TestScoreboardCacheService_InvalidateForTeam_Success(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
 	c := New(client)
-	bracketID := uuid.New()
-	teamID := uuid.New()
-
-	getter := cachemocks.NewMockTeamBracketIDGetter(t)
-	getter.On("GetTeamBracketID", mock.Anything, teamID).Return(&bracketID, nil)
-
-	svc := NewScoreboardCacheService(c, getter)
+	svc := NewScoreboardCacheService(c, nil)
 	ctx := context.Background()
 
 	redisMock.ExpectDel(KeyScoreboard, KeyScoreboardFrozen).SetVal(0)
-	redisMock.ExpectDel(KeyScoreboardBracket(bracketID.String()), KeyScoreboardBracketFrozen(bracketID.String())).SetVal(0)
 
-	svc.InvalidateForTeam(ctx, teamID)
+	svc.InvalidateForTeam(ctx, uuid.New())
 
 	require.NoError(t, redisMock.ExpectationsWereMet())
 }
@@ -77,40 +69,16 @@ func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 	require.NoError(t, redisMock.ExpectationsWereMet())
 }
 
-func TestScoreboardCacheService_InvalidateForTeam_GetterError(t *testing.T) {
+func TestScoreboardCacheService_InvalidateForTeam_WithGetter(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
 	c := New(client)
-	teamID := uuid.New()
-
-	getter := cachemocks.NewMockTeamBracketIDGetter(t)
-	getter.On("GetTeamBracketID", mock.Anything, teamID).Return((*uuid.UUID)(nil), assert.AnError)
-
-	svc := NewScoreboardCacheService(c, getter)
+	svc := NewScoreboardCacheService(c, cachemocks.NewMockTeamBracketIDGetter(t))
 	ctx := context.Background()
 
 	redisMock.ExpectDel(KeyScoreboard, KeyScoreboardFrozen).SetVal(0)
 
-	svc.InvalidateForTeam(ctx, teamID)
-
-	require.NoError(t, redisMock.ExpectationsWereMet())
-}
-
-func TestScoreboardCacheService_InvalidateForTeam_GetterReturnsNilBracket(t *testing.T) {
-	t.Parallel()
-	client, redisMock := redismock.NewClientMock()
-	c := New(client)
-	teamID := uuid.New()
-
-	getter := cachemocks.NewMockTeamBracketIDGetter(t)
-	getter.On("GetTeamBracketID", mock.Anything, teamID).Return((*uuid.UUID)(nil), nil)
-
-	svc := NewScoreboardCacheService(c, getter)
-	ctx := context.Background()
-
-	redisMock.ExpectDel(KeyScoreboard, KeyScoreboardFrozen).SetVal(0)
-
-	svc.InvalidateForTeam(ctx, teamID)
+	svc.InvalidateForTeam(ctx, uuid.New())
 
 	require.NoError(t, redisMock.ExpectationsWereMet())
 }

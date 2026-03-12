@@ -1,4 +1,10 @@
 schemas:
+  HealthResponse:
+    type: object
+    description: Health check result; keys are component names (e.g. db, redis, storage), values are "ok" or "error".
+    additionalProperties:
+      type: string
+      enum: [ok, error]
   response.PaginationMeta:
     properties:
       page:
@@ -19,6 +25,31 @@ schemas:
         type: string
       message:
         type: string
+    type: object
+  v1.ValidationErrorItem:
+    required:
+      - field
+      - message
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  v1.ValidationErrorResponse:
+    required:
+      - code
+      - message
+    properties:
+      code:
+        type: string
+        example: VALIDATION_ERROR
+      message:
+        type: string
+      errors:
+        type: array
+        items:
+          $ref: "#/schemas/v1.ValidationErrorItem"
     type: object
   response.MessageResponse:
     type: object

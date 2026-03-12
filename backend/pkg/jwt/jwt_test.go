@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt/mocks"
 )
 
 const (
@@ -21,7 +22,10 @@ const (
 
 func newTestService(t *testing.T, revoker jwt.RevocationStore) *jwt.JWTService {
 	t.Helper()
-	svc, err := jwt.NewJWTService(testAccessSecret, testRefreshSecret, time.Hour, time.Hour, revoker, nil)
+	svc, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: testAccessSecret}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: testRefreshSecret}},
+		time.Hour, time.Hour, revoker, nil)
 	require.NoError(t, err)
 	return svc
 }
@@ -31,7 +35,7 @@ func TestJWTService_GenerateTokenPair_Success(t *testing.T) {
 	service := newTestService(t, nil)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pair.AccessToken)
 	assert.NotEmpty(t, pair.RefreshToken)
@@ -43,7 +47,7 @@ func TestJWTService_ValidateAccessToken_Success(t *testing.T) {
 	service := newTestService(t, nil)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	claims, err := service.ValidateAccessToken(context.Background(), pair.AccessToken)
@@ -55,13 +59,19 @@ func TestJWTService_ValidateAccessToken_Success(t *testing.T) {
 
 func TestJWTService_ValidateAccessToken_InvalidSignature(t *testing.T) {
 	t.Parallel()
-	service1, err := jwt.NewJWTService("secret-1-at-least-32-bytes-long!", "refresh-1-at-least-32-bytes-lon!", time.Hour, time.Hour, nil, nil)
+	service1, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: "secret-1-at-least-32-bytes-long!"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "refresh-1-at-least-32-bytes-lon!"}},
+		time.Hour, time.Hour, nil, nil)
 	require.NoError(t, err)
-	service2, err := jwt.NewJWTService("secret-2-at-least-32-bytes-long!", "refresh-2-at-least-32-bytes-lon!", time.Hour, time.Hour, nil, nil)
+	service2, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: "secret-2-at-least-32-bytes-long!"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "refresh-2-at-least-32-bytes-lon!"}},
+		time.Hour, time.Hour, nil, nil)
 	require.NoError(t, err)
 	userID := uuid.New()
 
-	pair, err := service1.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service1.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	claims, err := service2.ValidateAccessToken(context.Background(), pair.AccessToken)
@@ -74,7 +84,7 @@ func TestJWTService_ValidateRefreshToken_Success(t *testing.T) {
 	service := newTestService(t, nil)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	claims, err := service.ValidateRefreshToken(context.Background(), pair.RefreshToken)
@@ -88,7 +98,7 @@ func TestJWTService_RefreshTokens_Success(t *testing.T) {
 	service := newTestService(t, nil)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
@@ -112,7 +122,10 @@ func TestJWTService_RefreshTokens_InvalidToken(t *testing.T) {
 
 func TestJWTService_NewJWTService_ShortSecret(t *testing.T) {
 	t.Parallel()
-	_, err := jwt.NewJWTService("short", "short", time.Hour, time.Hour, nil, nil)
+	_, err := jwt.NewJWTService(
+		[]jwt.KeyEntry{{Kid: "0", Secret: "short"}},
+		[]jwt.KeyEntry{{Kid: "0", Secret: "short"}},
+		time.Hour, time.Hour, nil, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least")
 }
@@ -134,11 +147,15 @@ func TestJWTService_RefreshTokens_RevokesOldToken(t *testing.T) {
 			return revoked[jti], nil
 		}).
 		Maybe()
+	revoker.EXPECT().
+		IsUserRevoked(mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("int64")).
+		Return(false, nil).
+		Maybe()
 
 	service := newTestService(t, revoker)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	_, err = service.ValidateRefreshToken(context.Background(), pair.RefreshToken)
@@ -176,11 +193,15 @@ func TestJWTService_RevokeRefreshToken_ThenValidateFails(t *testing.T) {
 			return revoked[jti], nil
 		}).
 		Maybe()
+	revoker.EXPECT().
+		IsUserRevoked(mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("int64")).
+		Return(false, nil).
+		Maybe()
 
 	service := newTestService(t, revoker)
 	userID := uuid.New()
 
-	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", entity.RoleAdmin)
+	pair, err := service.GenerateTokenPair(userID, "test@example.com", "Test User", string(entity.RoleAdmin))
 	require.NoError(t, err)
 
 	_, err = service.ValidateRefreshToken(context.Background(), pair.RefreshToken)

@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 )
 
 func TestAuditLogTx_SettingsUpdate_CommitsBoth(t *testing.T) {

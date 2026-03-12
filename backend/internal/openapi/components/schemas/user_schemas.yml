@@ -108,6 +108,9 @@ schemas:
           validate: "omitempty,strong_password"
       current_password:
         type: string
+        maxLength: 72
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=72"
     type: object
   response.UserResponse:
     properties:

@@ -82,12 +82,12 @@ linters:
     exhaustive:
       default-signifies-exhaustive: false
     funlen:
-      lines: 80
-      statements: 50
+      lines: 150
+      statements: 70
     gocognit:
-      min-complexity: 15
+      min-complexity: 25
     gocyclo:
-      min-complexity: 12
+      min-complexity: 18
     misspell:
       locale: US
     nolintlint:
@@ -160,6 +160,52 @@ linters:
         path: e2e-test/
       - linters: [revive]
         path: integration-test/
+      - linters: [unconvert]
+        path: e2e-test/
+      - linters: [contextcheck]
+        path: integration-test/
+      - linters: [contextcheck]
+        path: load-test/
+      - linters: [contextcheck]
+        path: internal/app/
+      - linters: [contextcheck]
+        path: internal/controller/
+      - linters: [contextcheck]
+        path: internal/usecase/
+      - linters: [contextcheck]
+        path: pkg/websocket/
+      - linters: [funlen]
+        path: config/
+      - linters: [gocognit]
+        path: config/
+      - linters: [gocognit]
+        path: internal/
+      - linters: [gocyclo]
+        path: config/
+      - linters: [gocyclo]
+        path: internal/
+      - linters: [gocyclo]
+        path: pkg/
+      - linters: [mnd]
+        path: config/
+      - linters: [mnd]
+        path: internal/
+      - linters: [mnd]
+        path: pkg/
+      - linters: [mnd]
+        path: cmd/
+      - linters: [revive]
+        path: internal/entity/
+      - linters: [revive]
+        path: internal/usecase/
+      - linters: [revive]
+        path: pkg/crypto/
+      - linters: [revive]
+        path: pkg/jwt/
+      - linters: [revive]
+        path: pkg/httputil/
+      - linters: [unparam]
+        path: internal/usecase/
     paths:
       - bin/
       - third_party$

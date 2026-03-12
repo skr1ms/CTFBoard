@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const (
@@ -16,38 +18,41 @@ const (
 )
 
 var sensitiveQueryParams = map[string]struct{}{
-	"token": {},
-	"state": {},
-	"code":  {},
+	"token":         {},
+	"state":         {},
+	"code":          {},
+	"password":      {},
+	"secret":        {},
+	"api_key":       {},
+	"apikey":        {},
+	"client_secret": {},
+	"refresh_token": {},
+	"access_token":  {},
+	"authorization": {},
 }
 
 func redactQuery(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	hasSensitive := false
-	for key := range sensitiveQueryParams {
-		if strings.Contains(strings.ToLower(raw), key+"=") {
-			hasSensitive = true
-			break
-		}
-	}
-	if !hasSensitive {
-		return raw
-	}
 	vals, err := url.ParseQuery(raw)
 	if err != nil {
 		return "[unparseable]"
 	}
+	redacted := false
 	for key := range vals {
 		if _, sensitive := sensitiveQueryParams[strings.ToLower(key)]; sensitive {
 			vals[key] = []string{"[REDACTED]"}
+			redacted = true
 		}
+	}
+	if !redacted {
+		return raw
 	}
 	return vals.Encode()
 }
 
-func Logger(log logger.Logger) func(next http.Handler) http.Handler {
+func Logger(log logger.Logger, trustedProxyCIDRs []string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -62,7 +67,7 @@ func Logger(log logger.Logger) func(next http.Handler) http.Handler {
 				"method":     r.Method,
 				"path":       r.URL.Path,
 				"query":      redactQuery(r.URL.RawQuery),
-				"ip":         r.RemoteAddr,
+				"ip":         httputil.GetClientIP(r, trustedProxyCIDRs),
 				"user_agent": r.UserAgent(),
 				"latency_ms": latency.Milliseconds(),
 				"bytes":      ww.BytesWritten(),

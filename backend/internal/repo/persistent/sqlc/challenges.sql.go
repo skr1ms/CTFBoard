@@ -11,6 +11,40 @@ import (
 	"github.com/google/uuid"
 )
 
+const batchDecrementChallengeSolveCount = `-- name: BatchDecrementChallengeSolveCount :exec
+UPDATE challenges SET solve_count = GREATEST(solve_count - 1, 0) WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) BatchDecrementChallengeSolveCount(ctx context.Context, dollar_1 []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, batchDecrementChallengeSolveCount, dollar_1)
+	return err
+}
+
+const batchIncrementChallengeSolveCount = `-- name: BatchIncrementChallengeSolveCount :exec
+UPDATE challenges SET solve_count = solve_count + 1 WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) BatchIncrementChallengeSolveCount(ctx context.Context, dollar_1 []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, batchIncrementChallengeSolveCount, dollar_1)
+	return err
+}
+
+const batchUpdateChallengePoints = `-- name: BatchUpdateChallengePoints :exec
+UPDATE challenges AS c SET points = v.points
+FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS points) AS v
+WHERE c.id = v.id
+`
+
+type BatchUpdateChallengePointsParams struct {
+	Column1 []uuid.UUID `json:"column_1"`
+	Column2 []int32     `json:"column_2"`
+}
+
+func (q *Queries) BatchUpdateChallengePoints(ctx context.Context, arg BatchUpdateChallengePointsParams) error {
+	_, err := q.db.Exec(ctx, batchUpdateChallengePoints, arg.Column1, arg.Column2)
+	return err
+}
+
 const createChallenge = `-- name: CreateChallenge :exec
 INSERT INTO challenges (id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
@@ -83,6 +117,30 @@ DELETE FROM challenge_requirements WHERE challenge_id = $1
 func (q *Queries) DeleteChallengeRequirements(ctx context.Context, challengeID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteChallengeRequirements, challengeID)
 	return err
+}
+
+const getAllChallengeRequirements = `-- name: GetAllChallengeRequirements :many
+SELECT challenge_id, required_challenge_id FROM challenge_requirements ORDER BY challenge_id, required_challenge_id
+`
+
+func (q *Queries) GetAllChallengeRequirements(ctx context.Context) ([]ChallengeRequirement, error) {
+	rows, err := q.db.Query(ctx, getAllChallengeRequirements)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ChallengeRequirement
+	for rows.Next() {
+		var i ChallengeRequirement
+		if err := rows.Scan(&i.ChallengeID, &i.RequiredChallengeID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getChallengeByID = `-- name: GetChallengeByID :one
@@ -212,6 +270,7 @@ SELECT c.id, c.title, c.category
 FROM challenge_requirements cr
 JOIN challenges c ON c.id = cr.required_challenge_id
 WHERE cr.challenge_id = $1
+  AND c.is_hidden = false
 ORDER BY c.title
 `
 
@@ -430,7 +489,7 @@ const getChallengesForTeam = `-- name: GetChallengesForTeam :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
-LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1
+LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
 WHERE c.is_hidden = false
 `
 
@@ -495,7 +554,7 @@ SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.mi
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
-LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2
+LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
 WHERE c.is_hidden = false
 `
 
@@ -566,7 +625,7 @@ FROM challenges c
 WHERE c.is_hidden = false
   AND NOT EXISTS (
     SELECT 1 FROM solves s
-    WHERE s.challenge_id = c.id AND s.team_id = $1
+    WHERE s.challenge_id = c.id AND s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
   )
 ORDER BY c.category, c.points DESC
 `
@@ -631,11 +690,8 @@ FROM challenges c
 WHERE c.is_hidden = false
   AND NOT EXISTS (
     SELECT 1 FROM solves s
-    WHERE s.challenge_id = c.id 
-      AND (
-        (s.team_id IS NOT NULL AND s.team_id = (SELECT u.team_id FROM users u WHERE u.id = $1 AND u.team_id IS NOT NULL))
-        OR (s.user_id = $1 AND s.team_id IS NULL)
-      )
+    WHERE s.challenge_id = c.id AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.team_id = (SELECT u.team_id FROM users u WHERE u.id = $1 AND u.team_id IS NOT NULL)
   )
 ORDER BY c.category, c.points DESC
 `
