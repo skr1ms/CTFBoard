@@ -10,8 +10,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_team_created_at ON submi
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_name_trgm ON teams USING gin (name gin_trgm_ops);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_was_in_banned_team ON users (was_in_banned_team) WHERE was_in_banned_team = true;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_banned_user_id ON submissions (banned_user_id) WHERE banned_user_id IS NOT NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_global_pinned_created ON notifications (is_global, is_pinned, created_at DESC) WHERE is_global = TRUE;
 
 -- +goose Down
+DROP INDEX CONCURRENTLY IF EXISTS idx_notifications_global_pinned_created;
 DROP INDEX CONCURRENTLY IF EXISTS idx_solves_team_scoreboard;
 DROP INDEX CONCURRENTLY IF EXISTS idx_awards_team_scoreboard;
 DROP INDEX CONCURRENTLY IF EXISTS idx_submissions_ip_fail;

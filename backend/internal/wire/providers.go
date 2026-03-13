@@ -474,6 +474,10 @@ func ProvideKeyValueStore(r *redis.Client) cache.KeyValueStore {
 	return &cache.RedisKeyValueStore{Client: r}
 }
 
+func ProvidePubSubStore(r *redis.Client) cache.PubSubStore {
+	return &cache.RedisPubSubStore{Client: r}
+}
+
 func ProvideStatisticsUseCase(
 	statsRepo repo.StatisticsRepository,
 	c *cache.Cache,
@@ -629,6 +633,7 @@ func ProvideSettingsUseCase(
 	TM repo.TransactionManager,
 	kv cache.KeyValueStore,
 	competitionRepo repo.CompetitionRepository,
+	competitionParamUC *competition.CompetitionParamUseCase,
 ) *settings.SettingsUseCase {
 	return settings.NewSettingsUseCase(settings.SettingsDeps{
 		Repo:         SettingsRepo,
@@ -636,6 +641,7 @@ func ProvideSettingsUseCase(
 		TM:           TM,
 		Redis:        kv,
 		CompRepo:     competitionRepo,
+		ConfigUC:     competitionParamUC,
 	})
 }
 
@@ -644,12 +650,16 @@ func ProvideCompetitionParamUseCase(
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
 	l logger.Logger,
+	kv cache.KeyValueStore,
+	pubsub cache.PubSubStore,
 ) *competition.CompetitionParamUseCase {
 	return competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
 		Repo:         paramRepo,
 		AuditLogRepo: auditLogRepo,
 		TM:           TM,
 		Logger:       l,
+		Cache:        kv,
+		PubSub:       pubsub,
 	})
 }
 
@@ -659,9 +669,11 @@ func ProvideEmailUseCase(
 	TM repo.TransactionManager,
 	mailer mailer.Mailer,
 	cfg *config.Config,
+	competitionParamUC *competition.CompetitionParamUseCase,
 ) *email.EmailUseCase {
 	return email.NewEmailUseCase(email.EmailDeps{
 		UserRepo: userRepo, TokenRepo: tokenRepo, TM: TM, Mailer: mailer,
+		ConfigUC:  competitionParamUC,
 		VerifyTTL: cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
 	})
 }

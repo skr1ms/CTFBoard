@@ -78,6 +78,15 @@ type ServerInterface interface {
 	// Get all configs
 	// (GET /admin/configs)
 	GetAdminConfigs(w http.ResponseWriter, r *http.Request)
+	// Set configs batch
+	// (PUT /admin/configs/batch)
+	PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request)
+	// Get config categories
+	// (GET /admin/configs/categories)
+	GetAdminConfigsCategories(w http.ResponseWriter, r *http.Request)
+	// Get configs by category
+	// (GET /admin/configs/category/{category})
+	GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request, category string)
 	// Delete config
 	// (DELETE /admin/configs/{key})
 	DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string)
@@ -345,6 +354,9 @@ type ServerInterface interface {
 	// Get competition status
 	// (GET /competition/status)
 	GetCompetitionStatus(w http.ResponseWriter, r *http.Request)
+	// Get public configs
+	// (GET /configs/public)
+	GetConfigsPublic(w http.ResponseWriter, r *http.Request)
 	// Get debug information
 	// (GET /debug)
 	GetDebug(w http.ResponseWriter, r *http.Request)
@@ -660,6 +672,24 @@ func (_ Unimplemented) PutAdminCompetition(w http.ResponseWriter, r *http.Reques
 // Get all configs
 // (GET /admin/configs)
 func (_ Unimplemented) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set configs batch
+// (PUT /admin/configs/batch)
+func (_ Unimplemented) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get config categories
+// (GET /admin/configs/categories)
+func (_ Unimplemented) GetAdminConfigsCategories(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get configs by category
+// (GET /admin/configs/category/{category})
+func (_ Unimplemented) GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request, category string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1194,6 +1224,12 @@ func (_ Unimplemented) DeleteCommentsID(w http.ResponseWriter, r *http.Request, 
 // Get competition status
 // (GET /competition/status)
 func (_ Unimplemented) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get public configs
+// (GET /configs/public)
+func (_ Unimplemented) GetConfigsPublic(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2198,6 +2234,83 @@ func (siw *ServerInterfaceWrapper) GetAdminConfigs(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminConfigs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminConfigsBatch operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminConfigsBatch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminConfigsCategories operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminConfigsCategories(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminConfigsCategories(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminConfigsCategory operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "category" -------------
+	var category string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "category", chi.URLParam(r, "category"), &category, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminConfigsCategory(w, r, category)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5109,6 +5222,20 @@ func (siw *ServerInterfaceWrapper) GetCompetitionStatus(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// GetConfigsPublic operation middleware
+func (siw *ServerInterfaceWrapper) GetConfigsPublic(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConfigsPublic(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetDebug operation middleware
 func (siw *ServerInterfaceWrapper) GetDebug(w http.ResponseWriter, r *http.Request) {
 
@@ -7104,6 +7231,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/configs", wrapper.GetAdminConfigs)
 	})
 	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/configs/batch", wrapper.PutAdminConfigsBatch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/configs/categories", wrapper.GetAdminConfigsCategories)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/configs/category/{category}", wrapper.GetAdminConfigsCategory)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/configs/{key}", wrapper.DeleteAdminConfigsKey)
 	})
 	r.Group(func(r chi.Router) {
@@ -7369,6 +7505,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/competition/status", wrapper.GetCompetitionStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/configs/public", wrapper.GetConfigsPublic)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/debug", wrapper.GetDebug)

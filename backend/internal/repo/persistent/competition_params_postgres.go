@@ -32,6 +32,7 @@ func toEntityCompetitionParam(row sqlc.CompetitionParam) *entity.CompetitionPara
 		Value:       row.Value,
 		ValueType:   entity.CompetitionParamValueType(row.ValueType),
 		Description: ptrStrToStr(row.Description),
+		Category:    row.Category,
 		UpdatedAt:   ptrTimeToTime(timestamptzToTime(row.UpdatedAt)),
 	}
 }
@@ -77,6 +78,7 @@ func (r *CompetitionParamRepo) Upsert(ctx context.Context, p *entity.Competition
 		Value:       p.Value,
 		ValueType:   string(p.ValueType),
 		Description: desc,
+		Category:    p.Category,
 	})
 	if err != nil {
 		return fmt.Errorf("CompetitionParamRepo - Upsert: %w", err)

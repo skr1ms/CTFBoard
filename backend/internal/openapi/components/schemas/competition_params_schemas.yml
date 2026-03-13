@@ -7,6 +7,38 @@ schemas:
         type: string
       value_type:
         type: string
+      category:
+        type: string
+      description:
+        type: string
+      updated_at:
+        type: string
+        format: date-time
+    required:
+      - key
+      - value
+      - value_type
+    type: object
+  response.ConfigCategoryItem:
+    type: object
+    required:
+      - name
+      - count
+    properties:
+      name:
+        type: string
+      count:
+        type: integer
+  response.ConfigItem:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+      value_type:
+        type: string
+      category:
+        type: string
       description:
         type: string
       updated_at:
@@ -33,5 +65,34 @@ schemas:
       description:
         type: string
     required:
+      - value
+    type: object
+  request.BatchSetConfigRequest:
+    properties:
+      configs:
+        type: array
+        items:
+          $ref: '#/schemas/request.BatchSetConfigItem'
+    required:
+      - configs
+    type: object
+  request.BatchSetConfigItem:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+      value_type:
+        enum:
+          - string
+          - int
+          - bool
+          - json
+        type: string
+        default: string
+      description:
+        type: string
+    required:
+      - key
       - value
     type: object

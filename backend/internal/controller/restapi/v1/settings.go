@@ -2,12 +2,35 @@ package v1
 
 import (
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
+
+var publicConfigExactKeys = []string{"ctf_name", "ctf_description", "ctf_logo", "tos_url", "privacy_url"}
+
+func publicConfigKeys() []string {
+	seen := make(map[string]struct{})
+	for _, k := range publicConfigExactKeys {
+		seen[k] = struct{}{}
+	}
+	for k := range entity.ConfigRegistry {
+		if strings.HasPrefix(k, "theme_") || strings.HasPrefix(k, "social_") {
+			seen[k] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
 
 // Get all configs (admin)
 // (GET /admin/configs)
@@ -15,6 +38,78 @@ func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
 	list, err := h.admin.CompetitionParamUC.GetAll(r.Context())
 	if h.OnError(w, r, err, "GetAdminConfigs", "GetAll") {
 		return
+	}
+	helper.RenderOK(w, r, response.FromConfigResponseList(list))
+}
+
+// (GET /admin/configs/categories)
+func (h *Server) GetAdminConfigsCategories(w http.ResponseWriter, r *http.Request) {
+	list, err := h.admin.CompetitionParamUC.GetAll(r.Context())
+	if h.OnError(w, r, err, "GetAdminConfigsCategories", "GetAll") {
+		return
+	}
+	counts := make(map[string]int)
+	for _, p := range list {
+		if p.Category != "" {
+			counts[p.Category]++
+		}
+	}
+	out := make([]openapi.ConfigCategoryItem, 0, len(counts))
+	for name, count := range counts {
+		out = append(out, openapi.ConfigCategoryItem{Name: name, Count: count})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	helper.RenderOK(w, r, out)
+}
+
+// (GET /admin/configs/category/{category})
+func (h *Server) GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request, category string) {
+	list, err := h.admin.CompetitionParamUC.GetByCategory(r.Context(), category)
+	if h.OnError(w, r, err, "GetAdminConfigsCategory", "GetByCategory") {
+		return
+	}
+	helper.RenderOK(w, r, response.FromConfigResponseList(list))
+}
+
+// (PUT /admin/configs/batch)
+func (h *Server) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+	req, ok := helper.DecodeAndValidate[openapi.BatchSetConfigRequest](
+		w, r, h.infra.Validator, h.infra.Logger, "PutAdminConfigsBatch",
+	)
+	if !ok {
+		return
+	}
+	params, err := request.BatchSetConfigRequestToParams(&req)
+	if h.OnError(w, r, err, "PutAdminConfigsBatch", "BatchSetConfigRequestToParams") {
+		return
+	}
+	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
+	if h.OnError(w, r, h.admin.CompetitionParamUC.SetBatch(r.Context(), params, user.ID, clientIP), "PutAdminConfigsBatch", "SetBatch") {
+		return
+	}
+	helper.RenderOK(w, r, response.Message("configs updated"))
+}
+
+// (GET /configs/public)
+func (h *Server) GetConfigsPublic(w http.ResponseWriter, r *http.Request) {
+	keys := publicConfigKeys()
+	list := make([]*entity.CompetitionParam, 0, len(keys))
+	for _, key := range keys {
+		p, err := h.admin.CompetitionParamUC.Get(r.Context(), key)
+		if err != nil {
+			if def, ok := entity.ConfigRegistry[key]; ok {
+				list = append(list, &entity.CompetitionParam{
+					Key: def.Key, Value: def.DefaultValue, ValueType: def.ValueType,
+					Category: def.Category, Description: def.Description,
+				})
+			}
+			continue
+		}
+		list = append(list, p)
 	}
 	helper.RenderOK(w, r, response.FromConfigList(list))
 }

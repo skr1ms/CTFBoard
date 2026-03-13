@@ -14,6 +14,14 @@ const (
 	BearerAuthScopes   = "BearerAuth.Scopes"
 )
 
+// Defines values for BatchSetConfigItemValueType.
+const (
+	BatchSetConfigItemValueTypeBool   BatchSetConfigItemValueType = "bool"
+	BatchSetConfigItemValueTypeInt    BatchSetConfigItemValueType = "int"
+	BatchSetConfigItemValueTypeJSON   BatchSetConfigItemValueType = "json"
+	BatchSetConfigItemValueTypeString BatchSetConfigItemValueType = "string"
+)
+
 // Defines values for CreateFieldRequestEntityType.
 const (
 	CreateFieldRequestEntityTypeTeam CreateFieldRequestEntityType = "team"
@@ -60,10 +68,10 @@ const (
 
 // Defines values for SetConfigRequestValueType.
 const (
-	Bool   SetConfigRequestValueType = "bool"
-	Int    SetConfigRequestValueType = "int"
-	JSON   SetConfigRequestValueType = "json"
-	String SetConfigRequestValueType = "string"
+	SetConfigRequestValueTypeBool   SetConfigRequestValueType = "bool"
+	SetConfigRequestValueTypeInt    SetConfigRequestValueType = "int"
+	SetConfigRequestValueTypeJSON   SetConfigRequestValueType = "json"
+	SetConfigRequestValueTypeString SetConfigRequestValueType = "string"
 )
 
 // Defines values for UpdateAppSettingsRequestScoreboardVisible.
@@ -373,6 +381,22 @@ type BanUserRequest struct {
 	Reason string `json:"reason" validate:"required,min=1,max=500"`
 }
 
+// BatchSetConfigItem defines model for BatchSetConfigItem.
+type BatchSetConfigItem struct {
+	Description *string                      `json:"description,omitempty"`
+	Key         string                       `json:"key"`
+	Value       string                       `json:"value"`
+	ValueType   *BatchSetConfigItemValueType `json:"value_type,omitempty"`
+}
+
+// BatchSetConfigItemValueType defines model for BatchSetConfigItem.ValueType.
+type BatchSetConfigItemValueType string
+
+// BatchSetConfigRequest defines model for BatchSetConfigRequest.
+type BatchSetConfigRequest struct {
+	Configs []BatchSetConfigItem `json:"configs"`
+}
+
 // BracketResponse defines model for BracketResponse.
 type BracketResponse struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
@@ -551,8 +575,25 @@ type CompetitionStatusResponse struct {
 	SubmissionAllowed            *bool   `json:"submission_allowed,omitempty"`
 }
 
+// ConfigCategoryItem defines model for ConfigCategoryItem.
+type ConfigCategoryItem struct {
+	Count int    `json:"count"`
+	Name  string `json:"name"`
+}
+
+// ConfigItem defines model for ConfigItem.
+type ConfigItem struct {
+	Category    *string    `json:"category,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Key         string     `json:"key"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	Value       string     `json:"value"`
+	ValueType   string     `json:"value_type"`
+}
+
 // ConfigResponse defines model for ConfigResponse.
 type ConfigResponse struct {
+	Category    *string    `json:"category,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Key         string     `json:"key"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
@@ -1391,6 +1432,19 @@ type UserResponse struct {
 	Username *string `json:"username,omitempty"`
 }
 
+// ValidationErrorItem defines model for ValidationErrorItem.
+type ValidationErrorItem struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// ValidationErrorResponse defines model for ValidationErrorResponse.
+type ValidationErrorResponse struct {
+	Code    string                 `json:"code"`
+	Errors  *[]ValidationErrorItem `json:"errors,omitempty"`
+	Message string                 `json:"message"`
+}
+
 // VerifyEmailRequest defines model for VerifyEmailRequest.
 type VerifyEmailRequest struct {
 	// Token Verification token (from email link or copy-paste)
@@ -1767,6 +1821,9 @@ type PostAdminChallengesChallengeIDSolutionJSONRequestBody = AdminUpsertSolution
 
 // PutAdminCompetitionJSONRequestBody defines body for PutAdminCompetition for application/json ContentType.
 type PutAdminCompetitionJSONRequestBody = UpdateCompetitionRequest
+
+// PutAdminConfigsBatchJSONRequestBody defines body for PutAdminConfigsBatch for application/json ContentType.
+type PutAdminConfigsBatchJSONRequestBody = BatchSetConfigRequest
 
 // PutAdminConfigsKeyJSONRequestBody defines body for PutAdminConfigsKey for application/json ContentType.
 type PutAdminConfigsKeyJSONRequestBody = SetConfigRequest

@@ -153,3 +153,139 @@
     summary: Delete config
     tags:
       - Admin
+
+/admin/configs/categories:
+  get:
+    operationId: GetAdminConfigsCategories
+    description: Returns list of config categories with key count per category. Admin only.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ConfigCategoryItem'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get config categories
+    tags:
+      - Admin
+
+/admin/configs/category/{category}:
+  get:
+    operationId: GetAdminConfigsCategory
+    description: Returns configs for the given category. Admin only.
+    parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ConfigResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get configs by category
+    tags:
+      - Admin
+
+/admin/configs/batch:
+  put:
+    operationId: PutAdminConfigsBatch
+    description: Set or update multiple configs in one request. Admin only.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BatchSetConfigRequest'
+      required: true
+    responses:
+      "200":
+        description: Configs updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "400":
+        description: Bad Request (validation error; may include errors array)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ValidationErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Set configs batch
+    tags:
+      - Admin
+
+/configs/public:
+  get:
+    operationId: GetConfigsPublic
+    description: Returns public config items (e.g. theme, visibility) for frontend. No auth required.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ConfigItem'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security: []
+    summary: Get public configs
+    tags:
+      - Config

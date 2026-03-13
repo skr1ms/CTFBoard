@@ -483,7 +483,9 @@ type (
 	CompetitionParamUseCase interface {
 		Get(ctx context.Context, key string) (*entity.CompetitionParam, error)
 		GetAll(ctx context.Context) ([]*entity.CompetitionParam, error)
+		GetByCategory(ctx context.Context, category string) ([]*entity.CompetitionParam, error)
 		Set(ctx context.Context, key, value, description string, valueType entity.CompetitionParamValueType, actorID uuid.UUID, clientIP string) error
+		SetBatch(ctx context.Context, params []*entity.CompetitionParam, actorID uuid.UUID, clientIP string) error
 		Delete(ctx context.Context, key string, actorID uuid.UUID, clientIP string) error
 		GetString(ctx context.Context, key, defaultVal string) string
 		GetInt(ctx context.Context, key string, defaultVal int) int

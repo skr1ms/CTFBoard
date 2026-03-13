@@ -466,10 +466,13 @@ CREATE TABLE configs (
     value TEXT NOT NULL,
     value_type VARCHAR(20) NOT NULL DEFAULT 'string' CHECK (value_type IN ('string', 'int', 'bool', 'json')),
     description TEXT,
+    category VARCHAR(50) NOT NULL DEFAULT 'general',
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_configs_updated_at ON configs (updated_at);
+CREATE INDEX idx_configs_category ON configs (category);
+CREATE INDEX idx_configs_category_key ON configs (category, key);
 
 -- IP/user-agent tracking per user
 CREATE TABLE tracking (

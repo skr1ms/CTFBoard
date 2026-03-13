@@ -102,11 +102,16 @@ func (d *competitionTestDeps) createStatisticsUseCase() (*StatisticsUseCase, red
 }
 
 func (d *competitionTestDeps) createCompetitionParamUseCase() *CompetitionParamUseCase {
+	return d.createCompetitionParamUseCaseWithCache(nil, nil)
+}
+
+func (d *competitionTestDeps) createCompetitionParamUseCaseWithCache(cache cache.KeyValueStore, pubsub cache.PubSubStore) *CompetitionParamUseCase {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).
 		Maybe()
 	return NewCompetitionParamUseCase(CompetitionParamDeps{
 		Repo: d.configRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm, Logger: d.logger,
+		Cache: cache, PubSub: pubsub,
 	})
 }
 

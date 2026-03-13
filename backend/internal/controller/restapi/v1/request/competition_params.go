@@ -16,13 +16,13 @@ func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (entity.C
 		return entity.CompetitionParamTypeString, nil
 	}
 	switch *v {
-	case openapi.Int:
+	case openapi.SetConfigRequestValueTypeInt:
 		return entity.CompetitionParamTypeInt, nil
-	case openapi.Bool:
+	case openapi.SetConfigRequestValueTypeBool:
 		return entity.CompetitionParamTypeBool, nil
-	case openapi.JSON:
+	case openapi.SetConfigRequestValueTypeJSON:
 		return entity.CompetitionParamTypeJSON, nil
-	case openapi.String:
+	case openapi.SetConfigRequestValueTypeString:
 		return entity.CompetitionParamTypeString, nil
 	default:
 		return entity.CompetitionParamTypeString, helper.NewValidationErrorf("invalid value_type")
@@ -55,4 +55,56 @@ func SetConfigRequestToParams(req *openapi.SetConfigRequest) (SetConfigParams, e
 		Description: description,
 		ValueType:   valueType,
 	}, nil
+}
+
+func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (entity.CompetitionParamValueType, error) {
+	if v == nil {
+		return entity.CompetitionParamTypeString, nil
+	}
+	switch *v {
+	case openapi.BatchSetConfigItemValueTypeInt:
+		return entity.CompetitionParamTypeInt, nil
+	case openapi.BatchSetConfigItemValueTypeBool:
+		return entity.CompetitionParamTypeBool, nil
+	case openapi.BatchSetConfigItemValueTypeJSON:
+		return entity.CompetitionParamTypeJSON, nil
+	case openapi.BatchSetConfigItemValueTypeString:
+		return entity.CompetitionParamTypeString, nil
+	default:
+		return entity.CompetitionParamTypeString, helper.NewValidationErrorf("invalid value_type")
+	}
+}
+
+func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*entity.CompetitionParam, error) {
+	if req == nil {
+		return nil, nil
+	}
+	out := make([]*entity.CompetitionParam, 0, len(req.Configs))
+	for i := range req.Configs {
+		item := &req.Configs[i]
+		if item.Key == "" {
+			return nil, helper.NewValidationErrorf("configs[%d]: key required", i)
+		}
+		desc := ""
+		if item.Description != nil {
+			desc = *item.Description
+		}
+		if len(item.Value) > maxConfigValueLength {
+			return nil, helper.NewValidationErrorf("configs[%d]: value too long", i)
+		}
+		if len(desc) > maxConfigDescriptionLength {
+			return nil, helper.NewValidationErrorf("configs[%d]: description too long", i)
+		}
+		valueType, err := batchSetConfigItemValueType(item.ValueType)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &entity.CompetitionParam{
+			Key:         item.Key,
+			Value:       item.Value,
+			ValueType:   valueType,
+			Description: desc,
+		})
+	}
+	return out, nil
 }
