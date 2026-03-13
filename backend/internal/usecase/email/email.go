@@ -22,8 +22,19 @@ import (
 
 const emailTokenBytes = 32
 
+func substitute(s string, m map[string]string) string {
+	for k, v := range m {
+		s = strings.ReplaceAll(s, k, v)
+	}
+	return s
+}
+
 type EmailUseCase struct {
 	deps EmailDeps
+}
+
+type ConfigGetter interface {
+	GetString(ctx context.Context, key, defaultVal string) string
 }
 
 type EmailDeps struct {
@@ -31,6 +42,7 @@ type EmailDeps struct {
 	TokenRepo   repo.VerificationTokenRepository
 	TM          repo.TransactionManager
 	Mailer      mailer.Mailer
+	ConfigUC    ConfigGetter
 	VerifyTTL   time.Duration
 	ResetTTL    time.Duration
 	FrontendURL string
@@ -75,7 +87,19 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *entity.
 	}
 
 	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", uc.deps.FrontendURL, token)
-
+	ctfName := "AstroCTFb"
+	if uc.deps.ConfigUC != nil {
+		ctfName = uc.deps.ConfigUC.GetString(ctx, "ctf_name", ctfName)
+		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_subject", "Verify your email — {ctf_name}")
+		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_body", "Follow the link to verify: {url}")
+		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
+		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
+		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
+		if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
+			return fmt.Errorf("EmailUseCase - SendVerificationEmail - Mailer.Send: %w", err)
+		}
+		return nil
+	}
 	body, err := mailer.RenderVerificationEmail(mailer.VerificationData{
 		Username:  user.Username,
 		ActionURL: verifyURL,
@@ -84,7 +108,6 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *entity.
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendVerificationEmail - RenderVerificationEmail: %w", err)
 	}
-
 	msg := mailer.Message{
 		To:      user.Email,
 		Subject: "Verify your email - AstroCTFb",
@@ -174,7 +197,18 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	}
 
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", uc.deps.FrontendURL, token)
-
+	if uc.deps.ConfigUC != nil {
+		ctfName := uc.deps.ConfigUC.GetString(ctx, "ctf_name", "AstroCTFb")
+		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_subject", "Password reset — {ctf_name}")
+		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_body", "Follow the link to reset password: {url}")
+		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
+		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
+		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
+		if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
+			return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - Mailer.Send: %w", err)
+		}
+		return nil
+	}
 	body, err := mailer.RenderPasswordResetEmail(mailer.PasswordResetData{
 		Username:  user.Username,
 		ActionURL: resetURL,
@@ -183,18 +217,15 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - RenderPasswordResetEmail: %w", err)
 	}
-
 	msg := mailer.Message{
 		To:      user.Email,
 		Subject: "Reset your password - AstroCTFb",
 		Body:    body,
 		IsHTML:  true,
 	}
-
 	if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - Mailer.Send: %w", err)
 	}
-
 	return nil
 }
 

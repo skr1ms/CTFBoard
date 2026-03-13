@@ -1,0 +1,15 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase:
+    interfaces:
+      CompetitionParamUseCase:
+        config:
+          dir: "internal/usecase/competition/mocks"
+          filename: "CompetitionParamUseCase.go"
+          pkgname: "mocks"
+          structname: "MockCompetitionParamUseCase"

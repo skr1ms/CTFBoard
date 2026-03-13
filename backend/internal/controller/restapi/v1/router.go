@@ -159,6 +159,7 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 		r.With(publicReadLimit).Get("/robots.txt", wrapper.GetRobotsTxt)
 		r.With(publicReadLimit).Get("/tos", wrapper.GetTos)
 		r.With(publicReadLimit).Get("/privacy", wrapper.GetPrivacy)
+		r.With(publicReadLimit).Get("/configs/public", wrapper.GetConfigsPublic)
 	})
 }
 
@@ -540,6 +541,9 @@ func setupAdminConfigRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapp
 	adm.Get("/admin/settings", wrapper.GetAdminSettings)
 	adm.Put("/admin/settings", wrapper.PutAdminSettings)
 	adm.Get("/admin/configs", wrapper.GetAdminConfigs)
+	adm.Get("/admin/configs/categories", wrapper.GetAdminConfigsCategories)
+	adm.Get("/admin/configs/category/{category}", wrapper.GetAdminConfigsCategory)
+	adm.Put("/admin/configs/batch", wrapper.PutAdminConfigsBatch)
 	adm.Get("/admin/configs/{key}", wrapper.GetAdminConfigsKey)
 	adm.Put("/admin/configs/{key}", wrapper.PutAdminConfigsKey)
 	adm.Delete("/admin/configs/{key}", wrapper.DeleteAdminConfigsKey)

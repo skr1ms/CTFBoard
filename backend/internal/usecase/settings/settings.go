@@ -30,6 +30,7 @@ type SettingsDeps struct {
 	TM           repo.TransactionManager
 	Redis        cache.KeyValueStore
 	CompRepo     repo.CompetitionRepository
+	ConfigUC     usecase.CompetitionParamUseCase
 	Logger       logger.Logger
 }
 

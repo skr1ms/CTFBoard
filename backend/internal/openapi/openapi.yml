@@ -443,6 +443,14 @@ paths:
     $ref: './routes/competition_params.yml#/~1admin~1configs'
   /admin/configs/{key}:
     $ref: './routes/competition_params.yml#/~1admin~1configs~1{key}'
+  /admin/configs/categories:
+    $ref: './routes/competition_params.yml#/~1admin~1configs~1categories'
+  /admin/configs/category/{category}:
+    $ref: './routes/competition_params.yml#/~1admin~1configs~1category~1{category}'
+  /admin/configs/batch:
+    $ref: './routes/competition_params.yml#/~1admin~1configs~1batch'
+  /configs/public:
+    $ref: './routes/competition_params.yml#/~1configs~1public'
 
 components:
   securitySchemes:

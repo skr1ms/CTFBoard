@@ -52,6 +52,9 @@ func FromConfig(c *entity.CompetitionParam) openapi.ConfigResponse {
 		Value:     c.Value,
 		ValueType: string(c.ValueType),
 	}
+	if c.Category != "" {
+		res.Category = ptr(c.Category)
+	}
 	if c.Description != "" {
 		res.Description = ptr(c.Description)
 	}
@@ -61,10 +64,28 @@ func FromConfig(c *entity.CompetitionParam) openapi.ConfigResponse {
 	return res
 }
 
-func FromConfigList(items []*entity.CompetitionParam) []openapi.ConfigResponse {
+func FromConfigResponseList(items []*entity.CompetitionParam) []openapi.ConfigResponse {
 	res := make([]openapi.ConfigResponse, len(items))
 	for i, c := range items {
 		res[i] = FromConfig(c)
+	}
+	return res
+}
+
+func FromConfigList(items []*entity.CompetitionParam) []openapi.ConfigItem {
+	res := make([]openapi.ConfigItem, len(items))
+	for i, c := range items {
+		item := openapi.ConfigItem{Key: c.Key, Value: c.Value, ValueType: string(c.ValueType)}
+		if c.Category != "" {
+			item.Category = ptr(c.Category)
+		}
+		if c.Description != "" {
+			item.Description = ptr(c.Description)
+		}
+		if !c.UpdatedAt.IsZero() {
+			item.UpdatedAt = ptr(c.UpdatedAt)
+		}
+		res[i] = item
 	}
 	return res
 }

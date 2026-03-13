@@ -142,6 +142,7 @@ mockery: ## Generate all mocks (one config per usecase so same interface can out
 	@mockery --config codegen/.mockery_backup.yml
 	@mockery --config codegen/.mockery_middleware.yml
 	@mockery --config codegen/.mockery_cache.yml
+	@mockery --config codegen/.mockery_usecase.yml
 	@mockery --config codegen/.mockery_helper.yml
 	@mockery --config codegen/.mockery_jwt.yml
 	@mockery --config codegen/.mockery_config.yml

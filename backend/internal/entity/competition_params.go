@@ -16,5 +16,6 @@ type CompetitionParam struct {
 	Value       string                    `json:"value"`
 	ValueType   CompetitionParamValueType `json:"value_type"`
 	Description string                    `json:"description,omitempty"`
+	Category    string                    `json:"category"`
 	UpdatedAt   time.Time                 `json:"updated_at"`
 }

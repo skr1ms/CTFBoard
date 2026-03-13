@@ -19,7 +19,7 @@ func (q *Queries) DeleteConfig(ctx context.Context, key string) error {
 }
 
 const getAllConfigs = `-- name: GetAllConfigs :many
-SELECT key, value, value_type, description, updated_at
+SELECT key, value, value_type, description, category, updated_at
 FROM configs ORDER BY key ASC
 `
 
@@ -37,6 +37,7 @@ func (q *Queries) GetAllConfigs(ctx context.Context) ([]CompetitionParam, error)
 			&i.Value,
 			&i.ValueType,
 			&i.Description,
+			&i.Category,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -50,7 +51,7 @@ func (q *Queries) GetAllConfigs(ctx context.Context) ([]CompetitionParam, error)
 }
 
 const getConfigByKey = `-- name: GetConfigByKey :one
-SELECT key, value, value_type, description, updated_at
+SELECT key, value, value_type, description, category, updated_at
 FROM configs WHERE key = $1
 `
 
@@ -62,13 +63,14 @@ func (q *Queries) GetConfigByKey(ctx context.Context, key string) (CompetitionPa
 		&i.Value,
 		&i.ValueType,
 		&i.Description,
+		&i.Category,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getConfigByKeyForUpdate = `-- name: GetConfigByKeyForUpdate :one
-SELECT key, value, value_type, description, updated_at
+SELECT key, value, value_type, description, category, updated_at
 FROM configs WHERE key = $1 FOR UPDATE
 `
 
@@ -80,18 +82,20 @@ func (q *Queries) GetConfigByKeyForUpdate(ctx context.Context, key string) (Comp
 		&i.Value,
 		&i.ValueType,
 		&i.Description,
+		&i.Category,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const upsertConfig = `-- name: UpsertConfig :exec
-INSERT INTO configs (key, value, value_type, description, updated_at)
-VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+INSERT INTO configs (key, value, value_type, description, category, updated_at)
+VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
     value_type = EXCLUDED.value_type,
     description = EXCLUDED.description,
+    category = EXCLUDED.category,
     updated_at = CURRENT_TIMESTAMP
 `
 
@@ -100,6 +104,7 @@ type UpsertConfigParams struct {
 	Value       string  `json:"value"`
 	ValueType   string  `json:"value_type"`
 	Description *string `json:"description"`
+	Category    string  `json:"category"`
 }
 
 func (q *Queries) UpsertConfig(ctx context.Context, arg UpsertConfigParams) error {
@@ -108,6 +113,7 @@ func (q *Queries) UpsertConfig(ctx context.Context, arg UpsertConfigParams) erro
 		arg.Value,
 		arg.ValueType,
 		arg.Description,
+		arg.Category,
 	)
 	return err
 }

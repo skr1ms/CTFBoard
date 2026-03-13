@@ -154,6 +154,7 @@ type CompetitionParam struct {
 	Value       string             `json:"value"`
 	ValueType   string             `json:"value_type"`
 	Description *string            `json:"description"`
+	Category    string             `json:"category"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 

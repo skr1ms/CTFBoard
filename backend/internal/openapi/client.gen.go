@@ -171,6 +171,17 @@ type ClientInterface interface {
 	// GetAdminConfigs request
 	GetAdminConfigs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PutAdminConfigsBatchWithBody request with any body
+	PutAdminConfigsBatchWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutAdminConfigsBatch(ctx context.Context, body PutAdminConfigsBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminConfigsCategories request
+	GetAdminConfigsCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminConfigsCategory request
+	GetAdminConfigsCategory(ctx context.Context, category string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteAdminConfigsKey request
 	DeleteAdminConfigsKey(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -501,6 +512,9 @@ type ClientInterface interface {
 
 	// GetCompetitionStatus request
 	GetCompetitionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetConfigsPublic request
+	GetConfigsPublic(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetDebug request
 	GetDebug(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1051,6 +1065,54 @@ func (c *Client) PutAdminCompetition(ctx context.Context, body PutAdminCompetiti
 
 func (c *Client) GetAdminConfigs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminConfigsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminConfigsBatchWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminConfigsBatchRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminConfigsBatch(ctx context.Context, body PutAdminConfigsBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminConfigsBatchRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminConfigsCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminConfigsCategoriesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminConfigsCategory(ctx context.Context, category string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminConfigsCategoryRequest(c.Server, category)
 	if err != nil {
 		return nil, err
 	}
@@ -2503,6 +2565,18 @@ func (c *Client) DeleteCommentsID(ctx context.Context, id string, reqEditors ...
 
 func (c *Client) GetCompetitionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetCompetitionStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetConfigsPublic(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetConfigsPublicRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -4118,6 +4192,107 @@ func NewGetAdminConfigsRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/admin/configs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminConfigsBatchRequest calls the generic PutAdminConfigsBatch builder with application/json body
+func NewPutAdminConfigsBatchRequest(server string, body PutAdminConfigsBatchJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutAdminConfigsBatchRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPutAdminConfigsBatchRequestWithBody generates requests for PutAdminConfigsBatch with any type of body
+func NewPutAdminConfigsBatchRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/batch")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAdminConfigsCategoriesRequest generates requests for GetAdminConfigsCategories
+func NewGetAdminConfigsCategoriesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/categories")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminConfigsCategoryRequest generates requests for GetAdminConfigsCategory
+func NewGetAdminConfigsCategoryRequest(server string, category string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "category", runtime.ParamLocationPath, category)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/configs/category/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -8068,6 +8243,33 @@ func NewGetCompetitionStatusRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetConfigsPublicRequest generates requests for GetConfigsPublic
+func NewGetConfigsPublicRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/configs/public")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetDebugRequest generates requests for GetDebug
 func NewGetDebugRequest(server string) (*http.Request, error) {
 	var err error
@@ -10738,6 +10940,17 @@ type ClientWithResponsesInterface interface {
 	// GetAdminConfigsWithResponse request
 	GetAdminConfigsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminConfigsResponse, error)
 
+	// PutAdminConfigsBatchWithBodyWithResponse request with any body
+	PutAdminConfigsBatchWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminConfigsBatchResponse, error)
+
+	PutAdminConfigsBatchWithResponse(ctx context.Context, body PutAdminConfigsBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminConfigsBatchResponse, error)
+
+	// GetAdminConfigsCategoriesWithResponse request
+	GetAdminConfigsCategoriesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminConfigsCategoriesResponse, error)
+
+	// GetAdminConfigsCategoryWithResponse request
+	GetAdminConfigsCategoryWithResponse(ctx context.Context, category string, reqEditors ...RequestEditorFn) (*GetAdminConfigsCategoryResponse, error)
+
 	// DeleteAdminConfigsKeyWithResponse request
 	DeleteAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteAdminConfigsKeyResponse, error)
 
@@ -11068,6 +11281,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetCompetitionStatusWithResponse request
 	GetCompetitionStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCompetitionStatusResponse, error)
+
+	// GetConfigsPublicWithResponse request
+	GetConfigsPublicWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigsPublicResponse, error)
 
 	// GetDebugWithResponse request
 	GetDebugWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDebugResponse, error)
@@ -11786,6 +12002,79 @@ func (r GetAdminConfigsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetAdminConfigsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminConfigsBatchResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON400      *ValidationErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminConfigsBatchResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminConfigsBatchResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminConfigsCategoriesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ConfigCategoryItem
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminConfigsCategoriesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminConfigsCategoriesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminConfigsCategoryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ConfigResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminConfigsCategoryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminConfigsCategoryResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -13992,6 +14281,29 @@ func (r GetCompetitionStatusResponse) StatusCode() int {
 	return 0
 }
 
+type GetConfigsPublicResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ConfigItem
+	JSON400      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetConfigsPublicResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetConfigsPublicResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetDebugResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15723,6 +16035,41 @@ func (c *ClientWithResponses) GetAdminConfigsWithResponse(ctx context.Context, r
 	return ParseGetAdminConfigsResponse(rsp)
 }
 
+// PutAdminConfigsBatchWithBodyWithResponse request with arbitrary body returning *PutAdminConfigsBatchResponse
+func (c *ClientWithResponses) PutAdminConfigsBatchWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminConfigsBatchResponse, error) {
+	rsp, err := c.PutAdminConfigsBatchWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminConfigsBatchResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutAdminConfigsBatchWithResponse(ctx context.Context, body PutAdminConfigsBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*PutAdminConfigsBatchResponse, error) {
+	rsp, err := c.PutAdminConfigsBatch(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminConfigsBatchResponse(rsp)
+}
+
+// GetAdminConfigsCategoriesWithResponse request returning *GetAdminConfigsCategoriesResponse
+func (c *ClientWithResponses) GetAdminConfigsCategoriesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdminConfigsCategoriesResponse, error) {
+	rsp, err := c.GetAdminConfigsCategories(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminConfigsCategoriesResponse(rsp)
+}
+
+// GetAdminConfigsCategoryWithResponse request returning *GetAdminConfigsCategoryResponse
+func (c *ClientWithResponses) GetAdminConfigsCategoryWithResponse(ctx context.Context, category string, reqEditors ...RequestEditorFn) (*GetAdminConfigsCategoryResponse, error) {
+	rsp, err := c.GetAdminConfigsCategory(ctx, category, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminConfigsCategoryResponse(rsp)
+}
+
 // DeleteAdminConfigsKeyWithResponse request returning *DeleteAdminConfigsKeyResponse
 func (c *ClientWithResponses) DeleteAdminConfigsKeyWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteAdminConfigsKeyResponse, error) {
 	rsp, err := c.DeleteAdminConfigsKey(ctx, key, reqEditors...)
@@ -16778,6 +17125,15 @@ func (c *ClientWithResponses) GetCompetitionStatusWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseGetCompetitionStatusResponse(rsp)
+}
+
+// GetConfigsPublicWithResponse request returning *GetConfigsPublicResponse
+func (c *ClientWithResponses) GetConfigsPublicWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigsPublicResponse, error) {
+	rsp, err := c.GetConfigsPublic(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetConfigsPublicResponse(rsp)
 }
 
 // GetDebugWithResponse request returning *GetDebugResponse
@@ -18335,6 +18691,133 @@ func ParseGetAdminConfigsResponse(rsp *http.Response) (*GetAdminConfigsResponse,
 	}
 
 	response := &GetAdminConfigsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ConfigResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminConfigsBatchResponse parses an HTTP response from a PutAdminConfigsBatchWithResponse call
+func ParsePutAdminConfigsBatchResponse(rsp *http.Response) (*PutAdminConfigsBatchResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminConfigsBatchResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ValidationErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminConfigsCategoriesResponse parses an HTTP response from a GetAdminConfigsCategoriesWithResponse call
+func ParseGetAdminConfigsCategoriesResponse(rsp *http.Response) (*GetAdminConfigsCategoriesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminConfigsCategoriesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ConfigCategoryItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminConfigsCategoryResponse parses an HTTP response from a GetAdminConfigsCategoryWithResponse call
+func ParseGetAdminConfigsCategoryResponse(rsp *http.Response) (*GetAdminConfigsCategoryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminConfigsCategoryResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -22368,6 +22851,39 @@ func ParseGetCompetitionStatusResponse(rsp *http.Response) (*GetCompetitionStatu
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetConfigsPublicResponse parses an HTTP response from a GetConfigsPublicWithResponse call
+func ParseGetConfigsPublicResponse(rsp *http.Response) (*GetConfigsPublicResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetConfigsPublicResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ConfigItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	}
 

@@ -119,6 +119,7 @@ var InfraSet = wire.NewSet(
 	ProvideCrypto,
 	ProvideCache,
 	ProvideKeyValueStore,
+	ProvidePubSubStore,
 	ProvideBroadcaster,
 	ProvideWsController,
 )
