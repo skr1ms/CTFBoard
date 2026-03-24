@@ -9,14 +9,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 )
 
-func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*entity.Team, error) {
-	var team *entity.Team
+func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
+	var team *domain.Team
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err2 error
 		team, err2 = uc.createTx(ctx, name, captainID, isSolo, confirmReset)
@@ -55,7 +55,7 @@ func (uc *TeamUseCase) checkMaxTeams(ctx context.Context) error {
 	return nil
 }
 
-func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*entity.Team, error) {
+func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - createTx - CompetitionRepo.Get: %w", err)
@@ -91,7 +91,7 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 		}
 	}
 	expiresAt := time.Now().Add(defaultInviteTokenTTL)
-	team := &entity.Team{
+	team := &domain.Team{
 		Name:                 name,
 		InviteToken:          uuid.New(),
 		CaptainID:            captainID,
@@ -104,20 +104,20 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, captainID, &team.ID); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - createTx - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{TeamID: team.ID, UserID: &captainID, Action: entity.TeamActionCreated}
+	auditLog := &domain.TeamAuditLog{TeamID: team.ID, UserID: &captainID, Action: domain.TeamActionCreated}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - createTx - TeamRepo.CreateAuditLog: %w", err)
 	}
 	return team, nil
 }
 
-func (uc *TeamUseCase) requireTeamSwitch(comp *entity.Competition) error {
+func (uc *TeamUseCase) requireTeamSwitch(comp *domain.Competition) error {
 	switch comp.GetStatus() {
-	case entity.CompetitionStatusNotStarted, entity.CompetitionStatusActive, entity.CompetitionStatusFrozen:
+	case domain.CompetitionStatusNotStarted, domain.CompetitionStatusActive, domain.CompetitionStatusFrozen:
 		break
-	case entity.CompetitionStatusEnded:
+	case domain.CompetitionStatusEnded:
 		return httperr.ErrCompetitionEnded
-	case entity.CompetitionStatusPaused:
+	case domain.CompetitionStatusPaused:
 		return httperr.ErrCompetitionPaused
 	}
 	if !comp.AllowTeamSwitch {
@@ -126,7 +126,7 @@ func (uc *TeamUseCase) requireTeamSwitch(comp *entity.Competition) error {
 	return nil
 }
 
-func (uc *TeamUseCase) requireTeamSwitchAndTeamsMode(comp *entity.Competition) error {
+func (uc *TeamUseCase) requireTeamSwitchAndTeamsMode(comp *domain.Competition) error {
 	if err := uc.requireTeamSwitch(comp); err != nil {
 		return err
 	}
@@ -238,16 +238,16 @@ func (uc *TeamUseCase) tryCreateWhenInTeam(ctx context.Context, captainID uuid.U
 	return result, nil
 }
 
-func (uc *TeamUseCase) ConfirmCreate(ctx context.Context, name string, captainID uuid.UUID, isSolo bool) (*entity.Team, error) {
+func (uc *TeamUseCase) ConfirmCreate(ctx context.Context, name string, captainID uuid.UUID, isSolo bool) (*domain.Team, error) {
 	return uc.Create(ctx, name, captainID, isSolo, true)
 }
 
-func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
+func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*domain.Team, error) {
 	_, err := uc.deps.Guard.RequireTeamSwitchAndSoloMode(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeam - Guard: %w", err)
 	}
-	var team *entity.Team
+	var team *domain.Team
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err2 error
 		team, err2 = uc.createSoloTeamTx(ctx, userID, confirmReset, false, false)
@@ -274,11 +274,11 @@ func (uc *TeamUseCase) requireSoloModeOnly(ctx context.Context) error {
 	return nil
 }
 
-func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*entity.Team, error) {
+func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*domain.Team, error) {
 	if err := uc.requireSoloModeOnly(ctx); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeamForNewUser - requireSoloModeOnly: %w", err)
 	}
-	var team *entity.Team
+	var team *domain.Team
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err2 error
 		team, err2 = uc.createSoloTeamTx(ctx, userID, false, true, true)
@@ -294,7 +294,7 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 	return team, nil
 }
 
-func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, confirmReset, isAutoCreated, skipTeamSwitchCheck bool) (*entity.Team, error) {
+func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, confirmReset, isAutoCreated, skipTeamSwitchCheck bool) (*domain.Team, error) {
 	if skipTeamSwitchCheck {
 		if err := uc.requireSoloModeOnly(ctx); err != nil {
 			return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - requireSoloModeOnly: %w", err)
@@ -329,11 +329,11 @@ func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, c
 		}
 	}
 	const maxSoloNameRetries = 15
-	var team *entity.Team
+	var team *domain.Team
 	for attempt := 0; attempt < maxSoloNameRetries; attempt++ {
 		placeholderToken := uuid.New()
 		expiresAt := time.Now().Add(defaultInviteTokenTTL)
-		team = &entity.Team{
+		team = &domain.Team{
 			Name:                 user.Username,
 			InviteToken:          placeholderToken,
 			CaptainID:            userID,
@@ -365,8 +365,8 @@ func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, c
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, &team.ID); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{
-		TeamID: team.ID, UserID: &userID, Action: entity.TeamActionCreated,
+	auditLog := &domain.TeamAuditLog{
+		TeamID: team.ID, UserID: &userID, Action: domain.TeamActionCreated,
 		Details: map[string]any{"mode": "solo"},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -466,7 +466,7 @@ func orderTeamLockIDs(oldTeamID uuid.UUID, newTeamID *uuid.UUID) (first, second 
 	return *newTeamID, oldTeamID
 }
 
-func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *entity.User, actorID uuid.UUID, confirmReset bool, newTeamID *uuid.UUID) error {
+func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *domain.User, actorID uuid.UUID, confirmReset bool, newTeamID *uuid.UUID) error {
 	if user.TeamID == nil {
 		return nil
 	}
@@ -536,10 +536,10 @@ func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *entity.U
 		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - UserRepo.UpdateTeamID: %w", err)
 	}
 
-	auditLog := &entity.TeamAuditLog{
+	auditLog := &domain.TeamAuditLog{
 		TeamID: oldTeamID,
 		UserID: &actorID,
-		Action: entity.TeamActionDeleted,
+		Action: domain.TeamActionDeleted,
 		Details: map[string]any{
 			"reason": "solo_team_cleanup",
 		},
@@ -554,6 +554,6 @@ func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *entity.U
 	return nil
 }
 
-func (uc *TeamUseCase) shouldCleanupSoloTeam(user *entity.User, members []*entity.User, oldTeam *entity.Team) bool {
+func (uc *TeamUseCase) shouldCleanupSoloTeam(user *domain.User, members []*domain.User, oldTeam *domain.Team) bool {
 	return len(members) == 1 && members[0].ID == user.ID && (oldTeam.IsSolo || oldTeam.IsAutoCreated)
 }

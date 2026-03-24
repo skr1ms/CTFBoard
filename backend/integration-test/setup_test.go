@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/testutil"
 )
 
 var (
@@ -57,7 +60,15 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to ping pool: %v\n", err)
 		os.Exit(1)
 	}
-	if err := runMigrations(ctx, globalPool); err != nil {
+	_, thisFile, _, _ := runtime.Caller(0)
+	backendDir := filepath.Dir(filepath.Dir(thisFile))
+	oldWd, _ := os.Getwd()
+	if err := os.Chdir(backendDir); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to chdir to backend: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := goose.Run(context.Background(), globalConnStr, "migrations"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to run migrations: %v\n", err)
 		os.Exit(1)
 	}
@@ -77,100 +88,33 @@ func SetupTestPool(t *testing.T) *TestPool {
 	return &TestPool{Pool: globalPool}
 }
 
+func SetupTestFixture(t *testing.T) *TestFixture {
+	t.Helper()
+	return NewTestFixture(SetupTestPool(t).Pool)
+}
+
 func startPostgresContainer(ctx context.Context) (*postgres.PostgresContainer, string, error) {
-	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
-		postgres.WithDatabase("test"),
-		postgres.WithUsername(string(entity.RoleUser)),
-		postgres.WithPassword("password"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
+	return testutil.StartPostgres(ctx,
+		testutil.PostgresWithUser(string(domain.RoleUser)),
+		testutil.PostgresWithPassword("password"),
 	)
-	if err != nil {
-		return nil, "", err
-	}
-
-	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		return nil, "", err
-	}
-
-	return container, connStr, nil
 }
 
 func getExternalConnStr() string {
-	host := getEnv("POSTGRES_HOST", "postgres")
-	port := getEnv("POSTGRES_PORT", "5432")
-	user := getEnv("POSTGRES_USER", "test_user")
-	password := getEnv("POSTGRES_PASSWORD", "test_password")
-	dbName := getEnv("POSTGRES_DB", "test_board")
+	host := testutil.GetEnv("POSTGRES_HOST", "postgres")
+	port := testutil.GetEnv("POSTGRES_PORT", "5432")
+	user := testutil.GetEnv("POSTGRES_USER", "test_user")
+	password := testutil.GetEnv("POSTGRES_PASSWORD", "test_password")
+	dbName := testutil.GetEnv("POSTGRES_DB", "test_board")
 
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbName)
 }
 
-func pingPool(ctx context.Context, Pool *pgxpool.Pool) error {
-	var err error
-	for i := 0; i < 10; i++ {
-		if err = Pool.Ping(ctx); err == nil {
-			return nil
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	return err
-}
-
-func runMigrations(ctx context.Context, Pool *pgxpool.Pool) error {
-	migrationsDir := filepath.Join("..", "migrations")
-	files, err := os.ReadDir(migrationsDir)
-	if err != nil {
-		return err
-	}
-
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".sql") {
-			continue
-		}
-
-		raw, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
-		if err != nil {
-			return err
-		}
-
-		if _, err := Pool.Exec(ctx, extractGooseUp(string(raw))); err != nil {
-			if !isIgnorableError(err) {
-				return fmt.Errorf("migration error in %s: %w", f.Name(), err)
-			}
-		}
-	}
-	return nil
-}
-
-func extractGooseUp(content string) string {
-	lines := strings.Split(content, "\n")
-	var result []string
-	inUp := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "-- +goose Up" {
-			inUp = true
-			continue
-		}
-		if trimmed == "-- +goose Down" {
-			break
-		}
-		if strings.HasPrefix(trimmed, "-- +goose") {
-			continue
-		}
-		if inUp {
-			// CONCURRENTLY cannot run in a transaction; tests use an isolated
-			// container with no concurrent load, so a regular index is fine.
-			result = append(result, strings.ReplaceAll(line, " CONCURRENTLY", ""))
-		}
-	}
-	return strings.Join(result, "\n")
+func pingPool(ctx context.Context, pool *pgxpool.Pool) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = 200 * time.Millisecond
+	bo.MaxElapsedTime = 10 * time.Second
+	return backoff.Retry(func() error { return pool.Ping(ctx) }, backoff.WithContext(bo, ctx))
 }
 
 func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
@@ -211,20 +155,8 @@ func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours') ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
+	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time, mode, allow_team_switch) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours', 'flexible', true) ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, mode = 'flexible', allow_team_switch = true, updated_at = NOW()`)
 	return err
-}
-
-func getEnv(key, fallback string) string {
-	if v, exists := os.LookupEnv(key); exists {
-		return v
-	}
-	return fallback
-}
-
-func isIgnorableError(err error) bool {
-	s := err.Error()
-	return strings.Contains(s, "already exists") || strings.Contains(s, "duplicate")
 }
 
 const (

@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestRequireVerified_Disabled_Success(t *testing.T) {
 	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(RequireVerified(false))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -31,7 +31,7 @@ func TestRequireVerified_NoUser_Error(t *testing.T) {
 	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(RequireVerified(true))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -45,13 +45,13 @@ func TestRequireVerified_Admin_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin, IsVerified: false}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, IsVerified: false}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireVerified(true))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -65,13 +65,13 @@ func TestRequireVerified_Unverified_Error(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleUser, IsVerified: false}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsVerified: false}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireVerified(true))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -85,13 +85,13 @@ func TestRequireVerified_Verified_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleUser, IsVerified: true}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsVerified: true}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireVerified(true))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -100,6 +100,6 @@ func TestRequireVerified_Verified_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
-func withUser(ctx context.Context, u *entity.User) context.Context {
+func withUser(ctx context.Context, u *domain.User) context.Context {
 	return context.WithValue(ctx, userContextKey, u)
 }

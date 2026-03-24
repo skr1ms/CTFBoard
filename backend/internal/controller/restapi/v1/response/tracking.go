@@ -1,33 +1,24 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromTrackingEntry(e *entity.TrackingEntry) openapi.TrackingEntry {
+func FromTrackingEntry(e *domain.TrackingEntry) openapi.TrackingEntry {
 	t := e.TrackedAt
 	return openapi.TrackingEntry{
-		ID:        ptr(e.ID.String()),
-		UserID:    ptr(e.UserID.String()),
-		IP:        ptr(e.IP),
-		UserAgent: ptr(e.UserAgent),
+		ID:        httputil.Ptr(e.ID.String()),
+		UserID:    httputil.Ptr(e.UserID.String()),
+		IP:        httputil.Ptr(e.IP),
+		UserAgent: httputil.Ptr(e.UserAgent),
 		TrackedAt: &t,
 	}
 }
 
-func FromTrackingList(items []*entity.TrackingEntry, total int64, page, perPage int) openapi.TrackingListResponse {
-	res := make([]openapi.TrackingEntry, len(items))
-	for i, item := range items {
-		res[i] = FromTrackingEntry(item)
-	}
-	return openapi.TrackingListResponse{
-		Data: &res,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromTrackingList(items []*domain.TrackingEntry, total int64, page, perPage int) openapi.TrackingListResponse {
+	data, meta := BuildListResponse(items, FromTrackingEntry, total, page, perPage)
+	return openapi.TrackingListResponse{Data: &data, Meta: meta}
 }

@@ -23,7 +23,7 @@ FROM teams
 WHERE name = $1 AND deleted_at IS NULL;
 
 -- name: SoftDeleteTeam :one
-UPDATE teams SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id;
+UPDATE teams SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: GetSoloTeamByUserID :one
 SELECT t.id, t.name, t.invite_token, t.invite_token_expires_at, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at

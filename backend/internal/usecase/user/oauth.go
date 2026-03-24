@@ -3,25 +3,25 @@ package user
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const (
@@ -39,19 +39,19 @@ type OAuthDeps struct {
 	OAuthRepo       repo.OAuthAccountRepository
 	TM              repo.TransactionManager
 	SettingsRepo    repo.SettingsRepository
-	JWTService      jwt.Service
+	JWTService      jwtkit.Service
 	Providers       map[string]webapi.OAuthProviderAPI
 	Cfg             config.OAuth
 	CompRepo        repo.CompetitionRepository
 	SoloTeamCreator SoloTeamCreator
-	Logger          logger.Logger
+	Logger          logkit.Logger
 }
 
 var _ usecase.OAuthUseCase = (*OAuthUseCase)(nil)
 
 func NewOAuthUseCase(deps OAuthDeps) *OAuthUseCase {
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	return &OAuthUseCase{
 		deps:        deps,
@@ -65,12 +65,14 @@ func (uc *OAuthUseCase) GetAuthURL(ctx context.Context, provider string) (authUR
 		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL - oauthConfig: %w", err)
 	}
 
-	nonce := make([]byte, oauthNonceBytes)
-	if _, err := rand.Read(nonce); err != nil {
-		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL - rand: %w", err)
+	nonceHex, err := crypto.SecureRandomHex(oauthNonceBytes)
+	if err != nil {
+		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL: %w", err)
 	}
-
-	nonceHex := hex.EncodeToString(nonce)
+	nonce, err := hex.DecodeString(nonceHex)
+	if err != nil {
+		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL - hex.DecodeString: %w", err)
+	}
 	mac := hmac.New(sha256.New, uc.stateSecret)
 	mac.Write(nonce)
 	sig := hex.EncodeToString(mac.Sum(nil))
@@ -97,7 +99,7 @@ func (uc *OAuthUseCase) ValidateState(cookieState, queryState string) bool {
 	return hmac.Equal([]byte(parts[1]), []byte(expectedSig))
 }
 
-func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code string) (*jwt.TokenPair, error) {
+func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code string) (*jwtkit.TokenPair, error) {
 	oauthCfg, err := uc.oauthConfig(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - HandleCallback - oauthConfig: %w", err)
@@ -139,7 +141,7 @@ func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code strin
 	// Only auto-link when the local account's email is verified (or already OAuth-only).
 	// An unverified local account could have been created with someone else's email,
 	// which would let the attacker gain access to the victim's OAuth session.
-	if existingUser != nil && (existingUser.IsVerified || existingUser.PasswordHash == entity.OAuthOnlyPasswordSentinel) {
+	if existingUser != nil && (existingUser.IsVerified || existingUser.PasswordHash == domain.OAuthOnlyPasswordSentinel) {
 		return uc.linkOAuthToExistingUser(ctx, existingUser, profile, token, provider)
 	}
 	if existingUser != nil {
@@ -153,10 +155,10 @@ func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code strin
 
 func (uc *OAuthUseCase) loginExistingOAuthUser(
 	ctx context.Context,
-	oauthAcc *entity.OAuthAccount,
+	oauthAcc *domain.OAuthAccount,
 	token *oauth2.Token,
 	_ string,
-) (*jwt.TokenPair, error) {
+) (*jwtkit.TokenPair, error) {
 	oauthAcc.AccessToken = token.AccessToken
 	rt := token.RefreshToken
 	if rt != "" {
@@ -176,29 +178,33 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 	if user.IsBanned {
 		return nil, httperr.ErrInvalidCredentials
 	}
-	if user.WasInBannedTeam && user.Role != entity.RoleAdmin {
+	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
 		return nil, httperr.ErrInvalidCredentials
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, string(user.Role))
+	pair, err := uc.deps.JWTService.GenerateTokenPair(ctx, user.ID, string(user.Role))
+	if err != nil {
+		return nil, fmt.Errorf("OAuthUseCase - completeOAuthLogin - GenerateTokenPair: %w", err)
+	}
+	return pair, nil
 }
 
 // linkOAuthToExistingUser attaches an OAuth provider to an existing account (same email). Returns JWT for that user.
 func (uc *OAuthUseCase) linkOAuthToExistingUser(
 	ctx context.Context,
-	existingUser *entity.User,
+	existingUser *domain.User,
 	profile *webapi.OAuthUserProfile,
 	token *oauth2.Token,
 	provider string,
-) (*jwt.TokenPair, error) {
+) (*jwtkit.TokenPair, error) {
 	if existingUser.IsBanned {
 		return nil, httperr.ErrUserBanned
 	}
-	if existingUser.WasInBannedTeam && existingUser.Role != entity.RoleAdmin {
+	if existingUser.WasInBannedTeam && existingUser.Role != domain.RoleAdmin {
 		return nil, httperr.ErrUserWasInBannedTeam
 	}
 
-	oauthAcc := &entity.OAuthAccount{
+	oauthAcc := &domain.OAuthAccount{
 		UserID:         existingUser.ID,
 		Provider:       provider,
 		ProviderUserID: profile.ID,
@@ -223,7 +229,7 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 			if err != nil {
 				return fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - CompRepo.Get: %w", err)
 			}
-			if comp.Mode == entity.ModeSoloOnly {
+			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, existingUser.ID)
 				if err != nil {
 					return fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
@@ -237,7 +243,11 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - Transaction: %w", err)
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(existingUser.ID, existingUser.Email, existingUser.Username, string(existingUser.Role))
+	pair, err := uc.deps.JWTService.GenerateTokenPair(ctx, existingUser.ID, string(existingUser.Role))
+	if err != nil {
+		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - GenerateTokenPair: %w", err)
+	}
+	return pair, nil
 }
 
 func (uc *OAuthUseCase) registerNewOAuthUser(
@@ -245,15 +255,15 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 	profile *webapi.OAuthUserProfile,
 	token *oauth2.Token,
 	provider string,
-) (*jwt.TokenPair, error) {
-	user := &entity.User{
+) (*jwtkit.TokenPair, error) {
+	user := &domain.User{
 		Email:        profile.Email,
-		PasswordHash: entity.OAuthOnlyPasswordSentinel,
-		Role:         entity.RoleUser,
+		PasswordHash: domain.OAuthOnlyPasswordSentinel,
+		Role:         domain.RoleUser,
 		IsVerified:   true,
 	}
 
-	oauthAcc := &entity.OAuthAccount{
+	oauthAcc := &domain.OAuthAccount{
 		Provider:       provider,
 		ProviderUserID: profile.ID,
 		AccessToken:    token.AccessToken,
@@ -299,7 +309,7 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 			if err != nil {
 				return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - CompRepo.Get: %w", err)
 			}
-			if comp.Mode == entity.ModeSoloOnly {
+			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
 				if err != nil {
 					return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
@@ -313,7 +323,11 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 		return nil, fmt.Errorf("OAuthUseCase - registerNew - Transaction: %w", err)
 	}
 
-	return uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, string(user.Role))
+	pair, err := uc.deps.JWTService.GenerateTokenPair(ctx, user.ID, string(user.Role))
+	if err != nil {
+		return nil, fmt.Errorf("OAuthUseCase - registerNewOAuthUser - GenerateTokenPair: %w", err)
+	}
+	return pair, nil
 }
 
 func truncateUsername(s string) string {

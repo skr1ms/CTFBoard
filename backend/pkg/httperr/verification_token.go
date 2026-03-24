@@ -6,24 +6,8 @@ import (
 )
 
 var (
-	ErrTokenRequired = &HTTPError{
-		Err:        errors.New("token is required"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "TOKEN_REQUIRED",
-	}
-	ErrTokenNotFound = &HTTPError{
-		Err:        errors.New("invalid token"),
-		StatusCode: http.StatusNotFound,
-		Code:       "TOKEN_NOT_FOUND",
-	}
-	ErrTokenExpired = &HTTPError{
-		Err:        errors.New("token expired"),
-		StatusCode: http.StatusGone,
-		Code:       "TOKEN_EXPIRED",
-	}
-	ErrTokenAlreadyUsed = &HTTPError{
-		Err:        errors.New("token already used"),
-		StatusCode: http.StatusConflict,
-		Code:       "TOKEN_ALREADY_USED",
-	}
+	ErrTokenRequired    = New(errors.New("token is required"), http.StatusBadRequest, "TOKEN_REQUIRED")
+	ErrTokenNotFound    = New(errors.New("invalid token"), http.StatusNotFound, "TOKEN_NOT_FOUND")
+	ErrTokenExpired     = New(errors.New("token expired"), http.StatusGone, "TOKEN_EXPIRED")
+	ErrTokenAlreadyUsed = New(errors.New("token already used"), http.StatusConflict, "TOKEN_ALREADY_USED")
 )

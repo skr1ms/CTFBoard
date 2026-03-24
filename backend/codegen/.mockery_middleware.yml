@@ -9,32 +9,24 @@ packages:
     interfaces:
       APITokenAuther:
         config:
-          dir: "internal/controller/restapi/middleware/mocks"
+          dir: "internal/controller/restapi/middleware/mock"
           filename: "APITokenAuther.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAPITokenAuther"
 
       UserByIDGetter:
         config:
-          dir: "internal/controller/restapi/middleware/mocks"
+          dir: "internal/controller/restapi/middleware/mock"
           filename: "UserByIDGetter.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserByIDGetter"
 
   github.com/TakuyaYagam1/AstroCTFb/internal/repo:
     interfaces:
       TrackingRepository:
         config:
-          dir: "internal/controller/restapi/middleware/mocks"
+          dir: "internal/controller/restapi/middleware/mock"
           filename: "TrackingRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTrackingRepository"
 
-  github.com/TakuyaYagam1/AstroCTFb/pkg/logger:
-    interfaces:
-      Logger:
-        config:
-          dir: "internal/controller/restapi/middleware/mocks"
-          filename: "Logger.go"
-          pkgname: "mocks"
-          structname: "MockLogger"

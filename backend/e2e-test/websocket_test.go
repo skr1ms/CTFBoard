@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
+// assertScoreboardSolveMessage checks that msg is a scoreboard_update with payload type solve or first_blood.
 func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
 	t.Helper()
 	typ, ok := msg["type"].(string)
@@ -29,6 +29,7 @@ func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
 	}
 }
 
+// startWSReader starts a goroutine that reads WebSocket messages into a channel until timeout or close.
 func startWSReader(conn *websocket.Conn, readTimeout time.Duration) (received <-chan map[string]any, readErr <-chan error, done <-chan struct{}) {
 	rec := make(chan map[string]any, 4)
 	errCh := make(chan error, 1)
@@ -42,6 +43,7 @@ func startWSReader(conn *websocket.Conn, readTimeout time.Duration) (received <-
 	return rec, errCh, d
 }
 
+// runWSReadLoop reads JSON messages from conn and sends them to rec until context is done or read error.
 func runWSReadLoop(conn *websocket.Conn, readCtx context.Context, rec chan<- map[string]any, errCh chan<- error) {
 	for {
 		_, data, err := conn.Read(readCtx)
@@ -64,6 +66,7 @@ const (
 	wsReceiveTimeout   = 15 * time.Second
 )
 
+// waitWSConnected blocks until a "connected" message is received or timeout/error.
 func waitWSConnected(t *testing.T, received <-chan map[string]any, readErr <-chan error, done <-chan struct{}) {
 	t.Helper()
 	deadline := time.After(wsConnectedTimeout)
@@ -85,6 +88,7 @@ func waitWSConnected(t *testing.T, received <-chan map[string]any, readErr <-cha
 	}
 }
 
+// waitScoreboardUpdate blocks until a scoreboard_update message is received or timeout/error.
 func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr <-chan error, done <-chan struct{}) {
 	t.Helper()
 	deadline := time.After(wsReceiveTimeout)
@@ -109,14 +113,13 @@ func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr 
 
 // GET /ws: client receives scoreboard_update event when a solve is submitted.
 func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_ws")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "WS Chall", "flag{ws_event}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("wsuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -142,14 +145,12 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	waitWSConnected(t, received, readErr, done)
 	t.Logf("ws connected, submitting flag challengeID=%s", challengeID)
 	h.SubmitFlag(tokenUser, challengeID, "flag{ws_event}", http.StatusOK)
-	time.Sleep(200 * time.Millisecond)
 	t.Logf("ws submit done, waiting for scoreboard_update")
 	waitScoreboardUpdate(t, received, readErr, done)
 }
 
 // GET /ws on invalid path: connection fails or returns 404.
 func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws-invalid"
@@ -177,12 +178,11 @@ func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 
 // GET /ws: authenticated user connects and receives a "connected" message.
 func TestWebSocket_Connect_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("admin_ws_connect")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("ws_connect_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -206,9 +206,8 @@ func TestWebSocket_Connect_Success(t *testing.T) {
 	waitWSConnected(t, received, readErr, done)
 }
 
-// GET /ws: no auth --> upgrade refused with 401.
+// GET /ws: no auth -> upgrade refused with 401.
 func TestWebSocket_Connect_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
 

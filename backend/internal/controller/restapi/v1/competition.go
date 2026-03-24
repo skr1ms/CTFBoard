@@ -3,6 +3,9 @@ package v1
 import (
 	"net/http"
 
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
@@ -17,7 +20,7 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetCompetitionStatus", "Get") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromCompetitionStatus(comp))
+	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 
 // Get competition
@@ -27,7 +30,7 @@ func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetAdminCompetition", "Get") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromCompetition(comp))
+	httputil.RenderOK(w, r, response.FromCompetition(comp))
 }
 
 // Update competition
@@ -38,8 +41,8 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.UpdateCompetitionRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PutAdminCompetition",
+	req, ok := httputil.DecodeAndValidate[openapi.UpdateCompetitionRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -60,12 +63,12 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 		ClearEndTime:                 req.ClearEndTime,
 		KeepScoreboardFrozenAfterEnd: req.KeepScoreboardFrozenAfterEnd,
 	}
-	clientIP := helper.GetClientIP(r, h.infra.TrustedProxyCIDRs)
+	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
 
 	err := h.comp.CompetitionUC.Update(r.Context(), comp, optionals, user.ID, clientIP)
 	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("competition updated"))
+	httputil.RenderOK(w, r, response.Message("competition updated"))
 }

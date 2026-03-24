@@ -8,14 +8,14 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 )
 
 const maxSolutionContentLen = 524288
 
-func (uc *ChallengeUseCase) AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*entity.ChallengeSolution, error) {
+func (uc *ChallengeUseCase) AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error) {
 	if utf8.RuneCountInString(content) > maxSolutionContentLen {
 		return nil, httperr.NewValidationErrorf("solution content exceeds maximum length")
 	}
@@ -43,7 +43,7 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 				return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - UserRepo.Lock: %w", err)
 			}
 		}
-		var team *entity.Team
+		var team *domain.Team
 		if uc.deps.TeamRepo != nil {
 			if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
 				return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - TeamRepo.Lock: %w", err)
@@ -67,10 +67,10 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 					return httperr.ErrSubmissionNotAllowed
 				}
 				if team != nil {
-					if comp.Mode == entity.ModeTeamsOnly && team.IsSolo {
+					if comp.Mode == domain.ModeTeamsOnly && team.IsSolo {
 						return httperr.ErrTeamModeRequired
 					}
-					if comp.Mode == entity.ModeSoloOnly && !team.IsSolo {
+					if comp.Mode == domain.ModeSoloOnly && !team.IsSolo {
 						return httperr.ErrSoloModeRequired
 					}
 					if comp.MinTeamSize > 0 && !team.IsSolo {
@@ -123,7 +123,7 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 		if err != nil {
 			return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - ApplySolveScore: %w", err)
 		}
-		solve := &entity.Solve{UserID: userID, TeamID: teamID, ChallengeID: challengeID, PointsAtSolve: pointsAtSolve}
+		solve := &domain.Solve{UserID: userID, TeamID: teamID, ChallengeID: challengeID, PointsAtSolve: pointsAtSolve}
 		if err = uc.deps.SolveRepo.Create(ctx, solve); err != nil {
 			return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - SolveRepo.Create: %w", err)
 		}

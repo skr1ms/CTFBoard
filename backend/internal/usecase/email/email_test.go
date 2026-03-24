@@ -13,26 +13,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	emailMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
 type emailTestDeps struct {
-	userRepo  *mocks.MockUserRepository
-	tokenRepo *mocks.MockVerificationTokenRepository
-	mailer    *mocks.MockMailer
-	tm        *mocks.MockTransactionManager
+	userRepo  *emailMock.MockUserRepository
+	tokenRepo *emailMock.MockVerificationTokenRepository
+	mailer    *emailMock.MockMailer
+	tm        *emailMock.MockTransactionManager
 }
 
 func newEmailTestDeps(t *testing.T) *emailTestDeps {
 	t.Helper()
 	return &emailTestDeps{
-		userRepo:  mocks.NewMockUserRepository(t),
-		tokenRepo: mocks.NewMockVerificationTokenRepository(t),
-		mailer:    mocks.NewMockMailer(t),
-		tm:        mocks.NewMockTransactionManager(t),
+		userRepo:  emailMock.NewMockUserRepository(t),
+		tokenRepo: emailMock.NewMockVerificationTokenRepository(t),
+		mailer:    emailMock.NewMockMailer(t),
+		tm:        emailMock.NewMockTransactionManager(t),
 	}
 }
 
@@ -65,16 +65,16 @@ func hashTestToken(rawToken string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func newTestUser(id uuid.UUID, username, email string) *entity.User {
-	return &entity.User{
+func newTestUser(id uuid.UUID, username, email string) *domain.User {
+	return &domain.User{
 		ID:       id,
 		Username: username,
 		Email:    email,
 	}
 }
 
-func newTestVerificationToken(userID uuid.UUID, token string, tokenType entity.TokenType) *entity.VerificationToken {
-	return &entity.VerificationToken{
+func newTestVerificationToken(userID uuid.UUID, token string, tokenType domain.TokenType) *domain.VerificationToken {
+	return &domain.VerificationToken{
 		ID:        uuid.New(),
 		UserID:    userID,
 		Token:     token,
@@ -90,12 +90,12 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	user := newTestUser(userID, "testuser", "test@example.com")
 
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, entity.TokenTypeEmailVerification).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
 
 	var storedToken string
-	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *entity.VerificationToken) bool {
+	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *domain.VerificationToken) bool {
 		storedToken = vt.Token
-		return vt.UserID == user.ID && vt.Type == entity.TokenTypeEmailVerification
+		return vt.UserID == user.ID && vt.Type == domain.TokenTypeEmailVerification
 	})).Return(nil)
 
 	var sentBody string
@@ -122,12 +122,12 @@ func TestEmailUseCase_VerifyEmail_Hashing(t *testing.T) {
 
 	rawToken := "1111111111111111111111111111111111111111111111111111111111111111"
 	hashedToken := hashTestToken(rawToken)
-	tokenEntity := newTestVerificationToken(uuid.New(), hashedToken, entity.TokenTypeEmailVerification)
+	tokenentity := newTestVerificationToken(uuid.New(), hashedToken, domain.TokenTypeEmailVerification)
 
-	d.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
+	d.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenentity, nil)
 	d.setupTxRun()
-	d.userRepo.On("SetVerified", mock.Anything, tokenEntity.UserID).Return(nil)
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenEntity.UserID, entity.TokenTypeEmailVerification).Return(nil)
+	d.userRepo.On("SetVerified", mock.Anything, tokenentity.UserID).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenentity.UserID, domain.TokenTypeEmailVerification).Return(nil)
 	err := d.createUseCase().VerifyEmail(context.Background(), rawToken)
 	assert.NoError(t, err)
 }
@@ -140,12 +140,12 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 
 	d.setupTxRun()
 	d.userRepo.On("GetByEmail", mock.Anything, user.Email).Return(user, nil)
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, entity.TokenTypePasswordReset).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypePasswordReset).Return(nil)
 
 	var storedToken string
-	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *entity.VerificationToken) bool {
+	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *domain.VerificationToken) bool {
 		storedToken = vt.Token
-		return vt.UserID == user.ID && vt.Type == entity.TokenTypePasswordReset
+		return vt.UserID == user.ID && vt.Type == domain.TokenTypePasswordReset
 	})).Return(nil)
 
 	var sentBody string
@@ -179,14 +179,14 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 
 	rawToken := "resetTOKEN123"
 	hashedToken := hashTestToken(rawToken)
-	tokenEntity := newTestVerificationToken(uuid.New(), hashedToken, entity.TokenTypePasswordReset)
+	tokenentity := newTestVerificationToken(uuid.New(), hashedToken, domain.TokenTypePasswordReset)
 
-	d.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenEntity, nil)
+	d.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenentity, nil)
 	d.setupTxRun()
-	d.userRepo.On("UpdatePassword", mock.Anything, tokenEntity.UserID, mock.MatchedBy(func(pwd string) bool {
+	d.userRepo.On("UpdatePassword", mock.Anything, tokenentity.UserID, mock.MatchedBy(func(pwd string) bool {
 		return len(pwd) > 0
 	})).Return(nil)
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenEntity.UserID, entity.TokenTypePasswordReset).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenentity.UserID, domain.TokenTypePasswordReset).Return(nil)
 
 	err := d.createUseCase().ResetPassword(context.Background(), rawToken, "new-password")
 	assert.NoError(t, err)
@@ -211,7 +211,7 @@ func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
 	user.IsVerified = false
 
 	d.userRepo.On("GetByID", mock.Anything, user.ID).Return(user, nil)
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, entity.TokenTypeEmailVerification).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
 	d.tokenRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 	d.mailer.On("Send", mock.Anything, mock.Anything).Return(nil)
 
@@ -240,7 +240,7 @@ func TestEmailUseCase_SendPasswordResetEmail_MailerError(t *testing.T) {
 
 	d.setupTxRun()
 	d.userRepo.On("GetByEmail", mock.Anything, user.Email).Return(user, nil)
-	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, entity.TokenTypePasswordReset).Return(nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypePasswordReset).Return(nil)
 	d.tokenRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 	d.mailer.On("Send", mock.Anything, mock.Anything).Return(errors.New("mailer timeout"))
 

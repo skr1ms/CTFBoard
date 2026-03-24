@@ -20,7 +20,7 @@ func TestStatistics_General(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_stats")
 	h.CreateBasicChallenge(tokenAdmin, "Stats Chall", "flag{stats}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("statsuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -61,7 +61,7 @@ func TestStatistics_Scoreboard(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_stats_sb")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "SB Chall", "flag{sb}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sbuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{sb}", http.StatusOK)
@@ -90,7 +90,7 @@ func TestStatistics_ScoreboardGraph(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_graph")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Graph Chall", "flag{graph}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("graphuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{graph}", http.StatusOK)
@@ -130,7 +130,7 @@ func TestStatistics_ChallengeDetail_Success(t *testing.T) {
 		"decay":         1,
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("detailuser_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{detail}", http.StatusOK)
@@ -251,7 +251,7 @@ func TestStatistics_Submissions_Unauthorized(t *testing.T) {
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get statistics submissions no auth")
 }
 
-// GET /statistics/submissions/{type}: type=correct --> filtered series.
+// GET /statistics/submissions/{type}: type=correct -> filtered series.
 func TestStatistics_SubmissionsType_Correct(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -339,7 +339,7 @@ func TestStatistics_AdminSolveMatrix_Forbidden(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("stats_matrix_403")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("matrix_user_" + suffix)
 
 	resp, err := h.Client().GetAdminStatisticsSolveMatrixWithResponse(context.Background(), nil, helper.WithBearerToken(tokenUser))

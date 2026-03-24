@@ -1,5 +1,5 @@
 schemas:
-  entity.ChallengeExport:
+  ChallengeExport:
     properties:
       id:
         type: string
@@ -13,14 +13,24 @@ schemas:
         type: integer
       flag_hash:
         type: string
-      is_hidden:
-        type: boolean
+      state:
+        type: string
+        enum:
+          - visible
+          - hidden
+          - locked
+      connection_info:
+        type: string
+      max_attempts:
+        type: integer
+      position:
+        type: integer
       hints:
         type: array
         items:
-          $ref: "#/schemas/entity.Hint"
+          $ref: "#/schemas/Hint"
     type: object
-  entity.Hint:
+  Hint:
     properties:
       id:
         type: string
@@ -28,12 +38,14 @@ schemas:
         type: string
       content:
         type: string
+      title:
+        type: string
       cost:
         type: integer
       order_index:
         type: integer
     type: object
-  entity.Solve:
+  Solve:
     properties:
       id:
         type: string
@@ -55,6 +67,20 @@ schemas:
           validate: "required,challenge_category"
       decay:
         example: 20
+        minimum: 0
+        type: integer
+      connection_info:
+        description: Connection info (e.g. SSH, URL) for the challenge
+        example: ''
+        type: string
+      max_attempts:
+        description: Max submission attempts per team (0 = unlimited)
+        example: 0
+        minimum: 0
+        type: integer
+      position:
+        description: Display order (lower = first)
+        example: 0
         minimum: 0
         type: integer
       description:
@@ -79,9 +105,6 @@ schemas:
       is_case_insensitive:
         example: false
         type: boolean
-      is_hidden:
-        example: false
-        type: boolean
       is_regex:
         example: false
         type: boolean
@@ -93,6 +116,11 @@ schemas:
         example: 100
         minimum: 0
         type: integer
+      state:
+        description: Challenge visibility and submit policy
+        enum: [visible, hidden, locked]
+        example: visible
+        type: string
       tag_ids:
         description: Tag IDs for the challenge
         items:
@@ -143,9 +171,6 @@ schemas:
       is_case_insensitive:
         example: false
         type: boolean
-      is_hidden:
-        example: false
-        type: boolean
       is_regex:
         example: false
         type: boolean
@@ -157,6 +182,25 @@ schemas:
         example: 150
         minimum: 0
         type: integer
+      connection_info:
+        description: Connection info (e.g. SSH, URL) for the challenge
+        example: ''
+        type: string
+      max_attempts:
+        description: Max submission attempts per team (0 = unlimited)
+        example: 0
+        minimum: 0
+        type: integer
+      position:
+        description: Display order (lower = first)
+        example: 0
+        minimum: 0
+        type: integer
+      state:
+        description: Challenge visibility and submit policy
+        enum: [visible, hidden, locked]
+        example: visible
+        type: string
       tag_ids:
         description: Tag IDs for the challenge
         items:
@@ -186,6 +230,9 @@ schemas:
     type: object
   request.CreateHintRequest:
     properties:
+      title:
+        example: ''
+        type: string
       content:
         example: This is a hint
         type: string
@@ -204,6 +251,9 @@ schemas:
     type: object
   request.UpdateHintRequest:
     properties:
+      title:
+        example: ''
+        type: string
       content:
         example: Updated hint content
         type: string
@@ -234,12 +284,19 @@ schemas:
     properties:
       category:
         type: string
+      connection_info:
+        type: string
+      max_attempts:
+        type: integer
+      position:
+        type: integer
       description:
         type: string
       id:
         type: string
-      is_hidden:
-        type: boolean
+      state:
+        type: string
+        enum: [visible, hidden, locked]
       points:
         type: integer
       solve_count:
@@ -263,6 +320,15 @@ schemas:
         type: string
       category:
         type: string
+      connection_info:
+        type: string
+      max_attempts:
+        type: integer
+      position:
+        type: integer
+      state:
+        type: string
+        enum: [visible, hidden, locked]
       points:
         type: integer
       solve_count:
@@ -286,6 +352,8 @@ schemas:
     type: object
   response.HintResponse:
     properties:
+      title:
+        type: string
       content:
         type: string
       cost:
@@ -301,6 +369,8 @@ schemas:
     properties:
       challenge_id:
         type: string
+      title:
+        type: string
       content:
         type: string
       cost:
@@ -313,6 +383,8 @@ schemas:
   response.HintItem:
     properties:
       id:
+        type: string
+      title:
         type: string
       cost:
         type: integer
@@ -350,6 +422,40 @@ schemas:
         type: string
         format: date-time
       updated_at:
+        type: string
+        format: date-time
+    type: object
+  request.PutChallengeRatingRequest:
+    properties:
+      value:
+        description: Rating value (e.g. 1-5)
+        minimum: 1
+        maximum: 5
+        type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=5"
+      review:
+        description: Optional review text
+        maxLength: 2000
+        type: string
+    required:
+      - value
+    type: object
+  response.RatingResponse:
+    properties:
+      id:
+        type: string
+      challenge_id:
+        type: string
+      user_id:
+        type: string
+      team_id:
+        type: string
+      value:
+        type: integer
+      review:
+        type: string
+      created_at:
         type: string
         format: date-time
     type: object

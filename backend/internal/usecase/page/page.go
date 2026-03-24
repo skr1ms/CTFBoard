@@ -4,18 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	slugpkg "github.com/TakuyaYagam1/AstroCTFb/pkg/slug"
 )
-
-var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type PageUseCase struct {
 	deps PageDeps
@@ -23,15 +22,19 @@ type PageUseCase struct {
 
 type PageDeps struct {
 	PageRepo repo.PageRepository
+	Logger   logkit.Logger
 }
 
 var _ usecase.PageUseCase = (*PageUseCase)(nil)
 
 func NewPageUseCase(deps PageDeps) *PageUseCase {
+	if deps.Logger == nil {
+		deps.Logger = logkit.Noop()
+	}
 	return &PageUseCase{deps: deps}
 }
 
-func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*entity.PageListItem, error) {
+func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*domain.PageListItem, error) {
 	list, err := uc.deps.PageRepo.GetPublishedList(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetPublishedList - PageRepo.GetPublishedList: %w", err)
@@ -39,7 +42,7 @@ func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*entity.PageList
 	return list, nil
 }
 
-func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*entity.Page, error) {
+func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*domain.Page, error) {
 	if strings.TrimSpace(slug) == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
@@ -56,7 +59,7 @@ func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*entity.Page
 	return page, nil
 }
 
-func (uc *PageUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Page, error) {
+func (uc *PageUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, error) {
 	page, err := uc.deps.PageRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetByID - PageRepo.GetByID: %w", err)
@@ -64,7 +67,7 @@ func (uc *PageUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Page,
 	return page, nil
 }
 
-func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*entity.Page, error) {
+func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*domain.Page, error) {
 	list, err := uc.deps.PageRepo.GetAllList(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetAllList - PageRepo.GetAllList: %w", err)
@@ -72,7 +75,7 @@ func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*entity.Page, error) {
 	return list, nil
 }
 
-func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, isDraft bool, orderIndex int) (*entity.Page, error) {
+func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error) {
 	title = strings.TrimSpace(title)
 	slug = strings.TrimSpace(slug)
 	if title == "" {
@@ -81,10 +84,10 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 	if slug == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
-	if !slugRe.MatchString(slug) {
-		return nil, httperr.NewValidationErrorf("slug must match ^[a-z0-9]+(?:-[a-z0-9]+)*$")
+	if !slugpkg.MatchPageSlug(slug) {
+		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
 	}
-	page := &entity.Page{
+	page := &domain.Page{
 		ID:         uuid.New(),
 		Title:      title,
 		Slug:       slug,
@@ -98,7 +101,7 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 	return page, nil
 }
 
-func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*entity.Page, error) {
+func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error) {
 	page, err := uc.deps.PageRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetByID: %w", err)
@@ -111,8 +114,8 @@ func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, co
 	if slug == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
-	if !slugRe.MatchString(slug) {
-		return nil, httperr.NewValidationErrorf("slug must match ^[a-z0-9]+(?:-[a-z0-9]+)*$")
+	if !slugpkg.MatchPageSlug(slug) {
+		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
 	}
 	existing, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
 	if err != nil && !errors.Is(err, httperr.ErrPageNotFound) {

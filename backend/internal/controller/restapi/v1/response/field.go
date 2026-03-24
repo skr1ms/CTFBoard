@@ -1,53 +1,52 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromField(f *entity.Field) openapi.FieldResponse {
+func FromField(f *domain.Field) openapi.FieldResponse {
 	var opts *[]string
 	if len(f.Options) > 0 {
 		opts = &f.Options
 	}
 	var fieldType openapi.FieldResponseFieldType
 	switch f.FieldType {
-	case entity.FieldTypeText:
+	case domain.FieldTypeText:
 		fieldType = openapi.FieldResponseFieldTypeText
-	case entity.FieldTypeNumber:
+	case domain.FieldTypeNumber:
 		fieldType = openapi.FieldResponseFieldTypeNumber
-	case entity.FieldTypeSelect:
+	case domain.FieldTypeSelect:
 		fieldType = openapi.FieldResponseFieldTypeSelect
-	case entity.FieldTypeBoolean:
+	case domain.FieldTypeBoolean:
 		fieldType = openapi.FieldResponseFieldTypeBoolean
 	default:
 		fieldType = openapi.FieldResponseFieldTypeText
 	}
 	var entityType openapi.FieldResponseEntityType
 	switch f.EntityType {
-	case entity.EntityTypeUser:
+	case domain.EntityTypeUser:
 		entityType = openapi.FieldResponseEntityTypeUser
-	case entity.EntityTypeTeam:
+	case domain.EntityTypeTeam:
 		entityType = openapi.FieldResponseEntityTypeTeam
 	default:
 		entityType = openapi.FieldResponseEntityTypeUser
 	}
 	return openapi.FieldResponse{
-		ID:         ptr(f.ID.String()),
-		Name:       ptr(f.Name),
-		FieldType:  ptr(fieldType),
-		EntityType: ptr(entityType),
-		Required:   ptr(f.Required),
+		ID:         httputil.Ptr(f.ID.String()),
+		Name:       httputil.Ptr(f.Name),
+		FieldType:  httputil.Ptr(fieldType),
+		EntityType: httputil.Ptr(entityType),
+		Required:   httputil.Ptr(f.Required),
 		Options:    opts,
-		OrderIndex: ptr(f.OrderIndex),
-		CreatedAt:  ptr(f.CreatedAt),
+		OrderIndex: httputil.Ptr(f.OrderIndex),
+		CreatedAt:  httputil.Ptr(f.CreatedAt),
 	}
 }
 
-func FromFieldList(items []*entity.Field) []openapi.FieldResponse {
-	res := make([]openapi.FieldResponse, len(items))
-	for i, item := range items {
-		res[i] = FromField(item)
-	}
-	return res
+func FromFieldList(items []*domain.Field) []openapi.FieldResponse {
+	return lo.Map(items, func(item *domain.Field, _ int) openapi.FieldResponse { return FromField(item) })
 }

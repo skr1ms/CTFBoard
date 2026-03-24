@@ -12,7 +12,6 @@ import (
 
 // GET /healthcheck: returns 200 OK.
 func TestStatic_Healthcheck(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -23,7 +22,6 @@ func TestStatic_Healthcheck(t *testing.T) {
 
 // GET /robots.txt: returns 200 with body.
 func TestStatic_RobotsTxt(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -35,7 +33,6 @@ func TestStatic_RobotsTxt(t *testing.T) {
 
 // GET /tos: returns 200.
 func TestStatic_Tos(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -46,7 +43,6 @@ func TestStatic_Tos(t *testing.T) {
 
 // GET /privacy: returns 200.
 func TestStatic_Privacy(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -57,7 +53,6 @@ func TestStatic_Privacy(t *testing.T) {
 
 // GET /debug: admin-only; returns 200 when DEBUG_ENABLED=true, otherwise 404. Without auth returns 401.
 func TestStatic_Debug(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -72,7 +67,6 @@ func TestStatic_Debug(t *testing.T) {
 
 // GET /challenges/types: returns list of challenge types (public endpoint).
 func TestStatic_ChallengesTypes(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

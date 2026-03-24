@@ -2,20 +2,19 @@ package email
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
@@ -47,11 +46,15 @@ type EmailDeps struct {
 	ResetTTL    time.Duration
 	FrontendURL string
 	Enabled     bool
+	Logger      logkit.Logger
 }
 
 var _ usecase.EmailUseCase = (*EmailUseCase)(nil)
 
 func NewEmailUseCase(deps EmailDeps) *EmailUseCase {
+	if deps.Logger == nil {
+		deps.Logger = logkit.Noop()
+	}
 	return &EmailUseCase{deps: deps}
 }
 
@@ -59,12 +62,12 @@ func (uc *EmailUseCase) IsEnabled() bool {
 	return uc.deps.Enabled
 }
 
-func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *entity.User) error {
+func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.User) error {
 	if !uc.deps.Enabled {
 		return nil
 	}
 
-	if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypeEmailVerification); err != nil {
+	if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, domain.TokenTypeEmailVerification); err != nil {
 		return fmt.Errorf("EmailUseCase - SendVerificationEmail - TokenRepo.DeleteByUserAndType: %w", err)
 	}
 
@@ -75,10 +78,10 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *entity.
 
 	hashedToken := hashToken(token)
 
-	vt := &entity.VerificationToken{
+	vt := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     hashedToken,
-		Type:      entity.TokenTypeEmailVerification,
+		Type:      domain.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(uc.deps.VerifyTTL),
 	}
 
@@ -137,7 +140,7 @@ func (uc *EmailUseCase) VerifyEmail(ctx context.Context, tokenStr string) error 
 			return fmt.Errorf("EmailUseCase - VerifyEmail - TokenRepo.GetByToken: %w", err)
 		}
 
-		if token.Type != entity.TokenTypeEmailVerification {
+		if token.Type != domain.TokenTypeEmailVerification {
 			return httperr.ErrTokenNotFound
 		}
 
@@ -152,7 +155,7 @@ func (uc *EmailUseCase) VerifyEmail(ctx context.Context, tokenStr string) error 
 		if err := uc.deps.UserRepo.SetVerified(ctx, token.UserID); err != nil {
 			return fmt.Errorf("EmailUseCase - VerifyEmail - UserRepo.SetVerified: %w", err)
 		}
-		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, entity.TokenTypeEmailVerification); err != nil {
+		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, domain.TokenTypeEmailVerification); err != nil {
 			return fmt.Errorf("EmailUseCase - VerifyEmail - TokenRepo.DeleteByUserAndType: %w", err)
 		}
 		return nil
@@ -178,14 +181,14 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - generateToken: %w", err)
 	}
 	hashedToken := hashToken(token)
-	vt := &entity.VerificationToken{
+	vt := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     hashedToken,
-		Type:      entity.TokenTypePasswordReset,
+		Type:      domain.TokenTypePasswordReset,
 		ExpiresAt: time.Now().Add(uc.deps.ResetTTL),
 	}
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypePasswordReset); err != nil {
+		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, domain.TokenTypePasswordReset); err != nil {
 			return fmt.Errorf("TokenRepo.DeleteByUserAndType: %w", err)
 		}
 		if err := uc.deps.TokenRepo.Create(ctx, vt); err != nil {
@@ -246,7 +249,7 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 			return fmt.Errorf("EmailUseCase - ResetPassword - TokenRepo.GetByToken: %w", err)
 		}
 
-		if token.Type != entity.TokenTypePasswordReset {
+		if token.Type != domain.TokenTypePasswordReset {
 			return httperr.ErrTokenNotFound
 		}
 
@@ -261,7 +264,7 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 		if err := uc.deps.UserRepo.UpdatePassword(ctx, token.UserID, string(passwordHash)); err != nil {
 			return fmt.Errorf("EmailUseCase - ResetPassword - UserRepo.UpdatePassword: %w", err)
 		}
-		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, entity.TokenTypePasswordReset); err != nil {
+		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, domain.TokenTypePasswordReset); err != nil {
 			return fmt.Errorf("EmailUseCase - ResetPassword - TokenRepo.DeleteByUserAndType: %w", err)
 		}
 		return nil
@@ -282,14 +285,13 @@ func (uc *EmailUseCase) ResendVerification(ctx context.Context, userID uuid.UUID
 }
 
 func generateToken(length int) (string, error) {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("EmailUseCase - generateToken - rand.Read: %w", err)
+	s, err := crypto.SecureRandomHex(length)
+	if err != nil {
+		return "", fmt.Errorf("EmailUseCase - generateToken: %w", err)
 	}
-	return hex.EncodeToString(bytes), nil
+	return s, nil
 }
 
 func hashToken(token string) string {
-	hash := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(hash[:])
+	return crypto.SHA256Hex(token)
 }

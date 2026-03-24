@@ -2,9 +2,12 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"slices"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -26,9 +29,15 @@ func (h *E2EHelper) CreateChallengeExpectStatus(token string, data map[string]an
 		Points:      getInt(data, "points"),
 		Title:       getStr(data, "title", ""),
 	}
-	if v, ok := data["is_hidden"].(bool); ok {
-		req.IsHidden = &v
+	if v, ok := data["state"].(string); ok {
+		s := openapi.CreateChallengeRequestState(v)
+		req.State = &s
 	}
+	if v := getStr(data, "connection_info", ""); v != "" {
+		req.ConnectionInfo = &v
+	}
+	req.MaxAttempts = getIntPtr(data, "max_attempts")
+	req.Position = getIntPtr(data, "position")
 	if v, ok := data["is_regex"].(bool); ok {
 		req.IsRegex = &v
 	}
@@ -55,7 +64,7 @@ func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) 
 		"flag":          flag,
 		"points":        points,
 		"category":      "misc",
-		"is_hidden":     false,
+		"state":         "visible",
 		"initial_value": points,
 		"min_value":     points,
 		"decay":         1,
@@ -78,9 +87,15 @@ func (h *E2EHelper) UpdateChallengeExpectStatus(token, challengeID string, data 
 	if v, ok := data["flag"].(string); ok {
 		req.Flag = &v
 	}
-	if v, ok := data["is_hidden"].(bool); ok {
-		req.IsHidden = &v
+	if v, ok := data["state"].(string); ok {
+		s := openapi.UpdateChallengeRequestState(v)
+		req.State = &s
 	}
+	if v := getStr(data, "connection_info", ""); v != "" {
+		req.ConnectionInfo = &v
+	}
+	req.MaxAttempts = getIntPtr(data, "max_attempts")
+	req.Position = getIntPtr(data, "position")
 	if tagIDs := getStrSlice(data, "tag_ids"); len(tagIDs) > 0 {
 		req.TagIds = &tagIDs
 	}
@@ -109,6 +124,14 @@ func (h *E2EHelper) SubmitFlag(token, challengeID, flag string, expectStatus int
 	return resp
 }
 
+func (h *E2EHelper) SubmitFlagExpectStatus(token, challengeID, flag string, allowedStatuses ...int) *openapi.PostChallengesChallengeIDSubmitResponse {
+	h.t.Helper()
+	resp, err := h.client.PostChallengesChallengeIDSubmitWithResponse(context.Background(), challengeID, openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: flag}, WithBearerToken(token))
+	require.NoError(h.t, err)
+	require.Contains(h.t, allowedStatuses, resp.StatusCode(), "submit flag: status %d not in %v body=%s", resp.StatusCode(), allowedStatuses, string(resp.Body))
+	return resp
+}
+
 func (h *E2EHelper) GetChallengesExpectStatus(token string, expectStatus int) *openapi.GetChallengesResponse {
 	h.t.Helper()
 	resp, err := h.client.GetChallengesWithResponse(context.Background(), nil, WithBearerToken(token))
@@ -121,25 +144,25 @@ func (h *E2EHelper) FindChallengeInList(token, challengeID string) *openapi.Chal
 	h.t.Helper()
 	resp := h.GetChallengesExpectStatus(token, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
-	for i := range *resp.JSON200 {
-		c := &(*resp.JSON200)[i]
-		if c.ID != nil && *c.ID == challengeID {
-			return c
-		}
+	idx := slices.IndexFunc(*resp.JSON200, func(c openapi.ChallengeResponse) bool {
+		return c.ID != nil && *c.ID == challengeID
+	})
+	if idx < 0 {
+		h.t.Fatalf("Challenge %s not found in list", challengeID)
+		return nil
 	}
-	h.t.Fatalf("Challenge %s not found in list", challengeID)
-	return nil
+	return &(*resp.JSON200)[idx]
 }
 
 func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
 	h.t.Helper()
 	resp := h.GetChallengesExpectStatus(token, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
-	for i := range *resp.JSON200 {
-		c := &(*resp.JSON200)[i]
-		if c.ID != nil && *c.ID == challengeID {
-			h.t.Fatalf("Challenge %s should NOT be in list", challengeID)
-		}
+	idx := slices.IndexFunc(*resp.JSON200, func(c openapi.ChallengeResponse) bool {
+		return c.ID != nil && *c.ID == challengeID
+	})
+	if idx >= 0 {
+		h.t.Fatalf("Challenge %s should NOT be in list", challengeID)
 	}
 }
 
@@ -167,6 +190,11 @@ func (h *E2EHelper) SetChallengeRequirementsExpectStatus(token, challengeID stri
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "set challenge requirements")
 }
 
+func (h *E2EHelper) FirstBloodAvailable(token, challengeID string) bool {
+	resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
+	return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
+}
+
 func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *openapi.GetChallengesChallengeIDFirstBloodResponse {
 	h.t.Helper()
 	resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
@@ -178,20 +206,32 @@ func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *
 func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries int, sleep time.Duration) *openapi.GetChallengesChallengeIDFirstBloodResponse {
 	h.t.Helper()
 	var last *openapi.GetChallengesChallengeIDFirstBloodResponse
-	for i := 0; i < maxTries; i++ {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = sleep
+	bo.MaxInterval = sleep * 4
+	bo.MaxElapsedTime = 0
+	op := func() error {
 		resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 		require.NoError(h.t, err)
 		last = resp
 		if resp.StatusCode() == http.StatusOK {
-			return resp
+			return nil
 		}
-		if resp.StatusCode() != http.StatusNotFound || i == maxTries-1 {
-			RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "first-blood")
-			return resp
+		if resp.StatusCode() != http.StatusNotFound {
+			return backoff.Permanent(errors.New("unexpected status"))
 		}
-		time.Sleep(sleep)
+		return errors.New("not found")
 	}
-	RequireStatus(h.t, http.StatusOK, last.StatusCode(), last.Body, "first-blood")
+	maxRetries := maxTries - 1
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+	if err := backoff.Retry(op, backoff.WithMaxRetries(bo, uint64(maxRetries))); err != nil {
+		h.t.Logf("GetFirstBloodWithRetry: %v", err)
+	}
+	if last != nil && last.StatusCode() != http.StatusOK {
+		RequireStatus(h.t, http.StatusOK, last.StatusCode(), last.Body, "first-blood")
+	}
 	return last
 }
 

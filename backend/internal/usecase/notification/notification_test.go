@@ -9,25 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	notifMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification/mock"
 )
 
 type notificationTestDeps struct {
-	notifRepo *mocks.MockNotificationRepository
+	notifRepo *notifMock.MockNotificationRepository
 }
 
 func newNotificationTestDeps(t *testing.T) *notificationTestDeps {
 	t.Helper()
-	return &notificationTestDeps{notifRepo: mocks.NewMockNotificationRepository(t)}
+	return &notificationTestDeps{notifRepo: notifMock.NewMockNotificationRepository(t)}
 }
 
 func (d *notificationTestDeps) createUseCase() *NotificationUseCase {
 	return NewNotificationUseCase(NotificationDeps{NotifRepo: d.notifRepo})
 }
 
-func newTestNotification(title, content string, notifType entity.NotificationType, isPinned, isGlobal bool) *entity.Notification {
-	return &entity.Notification{
+func newTestNotification(title, content string, notifType domain.NotificationType, isPinned, isGlobal bool) *domain.Notification {
+	return &domain.Notification{
 		ID:        uuid.New(),
 		Title:     title,
 		Content:   content,
@@ -38,8 +38,8 @@ func newTestNotification(title, content string, notifType entity.NotificationTyp
 	}
 }
 
-func newTestUserNotification(userID uuid.UUID, title, content string, notifType entity.NotificationType) *entity.UserNotification {
-	return &entity.UserNotification{
+func newTestUserNotification(userID uuid.UUID, title, content string, notifType domain.NotificationType) *domain.UserNotification {
+	return &domain.UserNotification{
 		ID:        uuid.New(),
 		UserID:    userID,
 		Title:     title,
@@ -55,9 +55,9 @@ func TestNotificationUseCase_CreateGlobal_Success(t *testing.T) {
 	d := newNotificationTestDeps(t)
 	ctx := context.Background()
 	title, content := "Title", "Content"
-	notifType := entity.NotificationInfo
+	notifType := domain.NotificationInfo
 
-	d.notifRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *entity.Notification) {
+	d.notifRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.Notification) {
 		assert.Equal(t, title, n.Title)
 		assert.Equal(t, content, n.Content)
 		assert.Equal(t, notifType, n.Type)
@@ -81,7 +81,7 @@ func TestNotificationUseCase_CreateGlobal_Error(t *testing.T) {
 	d.notifRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createUseCase()
-	got, err := uc.CreateGlobal(ctx, "T", "C", entity.NotificationInfo, false)
+	got, err := uc.CreateGlobal(ctx, "T", "C", domain.NotificationInfo, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -93,9 +93,9 @@ func TestNotificationUseCase_CreatePersonal_Success(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
 	title, content := "Title", "Content"
-	notifType := entity.NotificationWarning
+	notifType := domain.NotificationWarning
 
-	d.notifRepo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *entity.UserNotification) {
+	d.notifRepo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.UserNotification) {
 		assert.Equal(t, userID, n.UserID)
 		assert.Equal(t, title, n.Title)
 		assert.Equal(t, content, n.Content)
@@ -119,7 +119,7 @@ func TestNotificationUseCase_CreatePersonal_Error(t *testing.T) {
 	d.notifRepo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createUseCase()
-	got, err := uc.CreatePersonal(ctx, userID, "T", "C", entity.NotificationInfo)
+	got, err := uc.CreatePersonal(ctx, userID, "T", "C", domain.NotificationInfo)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -129,7 +129,7 @@ func TestNotificationUseCase_GetGlobal_Success(t *testing.T) {
 	t.Parallel()
 	d := newNotificationTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Notification{newTestNotification("T", "C", entity.NotificationInfo, false, true)}
+	list := []*domain.Notification{newTestNotification("T", "C", domain.NotificationInfo, false, true)}
 
 	d.notifRepo.EXPECT().GetAll(mock.Anything, 20, 0).Return(list, nil)
 
@@ -159,7 +159,7 @@ func TestNotificationUseCase_GetUserNotifications_Success(t *testing.T) {
 	d := newNotificationTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
-	list := []*entity.UserNotification{newTestUserNotification(userID, "T", "C", entity.NotificationInfo)}
+	list := []*domain.UserNotification{newTestUserNotification(userID, "T", "C", domain.NotificationInfo)}
 
 	d.notifRepo.EXPECT().GetUserNotifications(mock.Anything, userID, 20, 0).Return(list, nil)
 
@@ -191,7 +191,7 @@ func TestNotificationUseCase_MarkAsRead_Success(t *testing.T) {
 	ctx := context.Background()
 	id, userID := uuid.New(), uuid.New()
 
-	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&entity.UserNotification{ID: id, UserID: userID}, nil)
+	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&domain.UserNotification{ID: id, UserID: userID}, nil)
 	d.notifRepo.EXPECT().MarkAsRead(mock.Anything, id, userID).Return(nil)
 
 	uc := d.createUseCase()
@@ -206,7 +206,7 @@ func TestNotificationUseCase_MarkAsRead_Error(t *testing.T) {
 	ctx := context.Background()
 	id, userID := uuid.New(), uuid.New()
 
-	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&entity.UserNotification{ID: id, UserID: userID}, nil)
+	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&domain.UserNotification{ID: id, UserID: userID}, nil)
 	d.notifRepo.EXPECT().MarkAsRead(mock.Anything, id, userID).Return(assert.AnError)
 
 	uc := d.createUseCase()
@@ -251,13 +251,13 @@ func TestNotificationUseCase_Update_Success(t *testing.T) {
 	d := newNotificationTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
-	notif := newTestNotification("Old", "OldC", entity.NotificationInfo, false, true)
+	notif := newTestNotification("Old", "OldC", domain.NotificationInfo, false, true)
 	notif.ID = id
 	title, content := "New", "NewC"
-	notifType := entity.NotificationWarning
+	notifType := domain.NotificationWarning
 
 	d.notifRepo.EXPECT().GetByID(mock.Anything, id).Return(notif, nil)
-	d.notifRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *entity.Notification) {
+	d.notifRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.Notification) {
 		assert.Equal(t, title, n.Title)
 		assert.Equal(t, content, n.Content)
 		assert.Equal(t, notifType, n.Type)
@@ -280,7 +280,7 @@ func TestNotificationUseCase_Update_Error(t *testing.T) {
 	d.notifRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
 
 	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, "T", "C", entity.NotificationInfo, false)
+	got, err := uc.Update(ctx, id, "T", "C", domain.NotificationInfo, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)

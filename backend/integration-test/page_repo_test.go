@@ -9,18 +9,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestPageRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	page := &entity.Page{
+	page := &domain.Page{
 		Title:      "About",
 		Slug:       "about-" + uuid.New().String()[:8],
 		Content:    "Content",
@@ -34,13 +33,12 @@ func TestPageRepo_Create_Success(t *testing.T) {
 
 func TestPageRepo_Create_Error_DuplicateSlug(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	p1 := f.CreatePage(t, "dup", false)
-	page2 := &entity.Page{Title: "Other", Slug: p1.Slug, Content: "x", IsDraft: false, OrderIndex: 0}
+	page2 := &domain.Page{Title: "Other", Slug: p1.Slug, Content: "x", IsDraft: false, OrderIndex: 0}
 	err := f.PageRepo.Create(ctx, page2)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, httperr.ErrPageSlugConflict))
@@ -48,7 +46,6 @@ func TestPageRepo_Create_Error_DuplicateSlug(t *testing.T) {
 
 func TestPageRepo_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -62,7 +59,6 @@ func TestPageRepo_GetByID_Success(t *testing.T) {
 
 func TestPageRepo_GetByID_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -74,7 +70,6 @@ func TestPageRepo_GetByID_Error_NotFound(t *testing.T) {
 
 func TestPageRepo_GetBySlug_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -87,7 +82,6 @@ func TestPageRepo_GetBySlug_Success(t *testing.T) {
 
 func TestPageRepo_GetBySlug_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -99,7 +93,6 @@ func TestPageRepo_GetBySlug_Error_NotFound(t *testing.T) {
 
 func TestPageRepo_GetPublishedList_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -112,7 +105,6 @@ func TestPageRepo_GetPublishedList_Success(t *testing.T) {
 
 func TestPageRepo_GetPublishedList_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -124,7 +116,6 @@ func TestPageRepo_GetPublishedList_Error_CancelledContext(t *testing.T) {
 
 func TestPageRepo_GetAllList_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -137,7 +128,6 @@ func TestPageRepo_GetAllList_Success(t *testing.T) {
 
 func TestPageRepo_GetAllList_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -149,7 +139,6 @@ func TestPageRepo_GetAllList_Error_CancelledContext(t *testing.T) {
 
 func TestPageRepo_Update_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -165,7 +154,6 @@ func TestPageRepo_Update_Success(t *testing.T) {
 
 func TestPageRepo_Update_Error_DuplicateSlug(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -180,7 +168,6 @@ func TestPageRepo_Update_Error_DuplicateSlug(t *testing.T) {
 
 func TestPageRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -195,7 +182,6 @@ func TestPageRepo_Delete_Success(t *testing.T) {
 
 func TestPageRepo_Delete_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

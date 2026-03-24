@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
@@ -25,12 +25,12 @@ func NewFieldValidator(
 	return &FieldValidator{fieldRepo: fieldRepo}
 }
 
-func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.EntityType, values map[uuid.UUID]string) error {
+func (v *FieldValidator) ValidateValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]string) error {
 	fields, err := v.fieldRepo.GetByEntityType(ctx, entityType)
 	if err != nil {
 		return fmt.Errorf("FieldValidator - ValidateValues - FieldRepo.GetByEntityType: %w", err)
 	}
-	fieldMap := make(map[uuid.UUID]*entity.Field)
+	fieldMap := make(map[uuid.UUID]*domain.Field)
 	for _, f := range fields {
 		fieldMap[f.ID] = f
 	}
@@ -49,7 +49,7 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 			if !ok {
 				return httperr.NewValidationErrorf("required field missing")
 			}
-			if field.FieldType == entity.FieldTypeText && val == "" {
+			if field.FieldType == domain.FieldTypeText && val == "" {
 				return httperr.NewValidationErrorf("required field cannot be empty")
 			}
 		}
@@ -57,15 +57,15 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType entity.E
 	return nil
 }
 
-func (v *FieldValidator) validateValue(field *entity.Field, value string) error {
+func (v *FieldValidator) validateValue(field *domain.Field, value string) error {
 	switch field.FieldType {
-	case entity.FieldTypeNumber:
+	case domain.FieldTypeNumber:
 		return v.validateNumber(value)
-	case entity.FieldTypeBoolean:
+	case domain.FieldTypeBoolean:
 		return v.validateBoolean(value)
-	case entity.FieldTypeSelect:
+	case domain.FieldTypeSelect:
 		return v.validateSelect(value, field.Options)
-	case entity.FieldTypeText:
+	case domain.FieldTypeText:
 		return v.validateText(value)
 	default:
 		return httperr.NewValidationErrorf("unsupported field type")

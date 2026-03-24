@@ -213,7 +213,7 @@ schemas:
       invite_token:
         type: string
     type: object
-  entity.TeamExport:
+  TeamExport:
     properties:
       id:
         type: string

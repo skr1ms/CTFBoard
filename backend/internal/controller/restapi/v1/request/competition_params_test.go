@@ -3,8 +3,11 @@ package request
 import (
 	"testing"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 func TestBatchSetConfigRequestToParams(t *testing.T) {
@@ -45,19 +48,21 @@ func TestBatchSetConfigRequestToParams(t *testing.T) {
 		if len(out) != 2 {
 			t.Fatalf("expected 2 items, got %d", len(out))
 		}
-		if out[0].Key != "a" || out[0].Value != "42" || out[0].ValueType != entity.CompetitionParamTypeInt || out[0].Description != "an int" {
+		if out[0].Key != "a" || out[0].Value != "42" || out[0].ValueType != domain.CompetitionParamTypeInt || out[0].Description != "an int" {
 			t.Errorf("item 0: got %+v", out[0])
 		}
-		if out[1].Key != "b" || out[1].Value != "hello" || out[1].ValueType != entity.CompetitionParamTypeString || out[1].Description != "" {
+		if out[1].Key != "b" || out[1].Value != "hello" || out[1].ValueType != domain.CompetitionParamTypeString || out[1].Description != "" {
 			t.Errorf("item 1: got %+v", out[1])
 		}
 	})
 
 	t.Run("empty_key_returns_error", func(t *testing.T) {
+		v, err := validator.New()
+		require.NoError(t, err)
 		req := &openapi.BatchSetConfigRequest{
 			Configs: []openapi.BatchSetConfigItem{{Key: "", Value: "x"}},
 		}
-		_, err := BatchSetConfigRequestToParams(req)
+		err = ValidateBatchSetConfigRequest(req, v)
 		if err == nil {
 			t.Fatal("expected error for empty key")
 		}

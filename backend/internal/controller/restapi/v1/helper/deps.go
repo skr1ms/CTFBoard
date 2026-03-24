@@ -1,15 +1,17 @@
 package helper
 
 import (
+	"sync"
+
 	"github.com/redis/go-redis/v9"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -19,6 +21,7 @@ type ChallengeDeps struct {
 	FileUC      usecase.FileUseCase
 	TagUC       usecase.TagUseCase
 	CommentUC   usecase.CommentUseCase
+	RatingUC    usecase.RatingUseCase
 }
 
 type TeamDeps struct {
@@ -56,18 +59,21 @@ type AdminDeps struct {
 }
 
 type InfraDeps struct {
-	JWTService                    *jwt.JWTService
+	JWTService                    *jwtkit.JWTService
 	RedisClient                   *redis.Client
 	StorageProvider               storage.Provider
 	WSController                  *wsV1.Controller
 	Validator                     validator.Validator
-	Logger                        logger.Logger
+	Logger                        logkit.Logger
 	TrustedProxyCIDRs             []string
-	RateLimitConfigCache          *RateLimitConfigCache
+	StructuredLogger              bool
+	DebugEnabled                  bool
+	RateLimitConfigCache          *middleware.RateLimitConfigCache
 	ScoreboardVisibilityCache     *middleware.ScoreboardVisibilityCache
 	ForgotPasswordRateLimiter     *middleware.PerKeyRateLimiter
 	ResendVerificationRateLimiter *middleware.PerKeyRateLimiter
 	ResetPasswordTokenRateLimiter *middleware.PerKeyRateLimiter
+	RatelimitAuditWG              *sync.WaitGroup
 }
 
 type ServerDeps struct {

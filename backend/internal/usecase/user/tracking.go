@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
@@ -26,7 +26,7 @@ func NewTrackingUseCase(deps TrackingDeps) *TrackingUseCase {
 }
 
 func (uc *TrackingUseCase) Track(ctx context.Context, userID uuid.UUID, ip, userAgent string) error {
-	entry := &entity.TrackingEntry{
+	entry := &domain.TrackingEntry{
 		UserID:    userID,
 		IP:        ip,
 		UserAgent: userAgent,
@@ -37,7 +37,7 @@ func (uc *TrackingUseCase) Track(ctx context.Context, userID uuid.UUID, ip, user
 	return nil
 }
 
-func (uc *TrackingUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*entity.TrackingEntry], error) {
+func (uc *TrackingUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.TrackingEntry], error) {
 	offset := (page - 1) * perPage
 	entries, err := uc.deps.TrackingRepo.GetByUser(ctx, userID, perPage, offset)
 	if err != nil {
@@ -51,7 +51,7 @@ func (uc *TrackingUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page
 }
 
 func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error {
-	entry := &entity.ChallengeOpen{
+	entry := &domain.ChallengeOpen{
 		UserID:      userID,
 		ChallengeID: challengeID,
 		IP:          ip,

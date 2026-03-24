@@ -1,14 +1,22 @@
 package response
 
-// TotalPages returns the number of pages for pagination given total count and per-page size.
-// perPage must be positive; returns 0 if perPage <= 0.
-func TotalPages(total int64, perPage int) int {
-	if perPage <= 0 {
-		return 0
+import (
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+)
+
+func PaginationMeta(page, perPage int, total int64) *openapi.PaginationMeta {
+	m := httputil.NewPaginationMeta(page, perPage, total)
+	return &openapi.PaginationMeta{
+		Page:       httputil.Ptr(m.Page),
+		PerPage:    httputil.Ptr(m.PerPage),
+		Total:      httputil.Ptr(m.Total),
+		TotalPages: httputil.Ptr(m.TotalPages),
 	}
-	n := int(total) / perPage
-	if int(total)%perPage != 0 {
-		n++
-	}
-	return n
+}
+
+func BuildListResponse[D, R any](items []D, convert func(D) R, total int64, page, perPage int) ([]R, *openapi.PaginationMeta) {
+	return lo.Map(items, func(item D, _ int) R { return convert(item) }), PaginationMeta(page, perPage, total)
 }

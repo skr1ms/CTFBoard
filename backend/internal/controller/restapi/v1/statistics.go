@@ -4,13 +4,14 @@ import (
 	"net/http"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -22,7 +23,7 @@ func forceLiveFromParams(r *http.Request, live *bool) bool {
 		return false
 	}
 	user, ok := middleware.GetUser(r.Context())
-	return ok && user.Role == entity.RoleAdmin
+	return ok && user.Role == domain.RoleAdmin
 }
 
 // Get general statistics
@@ -33,7 +34,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request, pa
 	if h.OnError(w, r, err, "GetStatisticsGeneral", "GetGeneralStats") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromGeneralStats(stats))
+	httputil.RenderOK(w, r, response.FromGeneralStats(stats))
 }
 
 // Get challenge statistics
@@ -44,7 +45,7 @@ func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request,
 	if h.OnError(w, r, err, "GetStatisticsChallenges", "GetChallengeStats") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromChallengeStatsList(stats))
+	httputil.RenderOK(w, r, response.FromChallengeStatsList(stats))
 }
 
 // Get challenge detail statistics
@@ -55,19 +56,19 @@ func (h *Server) GetStatisticsChallengesID(w http.ResponseWriter, r *http.Reques
 	if h.OnError(w, r, err, "GetStatisticsChallengesID", "GetChallengeDetailStats") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromChallengeDetailStats(stats))
+	httputil.RenderOK(w, r, response.FromChallengeDetailStats(stats))
 }
 
 // Get scoreboard history
 // (GET /statistics/scoreboard)
 func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request, params openapi.GetStatisticsScoreboardParams) {
 	forceLive := forceLiveFromParams(r, params.Live)
-	limit := helper.ClampLimit(params.Limit, defaultScoreboardHistoryLimit, competition.MaxScoreboardHistoryLimit)
+	limit := httputil.ClampLimit(params.Limit, defaultScoreboardHistoryLimit, competition.MaxScoreboardHistoryLimit)
 	stats, err := h.comp.StatsUC.GetScoreboardHistory(r.Context(), limit, forceLive)
 	if h.OnError(w, r, err, "GetStatisticsScoreboard", "GetScoreboardHistory") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromScoreboardHistoryList(stats))
+	httputil.RenderOK(w, r, response.FromScoreboardHistoryList(stats))
 }
 
 // Get challenge solve percentages
@@ -78,7 +79,7 @@ func (h *Server) GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter,
 	if h.OnError(w, r, err, "GetStatisticsChallengesSolvesPercentages", "GetChallengeSolvePercentages") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromChallengeSolvePercentages(data))
+	httputil.RenderOK(w, r, response.FromChallengeSolvePercentages(data))
 }
 
 // Get score distribution
@@ -89,7 +90,7 @@ func (h *Server) GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.
 	if h.OnError(w, r, err, "GetStatisticsScoresDistribution", "GetScoreDistribution") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromScoreDistribution(data))
+	httputil.RenderOK(w, r, response.FromScoreDistribution(data))
 }
 
 // Get submission time series
@@ -100,14 +101,14 @@ func (h *Server) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request
 	if h.OnError(w, r, err, "GetStatisticsSubmissions", "GetSubmissionTimeSeries") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromSubmissionTimeSeries(data))
+	httputil.RenderOK(w, r, response.FromSubmissionTimeSeries(data))
 }
 
 // Get submission time series by type
 // (GET /statistics/submissions/{type})
 func (h *Server) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType openapi.GetStatisticsSubmissionsTypeParamsType, params openapi.GetStatisticsSubmissionsTypeParams) {
 	if pType != openapi.Correct && pType != openapi.Incorrect {
-		h.OnError(w, r, helper.NewValidationErrorf("type must be 'correct' or 'incorrect'"), "GetStatisticsSubmissionsType", "Type")
+		h.OnError(w, r, httperr.NewValidationErrorf("type must be 'correct' or 'incorrect'"), "GetStatisticsSubmissionsType", "Type")
 		return
 	}
 	forceLive := forceLiveFromParams(r, params.Live)
@@ -116,7 +117,7 @@ func (h *Server) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Req
 	if h.OnError(w, r, err, "GetStatisticsSubmissionsType", "GetSubmissionTimeSeriesByType") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
+	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
 // Get team registration statistics
@@ -126,7 +127,7 @@ func (h *Server) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetStatisticsTeams", "GetTeamRegistrationTimeSeries") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
+	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
 // Get user registration statistics
@@ -136,19 +137,19 @@ func (h *Server) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetStatisticsUsers", "GetUserRegistrationTimeSeries") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
+	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
 // Get scoreboard graph
 // (GET /scoreboard/graph)
 func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params openapi.GetScoreboardGraphParams) {
 	forceLive := forceLiveFromParams(r, params.Live)
-	topN := helper.ClampLimit(params.Top, defaultScoreboardHistoryLimit, competition.MaxScoreboardHistoryLimit)
+	topN := httputil.ClampLimit(params.Top, defaultScoreboardHistoryLimit, competition.MaxScoreboardHistoryLimit)
 	graph, err := h.comp.StatsUC.GetScoreboardGraph(r.Context(), topN, forceLive)
 	if h.OnError(w, r, err, "GetScoreboardGraph", "GetScoreboardGraph") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromScoreboardGraph(graph))
+	httputil.RenderOK(w, r, response.FromScoreboardGraph(graph))
 }
 
 // Get solve matrix (admin)
@@ -159,5 +160,5 @@ func (h *Server) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Re
 	if h.OnError(w, r, err, "GetAdminStatisticsSolveMatrix", "GetSolveMatrix") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromSolveMatrixList(matrix))
+	httputil.RenderOK(w, r, response.FromSolveMatrixList(matrix))
 }

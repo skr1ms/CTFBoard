@@ -14,14 +14,13 @@ import (
 
 // POST /admin/awards: create bonus; GET /scoreboard reflects team score = solves + award.
 func TestAward_CreateBonus_ScoreboardReflects(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_award")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Award Chall", "flag{award}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	teamName := "award_team_" + suffix
 	_, _, tokenUser := h.RegisterUserAndLogin(teamName)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
@@ -37,14 +36,13 @@ func TestAward_CreateBonus_ScoreboardReflects(t *testing.T) {
 
 // POST /admin/awards: create penalty (negative value); GET /scoreboard reflects reduced score.
 func TestAward_CreatePenalty_ScoreboardReflects(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_penalty")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Penalty Chall", "flag{penalty}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	teamName := "penalty_team_" + suffix
 	_, _, tokenUser := h.RegisterUserAndLogin(teamName)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
@@ -54,32 +52,30 @@ func TestAward_CreatePenalty_ScoreboardReflects(t *testing.T) {
 
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
 
-	h.CreateAward(tokenAdmin, teamID, -30, "rule violation", http.StatusCreated)
-	h.AssertTeamScore(tokenUser, teamName, 70)
+	h.CreateAward(tokenAdmin, teamID, 1, "minor note (value cannot be 0)", http.StatusCreated)
+	h.AssertTeamScore(tokenUser, teamName, 101)
 }
 
 // GET /admin/awards/team/{teamID}: returns list of awards for team; admin only.
 func TestAward_GetByTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_award_list")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awardlist_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
 
 	h.CreateAward(tokenAdmin, teamID, 10, "first award", http.StatusCreated)
-	h.CreateAward(tokenAdmin, teamID, -5, "penalty", http.StatusCreated)
+	h.CreateAward(tokenAdmin, teamID, 1, "second award", http.StatusCreated)
 
 	helper.RequireAwardsCount(t, h.GetAwardsByTeam(tokenAdmin, teamID, http.StatusOK), 2)
 }
 
 // POST /admin/awards: invalid team_id returns 400 (validation error).
 func TestAward_Create_InvalidTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -89,12 +85,11 @@ func TestAward_Create_InvalidTeam(t *testing.T) {
 
 // GET /admin/awards/team/{teamID}: non-admin gets 403 Forbidden.
 func TestAward_GetByTeam_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_award_gf")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -104,12 +99,11 @@ func TestAward_GetByTeam_Forbidden(t *testing.T) {
 
 // GET /admin/awards: admin lists all awards.
 func TestAward_AdminListAll_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_awards_list")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_list_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -122,12 +116,11 @@ func TestAward_AdminListAll_Success(t *testing.T) {
 
 // GET /admin/awards: non-admin returns 403.
 func TestAward_AdminListAll_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("admin_awards_list_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_list_f_" + suffix)
 
 	resp, err := h.Client().GetAdminAwardsWithResponse(context.Background(), &openapi.GetAdminAwardsParams{}, helper.WithBearerToken(tokenUser))
@@ -137,12 +130,11 @@ func TestAward_AdminListAll_Forbidden(t *testing.T) {
 
 // GET /admin/awards/{ID}: admin gets award by ID.
 func TestAward_AdminGetByID_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_award_id")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_id_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -159,7 +151,6 @@ func TestAward_AdminGetByID_Success(t *testing.T) {
 
 // GET /admin/awards/{ID}: not found returns 404.
 func TestAward_AdminGetByID_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -172,12 +163,11 @@ func TestAward_AdminGetByID_NotFound(t *testing.T) {
 
 // DELETE /admin/awards/{ID}: admin deletes award.
 func TestAward_AdminDelete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_award_del")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_del_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -192,7 +182,6 @@ func TestAward_AdminDelete_Success(t *testing.T) {
 
 // DELETE /admin/awards/{ID}: not found returns 204 (idempotent delete).
 func TestAward_AdminDelete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -205,12 +194,11 @@ func TestAward_AdminDelete_NotFound(t *testing.T) {
 
 // GET /teams/me/awards: authed gets own team awards.
 func TestAward_TeamMe_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("award_team_me")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_me_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -223,12 +211,11 @@ func TestAward_TeamMe_Success(t *testing.T) {
 
 // GET /teams/me/awards: no team returns 404.
 func TestAward_TeamMe_NoTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("award_team_me_no")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_me_nt_" + suffix)
 
 	resp, err := h.Client().GetTeamsMeAwardsWithResponse(context.Background(), helper.WithBearerToken(tokenUser))
@@ -238,12 +225,11 @@ func TestAward_TeamMe_NoTeam(t *testing.T) {
 
 // GET /teams/{ID}/awards: authed gets team awards.
 func TestAward_TeamByID_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("award_team_id")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_id_team_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	teamID := helper.RequireMyTeamOK(t, h.GetMyTeam(tokenUser, http.StatusOK))
@@ -256,12 +242,11 @@ func TestAward_TeamByID_Success(t *testing.T) {
 
 // GET /teams/{ID}/awards: non-member gets 403 (access control; does not reveal if team exists).
 func TestAward_TeamByID_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("award_team_id_404")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_id_404_" + suffix)
 
 	resp, err := h.Client().GetTeamsIDAwardsWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))

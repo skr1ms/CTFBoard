@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -27,7 +27,7 @@ func NewFieldUseCase(deps FieldDeps) *FieldUseCase {
 	return &FieldUseCase{deps: deps}
 }
 
-func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType entity.EntityType) ([]*entity.Field, error) {
+func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType domain.EntityType) ([]*domain.Field, error) {
 	list, err := uc.deps.FieldRepo.GetByEntityType(ctx, entityType)
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetByEntityType - FieldRepo.GetByEntityType: %w", err)
@@ -35,12 +35,12 @@ func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType entity.E
 	return list, nil
 }
 
-func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entity.FieldType, entityType entity.EntityType, required bool, options []string, orderIndex int) (*entity.Field, error) {
+func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) (*domain.Field, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, httperr.NewValidationErrorf("name is required")
 	}
-	field := &entity.Field{
+	field := &domain.Field{
 		ID:         uuid.New(),
 		Name:       name,
 		FieldType:  fieldType,
@@ -55,7 +55,7 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType entit
 	return field, nil
 }
 
-func (uc *FieldUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Field, error) {
+func (uc *FieldUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Field, error) {
 	field, err := uc.deps.FieldRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetByID - FieldRepo.GetByID: %w", err)
@@ -63,7 +63,7 @@ func (uc *FieldUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Fiel
 	return field, nil
 }
 
-func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*entity.Field, error) {
+func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*domain.Field, error) {
 	list, err := uc.deps.FieldRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetAll - FieldRepo.GetAll: %w", err)
@@ -71,7 +71,7 @@ func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*entity.Field, error) {
 	return list, nil
 }
 
-func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, fieldType entity.FieldType, required bool, options []string, orderIndex int) (*entity.Field, error) {
+func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, fieldType domain.FieldType, required bool, options []string, orderIndex int) (*domain.Field, error) {
 	field, err := uc.deps.FieldRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.GetByID: %w", err)

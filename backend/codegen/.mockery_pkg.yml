@@ -9,7 +9,7 @@ packages:
     interfaces:
       Mailer:
         config:
-          dir: "pkg/mailer/mocks"
+          dir: "pkg/mailer/mock"
           filename: "Mailer.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockMailer"

@@ -14,32 +14,31 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type fakeKeyValueStore struct {
 	mu    sync.Mutex
-	store map[string]string
+	store map[string][]byte
 }
 
-func (f *fakeKeyValueStore) Get(ctx context.Context, key string) (string, error) {
+func (f *fakeKeyValueStore) Get(ctx context.Context, key string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if v, ok := f.store[key]; ok {
 		return v, nil
 	}
-	return "", nil
+	return nil, errors.New("key not found")
 }
 
 func (f *fakeKeyValueStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.store == nil {
-		f.store = make(map[string]string)
+		f.store = make(map[string][]byte)
 	}
-	f.store[key] = string(value)
+	f.store[key] = value
 	return nil
 }
 
@@ -52,14 +51,39 @@ func (f *fakeKeyValueStore) Del(ctx context.Context, keys ...string) error {
 	return nil
 }
 
+type fakePubSubStore struct {
+	subscribeCh  <-chan string
+	subscribeErr error
+	publishErr   error
+	publishCalls []struct{ Channel, Message string }
+	mu           sync.Mutex
+}
+
+func (f *fakePubSubStore) Subscribe(_ context.Context, _ string) (<-chan string, error) {
+	if f.subscribeErr != nil {
+		return nil, f.subscribeErr
+	}
+	if f.subscribeCh != nil {
+		return f.subscribeCh, nil
+	}
+	return make(chan string), nil
+}
+
+func (f *fakePubSubStore) Publish(_ context.Context, channel, message string) error {
+	f.mu.Lock()
+	f.publishCalls = append(f.publishCalls, struct{ Channel, Message string }{channel, message})
+	f.mu.Unlock()
+	return f.publishErr
+}
+
 func TestCompetitionParamUseCase_Get_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "k"
-	p := newTestCompetitionParam(key, "v", "desc", entity.CompetitionParamTypeString)
+	p := newTestCompetitionParam(key, "v", "desc", domain.CompetitionParamTypeString)
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{p}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{p}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got, err := uc.Get(ctx, key)
@@ -89,7 +113,7 @@ func TestCompetitionParamUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.CompetitionParam{newTestCompetitionParam("k1", "v1", "", entity.CompetitionParamTypeString)}
+	list := []*domain.CompetitionParam{newTestCompetitionParam("k1", "v1", "", domain.CompetitionParamTypeString)}
 
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
@@ -98,8 +122,8 @@ func TestCompetitionParamUseCase_GetAll_Success(t *testing.T) {
 	got, err := uc.GetAll(ctx)
 
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, len(got), len(entity.ConfigRegistry))
-	var k1 *entity.CompetitionParam
+	assert.GreaterOrEqual(t, len(got), domain.ConfigRegistryCount())
+	var k1 *domain.CompetitionParam
 	for _, p := range got {
 		if p.Key == "k1" {
 			k1 = p
@@ -129,11 +153,11 @@ func TestCompetitionParamUseCase_Set_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key, value, desc := "k", "v", "d"
-	valueType := entity.CompetitionParamTypeString
+	valueType := domain.CompetitionParamTypeString
 	actorID := uuid.New()
 	clientIP := "127.0.0.1"
 
-	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *entity.CompetitionParam) {
+	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *domain.CompetitionParam) {
 		assert.Equal(t, key, p.Key)
 		assert.Equal(t, value, p.Value)
 		assert.Equal(t, valueType, p.ValueType)
@@ -141,7 +165,7 @@ func TestCompetitionParamUseCase_Set_Success(t *testing.T) {
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, desc, valueType, actorID, clientIP)
+	err := uc.Set(ctx, key, value, desc, valueType, "", actorID, clientIP)
 
 	assert.NoError(t, err)
 }
@@ -156,7 +180,7 @@ func TestCompetitionParamUseCase_Set_Error(t *testing.T) {
 	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, "", entity.CompetitionParamTypeString, actorID, "")
+	err := uc.Set(ctx, key, value, "", domain.CompetitionParamTypeString, "", actorID, "")
 
 	assert.Error(t, err)
 }
@@ -166,7 +190,7 @@ func TestCompetitionParamUseCase_Delete_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "k"
-	p := newTestCompetitionParam(key, "v", "", entity.CompetitionParamTypeString)
+	p := newTestCompetitionParam(key, "v", "", domain.CompetitionParamTypeString)
 	actorID := uuid.New()
 	clientIP := "127.0.0.1"
 
@@ -200,9 +224,9 @@ func TestCompetitionParamUseCase_GetString_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "k"
-	p := newTestCompetitionParam(key, "val", "", entity.CompetitionParamTypeString)
+	p := newTestCompetitionParam(key, "val", "", domain.CompetitionParamTypeString)
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{p}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{p}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetString(ctx, key, "default")
@@ -217,7 +241,7 @@ func TestCompetitionParamUseCase_GetString_Error(t *testing.T) {
 	key := "missing"
 	defaultVal := "def"
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
 	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
@@ -231,9 +255,9 @@ func TestCompetitionParamUseCase_GetInt_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "k"
-	p := newTestCompetitionParam(key, "42", "", entity.CompetitionParamTypeInt)
+	p := newTestCompetitionParam(key, "42", "", domain.CompetitionParamTypeInt)
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{p}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{p}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetInt(ctx, key, 0)
@@ -248,7 +272,7 @@ func TestCompetitionParamUseCase_GetInt_Error(t *testing.T) {
 	key := "missing"
 	defaultVal := 10
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
 	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
@@ -262,9 +286,9 @@ func TestCompetitionParamUseCase_GetBool_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "k"
-	p := newTestCompetitionParam(key, "true", "", entity.CompetitionParamTypeBool)
+	p := newTestCompetitionParam(key, "true", "", domain.CompetitionParamTypeBool)
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{p}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{p}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetBool(ctx, key, false)
@@ -278,7 +302,7 @@ func TestCompetitionParamUseCase_GetBool_Error(t *testing.T) {
 	ctx := context.Background()
 	key := "missing"
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
 	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
@@ -291,15 +315,12 @@ func TestCompetitionParamUseCase_GetByCategory_ReturnsOnlyCategoryTheme(t *testi
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
-	generalParam := newTestCompetitionParam("ctf_name", "v", "", entity.CompetitionParamTypeString)
-	generalParam.Category = "general"
-	theme1 := newTestCompetitionParam("theme_color_primary", "#fff", "", entity.CompetitionParamTypeString)
+	theme1 := newTestCompetitionParam("theme_color_primary", "#fff", "", domain.CompetitionParamTypeString)
 	theme1.Category = "theme"
-	theme2 := newTestCompetitionParam("theme_dark_mode", "true", "", entity.CompetitionParamTypeBool)
+	theme2 := newTestCompetitionParam("theme_dark_mode", "true", "", domain.CompetitionParamTypeBool)
 	theme2.Category = "theme"
-	all := []*entity.CompetitionParam{generalParam, theme1, theme2}
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return(all, nil)
+	d.configRepo.EXPECT().GetByCategory(mock.Anything, "theme").Return([]*domain.CompetitionParam{theme1, theme2}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got, err := uc.GetByCategory(ctx, "theme")
@@ -322,15 +343,15 @@ func TestCompetitionParamUseCase_GetByCategory_InvalidCategory_ReturnsError(t *t
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	var he *httperr.HTTPError
-	assert.True(t, assert.ErrorAs(t, err, &he) && he.Code == "VALIDATION_ERROR")
+	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
 }
 
 func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
-	params := []*entity.CompetitionParam{
-		{Key: "k", Value: "v", ValueType: entity.CompetitionParamTypeString, Category: "invalid"},
+	params := []*domain.CompetitionParam{
+		{Key: "k", Value: "v", ValueType: domain.CompetitionParamTypeString, Category: "invalid"},
 	}
 	actorID := uuid.New()
 
@@ -339,7 +360,7 @@ func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testin
 
 	assert.Error(t, err)
 	var he *httperr.HTTPError
-	assert.True(t, assert.ErrorAs(t, err, &he) && he.Code == "VALIDATION_ERROR")
+	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
 }
 
 func TestCompetitionParamUseCase_GetAfterSet_ReturnsValue(t *testing.T) {
@@ -348,14 +369,14 @@ func TestCompetitionParamUseCase_GetAfterSet_ReturnsValue(t *testing.T) {
 	ctx := context.Background()
 	key, value := "my_key", "my_value"
 	actorID := uuid.New()
-	afterSet := newTestCompetitionParam(key, value, "desc", entity.CompetitionParamTypeString)
+	afterSet := newTestCompetitionParam(key, value, "desc", domain.CompetitionParamTypeString)
 
 	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{afterSet}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{afterSet}, nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, "desc", entity.CompetitionParamTypeString, actorID, "")
+	err := uc.Set(ctx, key, value, "desc", domain.CompetitionParamTypeString, "", actorID, "")
 	assert.NoError(t, err)
 	got, err := uc.Get(ctx, key)
 	assert.NoError(t, err)
@@ -369,28 +390,29 @@ func TestCompetitionParamUseCase_GetAll_IncludesDefaults(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
 
 	uc := d.createCompetitionParamUseCase()
 	got, err := uc.GetAll(ctx)
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, len(got), len(entity.ConfigRegistry))
+	assert.GreaterOrEqual(t, len(got), domain.ConfigRegistryCount())
 	seen := make(map[string]struct{})
 	for _, p := range got {
 		seen[p.Key] = struct{}{}
 	}
-	for k := range entity.ConfigRegistry {
+	domain.RangeConfigRegistry(func(k string, _ domain.ConfigDef) bool {
 		assert.Contains(t, seen, k, "GetAll should include registry key %q", k)
-	}
+		return true
+	})
 }
 
 func TestCompetitionParamUseCase_SetBatch_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
-	params := []*entity.CompetitionParam{
-		{Key: "ctf_name", Value: "MyCTF", ValueType: entity.CompetitionParamTypeString, Category: "general"},
-		{Key: "theme_color_primary", Value: "#ff0000", ValueType: entity.CompetitionParamTypeString, Category: "theme"},
+	params := []*domain.CompetitionParam{
+		{Key: "ctf_name", Value: "MyCTF", ValueType: domain.CompetitionParamTypeString, Category: "general"},
+		{Key: "theme_color_primary", Value: "#ff0000", ValueType: domain.CompetitionParamTypeString, Category: "theme"},
 	}
 	actorID := uuid.New()
 
@@ -407,17 +429,16 @@ func TestCompetitionParamUseCase_Get_WhenCacheHit_ReturnsFromRedis(t *testing.T)
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "ctf_name"
-	cached := []*entity.CompetitionParam{
-		{Key: key, Value: "FromRedis", ValueType: entity.CompetitionParamTypeString, Category: "general"},
+	cached := []*domain.CompetitionParam{
+		{Key: key, Value: "FromRedis", ValueType: domain.CompetitionParamTypeString, Category: "general"},
 	}
 	payload, err := json.Marshal(cached)
 	require.NoError(t, err)
-	kv := &fakeKeyValueStore{store: map[string]string{configsCacheKey: string(payload)}}
+	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: payload}}
 	ch := make(chan string, 1)
 	ch <- "1"
 	close(ch)
-	pubsub := mocks.NewMockPubSubStore(t)
-	pubsub.EXPECT().Subscribe(mock.Anything, configsInvChannel).Return((<-chan string)(ch), nil).Maybe()
+	pubsub := &fakePubSubStore{subscribeCh: ch}
 
 	uc := d.createCompetitionParamUseCaseWithCache(kv, pubsub)
 	got, err := uc.Get(ctx, key)
@@ -438,17 +459,18 @@ func TestCompetitionParamUseCase_Set_CallsCacheDelAndPubSubPublish(t *testing.T)
 
 	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-	kv := &fakeKeyValueStore{store: map[string]string{configsCacheKey: "stale"}}
-	pubsub := mocks.NewMockPubSubStore(t)
-	pubsub.EXPECT().Subscribe(mock.Anything, configsInvChannel).Return((<-chan string)(make(chan string)), nil).Maybe()
-	pubsub.EXPECT().Publish(mock.Anything, configsInvChannel, "1").Return(nil).Once()
+	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: []byte("stale")}}
+	pubsub := &fakePubSubStore{}
 
 	uc := d.createCompetitionParamUseCaseWithCache(kv, pubsub)
-	err := uc.Set(ctx, key, value, "", entity.CompetitionParamTypeString, actorID, "")
+	err := uc.Set(ctx, key, value, "", domain.CompetitionParamTypeString, "", actorID, "")
 
 	assert.NoError(t, err)
 	_, ok := kv.store[configsCacheKey]
 	assert.False(t, ok, "invalidate should have deleted configs cache key")
+	require.Len(t, pubsub.publishCalls, 1)
+	assert.Equal(t, configsInvChannel, pubsub.publishCalls[0].Channel)
+	assert.Equal(t, "1", pubsub.publishCalls[0].Message)
 }
 
 func TestCompetitionParamUseCase_Get_WhenRedisReturnsInvalidJSON_FallsBackToDB(t *testing.T) {
@@ -456,14 +478,13 @@ func TestCompetitionParamUseCase_Get_WhenRedisReturnsInvalidJSON_FallsBackToDB(t
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "ctf_name"
-	fromDB := newTestCompetitionParam(key, "FromDB", "", entity.CompetitionParamTypeString)
+	fromDB := newTestCompetitionParam(key, "FromDB", "", domain.CompetitionParamTypeString)
 	fromDB.Category = "general"
 
-	kv := &fakeKeyValueStore{store: map[string]string{configsCacheKey: "not-valid-json"}}
-	pubsub := mocks.NewMockPubSubStore(t)
-	pubsub.EXPECT().Subscribe(mock.Anything, configsInvChannel).Return((<-chan string)(make(chan string)), nil).Maybe()
+	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: []byte("not-valid-json")}}
+	pubsub := &fakePubSubStore{}
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{fromDB}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{fromDB}, nil)
 
 	uc := d.createCompetitionParamUseCaseWithCache(kv, pubsub)
 	got, err := uc.Get(ctx, key)
@@ -482,7 +503,7 @@ func TestCompetitionParamUseCase_Set_JSONValueType_InvalidReturnsError(t *testin
 	actorID := uuid.New()
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, "not valid json", "", entity.CompetitionParamTypeJSON, actorID, "")
+	err := uc.Set(ctx, key, "not valid json", "", domain.CompetitionParamTypeJSON, "", actorID, "")
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, httperr.ErrCompetitionParamInvalidValueType) ||
@@ -500,7 +521,7 @@ func TestCompetitionParamUseCase_Set_JSONValueType_ValidSucceeds(t *testing.T) {
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, `{"a":1}`, "", entity.CompetitionParamTypeJSON, actorID, "")
+	err := uc.Set(ctx, key, `{"a":1}`, "", domain.CompetitionParamTypeJSON, "", actorID, "")
 
 	assert.NoError(t, err)
 }
@@ -510,13 +531,12 @@ func TestCompetitionParamUseCase_Get_WhenPubSubSubscribeFails_StillLoadsFromDB(t
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	key := "ctf_name"
-	fromDB := newTestCompetitionParam(key, "FromDB", "", entity.CompetitionParamTypeString)
+	fromDB := newTestCompetitionParam(key, "FromDB", "", domain.CompetitionParamTypeString)
 	fromDB.Category = "general"
 
-	pubsub := mocks.NewMockPubSubStore(t)
-	pubsub.EXPECT().Subscribe(mock.Anything, configsInvChannel).Return((<-chan string)(nil), assert.AnError).Maybe()
+	pubsub := &fakePubSubStore{subscribeErr: assert.AnError}
 
-	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.CompetitionParam{fromDB}, nil)
+	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{fromDB}, nil)
 
 	uc := d.createCompetitionParamUseCaseWithCache(nil, pubsub)
 	got, err := uc.Get(ctx, key)

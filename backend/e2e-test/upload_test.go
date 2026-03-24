@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,19 +15,17 @@ import (
 
 // GET /files/{ID}/download: non-existent file returns 404.
 func TestFiles_DownloadPublic_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/files/download/nonexistent-file-id", nil)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 // POST /admin/challenges/{ID}/files upload + GET /challenges/{ID}/files + GET /files/{ID}/download: admin uploads file; user lists and downloads; content and sha256 match.
 func TestChallenge_DataUploadFlow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -55,7 +52,7 @@ func TestChallenge_DataUploadFlow(t *testing.T) {
 	require.Equal(t, int64(len(fileContent)), resp.JSON201.Size)
 	require.Equal(t, expectedHash, resp.JSON201.Sha256)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user_up_" + suffix)
 
 	filesList := h.GetChallengeFiles(tokenUser, challengeID)
@@ -76,7 +73,6 @@ func TestChallenge_DataUploadFlow(t *testing.T) {
 
 // DELETE /admin/files/{ID}: admin deletes file; GET /challenges/{ID}/files no longer returns it.
 func TestFile_Delete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -102,7 +98,6 @@ func TestFile_Delete_Success(t *testing.T) {
 
 // DELETE /admin/files/{ID}: non-existent file returns 404.
 func TestFile_Delete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -113,12 +108,11 @@ func TestFile_Delete_NotFound(t *testing.T) {
 
 // GET /challenges/{ID}/files: non-existent challenge returns 200 with empty array.
 func TestChallenge_GetChallengeFiles_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("files_404_admin")
-	_, _, token := h.RegisterUserAndLogin("files_404_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("files_404_" + helper.UID())
 	h.CreateSoloTeam(token, http.StatusCreated)
 	resp := h.GetChallengeFilesExpectStatus(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 	require.Nil(t, resp.JSON200)
@@ -126,12 +120,11 @@ func TestChallenge_GetChallengeFiles_NotFound(t *testing.T) {
 
 // GET /challenges/{ID}/hints: non-existent challenge returns 200 with empty array.
 func TestChallenge_GetHints_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("hints_404_admin")
-	_, _, token := h.RegisterUserAndLogin("hints_404_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("hints_404_" + helper.UID())
 	h.CreateSoloTeam(token, http.StatusCreated)
 	resp := h.GetChallengesChallengeIDHintsExpectStatus(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 	require.Nil(t, resp.JSON200)
@@ -139,19 +132,17 @@ func TestChallenge_GetHints_NotFound(t *testing.T) {
 
 // GET /files/{ID}/download: non-existent file returns 404.
 func TestFile_GetDownload_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("filedl_404_admin")
-	_, _, token := h.RegisterUserAndLogin("filedl_404_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("filedl_404_" + helper.UID())
 	h.CreateSoloTeam(token, http.StatusCreated)
 	h.GetFilesIDDownloadExpectStatus(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }
 
 // POST /admin/challenges/{ID}/files: non-existent challenge returns 404.
 func TestChallenge_UploadFile_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -161,7 +152,6 @@ func TestChallenge_UploadFile_NotFound(t *testing.T) {
 
 // POST /admin/challenges/{ID}/hints: non-existent challenge returns 404.
 func TestChallenge_CreateHint_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

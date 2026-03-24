@@ -12,21 +12,21 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 )
 
-func newSub() *entity.Submission {
-	return &entity.Submission{ID: uuid.New(), SubmittedFlag: "flag{test}"}
+func newSub() *domain.Submission {
+	return &domain.Submission{ID: uuid.New(), SubmittedFlag: "flag{test}"}
 }
 
 func TestSubmissionBatcher_Enqueue_FlushOnTicker(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 
-	flushed := make(chan []*entity.Submission, 1)
+	flushed := make(chan []*domain.Submission, 1)
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, subs []*entity.Submission) error {
+		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			flushed <- subs
 			return nil
 		})
@@ -46,14 +46,14 @@ func TestSubmissionBatcher_Enqueue_FlushOnTicker(t *testing.T) {
 
 func TestSubmissionBatcher_Enqueue_BatchSizeTriggersFlush(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 
 	var mu sync.Mutex
-	var received []*entity.Submission
+	var received []*domain.Submission
 	done := make(chan struct{})
 
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, subs []*entity.Submission) error {
+		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			mu.Lock()
 			received = append(received, subs...)
 			if len(received) >= defaultBatchSize {
@@ -85,7 +85,7 @@ func TestSubmissionBatcher_Enqueue_BatchSizeTriggersFlush(t *testing.T) {
 
 func TestSubmissionBatcher_EnqueueAfterStop_Drops(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 	// expect optional flush of anything queued before Stop
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -99,13 +99,13 @@ func TestSubmissionBatcher_EnqueueAfterStop_Drops(t *testing.T) {
 
 func TestSubmissionBatcher_GracefulShutdown_DrainsRemaining(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 
 	var mu sync.Mutex
 	var totalFlushed int
 
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, subs []*entity.Submission) error {
+		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			mu.Lock()
 			totalFlushed += len(subs)
 			mu.Unlock()
@@ -128,14 +128,14 @@ func TestSubmissionBatcher_GracefulShutdown_DrainsRemaining(t *testing.T) {
 
 func TestSubmissionBatcher_CreateBatch_ErrorFallsBackToIndividual(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 
 	batchErr := errors.New("batch insert failed")
 	individualDone := make(chan struct{}, 1)
 
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).Return(batchErr).Once()
 	repo.EXPECT().Create(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, _ *entity.Submission) error {
+		RunAndReturn(func(_ context.Context, _ *domain.Submission) error {
 			select {
 			case individualDone <- struct{}{}:
 			default:
@@ -158,7 +158,7 @@ func TestSubmissionBatcher_CreateBatch_ErrorFallsBackToIndividual(t *testing.T) 
 
 func TestSubmissionBatcher_ConcurrentEnqueue_NoRace(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).Return(nil).Maybe()
 	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -183,11 +183,11 @@ func TestSubmissionBatcher_ConcurrentEnqueue_NoRace(t *testing.T) {
 
 func TestSubmissionBatcher_ChannelFull_SyncWrite(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSubmissionRepository(t)
+	repo := compMock.NewMockSubmissionRepository(t)
 
 	blocked := make(chan struct{})
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
-		RunAndReturn(func(_ context.Context, _ []*entity.Submission) error {
+		RunAndReturn(func(_ context.Context, _ []*domain.Submission) error {
 			<-blocked
 			return nil
 		}).Maybe()

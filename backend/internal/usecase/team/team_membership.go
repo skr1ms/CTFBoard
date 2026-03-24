@@ -7,16 +7,16 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
+func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*domain.Team, error) {
 	_, err := uc.deps.Guard.RequireTeamSwitch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - Join - Guard.RequireTeamSwitch: %w", err)
 	}
-	var team *entity.Team
+	var team *domain.Team
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err2 error
 		team, err2 = uc.joinTx(ctx, inviteToken, userID, confirmReset)
@@ -33,7 +33,7 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, 
 	return team, nil
 }
 
-func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*entity.Team, error) {
+func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*domain.Team, error) {
 	team, user, err := uc.joinTxPrepare(ctx, inviteToken, userID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - joinTx - joinTxPrepare: %w", err)
@@ -92,14 +92,14 @@ func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, &team.ID); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{TeamID: team.ID, UserID: &userID, Action: entity.TeamActionJoined}
+	auditLog := &domain.TeamAuditLog{TeamID: team.ID, UserID: &userID, Action: domain.TeamActionJoined}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - joinTx - TeamRepo.CreateAuditLog: %w", err)
 	}
 	return team, nil
 }
 
-func (uc *TeamUseCase) joinTxPrepare(ctx context.Context, inviteToken, userID uuid.UUID) (*entity.Team, *entity.User, error) {
+func (uc *TeamUseCase) joinTxPrepare(ctx context.Context, inviteToken, userID uuid.UUID) (*domain.Team, *domain.User, error) {
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - CompetitionRepo.Get: %w", err)
@@ -180,7 +180,7 @@ func (uc *TeamUseCase) leaveTx(ctx context.Context, userID uuid.UUID) error {
 	return uc.leaveExecute(ctx, userID, team)
 }
 
-func (uc *TeamUseCase) leavePrepare(ctx context.Context, userID uuid.UUID) (*entity.User, *entity.Team, []*entity.User, error) {
+func (uc *TeamUseCase) leavePrepare(ctx context.Context, userID uuid.UUID) (*domain.User, *domain.Team, []*domain.User, error) {
 	if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
 		return nil, nil, nil, fmt.Errorf("TeamUseCase - leavePrepare - UserRepo.Lock: %w", err)
 	}
@@ -205,11 +205,11 @@ func (uc *TeamUseCase) leavePrepare(ctx context.Context, userID uuid.UUID) (*ent
 	return user, team, members, nil
 }
 
-func (uc *TeamUseCase) leaveValidate(user *entity.User, team *entity.Team, members []*entity.User, comp *entity.Competition) error {
+func (uc *TeamUseCase) leaveValidate(user *domain.User, team *domain.Team, members []*domain.User, comp *domain.Competition) error {
 	if user.IsBanned {
 		return httperr.ErrUserBanned
 	}
-	if team.IsSolo && comp.Mode == entity.ModeSoloOnly {
+	if team.IsSolo && comp.Mode == domain.ModeSoloOnly {
 		return httperr.ErrCannotLeaveSoloTeam
 	}
 	if len(members) == 1 {
@@ -228,11 +228,11 @@ func (uc *TeamUseCase) leaveValidate(user *entity.User, team *entity.Team, membe
 	return nil
 }
 
-func (uc *TeamUseCase) leaveExecute(ctx context.Context, userID uuid.UUID, team *entity.Team) error {
+func (uc *TeamUseCase) leaveExecute(ctx context.Context, userID uuid.UUID, team *domain.Team) error {
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, nil); err != nil {
 		return fmt.Errorf("TeamUseCase - leaveExecute - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{TeamID: team.ID, UserID: &userID, Action: entity.TeamActionLeft}
+	auditLog := &domain.TeamAuditLog{TeamID: team.ID, UserID: &userID, Action: domain.TeamActionLeft}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		return fmt.Errorf("TeamUseCase - leaveExecute - TeamRepo.CreateAuditLog: %w", err)
 	}
@@ -279,7 +279,7 @@ func (uc *TeamUseCase) transferCaptainTx(ctx context.Context, captainID, newCapt
 	return team.ID, uc.transferCaptainExecute(ctx, captainID, newCaptainID, team)
 }
 
-func (uc *TeamUseCase) transferCaptainPrepare(ctx context.Context, captainID, newCaptainID uuid.UUID) (*entity.User, *entity.Team, *entity.User, error) {
+func (uc *TeamUseCase) transferCaptainPrepare(ctx context.Context, captainID, newCaptainID uuid.UUID) (*domain.User, *domain.Team, *domain.User, error) {
 	firstID, secondID := captainID, newCaptainID
 	if captainID.String() > newCaptainID.String() {
 		firstID, secondID = newCaptainID, captainID
@@ -311,7 +311,7 @@ func (uc *TeamUseCase) transferCaptainPrepare(ctx context.Context, captainID, ne
 	return captain, team, newCaptain, nil
 }
 
-func (uc *TeamUseCase) transferCaptainValidate(captain *entity.User, team *entity.Team, newCaptain *entity.User, captainID uuid.UUID) error {
+func (uc *TeamUseCase) transferCaptainValidate(captain *domain.User, team *domain.Team, newCaptain *domain.User, captainID uuid.UUID) error {
 	if team.CaptainID != captainID {
 		return httperr.ErrNotCaptain
 	}
@@ -330,12 +330,12 @@ func (uc *TeamUseCase) transferCaptainValidate(captain *entity.User, team *entit
 	return nil
 }
 
-func (uc *TeamUseCase) transferCaptainExecute(ctx context.Context, captainID, newCaptainID uuid.UUID, team *entity.Team) error {
+func (uc *TeamUseCase) transferCaptainExecute(ctx context.Context, captainID, newCaptainID uuid.UUID, team *domain.Team) error {
 	if err := uc.deps.TeamRepo.UpdateCaptain(ctx, team.ID, newCaptainID); err != nil {
 		return fmt.Errorf("TeamUseCase - transferCaptainExecute - TeamRepo.UpdateCaptain: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{
-		TeamID: team.ID, UserID: &captainID, Action: entity.TeamActionCaptainTransfer,
+	auditLog := &domain.TeamAuditLog{
+		TeamID: team.ID, UserID: &captainID, Action: domain.TeamActionCaptainTransfer,
 		Details: map[string]any{"from": captainID.String(), "to": newCaptainID.String()},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -382,7 +382,7 @@ func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) err
 	return nil
 }
 
-func (uc *TeamUseCase) disbandPrepare(ctx context.Context, captainID uuid.UUID) (*entity.User, *entity.Team, []*entity.User, error) {
+func (uc *TeamUseCase) disbandPrepare(ctx context.Context, captainID uuid.UUID) (*domain.User, *domain.Team, []*domain.User, error) {
 	if err := uc.deps.UserRepo.Lock(ctx, captainID); err != nil {
 		return nil, nil, nil, fmt.Errorf("TeamUseCase - disbandPrepare - UserRepo.Lock: %w", err)
 	}
@@ -407,11 +407,11 @@ func (uc *TeamUseCase) disbandPrepare(ctx context.Context, captainID uuid.UUID) 
 	return user, team, members, nil
 }
 
-func (uc *TeamUseCase) disbandValidate(user *entity.User, team *entity.Team, captainID uuid.UUID, comp *entity.Competition) error {
+func (uc *TeamUseCase) disbandValidate(user *domain.User, team *domain.Team, captainID uuid.UUID, comp *domain.Competition) error {
 	if team.CaptainID != captainID {
 		return httperr.ErrNotCaptain
 	}
-	if team.IsSolo && comp.Mode == entity.ModeSoloOnly {
+	if team.IsSolo && comp.Mode == domain.ModeSoloOnly {
 		return httperr.ErrCannotDisbandSoloTeam
 	}
 	if user.IsBanned {
@@ -423,7 +423,7 @@ func (uc *TeamUseCase) disbandValidate(user *entity.User, team *entity.Team, cap
 	return nil
 }
 
-func (uc *TeamUseCase) disbandExecute(ctx context.Context, team *entity.Team, members []*entity.User, captainID uuid.UUID) error {
+func (uc *TeamUseCase) disbandExecute(ctx context.Context, team *domain.Team, members []*domain.User, captainID uuid.UUID) error {
 	challengeIDs, err := uc.getChallengeIDsForTeam(ctx, team.ID)
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - disbandExecute - getChallengeIDsForTeam: %w", err)
@@ -445,8 +445,8 @@ func (uc *TeamUseCase) disbandExecute(ctx context.Context, team *entity.Team, me
 	if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs, true); err != nil {
 		return fmt.Errorf("TeamUseCase - disbandExecute - adjustSolveCountsForChallenges: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{
-		TeamID: team.ID, UserID: &captainID, Action: entity.TeamActionDeleted,
+	auditLog := &domain.TeamAuditLog{
+		TeamID: team.ID, UserID: &captainID, Action: domain.TeamActionDeleted,
 		Details: map[string]any{"reason": "disbanded_by_captain"},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -510,7 +510,7 @@ func (uc *TeamUseCase) kickMemberTx(ctx context.Context, captainID, targetUserID
 	return uc.kickMemberExecute(ctx, team.ID, captainID, targetUserID)
 }
 
-func (uc *TeamUseCase) kickMemberPrepare(ctx context.Context, captainID, targetUserID uuid.UUID) (*entity.User, *entity.Team, *entity.User, error) {
+func (uc *TeamUseCase) kickMemberPrepare(ctx context.Context, captainID, targetUserID uuid.UUID) (*domain.User, *domain.Team, *domain.User, error) {
 	firstID, secondID := captainID, targetUserID
 	if captainID.String() > targetUserID.String() {
 		firstID, secondID = targetUserID, captainID
@@ -542,7 +542,7 @@ func (uc *TeamUseCase) kickMemberPrepare(ctx context.Context, captainID, targetU
 	return captain, team, targetUser, nil
 }
 
-func (uc *TeamUseCase) kickMemberValidate(captain *entity.User, team *entity.Team, targetUser *entity.User, captainID, _ uuid.UUID, memberCount, minTeamSize int) error {
+func (uc *TeamUseCase) kickMemberValidate(captain *domain.User, team *domain.Team, targetUser *domain.User, captainID, _ uuid.UUID, memberCount, minTeamSize int) error {
 	if captain.IsBanned {
 		return httperr.ErrUserBanned
 	}
@@ -568,8 +568,8 @@ func (uc *TeamUseCase) kickMemberExecute(ctx context.Context, teamID, captainID,
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, targetUserID, nil); err != nil {
 		return fmt.Errorf("TeamUseCase - kickMemberExecute - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{
-		TeamID: teamID, UserID: &captainID, Action: entity.TeamActionMemberKicked,
+	auditLog := &domain.TeamAuditLog{
+		TeamID: teamID, UserID: &captainID, Action: domain.TeamActionMemberKicked,
 		Details: map[string]any{"target_user_id": targetUserID.String()},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {

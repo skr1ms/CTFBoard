@@ -9,41 +9,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 )
 
 func TestIsNoRows_Success(t *testing.T) {
 	t.Parallel()
-	assert.True(t, isNoRows(pgx.ErrNoRows))
+	assert.True(t, pgutil.IsNoRows(pgx.ErrNoRows))
 }
 
 func TestIsNoRows_Error(t *testing.T) {
 	t.Parallel()
-	assert.False(t, isNoRows(nil))
-	assert.False(t, isNoRows(assert.AnError))
+	assert.False(t, pgutil.IsNoRows(nil))
+	assert.False(t, pgutil.IsNoRows(assert.AnError))
 }
 
 func TestIsPgUniqueViolation_Success(t *testing.T) {
 	t.Parallel()
 	err := &pgconn.PgError{Code: "23505"}
-	assert.True(t, isPgUniqueViolation(err))
+	assert.True(t, pgutil.IsPgUniqueViolation(err))
 }
 
 func TestIsPgUniqueViolation_Error(t *testing.T) {
 	t.Parallel()
-	assert.False(t, isPgUniqueViolation(nil))
-	assert.False(t, isPgUniqueViolation(&pgconn.PgError{Code: "23503"}))
+	assert.False(t, pgutil.IsPgUniqueViolation(nil))
+	assert.False(t, pgutil.IsPgUniqueViolation(&pgconn.PgError{Code: "23503"}))
 }
 
 func TestPtrTimeToTime_Success(t *testing.T) {
 	t.Parallel()
 	ts := time.Now()
-	got := ptrTimeToTime(&ts)
+	got := pgutil.PtrTimeToTime(&ts)
 	assert.Equal(t, ts, got)
 }
 
 func TestPtrTimeToTime_Error(t *testing.T) {
 	t.Parallel()
-	got := ptrTimeToTime(nil)
+	got := pgutil.PtrTimeToTime(nil)
 	assert.True(t, got.IsZero())
 }
 
@@ -51,28 +53,28 @@ func TestTimestamptzToTime_Valid(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
 	in := pgtype.Timestamptz{Time: ts, Valid: true}
-	got := timestamptzToTime(in)
+	got := pgutil.TimestamptzToTime(in)
 	require.NotNil(t, got)
 	assert.Equal(t, ts, *got)
 }
 
 func TestTimestamptzToTime_Invalid(t *testing.T) {
 	t.Parallel()
-	got := timestamptzToTime(pgtype.Timestamptz{})
+	got := pgutil.TimestamptzToTime(pgtype.Timestamptz{})
 	assert.Nil(t, got)
 }
 
 func TestTimeToTimestamptz_Valid(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
-	got := timeToTimestamptz(&ts)
+	got := pgutil.TimeToTimestamptz(&ts)
 	assert.True(t, got.Valid)
 	assert.Equal(t, ts, got.Time)
 }
 
 func TestTimeToTimestamptz_Nil(t *testing.T) {
 	t.Parallel()
-	got := timeToTimestamptz(nil)
+	got := pgutil.TimeToTimestamptz(nil)
 	assert.False(t, got.Valid)
 	assert.True(t, got.Time.IsZero())
 }
@@ -80,8 +82,8 @@ func TestTimeToTimestamptz_Nil(t *testing.T) {
 func TestTimestamptzToTime_TimeToTimestamptz_Roundtrip(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2025, 3, 6, 12, 0, 0, 0, time.UTC)
-	pg := timeToTimestamptz(&ts)
-	back := timestamptzToTime(pg)
+	pg := pgutil.TimeToTimestamptz(&ts)
+	back := pgutil.TimestamptzToTime(pg)
 	require.NotNil(t, back)
 	assert.Equal(t, ts, *back)
 }
@@ -101,26 +103,20 @@ func TestTimeFromNullableAny_Error(t *testing.T) {
 	assert.True(t, got.IsZero())
 }
 
-func TestInt32PtrToInt_Success(t *testing.T) {
+func TestConvertIntFieldsToInt32_Success(t *testing.T) {
 	t.Parallel()
-	v := int32(42)
-	assert.Equal(t, 42, int32PtrToInt(&v))
+	fields := []IntField{{"A", 1}, {"B", 2}, {"C", 100}}
+	got, err := ConvertIntFieldsToInt32(fields)
+	assert.NoError(t, err)
+	assert.Equal(t, []int32{1, 2, 100}, got)
 }
 
-func TestInt32PtrToInt_Error(t *testing.T) {
+func TestConvertIntFieldsToInt32_Error(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 0, int32PtrToInt(nil))
-}
-
-func TestBoolPtrToBool_Success(t *testing.T) {
-	t.Parallel()
-	v := true
-	assert.True(t, boolPtrToBool(&v))
-}
-
-func TestBoolPtrToBool_Error(t *testing.T) {
-	t.Parallel()
-	assert.False(t, boolPtrToBool(nil))
+	fields := []IntField{{"A", 1}, {"Bad", 1 << 31}}
+	_, err := ConvertIntFieldsToInt32(fields)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Bad")
 }
 
 func TestIntToInt32Safe_Success(t *testing.T) {
@@ -159,28 +155,4 @@ func TestIntToInt32Ptr_OutOfRange(t *testing.T) {
 	assert.Error(t, err)
 	_, err = intToInt32Ptr(-1<<31 - 1)
 	assert.Error(t, err)
-}
-
-func TestStrPtrOrNil_Success(t *testing.T) {
-	t.Parallel()
-	got := strPtrOrNil("x")
-	assert.NotNil(t, got)
-	assert.Equal(t, "x", *got)
-}
-
-func TestStrPtrOrNil_Error(t *testing.T) {
-	t.Parallel()
-	got := strPtrOrNil("")
-	assert.Nil(t, got)
-}
-
-func TestPtrStrToStr_Success(t *testing.T) {
-	t.Parallel()
-	s := "hello"
-	assert.Equal(t, "hello", ptrStrToStr(&s))
-}
-
-func TestPtrStrToStr_Error(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "", ptrStrToStr(nil))
 }

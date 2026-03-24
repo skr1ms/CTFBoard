@@ -13,7 +13,6 @@ import (
 
 // GET /competition/status: returns status, start_time, end_time (public, no auth).
 func TestCompetition_Status(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -28,7 +27,6 @@ func TestCompetition_Status(t *testing.T) {
 
 // PUT /admin/competition: pause/resume; when paused, POST /challenges/{ID}/submit returns 403; when resumed, submit succeeds.
 func TestCompetition_UpdateAndEnforce(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -40,7 +38,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 		"flag":        "FLAG{comp}",
 		"points":      100,
 		"category":    "web",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	_, _, tokenUser := h.RegisterUserAndLogin("comp_user")
@@ -49,7 +47,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), nil)
 	setCompetitionMode("flexible")
-	time.Sleep(6 * time.Second)
+	require.Eventually(t, h.CompetitionParamsPropagated, 10*time.Second, 500*time.Millisecond)
 
 	h.PutAdminCompetitionExpectStatus(tokenAdmin, map[string]any{
 		"name":              "Comp Name",
@@ -76,7 +74,6 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 
 // GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.).
 func TestCompetition_Admin_Get(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -91,7 +88,6 @@ func TestCompetition_Admin_Get(t *testing.T) {
 
 // GET /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -103,7 +99,6 @@ func TestCompetition_Admin_Get_Forbidden(t *testing.T) {
 
 // PUT /admin/competition: non-admin gets 403 Forbidden.
 func TestCompetition_Admin_Put_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -118,8 +113,8 @@ func TestCompetition_Admin_Put_Forbidden(t *testing.T) {
 	}, http.StatusForbidden)
 }
 
+// PUT /admin/competition: pause then unpause shifts freeze_time and end_time; status stays active.
 func TestCompetition_PauseUnpause_ShiftsFreezeAndEndTime_StatusActive(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -129,7 +124,7 @@ func TestCompetition_PauseUnpause_ShiftsFreezeAndEndTime_StatusActive(t *testing
 	endIn := now.Add(2 * time.Hour)
 	setCompetitionTimes(now.Add(-1*time.Hour), endIn, &freezeIn)
 	setCompetitionMode("flexible")
-	time.Sleep(3 * time.Second)
+	require.Eventually(t, func() bool { return h.AdminCompetitionParamsPropagated(tokenAdmin) }, 10*time.Second, 500*time.Millisecond)
 
 	adminBefore := h.GetAdminCompetition(tokenAdmin)
 	require.NotNil(t, adminBefore.JSON200)
@@ -177,8 +172,8 @@ func TestCompetition_PauseUnpause_ShiftsFreezeAndEndTime_StatusActive(t *testing
 	require.InDelta(t, pauseDuration.Seconds(), endAfter.Sub(endBefore).Seconds(), tolerance.Seconds())
 }
 
+// PUT /admin/competition: set end_time in past; status becomes ended; submit returns 403.
 func TestCompetition_ForceEnd_AdminSetsEndTimeInPast_StatusEnded(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -186,11 +181,11 @@ func TestCompetition_ForceEnd_AdminSetsEndTimeInPast_StatusEnded(t *testing.T) {
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), nil)
 	setCompetitionMode("flexible")
-	time.Sleep(2 * time.Second)
+	require.Eventually(t, h.CompetitionParamsPropagated, 10*time.Second, 500*time.Millisecond)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Force End Chall", "description": "x", "flag": "flag{force_end}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 	_, _, tokenUser := h.RegisterUserAndLogin("user_force_end")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
@@ -213,8 +208,8 @@ func TestCompetition_ForceEnd_AdminSetsEndTimeInPast_StatusEnded(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "flag{force_end}", http.StatusForbidden)
 }
 
+// PUT /admin/competition: unpause after end_time has passed; status becomes ended.
 func TestCompetition_UnpauseAfterEndTimePassed_StatusEnded(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -222,11 +217,11 @@ func TestCompetition_UnpauseAfterEndTimePassed_StatusEnded(t *testing.T) {
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), nil)
 	setCompetitionMode("flexible")
-	time.Sleep(2 * time.Second)
+	require.Eventually(t, h.CompetitionParamsPropagated, 10*time.Second, 500*time.Millisecond)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Unpause Ended Chall", "description": "x", "flag": "flag{unpause_ended}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 	_, _, tokenUser := h.RegisterUserAndLogin("user_unpause_ended")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
@@ -241,7 +236,7 @@ func TestCompetition_UnpauseAfterEndTimePassed_StatusEnded(t *testing.T) {
 	if TestRedis != nil {
 		require.NoError(t, TestRedis.Del(ctx, "competition").Err())
 	}
-	time.Sleep(6 * time.Second)
+	require.Eventually(t, h.CompetitionParamsPropagated, 10*time.Second, 500*time.Millisecond)
 
 	require.True(t, h.PollCompetitionStatus("paused", 10*time.Second), "competition should be paused (end_time passed)")
 	statusBefore := h.GetCompetitionStatus()

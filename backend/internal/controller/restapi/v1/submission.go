@@ -3,7 +3,8 @@ package v1
 import (
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -24,13 +25,13 @@ func (h *Server) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, par
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get submissions by challenge (admin)
 // (GET /admin/submissions/challenge/{challengeID})
 func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsChallengeChallengeIDParams) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, ID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -43,13 +44,13 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, 
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get submission stats by challenge (admin)
 // (GET /admin/submissions/challenge/{challengeID}/stats)
 func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsChallengeChallengeIDStatsParams) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, ID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -60,13 +61,13 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWri
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionStats(stats))
+	httputil.RenderOK(w, r, response.FromSubmissionStats(stats))
 }
 
 // Get submissions by user (admin)
 // (GET /admin/submissions/user/{userID})
 func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsUserUserIDParams) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -79,13 +80,13 @@ func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get submissions by team (admin)
 // (GET /admin/submissions/team/{teamID})
 func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsTeamTeamIDParams) {
-	teamIDParsed, ok := helper.ParseUUID(w, r, ID)
+	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -98,13 +99,13 @@ func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromSubmissionList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get submission by ID (admin)
 // (GET /admin/submissions/{ID})
 func (h *Server) GetAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
-	submissionIDParsed, ok := helper.ParseUUID(w, r, ID)
+	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -112,18 +113,18 @@ func (h *Server) GetAdminSubmissionsID(w http.ResponseWriter, r *http.Request, I
 	if h.OnError(w, r, err, "GetAdminSubmissionsID", "GetByID") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromSubmission(sub))
+	httputil.RenderOK(w, r, response.FromSubmission(sub))
 }
 
 // Update submission (admin)
 // (PATCH /admin/submissions/{ID})
 func (h *Server) PatchAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
-	submissionIDParsed, ok := helper.ParseUUID(w, r, ID)
+	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.AdminUpdateSubmissionRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PatchAdminSubmissionsID",
+	req, ok := httputil.DecodeAndValidate[openapi.AdminUpdateSubmissionRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -136,29 +137,32 @@ func (h *Server) PatchAdminSubmissionsID(w http.ResponseWriter, r *http.Request,
 	if h.OnError(w, r, err, "PatchAdminSubmissionsID", "Update") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromSubmission(sub))
+	httputil.RenderOK(w, r, response.FromSubmission(sub))
 }
 
 // Delete submission (admin)
 // (DELETE /admin/submissions/{ID})
 func (h *Server) DeleteAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
-	submissionIDParsed, ok := helper.ParseUUID(w, r, ID)
+	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.comp.SubmissionUC.Delete(r.Context(), submissionIDParsed), "DeleteAdminSubmissionsID", "Delete") {
 		return
 	}
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }
 
 // Create submission (admin)
 // (POST /admin/submissions)
 func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.AdminCreateSubmissionRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAdminSubmissions",
+	req, ok := httputil.DecodeAndValidate[openapi.AdminCreateSubmissionRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
+		return
+	}
+	if err := request.ValidateAdminCreateSubmissionRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminSubmissions", "Validate") {
 		return
 	}
 	params, err := request.AdminCreateSubmissionRequestToParams(&req)
@@ -169,5 +173,5 @@ func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminSubmissions", "AdminCreate") {
 		return
 	}
-	helper.RenderCreated(w, r, response.FromSubmission(sub))
+	httputil.RenderCreated(w, r, response.FromSubmission(sub))
 }

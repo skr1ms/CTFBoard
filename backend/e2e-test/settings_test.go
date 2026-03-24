@@ -11,7 +11,6 @@ import (
 
 // GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).
 func TestSettings_Admin_Get(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings")
@@ -28,8 +27,8 @@ func TestSettings_Admin_Get(t *testing.T) {
 
 // PUT /admin/settings: admin updates app settings; GET reflects new values.
 func TestSettings_Admin_Put(t *testing.T) {
-	t.Helper()
 	t.Parallel()
+	t.Cleanup(resetAppSettings)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_settings_put")
 
@@ -60,7 +59,6 @@ func TestSettings_Admin_Put(t *testing.T) {
 
 // GET /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Get_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -72,7 +70,6 @@ func TestSettings_Admin_Get_Forbidden(t *testing.T) {
 
 // PUT /admin/settings: non-admin gets 403 Forbidden.
 func TestSettings_Admin_Put_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

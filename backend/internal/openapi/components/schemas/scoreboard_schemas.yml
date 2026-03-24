@@ -1,5 +1,5 @@
 schemas:
-  entity.ScoreboardHistoryEntry:
+  ScoreboardHistoryEntry:
     properties:
       points:
         type: integer
@@ -10,14 +10,14 @@ schemas:
       timestamp:
         type: string
     type: object
-  entity.ScorePoint:
+  ScorePoint:
     properties:
       timestamp:
         type: string
       score:
         type: integer
     type: object
-  entity.TeamTimeline:
+  TeamTimeline:
     properties:
       team_id:
         type: string
@@ -26,23 +26,23 @@ schemas:
       timeline:
         type: array
         items:
-          $ref: "#/schemas/entity.ScorePoint"
+          $ref: "#/schemas/ScorePoint"
     type: object
-  entity.TimeRange:
+  TimeRange:
     properties:
       start:
         type: string
       end:
         type: string
     type: object
-  entity.ScoreboardGraph:
+  ScoreboardGraph:
     properties:
       range:
-        $ref: "#/schemas/entity.TimeRange"
+        $ref: "#/schemas/TimeRange"
       teams:
         type: array
         items:
-          $ref: "#/schemas/entity.TeamTimeline"
+          $ref: "#/schemas/TeamTimeline"
     type: object
   response.ScoreboardEntryResponse:
     properties:

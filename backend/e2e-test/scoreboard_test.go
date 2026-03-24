@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -14,7 +13,6 @@ import (
 
 // GET /scoreboard: ranks and points reflect solves; team with more solves has higher rank and correct total points.
 func TestScoreboard_Display(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -42,7 +40,7 @@ func TestScoreboard_Display(t *testing.T) {
 		"decay":         1,
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	nameUser1 := "user4_" + suffix
 	_, _, tokenUser1 := h.RegisterUserAndLogin(nameUser1)
 	h.CreateSoloTeam(tokenUser1, http.StatusCreated)
@@ -52,13 +50,13 @@ func TestScoreboard_Display(t *testing.T) {
 	h.CreateSoloTeam(tokenUser2, http.StatusCreated)
 
 	h.SubmitFlag(tokenUser1, challengeID1, "FLAG{chall1}", http.StatusOK)
-	time.Sleep(1 * time.Second)
+	require.Eventually(t, func() bool { return h.TeamScoreMatches(tokenUser1, nameUser1, 100) }, 2*time.Second, 100*time.Millisecond)
 	h.SubmitFlag(tokenUser1, challengeID2, "FLAG{chall2}", http.StatusOK)
 
-	time.Sleep(1 * time.Second)
+	require.Eventually(t, func() bool { return h.TeamScoreMatches(tokenUser1, nameUser1, 300) }, 2*time.Second, 100*time.Millisecond)
 	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
-	time.Sleep(300 * time.Millisecond)
+	require.Eventually(t, func() bool { return h.TeamScoreMatches(tokenUser1, nameUser2, 100) }, 1*time.Second, 50*time.Millisecond)
 	_ = TestRedis.Del(context.Background(), "scoreboard", "scoreboard:frozen")
 
 	h.AssertTeamScore(tokenUser1, nameUser1, 300)
@@ -67,7 +65,6 @@ func TestScoreboard_Display(t *testing.T) {
 
 // GET /scoreboard: returns 200 and array even when no teams/solves.
 func TestScoreboard_Empty(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

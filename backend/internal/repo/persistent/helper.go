@@ -1,49 +1,33 @@
 package persistent
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
+
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-func isNoRows(err error) bool {
-	return err != nil && errors.Is(err, pgx.ErrNoRows)
-}
-
-func isPgUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return err != nil && errors.As(err, &pgErr) && pgErr.Code == "23505"
-}
-
-func isPgForeignKeyViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return err != nil && errors.As(err, &pgErr) && pgErr.Code == "23503"
-}
-
-func ptrTimeToTime(t *time.Time) time.Time {
-	if t == nil {
-		return time.Time{}
+func EnsureID(id *uuid.UUID) {
+	if *id == uuid.Nil {
+		*id = uuid.New()
 	}
-	return *t
 }
 
-func timestamptzToTime(t pgtype.Timestamptz) *time.Time {
-	if !t.Valid {
-		return nil
+func GetOrNotFound[T any](fn func() (T, error), notFoundErr *httperr.HTTPError, op string) (T, error) {
+	var zero T
+	v, err := fn()
+	if err != nil {
+		if pgutil.IsNoRows(err) {
+			return zero, notFoundErr
+		}
+		return zero, fmt.Errorf("%s: %w", op, err)
 	}
-	return &t.Time
-}
-
-func timeToTimestamptz(t *time.Time) pgtype.Timestamptz {
-	if t == nil {
-		return pgtype.Timestamptz{}
-	}
-	return pgtype.Timestamptz{Time: *t, Valid: true}
+	return v, nil
 }
 
 func timeFromNullableAny(v any) time.Time {
@@ -59,25 +43,40 @@ func timeFromNullableAny(v any) time.Time {
 	return time.Time{}
 }
 
-func int32PtrToInt(p *int32) int {
-	if p == nil {
-		return 0
-	}
-	return int(*p)
-}
-
-func boolPtrToBool(p *bool) bool {
-	if p == nil {
-		return false
-	}
-	return *p
-}
-
 func intToInt32Safe(i int) (int32, error) {
 	if i < math.MinInt32 || i > math.MaxInt32 {
 		return 0, fmt.Errorf("int value %d out of int32 range", i)
 	}
 	return int32(i), nil
+}
+
+type IntField struct {
+	Name  string
+	Value int
+}
+
+func ConvertIntFieldsToInt32(fields []IntField) ([]int32, error) {
+	out := make([]int32, 0, len(fields))
+	for _, f := range fields {
+		v, err := intToInt32Safe(f.Value)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", f.Name, err)
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+func toLimitOffset(limit, offset int) (int32, int32, error) {
+	l, err := intToInt32Safe(limit)
+	if err != nil {
+		return 0, 0, fmt.Errorf("toLimitOffset limit: %w", err)
+	}
+	o, err := intToInt32Safe(offset)
+	if err != nil {
+		return 0, 0, fmt.Errorf("toLimitOffset offset: %w", err)
+	}
+	return l, o, nil
 }
 
 func intToInt32Ptr(i int) (*int32, error) {
@@ -89,18 +88,4 @@ func intToInt32Ptr(i int) (*int32, error) {
 		return nil, fmt.Errorf("intToInt32Ptr: %w", err)
 	}
 	return &v, nil
-}
-
-func strPtrOrNil(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
-func ptrStrToStr(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

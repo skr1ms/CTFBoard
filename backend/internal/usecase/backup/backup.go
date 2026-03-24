@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-logkit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const defaultCSVExportMaxRows = 100_000
@@ -36,21 +37,22 @@ type BackupDeps struct {
 	CommentRepo     repo.CommentRepository
 	FieldRepo       repo.FieldRepository
 	FieldValueRepo  repo.FieldValueRepository
+	RatingRepo      repo.RatingRepository
 	Storage         storage.Provider
 	TM              repo.TransactionManager
-	Logger          logger.Logger
+	Logger          logkit.Logger
 }
 
 var _ usecase.BackupUseCase = (*BackupUseCase)(nil)
 
 func NewBackupUseCase(deps BackupDeps) *BackupUseCase {
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	return &BackupUseCase{deps: deps}
 }
 
-func (uc *BackupUseCase) Reset(ctx context.Context, opts entity.AdminResetOptions) error {
+func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOptions) error {
 	tables := make([]string, 0)
 	if opts.Submissions {
 		tables = append(tables, "solves", "submissions")
@@ -117,11 +119,11 @@ func (uc *BackupUseCase) exportCSVTeams(ctx context.Context) ([]byte, error) {
 }
 
 func (uc *BackupUseCase) exportCSVChallenges(ctx context.Context) ([]byte, error) {
-	cws, err := uc.deps.ChallengeRepo.GetAll(ctx, nil, nil)
+	cws, err := uc.deps.ChallengeRepo.GetAllForBackup(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("BackupUseCase - ExportCSV - ChallengeRepo.GetAll: %w", err)
+		return nil, fmt.Errorf("BackupUseCase - ExportCSV - ChallengeRepo.GetAllForBackup: %w", err)
 	}
-	challenges := make([]*entity.Challenge, len(cws))
+	challenges := make([]*domain.Challenge, len(cws))
 	for i, cw := range cws {
 		challenges[i] = cw.Challenge
 	}

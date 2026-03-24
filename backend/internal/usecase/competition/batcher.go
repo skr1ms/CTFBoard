@@ -7,35 +7,21 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 var (
-	BatcherDroppedTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "submission_batcher_dropped_total",
-		Help: "Total number of submissions dropped because the batcher channel was full.",
-	})
-	BatcherFlushedTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "submission_batcher_flushed_total",
-		Help: "Total number of submissions successfully flushed to the database.",
-	})
-	BatcherFlushErrorsTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "submission_batcher_flush_errors_total",
-		Help: "Total number of individual submission flush failures.",
-	})
-	batcherMetricsOnce sync.Once
+	BatcherDroppedTotal     = promauto.NewCounter(prometheus.CounterOpts{Name: "submission_batcher_dropped_total", Help: "Total number of submissions dropped because the batcher channel was full."})
+	BatcherFlushedTotal     = promauto.NewCounter(prometheus.CounterOpts{Name: "submission_batcher_flushed_total", Help: "Total number of submissions successfully flushed to the database."})
+	BatcherFlushErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{Name: "submission_batcher_flush_errors_total", Help: "Total number of individual submission flush failures."})
 )
-
-func initBatcherMetrics() {
-	batcherMetricsOnce.Do(func() {
-		prometheus.MustRegister(BatcherDroppedTotal, BatcherFlushedTotal, BatcherFlushErrorsTotal)
-	})
-}
 
 const (
 	defaultBatchSize      = 64
@@ -53,9 +39,9 @@ const (
 // and flushes them from a single background goroutine, reducing connection
 // pool pressure compared to one goroutine per request.
 type SubmissionBatcher struct {
-	ch               chan *entity.Submission
+	ch               chan *domain.Submission
 	repo             repo.SubmissionRepository
-	logger           logger.Logger
+	logger           logkit.Logger
 	done             chan struct{}
 	shutdownFlushCtx chan context.Context
 	wg               sync.WaitGroup
@@ -66,14 +52,13 @@ var _ usecase.SubmissionBatcher = (*SubmissionBatcher)(nil)
 
 type BatcherOption func(*SubmissionBatcher)
 
-func WithBatcherLogger(l logger.Logger) BatcherOption {
+func WithBatcherLogger(l logkit.Logger) BatcherOption {
 	return func(b *SubmissionBatcher) { b.logger = l }
 }
 
 func NewSubmissionBatcher(submissionRepo repo.SubmissionRepository, opts ...BatcherOption) *SubmissionBatcher {
-	initBatcherMetrics()
 	b := &SubmissionBatcher{
-		ch:               make(chan *entity.Submission, defaultChannelBufSize),
+		ch:               make(chan *domain.Submission, defaultChannelBufSize),
 		repo:             submissionRepo,
 		done:             make(chan struct{}),
 		shutdownFlushCtx: make(chan context.Context, 1),
@@ -82,16 +67,15 @@ func NewSubmissionBatcher(submissionRepo repo.SubmissionRepository, opts ...Batc
 		opt(b)
 	}
 	if b.logger == nil {
-		b.logger = logger.Noop()
+		b.logger = logkit.Noop()
 	}
-	b.wg.Add(1)
-	go b.run()
+	b.wg.Go(b.run)
 	return b
 }
 
 // Enqueue adds a submission to the flush queue. Non-blocking; if the buffer is full
 // the submission is written synchronously to avoid data loss.
-func (b *SubmissionBatcher) Enqueue(sub *entity.Submission) {
+func (b *SubmissionBatcher) Enqueue(sub *domain.Submission) {
 	if b.stopped.Load() {
 		BatcherDroppedTotal.Inc()
 		b.logger.Warn("SubmissionBatcher: batcher stopped, dropping submission")
@@ -123,11 +107,10 @@ func (b *SubmissionBatcher) Stop() {
 }
 
 func (b *SubmissionBatcher) run() {
-	defer b.wg.Done()
 	ticker := time.NewTicker(defaultFlushInterval)
 	defer ticker.Stop()
 
-	buf := make([]*entity.Submission, 0, defaultBatchSize)
+	buf := make([]*domain.Submission, 0, defaultBatchSize)
 	for {
 		select {
 		case sub := <-b.ch:
@@ -167,35 +150,28 @@ func (b *SubmissionBatcher) run() {
 	}
 }
 
-func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *entity.Submission, attempts int) error {
-	var lastErr error
-	delay := retryCreateBaseDelay
-	for i := 0; i < attempts; i++ {
+func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *domain.Submission, attempts int) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = retryCreateBaseDelay
+	bo.MaxInterval = retryCreateMaxDelay
+	bo.MaxElapsedTime = 0
+	op := func() error {
+		if err := ctx.Err(); err != nil {
+			return backoff.Permanent(fmt.Errorf("SubmissionBatcher - retryCreate: %w", err))
+		}
 		if err := b.repo.Create(ctx, sub); err != nil {
-			lastErr = err
-			if i < attempts-1 {
-				timer := time.NewTimer(delay)
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-					return fmt.Errorf("SubmissionBatcher - retryCreate: %w", ctx.Err())
-				case <-timer.C:
-					if delay < retryCreateMaxDelay {
-						delay *= 2
-						if delay > retryCreateMaxDelay {
-							delay = retryCreateMaxDelay
-						}
-					}
-				}
-			}
-			continue
+			return err
 		}
 		return nil
 	}
-	return lastErr
+	maxRetries := attempts - 1
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+	return backoff.Retry(op, backoff.WithContext(backoff.WithMaxRetries(bo, uint64(maxRetries)), ctx))
 }
 
-func (b *SubmissionBatcher) flush(ctx context.Context, subs []*entity.Submission) {
+func (b *SubmissionBatcher) flush(ctx context.Context, subs []*domain.Submission) {
 	if len(subs) == 0 {
 		return
 	}

@@ -63,7 +63,7 @@ SELECT
     c.category AS challenge_category
 FROM solutions s
 JOIN challenges c ON c.id = s.challenge_id
-WHERE c.is_hidden = false
+WHERE c.state IN ('visible', 'locked')
   AND EXISTS (
     SELECT 1 FROM solves sv
     WHERE sv.challenge_id = s.challenge_id
@@ -77,7 +77,7 @@ type GetSolutionsByTeamIDRow struct {
 	ChallengeID       uuid.UUID `json:"challenge_id"`
 	Content           string    `json:"content"`
 	ChallengeTitle    string    `json:"challenge_title"`
-	ChallengeCategory *string   `json:"challenge_category"`
+	ChallengeCategory string    `json:"challenge_category"`
 }
 
 func (q *Queries) GetSolutionsByTeamID(ctx context.Context, teamID uuid.UUID) ([]GetSolutionsByTeamIDRow, error) {

@@ -6,38 +6,38 @@ schemas:
       database:
         type: string
     type: object
-  entity.BackupData:
+  BackupData:
     properties:
       version:
         type: string
       exported_at:
         type: string
       competition:
-        $ref: "#/schemas/entity.Competition"
+        $ref: "#/schemas/Competition"
       challenges:
         type: array
         items:
-          $ref: "#/schemas/entity.ChallengeExport"
+          $ref: "#/schemas/ChallengeExport"
       teams:
         type: array
         items:
-          $ref: "#/schemas/entity.TeamExport"
+          $ref: "#/schemas/TeamExport"
       users:
         type: array
         items:
-          $ref: "#/schemas/entity.UserExport"
+          $ref: "#/schemas/UserExport"
       awards:
         type: array
         items:
-          $ref: "#/schemas/entity.Award"
+          $ref: "#/schemas/Award"
       solves:
         type: array
         items:
-          $ref: "#/schemas/entity.Solve"
+          $ref: "#/schemas/Solve"
       files:
         type: array
         items:
-          $ref: "#/schemas/entity.File"
+          $ref: "#/schemas/File"
     type: object
   request.AdminResetRequest:
     properties:
@@ -57,7 +57,7 @@ schemas:
         type: boolean
         description: Reset submissions and solves
     type: object
-  entity.ImportResult:
+  ImportResult:
     properties:
       success:
         type: boolean

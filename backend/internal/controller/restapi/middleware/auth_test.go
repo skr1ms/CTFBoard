@@ -13,20 +13,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	midMock "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware/mock"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
-func newTestJWTService(t *testing.T) *jwt.JWTService {
+func newTestJWTService(t *testing.T) *jwtkit.JWTService {
 	t.Helper()
-	svc, err := jwt.NewJWTService(
-		[]jwt.KeyEntry{{Kid: "0", Secret: "access-secret-min-32-chars-long!"}},
-		[]jwt.KeyEntry{{Kid: "0", Secret: "refresh-secret-min-32-chars-long"}},
-		time.Hour, time.Hour, nil, nil)
+	svc, err := jwtkit.NewJWTService(jwtkit.Config{
+		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("access-secret-min-32-chars-long!")}},
+		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("refresh-secret-min-32-chars-long")}},
+		AccessTTL:   time.Hour,
+		RefreshTTL:  time.Hour,
+		Issuer:      "test-issuer",
+	})
 	require.NoError(t, err)
 	return svc
 }
@@ -35,60 +38,45 @@ func TestAuth_NoHeader_Error(t *testing.T) {
 	t.Parallel()
 	svc := newTestJWTService(t)
 	r := chi.NewRouter()
-	r.Use(Auth(svc, nil, nil, logger.Noop()))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	require.Equal(t, http.StatusUnauthorized, rr.Code)
+	r.Use(Auth(svc, nil, nil, logkit.Noop()))
+	r.Get("/", okHandler())
+	ServeAndExpect(t, r, http.MethodGet, "/", nil, http.StatusUnauthorized)
 }
 
 func TestAuth_BearerSuccess(t *testing.T) {
 	t.Parallel()
 	svc := newTestJWTService(t)
 	userID := uuid.New()
-	token, err := svc.GenerateTokenPair(userID, "a@b.c", "Name", string(entity.RoleAdmin))
+	token, err := svc.GenerateTokenPair(context.Background(), userID, string(domain.RoleAdmin))
 	require.NoError(t, err)
 
 	r := chi.NewRouter()
-	r.Use(Auth(svc, nil, nil, logger.Noop()))
+	r.Use(Auth(svc, nil, nil, logkit.Noop()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, userID.String(), GetUserID(r.Context()))
-		assert.Equal(t, string(entity.RoleAdmin), GetUserRole(r.Context()))
+		assert.Equal(t, string(domain.RoleAdmin), GetUserRole(r.Context()))
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
+	ServeAndExpect(t, r, http.MethodGet, "/", map[string]string{"Authorization": "Bearer " + token.AccessToken}, http.StatusOK)
 }
 
 func TestAuth_BearerInvalid_Error(t *testing.T) {
 	t.Parallel()
 	svc := newTestJWTService(t)
 	r := chi.NewRouter()
-	r.Use(Auth(svc, nil, nil, logger.Noop()))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Use(Auth(svc, nil, nil, logkit.Noop()))
+	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer invalid-token")
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	require.Equal(t, http.StatusUnauthorized, rr.Code)
+	ServeAndExpect(t, r, http.MethodGet, "/", map[string]string{"Authorization": "Bearer invalid-token"}, http.StatusUnauthorized)
 }
 
 func TestAuth_InvalidFormat_Error(t *testing.T) {
 	t.Parallel()
 	svc := newTestJWTService(t)
 	r := chi.NewRouter()
-	r.Use(Auth(svc, nil, nil, logger.Noop()))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Use(Auth(svc, nil, nil, logkit.Noop()))
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "InvalidScheme token")
@@ -103,13 +91,13 @@ func TestAdmin_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			adminUser := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin}
+			adminUser := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin}
 			ctx := context.WithValue(r.Context(), userContextKey, adminUser)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(Admin)
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -123,13 +111,13 @@ func TestAdmin_Error(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), UserRoleKey, string(entity.RoleUser))
+			ctx := context.WithValue(r.Context(), UserRoleKey, string(domain.RoleUser))
 			ctx = context.WithValue(ctx, httputil.UserIDKey, uuid.New().String())
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(Admin)
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -142,22 +130,22 @@ func TestAuth_TokenSuccess(t *testing.T) {
 	t.Parallel()
 	userID := uuid.New()
 	tokenID := uuid.New()
-	apiToken := &entity.APIToken{ID: tokenID, UserID: userID}
-	user := &entity.User{ID: userID, Role: entity.RoleUser}
+	apiToken := &domain.APIToken{ID: tokenID, UserID: userID}
+	user := &domain.User{ID: userID, Role: domain.RoleUser}
 
-	apiAuth := mocks.NewMockAPITokenAuther(t)
+	apiAuth := midMock.NewMockAPITokenAuther(t)
 	apiAuth.On("GetByTokenHash", mock.Anything, mock.AnythingOfType("string")).Return(apiToken, nil)
 	apiAuth.On("ValidateToken", apiToken).Return(true)
 	apiAuth.On("UpdateLastUsedAt", mock.Anything, tokenID).Return(nil)
 
-	userGet := mocks.NewMockUserByIDGetter(t)
+	userGet := midMock.NewMockUserByIDGetter(t)
 	userGet.On("GetByID", mock.Anything, userID).Return(user, nil)
 
 	r := chi.NewRouter()
-	r.Use(Auth(nil, apiAuth, userGet, logger.Noop()))
+	r.Use(Auth(nil, apiAuth, userGet, logkit.Noop()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, userID.String(), GetUserID(r.Context()))
-		assert.Equal(t, string(entity.RoleUser), GetUserRole(r.Context()))
+		assert.Equal(t, string(domain.RoleUser), GetUserRole(r.Context()))
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -171,14 +159,14 @@ func TestAuth_TokenSuccess(t *testing.T) {
 
 func TestAuth_TokenError(t *testing.T) {
 	t.Parallel()
-	apiAuth := mocks.NewMockAPITokenAuther(t)
-	apiAuth.On("GetByTokenHash", mock.Anything, mock.AnythingOfType("string")).Return((*entity.APIToken)(nil), errors.New("token not found"))
+	apiAuth := midMock.NewMockAPITokenAuther(t)
+	apiAuth.On("GetByTokenHash", mock.Anything, mock.AnythingOfType("string")).Return((*domain.APIToken)(nil), errors.New("token not found"))
 
-	userGet := mocks.NewMockUserByIDGetter(t)
+	userGet := midMock.NewMockUserByIDGetter(t)
 
 	r := chi.NewRouter()
-	r.Use(Auth(nil, apiAuth, userGet, logger.Noop()))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Use(Auth(nil, apiAuth, userGet, logkit.Noop()))
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Token bad-token")

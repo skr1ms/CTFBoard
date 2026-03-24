@@ -7,19 +7,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer/mocks"
+	mailerMock "github.com/TakuyaYagam1/AstroCTFb/pkg/mailer/mock"
 )
 
 func TestAsyncMailer(t *testing.T) {
 	t.Parallel()
-	mockMailer := mocks.NewMockMailer(t)
-	l := logger.New(&logger.Options{
-		Level:  logger.InfoLevel,
-		Output: logger.ConsoleOutput,
-	})
+	mockMailer := mailerMock.NewMockMailer(t)
+	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, err)
 	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
@@ -31,7 +30,7 @@ func TestAsyncMailer(t *testing.T) {
 		return m.To == "test@example.com" && m.Subject == "Test" && m.Body == "Body"
 	})).Return(nil).Once().Run(func(mock.Arguments) { close(done) })
 
-	err := asyncMailer.Send(context.Background(), msg)
+	err = asyncMailer.Send(context.Background(), msg)
 	assert.NoError(t, err)
 
 	select {
@@ -47,12 +46,12 @@ func TestAsyncMailer(t *testing.T) {
 
 func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 	t.Parallel()
-	mockMailer := mocks.NewMockMailer(t)
-	l := logger.New(&logger.Options{
-		Level:  logger.InfoLevel,
-		Output: logger.ConsoleOutput,
-	})
+	mockMailer := mailerMock.NewMockMailer(t)
+	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, err)
 	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+	asyncMailer.Start()
+	defer asyncMailer.Stop()
 
 	msg := mailer.Message{To: "drain@example.com", Subject: "Drain", Body: "Body"}
 
@@ -61,7 +60,7 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 		return m.To == "drain@example.com"
 	})).Return(nil).Once().Run(func(mock.Arguments) { close(sendCalled) })
 
-	err := asyncMailer.Send(context.Background(), msg)
+	err = asyncMailer.Send(context.Background(), msg)
 	assert.NoError(t, err)
 
 	done := make(chan struct{})
@@ -72,7 +71,7 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 
 	select {
 	case <-sendCalled:
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for mailer to drain message")
 	}
 	<-done

@@ -473,6 +473,82 @@
     tags:
       - Comments
 
+/challenges/{challengeID}/rating:
+  put:
+    operationId: PutChallengesChallengeIDRating
+    description: Set or update team rating for a challenge. Requires the team to have solved the challenge.
+    parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeID
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/PutChallengeRatingRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/RatingResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (team has not solved the challenge)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Put rating for challenge
+    tags:
+      - Ratings
+
+/challenges/{challengeID}/ratings:
+  get:
+    operationId: GetChallengesChallengeIDRatings
+    description: Returns list of ratings for a challenge.
+    parameters:
+      - description: Challenge ID
+        in: path
+        name: challengeID
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '../components/schemas.yml#/RatingResponse'
+              type: array
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get ratings for challenge
+    tags:
+      - Ratings
+
 "/challenges/{challengeID}/tags":
   get:
     operationId: GetChallengesChallengeIDTags

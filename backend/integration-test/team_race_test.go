@@ -9,17 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 )
 
 func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
+
+	_, err := f.Pool.Exec(ctx, "UPDATE competition SET allow_team_switch = true, mode = 'flexible' WHERE id = 1")
+	require.NoError(t, err)
 
 	guard := competition.NewGuard(f.CompetitionRepo)
 	uc := team.NewTeamUseCase(team.TeamDeps{
@@ -45,7 +47,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	wg.Add(2)
 
 	errCh := make(chan error, 2)
-	teamCh := make(chan *entity.Team, 2)
+	teamCh := make(chan *domain.Team, 2)
 
 	go func() {
 		defer wg.Done()
@@ -71,7 +73,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	close(errCh)
 	close(teamCh)
 
-	var teams []*entity.Team
+	var teams []*domain.Team
 	for tm := range teamCh {
 		teams = append(teams, tm)
 	}
@@ -91,12 +93,11 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	_, err := f.Pool.Exec(ctx, "UPDATE competition SET max_team_size = 2 WHERE id = 1")
+	_, err := f.Pool.Exec(ctx, "UPDATE competition SET max_team_size = 2, allow_team_switch = true, mode = 'flexible' WHERE id = 1")
 	require.NoError(t, err)
 
 	guard := competition.NewGuard(f.CompetitionRepo)

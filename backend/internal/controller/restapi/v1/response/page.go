@@ -1,44 +1,39 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromPage(p *entity.Page) openapi.PageResponse {
+func FromPage(p *domain.Page) openapi.PageResponse {
 	return openapi.PageResponse{
-		ID:         ptr(p.ID.String()),
-		Title:      ptr(p.Title),
-		Slug:       ptr(p.Slug),
-		Content:    ptr(p.Content),
-		IsDraft:    ptr(p.IsDraft),
-		OrderIndex: ptr(p.OrderIndex),
-		CreatedAt:  ptr(p.CreatedAt),
-		UpdatedAt:  ptr(p.UpdatedAt),
+		ID:         httputil.Ptr(p.ID.String()),
+		Title:      httputil.Ptr(p.Title),
+		Slug:       httputil.Ptr(p.Slug),
+		Content:    httputil.Ptr(p.Content),
+		IsDraft:    httputil.Ptr(p.IsDraft),
+		OrderIndex: httputil.Ptr(p.OrderIndex),
+		CreatedAt:  httputil.Ptr(p.CreatedAt),
+		UpdatedAt:  httputil.Ptr(p.UpdatedAt),
 	}
 }
 
-func FromPageListItem(item *entity.PageListItem) openapi.PageListItemResponse {
+func FromPageListItem(item *domain.PageListItem) openapi.PageListItemResponse {
 	return openapi.PageListItemResponse{
-		ID:         ptr(item.ID.String()),
-		Title:      ptr(item.Title),
-		Slug:       ptr(item.Slug),
-		OrderIndex: ptr(item.OrderIndex),
+		ID:         httputil.Ptr(item.ID.String()),
+		Title:      httputil.Ptr(item.Title),
+		Slug:       httputil.Ptr(item.Slug),
+		OrderIndex: httputil.Ptr(item.OrderIndex),
 	}
 }
 
-func FromPageList(items []*entity.PageListItem) []openapi.PageListItemResponse {
-	res := make([]openapi.PageListItemResponse, len(items))
-	for i, item := range items {
-		res[i] = FromPageListItem(item)
-	}
-	return res
+func FromPageList(items []*domain.PageListItem) []openapi.PageListItemResponse {
+	return lo.Map(items, func(item *domain.PageListItem, _ int) openapi.PageListItemResponse { return FromPageListItem(item) })
 }
 
-func FromPageFullList(items []*entity.Page) []openapi.PageResponse {
-	res := make([]openapi.PageResponse, len(items))
-	for i, item := range items {
-		res[i] = FromPage(item)
-	}
-	return res
+func FromPageFullList(items []*domain.Page) []openapi.PageResponse {
+	return lo.Map(items, func(item *domain.Page, _ int) openapi.PageResponse { return FromPage(item) })
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -28,12 +28,12 @@ func NewBracketUseCase(deps BracketDeps) *BracketUseCase {
 	return &BracketUseCase{deps: deps}
 }
 
-func (uc *BracketUseCase) Create(ctx context.Context, name, description string, isDefault bool) (*entity.Bracket, error) {
+func (uc *BracketUseCase) Create(ctx context.Context, name, description string, isDefault bool) (*domain.Bracket, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, httperr.ErrBracketNameRequired
 	}
-	bracket := &entity.Bracket{
+	bracket := &domain.Bracket{
 		ID:          uuid.New(),
 		Name:        name,
 		Description: description,
@@ -56,7 +56,7 @@ func (uc *BracketUseCase) Create(ctx context.Context, name, description string, 
 	return bracket, nil
 }
 
-func (uc *BracketUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Bracket, error) {
+func (uc *BracketUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Bracket, error) {
 	bracket, err := uc.deps.BracketRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - GetByID - BracketRepo.GetByID: %w", err)
@@ -64,7 +64,7 @@ func (uc *BracketUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Br
 	return bracket, nil
 }
 
-func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*entity.Bracket, error) {
+func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*domain.Bracket, error) {
 	list, err := uc.deps.BracketRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - GetAll - BracketRepo.GetAll: %w", err)
@@ -72,12 +72,12 @@ func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*entity.Bracket, error)
 	return list, nil
 }
 
-func (uc *BracketUseCase) Update(ctx context.Context, ID uuid.UUID, name, description string, isDefault bool) (*entity.Bracket, error) {
+func (uc *BracketUseCase) Update(ctx context.Context, ID uuid.UUID, name, description string, isDefault bool) (*domain.Bracket, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, httperr.ErrBracketNameRequired
 	}
-	var bracket *entity.Bracket
+	var bracket *domain.Bracket
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err error
 		bracket, err = uc.deps.BracketRepo.GetByID(ctx, ID)

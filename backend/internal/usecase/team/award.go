@@ -2,11 +2,12 @@ package team
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
@@ -31,7 +32,7 @@ func NewAwardUseCase(deps AwardDeps) *AwardUseCase {
 	return &AwardUseCase{deps: deps}
 }
 
-func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*entity.Award, error) {
+func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*domain.Award, error) {
 	if teamID == uuid.Nil {
 		return nil, httperr.ErrAwardTeamIDRequired
 	}
@@ -39,7 +40,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		return nil, httperr.ErrAwardValueCannotBeZero
 	}
 
-	award := &entity.Award{
+	award := &domain.Award{
 		TeamID:      teamID,
 		Value:       value,
 		Description: description,
@@ -77,7 +78,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 	return award, nil
 }
 
-func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
+func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Award, error) {
 	awards, err := uc.deps.AwardRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetByTeamID - AwardRepo.GetByTeamID: %w", err)
@@ -85,7 +86,7 @@ func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*e
 	return awards, nil
 }
 
-func (uc *AwardUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Award, error) {
+func (uc *AwardUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, error) {
 	award, err := uc.deps.AwardRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetByID - AwardRepo.GetByID: %w", err)
@@ -93,7 +94,7 @@ func (uc *AwardUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Awar
 	return award, nil
 }
 
-func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*entity.Award, error) {
+func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*domain.Award, error) {
 	awards, err := uc.deps.AwardRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetAll - AwardRepo.GetAll: %w", err)
@@ -104,6 +105,9 @@ func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*entity.Award, error) {
 func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	award, err := uc.deps.AwardRepo.GetByID(ctx, ID)
 	if err != nil {
+		if errors.Is(err, httperr.ErrAwardNotFound) {
+			return nil
+		}
 		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.GetByID: %w", err)
 	}
 	if err := uc.deps.AwardRepo.Delete(ctx, ID); err != nil {

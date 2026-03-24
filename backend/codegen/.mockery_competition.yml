@@ -9,86 +9,77 @@ packages:
     interfaces:
       CompetitionRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "CompetitionRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCompetitionRepository"
 
       AuditLogRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "AuditLogRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAuditLogRepository"
 
       SolveRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "SolveRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSolveRepository"
 
       ChallengeRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "ChallengeRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockChallengeRepository"
 
       UserRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"
 
       StatisticsRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "StatisticsRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockStatisticsRepository"
 
       BracketRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "BracketRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockBracketRepository"
 
       CompetitionParamRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "CompetitionParamRepo.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCompetitionParamRepo"
 
       SubmissionRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "SubmissionRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSubmissionRepository"
 
       TeamRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "TeamRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTeamRepository"
 
       TransactionManager:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "TransactionManager.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTransactionManager"
-
-  github.com/TakuyaYagam1/AstroCTFb/pkg/logger:
-    interfaces:
-      Logger:
-        config:
-          dir: "internal/usecase/competition/mocks"
-          filename: "Logger.go"
-          pkgname: "mocks"
-          structname: "MockLogger"

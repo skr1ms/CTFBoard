@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const maxBanRetries = 3
@@ -27,8 +28,8 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 			if err != nil {
 				return fmt.Errorf("TeamUseCase - BanTeam - UserRepo.GetByTeamID: %w", err)
 			}
-			sort.Slice(members, func(i, j int) bool {
-				return members[i].ID.String() < members[j].ID.String()
+			slices.SortFunc(members, func(a, b *domain.User) int {
+				return strings.Compare(a.ID.String(), b.ID.String())
 			})
 			for _, m := range members {
 				if err := uc.deps.UserRepo.Lock(ctx, m.ID); err != nil {
@@ -42,8 +43,8 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 			if err != nil {
 				return fmt.Errorf("TeamUseCase - BanTeam - UserRepo.GetByTeamID (recheck): %w", err)
 			}
-			sort.Slice(membersAfter, func(i, j int) bool {
-				return membersAfter[i].ID.String() < membersAfter[j].ID.String()
+			slices.SortFunc(membersAfter, func(a, b *domain.User) int {
+				return strings.Compare(a.ID.String(), b.ID.String())
 			})
 			if len(membersAfter) != len(members) {
 				return httperr.ErrTeamConflict
@@ -107,7 +108,7 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 			}
 			if banMembers {
 				for _, m := range members {
-					if m.Role == entity.RoleAdmin {
+					if m.Role == domain.RoleAdmin {
 						continue
 					}
 					if err := uc.deps.UserRepo.Ban(ctx, m.ID, reason); err != nil {
@@ -115,14 +116,14 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 					}
 					bannedUserIDs = append(bannedUserIDs, m.ID)
 				}
-			}
-			if err := uc.deps.UserRepo.UpdateTeamIDBatch(ctx, memberIDs, nil); err != nil {
-				return fmt.Errorf("TeamUseCase - BanTeam - UserRepo.UpdateTeamIDBatch: %w", err)
+				if err := uc.deps.UserRepo.UpdateTeamIDBatch(ctx, memberIDs, nil); err != nil {
+					return fmt.Errorf("TeamUseCase - BanTeam - UserRepo.UpdateTeamIDBatch: %w", err)
+				}
 			}
 			if !banMembers {
 				var nonAdminIDs []uuid.UUID
 				for _, m := range members {
-					if m.Role != entity.RoleAdmin {
+					if m.Role != domain.RoleAdmin {
 						nonAdminIDs = append(nonAdminIDs, m.ID)
 					}
 				}
@@ -148,10 +149,10 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 			if len(fieldValuesBackup) > 0 {
 				details["field_values"] = fieldValuesBackup
 			}
-			auditLog := &entity.TeamAuditLog{
+			auditLog := &domain.TeamAuditLog{
 				TeamID:  teamID,
 				UserID:  &actorID,
-				Action:  entity.TeamActionBanned,
+				Action:  domain.TeamActionBanned,
 				Details: details,
 			}
 			if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -173,10 +174,12 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 	for _, id := range memberIDs {
 		uc.invalidateUserCache(postCtx, id)
 	}
-	for _, id := range memberIDs {
-		if uc.deps.JWTRevoker != nil {
-			if err := uc.deps.JWTRevoker.RevokeAllForUser(postCtx, id); err != nil && uc.deps.Logger != nil {
-				uc.deps.Logger.WithError(err).Warn("TeamUseCase - BanTeam - RevokeAllForUser", logger.Fields{"user_id": id})
+	if banMembers {
+		for _, id := range memberIDs {
+			if uc.deps.JWTRevoker != nil {
+				if err := uc.deps.JWTRevoker.RevokeAllForUser(postCtx, id); err != nil && uc.deps.Logger != nil {
+					uc.deps.Logger.WithError(err).Warn("TeamUseCase - BanTeam - RevokeAllForUser", logkit.UserID(id.String()))
+				}
 			}
 		}
 	}
@@ -256,7 +259,7 @@ func parseFieldValuesFromDetails(details map[string]any, key string) map[string]
 	return out
 }
 
-func (uc *TeamUseCase) unbanTeamMembersByLog(ctx context.Context, banLog *entity.TeamAuditLog, memberIDs *[]uuid.UUID) error {
+func (uc *TeamUseCase) unbanTeamMembersByLog(ctx context.Context, banLog *domain.TeamAuditLog, memberIDs *[]uuid.UUID) error {
 	var banMembers bool
 	if banLog != nil && banLog.Details != nil {
 		if b, ok := banLog.Details["ban_members"].(bool); ok {
@@ -306,7 +309,7 @@ func (uc *TeamUseCase) unbanTeamMembersByLog(ctx context.Context, banLog *entity
 
 //nolint:funlen // unban flow: restore, recalc, reassign members
 func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUID, memberIDs *[]uuid.UUID) error {
-	banLog, err := uc.deps.TeamRepo.GetLatestAuditLogByTeamIDAndAction(ctx, teamID, string(entity.TeamActionBanned))
+	banLog, err := uc.deps.TeamRepo.GetLatestAuditLogByTeamIDAndAction(ctx, teamID, string(domain.TeamActionBanned))
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.GetLatestAuditLogByTeamIDAndAction: %w", err)
 	}
@@ -314,10 +317,10 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 		*memberIDs = parseUUIDSliceFromDetails(banLog.Details, "member_ids")
 	}
 	if len(*memberIDs) == 0 {
-		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no member_ids in ban audit log; team will be unbanned without restoring members", logger.Fields{"team_id": teamID.String()})
+		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no member_ids in ban audit log; team will be unbanned without restoring members", logkit.Fields{"team_id": teamID.String()})
 	}
-	sort.Slice(*memberIDs, func(i, j int) bool {
-		return (*memberIDs)[i].String() < (*memberIDs)[j].String()
+	slices.SortFunc(*memberIDs, func(a, b uuid.UUID) int {
+		return strings.Compare(a.String(), b.String())
 	})
 	for _, id := range *memberIDs {
 		if err := uc.deps.UserRepo.Lock(ctx, id); err != nil {
@@ -331,8 +334,8 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - UserRepo.FilterIDsByTeamIDNullAndNotBanned: %w", err)
 	}
-	sort.Slice(freeMembers, func(i, j int) bool {
-		return freeMembers[i].String() < freeMembers[j].String()
+	slices.SortFunc(freeMembers, func(a, b uuid.UUID) int {
+		return strings.Compare(a.String(), b.String())
 	})
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil && !errors.Is(err, httperr.ErrCompetitionNotFound) {
@@ -358,15 +361,19 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 	if err := uc.deps.TeamRepo.Unban(ctx, teamID); err != nil {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.Unban: %w", err)
 	}
-	if len(freeMembers) == 0 {
+	currentMembers, err := uc.deps.UserRepo.GetByTeamID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - UnbanTeam - UserRepo.GetByTeamID: %w", err)
+	}
+	if len(freeMembers) == 0 && len(currentMembers) == 0 {
 		if err := uc.deps.TeamRepo.SetHidden(ctx, teamID, true); err != nil {
 			return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.SetHidden: %w", err)
 		}
-		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no members restored; team set hidden", logger.Fields{"team_id": teamID.String()})
-		auditLog := &entity.TeamAuditLog{
+		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no members restored; team set hidden", logkit.Fields{"team_id": teamID.String()})
+		auditLog := &domain.TeamAuditLog{
 			TeamID: teamID,
 			UserID: &actorID,
-			Action: entity.TeamActionUnbanned,
+			Action: domain.TeamActionUnbanned,
 		}
 		if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 			return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.CreateAuditLog: %w", err)
@@ -402,8 +409,8 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - UserRepo.FilterIDsByTeamIDNullAndNotBanned: %w", err)
 	}
-	sort.Slice(freeMembers, func(i, j int) bool {
-		return freeMembers[i].String() < freeMembers[j].String()
+	slices.SortFunc(freeMembers, func(a, b uuid.UUID) int {
+		return strings.Compare(a.String(), b.String())
 	})
 	if maxSize > 0 && len(freeMembers) > maxSize {
 		freeMembers = freeMembers[:maxSize]
@@ -424,21 +431,21 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 				return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.UpdateCaptain: %w", err)
 			}
 		}
-	} else {
+	} else if len(currentMembers) == 0 {
 		if err := uc.deps.TeamRepo.SetHidden(ctx, teamID, true); err != nil {
 			return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.SetHidden: %w", err)
 		}
-		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no members restored; team set hidden", logger.Fields{"team_id": teamID.String()})
+		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no members restored; team set hidden", logkit.Fields{"team_id": teamID.String()})
 	}
 	if len(*memberIDs) > 0 {
 		if err := uc.deps.UserRepo.SetWasInBannedTeamByIDs(ctx, *memberIDs, false); err != nil {
 			return fmt.Errorf("TeamUseCase - UnbanTeam - UserRepo.SetWasInBannedTeamByIDs: %w", err)
 		}
 	}
-	auditLog := &entity.TeamAuditLog{
+	auditLog := &domain.TeamAuditLog{
 		TeamID: teamID,
 		UserID: &actorID,
-		Action: entity.TeamActionUnbanned,
+		Action: domain.TeamActionUnbanned,
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		return fmt.Errorf("TeamUseCase - UnbanTeam - TeamRepo.CreateAuditLog: %w", err)

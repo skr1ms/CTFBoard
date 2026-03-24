@@ -8,7 +8,7 @@ FROM verification_tokens
 WHERE token = $1;
 
 -- name: MarkVerificationTokenUsed :exec
-UPDATE verification_tokens SET used_at = NOW() WHERE id = $1;
+UPDATE verification_tokens SET used_at = $2 WHERE id = $1;
 
 -- name: DeleteExpiredVerificationTokens :exec
 DELETE FROM verification_tokens WHERE expires_at < $1;

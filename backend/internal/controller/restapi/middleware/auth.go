@@ -2,18 +2,17 @@ package middleware
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 type contextKey string
@@ -21,26 +20,28 @@ type contextKey string
 const UserRoleKey contextKey = "role"
 
 type APITokenAuther interface {
-	GetByTokenHash(ctx context.Context, tokenHash string) (*entity.APIToken, error)
+	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error)
 	UpdateLastUsedAt(ctx context.Context, id uuid.UUID) error
-	ValidateToken(t *entity.APIToken) bool
+	ValidateToken(t *domain.APIToken) bool
 }
 
 type UserByIDGetter interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 }
 
-func authBearer(jwtService jwt.Service, r *http.Request, token string) (context.Context, bool) {
+func authBearer(jwtService jwtkit.Service, r *http.Request, token string) (context.Context, bool) {
 	claims, err := jwtService.ValidateAccessToken(r.Context(), token)
 	if err != nil {
 		return nil, false
 	}
-	ctx := context.WithValue(r.Context(), httputil.UserIDKey, claims.UserID)
-	ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
+	ctx := jwtkit.ClaimsIntoContext(r.Context(), claims)
+	if id, ok := jwtkit.UserIDFromContext(ctx); ok {
+		ctx = context.WithValue(ctx, httputil.UserIDKey, id.String())
+	}
 	return ctx, true
 }
 
-func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.Logger, r *http.Request, plaintext string) (context.Context, bool) {
+func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logkit.Logger, r *http.Request, plaintext string) (context.Context, bool) {
 	if apiTokenUC == nil || userUC == nil {
 		return nil, false
 	}
@@ -48,8 +49,7 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.L
 	if plaintext == "" {
 		return nil, false
 	}
-	hash := sha256.Sum256([]byte(plaintext))
-	tokenHash := hex.EncodeToString(hash[:])
+	tokenHash := crypto.SHA256Hex(plaintext)
 	token, err := apiTokenUC.GetByTokenHash(r.Context(), tokenHash)
 	if err != nil || token == nil || !apiTokenUC.ValidateToken(token) {
 		return nil, false
@@ -61,7 +61,7 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.L
 	if user.IsBanned {
 		return nil, false
 	}
-	if user.WasInBannedTeam && user.Role != entity.RoleAdmin {
+	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
 		return nil, false
 	}
 	if err := apiTokenUC.UpdateLastUsedAt(r.Context(), token.ID); err != nil {
@@ -73,7 +73,7 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.L
 	return ctx, true
 }
 
-func Auth(jwtService jwt.Service, apiTokenUC APITokenAuther, userUC UserByIDGetter, log logger.Logger) func(http.Handler) http.Handler {
+func Auth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC UserByIDGetter, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -90,7 +90,7 @@ func Auth(jwtService jwt.Service, apiTokenUC APITokenAuther, userUC UserByIDGett
 			var ok bool
 			switch {
 			case strings.EqualFold(parts[0], "Bearer"):
-				ctx, ok = authBearer(jwtService, r, parts[1])
+				ctx, ok = authBearer(jwtService, r, jwtkit.ExtractRaw(r))
 			case strings.EqualFold(parts[0], "Token"):
 				ctx, ok = authAPIToken(apiTokenUC, userUC, log, r, parts[1])
 			default:
@@ -109,7 +109,7 @@ func Auth(jwtService jwt.Service, apiTokenUC APITokenAuther, userUC UserByIDGett
 func Admin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := GetUser(r.Context())
-		if !ok || user == nil || user.Role != entity.RoleAdmin {
+		if !ok || user == nil || user.Role != domain.RoleAdmin {
 			httputil.HandleError(w, r, httperr.ErrAccessDenied)
 			return
 		}
@@ -118,10 +118,16 @@ func Admin(next http.Handler) http.Handler {
 }
 
 func GetUserID(ctx context.Context) string {
+	if id, ok := jwtkit.UserIDFromContext(ctx); ok {
+		return id.String()
+	}
 	return httputil.GetUserID(ctx)
 }
 
 func GetUserRole(ctx context.Context) string {
+	if role, ok := jwtkit.RoleFromContext(ctx); ok {
+		return role
+	}
 	if role, ok := ctx.Value(UserRoleKey).(string); ok {
 		return role
 	}

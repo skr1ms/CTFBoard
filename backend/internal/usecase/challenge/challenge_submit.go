@@ -2,9 +2,7 @@ package challenge
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
@@ -14,8 +12,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 )
@@ -35,8 +34,9 @@ type submitContext struct {
 	flag        string
 	userID      uuid.UUID
 	teamID      uuid.UUID
-	team        *entity.Team
-	comp        *entity.Competition
+	clientIP    string
+	team        *domain.Team
+	comp        *domain.Competition
 }
 
 func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, error) {
@@ -75,6 +75,7 @@ func safeMatchString(ctx context.Context, re *regexp.Regexp, input string, timeo
 		defer regexSem.Release(1)
 		ch <- re.MatchString(input)
 	}()
+	// Buffered ch allows the goroutine to send and exit so Release runs even when caller times out
 	select {
 	case matched := <-ch:
 		return matched, nil
@@ -83,7 +84,8 @@ func safeMatchString(ctx context.Context, re *regexp.Regexp, input string, timeo
 	}
 }
 
-func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID) (bool, error) {
+//nolint:funlen // submission flow: validation, lock, solve check, create, broadcast
+func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error) {
 	if teamID == nil {
 		return false, httperr.ErrUserMustBeInTeam
 	}
@@ -93,7 +95,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitCheckCompetitionTime: %w", err)
 	}
 
-	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: strings.TrimSpace(flag), userID: userID, teamID: *teamID, comp: comp}
+	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: strings.TrimSpace(flag), userID: userID, teamID: *teamID, clientIP: clientIP, comp: comp}
 	if sc.flag == "" {
 		return false, httperr.ErrInvalidFlagFormat
 	}
@@ -120,10 +122,10 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 			return false, httperr.ErrTeamBanned
 		}
 		if comp != nil {
-			if comp.Mode == entity.ModeTeamsOnly && team.IsSolo {
+			if comp.Mode == domain.ModeTeamsOnly && team.IsSolo {
 				return false, httperr.ErrTeamModeRequired
 			}
-			if comp.Mode == entity.ModeSoloOnly && !team.IsSolo {
+			if comp.Mode == domain.ModeSoloOnly && !team.IsSolo {
 				return false, httperr.ErrSoloModeRequired
 			}
 			if comp.MinTeamSize > 0 && !team.IsSolo {
@@ -145,12 +147,24 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		}
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitGetChallenge: %w", err)
 	}
+	if challenge.State == domain.ChallengeStateLocked {
+		return false, httperr.ErrChallengeLocked
+	}
 	met, err := requirementsMet(ctx, sc.challengeID, sc.teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
 	if err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - requirementsMet: %w", err)
 	}
 	if !met {
 		return false, httperr.ErrRequirementsNotMet
+	}
+	if challenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil {
+		count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(sc.ctx, sc.teamID, sc.challengeID)
+		if err != nil {
+			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - CountSubmissionsByTeamAndChallenge: %w", err)
+		}
+		if count >= int64(challenge.MaxAttempts) {
+			return false, httperr.ErrMaxAttemptsReached
+		}
 	}
 	if err := uc.submitValidateFlagFormat(sc, challenge); err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitValidateFlagFormat: %w", err)
@@ -168,25 +182,37 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - checkFlag: %w", err)
 	}
 	if !correct {
+		if err := uc.submitLogIncorrectAndEnforceMaxAttempts(sc, challenge); err != nil {
+			if errors.Is(err, httperr.ErrMaxAttemptsReached) {
+				return false, httperr.ErrMaxAttemptsReached
+			}
+			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitLogIncorrectAndEnforceMaxAttempts: %w", err)
+		}
 		return false, nil
 	}
-	solvedChallenge, solveCount, err := uc.submitRecordSolve(sc, challenge)
+	solvedChallenge, solveCount, alreadySolved, err := uc.submitRecordSolve(sc, challenge)
 	if err != nil {
 		if errors.Is(err, httperr.ErrRequirementsNotMet) {
 			return false, httperr.ErrRequirementsNotMet
 		}
+		if errors.Is(err, httperr.ErrMaxAttemptsReached) {
+			return false, httperr.ErrMaxAttemptsReached
+		}
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitRecordSolve: %w", err)
+	}
+	if alreadySolved {
+		return true, nil
 	}
 	uc.submitInvalidateCache(sc.ctx, sc.teamID)
 	uc.submitNotifySolve(sc, solvedChallenge, solveCount == 1)
 	return true, nil
 }
 
-func (uc *ChallengeUseCase) submitCheckCompetitionTime(ctx context.Context) (*entity.Competition, error) {
+func (uc *ChallengeUseCase) submitCheckCompetitionTime(ctx context.Context) (*domain.Competition, error) {
 	if uc.deps.CompUC == nil && uc.deps.CompRepo == nil {
 		return nil, nil
 	}
-	var comp *entity.Competition
+	var comp *domain.Competition
 	var err error
 	if uc.deps.CompUC != nil {
 		comp, err = uc.deps.CompUC.Get(ctx)
@@ -202,7 +228,7 @@ func (uc *ChallengeUseCase) submitCheckCompetitionTime(ctx context.Context) (*en
 	return comp, nil
 }
 
-func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*entity.Challenge, error) {
+func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*domain.Challenge, error) {
 	key := sc.challengeID.String()
 	v, err, _ := uc.challengeFetchSf.Do(key, func() (any, error) {
 		return uc.deps.ChallengeRepo.GetByID(context.WithoutCancel(sc.ctx), sc.challengeID)
@@ -213,11 +239,11 @@ func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*entity.Chall
 		}
 		return nil, fmt.Errorf("ChallengeUseCase - SubmitFlag - ChallengeRepo.GetByID: %w", err)
 	}
-	challenge, ok := v.(*entity.Challenge)
+	challenge, ok := v.(*domain.Challenge)
 	if !ok {
 		return nil, fmt.Errorf("ChallengeUseCase - SubmitFlag - ChallengeRepo.GetByID: unexpected type")
 	}
-	if challenge.IsHidden {
+	if challenge.State == domain.ChallengeStateHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
 	return challenge, nil
@@ -251,7 +277,43 @@ func (uc *ChallengeUseCase) submitCheckRequirementsInTx(ctx context.Context, cha
 	return nil
 }
 
-func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challenge *entity.Challenge) error {
+func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitContext, challenge *domain.Challenge) error {
+	sub := &domain.Submission{
+		UserID:        sc.userID,
+		TeamID:        &sc.teamID,
+		ChallengeID:   sc.challengeID,
+		SubmittedFlag: sc.flag,
+		IsCorrect:     false,
+		Type:          domain.SubmissionTypeIncorrect,
+		IP:            sc.clientIP,
+		CreatedAt:     time.Now(),
+	}
+	if challenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil && uc.deps.TM != nil {
+		err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
+			if err := uc.deps.SubmissionRepo.AcquireAdvisoryLockForSubmit(ctx, sc.teamID, sc.challengeID); err != nil {
+				return err
+			}
+			count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, sc.teamID, sc.challengeID)
+			if err != nil {
+				return fmt.Errorf("CountSubmissionsByTeamAndChallenge: %w", err)
+			}
+			if count >= int64(challenge.MaxAttempts) {
+				return httperr.ErrMaxAttemptsReached
+			}
+			return uc.deps.SubmissionRepo.Create(ctx, sub)
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if uc.deps.SubmissionRepo != nil {
+		return uc.deps.SubmissionRepo.Create(sc.ctx, sub)
+	}
+	return nil
+}
+
+func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challenge *domain.Challenge) error {
 	formatRegex := ""
 	if challenge.FlagFormatRegex != nil && *challenge.FlagFormatRegex != "" {
 		formatRegex = *challenge.FlagFormatRegex
@@ -275,18 +337,21 @@ func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challeng
 	return nil
 }
 
-func (uc *ChallengeUseCase) submitCheckFlag(sc *submitContext, challenge *entity.Challenge) (bool, error) {
+func (uc *ChallengeUseCase) submitCheckFlag(sc *submitContext, challenge *domain.Challenge) (bool, error) {
 	if challenge.IsRegex {
 		return uc.submitCheckRegexFlag(sc, challenge)
 	}
 	return uc.submitCheckHashFlag(sc, challenge), nil
 }
 
-func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *entity.Challenge) (bool, error) {
+func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *domain.Challenge) (bool, error) {
 	if uc.deps.Crypto == nil {
 		return false, fmt.Errorf("ChallengeUseCase - submitCheckRegexFlag - crypto not configured")
 	}
-	pattern, err := uc.deps.Crypto.Decrypt(challenge.FlagRegex)
+	if challenge.FlagRegex == nil || *challenge.FlagRegex == "" {
+		return false, fmt.Errorf("ChallengeUseCase - submitCheckRegexFlag - regex challenge has no flag_regex")
+	}
+	pattern, err := uc.deps.Crypto.Decrypt(*challenge.FlagRegex)
 	if err != nil {
 		return false, fmt.Errorf("ChallengeUseCase - submitCheckRegexFlag - crypto.Decrypt: %w", err)
 	}
@@ -304,21 +369,21 @@ func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *e
 	return matched, nil
 }
 
-func (uc *ChallengeUseCase) submitCheckHashFlag(sc *submitContext, challenge *entity.Challenge) bool {
+func (uc *ChallengeUseCase) submitCheckHashFlag(sc *submitContext, challenge *domain.Challenge) bool {
 	userInput := sc.flag
 	if challenge.IsCaseInsensitive {
 		userInput = strings.ToLower(userInput)
 	}
-	hash := sha256.Sum256([]byte(userInput))
-	hashStr := hex.EncodeToString(hash[:])
+	hashStr := crypto.SHA256Hex(userInput)
 	return subtle.ConstantTimeCompare([]byte(hashStr), []byte(challenge.FlagHash)) == 1
 }
 
-func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *entity.Challenge) (*entity.Challenge, int, error) {
-	var solvedChallenge *entity.Challenge
+func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Challenge) (*domain.Challenge, int, bool, error) {
+	var solvedChallenge *domain.Challenge
 	var solveCount int
+	var alreadySolved bool
 	err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
-		var comp *entity.Competition
+		var comp *domain.Competition
 		if uc.deps.CompRepo != nil {
 			c, err := uc.deps.CompRepo.GetForUpdate(ctx)
 			if err != nil && !errors.Is(err, httperr.ErrCompetitionNotFound) {
@@ -356,10 +421,10 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *entity.Chall
 				return httperr.ErrTeamBanned
 			}
 			if comp != nil {
-				if comp.Mode == entity.ModeTeamsOnly && freshTeam.IsSolo {
+				if comp.Mode == domain.ModeTeamsOnly && freshTeam.IsSolo {
 					return httperr.ErrTeamModeRequired
 				}
-				if comp.Mode == entity.ModeSoloOnly && !freshTeam.IsSolo {
+				if comp.Mode == domain.ModeSoloOnly && !freshTeam.IsSolo {
 					return httperr.ErrSoloModeRequired
 				}
 				if comp.MinTeamSize > 0 && !freshTeam.IsSolo {
@@ -373,18 +438,71 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *entity.Chall
 				}
 			}
 		}
-		freshChallenge, err := uc.deps.ChallengeRepo.GetByID(ctx, sc.challengeID)
+		freshChallenge, err := uc.deps.ChallengeRepo.GetByIDForUpdate(ctx, sc.challengeID)
 		if err != nil {
-			return fmt.Errorf("ChallengeUseCase - submitRecordSolve - ChallengeRepo.GetByID: %w", err)
+			return fmt.Errorf("ChallengeUseCase - submitRecordSolve - ChallengeRepo.GetByIDForUpdate: %w", err)
 		}
-		if freshChallenge.IsHidden {
+		if freshChallenge.State == domain.ChallengeStateHidden {
 			return httperr.ErrChallengeNotFound
+		}
+		if freshChallenge.State == domain.ChallengeStateLocked {
+			return httperr.ErrChallengeLocked
 		}
 		if err := uc.submitCheckRequirementsInTx(ctx, sc.challengeID, sc.teamID); err != nil {
 			return err
 		}
+		if freshChallenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil {
+			if err := uc.deps.SubmissionRepo.AcquireAdvisoryLockForSubmit(ctx, sc.teamID, sc.challengeID); err != nil {
+				return fmt.Errorf("AcquireAdvisoryLockForSubmit: %w", err)
+			}
+			count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, sc.teamID, sc.challengeID)
+			if err != nil {
+				return fmt.Errorf("CountSubmissionsByTeamAndChallenge: %w", err)
+			}
+			if count >= int64(freshChallenge.MaxAttempts) {
+				if uc.deps.SolveRepo != nil {
+					_, solveErr := uc.deps.SolveRepo.GetByTeamAndChallenge(ctx, sc.teamID, sc.challengeID)
+					if solveErr == nil {
+						solvedChallenge = freshChallenge
+						alreadySolved = true
+						correctSub := &domain.Submission{
+							UserID:        sc.userID,
+							TeamID:        &sc.teamID,
+							ChallengeID:   sc.challengeID,
+							SubmittedFlag: sc.flag,
+							IsCorrect:     true,
+							Type:          domain.SubmissionTypeCorrect,
+							IP:            sc.clientIP,
+							CreatedAt:     time.Now(),
+						}
+						if uc.deps.SubmissionRepo != nil {
+							if err := uc.deps.SubmissionRepo.Create(ctx, correctSub); err != nil {
+								return fmt.Errorf("SubmissionRepo.Create: %w", err)
+							}
+						}
+						return nil
+					}
+				}
+				return httperr.ErrMaxAttemptsReached
+			}
+		}
+		correctSub := &domain.Submission{
+			UserID:        sc.userID,
+			TeamID:        &sc.teamID,
+			ChallengeID:   sc.challengeID,
+			SubmittedFlag: sc.flag,
+			IsCorrect:     true,
+			Type:          domain.SubmissionTypeCorrect,
+			IP:            sc.clientIP,
+			CreatedAt:     time.Now(),
+		}
+		if uc.deps.SubmissionRepo != nil {
+			if err := uc.deps.SubmissionRepo.Create(ctx, correctSub); err != nil {
+				return fmt.Errorf("SubmissionRepo.Create: %w", err)
+			}
+		}
 		solvedChallenge = freshChallenge
-		solve := &entity.Solve{UserID: sc.userID, TeamID: sc.teamID, ChallengeID: sc.challengeID}
+		solve := &domain.Solve{UserID: sc.userID, TeamID: sc.teamID, ChallengeID: sc.challengeID}
 		solveCount, err = competition.RecordSolveInTx(ctx, solve, freshChallenge, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
 		if err != nil {
 			return fmt.Errorf("ChallengeUseCase - submitRecordSolve - RecordSolveInTx: %w", err)
@@ -392,12 +510,16 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *entity.Chall
 		return nil
 	})
 	if err != nil {
-		return nil, 0, fmt.Errorf("ChallengeUseCase - submitRecordSolve - TM.Run: %w", err)
+		var httpErr *httperr.HTTPError
+		if errors.As(err, &httpErr) {
+			return nil, 0, false, err
+		}
+		return nil, 0, false, fmt.Errorf("ChallengeUseCase - submitRecordSolve - TM.Run: %w", err)
 	}
-	return solvedChallenge, solveCount, nil
+	return solvedChallenge, solveCount, alreadySolved, nil
 }
 
-func (uc *ChallengeUseCase) submitRecordSolveUpdatePointsIfDecay(ctx context.Context, challengeID uuid.UUID, solvedChallenge *entity.Challenge, solveCount int) error {
+func (uc *ChallengeUseCase) submitRecordSolveUpdatePointsIfDecay(ctx context.Context, challengeID uuid.UUID, solvedChallenge *domain.Challenge, solveCount int) error {
 	_, err := scoring.ApplySolveScore(ctx,
 		solvedChallenge.InitialValue, solvedChallenge.MinValue, solvedChallenge.Decay, solvedChallenge.Points, solveCount,
 		func(ctx context.Context, pts int) error {
@@ -427,7 +549,7 @@ func (uc *ChallengeUseCase) submitInvalidateCache(ctx context.Context, teamID uu
 	uc.InvalidateChallengeListCacheForTeam(ctx, teamID)
 }
 
-func (uc *ChallengeUseCase) submitGetFreshCompetition(ctx context.Context) *entity.Competition {
+func (uc *ChallengeUseCase) submitGetFreshCompetition(ctx context.Context) *domain.Competition {
 	if uc.deps.CompRepo != nil {
 		comp, err := uc.deps.CompRepo.Get(ctx)
 		if err == nil {
@@ -443,7 +565,7 @@ func (uc *ChallengeUseCase) submitGetFreshCompetition(ctx context.Context) *enti
 	return nil
 }
 
-func (uc *ChallengeUseCase) submitNotifySolve(sc *submitContext, challenge *entity.Challenge, isFirstBlood bool) {
+func (uc *ChallengeUseCase) submitNotifySolve(sc *submitContext, challenge *domain.Challenge, isFirstBlood bool) {
 	if uc.deps.Broadcaster == nil || challenge == nil {
 		return
 	}

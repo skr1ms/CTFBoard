@@ -187,13 +187,17 @@ func seedChallenges(ctx context.Context, client *openapi.ClientWithResponses, ad
 		decay := 1
 		isHidden := false
 
+		state := openapi.CreateChallengeRequestStateVisible
+		if isHidden {
+			state = openapi.CreateChallengeRequestStateHidden
+		}
 		resp, err := client.PostAdminChallengesWithResponse(ctx, openapi.PostAdminChallengesJSONRequestBody{
 			Title:        title,
 			Flag:         flag,
 			Description:  desc,
 			Category:     category,
 			Points:       points,
-			IsHidden:     &isHidden,
+			State:        &state,
 			InitialValue: &initialValue,
 			MinValue:     &minValue,
 			Decay:        &decay,

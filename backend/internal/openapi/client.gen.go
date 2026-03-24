@@ -490,6 +490,14 @@ type ClientInterface interface {
 	// PostChallengesChallengeIDHintsHintIDUnlock request
 	PostChallengesChallengeIDHintsHintIDUnlock(ctx context.Context, challengeID string, hintID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PutChallengesChallengeIDRatingWithBody request with any body
+	PutChallengesChallengeIDRatingWithBody(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutChallengesChallengeIDRating(ctx context.Context, challengeID string, body PutChallengesChallengeIDRatingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetChallengesChallengeIDRatings request
+	GetChallengesChallengeIDRatings(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetChallengesChallengeIDRequirements request
 	GetChallengesChallengeIDRequirements(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2469,6 +2477,42 @@ func (c *Client) GetChallengesChallengeIDHints(ctx context.Context, challengeID 
 
 func (c *Client) PostChallengesChallengeIDHintsHintIDUnlock(ctx context.Context, challengeID string, hintID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostChallengesChallengeIDHintsHintIDUnlockRequest(c.Server, challengeID, hintID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutChallengesChallengeIDRatingWithBody(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutChallengesChallengeIDRatingRequestWithBody(c.Server, challengeID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutChallengesChallengeIDRating(ctx context.Context, challengeID string, body PutChallengesChallengeIDRatingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutChallengesChallengeIDRatingRequest(c.Server, challengeID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetChallengesChallengeIDRatings(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetChallengesChallengeIDRatingsRequest(c.Server, challengeID)
 	if err != nil {
 		return nil, err
 	}
@@ -7999,6 +8043,87 @@ func NewPostChallengesChallengeIDHintsHintIDUnlockRequest(server string, challen
 	return req, nil
 }
 
+// NewPutChallengesChallengeIDRatingRequest calls the generic PutChallengesChallengeIDRating builder with application/json body
+func NewPutChallengesChallengeIDRatingRequest(server string, challengeID string, body PutChallengesChallengeIDRatingJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutChallengesChallengeIDRatingRequestWithBody(server, challengeID, "application/json", bodyReader)
+}
+
+// NewPutChallengesChallengeIDRatingRequestWithBody generates requests for PutChallengesChallengeIDRating with any type of body
+func NewPutChallengesChallengeIDRatingRequestWithBody(server string, challengeID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/challenges/%s/rating", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetChallengesChallengeIDRatingsRequest generates requests for GetChallengesChallengeIDRatings
+func NewGetChallengesChallengeIDRatingsRequest(server string, challengeID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "challengeID", runtime.ParamLocationPath, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/challenges/%s/ratings", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetChallengesChallengeIDRequirementsRequest generates requests for GetChallengesChallengeIDRequirements
 func NewGetChallengesChallengeIDRequirementsRequest(server string, challengeID string) (*http.Request, error) {
 	var err error
@@ -11259,6 +11384,14 @@ type ClientWithResponsesInterface interface {
 	// PostChallengesChallengeIDHintsHintIDUnlockWithResponse request
 	PostChallengesChallengeIDHintsHintIDUnlockWithResponse(ctx context.Context, challengeID string, hintID string, reqEditors ...RequestEditorFn) (*PostChallengesChallengeIDHintsHintIDUnlockResponse, error)
 
+	// PutChallengesChallengeIDRatingWithBodyWithResponse request with any body
+	PutChallengesChallengeIDRatingWithBodyWithResponse(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutChallengesChallengeIDRatingResponse, error)
+
+	PutChallengesChallengeIDRatingWithResponse(ctx context.Context, challengeID string, body PutChallengesChallengeIDRatingJSONRequestBody, reqEditors ...RequestEditorFn) (*PutChallengesChallengeIDRatingResponse, error)
+
+	// GetChallengesChallengeIDRatingsWithResponse request
+	GetChallengesChallengeIDRatingsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDRatingsResponse, error)
+
 	// GetChallengesChallengeIDRequirementsWithResponse request
 	GetChallengesChallengeIDRequirementsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDRequirementsResponse, error)
 
@@ -14110,6 +14243,53 @@ func (r PostChallengesChallengeIDHintsHintIDUnlockResponse) StatusCode() int {
 	return 0
 }
 
+type PutChallengesChallengeIDRatingResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *RatingResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutChallengesChallengeIDRatingResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutChallengesChallengeIDRatingResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetChallengesChallengeIDRatingsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]RatingResponse
+	JSON401      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetChallengesChallengeIDRatingsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetChallengesChallengeIDRatingsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetChallengesChallengeIDRequirementsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -14284,7 +14464,7 @@ func (r GetCompetitionStatusResponse) StatusCode() int {
 type GetConfigsPublicResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]ConfigItem
+	JSON200      *ConfigPublicResponse
 	JSON400      *ErrorResponse
 }
 
@@ -17054,6 +17234,32 @@ func (c *ClientWithResponses) PostChallengesChallengeIDHintsHintIDUnlockWithResp
 		return nil, err
 	}
 	return ParsePostChallengesChallengeIDHintsHintIDUnlockResponse(rsp)
+}
+
+// PutChallengesChallengeIDRatingWithBodyWithResponse request with arbitrary body returning *PutChallengesChallengeIDRatingResponse
+func (c *ClientWithResponses) PutChallengesChallengeIDRatingWithBodyWithResponse(ctx context.Context, challengeID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutChallengesChallengeIDRatingResponse, error) {
+	rsp, err := c.PutChallengesChallengeIDRatingWithBody(ctx, challengeID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutChallengesChallengeIDRatingResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutChallengesChallengeIDRatingWithResponse(ctx context.Context, challengeID string, body PutChallengesChallengeIDRatingJSONRequestBody, reqEditors ...RequestEditorFn) (*PutChallengesChallengeIDRatingResponse, error) {
+	rsp, err := c.PutChallengesChallengeIDRating(ctx, challengeID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutChallengesChallengeIDRatingResponse(rsp)
+}
+
+// GetChallengesChallengeIDRatingsWithResponse request returning *GetChallengesChallengeIDRatingsResponse
+func (c *ClientWithResponses) GetChallengesChallengeIDRatingsWithResponse(ctx context.Context, challengeID string, reqEditors ...RequestEditorFn) (*GetChallengesChallengeIDRatingsResponse, error) {
+	rsp, err := c.GetChallengesChallengeIDRatings(ctx, challengeID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetChallengesChallengeIDRatingsResponse(rsp)
 }
 
 // GetChallengesChallengeIDRequirementsWithResponse request returning *GetChallengesChallengeIDRequirementsResponse
@@ -22556,6 +22762,79 @@ func ParsePostChallengesChallengeIDHintsHintIDUnlockResponse(rsp *http.Response)
 	return response, nil
 }
 
+// ParsePutChallengesChallengeIDRatingResponse parses an HTTP response from a PutChallengesChallengeIDRatingWithResponse call
+func ParsePutChallengesChallengeIDRatingResponse(rsp *http.Response) (*PutChallengesChallengeIDRatingResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutChallengesChallengeIDRatingResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RatingResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetChallengesChallengeIDRatingsResponse parses an HTTP response from a GetChallengesChallengeIDRatingsWithResponse call
+func ParseGetChallengesChallengeIDRatingsResponse(rsp *http.Response) (*GetChallengesChallengeIDRatingsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetChallengesChallengeIDRatingsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []RatingResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetChallengesChallengeIDRequirementsResponse parses an HTTP response from a GetChallengesChallengeIDRequirementsWithResponse call
 func ParseGetChallengesChallengeIDRequirementsResponse(rsp *http.Response) (*GetChallengesChallengeIDRequirementsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22872,7 +23151,7 @@ func ParseGetConfigsPublicResponse(rsp *http.Response) (*GetConfigsPublicRespons
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []ConfigItem
+		var dest ConfigPublicResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

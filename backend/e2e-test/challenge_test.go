@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -14,7 +13,6 @@ import (
 
 // GET /challenges + POST /challenges/{ID}/submit: create challenge, submit correct flag, verify solved state; duplicate submit returns 409.
 func TestChallenge_Lifecycle(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -26,10 +24,10 @@ func TestChallenge_Lifecycle(t *testing.T) {
 		"points":      100,
 		"flag":        "FLAG{test}",
 		"category":    "web",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	userName := "chall_usr_" + suffix
 	_, _, tokenUser := h.RegisterUserAndLogin(userName)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
@@ -52,7 +50,6 @@ func TestChallenge_Lifecycle(t *testing.T) {
 
 // POST /admin/challenges + POST /challenges/{ID}/submit: dynamic scoring; first solver gets initial points, second gets min_value.
 func TestChallenge_DynamicScoring(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -67,10 +64,10 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 		"decay":         1,
 		"flag":          "FLAG{dynamic}",
 		"category":      "web",
-		"is_hidden":     false,
+		"state":         "visible",
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser1 := h.RegisterUserAndLogin("solver1_" + suffix)
 	h.CreateSoloTeam(tokenUser1, http.StatusCreated)
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{dynamic}", http.StatusOK)
@@ -90,9 +87,8 @@ func TestChallenge_DynamicScoring(t *testing.T) {
 	helper.RequireChallengeFields(t, challengeState2, "", nil, &solveCount2, &points100)
 }
 
-// POST /admin/challenges with is_hidden: hidden challenge is not visible in GET /challenges for regular user.
+// POST /admin/challenges with state=hidden: hidden challenge is not visible in GET /challenges for regular user.
 func TestChallenge_CreateHidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -104,10 +100,10 @@ func TestChallenge_CreateHidden(t *testing.T) {
 		"points":      200,
 		"flag":        "FLAG{hidden}",
 		"category":    "crypto",
-		"is_hidden":   true,
+		"state":       "hidden",
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user2_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -116,7 +112,6 @@ func TestChallenge_CreateHidden(t *testing.T) {
 
 // PUT /admin/challenges/{ID}: update challenge fields; GET /challenges reflects new title, description, points.
 func TestChallenge_Update(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -128,7 +123,7 @@ func TestChallenge_Update(t *testing.T) {
 		"points":      100,
 		"flag":        "FLAG{original}",
 		"category":    "web",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	h.UpdateChallenge(tokenAdmin, challengeID, map[string]any{
@@ -137,7 +132,7 @@ func TestChallenge_Update(t *testing.T) {
 		"points":      150,
 		"flag":        "FLAG{updated}",
 		"category":    "pwn",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	challenge := h.FindChallengeInList(tokenAdmin, challengeID)
@@ -149,7 +144,6 @@ func TestChallenge_Update(t *testing.T) {
 
 // POST /challenges/{ID}/submit: wrong flag returns 200 with correct=false.
 func TestChallenge_SubmitInvalidFlag(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -163,7 +157,7 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 		"category":    "misc",
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user3_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -174,7 +168,6 @@ func TestChallenge_SubmitInvalidFlag(t *testing.T) {
 
 // DELETE /admin/challenges/{ID}: challenge is removed; GET /challenges no longer returns it.
 func TestChallenge_Delete(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -193,9 +186,117 @@ func TestChallenge_Delete(t *testing.T) {
 	h.AssertChallengeMissing(tokenAdmin, challengeID)
 }
 
+// POST /admin/challenges + GET /challenges: create with connection_info, max_attempts, position, state; read reflects them.
+func TestChallenge_CreateAndRead_NewFields(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_newfields")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":           "New Fields Challenge",
+		"description":     "Has connection_info, max_attempts, position, state",
+		"points":          80,
+		"flag":            "FLAG{newfields}",
+		"category":        "web",
+		"state":           "visible",
+		"connection_info": "nc example.com 1337",
+		"max_attempts":    5,
+		"position":        3,
+	})
+
+	suffix := helper.UID()
+	_, _, tokenUser := h.RegisterUserAndLogin("newfields_usr_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	challenge := h.FindChallengeInList(tokenUser, challengeID)
+	require.Equal(t, "New Fields Challenge", *challenge.Title)
+	require.NotNil(t, challenge.ConnectionInfo)
+	require.Equal(t, "nc example.com 1337", *challenge.ConnectionInfo)
+	require.NotNil(t, challenge.MaxAttempts)
+	require.Equal(t, 5, *challenge.MaxAttempts)
+	require.NotNil(t, challenge.Position)
+	require.Equal(t, 3, *challenge.Position)
+	require.NotNil(t, challenge.State)
+	require.Equal(t, openapi.ChallengeResponseStateVisible, *challenge.State)
+}
+
+// POST /admin/challenges with state=locked: challenge visible in list but submit returns 403.
+func TestChallenge_LockedState_VisibleButSubmitForbidden(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_locked")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":       "Locked Challenge",
+		"description": "Visible but no submit",
+		"points":      100,
+		"flag":        "FLAG{locked}",
+		"category":    "web",
+		"state":       "locked",
+	})
+
+	suffix := helper.UID()
+	_, _, tokenUser := h.RegisterUserAndLogin("locked_usr_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	challenge := h.FindChallengeInList(tokenUser, challengeID)
+	require.Equal(t, "Locked Challenge", *challenge.Title)
+
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{locked}", http.StatusForbidden)
+}
+
+// POST /challenges/{ID}/submit: max_attempts=2; after 2 wrong attempts, third (even correct) returns 429.
+func TestChallenge_MaxAttemptsExhausted(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_maxattempts")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":        "Max Attempts Challenge",
+		"description":  "Only 2 attempts",
+		"points":       100,
+		"flag":         "FLAG{max2}",
+		"category":     "web",
+		"state":        "visible",
+		"max_attempts": 2,
+	})
+
+	suffix := helper.UID()
+	_, _, tokenUser := h.RegisterUserAndLogin("maxattempts_usr_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong1}", http.StatusOK)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong2}", http.StatusOK)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{max2}", http.StatusTooManyRequests)
+}
+
+// POST /challenges/{ID}/submit: max_attempts=2 exhausted, third wrong attempt returns 429.
+func TestChallenge_MaxAttemptsExhausted_WrongRejected(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_maxattempts_wrong")
+	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":        "Max Attempts Wrong",
+		"description":  "Only 2 attempts",
+		"points":       100,
+		"flag":         "FLAG{other}",
+		"category":     "web",
+		"state":        "visible",
+		"max_attempts": 2,
+	})
+
+	suffix := helper.UID()
+	_, _, tokenUser := h.RegisterUserAndLogin("maxattempts_wrong_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong1}", http.StatusOK)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong2}", http.StatusOK)
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{wrong3}", http.StatusTooManyRequests)
+}
+
 // GET /challenges: request without token returns 401 Unauthorized.
 func TestChallenge_GetChallenges_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -205,7 +306,6 @@ func TestChallenge_GetChallenges_Unauthorized(t *testing.T) {
 
 // PUT /admin/challenges/{ID}: non-existent challenge returns 404.
 func TestChallenge_Update_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -217,7 +317,6 @@ func TestChallenge_Update_NotFound(t *testing.T) {
 
 // DELETE /admin/challenges/{ID}: non-existent challenge returns 404.
 func TestChallenge_Delete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -227,13 +326,12 @@ func TestChallenge_Delete_NotFound(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: after competition ends, solutions remain accessible (returns 200).
 func TestChallenge_GetSolution_AfterCompetitionEnd(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("sol_end_admin")
 	h.EnableWriteups(tokenAdmin)
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_end_usr_" + suffix)
 	h.CreateTeam(tokenUser, "sol_end_team_"+suffix, http.StatusCreated)
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Solution Chall", "flag{solution}", 100)
@@ -254,13 +352,12 @@ func TestChallenge_GetSolution_AfterCompetitionEnd(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: challenge not found returns 404.
 func TestChallenge_GetSolution_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("sol_notfound_adm")
 	h.EnableWriteups(tokenAdmin)
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_nf_usr_" + suffix)
 
 	resp, err := h.Client().GetChallengesChallengeIDSolutionWithResponse(context.Background(), "00000000-0000-0000-0000-000000000000", helper.WithBearerToken(tokenUser))
@@ -274,7 +371,6 @@ func TestChallenge_GetSolution_NotFound(t *testing.T) {
 
 // GET /admin/challenges/{challengeID}/flags: admin gets flag hash + config.
 func TestChallenge_AdminGetFlags_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -288,7 +384,6 @@ func TestChallenge_AdminGetFlags_Success(t *testing.T) {
 
 // GET /admin/challenges/{challengeID}/flags: non-admin returns 403.
 func TestChallenge_AdminGetFlags_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -303,7 +398,6 @@ func TestChallenge_AdminGetFlags_Forbidden(t *testing.T) {
 
 // GET /challenges/{challengeID}/files: authed gets challenge files.
 func TestChallenge_GetFiles_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -319,7 +413,6 @@ func TestChallenge_GetFiles_Success(t *testing.T) {
 
 // GET /challenges/{challengeID}/files: non-existent challenge returns 200 with empty list.
 func TestChallenge_GetFiles_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -335,7 +428,6 @@ func TestChallenge_GetFiles_NotFound(t *testing.T) {
 
 // GET /challenges/{challengeID}/requirements: authed gets requirements.
 func TestChallenge_GetRequirements_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -350,7 +442,6 @@ func TestChallenge_GetRequirements_Success(t *testing.T) {
 
 // GET /challenges/{challengeID}/requirements: challenge not found returns 404.
 func TestChallenge_GetRequirements_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -364,7 +455,6 @@ func TestChallenge_GetRequirements_NotFound(t *testing.T) {
 
 // PUT /admin/challenges/{challengeID}/requirements: admin sets prerequisites, GET returns them.
 func TestChallenge_PutRequirements_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -386,7 +476,6 @@ func TestChallenge_PutRequirements_Success(t *testing.T) {
 
 // PUT /admin/challenges/{challengeID}/requirements: non-existent challenge returns 404.
 func TestChallenge_PutRequirements_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -401,7 +490,6 @@ func TestChallenge_PutRequirements_NotFound(t *testing.T) {
 
 // POST /challenges/{ID}/submit: when requirements not met returns 403.
 func TestChallenge_SubmitFlag_RequirementsNotMet(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -410,7 +498,7 @@ func TestChallenge_SubmitFlag_RequirementsNotMet(t *testing.T) {
 	mainID := h.CreateBasicChallenge(tokenAdmin, "Main With Reqs", "flag{main}", 100)
 	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("submit_reqs_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -420,7 +508,6 @@ func TestChallenge_SubmitFlag_RequirementsNotMet(t *testing.T) {
 
 // POST /challenges/{ID}/submit: when requirements met (prereq solved first) returns 200 correct.
 func TestChallenge_SubmitFlag_RequirementsMet_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -429,7 +516,7 @@ func TestChallenge_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	mainID := h.CreateBasicChallenge(tokenAdmin, "Main OK", "flag{main}", 100)
 	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("submit_reqs_ok_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -441,7 +528,6 @@ func TestChallenge_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 
 // POST /challenges/{ID}/submit: main challenge with two requirements; solve both prereqs then main (batch requirement check).
 func TestChallenge_SubmitFlag_RequirementsMet_TwoRequirements(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -451,7 +537,7 @@ func TestChallenge_SubmitFlag_RequirementsMet_TwoRequirements(t *testing.T) {
 	mainID := h.CreateBasicChallenge(tokenAdmin, "Main Two Reqs", "flag{main}", 100)
 	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereq1ID, prereq2ID})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("submit_two_reqs_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -470,7 +556,6 @@ func TestChallenge_SubmitFlag_RequirementsMet_TwoRequirements(t *testing.T) {
 
 // GET /challenges/{id}: when requirements not met (locked challenge) returns 404.
 func TestChallenge_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -479,7 +564,7 @@ func TestChallenge_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testing.T) {
 	mainID := h.CreateBasicChallenge(tokenAdmin, "Main Locked", "flag{main}", 100)
 	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("detail_reqs_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -488,18 +573,17 @@ func TestChallenge_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testing.T) {
 
 // POST /admin/challenges: create without initial_value/min_value/decay stays static; two solvers get same points.
 func TestChallenge_Create_WithoutDynamicParams_StaysStatic(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("static_create_admin")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Static Only Points", "description": "No dynamic params", "flag": "flag{static}",
-		"points": 300, "category": "misc", "is_hidden": false,
+		"points": 300, "category": "misc", "state": "visible",
 	})
 	require.NotEmpty(t, challID)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token1 := h.RegisterUserAndLogin("static_a_" + suffix)
 	h.CreateSoloTeam(token1, http.StatusCreated)
 	h.SubmitFlag(token1, challID, "flag{static}", http.StatusOK)

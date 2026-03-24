@@ -6,7 +6,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE id = $1;
 
--- name: GetFieldsByEntityType :many
+-- name: GetFieldsByentityType :many
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE entity_type = $1 ORDER BY order_index, name;
 
@@ -21,7 +21,7 @@ WHERE id = $1;
 -- name: DeleteField :exec
 DELETE FROM fields WHERE id = $1;
 
--- name: GetFieldValuesByEntityID :many
+-- name: GetFieldValuesByentityID :many
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values WHERE entity_id = $1;
 
@@ -29,7 +29,7 @@ FROM field_values WHERE entity_id = $1;
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values ORDER BY field_id, entity_id;
 
--- name: DeleteFieldValuesByEntityID :exec
+-- name: DeleteFieldValuesByentityID :exec
 DELETE FROM field_values WHERE entity_id = $1;
 
 -- name: UpsertFieldValue :exec

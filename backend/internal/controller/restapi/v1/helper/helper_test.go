@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 )
 
 func TestRequireUser_NoUser(t *testing.T) {
@@ -27,49 +28,49 @@ func TestRequireUser_NoUser(t *testing.T) {
 
 func TestClampLimit_Nil(t *testing.T) {
 	t.Parallel()
-	got := ClampLimit(nil, 10, 100)
+	got := httputil.ClampLimit(nil, 10, 100)
 	assert.Equal(t, 10, got)
 }
 
 func TestClampLimit_Zero(t *testing.T) {
 	t.Parallel()
 	zero := 0
-	got := ClampLimit(&zero, 10, 100)
+	got := httputil.ClampLimit(&zero, 10, 100)
 	assert.Equal(t, 10, got)
 }
 
 func TestClampLimit_Negative(t *testing.T) {
 	t.Parallel()
 	neg := -1
-	got := ClampLimit(&neg, 10, 100)
+	got := httputil.ClampLimit(&neg, 10, 100)
 	assert.Equal(t, 10, got)
 }
 
 func TestClampLimit_WithinRange(t *testing.T) {
 	t.Parallel()
 	n := 50
-	got := ClampLimit(&n, 10, 100)
+	got := httputil.ClampLimit(&n, 10, 100)
 	assert.Equal(t, 50, got)
 }
 
 func TestClampLimit_ExceedsMax(t *testing.T) {
 	t.Parallel()
 	n := 200
-	got := ClampLimit(&n, 10, 100)
+	got := httputil.ClampLimit(&n, 10, 100)
 	assert.Equal(t, 100, got)
 }
 
 func TestParseIntQuery_Missing(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	got := ParseIntQuery(r, "limit")
+	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
 
 func TestParseIntQuery_Valid(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest(http.MethodGet, "/?limit=25", nil)
-	got := ParseIntQuery(r, "limit")
+	got := httputil.ParseIntQuery(r, "limit")
 	require.NotNil(t, got)
 	assert.Equal(t, 25, *got)
 }
@@ -77,20 +78,20 @@ func TestParseIntQuery_Valid(t *testing.T) {
 func TestParseIntQuery_Invalid(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest(http.MethodGet, "/?limit=abc", nil)
-	got := ParseIntQuery(r, "limit")
+	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
 
 func TestParseIntQuery_Negative(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest(http.MethodGet, "/?limit=-5", nil)
-	got := ParseIntQuery(r, "limit")
+	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
 
 func TestParseIntQuery_Zero(t *testing.T) {
 	t.Parallel()
 	r := httptest.NewRequest(http.MethodGet, "/?limit=0", nil)
-	got := ParseIntQuery(r, "limit")
+	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }

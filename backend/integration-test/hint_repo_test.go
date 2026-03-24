@@ -9,18 +9,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestHintRepo_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "hint_get", 100)
-	hint := &entity.Hint{ChallengeID: challenge.ID, Content: "Hint", Cost: 10, OrderIndex: 0}
+	hint := &domain.Hint{ChallengeID: challenge.ID, Content: "Hint", Cost: 10, OrderIndex: 0}
 	err := f.HintRepo.Create(ctx, hint)
 	require.NoError(t, err)
 
@@ -32,7 +31,6 @@ func TestHintRepo_GetByID_Success(t *testing.T) {
 
 func TestHintRepo_GetByID_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -43,21 +41,19 @@ func TestHintRepo_GetByID_Error(t *testing.T) {
 
 func TestHintRepo_Create_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "hint_create_err", 100)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	hint := &entity.Hint{ChallengeID: challenge.ID, Content: "x", Cost: 0, OrderIndex: 0}
+	hint := &domain.Hint{ChallengeID: challenge.ID, Content: "x", Cost: 0, OrderIndex: 0}
 	err := f.HintRepo.Create(ctx, hint)
 	assert.Error(t, err)
 }
 
 func TestHintRepo_Update_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	hint := f.CreateHint(t, f.CreateChallenge(t, "hint_upd_err", 100).ID, 0, 0)
@@ -71,7 +67,6 @@ func TestHintRepo_Update_Error_CancelledContext(t *testing.T) {
 
 func TestHintRepo_Delete_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	hint := f.CreateHint(t, f.CreateChallenge(t, "hint_del_err", 100).ID, 0, 0)
@@ -84,14 +79,13 @@ func TestHintRepo_Delete_Error_CancelledContext(t *testing.T) {
 
 func TestHintRepo_CRUD_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "hint_crud", 100)
 
-	hint := &entity.Hint{
+	hint := &domain.Hint{
 		ChallengeID: challenge.ID,
 		Content:     "Secret Hint",
 		Cost:        50,
@@ -125,7 +119,6 @@ func TestHintRepo_CRUD_Success(t *testing.T) {
 
 func TestHintUnlockRepo_Flow(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -151,7 +144,6 @@ func TestHintUnlockRepo_Flow(t *testing.T) {
 
 func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -159,7 +151,7 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	_, team := f.CreateUserWithTeam(t, "u2")
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		award := &entity.Award{TeamID: team.ID, Value: -50, Description: "Hint penalty"}
+		award := &domain.Award{TeamID: team.ID, Value: -50, Description: "Hint penalty"}
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)
@@ -168,7 +160,7 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 	assert.Equal(t, -50, total)
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
-		award := &entity.Award{TeamID: team.ID, Value: 100, Description: "Bonus"}
+		award := &domain.Award{TeamID: team.ID, Value: 100, Description: "Bonus"}
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)
@@ -180,7 +172,6 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 
 func TestHintUnlockRepo_Rollback_UnlockNotPersistedOnError(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -204,7 +195,6 @@ func TestHintUnlockRepo_Rollback_UnlockNotPersistedOnError(t *testing.T) {
 
 func TestHintUnlockRepo_Rollback_AwardOrphan(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -214,7 +204,7 @@ func TestHintUnlockRepo_Rollback_AwardOrphan(t *testing.T) {
 	hint := f.CreateHint(t, challenge.ID, 30, 1)
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		award := &entity.Award{TeamID: team.ID, Value: -30, Description: "hint cost"}
+		award := &domain.Award{TeamID: team.ID, Value: -30, Description: "hint cost"}
 		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
 			return innerErr
 		}
@@ -236,7 +226,6 @@ func TestHintUnlockRepo_Rollback_AwardOrphan(t *testing.T) {
 
 func TestHintUnlockAndAwardTx_Commit(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -246,7 +235,7 @@ func TestHintUnlockAndAwardTx_Commit(t *testing.T) {
 	hint := f.CreateHint(t, challenge.ID, 25, 1)
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		award := &entity.Award{TeamID: team.ID, Value: -25, Description: "hint cost"}
+		award := &domain.Award{TeamID: team.ID, Value: -25, Description: "hint cost"}
 		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
 			return innerErr
 		}
@@ -265,7 +254,6 @@ func TestHintUnlockAndAwardTx_Commit(t *testing.T) {
 
 func TestScoreboardWithAwards(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -284,7 +272,7 @@ func TestScoreboardWithAwards(t *testing.T) {
 	assert.Equal(t, 100, score)
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
-		award := &entity.Award{TeamID: team.ID, Value: -20, Description: "Penalty"}
+		award := &domain.Award{TeamID: team.ID, Value: -20, Description: "Penalty"}
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)

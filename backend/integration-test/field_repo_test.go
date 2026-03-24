@@ -9,21 +9,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestFieldRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := &entity.Field{
+	field := &domain.Field{
 		Name:       "bio",
-		FieldType:  entity.FieldTypeText,
-		EntityType: entity.EntityTypeUser,
+		FieldType:  domain.FieldTypeText,
+		EntityType: domain.EntityTypeUser,
 		Required:   false,
 		OrderIndex: 0,
 	}
@@ -34,25 +33,23 @@ func TestFieldRepo_Create_Success(t *testing.T) {
 
 func TestFieldRepo_Create_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	field := &entity.Field{Name: "x", FieldType: entity.FieldTypeText, EntityType: entity.EntityTypeUser}
+	field := &domain.Field{Name: "x", FieldType: domain.FieldTypeText, EntityType: domain.EntityTypeUser}
 	err := f.FieldRepo.Create(ctx, field)
 	assert.Error(t, err)
 }
 
 func TestFieldRepo_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := f.CreateField(t, "gbi", entity.EntityTypeUser)
+	field := f.CreateField(t, "gbi", domain.EntityTypeUser)
 	got, err := f.FieldRepo.GetByID(ctx, field.ID)
 	require.NoError(t, err)
 	assert.Equal(t, field.ID, got.ID)
@@ -61,7 +58,6 @@ func TestFieldRepo_GetByID_Success(t *testing.T) {
 
 func TestFieldRepo_GetByID_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -73,14 +69,13 @@ func TestFieldRepo_GetByID_Error_NotFound(t *testing.T) {
 
 func TestFieldRepo_GetByEntityType_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	f1 := f.CreateField(t, "et1", entity.EntityTypeUser)
-	f2 := f.CreateField(t, "et2", entity.EntityTypeUser)
-	list, err := f.FieldRepo.GetByEntityType(ctx, entity.EntityTypeUser)
+	f1 := f.CreateField(t, "et1", domain.EntityTypeUser)
+	f2 := f.CreateField(t, "et2", domain.EntityTypeUser)
+	list, err := f.FieldRepo.GetByEntityType(ctx, domain.EntityTypeUser)
 	require.NoError(t, err)
 	ids := make(map[uuid.UUID]bool)
 	for _, fl := range list {
@@ -92,24 +87,22 @@ func TestFieldRepo_GetByEntityType_Success(t *testing.T) {
 
 func TestFieldRepo_GetByEntityType_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.FieldRepo.GetByEntityType(ctx, entity.EntityTypeUser)
+	_, err := f.FieldRepo.GetByEntityType(ctx, domain.EntityTypeUser)
 	assert.Error(t, err)
 }
 
 func TestFieldRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := f.CreateField(t, "ga1", entity.EntityTypeTeam)
+	field := f.CreateField(t, "ga1", domain.EntityTypeTeam)
 	list, err := f.FieldRepo.GetAll(ctx)
 	require.NoError(t, err)
 	ids := make(map[uuid.UUID]bool)
@@ -121,7 +114,6 @@ func TestFieldRepo_GetAll_Success(t *testing.T) {
 
 func TestFieldRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -133,12 +125,11 @@ func TestFieldRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestFieldRepo_Update_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := f.CreateField(t, "upd", entity.EntityTypeUser)
+	field := f.CreateField(t, "upd", domain.EntityTypeUser)
 	field.Name = "updated_name"
 	err := f.FieldRepo.Update(ctx, field)
 	require.NoError(t, err)
@@ -149,24 +140,22 @@ func TestFieldRepo_Update_Success(t *testing.T) {
 
 func TestFieldRepo_Update_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := &entity.Field{ID: uuid.New(), Name: "x", FieldType: entity.FieldTypeText, EntityType: entity.EntityTypeUser}
+	field := &domain.Field{ID: uuid.New(), Name: "x", FieldType: domain.FieldTypeText, EntityType: domain.EntityTypeUser}
 	err := f.FieldRepo.Update(ctx, field)
 	assert.NoError(t, err)
 }
 
 func TestFieldRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	field := f.CreateField(t, "del", entity.EntityTypeUser)
+	field := f.CreateField(t, "del", domain.EntityTypeUser)
 	err := f.FieldRepo.Delete(ctx, field.ID)
 	require.NoError(t, err)
 	_, err = f.FieldRepo.GetByID(ctx, field.ID)
@@ -176,7 +165,6 @@ func TestFieldRepo_Delete_Success(t *testing.T) {
 
 func TestFieldRepo_Delete_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -187,13 +175,12 @@ func TestFieldRepo_Delete_Error_NotFound(t *testing.T) {
 
 func TestFieldValueRepo_GetByEntityID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "fv")
-	field := f.CreateField(t, "fv", entity.EntityTypeUser)
+	field := f.CreateField(t, "fv", domain.EntityTypeUser)
 	err := f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "hello"})
 	require.NoError(t, err)
 	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
@@ -204,7 +191,6 @@ func TestFieldValueRepo_GetByEntityID_Success(t *testing.T) {
 
 func TestFieldValueRepo_GetByEntityID_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -216,13 +202,12 @@ func TestFieldValueRepo_GetByEntityID_Error_CancelledContext(t *testing.T) {
 
 func TestFieldValueRepo_SetValues_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "setv")
-	field := f.CreateField(t, "setv", entity.EntityTypeUser)
+	field := f.CreateField(t, "setv", domain.EntityTypeUser)
 	err := f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "value1"})
 	require.NoError(t, err)
 	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
@@ -238,7 +223,6 @@ func TestFieldValueRepo_SetValues_Success(t *testing.T) {
 
 func TestFieldValueRepo_SetValues_Error_InvalidFieldID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

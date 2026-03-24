@@ -13,18 +13,18 @@ import (
 
 // POST /challenges/{challengeID}/comments + GET /challenges/{challengeID}/comments: allowed only after competition ended.
 func TestComment_CreateAndList_Success(t *testing.T) {
-	t.Helper()
 	// Sequential: mutates global competition state; parallel tests could repopulate Redis cache with "active".
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_ok_" + uuid.New().String()[:8])
+	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_ok_" + helper.UID())
 	t.Cleanup(resetCompetitionToActive)
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
+	time.Sleep(5 * time.Second)
 
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Challenge", "FLAG{comment}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_user_" + suffix)
 
 	content := "hello " + suffix
@@ -46,14 +46,13 @@ func TestComment_CreateAndList_Success(t *testing.T) {
 
 // POST /challenges/{challengeID}/comments: while competition active returns 403.
 func TestComment_Create_Forbidden_WhenActive(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_comments_forbid")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Challenge 2", "FLAG{comment2}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_user2_" + suffix)
 
 	h.CreateComment(tokenUser, challengeID, "x", http.StatusForbidden)
@@ -61,16 +60,15 @@ func TestComment_Create_Forbidden_WhenActive(t *testing.T) {
 
 // DELETE /comments/{id}: author deletes own comment.
 func TestComment_Delete_Success(t *testing.T) {
-	t.Helper()
 	// Sequential: mutates global competition state.
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_del_" + uuid.New().String()[:8])
+	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_del_" + helper.UID())
 	t.Cleanup(resetCompetitionToActive)
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Del Ch", "FLAG{del}", 100)
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_del_user_" + suffix)
 	createResp := h.CreateComment(tokenUser, challengeID, "to delete", http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
@@ -81,11 +79,10 @@ func TestComment_Delete_Success(t *testing.T) {
 
 // DELETE /comments/{id}: wrong id returns 404 or 403 (comments disabled during active competition).
 func TestComment_Delete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_del_nf_" + suffix)
 
 	h.DeleteComment(tokenUser, uuid.New().String(), http.StatusForbidden)

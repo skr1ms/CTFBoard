@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 )
 
@@ -74,7 +74,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 	}
 }
 
-func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
+func (f *TestFixture) CreateUser(t *testing.T, suffix string) *domain.User {
 	t.Helper()
 	// Username and email must fit varchar(50): "user_" = 5, "@x.com" = 6, so unique at most 39.
 	unique := suffix + "_" + uuid.NewString()[:8]
@@ -82,7 +82,7 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 		unique = unique[:39]
 	}
 	ctx := context.Background()
-	user := &entity.User{
+	user := &domain.User{
 		Username:     "user_" + unique,
 		Email:        "user_" + unique + "@x.com",
 		PasswordHash: "hash123",
@@ -96,11 +96,11 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *entity.User {
 	return user
 }
 
-func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUID) *entity.Team {
+func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUID) *domain.Team {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	team := &entity.Team{
+	team := &domain.Team{
 		Name:        "team_" + unique,
 		InviteToken: uuid.New(),
 		CaptainID:   captainID,
@@ -112,7 +112,7 @@ func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUI
 	return team
 }
 
-func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*entity.User, *entity.Team) {
+func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*domain.User, *domain.Team) {
 	t.Helper()
 	user := f.CreateUser(t, suffix)
 	team := f.CreateTeam(t, suffix, user.ID)
@@ -122,17 +122,17 @@ func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*entity.U
 	return user, team
 }
 
-func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *entity.Challenge {
+func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *domain.Challenge {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	challenge := &entity.Challenge{
+	challenge := &domain.Challenge{
 		Title:        "Challenge " + unique,
 		Description:  "Description " + unique,
 		Category:     "Web",
 		Points:       points,
 		FlagHash:     "hash_" + unique,
-		IsHidden:     false,
+		State:        domain.ChallengeStateVisible,
 		InitialValue: points,
 		MinValue:     points,
 		Decay:        0,
@@ -145,17 +145,17 @@ func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *
 	return challenge
 }
 
-func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, minValue, decay int) *entity.Challenge {
+func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, minValue, decay int) *domain.Challenge {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	challenge := &entity.Challenge{
+	challenge := &domain.Challenge{
 		Title:        "Dynamic " + unique,
 		Description:  "Description " + unique,
 		Category:     "Pwn",
 		Points:       initial,
 		FlagHash:     "hash_" + unique,
-		IsHidden:     false,
+		State:        domain.ChallengeStateVisible,
 		InitialValue: initial,
 		MinValue:     minValue,
 		Decay:        decay,
@@ -168,10 +168,10 @@ func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initia
 	return challenge
 }
 
-func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, order int) *entity.Hint {
+func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, order int) *domain.Hint {
 	t.Helper()
 	ctx := context.Background()
-	hint := &entity.Hint{
+	hint := &domain.Hint{
 		ChallengeID: challengeID,
 		Content:     "Hint content",
 		Cost:        cost,
@@ -182,12 +182,12 @@ func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, orde
 	return hint
 }
 
-func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid.UUID) *entity.Solve {
+func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid.UUID) *domain.Solve {
 	t.Helper()
 	ctx := context.Background()
 	challenge, err := f.ChallengeRepo.GetByID(ctx, challengeID)
 	require.NoError(t, err)
-	solve := &entity.Solve{
+	solve := &domain.Solve{
 		UserID:        userID,
 		TeamID:        teamID,
 		ChallengeID:   challengeID,
@@ -205,9 +205,9 @@ func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid
 	return solve
 }
 
-func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uuid.UUID, value int, desc string) *entity.Award {
+func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uuid.UUID, value int, desc string) *domain.Award {
 	t.Helper()
-	award := &entity.Award{
+	award := &domain.Award{
 		TeamID:      teamID,
 		Value:       value,
 		Description: desc,
@@ -218,10 +218,10 @@ func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uu
 }
 
 // CreateAward creates an award inside a transaction (production path). Use in tests.
-func (f *TestFixture) CreateAward(t *testing.T, teamID uuid.UUID, value int, desc string, createdBy *uuid.UUID) *entity.Award {
+func (f *TestFixture) CreateAward(t *testing.T, teamID uuid.UUID, value int, desc string, createdBy *uuid.UUID) *domain.Award {
 	t.Helper()
 	ctx := context.Background()
-	award := &entity.Award{
+	award := &domain.Award{
 		TeamID:      teamID,
 		Value:       value,
 		Description: desc,
@@ -248,24 +248,24 @@ func (f *TestFixture) BackdateTeamDeletedAt(t *testing.T, teamID uuid.UUID, dele
 	require.NoError(t, err)
 }
 
-func (f *TestFixture) NewMinimalBackupData(t *testing.T) *entity.BackupData {
+func (f *TestFixture) NewMinimalBackupData(t *testing.T) *domain.BackupData {
 	t.Helper()
 	comp, err := f.CompetitionRepo.Get(context.Background())
 	require.NoError(t, err)
-	return &entity.BackupData{
-		Version:     entity.BackupVersion,
+	return &domain.BackupData{
+		Version:     domain.BackupVersion,
 		ExportedAt:  time.Now().UTC(),
 		Competition: comp,
-		Challenges:  []entity.ChallengeExport{},
-		Teams:       []entity.TeamExport{},
-		Users:       []entity.UserExport{},
-		Awards:      []entity.Award{},
-		Solves:      []entity.Solve{},
-		Files:       []entity.File{},
+		Challenges:  []domain.ChallengeExport{},
+		Teams:       []domain.TeamExport{},
+		Users:       []domain.UserExport{},
+		Awards:      []domain.Award{},
+		Solves:      []domain.Solve{},
+		Files:       []domain.File{},
 	}
 }
 
-func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.Settings {
+func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *domain.Settings {
 	t.Helper()
 	ctx := context.Background()
 	settings, err := f.SettingsRepo.Get(ctx)
@@ -273,11 +273,11 @@ func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *entity.Settings {
 	return settings
 }
 
-func (f *TestFixture) CreateTag(t *testing.T, suffix string) *entity.Tag {
+func (f *TestFixture) CreateTag(t *testing.T, suffix string) *domain.Tag {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	tag := &entity.Tag{
+	tag := &domain.Tag{
 		Name:  "tag_" + unique,
 		Color: "#ff0000",
 	}
@@ -289,10 +289,10 @@ func (f *TestFixture) CreateTag(t *testing.T, suffix string) *entity.Tag {
 	return tag
 }
 
-func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID, content string) *entity.Comment {
+func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID, content string) *domain.Comment {
 	t.Helper()
 	ctx := context.Background()
-	comment := &entity.Comment{
+	comment := &domain.Comment{
 		UserID:      userID,
 		ChallengeID: challengeID,
 		Content:     content,
@@ -302,11 +302,11 @@ func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID,
 	return comment
 }
 
-func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *entity.Bracket {
+func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *domain.Bracket {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	bracket := &entity.Bracket{
+	bracket := &domain.Bracket{
 		Name:        "bracket_" + unique,
 		Description: "desc",
 		IsDefault:   false,
@@ -319,11 +319,11 @@ func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *entity.Bracket
 	return bracket
 }
 
-func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *entity.Page {
+func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *domain.Page {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	page := &entity.Page{
+	page := &domain.Page{
 		Title:      "Page " + unique,
 		Slug:       "page-" + unique,
 		Content:    "content",
@@ -338,14 +338,14 @@ func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *ent
 	return page
 }
 
-func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *entity.Notification {
+func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *domain.Notification {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	notif := &entity.Notification{
+	notif := &domain.Notification{
 		Title:    "Notif " + unique,
 		Content:  "content",
-		Type:     entity.NotificationInfo,
+		Type:     domain.NotificationInfo,
 		IsPinned: false,
 		IsGlobal: true,
 	}
@@ -354,10 +354,10 @@ func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *entity.No
 	return notif
 }
 
-func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, tokenType entity.TokenType) *entity.VerificationToken {
+func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, tokenType domain.TokenType) *domain.VerificationToken {
 	t.Helper()
 	ctx := context.Background()
-	tok := &entity.VerificationToken{
+	tok := &domain.VerificationToken{
 		UserID:    userID,
 		Token:     "token_" + uuid.New().String(),
 		Type:      tokenType,
@@ -368,13 +368,13 @@ func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, to
 	return tok
 }
 
-func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType entity.EntityType) *entity.Field {
+func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType domain.EntityType) *domain.Field {
 	t.Helper()
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
-	field := &entity.Field{
+	field := &domain.Field{
 		Name:       "field_" + unique,
-		FieldType:  entity.FieldTypeText,
+		FieldType:  domain.FieldTypeText,
 		EntityType: entityType,
 		Required:   false,
 		OrderIndex: 0,

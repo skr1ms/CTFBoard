@@ -6,69 +6,15 @@ import (
 )
 
 var (
-	ErrUserNotFound = &HTTPError{
-		Err:        errors.New("user not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "USER_NOT_FOUND",
-	}
-	ErrUserAlreadyExists = &HTTPError{
-		Err:        errors.New("user already exists"),
-		StatusCode: http.StatusConflict,
-		Code:       "USER_ALREADY_EXISTS",
-	}
-	ErrUsernameTaken = &HTTPError{
-		Err:        errors.New("username already taken"),
-		StatusCode: http.StatusConflict,
-		Code:       "USERNAME_TAKEN",
-	}
-	ErrRegistrationClosed = &HTTPError{
-		Err:        errors.New("registration is closed"),
-		StatusCode: http.StatusForbidden,
-		Code:       "REGISTRATION_CLOSED",
-	}
-	ErrInvalidCredentials = &HTTPError{
-		Err:        errors.New("invalid credentials"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "INVALID_CREDENTIALS",
-	}
-	ErrNotAuthenticated = &HTTPError{
-		Err:        errors.New("not authenticated"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "NOT_AUTHENTICATED",
-	}
-	ErrAuthorizationHeaderRequired = &HTTPError{
-		Err:        errors.New("authorization header required"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "AUTHORIZATION_REQUIRED",
-	}
-	ErrInvalidAuthorizationHeader = &HTTPError{
-		Err:        errors.New("invalid authorization header format"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "INVALID_AUTHORIZATION_HEADER",
-	}
-	ErrInvalidToken = &HTTPError{
-		Err:        errors.New("invalid token"),
-		StatusCode: http.StatusUnauthorized,
-		Code:       "INVALID_TOKEN",
-	}
-	ErrTooManyRequests = &HTTPError{
-		Err:        errors.New("too many requests"),
-		StatusCode: http.StatusTooManyRequests,
-		Code:       "RATE_LIMIT_EXCEEDED",
-	}
-	ErrAccessDenied = &HTTPError{
-		Err:        errors.New("access denied"),
-		StatusCode: http.StatusForbidden,
-		Code:       "ACCESS_DENIED",
-	}
-	ErrUserBanned = &HTTPError{
-		Err:        errors.New("user is banned"),
-		StatusCode: http.StatusForbidden,
-		Code:       "USER_BANNED",
-	}
-	ErrCaptainCannotBeDeleted = &HTTPError{
-		Err:        errors.New("transfer captain first, then delete user"),
-		StatusCode: http.StatusConflict,
-		Code:       "CAPTAIN_CANNOT_BE_DELETED",
-	}
+	ErrUserNotFound                = New(errors.New("user not found"), http.StatusNotFound, "USER_NOT_FOUND")
+	ErrUserAlreadyExists           = New(errors.New("user already exists"), http.StatusConflict, "USER_ALREADY_EXISTS")
+	ErrUsernameTaken               = New(errors.New("username already taken"), http.StatusConflict, "USERNAME_TAKEN")
+	ErrRegistrationClosed          = New(errors.New("registration is closed"), http.StatusForbidden, "REGISTRATION_CLOSED")
+	ErrInvalidCredentials          = New(errors.New("invalid credentials"), http.StatusUnauthorized, "INVALID_CREDENTIALS")
+	ErrAuthorizationHeaderRequired = New(errors.New("authorization header required"), http.StatusUnauthorized, "AUTHORIZATION_REQUIRED")
+	ErrInvalidAuthorizationHeader  = New(errors.New("invalid authorization header format"), http.StatusUnauthorized, "INVALID_AUTHORIZATION_HEADER")
+	ErrInvalidToken                = New(errors.New("invalid token"), http.StatusUnauthorized, "INVALID_TOKEN")
+	ErrAccessDenied                = New(errors.New("access denied"), http.StatusForbidden, "ACCESS_DENIED")
+	ErrUserBanned                  = New(errors.New("user is banned"), http.StatusForbidden, "USER_BANNED")
+	ErrCaptainCannotBeDeleted      = New(errors.New("transfer captain first, then delete user"), http.StatusConflict, "CAPTAIN_CANNOT_BE_DELETED")
 )

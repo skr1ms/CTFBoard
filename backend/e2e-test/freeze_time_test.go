@@ -9,19 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // GET /scoreboard with freeze_time: solves after freeze are not counted in public scoreboard (frozen view).
 func TestScoreboard_Freeze(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := helper.UID()
 	_, _, tokenAdmin := h.RegisterAdmin("admin_freeze_" + suffix)
 
-	// Set competition times directly in DB to avoid COMPETITION_ACTIVE_CANNOT_UPDATE
-	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT.
 	now := time.Now().UTC()
 	freezeTime := now.Add(2 * time.Second)
 	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
@@ -32,19 +30,33 @@ func TestScoreboard_Freeze(t *testing.T) {
 		"flag":        "flag{freeze}",
 		"points":      100,
 		"category":    "misc",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	_, _, user1 := h.RegisterUserAndLogin("user_freeze_1")
 	h.CreateSoloTeam(user1, http.StatusCreated)
-	h.SubmitFlag(user1, challID, "flag{freeze}", http.StatusOK)
+	require.Eventually(t, func() bool {
+		setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
+		resp, err := h.Client().PostChallengesChallengeIDSubmitWithResponse(
+			context.Background(), challID,
+			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{freeze}"},
+			helper.WithBearerToken(user1))
+		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
+	}, 5*time.Second, 200*time.Millisecond)
 
 	_, _, user2 := h.RegisterUserAndLogin("user_freeze_2")
 	h.CreateSoloTeam(user2, http.StatusCreated)
 
 	require.True(t, h.PollCompetitionStatus("frozen", 10*time.Second), "competition should become frozen")
 
-	h.SubmitFlag(user2, challID, "flag{freeze}", http.StatusOK)
+	require.Eventually(t, func() bool {
+		setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
+		resp, err := h.Client().PostChallengesChallengeIDSubmitWithResponse(
+			context.Background(), challID,
+			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{freeze}"},
+			helper.WithBearerToken(user2))
+		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
+	}, 5*time.Second, 200*time.Millisecond)
 
 	scoreboard := h.GetScoreboard(user2)
 	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard freeze")
@@ -71,14 +83,13 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 // GET /scoreboard with freeze_time: when no solves exist, returns 200 and empty array.
 func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	suffix := helper.UID()
 	_, _, tokenAdmin := h.RegisterAdmin("admin_freeze_empty_" + suffix)
 	_ = h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Freeze Empty", "description": "x", "flag": "flag{fe}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 	// Set competition times directly in DB to avoid COMPETITION_ACTIVE_CANNOT_UPDATE
 	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT.
@@ -90,8 +101,8 @@ func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 	require.NotNil(t, resp.JSON200)
 }
 
+// GET /scoreboard: when competition paused during freeze, still shows frozen snapshot (solve after freeze = 0).
 func TestScoreboard_Freeze_WhenPaused_StillShowsFrozenSnapshot(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -103,7 +114,7 @@ func TestScoreboard_Freeze_WhenPaused_StillShowsFrozenSnapshot(t *testing.T) {
 
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Freeze Pause Chall", "description": "x", "flag": "flag{freeze_pause}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 
 	_, _, tokenA := h.RegisterUserAndLogin("user_fp_a_" + suffix)
@@ -140,8 +151,8 @@ func TestScoreboard_Freeze_WhenPaused_StillShowsFrozenSnapshot(t *testing.T) {
 	require.Equal(t, 0, pointsB, "scoreboard must show frozen snapshot when paused during freeze; user B solved after freeze so must have 0 in public view")
 }
 
+// GET /admin/submissions?live=true: admin sees all submissions during freeze; live=false shows frozen count.
 func TestAdminSubmissions_LiveParam_SeesAllDuringFreeze(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -154,7 +165,7 @@ func TestAdminSubmissions_LiveParam_SeesAllDuringFreeze(t *testing.T) {
 
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Subs Live Chall", "description": "x", "flag": "flag{live}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 
 	_, _, user1 := h.RegisterUserAndLogin("user_sl_1_" + suffix)
@@ -187,8 +198,8 @@ func TestAdminSubmissions_LiveParam_SeesAllDuringFreeze(t *testing.T) {
 	require.Greater(t, liveTotal, frozenTotal, "admin with ?live=true should see more submissions than frozen view; frozen=%d live=%d", frozenTotal, liveTotal)
 }
 
+// GET /challenges: during freeze solve_count is frozen snapshot, not live.
 func TestChallenges_Freeze_SolveCountShowsFrozenSnapshot(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -204,7 +215,7 @@ func TestChallenges_Freeze_SolveCountShowsFrozenSnapshot(t *testing.T) {
 		"flag":        "flag{solve_count_freeze}",
 		"points":      100,
 		"category":    "misc",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	_, _, user1 := h.RegisterUserAndLogin("user_sc_1_" + suffix)
@@ -234,7 +245,6 @@ func TestChallenges_Freeze_SolveCountShowsFrozenSnapshot(t *testing.T) {
 
 // GET /challenges/{id}: during freeze when no first blood yet returns 200 (not 404).
 func TestChallenge_Detail_Freeze_NoFirstBlood_ReturnsOK(t *testing.T) {
-	t.Helper()
 	t.Cleanup(resetCompetitionToActive)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -246,7 +256,7 @@ func TestChallenge_Detail_Freeze_NoFirstBlood_ReturnsOK(t *testing.T) {
 
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "No FB Yet", "description": "x", "flag": "flag{nofb}",
-		"points": 100, "category": "misc", "is_hidden": false,
+		"points": 100, "category": "misc", "state": "visible",
 	})
 
 	_, _, tokenUser := h.RegisterUserAndLogin("user_nofb_" + suffix)

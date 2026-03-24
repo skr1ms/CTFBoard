@@ -6,154 +6,34 @@ import (
 )
 
 var (
-	ErrTeamNotFound = &HTTPError{
-		Err:        errors.New("team not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "TEAM_NOT_FOUND",
-	}
-	ErrTeamAlreadyExists = &HTTPError{
-		Err:        errors.New("team already exists"),
-		StatusCode: http.StatusConflict,
-		Code:       "TEAM_ALREADY_EXISTS",
-	}
-	ErrUserAlreadyInTeam = &HTTPError{
-		Err:        errors.New("user already in team"),
-		StatusCode: http.StatusConflict,
-		Code:       "USER_ALREADY_IN_TEAM",
-	}
-	ErrTeamFull = &HTTPError{
-		Err:        errors.New("team is full"),
-		StatusCode: http.StatusConflict,
-		Code:       "TEAM_FULL",
-	}
-	ErrMaxTeamsReached = &HTTPError{
-		Err:        errors.New("maximum number of teams reached"),
-		StatusCode: http.StatusConflict,
-		Code:       "MAX_TEAMS_REACHED",
-	}
-	ErrNotCaptain = &HTTPError{
-		Err:        errors.New("only captain can perform this action"),
-		StatusCode: http.StatusForbidden,
-		Code:       "NOT_CAPTAIN",
-	}
-	ErrCaptainCannotLeave = &HTTPError{
-		Err:        errors.New("captain must transfer captainship before leaving the team"),
-		StatusCode: http.StatusForbidden,
-		Code:       "CAPTAIN_CANNOT_LEAVE",
-	}
-	ErrCannotLeaveAsOnlyMember = &HTTPError{
-		Err:        errors.New("cannot leave team as only member, delete team instead"),
-		StatusCode: http.StatusConflict,
-		Code:       "CANNOT_LEAVE_AS_ONLY_MEMBER",
-	}
-	ErrTeamBelowMinSize = &HTTPError{
-		Err:        errors.New("team does not meet minimum size requirement"),
-		StatusCode: http.StatusConflict,
-		Code:       "TEAM_BELOW_MIN_SIZE",
-	}
-	ErrNewCaptainNotInTeam = &HTTPError{
-		Err:        errors.New("new captain must be a member of the team"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "NEW_CAPTAIN_NOT_IN_TEAM",
-	}
-	ErrCannotTransferToSelf = &HTTPError{
-		Err:        errors.New("cannot transfer captainship to yourself"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "CANNOT_TRANSFER_TO_SELF",
-	}
-	ErrNoTeamSelected = &HTTPError{
-		Err:        errors.New("user has not selected a participation mode"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "NO_TEAM_SELECTED",
-	}
-	ErrSoloModeNotAllowed = &HTTPError{
-		Err:        errors.New("solo mode is not allowed for this competition"),
-		StatusCode: http.StatusForbidden,
-		Code:       "SOLO_MODE_NOT_ALLOWED",
-	}
-	ErrTeamsNotAllowed = &HTTPError{
-		Err:        errors.New("team mode is not allowed for this competition"),
-		StatusCode: http.StatusForbidden,
-		Code:       "TEAMS_NOT_ALLOWED",
-	}
-	ErrTeamModeRequired = &HTTPError{
-		Err:        errors.New("this competition requires team participation"),
-		StatusCode: http.StatusForbidden,
-		Code:       "TEAM_MODE_REQUIRED",
-	}
-	ErrSoloModeRequired = &HTTPError{
-		Err:        errors.New("this competition requires solo participation"),
-		StatusCode: http.StatusForbidden,
-		Code:       "SOLO_MODE_REQUIRED",
-	}
-	ErrConfirmationRequired = &HTTPError{
-		Err:        errors.New("confirmation required for this action"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "CONFIRMATION_REQUIRED",
-	}
-	ErrRosterFrozen = &HTTPError{
-		Err:        errors.New("team roster is frozen"),
-		StatusCode: http.StatusForbidden,
-		Code:       "ROSTER_FROZEN",
-	}
-	ErrEmailNotVerified = &HTTPError{
-		Err:        errors.New("email verification required"),
-		StatusCode: http.StatusForbidden,
-		Code:       "EMAIL_NOT_VERIFIED",
-	}
-	ErrTeamBanned = &HTTPError{
-		Err:        errors.New("team is banned"),
-		StatusCode: http.StatusForbidden,
-		Code:       "TEAM_BANNED",
-	}
-	ErrUserWasInBannedTeam = &HTTPError{
-		Err:        errors.New("user was member of a banned team and cannot create or join a team"),
-		StatusCode: http.StatusForbidden,
-		Code:       "USER_WAS_IN_BANNED_TEAM",
-	}
-	ErrInviteExpired = &HTTPError{
-		Err:        errors.New("invite token has expired"),
-		StatusCode: http.StatusGone,
-		Code:       "INVITE_EXPIRED",
-	}
-	ErrTeamConflict = &HTTPError{
-		Err:        errors.New("team conflict"),
-		StatusCode: http.StatusConflict,
-		Code:       "TEAM_CONFLICT",
-	}
-	ErrCannotAddToSoloTeam = &HTTPError{
-		Err:        errors.New("cannot add members to a solo team"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "CANNOT_ADD_TO_SOLO_TEAM",
-	}
-	ErrTeamMemberNotFound = &HTTPError{
-		Err:        errors.New("team member not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "TEAM_MEMBER_NOT_FOUND",
-	}
-	ErrCannotKickSelf = &HTTPError{
-		Err:        errors.New("cannot kick yourself from the team"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "CANNOT_KICK_SELF",
-	}
-	ErrCannotKickCaptain = &HTTPError{
-		Err:        errors.New("cannot kick the team captain"),
-		StatusCode: http.StatusForbidden,
-		Code:       "CANNOT_KICK_CAPTAIN",
-	}
-	ErrUserNotInTeam = &HTTPError{
-		Err:        errors.New("user must be in a team"),
-		StatusCode: http.StatusNotFound,
-		Code:       "USER_NOT_IN_TEAM",
-	}
-	ErrCannotLeaveSoloTeam = &HTTPError{
-		Err:        errors.New("cannot leave solo team in solo-only competition"),
-		StatusCode: http.StatusForbidden,
-		Code:       "CANNOT_LEAVE_SOLO_TEAM",
-	}
-	ErrCannotDisbandSoloTeam = &HTTPError{
-		Err:        errors.New("cannot disband solo team in solo-only competition"),
-		StatusCode: http.StatusForbidden,
-		Code:       "CANNOT_DISBAND_SOLO_TEAM",
-	}
+	ErrTeamNotFound            = New(errors.New("team not found"), http.StatusNotFound, "TEAM_NOT_FOUND")
+	ErrTeamAlreadyExists       = New(errors.New("team already exists"), http.StatusConflict, "TEAM_ALREADY_EXISTS")
+	ErrUserAlreadyInTeam       = New(errors.New("user already in team"), http.StatusConflict, "USER_ALREADY_IN_TEAM")
+	ErrTeamFull                = New(errors.New("team is full"), http.StatusConflict, "TEAM_FULL")
+	ErrMaxTeamsReached         = New(errors.New("maximum number of teams reached"), http.StatusConflict, "MAX_TEAMS_REACHED")
+	ErrNotCaptain              = New(errors.New("only captain can perform this action"), http.StatusForbidden, "NOT_CAPTAIN")
+	ErrCaptainCannotLeave      = New(errors.New("captain must transfer captainship before leaving the team"), http.StatusForbidden, "CAPTAIN_CANNOT_LEAVE")
+	ErrCannotLeaveAsOnlyMember = New(errors.New("cannot leave team as only member, delete team instead"), http.StatusConflict, "CANNOT_LEAVE_AS_ONLY_MEMBER")
+	ErrTeamBelowMinSize        = New(errors.New("team does not meet minimum size requirement"), http.StatusConflict, "TEAM_BELOW_MIN_SIZE")
+	ErrNewCaptainNotInTeam     = New(errors.New("new captain must be a member of the team"), http.StatusBadRequest, "NEW_CAPTAIN_NOT_IN_TEAM")
+	ErrCannotTransferToSelf    = New(errors.New("cannot transfer captainship to yourself"), http.StatusBadRequest, "CANNOT_TRANSFER_TO_SELF")
+	ErrNoTeamSelected          = New(errors.New("user has not selected a participation mode"), http.StatusBadRequest, "NO_TEAM_SELECTED")
+	ErrSoloModeNotAllowed      = New(errors.New("solo mode is not allowed for this competition"), http.StatusForbidden, "SOLO_MODE_NOT_ALLOWED")
+	ErrTeamsNotAllowed         = New(errors.New("team mode is not allowed for this competition"), http.StatusForbidden, "TEAMS_NOT_ALLOWED")
+	ErrTeamModeRequired        = New(errors.New("this competition requires team participation"), http.StatusForbidden, "TEAM_MODE_REQUIRED")
+	ErrSoloModeRequired        = New(errors.New("this competition requires solo participation"), http.StatusForbidden, "SOLO_MODE_REQUIRED")
+	ErrConfirmationRequired    = New(errors.New("confirmation required for this action"), http.StatusBadRequest, "CONFIRMATION_REQUIRED")
+	ErrRosterFrozen            = New(errors.New("team roster is frozen"), http.StatusForbidden, "ROSTER_FROZEN")
+	ErrEmailNotVerified        = New(errors.New("email verification required"), http.StatusForbidden, "EMAIL_NOT_VERIFIED")
+	ErrTeamBanned              = New(errors.New("team is banned"), http.StatusForbidden, "TEAM_BANNED")
+	ErrUserWasInBannedTeam     = New(errors.New("user was member of a banned team and cannot create or join a team"), http.StatusForbidden, "USER_WAS_IN_BANNED_TEAM")
+	ErrInviteExpired           = New(errors.New("invite token has expired"), http.StatusGone, "INVITE_EXPIRED")
+	ErrTeamConflict            = New(errors.New("team conflict"), http.StatusConflict, "TEAM_CONFLICT")
+	ErrCannotAddToSoloTeam     = New(errors.New("cannot add members to a solo team"), http.StatusBadRequest, "CANNOT_ADD_TO_SOLO_TEAM")
+	ErrTeamMemberNotFound      = New(errors.New("team member not found"), http.StatusNotFound, "TEAM_MEMBER_NOT_FOUND")
+	ErrCannotKickSelf          = New(errors.New("cannot kick yourself from the team"), http.StatusBadRequest, "CANNOT_KICK_SELF")
+	ErrCannotKickCaptain       = New(errors.New("cannot kick the team captain"), http.StatusForbidden, "CANNOT_KICK_CAPTAIN")
+	ErrUserNotInTeam           = New(errors.New("user must be in a team"), http.StatusNotFound, "USER_NOT_IN_TEAM")
+	ErrCannotLeaveSoloTeam     = New(errors.New("cannot leave solo team in solo-only competition"), http.StatusForbidden, "CANNOT_LEAVE_SOLO_TEAM")
+	ErrCannotDisbandSoloTeam   = New(errors.New("cannot disband solo team in solo-only competition"), http.StatusForbidden, "CANNOT_DISBAND_SOLO_TEAM")
 )

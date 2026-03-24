@@ -9,13 +9,7 @@ packages:
     interfaces:
       TeamBracketIDGetter:
         config:
-          dir: "pkg/cache/mocks"
+          dir: "pkg/cache/mock"
           filename: "TeamBracketIDGetter.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTeamBracketIDGetter"
-      PubSubStore:
-        config:
-          dir: "pkg/cache/mocks"
-          filename: "PubSubStore.go"
-          pkgname: "mocks"
-          structname: "MockPubSubStore"

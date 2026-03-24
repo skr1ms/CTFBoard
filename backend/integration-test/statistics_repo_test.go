@@ -15,7 +15,6 @@ import (
 
 func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -31,7 +30,6 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,7 +41,6 @@ func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
 
 func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -71,7 +68,6 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -99,7 +95,6 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -111,7 +106,6 @@ func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T
 
 func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
@@ -124,7 +118,6 @@ func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 
 func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -155,7 +148,6 @@ func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetChallengeDetailStats_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -168,7 +160,6 @@ func TestStatisticsRepo_GetChallengeDetailStats_NotFound(t *testing.T) {
 
 func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	chall := f.CreateChallenge(t, uuid.New().String(), 100)
@@ -181,7 +172,6 @@ func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testin
 
 func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -196,7 +186,6 @@ func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -208,7 +197,6 @@ func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Error_CancelledContext(t *
 
 func TestStatisticsRepo_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -223,7 +211,6 @@ func TestStatisticsRepo_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetUserRegistrationTimeSeries_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -235,7 +222,6 @@ func TestStatisticsRepo_GetUserRegistrationTimeSeries_Error_CancelledContext(t *
 
 func TestStatisticsRepo_GetSolveMatrix_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -260,7 +246,6 @@ func TestStatisticsRepo_GetSolveMatrix_Success(t *testing.T) {
 
 func TestStatisticsRepo_GetSolveMatrix_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())

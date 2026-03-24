@@ -10,8 +10,10 @@ Full reference for backend configuration. When Vault is used, secrets are read f
 |----------|-------------|---------|----------|
 | `APP_NAME` | Application name | `AstroCTFb` | No |
 | `APP_VERSION` | Application version | `1.0.0` | No |
-| `CHI_MODE` | Router mode: `debug` or `production` | `production` | No |
 | `LOG_LEVEL` | Log level: `debug`, `info`, `warn`, `error` | `info` | No |
+| `STRUCTURED_LOGGER` | Use JSON-structured logging | `true` | No |
+| `DEBUG_ENABLED` | Enable debug mode (e.g. for router) | `false` | No |
+| `SECURE_COOKIES` | Use Secure flag for cookies | `false` (auto `true` when `API_BASE_URL` is https) | No |
 | `BACKEND_PORT` | HTTP port of the API server | `8080` | No |
 | `API_BASE_URL` | Public base URL of the API (e.g. for links) | `http://localhost:8080` | No |
 | `MIGRATIONS_PATH` | Path to SQL migrations inside the container | `migrations` | No |
@@ -37,6 +39,8 @@ Full reference for backend configuration. When Vault is used, secrets are read f
 | `POSTGRES_USER` | Database user | (none) | Yes (or from Vault) |
 | `POSTGRES_PASSWORD` | Database password | (none) | Yes (or from Vault) |
 | `POSTGRES_DB` | Database name | (none) | Yes (or from Vault) |
+| `POSTGRES_MAX_CONNS` | Maximum connection pool size | `100` | No |
+| `POSTGRES_MIN_CONNS` | Minimum connection pool size | `10` | No |
 | `POSTGRES_SSL_MODE` | SSL mode for connection | `disable` | No |
 
 ## Redis
@@ -46,6 +50,8 @@ Full reference for backend configuration. When Vault is used, secrets are read f
 | `REDIS_HOST` | Redis host | `redis` | No |
 | `REDIS_PORT` | Redis port | `6379` | No |
 | `REDIS_PASSWORD` | Redis password | (none) | Yes (or from Vault) |
+| `REDIS_POOL_SIZE` | Connection pool size | `50` | No |
+| `REDIS_MIN_IDLE` | Minimum idle connections in pool | `10` | No |
 
 ## JWT
 
@@ -53,8 +59,11 @@ Full reference for backend configuration. When Vault is used, secrets are read f
 |----------|-------------|---------|----------|
 | `JWT_ACCESS_SECRET` | Access token secret (min 32 characters) | (none) | Yes (or from Vault) |
 | `JWT_REFRESH_SECRET` | Refresh token secret (min 32 characters) | (none) | Yes (or from Vault) |
+| `JWT_ACCESS_KEYS` | JSON array of `[{kid, secret}]` for key rotation | (none) | No |
+| `JWT_REFRESH_KEYS` | JSON array of `[{kid, secret}]` for key rotation | (none) | No |
 | `JWT_ACCESS_TTL_MINUTES` | Access token TTL in minutes | `15` | No |
 | `JWT_REFRESH_TTL_HOURS` | Refresh token TTL in hours | `72` | No |
+| `JWT_ISSUER` | JWT issuer claim | `astroctfb` | No |
 
 ## Competition
 
@@ -91,7 +100,8 @@ Full reference for backend configuration. When Vault is used, secrets are read f
 | `STORAGE_LOCAL_PATH` | Local path for files (when provider=filesystem) | `./uploads` | No |
 | `STORAGE_S3_ENDPOINT` | S3 endpoint URL | (see config) | Yes if provider=s3 |
 | `STORAGE_S3_PUBLIC_ENDPOINT` | Public S3 URL for presigned links | (empty) | No |
-| `STORAGE_S3_BUCKET` | S3 bucket name | (see config) | Yes if provider=s3 |
+| `STORAGE_S3_BUCKET` | S3 bucket name | `tasks` | Yes if provider=s3 |
+| `STORAGE_S3_REGION` | S3 region | `us-east-1` | No |
 | `STORAGE_S3_USE_SSL` | Use SSL for S3 | `false` | No |
 | `STORAGE_S3_ACCESS_KEY` | S3 access key | (none) | Yes if provider=s3 (or from Vault) |
 | `STORAGE_S3_SECRET_KEY` | S3 secret key | (none) | Yes if provider=s3 (or from Vault) |
@@ -142,12 +152,14 @@ Required (application will not start without these):
 | `astroctfb/redis` | `password` |
 | `astroctfb/jwt` | `access_secret`, `refresh_secret` |
 | `astroctfb/app` | `flag_encryption_key` |
-| `astroctfb/admin` | `username`, `email`, `password` |
 | `astroctfb/resend` | `api_key` |
 | `astroctfb/storage` | `access_key`, `secret_key` |
 
-Optional (you can off it, if no need):
+Optional (seed admin; enable OAuth):
 
+| Path | Keys |
+|------|------|
+| `astroctfb/admin` | `username`, `email`, `password` |
 | `astroctfb/oauth` | `state_secret`, `github_client_id`, `github_client_secret`, `google_client_id`, `google_client_secret` |
 
 For local development, `deployment/docker/init-vault.sh` can populate these paths from environment variables. For production, secrets SHALL be provisioned from a secure source (not from `.env` in the repo).

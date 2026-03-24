@@ -5,9 +5,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
+
+type adminCreateSubmissionConstraints struct {
+	SubmittedFlag string `validate:"required,max=200"`
+}
+
+func ValidateAdminCreateSubmissionRequest(req *openapi.AdminCreateSubmissionRequest, v validator.Validator) error {
+	c := adminCreateSubmissionConstraints{SubmittedFlag: req.SubmittedFlag}
+	return ValidateConstraints(v, &c)
+}
 
 type AdminCreateSubmissionParams struct {
 	UserID        uuid.UUID
@@ -30,14 +40,9 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 	ip := ""
 	if req.IP != nil {
 		if net.ParseIP(*req.IP) == nil {
-			return nil, helper.NewValidationErrorf("invalid ip address format")
+			return nil, httperr.NewValidationErrorf("invalid ip address format")
 		}
 		ip = *req.IP
-	}
-
-	const maxSubmittedFlagLen = 200
-	if len(req.SubmittedFlag) > maxSubmittedFlagLen {
-		return nil, helper.NewValidationErrorf("submitted_flag too long")
 	}
 
 	return &AdminCreateSubmissionParams{
@@ -52,7 +57,7 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 
 func AdminUpdateSubmissionRequestToParams(req *openapi.AdminUpdateSubmissionRequest) (*bool, error) {
 	if req == nil {
-		return nil, helper.NewValidationErrorf("is_correct is required")
+		return nil, httperr.NewValidationErrorf("is_correct is required")
 	}
 	return &req.IsCorrect, nil
 }

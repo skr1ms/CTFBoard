@@ -10,6 +10,19 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
+func (h *E2EHelper) TeamScoreMatches(token, teamName string, expectedPoints int) bool {
+	resp, err := h.client.GetScoreboardWithResponse(context.Background(), &openapi.GetScoreboardParams{}, WithBearerToken(token))
+	if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+		return false
+	}
+	for _, entry := range *resp.JSON200 {
+		if entry.TeamName != nil && *entry.TeamName == teamName && entry.Points != nil && *entry.Points == expectedPoints {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *E2EHelper) GetScoreboard(token string) *openapi.GetScoreboardResponse {
 	h.t.Helper()
 	resp, err := h.client.GetScoreboardWithResponse(context.Background(), &openapi.GetScoreboardParams{}, WithBearerToken(token))

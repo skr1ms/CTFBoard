@@ -6,10 +6,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
+
+func decodeMap(m map[string]any, dest any) error {
+	config := &mapstructure.DecoderConfig{
+		WeaklyTypedInput: true,
+		Result:           dest,
+	}
+	dec, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
+}
 
 func getStr(m map[string]any, key, def string) string {
 	if v, ok := m[key].(string); ok {

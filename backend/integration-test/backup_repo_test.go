@@ -9,11 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -35,7 +34,6 @@ func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_EraseAllTablesTx_Error_ClosedTx(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -48,15 +46,16 @@ func TestBackupRepo_EraseAllTablesTx_Error_ClosedTx(t *testing.T) {
 }
 
 func TestBackupRepo_ImportCompetitionTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	comp := &entity.Competition{
-		ID:   1,
-		Name: "Updated CTF",
-		Mode: "flexible",
+	comp := &domain.Competition{
+		ID:          1,
+		Name:        "Updated CTF",
+		Mode:        "flexible",
+		MinTeamSize: 1,
+		MaxTeamSize: 10,
 	}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
@@ -70,7 +69,6 @@ func TestBackupRepo_ImportCompetitionTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportCompetitionTx_NilCompetition(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -82,16 +80,15 @@ func TestBackupRepo_ImportCompetitionTx_NilCompetition(t *testing.T) {
 }
 
 func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challengeID := uuid.New()
-	data := &entity.BackupData{
-		Challenges: []entity.ChallengeExport{
+	data := &domain.BackupData{
+		Challenges: []domain.ChallengeExport{
 			{
-				Challenge: entity.Challenge{
+				Challenge: domain.Challenge{
 					ID:           challengeID,
 					Title:        "Backup Chall",
 					Description:  "Desc",
@@ -102,7 +99,7 @@ func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
 					MinValue:     150,
 					Decay:        0,
 				},
-				Hints: []entity.Hint{},
+				Hints: []domain.Hint{},
 			},
 		},
 	}
@@ -118,18 +115,17 @@ func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportChallengesTx_Error_InvalidHintChallengeID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challengeID := uuid.New()
 	nonexistentChallengeID := uuid.New()
-	data := &entity.BackupData{
-		Challenges: []entity.ChallengeExport{
+	data := &domain.BackupData{
+		Challenges: []domain.ChallengeExport{
 			{
-				Challenge: entity.Challenge{ID: challengeID, Title: "Ch", Description: "D", Category: "W", Points: 100, FlagHash: "h", InitialValue: 100, MinValue: 100, Decay: 0},
-				Hints: []entity.Hint{
+				Challenge: domain.Challenge{ID: challengeID, Title: "Ch", Description: "D", Category: "W", Points: 100, FlagHash: "h", InitialValue: 100, MinValue: 100, Decay: 0},
+				Hints: []domain.Hint{
 					{ID: uuid.New(), ChallengeID: nonexistentChallengeID, Content: "hint", Cost: 0, OrderIndex: 0},
 				},
 			},
@@ -143,17 +139,16 @@ func TestBackupRepo_ImportChallengesTx_Error_InvalidHintChallengeID(t *testing.T
 }
 
 func TestBackupRepo_ImportTeamsTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, _ := f.CreateUserWithTeam(t, "import_team_user")
 	teamID := uuid.New()
-	data := &entity.BackupData{
-		Teams: []entity.TeamExport{
+	data := &domain.BackupData{
+		Teams: []domain.TeamExport{
 			{
-				Team: entity.Team{
+				Team: domain.Team{
 					ID:          teamID,
 					Name:        "Imported Team",
 					CaptainID:   user.ID,
@@ -167,7 +162,7 @@ func TestBackupRepo_ImportTeamsTx_Success(t *testing.T) {
 			},
 		},
 	}
-	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
+	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		return f.BackupRepo.ImportTeams(txCtx, data, opts)
@@ -179,16 +174,15 @@ func TestBackupRepo_ImportTeamsTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportTeamsTx_Error_InvalidCaptainID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	teamID := uuid.New()
-	data := &entity.BackupData{
-		Teams: []entity.TeamExport{
+	data := &domain.BackupData{
+		Teams: []domain.TeamExport{
 			{
-				Team: entity.Team{
+				Team: domain.Team{
 					ID:          teamID,
 					Name:        "Bad Team",
 					CaptainID:   uuid.New(),
@@ -198,7 +192,7 @@ func TestBackupRepo_ImportTeamsTx_Error_InvalidCaptainID(t *testing.T) {
 			},
 		},
 	}
-	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
+	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		return f.BackupRepo.ImportTeams(txCtx, data, opts)
@@ -207,7 +201,6 @@ func TestBackupRepo_ImportTeamsTx_Error_InvalidCaptainID(t *testing.T) {
 }
 
 func TestBackupRepo_ImportUsersTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -215,12 +208,12 @@ func TestBackupRepo_ImportUsersTx_Success(t *testing.T) {
 	user, team := f.CreateUserWithTeam(t, "import_user")
 	f.AddUserToTeam(t, user.ID, team.ID)
 
-	data := &entity.BackupData{
-		Users: []entity.UserExport{
+	data := &domain.BackupData{
+		Users: []domain.UserExport{
 			{ID: user.ID, Username: "updated_user", Email: user.Email, Role: string(user.Role), TeamID: &team.ID},
 		},
 	}
-	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
+	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		return f.BackupRepo.ImportUsers(txCtx, data, opts)
@@ -232,36 +225,37 @@ func TestBackupRepo_ImportUsersTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportUsersTx_Error_InvalidTeamID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "import_user_err")
 	badTeamID := uuid.New()
-	data := &entity.BackupData{
-		Users: []entity.UserExport{
+	data := &domain.BackupData{
+		Users: []domain.UserExport{
 			{ID: user.ID, Username: user.Username, Email: user.Email, Role: string(user.Role), TeamID: &badTeamID},
 		},
 	}
-	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
+	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		return f.BackupRepo.ImportUsers(txCtx, data, opts)
+		if err := f.BackupRepo.ImportUsers(txCtx, data, opts); err != nil {
+			return err
+		}
+		return f.BackupRepo.UpdateUserTeamIDs(txCtx, data)
 	})
 	assert.Error(t, err)
 }
 
 func TestBackupRepo_ImportAwardsTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "award_import")
 	awardID := uuid.New()
-	data := &entity.BackupData{
-		Awards: []entity.Award{
+	data := &domain.BackupData{
+		Awards: []domain.Award{
 			{ID: awardID, TeamID: team.ID, Value: 100, Description: "Bonus", CreatedAt: time.Now()},
 		},
 	}
@@ -277,13 +271,12 @@ func TestBackupRepo_ImportAwardsTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportAwardsTx_Error_InvalidTeamID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	data := &entity.BackupData{
-		Awards: []entity.Award{
+	data := &domain.BackupData{
+		Awards: []domain.Award{
 			{ID: uuid.New(), TeamID: uuid.New(), Value: 100, Description: "Bad", CreatedAt: time.Now()},
 		},
 	}
@@ -295,7 +288,6 @@ func TestBackupRepo_ImportAwardsTx_Error_InvalidTeamID(t *testing.T) {
 }
 
 func TestBackupRepo_ImportSolvesTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -303,8 +295,8 @@ func TestBackupRepo_ImportSolvesTx_Success(t *testing.T) {
 	user, team := f.CreateUserWithTeam(t, "solve_import")
 	challenge := f.CreateChallenge(t, "SolveImport", 100)
 	solveID := uuid.New()
-	data := &entity.BackupData{
-		Solves: []entity.Solve{
+	data := &domain.BackupData{
+		Solves: []domain.Solve{
 			{ID: solveID, UserID: user.ID, TeamID: team.ID, ChallengeID: challenge.ID, SolvedAt: time.Now()},
 		},
 	}
@@ -319,15 +311,14 @@ func TestBackupRepo_ImportSolvesTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportSolvesTx_Error_InvalidTeamID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "solve_err_user")
 	challenge := f.CreateChallenge(t, "SolveErr", 100)
-	data := &entity.BackupData{
-		Solves: []entity.Solve{
+	data := &domain.BackupData{
+		Solves: []domain.Solve{
 			{ID: uuid.New(), UserID: user.ID, TeamID: uuid.New(), ChallengeID: challenge.ID, SolvedAt: time.Now()},
 		},
 	}
@@ -339,16 +330,15 @@ func TestBackupRepo_ImportSolvesTx_Error_InvalidTeamID(t *testing.T) {
 }
 
 func TestBackupRepo_ImportFileMetadataTx_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "FileImport", 100)
 	fileID := uuid.New()
-	data := &entity.BackupData{
-		Files: []entity.File{
-			{ID: fileID, Type: entity.FileTypeChallenge, ChallengeID: challenge.ID, Location: "test/path", Filename: "file.txt", Size: 100, SHA256: "abc", CreatedAt: time.Now()},
+	data := &domain.BackupData{
+		Files: []domain.File{
+			{ID: fileID, Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "test/path", Filename: "file.txt", Size: 100, SHA256: "abc", CreatedAt: time.Now()},
 		},
 	}
 
@@ -362,14 +352,13 @@ func TestBackupRepo_ImportFileMetadataTx_Success(t *testing.T) {
 }
 
 func TestBackupRepo_ImportFileMetadataTx_Error_InvalidChallengeID(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	data := &entity.BackupData{
-		Files: []entity.File{
-			{ID: uuid.New(), Type: entity.FileTypeChallenge, ChallengeID: uuid.New(), Location: "x", Filename: "f", Size: 0, SHA256: "x", CreatedAt: time.Now()},
+	data := &domain.BackupData{
+		Files: []domain.File{
+			{ID: uuid.New(), Type: domain.FileTypeChallenge, ChallengeID: uuid.New(), Location: "x", Filename: "f", Size: 0, SHA256: "x", CreatedAt: time.Now()},
 		},
 	}
 
@@ -380,7 +369,6 @@ func TestBackupRepo_ImportFileMetadataTx_Error_InvalidChallengeID(t *testing.T) 
 }
 
 func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -393,16 +381,16 @@ func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 	comp, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
 	data.Competition = comp
-	data.Challenges = []entity.ChallengeExport{
-		{Challenge: *challenge, Hints: []entity.Hint{}},
+	data.Challenges = []domain.ChallengeExport{
+		{Challenge: *challenge, Hints: []domain.Hint{}},
 	}
-	data.Teams = []entity.TeamExport{
-		{Team: *team, MemberIDs: []uuid.UUID{user.ID}},
+	data.Teams = []domain.TeamExport{
+		{Team: *team, InviteToken: team.InviteToken, InviteTokenExpiresAt: team.InviteTokenExpiresAt, MemberIDs: []uuid.UUID{user.ID}},
 	}
-	data.Users = []entity.UserExport{
+	data.Users = []domain.UserExport{
 		{ID: user.ID, Username: user.Username, Email: user.Email, Role: string(user.Role), TeamID: &team.ID},
 	}
-	opts := entity.ImportOptions{ConflictMode: entity.ConflictModeOverwrite}
+	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
 		if err := f.BackupRepo.ImportCompetition(txCtx, data.Competition); err != nil {
@@ -434,7 +422,6 @@ func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 }
 
 func TestBackupRepo_TM_Run_EraseAndImportChallenges_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -443,9 +430,9 @@ func TestBackupRepo_TM_Run_EraseAndImportChallenges_Success(t *testing.T) {
 	challengeID := challenge.ID
 
 	data := f.NewMinimalBackupData(t)
-	data.Competition = &entity.Competition{ID: 1, Name: "Restored", Mode: "flexible"}
-	data.Challenges = []entity.ChallengeExport{
-		{Challenge: entity.Challenge{ID: challengeID, Title: "Restored Chall", Description: challenge.Description, Category: challenge.Category, Points: 400, FlagHash: challenge.FlagHash, InitialValue: 400, MinValue: 400, Decay: 0, SolveCount: 0}, Hints: []entity.Hint{}},
+	data.Competition = &domain.Competition{ID: 1, Name: "Restored", Mode: "flexible", MinTeamSize: 1, MaxTeamSize: 10}
+	data.Challenges = []domain.ChallengeExport{
+		{Challenge: domain.Challenge{ID: challengeID, Title: "Restored Chall", Description: challenge.Description, Category: challenge.Category, Points: 400, FlagHash: challenge.FlagHash, InitialValue: 400, MinValue: 400, Decay: 0, SolveCount: 0}, Hints: []domain.Hint{}},
 	}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
@@ -467,7 +454,6 @@ func TestBackupRepo_TM_Run_EraseAndImportChallenges_Success(t *testing.T) {
 }
 
 func TestBackupRepo_EraseTables_DisallowedTable_ReturnsError(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -481,7 +467,6 @@ func TestBackupRepo_EraseTables_DisallowedTable_ReturnsError(t *testing.T) {
 }
 
 func TestBackupRepo_EraseTables_AllowedSubset_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -504,7 +489,6 @@ func TestBackupRepo_EraseTables_AllowedSubset_Success(t *testing.T) {
 }
 
 func TestBackupRepo_EraseTables_EmptyTables_NoOp(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

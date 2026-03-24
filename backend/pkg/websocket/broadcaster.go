@@ -2,9 +2,11 @@ package websocket
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-wskit"
 )
 
 type SolveBroadcaster interface {
@@ -13,11 +15,19 @@ type SolveBroadcaster interface {
 }
 
 type Broadcaster struct {
-	hub *Hub
+	hub *wskit.Hub
+	wg  sync.WaitGroup
 }
 
-func NewBroadcaster(hub *Hub) *Broadcaster {
+func NewBroadcaster(hub *wskit.Hub) *Broadcaster {
 	return &Broadcaster{hub: hub}
+}
+
+func (b *Broadcaster) Wait() {
+	if b == nil {
+		return
+	}
+	b.wg.Wait()
 }
 
 func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, points int, isFirstBlood bool) {
@@ -25,7 +35,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		return
 	}
 	now := time.Now()
-	solveEv := Event{
+	solveEv := wskit.Event{
 		Type: "scoreboard_update",
 		Payload: ScoreboardUpdate{
 			Type:      EventTypeSolve,
@@ -36,7 +46,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		},
 		Timestamp: now,
 	}
-	firstBloodEv := Event{
+	firstBloodEv := wskit.Event{
 		Type: "scoreboard_update",
 		Payload: ScoreboardUpdate{
 			Type:      EventTypeFirstBlood,
@@ -47,15 +57,14 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		},
 		Timestamp: now,
 	}
-	go func() {
-		// Best-effort: bounded by timeout, detached from caller.
+	b.wg.Go(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		b.hub.BroadcastEvent(ctx, solveEv)
+		_ = b.hub.BroadcastEvent(ctx, solveEv)
 		if isFirstBlood {
-			b.hub.BroadcastEvent(ctx, firstBloodEv)
+			_ = b.hub.BroadcastEvent(ctx, firstBloodEv)
 		}
-	}()
+	})
 }
 
 func (b *Broadcaster) NotifyNotification(message, level string) {
@@ -63,7 +72,7 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		return
 	}
 	now := time.Now()
-	ev := Event{
+	ev := wskit.Event{
 		Type: "notification",
 		Payload: Notification{
 			Type:      EventTypeNotification,
@@ -73,12 +82,11 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		},
 		Timestamp: now,
 	}
-	go func() {
-		// Best-effort: bounded by timeout, detached from caller.
+	b.wg.Go(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		b.hub.BroadcastEvent(ctx, ev)
-	}()
+		_ = b.hub.BroadcastEvent(ctx, ev)
+	})
 }
 
 var _ SolveBroadcaster = (*Broadcaster)(nil)

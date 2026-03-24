@@ -5,8 +5,4 @@ import (
 	"net/http"
 )
 
-var ErrSubmissionNotFound = &HTTPError{
-	Err:        errors.New("submission not found"),
-	StatusCode: http.StatusNotFound,
-	Code:       "SUBMISSION_NOT_FOUND",
-}
+var ErrSubmissionNotFound = New(errors.New("submission not found"), http.StatusNotFound, "SUBMISSION_NOT_FOUND")

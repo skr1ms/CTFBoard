@@ -5,21 +5,24 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/sourcegraph/conc/pool"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
-var (
-	trackingDroppedTotal prometheus.Counter
-	trackingDroppedOnce  sync.Once
-)
+var trackingDroppedTotal = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "tracking_events_dropped_total",
+	Help: "Total number of IP tracking events dropped because the channel was full.",
+})
 
 const (
 	trackingDebounce      = 2 * time.Minute
@@ -77,17 +80,7 @@ type trackingJob struct {
 	userAgent string
 }
 
-func initTrackingMetrics() {
-	trackingDroppedOnce.Do(func() {
-		trackingDroppedTotal = prometheus.NewCounter(prometheus.CounterOpts{
-			Name: "tracking_events_dropped_total",
-			Help: "Total number of IP tracking events dropped because the channel was full.",
-		})
-		prometheus.MustRegister(trackingDroppedTotal)
-	})
-}
-
-func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log logger.Logger) {
+func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log logkit.Logger) {
 	tCtx, cancel := context.WithTimeout(context.Background(), trackingCtxTimeout)
 	defer cancel()
 	if err := trackingUC.Track(tCtx, job.userID, job.ip, job.userAgent); err != nil {
@@ -95,26 +88,25 @@ func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log log
 	}
 }
 
-func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, trustedProxyCIDRs []string, log logger.Logger) func(http.Handler) http.Handler {
-	initTrackingMetrics()
+func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log logkit.Logger) func(http.Handler) http.Handler {
 	debouncer := &trackingDebouncer{lastSeen: make(map[uuid.UUID]time.Time)}
 	ch := make(chan trackingJob, trackingBufSize)
-	var wg sync.WaitGroup
+	p := pool.New().WithMaxGoroutines(trackingWorkers)
+	var trackingStopped atomic.Bool
 
-	wg.Add(trackingWorkers)
-	for range trackingWorkers {
-		go func() {
-			defer wg.Done()
-			for job := range ch {
+	go func() {
+		for job := range ch {
+			p.Go(func() {
 				runTrackingJob(trackingUC, job, log)
-			}
-		}()
-	}
+			})
+		}
+		p.Wait()
+	}()
 
 	go func() {
 		<-ctx.Done()
+		trackingStopped.Store(true)
 		close(ch)
-		wg.Wait()
 	}()
 
 	go func() {
@@ -136,21 +128,23 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, trusted
 			if ok && user != nil && debouncer.shouldTrack(user.ID) {
 				job := trackingJob{
 					userID:    user.ID,
-					ip:        httputil.GetClientIP(r, trustedProxyCIDRs),
+					ip:        kitMiddleware.GetClientIPFromContext(r.Context()),
 					userAgent: sanitizeUserAgent(r.Header.Get("User-Agent")),
 				}
-				func() {
-					defer func() {
-						if v := recover(); v != nil {
-							log.WithFields(logger.Fields{"panic": v}).Warn("middleware - IPTracking: recovered panic when sending tracking job")
+				if !trackingStopped.Load() {
+					func() {
+						defer func() {
+							if v := recover(); v != nil {
+								log.WithFields(logkit.Fields{"panic": v}).Warn("middleware - IPTracking: recovered panic when sending tracking job")
+							}
+						}()
+						select {
+						case ch <- job:
+						default:
+							trackingDroppedTotal.Inc()
 						}
 					}()
-					select {
-					case ch <- job:
-					default:
-						trackingDroppedTotal.Inc()
-					}
-				}()
+				}
 			}
 			next.ServeHTTP(w, r)
 		})

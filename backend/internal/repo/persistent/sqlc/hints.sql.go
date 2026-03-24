@@ -12,13 +12,14 @@ import (
 )
 
 const createHint = `-- name: CreateHint :exec
-INSERT INTO hints (id, challenge_id, content, cost, order_index)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO hints (id, challenge_id, title, content, cost, order_index)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateHintParams struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`
+	Title       string    `json:"title"`
 	Content     string    `json:"content"`
 	Cost        int32     `json:"cost"`
 	OrderIndex  int32     `json:"order_index"`
@@ -28,6 +29,7 @@ func (q *Queries) CreateHint(ctx context.Context, arg CreateHintParams) error {
 	_, err := q.db.Exec(ctx, createHint,
 		arg.ID,
 		arg.ChallengeID,
+		arg.Title,
 		arg.Content,
 		arg.Cost,
 		arg.OrderIndex,
@@ -45,7 +47,7 @@ func (q *Queries) DeleteHint(ctx context.Context, id uuid.UUID) error {
 }
 
 const getHintByID = `-- name: GetHintByID :one
-SELECT id, challenge_id, content, cost, order_index
+SELECT id, challenge_id, title, content, cost, order_index
 FROM hints
 WHERE id = $1
 `
@@ -56,6 +58,7 @@ func (q *Queries) GetHintByID(ctx context.Context, id uuid.UUID) (Hint, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.ChallengeID,
+		&i.Title,
 		&i.Content,
 		&i.Cost,
 		&i.OrderIndex,
@@ -64,7 +67,7 @@ func (q *Queries) GetHintByID(ctx context.Context, id uuid.UUID) (Hint, error) {
 }
 
 const getHintByIDForUpdate = `-- name: GetHintByIDForUpdate :one
-SELECT id, challenge_id, content, cost, order_index
+SELECT id, challenge_id, title, content, cost, order_index
 FROM hints
 WHERE id = $1
 FOR UPDATE
@@ -76,6 +79,7 @@ func (q *Queries) GetHintByIDForUpdate(ctx context.Context, id uuid.UUID) (Hint,
 	err := row.Scan(
 		&i.ID,
 		&i.ChallengeID,
+		&i.Title,
 		&i.Content,
 		&i.Cost,
 		&i.OrderIndex,
@@ -84,7 +88,7 @@ func (q *Queries) GetHintByIDForUpdate(ctx context.Context, id uuid.UUID) (Hint,
 }
 
 const getHintsByChallengeID = `-- name: GetHintsByChallengeID :many
-SELECT id, challenge_id, content, cost, order_index
+SELECT id, challenge_id, title, content, cost, order_index
 FROM hints
 WHERE challenge_id = $1
 ORDER BY order_index ASC
@@ -102,6 +106,7 @@ func (q *Queries) GetHintsByChallengeID(ctx context.Context, challengeID uuid.UU
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChallengeID,
+			&i.Title,
 			&i.Content,
 			&i.Cost,
 			&i.OrderIndex,
@@ -117,7 +122,7 @@ func (q *Queries) GetHintsByChallengeID(ctx context.Context, challengeID uuid.UU
 }
 
 const getHintsByChallengeIDs = `-- name: GetHintsByChallengeIDs :many
-SELECT id, challenge_id, content, cost, order_index
+SELECT id, challenge_id, title, content, cost, order_index
 FROM hints
 WHERE challenge_id = ANY($1::uuid[])
 ORDER BY challenge_id, order_index ASC
@@ -135,6 +140,7 @@ func (q *Queries) GetHintsByChallengeIDs(ctx context.Context, dollar_1 []uuid.UU
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChallengeID,
+			&i.Title,
 			&i.Content,
 			&i.Cost,
 			&i.OrderIndex,
@@ -150,11 +156,12 @@ func (q *Queries) GetHintsByChallengeIDs(ctx context.Context, dollar_1 []uuid.UU
 }
 
 const updateHint = `-- name: UpdateHint :exec
-UPDATE hints SET content = $2, cost = $3, order_index = $4 WHERE id = $1
+UPDATE hints SET title = $2, content = $3, cost = $4, order_index = $5 WHERE id = $1
 `
 
 type UpdateHintParams struct {
 	ID         uuid.UUID `json:"id"`
+	Title      string    `json:"title"`
 	Content    string    `json:"content"`
 	Cost       int32     `json:"cost"`
 	OrderIndex int32     `json:"order_index"`
@@ -163,6 +170,7 @@ type UpdateHintParams struct {
 func (q *Queries) UpdateHint(ctx context.Context, arg UpdateHintParams) error {
 	_, err := q.db.Exec(ctx, updateHint,
 		arg.ID,
+		arg.Title,
 		arg.Content,
 		arg.Cost,
 		arg.OrderIndex,

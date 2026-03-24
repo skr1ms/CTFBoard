@@ -1,28 +1,27 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromAward(a *entity.Award) openapi.AwardResponse {
+func FromAward(a *domain.Award) openapi.AwardResponse {
 	res := openapi.AwardResponse{
-		ID:          ptr(a.ID.String()),
-		TeamID:      ptr(a.TeamID.String()),
-		Value:       ptr(a.Value),
-		Description: ptr(a.Description),
-		CreatedAt:   ptr(a.CreatedAt),
+		ID:          httputil.Ptr(a.ID.String()),
+		TeamID:      httputil.Ptr(a.TeamID.String()),
+		Value:       httputil.Ptr(a.Value),
+		Description: httputil.Ptr(a.Description),
+		CreatedAt:   httputil.Ptr(a.CreatedAt),
 	}
 	if a.CreatedBy != nil {
-		res.CreatedBy = ptr(a.CreatedBy.String())
+		res.CreatedBy = httputil.Ptr(a.CreatedBy.String())
 	}
 	return res
 }
 
-func FromAwardList(items []*entity.Award) []openapi.AwardResponse {
-	res := make([]openapi.AwardResponse, len(items))
-	for i, item := range items {
-		res[i] = FromAward(item)
-	}
-	return res
+func FromAwardList(items []*domain.Award) []openapi.AwardResponse {
+	return lo.Map(items, func(item *domain.Award, _ int) openapi.AwardResponse { return FromAward(item) })
 }

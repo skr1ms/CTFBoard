@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestTeamRepo_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -31,7 +30,6 @@ func TestTeamRepo_Create(t *testing.T) {
 
 func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -40,7 +38,7 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 
 	user2 := f.CreateUser(t, "duplicate_2")
 
-	team2 := &entity.Team{
+	team2 := &domain.Team{
 		Name:        team1.Name,
 		InviteToken: uuid.New(),
 		CaptainID:   user2.ID,
@@ -57,7 +55,6 @@ func TestTeamRepo_Create_DuplicateName(t *testing.T) {
 
 func TestTeamRepo_GetByID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -74,7 +71,6 @@ func TestTeamRepo_GetByID(t *testing.T) {
 
 func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -87,7 +83,6 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -102,7 +97,6 @@ func TestTeamRepo_GetByInviteToken(t *testing.T) {
 
 func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -114,7 +108,6 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 
 func TestTeamRepo_GetByName(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -129,7 +122,6 @@ func TestTeamRepo_GetByName(t *testing.T) {
 
 func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -141,14 +133,13 @@ func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 
 func TestTeamRepo_Create_Solo(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "solo_repo")
 
-	team := &entity.Team{
+	team := &domain.Team{
 		Name:          "SoloRepo",
 		InviteToken:   uuid.New(),
 		CaptainID:     user.ID,
@@ -169,7 +160,6 @@ func TestTeamRepo_Create_Solo(t *testing.T) {
 
 func TestTeamRepo_Ban_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -189,7 +179,6 @@ func TestTeamRepo_Ban_Success(t *testing.T) {
 
 func TestTeamRepo_Ban_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -200,7 +189,6 @@ func TestTeamRepo_Ban_Error_NotFound(t *testing.T) {
 
 func TestTeamRepo_Unban_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -221,7 +209,6 @@ func TestTeamRepo_Unban_Success(t *testing.T) {
 
 func TestTeamRepo_Unban_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -232,7 +219,6 @@ func TestTeamRepo_Unban_Error_NotFound(t *testing.T) {
 
 func TestTeamRepo_SetHidden_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -256,7 +242,6 @@ func TestTeamRepo_SetHidden_Success(t *testing.T) {
 
 func TestTeamRepo_SetHidden_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -267,7 +252,6 @@ func TestTeamRepo_SetHidden_Error_NotFound(t *testing.T) {
 
 func TestTeamRepo_HardDeleteTeams_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -289,7 +273,6 @@ func TestTeamRepo_HardDeleteTeams_Success(t *testing.T) {
 
 func TestTeamRepo_HardDeleteTeams_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -302,7 +285,6 @@ func TestTeamRepo_HardDeleteTeams_Error_CancelledContext(t *testing.T) {
 
 func TestTeamRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -322,7 +304,6 @@ func TestTeamRepo_GetAll_Success(t *testing.T) {
 
 func TestTeamRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -336,7 +317,6 @@ func TestTeamRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestTeamRepo_CountActiveTeams_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -353,7 +333,6 @@ func TestTeamRepo_CountActiveTeams_Success(t *testing.T) {
 
 func TestTeamRepo_CountActiveTeams_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -366,7 +345,6 @@ func TestTeamRepo_CountActiveTeams_Error_CancelledContext(t *testing.T) {
 
 func TestTeamRepo_Lock_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -381,7 +359,6 @@ func TestTeamRepo_Lock_Success(t *testing.T) {
 
 func TestTeamRepo_Lock_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	_, team := f.CreateUserWithTeam(t, "lock_cancel")
@@ -395,17 +372,16 @@ func TestTeamRepo_Lock_Error_CancelledContext(t *testing.T) {
 
 func TestTeamRepo_CreateAuditLog_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "audit_log_success")
 
-	log := &entity.TeamAuditLog{
+	log := &domain.TeamAuditLog{
 		TeamID: team.ID,
 		UserID: &team.CaptainID,
-		Action: entity.TeamActionCreated,
+		Action: domain.TeamActionCreated,
 	}
 	err := f.TeamRepo.CreateAuditLog(ctx, log)
 	require.NoError(t, err)
@@ -415,7 +391,6 @@ func TestTeamRepo_CreateAuditLog_Success(t *testing.T) {
 
 func TestTeamRepo_CreateAuditLog_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	_, team := f.CreateUserWithTeam(t, "audit_cancel")
@@ -423,10 +398,10 @@ func TestTeamRepo_CreateAuditLog_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	log := &entity.TeamAuditLog{
+	log := &domain.TeamAuditLog{
 		TeamID: team.ID,
 		UserID: &team.CaptainID,
-		Action: entity.TeamActionCreated,
+		Action: domain.TeamActionCreated,
 	}
 	err := f.TeamRepo.CreateAuditLog(ctx, log)
 	require.Error(t, err)
@@ -434,13 +409,12 @@ func TestTeamRepo_CreateAuditLog_Error_CancelledContext(t *testing.T) {
 
 func TestTeamRepo_GetSoloTeamByUserID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "solo_lookup")
-	team := &entity.Team{
+	team := &domain.Team{
 		Name:          "SoloLookup",
 		InviteToken:   uuid.New(),
 		CaptainID:     user.ID,
@@ -463,7 +437,6 @@ func TestTeamRepo_GetSoloTeamByUserID_Success(t *testing.T) {
 
 func TestTeamRepo_GetSoloTeamByUserID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

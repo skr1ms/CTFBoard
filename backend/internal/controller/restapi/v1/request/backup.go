@@ -1,12 +1,12 @@
 package request
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func AdminResetRequestToParams(req *openapi.AdminResetRequest) entity.AdminResetOptions {
-	opts := entity.AdminResetOptions{}
+func AdminResetRequestToParams(req *openapi.AdminResetRequest) domain.AdminResetOptions {
+	opts := domain.AdminResetOptions{}
 	if req.Pages != nil {
 		opts.Pages = *req.Pages
 	}

@@ -6,19 +6,7 @@ import (
 )
 
 var (
-	ErrBracketNotFound = &HTTPError{
-		Err:        errors.New("bracket not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "BRACKET_NOT_FOUND",
-	}
-	ErrBracketNameConflict = &HTTPError{
-		Err:        errors.New("bracket name already exists"),
-		StatusCode: http.StatusConflict,
-		Code:       "BRACKET_NAME_CONFLICT",
-	}
-	ErrBracketNameRequired = &HTTPError{
-		Err:        errors.New("name is required"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "BRACKET_NAME_REQUIRED",
-	}
+	ErrBracketNotFound     = New(errors.New("bracket not found"), http.StatusNotFound, "BRACKET_NOT_FOUND")
+	ErrBracketNameConflict = New(errors.New("bracket name already exists"), http.StatusConflict, "BRACKET_NAME_CONFLICT")
+	ErrBracketNameRequired = New(errors.New("name is required"), http.StatusBadRequest, "BRACKET_NAME_REQUIRED")
 )

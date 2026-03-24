@@ -8,18 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/seed/mocks"
+	seedMock "github.com/TakuyaYagam1/AstroCTFb/pkg/seed/mock"
 )
 
 func anyAdmin() any {
-	return mock.MatchedBy(func(u *entity.User) bool {
+	return mock.MatchedBy(func(u *domain.User) bool {
 		return u.Username == "admin" &&
 			u.Email == "admin@test.com" &&
-			u.Role == entity.RoleAdmin &&
+			u.Role == domain.RoleAdmin &&
 			u.IsVerified
 	})
 }
@@ -27,11 +27,12 @@ func anyAdmin() any {
 func TestCreateDefaultAdmin_Success(t *testing.T) {
 	t.Parallel()
 
-	repo := mocks.NewMockUserRepository(t)
+	repo := seedMock.NewMockUserRepository(t)
 	repo.EXPECT().GetByEmail(context.Background(), "admin@test.com").Return(nil, httperr.ErrUserNotFound)
 	repo.EXPECT().Create(context.Background(), anyAdmin()).Return(nil)
 
-	log := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
+	log, logErr := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, logErr)
 
 	err := CreateDefaultAdmin(context.Background(), repo, "admin", "admin@test.com", "password123", log)
 	require.NoError(t, err)
@@ -40,10 +41,11 @@ func TestCreateDefaultAdmin_Success(t *testing.T) {
 func TestCreateDefaultAdmin_AlreadyExists_Success(t *testing.T) {
 	t.Parallel()
 
-	repo := mocks.NewMockUserRepository(t)
-	repo.EXPECT().GetByEmail(context.Background(), "admin@test.com").Return(&entity.User{Email: "admin@test.com"}, nil)
+	repo := seedMock.NewMockUserRepository(t)
+	repo.EXPECT().GetByEmail(context.Background(), "admin@test.com").Return(&domain.User{Email: "admin@test.com"}, nil)
 
-	log := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
+	log, logErr := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, logErr)
 
 	err := CreateDefaultAdmin(context.Background(), repo, "admin", "admin@test.com", "password123", log)
 	require.NoError(t, err)
@@ -52,11 +54,12 @@ func TestCreateDefaultAdmin_AlreadyExists_Success(t *testing.T) {
 func TestCreateDefaultAdmin_CreateError_Error(t *testing.T) {
 	t.Parallel()
 
-	repo := mocks.NewMockUserRepository(t)
+	repo := seedMock.NewMockUserRepository(t)
 	repo.EXPECT().GetByEmail(context.Background(), "admin@test.com").Return(nil, httperr.ErrUserNotFound)
 	repo.EXPECT().Create(context.Background(), anyAdmin()).Return(errors.New("db error"))
 
-	log := logger.New(&logger.Options{Level: logger.InfoLevel, Output: logger.ConsoleOutput})
+	log, logErr := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, logErr)
 
 	err := CreateDefaultAdmin(context.Background(), repo, "admin", "admin@test.com", "password123", log)
 	require.Error(t, err)

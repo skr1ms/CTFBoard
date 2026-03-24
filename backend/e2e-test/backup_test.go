@@ -15,7 +15,6 @@ import (
 
 // GET /admin/export: admin exports competition as JSON; returns 200 and JSON body.
 func TestBackup_ExportJSON(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -31,7 +30,6 @@ func TestBackup_ExportJSON(t *testing.T) {
 
 // GET /admin/export/zip: admin exports competition as ZIP; returns 200 and binary body.
 func TestBackup_ExportZip(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -48,7 +46,6 @@ func TestBackup_ExportZip(t *testing.T) {
 
 // GET /admin/export/zip then POST /admin/import: export ZIP, re-import with conflict_mode skip; returns 200.
 func TestBackup_ExportThenImport(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -63,7 +60,6 @@ func TestBackup_ExportThenImport(t *testing.T) {
 
 // GET /admin/export: non-admin gets 403 Forbidden.
 func TestBackup_Export_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -75,7 +71,6 @@ func TestBackup_Export_Forbidden(t *testing.T) {
 
 // GET /admin/export/zip: non-admin gets 403 Forbidden.
 func TestBackup_ExportZip_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -87,7 +82,6 @@ func TestBackup_ExportZip_Forbidden(t *testing.T) {
 
 // POST /admin/import: non-admin gets 403 Forbidden.
 func TestBackup_Import_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -99,7 +93,6 @@ func TestBackup_Import_Forbidden(t *testing.T) {
 
 // GET /admin/export/csv: admin exports table as CSV bytes.
 func TestBackup_ExportCSV_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -119,7 +112,6 @@ func TestBackup_ExportCSV_Success(t *testing.T) {
 
 // GET /admin/export/csv: non-admin returns 403.
 func TestBackup_ExportCSV_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -137,7 +129,6 @@ func TestBackup_ExportCSV_Forbidden(t *testing.T) {
 
 // POST /admin/import/csv: admin imports valid CSV.
 func TestBackup_ImportCSV_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -153,7 +144,6 @@ func TestBackup_ImportCSV_Success(t *testing.T) {
 
 // POST /admin/import/csv: non-admin returns 403.
 func TestBackup_ImportCSV_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -168,7 +158,6 @@ func TestBackup_ImportCSV_Forbidden(t *testing.T) {
 
 // POST /admin/import/csv: invalid CSV format returns 400.
 func TestBackup_ImportCSV_InvalidFormat(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

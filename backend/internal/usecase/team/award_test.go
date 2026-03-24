@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
 )
 
 type awardTestDeps struct {
-	repo    *mocks.MockAwardRepository
-	tm      *mocks.MockTransactionManager
+	repo    *teamMock.MockAwardRepository
+	tm      *teamMock.MockTransactionManager
 	teamID  uuid.UUID
 	adminID uuid.UUID
 }
@@ -24,8 +24,8 @@ type awardTestDeps struct {
 func newAwardTestDeps(t *testing.T) *awardTestDeps {
 	t.Helper()
 	return &awardTestDeps{
-		repo:    mocks.NewMockAwardRepository(t),
-		tm:      mocks.NewMockTransactionManager(t),
+		repo:    teamMock.NewMockAwardRepository(t),
+		tm:      teamMock.NewMockTransactionManager(t),
 		teamID:  uuid.New(),
 		adminID: uuid.New(),
 	}
@@ -35,8 +35,8 @@ func (d *awardTestDeps) createUseCase() *AwardUseCase {
 	return NewAwardUseCase(AwardDeps{AwardRepo: d.repo, TM: d.tm})
 }
 
-func newTestAward(teamID uuid.UUID, value int, createdAt time.Time) *entity.Award {
-	return &entity.Award{
+func newTestAward(teamID uuid.UUID, value int, createdAt time.Time) *domain.Award {
+	return &domain.Award{
 		ID: uuid.New(), TeamID: teamID, Value: value, CreatedAt: createdAt,
 	}
 }
@@ -51,7 +51,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 		d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 			return fn(ctx)
 		})
-		d.repo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.Award) bool {
+		d.repo.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Award) bool {
 			return a.TeamID == d.teamID && a.Value == 100 && a.Description == "Bonus" && *a.CreatedBy == d.adminID
 		})).Return(nil).Once()
 
@@ -94,7 +94,7 @@ func TestAwardUseCase_GetByTeamID(t *testing.T) {
 		t.Parallel()
 		d := newAwardTestDeps(t)
 		teamID := d.teamID
-		expectedAwards := []*entity.Award{
+		expectedAwards := []*domain.Award{
 			newTestAward(teamID, 100, time.Now()),
 			newTestAward(teamID, -50, time.Now()),
 		}

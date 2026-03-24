@@ -2,6 +2,7 @@ package load_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -15,6 +16,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
+
+	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-wskit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
@@ -33,10 +40,9 @@ import (
 	settingsUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	teamUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	userUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
@@ -59,9 +65,9 @@ type noOpMailer struct{}
 func (m *noOpMailer) Send(_ context.Context, _ mailer.Message) error { return nil }
 
 type loadTestDeps struct {
-	log    logger.Logger
+	log    logkit.Logger
 	val    validator.Validator
-	jwt    *jwt.JWTService
+	jwt    *jwtkit.JWTService
 	crypto *crypto.CryptoService
 }
 
@@ -122,19 +128,23 @@ type loadTestUseCases struct {
 }
 
 func initLoadTestDeps(redisClient *redis.Client) (*loadTestDeps, error) {
-	l := logger.New(&logger.Options{
-		Level:  logger.ErrorLevel,
-		Output: logger.ConsoleOutput,
-	})
+	l, err := logkit.New(logkit.WithLevel(logkit.ErrorLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	if err != nil {
+		return nil, fmt.Errorf("create logger: %w", err)
+	}
 	val, err := validator.New()
 	if err != nil {
 		return nil, fmt.Errorf("create validator: %w", err)
 	}
-	revoker := jwt.NewRedisRevocationStore(redisClient)
-	jwtSvc, err := jwt.NewJWTService(
-		[]jwt.KeyEntry{{Kid: "0", Secret: "test-access-secret-min-32-bytes!"}},
-		[]jwt.KeyEntry{{Kid: "0", Secret: "test-refresh-secret-min32-bytes!"}},
-		24*time.Hour, 72*time.Hour, revoker, nil)
+	revoker := jwtkit.NewRedisRevocationStore(redisClient)
+	jwtSvc, err := jwtkit.NewJWTService(jwtkit.Config{
+		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-access-secret-min-32-bytes!")}},
+		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-refresh-secret-min32-bytes!")}},
+		AccessTTL:   24 * time.Hour,
+		RefreshTTL:  72 * time.Hour,
+		Issuer:      "loadtest-issuer",
+		Revoker:     revoker,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create jwt: %w", err)
 	}
@@ -176,10 +186,10 @@ func initLoadTestRepos(pool *pgxpool.Pool) *loadTestRepos {
 	}
 }
 
-func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage storage.Provider, hub *websocket.Hub, redisClient *redis.Client) *loadTestUseCases {
+func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage storage.Provider, hub *wskit.Hub, redisClient *redis.Client) *loadTestUseCases {
 	fieldValidator := settingsUC.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
-	c := cache.New(redisClient)
+	c := cachekit.New(redisClient)
 	scoreboardCache := cache.NewScoreboardCacheService(c, &teamBracketGetterImpl{repos.teamRepo})
 	guard := competitionUC.NewGuard(repos.compRepo)
 
@@ -229,13 +239,14 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		CompetitionRepo: repos.compRepo,
 		AuditLogRepo:    repos.auditLogRepo,
 		TM:              repos.tm,
-		Redis:           &cache.RedisKeyValueStore{Client: redisClient},
+		Redis:           &cachekit.RedisKeyValueStore{Client: redisClient},
 		Logger:          deps.log,
 	})
 	ch := challengeUC.NewChallengeUseCase(challengeUC.ChallengeDeps{
 		ChallengeRepo:   repos.challengeRepo,
 		TagRepo:         repos.tagRepo,
 		SolveRepo:       repos.solveRepo,
+		SubmissionRepo:  repos.submissionRepo,
 		TM:              repos.tm,
 		CompRepo:        repos.compRepo,
 		CompUC:          comp,
@@ -280,10 +291,10 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		Repo:         repos.SettingsRepo,
 		AuditLogRepo: repos.auditLogRepo,
 		TM:           repos.tm,
-		Redis:        &cache.RedisKeyValueStore{Client: redisClient},
+		Redis:        &cachekit.RedisKeyValueStore{Client: redisClient},
 		CompRepo:     repos.compRepo,
 	})
-	competitionParam := competitionUC.NewCompetitionParamUseCase(competitionUC.CompetitionParamDeps{
+	competitionParam := competitionUC.NewCompetitionParamUseCase(context.Background(), competitionUC.CompetitionParamDeps{
 		Repo:         repos.configRepo,
 		AuditLogRepo: repos.auditLogRepo,
 		TM:           repos.tm,
@@ -312,9 +323,9 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 	}
 }
 
-func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCases, val validator.Validator, jwtSvc *jwt.JWTService, storageDir string, redisClient *redis.Client) *chi.Mux {
+func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCases, val validator.Validator, jwtSvc *jwtkit.JWTService, storageDir string, redisClient *redis.Client) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(chimiddleware.RequestID, chimiddleware.RealIP, chimiddleware.Recoverer)
+	r.Use(kitMiddleware.RequestID(), chimiddleware.RealIP, kitMiddleware.Recoverer(l))
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/ws") {
@@ -361,6 +372,8 @@ func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCa
 			Validator:                     val,
 			Logger:                        l,
 			TrustedProxyCIDRs:             nil,
+			StructuredLogger:              false,
+			DebugEnabled:                  false,
 			ForgotPasswordRateLimiter:     forgotLimiter,
 			ResendVerificationRateLimiter: resendLimiter,
 			ResetPasswordTokenRateLimiter: resetTokenLimiter,
@@ -368,7 +381,7 @@ func buildLoadTestRouter(ctx context.Context, l logger.Logger, uc *loadTestUseCa
 	}
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		rateLimitCache := v1helper.NewRateLimitConfigCache(30 * time.Second)
+		rateLimitCache := restapimiddleware.NewRateLimitConfigCache(30 * time.Second)
 		v1.NewRouter(ctx, apiRouter, deps, false, rateLimitCache)
 
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
@@ -398,7 +411,15 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 		return "", nil, fmt.Errorf("create storage: %w", err)
 	}
 	ctx := context.Background()
-	hub := websocket.NewHub(redisClient, "lt:events")
+	hub := wskit.NewHub(
+		wskit.WithRedis(redisClient, "lt:events"),
+		wskit.WithOnConnect(func(c *wskit.Client) {
+			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
+			if err == nil {
+				c.Send(data)
+			}
+		}),
+	)
 	go hub.Run(ctx)
 	go hub.SubscribeToRedis(ctx)
 
@@ -426,9 +447,25 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 		}
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	baseURL = fmt.Sprintf("http://localhost:%d", port)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", nil)
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+		resp, err := http.DefaultClient.Do(req) //nolint:gosec // G704: test uses localhost only
+		if err == nil && resp != nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 
-	return fmt.Sprintf("http://localhost:%d", port), func() {
+	return baseURL, func() {
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if serr := srv.Shutdown(shutCtx); serr != nil {

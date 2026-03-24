@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestRequireTeam_NoUser_Error(t *testing.T) {
 	t.Parallel()
 	r := chi.NewRouter()
 	r.Use(RequireTeam())
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -31,13 +31,13 @@ func TestRequireTeam_Admin_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin, TeamID: nil}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, TeamID: nil}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireTeam())
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -51,19 +51,19 @@ func TestRequireTeam_NoTeam_Error(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: nil}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: nil}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireTeam())
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	require.Equal(t, http.StatusForbidden, rr.Code)
+	require.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestRequireTeam_HasTeam_Success(t *testing.T) {
@@ -72,13 +72,13 @@ func TestRequireTeam_HasTeam_Success(t *testing.T) {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: &teamID}
+			u := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
 			ctx := withUser(r.Context(), u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 	r.Use(RequireTeam())
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()

@@ -8,18 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestAPITokenRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "apitok")
-	token := &entity.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String(), Description: "test"}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String(), Description: "test"}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token.ID)
@@ -27,25 +27,23 @@ func TestAPITokenRepo_Create_Success(t *testing.T) {
 
 func TestAPITokenRepo_Create_Error_InvalidUserID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	token := &entity.APIToken{UserID: uuid.New(), TokenHash: "hash_xyz", Description: "x"}
+	token := &domain.APIToken{UserID: uuid.New(), TokenHash: "hash_xyz", Description: "x"}
 	err := f.APITokenRepo.Create(ctx, token)
 	assert.Error(t, err)
 }
 
 func TestAPITokenRepo_GetByUserID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "gbu")
-	token := &entity.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	list, err := f.APITokenRepo.GetByUserID(ctx, user.ID)
@@ -56,7 +54,6 @@ func TestAPITokenRepo_GetByUserID_Success(t *testing.T) {
 
 func TestAPITokenRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "gbuerr")
@@ -69,14 +66,13 @@ func TestAPITokenRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
 
 func TestAPITokenRepo_GetByTokenHash_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "gbh")
 	hash := "hash_" + uuid.New().String()
-	token := &entity.APIToken{UserID: user.ID, TokenHash: hash}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: hash}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	got, err := f.APITokenRepo.GetByTokenHash(ctx, hash)
@@ -87,25 +83,24 @@ func TestAPITokenRepo_GetByTokenHash_Success(t *testing.T) {
 
 func TestAPITokenRepo_GetByTokenHash_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	got, err := f.APITokenRepo.GetByTokenHash(ctx, "nonexistent_hash_xyz")
-	require.NoError(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
+	assert.ErrorIs(t, err, httperr.ErrAPITokenNotFound)
 }
 
 func TestAPITokenRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "del")
-	token := &entity.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	err = f.APITokenRepo.Delete(ctx, token.ID, user.ID)
@@ -117,13 +112,12 @@ func TestAPITokenRepo_Delete_Success(t *testing.T) {
 
 func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "delerr")
-	token := &entity.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	err = f.APITokenRepo.Delete(ctx, token.ID, uuid.New())
@@ -135,13 +129,12 @@ func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {
 
 func TestAPITokenRepo_UpdateLastUsedAt_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "updlast")
-	token := &entity.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	token := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	err = f.APITokenRepo.UpdateLastUsedAt(ctx, token.ID, f.GetDefaultAppSettings(t).UpdatedAt)
@@ -150,7 +143,6 @@ func TestAPITokenRepo_UpdateLastUsedAt_Success(t *testing.T) {
 
 func TestAPITokenRepo_UpdateLastUsedAt_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

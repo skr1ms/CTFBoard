@@ -9,18 +9,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestBracketRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	bracket := &entity.Bracket{Name: "Pro_" + uuid.New().String()[:8], Description: "Pro bracket", IsDefault: false}
+	bracket := &domain.Bracket{Name: "Pro_" + uuid.New().String()[:8], Description: "Pro bracket", IsDefault: false}
 	err := f.BracketRepo.Create(ctx, bracket)
 	require.NoError(t, err)
 	assert.NotEmpty(t, bracket.ID)
@@ -28,13 +27,12 @@ func TestBracketRepo_Create_Success(t *testing.T) {
 
 func TestBracketRepo_Create_Error_DuplicateName(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	b1 := f.CreateBracket(t, "dup")
-	bracket2 := &entity.Bracket{Name: b1.Name, Description: "x", IsDefault: false}
+	bracket2 := &domain.Bracket{Name: b1.Name, Description: "x", IsDefault: false}
 	err := f.BracketRepo.Create(ctx, bracket2)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, httperr.ErrBracketNameConflict))
@@ -42,7 +40,6 @@ func TestBracketRepo_Create_Error_DuplicateName(t *testing.T) {
 
 func TestBracketRepo_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -56,7 +53,6 @@ func TestBracketRepo_GetByID_Success(t *testing.T) {
 
 func TestBracketRepo_GetByID_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -68,7 +64,6 @@ func TestBracketRepo_GetByID_Error_NotFound(t *testing.T) {
 
 func TestBracketRepo_GetByName_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -81,7 +76,6 @@ func TestBracketRepo_GetByName_Success(t *testing.T) {
 
 func TestBracketRepo_GetByName_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -93,7 +87,6 @@ func TestBracketRepo_GetByName_Error_NotFound(t *testing.T) {
 
 func TestBracketRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -112,7 +105,6 @@ func TestBracketRepo_GetAll_Success(t *testing.T) {
 
 func TestBracketRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -124,7 +116,6 @@ func TestBracketRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestBracketRepo_Update_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -140,7 +131,6 @@ func TestBracketRepo_Update_Success(t *testing.T) {
 
 func TestBracketRepo_Update_Error_DuplicateName(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -155,7 +145,6 @@ func TestBracketRepo_Update_Error_DuplicateName(t *testing.T) {
 
 func TestBracketRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -170,7 +159,6 @@ func TestBracketRepo_Delete_Success(t *testing.T) {
 
 func TestBracketRepo_Delete_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

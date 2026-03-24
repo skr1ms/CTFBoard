@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
+	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
 )
 
 type cleanupTestDeps struct {
-	teamRepo *mocks.MockTeamRepository
+	teamRepo *teamMock.MockTeamRepository
 }
 
 func newCleanupTestDeps(t *testing.T) *cleanupTestDeps {
 	t.Helper()
-	return &cleanupTestDeps{teamRepo: mocks.NewMockTeamRepository(t)}
+	return &cleanupTestDeps{teamRepo: teamMock.NewMockTeamRepository(t)}
 }
 
 func (d *cleanupTestDeps) createUseCase() *CleanupUseCase {

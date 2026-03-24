@@ -230,6 +230,10 @@ paths:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1hints~1{hintID}~1unlock'
   /challenges/{challengeID}/comments:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1comments'
+  /challenges/{challengeID}/rating:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1rating'
+  /challenges/{challengeID}/ratings:
+    $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1ratings'
 
   # Comment (comment.go)
   /comments/{ID}:

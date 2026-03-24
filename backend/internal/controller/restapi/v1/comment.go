@@ -3,17 +3,19 @@ package v1
 import (
 	"net/http"
 
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // Get comments for challenge
 // (GET /challenges/{challengeID}/comments)
 func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -21,13 +23,13 @@ func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http
 	if h.OnError(w, r, err, "GetChallengesChallengeIDComments", "GetByChallengeID") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromCommentList(list))
+	httputil.RenderOK(w, r, response.FromCommentList(list))
 }
 
 // Create comment
 // (POST /challenges/{challengeID}/comments)
 func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -35,10 +37,13 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.CreateCommentRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostChallengesChallengeIDComments",
+	req, ok := httputil.DecodeAndValidate[openapi.CreateCommentRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
+		return
+	}
+	if err := request.ValidateCreateCommentRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Validate") {
 		return
 	}
 	content, err := request.CreateCommentRequestToParams(&req)
@@ -49,13 +54,13 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Create") {
 		return
 	}
-	helper.RenderCreated(w, r, response.FromComment(comment))
+	httputil.RenderCreated(w, r, response.FromComment(comment))
 }
 
 // Delete comment
 // (DELETE /comments/{ID})
 func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, ID string) {
-	commentIDParsed, ok := helper.ParseUUID(w, r, ID)
+	commentIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -63,8 +68,8 @@ func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, ID str
 	if !ok {
 		return
 	}
-	if h.OnError(w, r, h.challenge.CommentUC.Delete(r.Context(), commentIDParsed, user.ID, user.Role == entity.RoleAdmin), "DeleteCommentsID", "Delete") {
+	if h.OnError(w, r, h.challenge.CommentUC.Delete(r.Context(), commentIDParsed, user.ID, user.Role == domain.RoleAdmin), "DeleteCommentsID", "Delete") {
 		return
 	}
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }

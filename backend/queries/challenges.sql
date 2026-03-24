@@ -1,53 +1,62 @@
 -- name: CreateChallenge :exec
-INSERT INTO challenges (id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+INSERT INTO challenges (id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
 
 -- name: GetChallengeByID :one
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = $1;
 
 -- name: GetChallengeByIDForUpdate :one
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = $1
 FOR UPDATE;
 
 -- name: GetChallengesByIDs :many
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, is_hidden, is_regex, is_case_insensitive, flag_regex, flag_format_regex
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = ANY($1::uuid[]);
 
 -- name: GetChallenges :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c
-WHERE c.is_hidden = false;
+WHERE c.state IN ('visible', 'locked')
+ORDER BY c.position ASC, c.id ASC;
+
+-- name: GetChallengesAll :many
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
+FROM challenges c
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: GetChallengesByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, 0::int as solved
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
-WHERE c.is_hidden = false;
+WHERE c.state IN ('visible', 'locked')
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: GetChallengesForTeam :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-WHERE c.is_hidden = false;
+WHERE c.state IN ('visible', 'locked')
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: GetChallengesForTeamByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex,
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $2 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-WHERE c.is_hidden = false;
+WHERE c.state IN ('visible', 'locked')
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: UpdateChallenge :exec
 UPDATE challenges SET
     title = $2, description = $3, category = $4, points = $5, initial_value = $6, min_value = $7,
-    decay = $8, flag_hash = $9, is_hidden = $10, is_regex = $11, is_case_insensitive = $12, flag_regex = $13, flag_format_regex = $14
+    decay = $8, flag_hash = $9, connection_info = $10, max_attempts = $11, position = $12, state = $13, is_regex = $14, is_case_insensitive = $15, flag_regex = $16, flag_format_regex = $17, updated_at = $18
 WHERE id = $1;
 
 -- name: DeleteChallenge :one
@@ -79,32 +88,32 @@ FROM challenges
 WHERE id = $1;
 
 -- name: GetMissingChallengesByTeamID :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
 FROM challenges c
-WHERE c.is_hidden = false
+WHERE c.state IN ('visible', 'locked')
   AND NOT EXISTS (
     SELECT 1 FROM solves s
     WHERE s.challenge_id = c.id AND s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
   )
-ORDER BY c.category, c.points DESC;
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: GetMissingChallengesByUserID :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.is_hidden, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
 FROM challenges c
-WHERE c.is_hidden = false
+WHERE c.state IN ('visible', 'locked')
   AND NOT EXISTS (
     SELECT 1 FROM solves s
     WHERE s.challenge_id = c.id AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
       AND s.team_id = (SELECT u.team_id FROM users u WHERE u.id = $1 AND u.team_id IS NOT NULL)
   )
-ORDER BY c.category, c.points DESC;
+ORDER BY c.position ASC, c.id ASC;
 
 -- name: GetChallengeRequirements :many
 SELECT c.id, c.title, c.category
 FROM challenge_requirements cr
 JOIN challenges c ON c.id = cr.required_challenge_id
 WHERE cr.challenge_id = $1
-  AND c.is_hidden = false
+  AND c.state IN ('visible', 'locked')
 ORDER BY c.title;
 
 -- name: DeleteChallengeRequirements :exec

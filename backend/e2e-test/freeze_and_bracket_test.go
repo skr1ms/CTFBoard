@@ -6,22 +6,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
+// GET /scoreboard with freeze_time: solves after freeze are not counted; frozen snapshot.
 func TestFreezeTime_ScoreboardShowsFrozenSnapshot(t *testing.T) {
-	t.Helper()
-	t.Parallel()
 	t.Cleanup(resetCompetitionToActive)
+	resetCompetitionToActive()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
-	_, tokenAdmin := h.SetupCompetition("adm_frz_" + suffix)
+	suffix := helper.UID()
+	_, _, tokenAdmin := h.RegisterAdmin("adm_frz_" + suffix)
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), nil)
+	require.Eventually(t, func() bool {
+		resp := h.GetCompetitionStatus()
+		return resp.JSON200 != nil && resp.JSON200.Status != nil && *resp.JSON200.Status == "active"
+	}, 6*time.Second, 50*time.Millisecond)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "FrzChall "+suffix, "flag{frz_"+suffix+"}", 100)
 
@@ -35,46 +40,32 @@ func TestFreezeTime_ScoreboardShowsFrozenSnapshot(t *testing.T) {
 
 	h.SubmitFlag(tokenA, challID, "flag{frz_"+suffix+"}", http.StatusOK)
 
-	freezeNow := time.Now().UTC()
-	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), &freezeNow)
+	freezeIn2s := time.Now().UTC().Add(2 * time.Second)
+	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), &freezeIn2s)
 	invalidateScoreboardCache(context.Background())
-	time.Sleep(6 * time.Second)
+	require.True(t, h.PollCompetitionStatus("frozen", 15*time.Second), "competition should become frozen")
 
 	h.SubmitFlag(tokenB, challID, "flag{frz_"+suffix+"}", http.StatusOK)
 
 	resp := h.GetScoreboard(tokenA)
 	require.Equal(t, http.StatusOK, resp.StatusCode())
 	require.NotNil(t, resp.JSON200)
-	var foundA, foundB bool
-	var pointsA, pointsB int
-	for _, e := range *resp.JSON200 {
-		if e.TeamName != nil {
-			switch *e.TeamName {
-			case userA:
-				foundA = true
-				if e.Points != nil {
-					pointsA = *e.Points
-				}
-			case userB:
-				foundB = true
-				if e.Points != nil {
-					pointsB = *e.Points
-				}
-			}
-		}
-	}
-	require.True(t, foundA, "team A should be in frozen scoreboard")
-	require.Equal(t, 100, pointsA, "frozen snapshot: team A should have 100 points")
-	require.True(t, foundB, "team B may appear with 0 points")
-	require.Equal(t, 0, pointsB, "frozen snapshot: team B solve was after freeze, should have 0 points")
+	entryA, okA := lo.Find(*resp.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userA })
+	require.True(t, okA, "team A should be in frozen scoreboard")
+	require.NotNil(t, entryA.Points)
+	require.Equal(t, 100, *entryA.Points, "frozen snapshot: team A should have 100 points")
+	entryB, okB := lo.Find(*resp.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userB })
+	require.True(t, okB, "team B may appear with 0 points")
+	require.NotNil(t, entryB.Points)
+	require.Equal(t, 0, *entryB.Points, "frozen snapshot: team B solve was after freeze, should have 0 points")
 }
 
+// GET /scoreboard?bracket_id=: returns only teams in that bracket.
 func TestBracket_ScoreboardFilteredByBracket(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("adm_br_" + suffix)
 
 	brA := h.CreateBracket(tokenAdmin, "BracketA", "A", false, http.StatusCreated)
@@ -118,28 +109,18 @@ func TestBracket_ScoreboardFilteredByBracket(t *testing.T) {
 	respBrA := h.GetScoreboardWithBracket(tokenA, bracketAID)
 	require.Equal(t, http.StatusOK, respBrA.StatusCode())
 	require.NotNil(t, respBrA.JSON200)
-	var onlyA bool
-	for _, e := range *respBrA.JSON200 {
-		if e.TeamName != nil && *e.TeamName == userA {
-			onlyA = true
-			require.NotNil(t, e.Points)
-			require.Equal(t, 100, *e.Points)
-		}
-		if e.TeamName != nil && *e.TeamName == userB {
-			t.Fatal("team B should not appear in bracket A scoreboard")
-		}
-	}
-	require.True(t, onlyA, "team A should be in bracket A scoreboard")
+	entryA, okA := lo.Find(*respBrA.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userA })
+	require.True(t, okA, "team A should be in bracket A scoreboard")
+	require.NotNil(t, entryA.Points)
+	require.Equal(t, 100, *entryA.Points)
+	_, hasB := lo.Find(*respBrA.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userB })
+	require.False(t, hasB, "team B should not appear in bracket A scoreboard")
 
 	respBrB := h.GetScoreboardWithBracket(tokenA, bracketBID)
 	require.Equal(t, http.StatusOK, respBrB.StatusCode())
 	require.NotNil(t, respBrB.JSON200)
-	for _, e := range *respBrB.JSON200 {
-		if e.TeamName != nil && *e.TeamName == userB {
-			require.NotNil(t, e.Points)
-			require.Equal(t, 100, *e.Points)
-			return
-		}
-	}
-	t.Fatal("team B should be in bracket B scoreboard")
+	entryB, okB := lo.Find(*respBrB.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userB })
+	require.True(t, okB, "team B should be in bracket B scoreboard")
+	require.NotNil(t, entryB.Points)
+	require.Equal(t, 100, *entryB.Points)
 }

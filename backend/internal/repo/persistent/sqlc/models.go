@@ -86,21 +86,26 @@ type Bracket struct {
 }
 
 type Challenge struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          *string   `json:"category"`
-	Points            *int32    `json:"points"`
-	FlagHash          string    `json:"flag_hash"`
-	IsHidden          *bool     `json:"is_hidden"`
-	InitialValue      int32     `json:"initial_value"`
-	MinValue          int32     `json:"min_value"`
-	Decay             int32     `json:"decay"`
-	SolveCount        int32     `json:"solve_count"`
-	IsRegex           *bool     `json:"is_regex"`
-	IsCaseInsensitive *bool     `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"flag_regex"`
-	FlagFormatRegex   *string   `json:"flag_format_regex"`
+	ID                uuid.UUID          `json:"id"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	Category          string             `json:"category"`
+	Points            *int32             `json:"points"`
+	FlagHash          string             `json:"flag_hash"`
+	ConnectionInfo    string             `json:"connection_info"`
+	MaxAttempts       int32              `json:"max_attempts"`
+	Position          int32              `json:"position"`
+	State             string             `json:"state"`
+	InitialValue      int32              `json:"initial_value"`
+	MinValue          int32              `json:"min_value"`
+	Decay             int32              `json:"decay"`
+	SolveCount        int32              `json:"solve_count"`
+	IsRegex           *bool              `json:"is_regex"`
+	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	FlagRegex         *string            `json:"flag_regex"`
+	FlagFormatRegex   *string            `json:"flag_format_regex"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ChallengeOpen struct {
@@ -191,6 +196,7 @@ type File struct {
 type Hint struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`
+	Title       string    `json:"title"`
 	Content     string    `json:"content"`
 	Cost        int32     `json:"cost"`
 	OrderIndex  int32     `json:"order_index"`
@@ -236,6 +242,17 @@ type Page struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Rating struct {
+	ID          uuid.UUID          `json:"id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	TeamID      uuid.UUID          `json:"team_id"`
+	Value       int32              `json:"value"`
+	Review      string             `json:"review"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Solution struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`
@@ -254,16 +271,17 @@ type Solve struct {
 }
 
 type Submission struct {
-	ID            uuid.UUID          `json:"id"`
-	UserID        uuid.UUID          `json:"user_id"`
-	TeamID        *uuid.UUID         `json:"team_id"`
-	ChallengeID   uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag string             `json:"submitted_flag"`
-	IsCorrect     bool               `json:"is_correct"`
-	IP            *string            `json:"ip"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	BannedTeamID  *uuid.UUID         `json:"banned_team_id"`
-	BannedUserID  *uuid.UUID         `json:"banned_user_id"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	TeamID         *uuid.UUID         `json:"team_id"`
+	ChallengeID    uuid.UUID          `json:"challenge_id"`
+	SubmittedFlag  string             `json:"submitted_flag"`
+	IsCorrect      bool               `json:"is_correct"`
+	SubmissionType string             `json:"submission_type"`
+	IP             string             `json:"ip"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	BannedTeamID   *uuid.UUID         `json:"banned_team_id"`
+	BannedUserID   *uuid.UUID         `json:"banned_user_id"`
 }
 
 type Tag struct {

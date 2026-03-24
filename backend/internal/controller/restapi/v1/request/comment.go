@@ -1,15 +1,19 @@
 package request
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-const maxCommentContentLength = 2000
+type createCommentConstraints struct {
+	Content string `validate:"required,max=2000"`
+}
+
+func ValidateCreateCommentRequest(req *openapi.CreateCommentRequest, v validator.Validator) error {
+	c := createCommentConstraints{Content: req.Content}
+	return ValidateConstraints(v, &c)
+}
 
 func CreateCommentRequestToParams(req *openapi.CreateCommentRequest) (string, error) {
-	if len(req.Content) > maxCommentContentLength {
-		return "", helper.NewValidationErrorf("content must be at most %d characters", maxCommentContentLength)
-	}
 	return req.Content, nil
 }

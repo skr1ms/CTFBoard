@@ -2,16 +2,15 @@ package v1
 
 import (
 	"net/http"
-	"regexp"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	slugpkg "github.com/TakuyaYagam1/AstroCTFb/pkg/slug"
 )
-
-var pageSlugRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // Get published pages list
 // (GET /pages)
@@ -20,13 +19,13 @@ func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetPages", "GetPublishedList") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromPageList(list))
+	httputil.RenderOK(w, r, response.FromPageList(list))
 }
 
 // Get page by slug
 // (GET /pages/{slug})
 func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug string) {
-	if slug == "" || !pageSlugRegex.MatchString(slug) {
+	if slug == "" || !slugpkg.MatchPageSlug(slug) {
 		h.OnError(w, r, httperr.ErrPageSlugInvalid, "GetPagesSlug", "ValidateSlug")
 		return
 	}
@@ -34,7 +33,7 @@ func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug strin
 	if h.OnError(w, r, err, "GetPagesSlug", "GetBySlug") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromPage(page))
+	httputil.RenderOK(w, r, response.FromPage(page))
 }
 
 // Get all pages (admin)
@@ -44,16 +43,19 @@ func (h *Server) GetAdminPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetAdminPages", "GetAllList") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromPageFullList(list))
+	httputil.RenderOK(w, r, response.FromPageFullList(list))
 }
 
 // Create page
 // (POST /admin/pages)
 func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.CreatePageRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAdminPages",
+	req, ok := httputil.DecodeAndValidate[openapi.CreatePageRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
+		return
+	}
+	if err := request.ValidateCreatePageRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminPages", "Validate") {
 		return
 	}
 	title, slug, content, isDraft, orderIndex, err := request.CreatePageRequestToParams(&req)
@@ -64,13 +66,13 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
 	}
-	helper.RenderCreated(w, r, response.FromPage(page))
+	httputil.RenderCreated(w, r, response.FromPage(page))
 }
 
 // Get page by ID (admin)
 // (GET /admin/pages/{ID})
 func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
-	pageID, ok := helper.ParseUUID(w, r, ID)
+	pageID, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -78,20 +80,23 @@ func (h *Server) GetAdminPagesID(w http.ResponseWriter, r *http.Request, ID stri
 	if h.OnError(w, r, err, "GetAdminPagesID", "GetByID") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromPage(page))
+	httputil.RenderOK(w, r, response.FromPage(page))
 }
 
 // Update page
 // (PUT /admin/pages/{ID})
 func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
-	pageID, ok := helper.ParseUUID(w, r, ID)
+	pageID, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
-	req, ok := helper.DecodeAndValidate[openapi.UpdatePageRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PutAdminPagesID",
+	req, ok := httputil.DecodeAndValidate[openapi.UpdatePageRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
+		return
+	}
+	if err := request.ValidateUpdatePageRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminPagesID", "Validate") {
 		return
 	}
 	title, slug, content, isDraft, orderIndex, err := request.UpdatePageRequestToParams(&req)
@@ -102,18 +107,18 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID stri
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromPage(page))
+	httputil.RenderOK(w, r, response.FromPage(page))
 }
 
 // Delete page
 // (DELETE /admin/pages/{ID})
 func (h *Server) DeleteAdminPagesID(w http.ResponseWriter, r *http.Request, ID string) {
-	pageID, ok := helper.ParseUUID(w, r, ID)
+	pageID, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 	if h.OnError(w, r, h.admin.PageUC.Delete(r.Context(), pageID), "DeleteAdminPagesID", "Delete") {
 		return
 	}
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }

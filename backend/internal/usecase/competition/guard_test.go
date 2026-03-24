@@ -9,28 +9,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type guardTestDeps struct {
-	repo *mocks.MockCompetitionRepository
+	repo *compMock.MockCompetitionRepository
 }
 
 func newGuardTestDeps(t *testing.T) *guardTestDeps {
 	t.Helper()
-	return &guardTestDeps{repo: mocks.NewMockCompetitionRepository(t)}
+	return &guardTestDeps{repo: compMock.NewMockCompetitionRepository(t)}
 }
 
 func (d *guardTestDeps) createGuard() *Guard {
 	return NewGuard(d.repo)
 }
 
-func newGuardCompetition(mode string, allowTeamSwitch bool) *entity.Competition {
-	return &entity.Competition{
+func newGuardCompetition(mode string, allowTeamSwitch bool) *domain.Competition {
+	return &domain.Competition{
 		Name:            "CTF",
-		Mode:            entity.CompetitionMode(mode),
+		Mode:            domain.CompetitionMode(mode),
 		AllowTeamSwitch: allowTeamSwitch,
 	}
 }

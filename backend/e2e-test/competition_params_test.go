@@ -2,10 +2,8 @@ package e2e_test
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -14,13 +12,12 @@ import (
 
 // PUT /admin/configs/{key} + GET /admin/configs: config is visible to admin.
 func TestConfig_UpsertAndList_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_configs_ok")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	key := "k_" + suffix
 
 	h.PutAdminConfig(tokenAdmin, key, "v", "string", "desc", http.StatusOK)
@@ -39,11 +36,10 @@ func TestConfig_UpsertAndList_Success(t *testing.T) {
 
 // GET /admin/configs: non-admin gets 403.
 func TestConfig_List_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("cfg_user_" + suffix)
 
 	h.GetAdminConfigs(tokenUser, http.StatusForbidden)
@@ -51,12 +47,11 @@ func TestConfig_List_Forbidden(t *testing.T) {
 
 // GET /admin/configs/{key}: admin gets config by key.
 func TestConfig_GetKey_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_config_key")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	key := "k_" + suffix
 	h.PutAdminConfig(tokenAdmin, key, "v1", "string", "desc", http.StatusOK)
 
@@ -68,12 +63,11 @@ func TestConfig_GetKey_Success(t *testing.T) {
 
 // DELETE /admin/configs/{key}: admin deletes config.
 func TestConfig_Delete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_config_del")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	key := "k_del_" + suffix
 	h.PutAdminConfig(tokenAdmin, key, "v", "string", "d", http.StatusOK)
 
@@ -83,17 +77,16 @@ func TestConfig_Delete_Success(t *testing.T) {
 
 // PUT /admin/configs/{key}: invalid value_type returns 400.
 func TestConfig_Put_InvalidValueType_Returns400(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_config_inv_vt")
-	key := "k_inv_vt_" + uuid.New().String()[:8]
+	key := "k_inv_vt_" + helper.UID()
 	h.PutAdminConfig(tokenAdmin, key, "v", "invalid_type", "d", http.StatusBadRequest)
 }
 
+// PUT /admin/configs/batch + GET /admin/configs/{key}: batch-updated values are returned by key.
 func TestConfig_BatchUpdate_ValuesMatch(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_config_batch")
@@ -113,8 +106,8 @@ func TestConfig_BatchUpdate_ValuesMatch(t *testing.T) {
 	require.Equal(t, "#111111", resp2.JSON200.Value)
 }
 
+// GET /admin/configs/categories: returns all categories with key counts.
 func TestConfig_Categories_ReturnsAllCategories(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_config_categories")
@@ -131,8 +124,8 @@ func TestConfig_Categories_ReturnsAllCategories(t *testing.T) {
 	require.Contains(t, seen, "theme")
 }
 
+// GET /admin/configs/category/{category}: returns only configs in that category (e.g. theme).
 func TestConfig_GetByCategory_ThemeOnly(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_config_category")
@@ -144,8 +137,8 @@ func TestConfig_GetByCategory_ThemeOnly(t *testing.T) {
 	}
 }
 
+// GET /configs/public: no auth; returns only whitelisted keys (ctf_name, theme_*, social_*, etc.).
 func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	h.SetupCompetition("admin_config_public")
@@ -154,12 +147,11 @@ func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 	allowed := map[string]bool{
 		"ctf_name": true, "ctf_description": true, "ctf_logo": true,
 		"tos_url": true, "privacy_url": true,
+		"theme_color_primary": true, "theme_color_secondary": true, "theme_header_html": true,
+		"theme_footer_html": true, "theme_dark_mode": true,
+		"social_github": true, "social_discord": true, "social_twitter": true, "social_website": true,
 	}
-	for _, k := range []string{"theme_color_primary", "theme_dark_mode", "social_github"} {
-		allowed[k] = true
-	}
-	for _, item := range *resp.JSON200 {
-		require.True(t, allowed[item.Key] || strings.HasPrefix(item.Key, "theme_") || strings.HasPrefix(item.Key, "social_"),
-			"public config key %q must be in whitelist", item.Key)
+	for key := range *resp.JSON200 {
+		require.True(t, allowed[key], "public config key %q must be in whitelist", key)
 	}
 }

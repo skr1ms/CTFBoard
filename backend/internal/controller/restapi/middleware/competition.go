@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
 func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
@@ -22,11 +23,11 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 			if !comp.IsSubmissionAllowedAt(now) {
 				var httpErr *httperr.HTTPError
 				switch comp.GetStatusAt(now) { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
-				case entity.CompetitionStatusNotStarted:
+				case domain.CompetitionStatusNotStarted:
 					httpErr = httperr.ErrCompetitionNotStarted
-				case entity.CompetitionStatusEnded:
+				case domain.CompetitionStatusEnded:
 					httpErr = httperr.ErrCompetitionEnded
-				case entity.CompetitionStatusPaused:
+				case domain.CompetitionStatusPaused:
 					httpErr = httperr.ErrCompetitionPaused
 				default:
 					httpErr = httperr.ErrSubmissionNotAllowed

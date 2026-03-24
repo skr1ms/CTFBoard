@@ -9,7 +9,7 @@ packages:
     interfaces:
       UserRepository:
         config:
-          dir: "pkg/seed/mocks"
+          dir: "pkg/seed/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"

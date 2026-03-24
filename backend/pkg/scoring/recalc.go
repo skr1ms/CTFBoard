@@ -3,12 +3,12 @@ package scoring
 import (
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 // RecalculatePoints returns (challengeIDs, points) for challenges that use dynamic scoring,
 // for use with ChallengeRepo.BatchUpdatePoints. Challenges with InitialValue <= 0 or Decay <= 0 are skipped.
-func RecalculatePoints(challengesMap map[uuid.UUID]*entity.Challenge) (ids []uuid.UUID, points []int) {
+func RecalculatePoints(challengesMap map[uuid.UUID]*domain.Challenge) (ids []uuid.UUID, points []int) {
 	for id, c := range challengesMap {
 		if c == nil || c.InitialValue <= 0 || c.Decay <= 0 {
 			continue

@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/wahrwelt-kit/go-cachekit"
 )
 
 type TeamBracketIDGetter interface {
@@ -16,17 +18,15 @@ type ScoreboardCacheInvalidator interface {
 	InvalidateLiveOnly(ctx context.Context, teamID uuid.UUID)
 }
 
-// UserCacheInvalidator evicts a cached user entry so the next request loads fresh data.
 type UserCacheInvalidator interface {
 	InvalidateUser(ctx context.Context, userID uuid.UUID)
 }
 
-// UserCacheService implements UserCacheInvalidator on top of Cache.
 type UserCacheService struct {
-	cache *Cache
+	cache *cachekit.Cache
 }
 
-func NewUserCacheService(c *Cache) *UserCacheService {
+func NewUserCacheService(c *cachekit.Cache) *UserCacheService {
 	return &UserCacheService{cache: c}
 }
 
@@ -46,13 +46,13 @@ type ChallengeListCacheInvalidator interface {
 }
 
 type ScoreboardCacheService struct {
-	cache              *Cache
+	cache              *cachekit.Cache
 	getter             TeamBracketIDGetter
 	localClear         func()
 	localClearLiveOnly func(keys []string)
 }
 
-func NewScoreboardCacheService(c *Cache, getter TeamBracketIDGetter) *ScoreboardCacheService {
+func NewScoreboardCacheService(c *cachekit.Cache, getter TeamBracketIDGetter) *ScoreboardCacheService {
 	return &ScoreboardCacheService{cache: c, getter: getter}
 }
 

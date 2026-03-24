@@ -39,7 +39,7 @@ schemas:
       slug:
         type: string
         maxLength: 100
-        pattern: "^[a-z0-9\\-]+$"
+        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
       content:
         type: string
         maxLength: 50000
@@ -61,7 +61,7 @@ schemas:
       slug:
         type: string
         maxLength: 100
-        pattern: "^[a-z0-9\\-]+$"
+        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
       content:
         type: string
         maxLength: 50000

@@ -7,11 +7,15 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const defaultUserSortField = "username"
@@ -19,8 +23,8 @@ const defaultUserSortField = "username"
 // User login
 // (POST /auth/login)
 func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.LoginRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAuthLogin",
+	req, ok := httputil.DecodeAndValidate[openapi.LoginRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -32,14 +36,14 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromTokenPair(tokenPair))
+	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
 // Register new user
 // (POST /auth/register)
 func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.RegisterRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAuthRegister",
+	req, ok := httputil.DecodeAndValidate[openapi.RegisterRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -55,7 +59,7 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		h.infra.Logger.WithError(err).Warn("restapi - v1 - PostAuthRegister - SendVerificationEmail")
 	}
 
-	helper.RenderCreated(w, r, response.FromUserForRegister(user))
+	httputil.RenderCreated(w, r, response.FromUserForRegister(user))
 }
 
 // Get current user info
@@ -66,7 +70,7 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromUserForMe(user))
+	httputil.RenderOK(w, r, response.FromUserForMe(user))
 }
 
 // Refresh access token
@@ -77,25 +81,25 @@ func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params 
 		refreshToken = t
 	}
 	if refreshToken == "" {
-		h.OnError(w, r, helper.ErrNotAuthenticated, "PostAuthRefresh", "MissingToken")
+		h.OnError(w, r, httperr.ErrNotAuthenticated(), "PostAuthRefresh", "MissingToken")
 		return
 	}
 	tokenPair, err := h.infra.JWTService.RefreshTokens(r.Context(), refreshToken)
 	if err != nil {
-		mapped := helper.ErrNotAuthenticated
-		if errors.Is(err, helper.ErrUserBanned) {
-			mapped = helper.ErrUserBanned
+		var mapped error = httperr.ErrNotAuthenticated()
+		if errors.Is(err, httperr.ErrUserBanned) {
+			mapped = httperr.ErrUserBanned
 		}
 		h.OnError(w, r, mapped, "PostAuthRefresh", "RefreshTokens")
 		return
 	}
-	helper.RenderOK(w, r, response.FromTokenPair(tokenPair))
+	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
 // Get user profile
 // (GET /users/{ID})
 func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -105,7 +109,7 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromUserProfile(profile))
+	httputil.RenderOK(w, r, response.FromUserProfile(profile))
 }
 
 // Logout user and revoke refresh token
@@ -118,9 +122,9 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 		}
 	}
 	if refreshToken == "" && r.Body != nil && r.ContentLength != 0 {
-		r.Body = io.NopCloser(io.LimitReader(r.Body, 4096))
-		req, ok := helper.DecodeAndValidate[openapi.LogoutRequest](
-			w, r, h.infra.Validator, h.infra.Logger, "PostAuthLogout",
+		r.Body = io.NopCloser(io.LimitReader(r.Body, maxLogoutBodySize))
+		req, ok := httputil.DecodeAndValidate[openapi.LogoutRequest](
+			w, r, h.infra.Validator,
 		)
 		if !ok {
 			return
@@ -130,7 +134,7 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 		}
 	}
 	if refreshToken == "" {
-		h.OnError(w, r, helper.ErrNotAuthenticated, "PostAuthLogout", "MissingToken")
+		h.OnError(w, r, httperr.ErrNotAuthenticated(), "PostAuthLogout", "MissingToken")
 		return
 	}
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
@@ -141,10 +145,10 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 		}
 	}
 	if err := h.infra.JWTService.RevokeRefreshToken(r.Context(), refreshToken); err != nil {
-		h.OnError(w, r, helper.ErrNotAuthenticated, "PostAuthLogout", "RevokeRefreshToken")
+		h.OnError(w, r, httperr.ErrNotAuthenticated(), "PostAuthLogout", "RevokeRefreshToken")
 		return
 	}
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }
 
 // List users with search and pagination
@@ -152,11 +156,11 @@ func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params o
 func (h *Server) GetUsers(w http.ResponseWriter, r *http.Request, params openapi.GetUsersParams) {
 	q := ""
 	if params.Q != nil && *params.Q != "" {
-		if !helper.ValidateSearchQ(*params.Q) {
-			h.OnError(w, r, helper.NewValidationErrorf("invalid search query"), "GetUsers", "Q")
+		var ok bool
+		q, ok = helper.ParseSearchQuery(w, r, params.Q, maxSearchQueryLen, h.OnError, "GetUsers", "Q")
+		if !ok {
 			return
 		}
-		q = helper.SanitizeSearchQ(*params.Q, 100)
 	}
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
@@ -169,7 +173,7 @@ func (h *Server) GetUsers(w http.ResponseWriter, r *http.Request, params openapi
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromUserList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromUserList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get current user's solves
@@ -185,23 +189,19 @@ func (h *Server) GetUsersMeSolves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSolveWithDetailsList(solves))
+	httputil.RenderOK(w, r, response.FromSolveWithDetailsList(solves))
 }
 
 // Get user's solves by user ID
 // (GET /users/{ID}/solves)
 func (h *Server) GetUsersIDSolves(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	user, ok := helper.RequireUser(w, r)
+	_, ok = helper.RequireUser(w, r)
 	if !ok {
-		return
-	}
-	if user.ID != userIDParsed && user.Role != entity.RoleAdmin {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDSolves", "AccessCheck")
 		return
 	}
 
@@ -210,7 +210,7 @@ func (h *Server) GetUsersIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSolveWithDetailsList(solves))
+	httputil.RenderOK(w, r, response.FromSolveWithDetailsList(solves))
 }
 
 // Get current user's failed submissions
@@ -228,13 +228,13 @@ func (h *Server) GetUsersMeFails(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	httputil.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // Get user's failed submissions by user ID
 // (GET /users/{ID}/fails)
 func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetUsersIDFailsParams) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -243,8 +243,8 @@ func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID stri
 	if !ok {
 		return
 	}
-	if user.ID != userIDParsed && user.Role != entity.RoleAdmin {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDFails", "AccessCheck")
+	if user.ID != userIDParsed && user.Role != domain.RoleAdmin {
+		h.OnError(w, r, httperr.ErrAccessDenied, "GetUsersIDFails", "AccessCheck")
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	httputil.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // Get current user's awards
@@ -271,23 +271,19 @@ func (h *Server) GetUsersMeAwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromAwardList(awards))
+	httputil.RenderOK(w, r, response.FromAwardList(awards))
 }
 
 // Get user's awards by user ID
 // (GET /users/{ID}/awards)
 func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	user, ok := helper.RequireUser(w, r)
+	_, ok = helper.RequireUser(w, r)
 	if !ok {
-		return
-	}
-	if user.ID != userIDParsed && user.Role != entity.RoleAdmin {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDAwards", "AccessCheck")
 		return
 	}
 
@@ -296,34 +292,33 @@ func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromAwardList(awards))
+	httputil.RenderOK(w, r, response.FromAwardList(awards))
 }
+
+var allowedUserListFields = []string{"username", "ip"}
 
 // List users (admin) with search and pagination
 // (GET /admin/users)
-var allowedUserListFields = map[string]bool{"username": true, "ip": true}
-
 func (h *Server) GetAdminUsers(w http.ResponseWriter, r *http.Request, params openapi.GetAdminUsersParams) {
 	field := defaultUserSortField
 	if params.Field != nil {
-		field = string(*params.Field)
-	}
-	if !allowedUserListFields[field] {
-		h.OnError(w, r, helper.NewValidationErrorf("field must be one of: username, ip"), "GetAdminUsers", "Field")
-		return
+		parsed, ok := httputil.ParseEnumQuery(r, "field", allowedUserListFields)
+		if !ok {
+			h.OnError(w, r, httperr.NewValidationErrorf("field must be one of: username, ip"), "GetAdminUsers", "Field")
+			return
+		}
+		field = string(parsed)
 	}
 	var q *string
 	if params.Q != nil && *params.Q != "" {
-		raw := *params.Q
-		if !helper.ValidateSearchQ(raw) {
-			h.OnError(w, r, helper.NewValidationErrorf("invalid search query"), "GetAdminUsers", "Q")
+		s, ok := helper.ParseSearchQuery(w, r, params.Q, maxSearchQueryLen, h.OnError, "GetAdminUsers", "Q")
+		if !ok {
 			return
 		}
-		if field == "ip" && net.ParseIP(raw) == nil {
-			h.OnError(w, r, helper.NewValidationErrorf("invalid IP address"), "GetAdminUsers", "Q")
+		if field == "ip" && net.ParseIP(*params.Q) == nil {
+			h.OnError(w, r, httperr.NewValidationErrorf("invalid IP address"), "GetAdminUsers", "Q")
 			return
 		}
-		s := helper.SanitizeSearchQ(raw, 100)
 		q = &s
 	}
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
@@ -333,14 +328,14 @@ func (h *Server) GetAdminUsers(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromAdminUserList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromAdminUserList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Create user (admin)
 // (POST /admin/users)
 func (h *Server) PostAdminUsers(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.AdminCreateUserRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAdminUsers",
+	req, ok := httputil.DecodeAndValidate[openapi.AdminCreateUserRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -352,19 +347,19 @@ func (h *Server) PostAdminUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderCreated(w, r, response.FromAdminUser(user))
+	httputil.RenderCreated(w, r, response.FromAdminUser(user))
 }
 
 // Update user (admin)
 // (PATCH /admin/users/{ID})
 func (h *Server) PatchAdminUsersID(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.AdminUpdateUserRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PatchAdminUsersID",
+	req, ok := httputil.DecodeAndValidate[openapi.AdminUpdateUserRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -376,13 +371,13 @@ func (h *Server) PatchAdminUsersID(w http.ResponseWriter, r *http.Request, ID st
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromAdminUser(user))
+	httputil.RenderOK(w, r, response.FromAdminUser(user))
 }
 
 // Delete user (admin)
 // (DELETE /admin/users/{ID})
 func (h *Server) DeleteAdminUsersID(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -396,13 +391,13 @@ func (h *Server) DeleteAdminUsersID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }
 
 // Ban user (admin)
 // (POST /admin/users/{ID}/ban)
 func (h *Server) PostAdminUsersIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -412,8 +407,8 @@ func (h *Server) PostAdminUsersIDBan(w http.ResponseWriter, r *http.Request, ID 
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.BanUserRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAdminUsersIDBan",
+	req, ok := httputil.DecodeAndValidate[openapi.BanUserRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -423,13 +418,13 @@ func (h *Server) PostAdminUsersIDBan(w http.ResponseWriter, r *http.Request, ID 
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("user banned"))
+	httputil.RenderOK(w, r, response.Message("user banned"))
 }
 
 // Unban user (admin)
 // (DELETE /admin/users/{ID}/ban)
 func (h *Server) DeleteAdminUsersIDBan(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -443,7 +438,7 @@ func (h *Server) DeleteAdminUsersIDBan(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }
 
 // Update current user profile
@@ -454,8 +449,8 @@ func (h *Server) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.UpdateProfileRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PatchAuthMe",
+	req, ok := httputil.DecodeAndValidate[openapi.UpdateProfileRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -467,7 +462,7 @@ func (h *Server) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromUserForMe(user))
+	httputil.RenderOK(w, r, response.FromUserForMe(user))
 }
 
 // Get current user's submissions
@@ -485,13 +480,13 @@ func (h *Server) GetUsersMeSubmissions(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromSubmissionListPublic(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromSubmissionListPublic(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get user IP tracking (admin)
 // (GET /admin/users/{ID}/tracking)
 func (h *Server) GetAdminUsersIDTracking(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminUsersIDTrackingParams) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -500,13 +495,13 @@ func (h *Server) GetAdminUsersIDTracking(w http.ResponseWriter, r *http.Request,
 	if h.OnError(w, r, err, "GetAdminUsersIDTracking", "GetByUser") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromTrackingList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromTrackingList(result.Data, result.Total, result.Page, result.PerPage))
 }
 
 // Get user missing challenges (admin)
 // (GET /admin/users/{ID}/missing-challenges)
 func (h *Server) GetAdminUsersIDMissingChallenges(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseUUID(w, r, ID)
+	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -514,5 +509,5 @@ func (h *Server) GetAdminUsersIDMissingChallenges(w http.ResponseWriter, r *http
 	if h.OnError(w, r, err, "GetAdminUsersIDMissingChallenges", "GetMissingChallengesByUserID") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromChallengeEntityList(challenges))
+	httputil.RenderOK(w, r, response.FromChallenges(challenges))
 }

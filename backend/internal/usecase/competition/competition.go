@@ -8,14 +8,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const (
@@ -27,7 +29,7 @@ const (
 type CompetitionUseCase struct {
 	deps        CompetitionDeps
 	sf          singleflight.Group // zero value is valid, no explicit init required
-	localComp   atomic.Pointer[entity.Competition]
+	localComp   atomic.Pointer[domain.Competition]
 	localCompAt atomic.Int64 // unix nano of last store
 }
 
@@ -39,22 +41,22 @@ type CompetitionDeps struct {
 	CompetitionRepo       repo.CompetitionRepository
 	AuditLogRepo          repo.AuditLogRepository
 	TM                    repo.TransactionManager
-	Redis                 cache.KeyValueStore
+	Redis                 cachekit.KeyValueStore
 	StatsCacheInvalidator StatisticsCacheInvalidator
 	ScoreboardCache       cache.ScoreboardCacheInvalidator
-	Logger                logger.Logger
+	Logger                logkit.Logger
 }
 
 var _ usecase.CompetitionUseCase = (*CompetitionUseCase)(nil)
 
 func NewCompetitionUseCase(deps CompetitionDeps) *CompetitionUseCase {
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	return &CompetitionUseCase{deps: deps}
 }
 
-func competitionCacheStale(comp *entity.Competition, now time.Time) bool {
+func competitionCacheStale(comp *domain.Competition, now time.Time) bool {
 	if comp == nil {
 		return false
 	}
@@ -70,7 +72,7 @@ func competitionCacheStale(comp *entity.Competition, now time.Time) bool {
 	return false
 }
 
-func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, error) {
+func (uc *CompetitionUseCase) Get(ctx context.Context) (*domain.Competition, error) {
 	now := time.Now()
 	if cached := uc.localComp.Load(); cached != nil {
 		age := time.Duration(now.UnixNano() - uc.localCompAt.Load())
@@ -96,7 +98,7 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 	if uc.deps.Redis != nil {
 		val, err := uc.deps.Redis.Get(ctx, cache.KeyCompetition)
 		if err == nil {
-			var comp entity.Competition
+			var comp domain.Competition
 			if err := json.Unmarshal([]byte(val), &comp); err == nil {
 				if !competitionCacheStale(&comp, time.Now()) {
 					uc.storeLocal(&comp)
@@ -130,7 +132,7 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionUseCase - Get - CompetitionRepo.Get: %w", err)
 	}
-	comp, ok := v.(*entity.Competition)
+	comp, ok := v.(*domain.Competition)
 	if !ok {
 		return nil, fmt.Errorf("CompetitionUseCase - Get: unexpected type")
 	}
@@ -138,7 +140,7 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*entity.Competition, err
 	return comp, nil
 }
 
-func (uc *CompetitionUseCase) storeLocal(comp *entity.Competition) {
+func (uc *CompetitionUseCase) storeLocal(comp *domain.Competition) {
 	c := *comp
 	uc.localComp.Store(&c)
 	uc.localCompAt.Store(time.Now().UnixNano())
@@ -155,18 +157,11 @@ func timePtrEqual(a, b *time.Time) bool {
 	return ta.Equal(tb)
 }
 
-func derefBool(p *bool, def bool) bool {
-	if p == nil {
-		return def
-	}
-	return *p
-}
-
-func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competition, optionals *usecase.CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error {
-	auditLog := &entity.AuditLog{
+func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competition, optionals *usecase.CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error {
+	auditLog := &domain.AuditLog{
 		UserID:     &actorID,
-		Action:     entity.AuditActionUpdate,
-		EntityType: entity.AuditEntityCompetition,
+		Action:     domain.AuditActionUpdate,
+		EntityType: domain.AuditEntityCompetition,
 		EntityID:   "settings",
 		IP:         clientIP,
 		Details: map[string]any{
@@ -228,7 +223,7 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *entity.Competiti
 	return nil
 }
 
-func (uc *CompetitionUseCase) mergeDefaults(comp, current *entity.Competition, optionals *usecase.CompetitionUpdateOptionals) {
+func (uc *CompetitionUseCase) mergeDefaults(comp, current *domain.Competition, optionals *usecase.CompetitionUpdateOptionals) {
 	if comp.StartTime == nil {
 		comp.StartTime = current.StartTime
 	}
@@ -256,10 +251,10 @@ func (uc *CompetitionUseCase) mergeDefaults(comp, current *entity.Competition, o
 		comp.MaxTeamSize = current.MaxTeamSize
 	}
 	if optionals != nil {
-		comp.IsPaused = derefBool(optionals.IsPaused, current.IsPaused)
-		comp.IsPublic = derefBool(optionals.IsPublic, current.IsPublic)
-		comp.AllowTeamSwitch = derefBool(optionals.AllowTeamSwitch, current.AllowTeamSwitch)
-		comp.KeepScoreboardFrozenAfterEnd = derefBool(optionals.KeepScoreboardFrozenAfterEnd, current.KeepScoreboardFrozenAfterEnd)
+		comp.IsPaused = lo.FromPtrOr(optionals.IsPaused, current.IsPaused)
+		comp.IsPublic = lo.FromPtrOr(optionals.IsPublic, current.IsPublic)
+		comp.AllowTeamSwitch = lo.FromPtrOr(optionals.AllowTeamSwitch, current.AllowTeamSwitch)
+		comp.KeepScoreboardFrozenAfterEnd = lo.FromPtrOr(optionals.KeepScoreboardFrozenAfterEnd, current.KeepScoreboardFrozenAfterEnd)
 	} else {
 		comp.IsPaused = current.IsPaused
 		comp.IsPublic = current.IsPublic
@@ -268,7 +263,7 @@ func (uc *CompetitionUseCase) mergeDefaults(comp, current *entity.Competition, o
 	}
 }
 
-func (uc *CompetitionUseCase) validateCompetitionFields(comp *entity.Competition) error {
+func (uc *CompetitionUseCase) validateCompetitionFields(comp *domain.Competition) error {
 	if len(comp.Name) == 0 || len(comp.Name) > 200 {
 		return httperr.NewValidationErrorf("competition name must be 1-200 characters")
 	}
@@ -287,7 +282,7 @@ func (uc *CompetitionUseCase) validateCompetitionFields(comp *entity.Competition
 	return nil
 }
 
-func (uc *CompetitionUseCase) validateCompetitionTimes(comp *entity.Competition) error {
+func (uc *CompetitionUseCase) validateCompetitionTimes(comp *domain.Competition) error {
 	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
 		return httperr.NewValidationErrorf("end_time must be after start_time")
 	}
@@ -300,7 +295,7 @@ func (uc *CompetitionUseCase) validateCompetitionTimes(comp *entity.Competition)
 	return nil
 }
 
-func (uc *CompetitionUseCase) validateCompetitionTimesAfterUnpause(comp, current *entity.Competition) error {
+func (uc *CompetitionUseCase) validateCompetitionTimesAfterUnpause(comp, current *domain.Competition) error {
 	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
 		return httperr.NewValidationErrorf("end_time must be after start_time")
 	}
@@ -317,8 +312,8 @@ func (uc *CompetitionUseCase) validateCompetitionTimesAfterUnpause(comp, current
 	return nil
 }
 
-func (uc *CompetitionUseCase) validateActiveConstraints(comp, current *entity.Competition, status entity.CompetitionStatus) error {
-	if status != entity.CompetitionStatusActive && status != entity.CompetitionStatusFrozen && status != entity.CompetitionStatusPaused {
+func (uc *CompetitionUseCase) validateActiveConstraints(comp, current *domain.Competition, status domain.CompetitionStatus) error {
+	if status != domain.CompetitionStatusActive && status != domain.CompetitionStatusFrozen && status != domain.CompetitionStatusPaused {
 		return nil
 	}
 	if comp.Mode != current.Mode || !timePtrEqual(comp.StartTime, current.StartTime) {
@@ -333,7 +328,7 @@ func (uc *CompetitionUseCase) validateActiveConstraints(comp, current *entity.Co
 	return nil
 }
 
-func (uc *CompetitionUseCase) applyPauseTransition(comp, current *entity.Competition, now time.Time) {
+func (uc *CompetitionUseCase) applyPauseTransition(comp, current *domain.Competition, now time.Time) {
 	wasPaused := current.IsPaused
 	isPausing := comp.IsPaused
 
@@ -384,7 +379,7 @@ func (uc *CompetitionUseCase) applyPauseTransition(comp, current *entity.Competi
 	}
 }
 
-func (uc *CompetitionUseCase) GetStatus(ctx context.Context) (entity.CompetitionStatus, error) {
+func (uc *CompetitionUseCase) GetStatus(ctx context.Context) (domain.CompetitionStatus, error) {
 	comp, err := uc.Get(ctx)
 	if err != nil {
 		return "", fmt.Errorf("CompetitionUseCase - GetStatus - Get: %w", err)
@@ -405,7 +400,7 @@ func (uc *CompetitionUseCase) IsSubmissionAllowed(ctx context.Context) (bool, er
 const statsCachePrefix = "stats:"
 
 type StatsCacheInvalidatorImpl struct {
-	Cache *cache.Cache
+	Cache *cachekit.Cache
 }
 
 func (s *StatsCacheInvalidatorImpl) InvalidateStatistics(ctx context.Context) error {

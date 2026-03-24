@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -10,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestSolveRepo_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -34,7 +35,6 @@ func TestSolveRepo_Create(t *testing.T) {
 
 func TestSolveRepo_Create_Duplicate(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -44,7 +44,7 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 
 	f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
-	solve2 := &entity.Solve{
+	solve2 := &domain.Solve{
 		UserID:      user.ID,
 		TeamID:      team.ID,
 		ChallengeID: challenge.ID,
@@ -57,7 +57,6 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 
 func TestSolveRepo_GetByID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -76,7 +75,6 @@ func TestSolveRepo_GetByID(t *testing.T) {
 
 func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -89,7 +87,6 @@ func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -107,7 +104,6 @@ func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
 
 func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -122,7 +118,6 @@ func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_EmptyChallengeIDs(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -140,7 +135,6 @@ func TestSolveRepo_GetSolvedChallengeIDsByTeam_EmptyChallengeIDs(t *testing.T) {
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_NoneSolved(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -156,7 +150,6 @@ func TestSolveRepo_GetSolvedChallengeIDsByTeam_NoneSolved(t *testing.T) {
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_SubsetSolved(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -179,7 +172,6 @@ func TestSolveRepo_GetSolvedChallengeIDsByTeam_SubsetSolved(t *testing.T) {
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_AllSolved(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -200,7 +192,6 @@ func TestSolveRepo_GetSolvedChallengeIDsByTeam_AllSolved(t *testing.T) {
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_OnlyRequestedIdsReturned(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -220,7 +211,6 @@ func TestSolveRepo_GetSolvedChallengeIDsByTeam_OnlyRequestedIdsReturned(t *testi
 
 func TestSolveRepo_GetByUserID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -230,8 +220,12 @@ func TestSolveRepo_GetByUserID(t *testing.T) {
 	ch2 := f.CreateChallenge(t, "ch2", 200)
 
 	f.CreateSolve(t, user.ID, team.ID, ch1.ID)
-	time.Sleep(1 * time.Second)
 	f.CreateSolve(t, user.ID, team.ID, ch2.ID)
+
+	require.Eventually(t, func() bool {
+		solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
+		return err == nil && len(solves) == 2 && solves[0].ChallengeID == ch2.ID && solves[1].ChallengeID == ch1.ID
+	}, 2*time.Second, 50*time.Millisecond)
 
 	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
@@ -242,7 +236,6 @@ func TestSolveRepo_GetByUserID(t *testing.T) {
 
 func TestSolveRepo_GetByUserID_Success_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -256,7 +249,6 @@ func TestSolveRepo_GetByUserID_Success_Empty(t *testing.T) {
 
 func TestSolveRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "get_by_user_err")
@@ -270,7 +262,6 @@ func TestSolveRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
 
 func TestSolveRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -285,17 +276,12 @@ func TestSolveRepo_GetAll_Success(t *testing.T) {
 
 	solves, err := f.SolveRepo.GetAll(ctx)
 	require.NoError(t, err)
-	ids := make(map[uuid.UUID]bool)
-	for _, s := range solves {
-		ids[s.ID] = true
-	}
-	assert.True(t, ids[solve1.ID], "solve1 should be in GetAll result")
-	assert.True(t, ids[solve2.ID], "solve2 should be in GetAll result")
+	assert.True(t, slices.ContainsFunc(solves, func(s *domain.Solve) bool { return s.ID == solve1.ID }), "solve1 should be in GetAll result")
+	assert.True(t, slices.ContainsFunc(solves, func(s *domain.Solve) bool { return s.ID == solve2.ID }), "solve2 should be in GetAll result")
 }
 
 func TestSolveRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -309,7 +295,6 @@ func TestSolveRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -321,35 +306,47 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	ch2 := f.CreateChallenge(t, "score_ch2", 200)
 
 	f.CreateSolve(t, u1.ID, t1.ID, ch1.ID)
-	time.Sleep(10 * time.Millisecond)
 	f.CreateSolve(t, u1.ID, t1.ID, ch2.ID)
-
-	time.Sleep(10 * time.Millisecond)
 	f.CreateSolve(t, u2.ID, t2.ID, ch1.ID)
+
+	require.Eventually(t, func() bool {
+		sb, err := f.SolveRepo.GetScoreboard(ctx)
+		if err != nil {
+			return false
+		}
+		var t1Found, t2Found bool
+		for _, e := range sb {
+			if e.TeamID == t1.ID {
+				if e.Points != 300 {
+					return false
+				}
+				t1Found = true
+			}
+			if e.TeamID == t2.ID {
+				if e.Points != 100 {
+					return false
+				}
+				t2Found = true
+			}
+		}
+		return t1Found && t2Found
+	}, 2*time.Second, 20*time.Millisecond)
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
 
-	t1Found, t2Found := false, false
-	for _, entry := range scoreboard {
-		if entry.TeamID == t1.ID {
-			assert.Equal(t, t1.Name, entry.TeamName)
-			assert.Equal(t, 300, entry.Points)
-			t1Found = true
-		}
-		if entry.TeamID == t2.ID {
-			assert.Equal(t, t2.Name, entry.TeamName)
-			assert.Equal(t, 100, entry.Points)
-			t2Found = true
-		}
-	}
-	assert.True(t, t1Found, "t1 should be in scoreboard with 300 points")
-	assert.True(t, t2Found, "t2 should be in scoreboard with 100 points")
+	idx1 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
+	require.True(t, idx1 >= 0, "t1 should be in scoreboard with 300 points")
+	assert.Equal(t, t1.Name, scoreboard[idx1].TeamName)
+	assert.Equal(t, 300, scoreboard[idx1].Points)
+	idx2 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID })
+	require.True(t, idx2 >= 0, "t2 should be in scoreboard with 100 points")
+	assert.Equal(t, t2.Name, scoreboard[idx2].TeamName)
+	assert.Equal(t, 100, scoreboard[idx2].Points)
 }
 
 func TestSolveRepo_GetScoreboard_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -362,7 +359,6 @@ func TestSolveRepo_GetScoreboard_Error_CancelledContext(t *testing.T) {
 
 func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -371,21 +367,14 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
-	var found bool
-	for _, entry := range scoreboard {
-		if entry.TeamID == team.ID {
-			found = true
-			assert.Equal(t, team.Name, entry.TeamName)
-			assert.Equal(t, 0, entry.Points)
-			break
-		}
-	}
-	assert.True(t, found, "our team should appear in scoreboard with 0 points")
+	idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
+	require.True(t, idx >= 0, "our team should appear in scoreboard with 0 points")
+	assert.Equal(t, team.Name, scoreboard[idx].TeamName)
+	assert.Equal(t, 0, scoreboard[idx].Points)
 }
 
 func TestSolveRepo_GetScoreboard_HiddenTeamNotIncluded(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -402,22 +391,12 @@ func TestSolveRepo_GetScoreboard_HiddenTeamNotIncluded(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
-	t1Found, t2Found := false, false
-	for _, entry := range scoreboard {
-		if entry.TeamID == t1.ID {
-			t1Found = true
-		}
-		if entry.TeamID == t2.ID {
-			t2Found = true
-		}
-	}
-	assert.True(t, t1Found, "visible team t1 should be in scoreboard")
-	assert.False(t, t2Found, "hidden team t2 should not be in scoreboard")
+	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "visible team t1 should be in scoreboard")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "hidden team t2 should not be in scoreboard")
 }
 
 func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -434,22 +413,12 @@ func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
-	t1Found, t2Found := false, false
-	for _, entry := range scoreboard {
-		if entry.TeamID == t1.ID {
-			t1Found = true
-		}
-		if entry.TeamID == t2.ID {
-			t2Found = true
-		}
-	}
-	assert.True(t, t1Found, "active team t1 should be in scoreboard")
-	assert.False(t, t2Found, "banned team t2 should not be in scoreboard")
+	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "active team t1 should be in scoreboard")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "banned team t2 should not be in scoreboard")
 }
 
 func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -459,8 +428,12 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	ch := f.CreateChallenge(t, "fb_ch", 100)
 
 	f.CreateSolve(t, u1.ID, t1.ID, ch.ID)
-	time.Sleep(1 * time.Second)
 	f.CreateSolve(t, u2.ID, t2.ID, ch.ID)
+
+	require.Eventually(t, func() bool {
+		fb, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
+		return err == nil && fb != nil && fb.UserID == u1.ID
+	}, 2*time.Second, 50*time.Millisecond)
 
 	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
 	require.NoError(t, err)
@@ -472,7 +445,6 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 
 func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -486,7 +458,6 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -520,7 +491,6 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 
 func TestSolveRepo_CreateTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -528,7 +498,7 @@ func TestSolveRepo_CreateTx(t *testing.T) {
 	u, tTeam := f.CreateUserWithTeam(t, "tx_create")
 	ch := f.CreateChallenge(t, "tx_create_ch", 100)
 
-	solve := &entity.Solve{
+	solve := &domain.Solve{
 		UserID:      u.ID,
 		TeamID:      tTeam.ID,
 		ChallengeID: ch.ID,
@@ -546,7 +516,6 @@ func TestSolveRepo_CreateTx(t *testing.T) {
 
 func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -554,7 +523,7 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	u, tTeam := f.CreateUserWithTeam(t, "tx_rollback")
 	ch := f.CreateChallenge(t, "tx_rollback_ch", 100)
 
-	solve := &entity.Solve{
+	solve := &domain.Solve{
 		UserID:      u.ID,
 		TeamID:      tTeam.ID,
 		ChallengeID: ch.ID,
@@ -575,7 +544,6 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 
 func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -584,7 +552,7 @@ func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 	ch := f.CreateChallenge(t, "get_tx_ch", 100)
 	f.CreateSolve(t, u.ID, tTeam.ID, ch.ID)
 
-	var gotSolve *entity.Solve
+	var gotSolve *domain.Solve
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		var err error
 		gotSolve, err = f.SolveRepo.GetByTeamAndChallengeForUpdate(txCtx, tTeam.ID, ch.ID)
@@ -597,7 +565,6 @@ func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 
 func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -615,7 +582,6 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -639,7 +605,6 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 
 func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -660,7 +625,7 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		solve := &entity.Solve{UserID: u.ID, TeamID: tTeam.ID, ChallengeID: ch.ID}
+		solve := &domain.Solve{UserID: u.ID, TeamID: tTeam.ID, ChallengeID: ch.ID}
 		if err := f.SolveRepo.Create(txCtx, solve); err != nil {
 			return err
 		}

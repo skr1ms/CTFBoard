@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestBracketUseCase_Create_Success(t *testing.T) {
@@ -22,7 +22,7 @@ func TestBracketUseCase_Create_Success(t *testing.T) {
 		return fn(ctx)
 	}).Once()
 	d.bracketRepo.EXPECT().ClearAllDefaults(mock.Anything).Return(nil).Once()
-	d.bracketRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *entity.Bracket) {
+	d.bracketRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *domain.Bracket) {
 		assert.Equal(t, name, b.Name)
 		assert.Equal(t, desc, b.Description)
 		assert.Equal(t, isDefault, b.IsDefault)
@@ -108,7 +108,7 @@ func TestBracketUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Bracket{newTestBracket("b1", "d", false)}
+	list := []*domain.Bracket{newTestBracket("b1", "d", false)}
 
 	d.bracketRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
@@ -148,7 +148,7 @@ func TestBracketUseCase_Update_Success(t *testing.T) {
 	}).Once()
 	d.bracketRepo.EXPECT().GetByID(mock.Anything, id).Return(bracket, nil)
 	d.bracketRepo.EXPECT().ClearAllDefaults(mock.Anything).Return(nil).Once()
-	d.bracketRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *entity.Bracket) {
+	d.bracketRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, b *domain.Bracket) {
 		assert.Equal(t, name, b.Name)
 		assert.Equal(t, desc, b.Description)
 		assert.Equal(t, isDefault, b.IsDefault)

@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -20,10 +23,12 @@ const (
 	maxBackupCSVSize = 50 << 20  // 50 MB
 )
 
+var allowedExportTables = []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
+
 // Health check
 // (GET /healthcheck)
 func (h *Server) GetHealthcheck(w http.ResponseWriter, r *http.Request) {
-	helper.RenderOK(w, r, response.FromHealthcheck("ok", "ok"))
+	httputil.RenderOK(w, r, response.FromHealthcheck("ok", "ok"))
 }
 
 // Get robots.txt
@@ -33,7 +38,7 @@ func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
 Disallow: /api/
 Allow: /
 `
-	helper.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
+	httputil.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
 }
 
 // Get Terms of Service
@@ -51,7 +56,7 @@ func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `
-	helper.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosContent)
+	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosContent)
 }
 
 // Get Privacy Policy
@@ -69,29 +74,29 @@ func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `
-	helper.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyContent)
+	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyContent)
 }
 
 // Get debug information
 // (GET /debug)
 func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
-	if os.Getenv("DEBUG_ENABLED") != "true" {
-		h.OnError(w, r, helper.ErrDebugNotEnabled, "GetDebug", "DebugCheck")
+	if !h.infra.DebugEnabled {
+		h.OnError(w, r, httperr.ErrDebugNotEnabled, "GetDebug", "DebugCheck")
 		return
 	}
 
 	debugInfo := map[string]any{
-		"mode":      os.Getenv("CHI_MODE"),
+		"debug":     true,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 
-	helper.RenderOK(w, r, debugInfo)
+	httputil.RenderOK(w, r, debugInfo)
 }
 
 // Export competition backup as JSON
 // (GET /admin/export)
 func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportParams) {
-	opts := entity.ExportOptions{
+	opts := domain.ExportOptions{
 		IncludeUsers:       params.IncludeUsers != nil && *params.IncludeUsers,
 		IncludeTeams:       params.IncludeTeams == nil || *params.IncludeTeams,
 		IncludeSolves:      params.IncludeSolves != nil && *params.IncludeSolves,
@@ -105,7 +110,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	}
 
 	filename := fmt.Sprintf("ctf-backup-%s.json", time.Now().UTC().Format("20060102T150405Z"))
-	if err := helper.RenderJSONAttachment(w, data, filename); err != nil {
+	if err := httputil.RenderJSONAttachment(w, data, filename); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExport - write")
 	}
 }
@@ -115,7 +120,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportZipParams) {
 	includeFiles := params.IncludeFiles == nil || *params.IncludeFiles
 
-	opts := entity.ExportOptions{
+	opts := domain.ExportOptions{
 		IncludeUsers:       false,
 		IncludeTeams:       true,
 		IncludeSolves:      false,
@@ -131,7 +136,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	defer rc.Close()
 
 	filename := fmt.Sprintf("backup-%s.zip", time.Now().UTC().Format("20060102T150405Z"))
-	if err := helper.RenderStream(w, "application/zip", filename, rc); err != nil {
+	if err := httputil.RenderStream(w, "application/zip", filename, rc); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExportZip - write")
 	}
 }
@@ -139,8 +144,8 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 // Reset competition data
 // (POST /admin/reset)
 func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.AdminResetRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAdminReset",
+	req, ok := httputil.DecodeAndValidate[openapi.AdminResetRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -153,7 +158,7 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("reset completed"))
+	httputil.RenderOK(w, r, response.Message("reset completed"))
 }
 
 // Import competition backup from ZIP file
@@ -163,7 +168,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !helper.ParseMultipartFormLimit(w, r, maxBackupZIPSize) {
+	if !helper.ParseMultipartFormLimit(w, r, maxBackupZIPSize, maxBackupZIPSize) {
 		return
 	}
 
@@ -176,15 +181,15 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var cm entity.ConflictMode
+	var cm domain.ConflictMode
 	if body.ConflictMode != nil {
-		cm = entity.ConflictMode(*body.ConflictMode)
+		cm = domain.ConflictMode(*body.ConflictMode)
 		if err := helper.ValidateMultipartEnum("conflict_mode", string(cm), []string{"merge", "overwrite", "skip"}); err != nil {
 			h.OnError(w, r, err, "PostAdminImport", "ConflictMode")
 			return
 		}
 	} else {
-		cm = entity.ConflictModeOverwrite
+		cm = domain.ConflictModeOverwrite
 	}
 
 	data, err := body.File.Bytes()
@@ -192,17 +197,17 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(data) < 2 || data[0] != 0x50 || data[1] != 0x4B {
-		h.OnError(w, r, helper.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
+		h.OnError(w, r, httperr.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
 		return
 	}
 
-	opts := entity.ImportOptions{
+	opts := domain.ImportOptions{
 		EraseExisting:      body.EraseExisting != nil && *body.EraseExisting,
 		ValidateFiles:      body.ValidateFiles != nil && *body.ValidateFiles,
 		ConflictMode:       cm,
 		PreserveAdminRoles: body.PreserveAdminRoles != nil && *body.PreserveAdminRoles,
 		AdminUserID:        &user.ID,
-		AdminIP:            helper.GetClientIP(r, h.infra.TrustedProxyCIDRs),
+		AdminIP:            kitMiddleware.GetClientIPFromContext(r.Context()),
 	}
 
 	reader := bytes.NewReader(data)
@@ -211,30 +216,26 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromImportResult(result))
+	httputil.RenderOK(w, r, response.FromImportResult(result))
 }
 
 // Export table as CSV
 // (GET /admin/export/csv)
 func (h *Server) GetAdminExportCsv(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportCsvParams) {
-	if params.Table == "" {
-		h.OnError(w, r, helper.NewValidationErrorf("table parameter is required"), "GetAdminExportCsv", "TableRequired")
+	table, ok := httputil.ParseEnumQuery(r, "table", allowedExportTables)
+	if !ok {
+		h.OnError(w, r, httperr.NewValidationErrorf("invalid table: allowed values are users, teams, challenges, submissions, solves, awards"), "GetAdminExportCsv", "TableValidate")
 		return
 	}
-	allowedTables := map[string]bool{"users": true, "teams": true, "challenges": true, "submissions": true, "solves": true, "awards": true}
-	if !allowedTables[string(params.Table)] {
-		h.OnError(w, r, helper.NewValidationErrorf("invalid table: allowed values are users, teams, challenges, submissions, solves, awards"), "GetAdminExportCsv", "TableValidate")
-		return
-	}
-	csvData, err := h.admin.BackupUC.ExportCSV(r.Context(), string(params.Table))
+	csvData, err := h.admin.BackupUC.ExportCSV(r.Context(), string(table))
 	if h.OnError(w, r, err, "GetAdminExportCsv", "ExportCSV") {
 		return
 	}
-	filename := filepath.Base(string(params.Table) + ".csv")
+	filename := filepath.Base(string(table) + ".csv")
 	if filename == "." || filename == "" {
 		filename = "export.csv"
 	}
-	if err := helper.RenderBytes(w, "text/csv; charset=utf-8", filename, csvData); err != nil {
+	if err := httputil.RenderBytes(w, "text/csv; charset=utf-8", filename, csvData); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExportCsv - write")
 	}
 }
@@ -242,7 +243,7 @@ func (h *Server) GetAdminExportCsv(w http.ResponseWriter, r *http.Request, param
 // Import CSV data
 // (POST /admin/import/csv)
 func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
-	if !helper.ParseMultipartFormLimit(w, r, maxBackupCSVSize) {
+	if !helper.ParseMultipartFormLimit(w, r, maxBackupCSVSize, maxBackupCSVSize) {
 		return
 	}
 
@@ -255,11 +256,10 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Table == "" {
-		h.OnError(w, r, helper.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
+		h.OnError(w, r, httperr.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
 		return
 	}
-	allowedTables := []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
-	if err := helper.ValidateMultipartEnum("table", string(body.Table), allowedTables); err != nil {
+	if err := helper.ValidateMultipartEnum("table", string(body.Table), allowedExportTables); err != nil {
 		h.OnError(w, r, err, "PostAdminImportCsv", "TableValidate")
 		return
 	}
@@ -273,5 +273,5 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminImportCsv", "ImportCSV") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromCSVImportResult(result))
+	httputil.RenderOK(w, r, response.FromCSVImportResult(result))
 }

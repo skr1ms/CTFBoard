@@ -3,16 +3,18 @@ package competition
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 const (
@@ -41,7 +43,7 @@ const (
 )
 
 type competitionGetter interface {
-	Get(ctx context.Context) (*entity.Competition, error)
+	Get(ctx context.Context) (*domain.Competition, error)
 }
 
 type StatisticsUseCase struct {
@@ -50,7 +52,7 @@ type StatisticsUseCase struct {
 
 type StatisticsDeps struct {
 	StatsRepo  repo.StatisticsRepository
-	Cache      *cache.Cache
+	Cache      *cachekit.Cache
 	CompGetter competitionGetter
 	TM         repo.TransactionManager
 }
@@ -79,7 +81,7 @@ func statsFrozenSuffix(freezeTime time.Time) string {
 	return ":frozen:" + strconv.FormatInt(freezeTime.Unix(), 10)
 }
 
-func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context, forceLive bool) (*entity.GeneralStats, error) {
+func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context, forceLive bool) (*domain.GeneralStats, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -92,7 +94,7 @@ func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context, forceLive bool
 		key = statsGeneralKey
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func() (*entity.GeneralStats, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func(context.Context) (*domain.GeneralStats, error) {
 		if frozen {
 			stats, err := uc.deps.StatsRepo.GetGeneralStatsFrozen(ctx, freezeTime)
 			if err != nil {
@@ -108,7 +110,7 @@ func (uc *StatisticsUseCase) GetGeneralStats(ctx context.Context, forceLive bool
 	})
 }
 
-func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context, forceLive bool) ([]*entity.ChallengeStats, error) {
+func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context, forceLive bool) ([]*domain.ChallengeStats, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -121,7 +123,7 @@ func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context, forceLive bo
 		key = statsChallengesKey
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func() ([]*entity.ChallengeStats, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func(context.Context) ([]*domain.ChallengeStats, error) {
 		if frozen {
 			stats, err := uc.deps.StatsRepo.GetChallengeStatsFrozen(ctx, freezeTime)
 			if err != nil {
@@ -137,7 +139,7 @@ func (uc *StatisticsUseCase) GetChallengeStats(ctx context.Context, forceLive bo
 	})
 }
 
-func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challengeID string, forceLive bool) (*entity.ChallengeDetailStats, error) {
+func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challengeID string, forceLive bool) (*domain.ChallengeDetailStats, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -150,7 +152,7 @@ func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challe
 		key = fmt.Sprintf(statsChallengeDetailFmt, challengeID)
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsDetailTTL, func() (*entity.ChallengeDetailStats, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsDetailTTL, func(context.Context) (*domain.ChallengeDetailStats, error) {
 		id, err := uuid.Parse(challengeID)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetChallengeDetailStats - uuid.Parse: %w", err)
@@ -170,7 +172,7 @@ func (uc *StatisticsUseCase) GetChallengeDetailStats(ctx context.Context, challe
 	})
 }
 
-func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int, forceLive bool) ([]*entity.ScoreboardHistoryEntry, error) {
+func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int, forceLive bool) ([]*domain.ScoreboardHistoryEntry, error) {
 	if limit < 1 {
 		limit = defaultScoreboardHistoryLimit
 	} else if limit > MaxScoreboardHistoryLimit {
@@ -189,8 +191,8 @@ func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int
 		key = fmt.Sprintf(statsHistoryFmt, limit)
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func() ([]*entity.ScoreboardHistoryEntry, error) {
-		var history []*entity.ScoreboardHistoryEntry
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func(context.Context) ([]*domain.ScoreboardHistoryEntry, error) {
+		var history []*domain.ScoreboardHistoryEntry
 		if uc.deps.TM != nil {
 			if err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
 				var err error
@@ -218,7 +220,7 @@ func (uc *StatisticsUseCase) GetScoreboardHistory(ctx context.Context, limit int
 	})
 }
 
-func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int, forceLive bool) (*entity.ScoreboardGraph, error) {
+func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int, forceLive bool) (*domain.ScoreboardGraph, error) {
 	if topN < 1 {
 		topN = defaultScoreboardHistoryLimit
 	} else if topN > MaxScoreboardHistoryLimit {
@@ -237,8 +239,8 @@ func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int, f
 		key = fmt.Sprintf(statsGraphFmt, topN)
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func() (*entity.ScoreboardGraph, error) {
-		var history []*entity.ScoreboardHistoryEntry
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func(context.Context) (*domain.ScoreboardGraph, error) {
+		var history []*domain.ScoreboardHistoryEntry
 		if uc.deps.TM != nil {
 			if err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
 				var err error
@@ -266,7 +268,7 @@ func (uc *StatisticsUseCase) GetScoreboardGraph(ctx context.Context, topN int, f
 	})
 }
 
-func (uc *StatisticsUseCase) GetChallengeSolvePercentages(ctx context.Context, forceLive bool) ([]*entity.ChallengeSolvePercentage, error) {
+func (uc *StatisticsUseCase) GetChallengeSolvePercentages(ctx context.Context, forceLive bool) ([]*domain.ChallengeSolvePercentage, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -279,7 +281,7 @@ func (uc *StatisticsUseCase) GetChallengeSolvePercentages(ctx context.Context, f
 		key = statsSolvePercentagesKey
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func() ([]*entity.ChallengeSolvePercentage, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func(context.Context) ([]*domain.ChallengeSolvePercentage, error) {
 		if frozen {
 			data, err := uc.deps.StatsRepo.GetChallengeSolvePercentagesFrozen(ctx, freezeTime)
 			if err != nil {
@@ -295,7 +297,7 @@ func (uc *StatisticsUseCase) GetChallengeSolvePercentages(ctx context.Context, f
 	})
 }
 
-func (uc *StatisticsUseCase) GetScoreDistribution(ctx context.Context, forceLive bool) ([]*entity.ScoreDistributionBucket, error) {
+func (uc *StatisticsUseCase) GetScoreDistribution(ctx context.Context, forceLive bool) ([]*domain.ScoreDistributionBucket, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -308,7 +310,7 @@ func (uc *StatisticsUseCase) GetScoreDistribution(ctx context.Context, forceLive
 		key = statsScoreDistributionKey
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func() ([]*entity.ScoreDistributionBucket, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func(context.Context) ([]*domain.ScoreDistributionBucket, error) {
 		if frozen {
 			data, err := uc.deps.StatsRepo.GetScoreDistributionFrozen(ctx, freezeTime)
 			if err != nil {
@@ -324,7 +326,7 @@ func (uc *StatisticsUseCase) GetScoreDistribution(ctx context.Context, forceLive
 	})
 }
 
-func (uc *StatisticsUseCase) GetSubmissionTimeSeries(ctx context.Context, forceLive bool) (*entity.SubmissionTimeSeriesStats, error) {
+func (uc *StatisticsUseCase) GetSubmissionTimeSeries(ctx context.Context, forceLive bool) (*domain.SubmissionTimeSeriesStats, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -337,7 +339,7 @@ func (uc *StatisticsUseCase) GetSubmissionTimeSeries(ctx context.Context, forceL
 		key = statsSubmissionTimeseriesKey
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func() (*entity.SubmissionTimeSeriesStats, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsLongTTL, func(context.Context) (*domain.SubmissionTimeSeriesStats, error) {
 		if frozen {
 			data, err := uc.deps.StatsRepo.GetSubmissionTimeSeriesFrozen(ctx, freezeTime)
 			if err != nil {
@@ -353,7 +355,7 @@ func (uc *StatisticsUseCase) GetSubmissionTimeSeries(ctx context.Context, forceL
 	})
 }
 
-func (uc *StatisticsUseCase) GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect, forceLive bool) ([]*entity.RegistrationTimePoint, error) {
+func (uc *StatisticsUseCase) GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect, forceLive bool) ([]*domain.RegistrationTimePoint, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
@@ -366,7 +368,7 @@ func (uc *StatisticsUseCase) GetSubmissionTimeSeriesByType(ctx context.Context, 
 		cacheKey = fmt.Sprintf(statsSubmissionByTypeFmt, isCorrect)
 	}
 
-	return cache.GetOrLoad(uc.deps.Cache, ctx, cacheKey, statsLongTTL, func() ([]*entity.RegistrationTimePoint, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, cacheKey, statsLongTTL, func(context.Context) ([]*domain.RegistrationTimePoint, error) {
 		if frozen {
 			data, err := uc.deps.StatsRepo.GetSubmissionTimeSeriesByTypeFrozen(ctx, isCorrect, freezeTime)
 			if err != nil {
@@ -382,8 +384,8 @@ func (uc *StatisticsUseCase) GetSubmissionTimeSeriesByType(ctx context.Context, 
 	})
 }
 
-func (uc *StatisticsUseCase) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error) {
-	return cache.GetOrLoad(uc.deps.Cache, ctx, statsTeamRegistrationKey, statsLongTTL, func() ([]*entity.RegistrationTimePoint, error) {
+func (uc *StatisticsUseCase) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, statsTeamRegistrationKey, statsLongTTL, func(context.Context) ([]*domain.RegistrationTimePoint, error) {
 		data, err := uc.deps.StatsRepo.GetTeamRegistrationTimeSeries(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetTeamRegistrationTimeSeries - StatisticsRepo.GetTeamRegistrationTimeSeries: %w", err)
@@ -392,8 +394,8 @@ func (uc *StatisticsUseCase) GetTeamRegistrationTimeSeries(ctx context.Context) 
 	})
 }
 
-func (uc *StatisticsUseCase) GetUserRegistrationTimeSeries(ctx context.Context) ([]*entity.RegistrationTimePoint, error) {
-	return cache.GetOrLoad(uc.deps.Cache, ctx, statsUserRegistrationKey, statsLongTTL, func() ([]*entity.RegistrationTimePoint, error) {
+func (uc *StatisticsUseCase) GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, statsUserRegistrationKey, statsLongTTL, func(context.Context) ([]*domain.RegistrationTimePoint, error) {
 		data, err := uc.deps.StatsRepo.GetUserRegistrationTimeSeries(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetUserRegistrationTimeSeries - StatisticsRepo.GetUserRegistrationTimeSeries: %w", err)
@@ -402,15 +404,15 @@ func (uc *StatisticsUseCase) GetUserRegistrationTimeSeries(ctx context.Context) 
 	})
 }
 
-func buildScoreboardGraph(history []*entity.ScoreboardHistoryEntry) *entity.ScoreboardGraph {
+func buildScoreboardGraph(history []*domain.ScoreboardHistoryEntry) *domain.ScoreboardGraph {
 	if len(history) == 0 {
-		return &entity.ScoreboardGraph{
-			Range: entity.TimeRange{},
-			Teams: []entity.TeamTimeline{},
+		return &domain.ScoreboardGraph{
+			Range: domain.TimeRange{},
+			Teams: []domain.TeamTimeline{},
 		}
 	}
 
-	teamMap := make(map[string]*entity.TeamTimeline)
+	teamMap := make(map[string]*domain.TeamTimeline)
 	var minTime, maxTime time.Time
 
 	for i, h := range history {
@@ -429,30 +431,30 @@ func buildScoreboardGraph(history []*entity.ScoreboardHistoryEntry) *entity.Scor
 		teamIDStr := h.TeamID.String()
 		tl, exists := teamMap[teamIDStr]
 		if !exists {
-			tl = &entity.TeamTimeline{
+			tl = &domain.TeamTimeline{
 				TeamID:   h.TeamID,
 				TeamName: h.TeamName,
-				Timeline: []entity.ScorePoint{},
+				Timeline: []domain.ScorePoint{},
 			}
 			teamMap[teamIDStr] = tl
 		}
 
-		tl.Timeline = append(tl.Timeline, entity.ScorePoint{
+		tl.Timeline = append(tl.Timeline, domain.ScorePoint{
 			Timestamp: h.Timestamp,
 			Score:     h.Points,
 		})
 	}
 
-	teams := make([]entity.TeamTimeline, 0, len(teamMap))
+	teams := make([]domain.TeamTimeline, 0, len(teamMap))
 	for _, tl := range teamMap {
 		teams = append(teams, *tl)
 	}
-	sort.Slice(teams, func(i, j int) bool {
-		return teams[i].TeamName < teams[j].TeamName
+	slices.SortFunc(teams, func(a, b domain.TeamTimeline) int {
+		return strings.Compare(a.TeamName, b.TeamName)
 	})
 
-	return &entity.ScoreboardGraph{
-		Range: entity.TimeRange{
+	return &domain.ScoreboardGraph{
+		Range: domain.TimeRange{
 			Start: minTime,
 			End:   maxTime,
 		},
@@ -460,14 +462,14 @@ func buildScoreboardGraph(history []*entity.ScoreboardHistoryEntry) *entity.Scor
 	}
 }
 
-func (uc *StatisticsUseCase) GetSolveMatrix(ctx context.Context, forceLive bool) ([]*entity.SolveMatrixRow, error) {
+func (uc *StatisticsUseCase) GetSolveMatrix(ctx context.Context, forceLive bool) ([]*domain.SolveMatrixRow, error) {
 	frozen, freezeTime := uc.isFrozen(ctx)
 	if forceLive {
 		frozen = false
 	}
 	if frozen {
 		key := statsSolveMatrixKey + statsFrozenSuffix(freezeTime)
-		return cache.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func() ([]*entity.SolveMatrixRow, error) {
+		return cachekit.GetOrLoad(uc.deps.Cache, ctx, key, statsShortTTL, func(context.Context) ([]*domain.SolveMatrixRow, error) {
 			matrix, err := uc.deps.StatsRepo.GetSolveMatrixFrozen(ctx, freezeTime)
 			if err != nil {
 				return nil, fmt.Errorf("StatisticsUseCase - GetSolveMatrix - GetSolveMatrixFrozen: %w", err)
@@ -475,7 +477,7 @@ func (uc *StatisticsUseCase) GetSolveMatrix(ctx context.Context, forceLive bool)
 			return matrix, nil
 		})
 	}
-	return cache.GetOrLoad(uc.deps.Cache, ctx, statsSolveMatrixKey, statsShortTTL, func() ([]*entity.SolveMatrixRow, error) {
+	return cachekit.GetOrLoad(uc.deps.Cache, ctx, statsSolveMatrixKey, statsShortTTL, func(context.Context) ([]*domain.SolveMatrixRow, error) {
 		matrix, err := uc.deps.StatsRepo.GetSolveMatrix(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("StatisticsUseCase - GetSolveMatrix - StatisticsRepo.GetSolveMatrix: %w", err)

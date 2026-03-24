@@ -31,7 +31,7 @@ make merge-schemas
 
 ## Structure
 
-- `schemas/` - source schema files, split by domain
+- `schemas/` - source schema files, split by entity
 - `schemas.yml` - **auto-generated** merged file (do not edit!)
 - `security.yml` - security scheme definitions
 

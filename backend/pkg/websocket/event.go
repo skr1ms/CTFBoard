@@ -1,38 +1,36 @@
-// Package websocket provides real-time event broadcasting via WebSocket connections.
+// Package websocket holds AstroCTFb-specific WebSocket payloads and event name constants.
+// The wire format envelope (type, payload, timestamp) is go-wskit.Event (module github.com/wahrwelt-kit/go-wskit);
+// hub, client lifecycle, Redis pub/sub and ping keep-alive are provided by go-wskit on top of coder/websocket.
 //
-// # Connection Protocol
+// # Endpoint and auth
 //
-// Clients connect to GET /ws. The server upgrades the HTTP connection to WebSocket
-// using the coder/websocket library. Authentication (JWT Bearer or API Token) is
-// required; unauthenticated connections receive 401.
+// Clients use GET /api/v1/ws (or the route your router mounts). Upgrade uses coder/websocket.
+// Authenticated users only (JWT or API token); otherwise 401.
 //
-// On successful connection, the server sends a "connected" event:
+// After registration the server sends a "connected" message (payload null), built with
+// wskit.NewEvent and constants from this package where applicable.
 //
-//	{"type": "connected", "payload": null, "timestamp": "2025-01-01T00:00:00Z"}
+// # Keep-alive
 //
-// # Keep-Alive
+// go-wskit sends WebSocket ping frames on a fixed interval (default 30s) with a per-write
+// timeout (default 10s). Clients should answer pings as usual.
 //
-// The server sends WebSocket ping frames every 54 seconds (pingPeriod).
-// If no pong is received within 60 seconds (pongWait), the connection is closed.
-// Clients should respond to ping frames automatically (most WebSocket libraries do this).
+// # Top-level message types
 //
-// # Event Types
+// Envelope JSON shape:
 //
-// All events use the Event envelope:
+//		{"type": "<name>", "payload": {...}, "timestamp": "RFC3339"}
 //
-//	{"type": "<event_type>", "payload": {...}, "timestamp": "RFC3339"}
+//	  - type "connected" — once per connection; payload null.
+//	  - type "scoreboard_update" — solve or first blood; payload is ScoreboardUpdate JSON.
+//	  - type "notification" — admin broadcast; payload is Notification JSON.
 //
-// Supported event types:
-//
-//   - "connected"          - sent once upon successful connection (payload: null)
-//   - "scoreboard_update"  - sent when a team solves a challenge or achieves first blood
-//   - "notification"       - sent when an admin broadcasts a notification
+// Inner payload field "type" uses EventTypeSolve, EventTypeFirstBlood, EventTypeNotification
+// for scoreboard_update and notification payloads respectively.
 //
 // # Reconnection
 //
-// The server does not maintain session state between connections.
-// Clients should implement reconnection with exponential backoff.
-// On reconnect, the client receives a fresh "connected" event.
+// No session state on the server; clients should reconnect with backoff and expect a new "connected".
 package websocket
 
 import "time"
@@ -44,7 +42,7 @@ const (
 	EventTypeNotification = "notification"
 )
 
-// ScoreboardUpdate is the payload for "scoreboard_update" events.
+// ScoreboardUpdate is the JSON payload inside a "scoreboard_update" envelope (wskit.Event.Payload).
 //
 // Example (solve):
 //
@@ -81,7 +79,7 @@ type ScoreboardUpdate struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// Notification is the payload for "notification" events.
+// Notification is the JSON payload inside a "notification" envelope (wskit.Event.Payload).
 // Level is one of: "info", "warning", "error", "success".
 //
 // Example:
@@ -100,13 +98,5 @@ type Notification struct {
 	Type      string    `json:"type"`
 	Message   string    `json:"message"`
 	Level     string    `json:"level"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-// Event is the top-level envelope for all WebSocket messages.
-// Type determines the structure of Payload.
-type Event struct {
-	Type      string    `json:"type"`
-	Payload   any       `json:"payload"`
 	Timestamp time.Time `json:"timestamp"`
 }

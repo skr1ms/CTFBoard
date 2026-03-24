@@ -11,21 +11,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 const exportTimeout = 5 * time.Minute
 
-func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) (*entity.BackupData, error) {
+func (uc *BackupUseCase) Export(ctx context.Context, opts domain.ExportOptions) (*domain.BackupData, error) {
 	ctx, cancel := context.WithTimeout(ctx, exportTimeout)
 	defer cancel()
 
 	g, gCtx := errgroup.WithContext(ctx)
-	backup := &entity.BackupData{
-		Version:    entity.BackupVersion,
+	backup := &domain.BackupData{
+		Version:    domain.BackupVersion,
 		ExportedAt: time.Now().UTC(),
 	}
 	var mu sync.Mutex
@@ -55,7 +55,7 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 			if err != nil {
 				return fmt.Errorf("BackupUseCase - Export - TagRepo.GetByChallengeIDs: %w", err)
 			}
-			seenTags := make(map[uuid.UUID]entity.Tag)
+			seenTags := make(map[uuid.UUID]domain.Tag)
 			for i := range challenges {
 				tags := tagsByChallenge[challenges[i].ID]
 				tagIDs := make([]uuid.UUID, 0, len(tags))
@@ -65,7 +65,7 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 				}
 				challenges[i].TagIDs = tagIDs
 			}
-			uniqueTags := make([]entity.Tag, 0, len(seenTags))
+			uniqueTags := make([]domain.Tag, 0, len(seenTags))
 			for _, t := range seenTags {
 				uniqueTags = append(uniqueTags, t)
 			}
@@ -83,6 +83,7 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 	uc.exportChallengeRequirements(gCtx, backup, &mu, g)
 	uc.exportSolutions(gCtx, backup, &mu, g)
 	uc.exportComments(gCtx, backup, &mu, g)
+	uc.exportRatings(gCtx, backup, &mu, g)
 	uc.exportFields(gCtx, backup, &mu, g)
 	uc.exportFieldValues(gCtx, backup, &mu, g)
 	uc.exportOptional(gCtx, backup, opts, &mu, g)
@@ -93,7 +94,7 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts entity.ExportOptions) 
 	return backup, nil
 }
 
-func (uc *BackupUseCase) exportBrackets(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportBrackets(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	if uc.deps.BracketRepo == nil {
 		return
 	}
@@ -102,7 +103,7 @@ func (uc *BackupUseCase) exportBrackets(ctx context.Context, backup *entity.Back
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - BracketRepo.GetAll: %w", err)
 		}
-		out := make([]entity.Bracket, len(list))
+		out := make([]domain.Bracket, len(list))
 		for i, b := range list {
 			out[i] = *b
 		}
@@ -113,13 +114,13 @@ func (uc *BackupUseCase) exportBrackets(ctx context.Context, backup *entity.Back
 	})
 }
 
-func (uc *BackupUseCase) exportChallengeRequirements(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportChallengeRequirements(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	g.Go(func() error {
 		list, err := uc.deps.ChallengeRepo.GetAllRequirementPairs(ctx)
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - ChallengeRepo.GetAllRequirementPairs: %w", err)
 		}
-		out := make([]entity.ChallengeRequirementPair, len(list))
+		out := make([]domain.ChallengeRequirementPair, len(list))
 		for i, p := range list {
 			out[i] = *p
 		}
@@ -130,13 +131,13 @@ func (uc *BackupUseCase) exportChallengeRequirements(ctx context.Context, backup
 	})
 }
 
-func (uc *BackupUseCase) exportSolutions(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportSolutions(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	g.Go(func() error {
 		list, err := uc.deps.ChallengeRepo.GetAllSolutions(ctx)
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - ChallengeRepo.GetAllSolutions: %w", err)
 		}
-		out := make([]entity.SolutionBackup, len(list))
+		out := make([]domain.SolutionBackup, len(list))
 		for i, s := range list {
 			out[i] = *s
 		}
@@ -147,7 +148,7 @@ func (uc *BackupUseCase) exportSolutions(ctx context.Context, backup *entity.Bac
 	})
 }
 
-func (uc *BackupUseCase) exportComments(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportComments(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	if uc.deps.CommentRepo == nil {
 		return
 	}
@@ -156,7 +157,7 @@ func (uc *BackupUseCase) exportComments(ctx context.Context, backup *entity.Back
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - CommentRepo.GetAll: %w", err)
 		}
-		out := make([]entity.Comment, len(list))
+		out := make([]domain.Comment, len(list))
 		for i, c := range list {
 			out[i] = *c
 		}
@@ -167,7 +168,27 @@ func (uc *BackupUseCase) exportComments(ctx context.Context, backup *entity.Back
 	})
 }
 
-func (uc *BackupUseCase) exportFields(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportRatings(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+	if uc.deps.RatingRepo == nil {
+		return
+	}
+	g.Go(func() error {
+		list, err := uc.deps.RatingRepo.GetAll(ctx)
+		if err != nil {
+			return fmt.Errorf("BackupUseCase - Export - RatingRepo.GetAll: %w", err)
+		}
+		out := make([]domain.Rating, len(list))
+		for i, r := range list {
+			out[i] = *r
+		}
+		mu.Lock()
+		backup.Ratings = out
+		mu.Unlock()
+		return nil
+	})
+}
+
+func (uc *BackupUseCase) exportFields(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	if uc.deps.FieldRepo == nil {
 		return
 	}
@@ -176,7 +197,7 @@ func (uc *BackupUseCase) exportFields(ctx context.Context, backup *entity.Backup
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - FieldRepo.GetAll: %w", err)
 		}
-		out := make([]entity.Field, len(list))
+		out := make([]domain.Field, len(list))
 		for i, f := range list {
 			out[i] = *f
 		}
@@ -187,7 +208,7 @@ func (uc *BackupUseCase) exportFields(ctx context.Context, backup *entity.Backup
 	})
 }
 
-func (uc *BackupUseCase) exportFieldValues(ctx context.Context, backup *entity.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportFieldValues(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	if uc.deps.FieldValueRepo == nil {
 		return
 	}
@@ -196,7 +217,7 @@ func (uc *BackupUseCase) exportFieldValues(ctx context.Context, backup *entity.B
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - FieldValueRepo.GetAll: %w", err)
 		}
-		out := make([]entity.FieldValue, len(list))
+		out := make([]domain.FieldValue, len(list))
 		for i, v := range list {
 			out[i] = *v
 		}
@@ -209,8 +230,8 @@ func (uc *BackupUseCase) exportFieldValues(ctx context.Context, backup *entity.B
 
 func (uc *BackupUseCase) exportOptional(
 	ctx context.Context,
-	backup *entity.BackupData,
-	opts entity.ExportOptions,
+	backup *domain.BackupData,
+	opts domain.ExportOptions,
 	mu *sync.Mutex,
 	g *errgroup.Group,
 ) {
@@ -222,7 +243,7 @@ func (uc *BackupUseCase) exportOptional(
 	uc.exportOptionalFiles(ctx, backup, opts, mu, g)
 }
 
-func (uc *BackupUseCase) exportOptionalTeams(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalTeams(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeTeams {
 		return
 	}
@@ -238,7 +259,7 @@ func (uc *BackupUseCase) exportOptionalTeams(ctx context.Context, backup *entity
 	})
 }
 
-func (uc *BackupUseCase) exportOptionalUsers(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalUsers(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeUsers {
 		return
 	}
@@ -254,7 +275,7 @@ func (uc *BackupUseCase) exportOptionalUsers(ctx context.Context, backup *entity
 	})
 }
 
-func (uc *BackupUseCase) exportOptionalAwards(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalAwards(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeAwards {
 		return
 	}
@@ -270,7 +291,7 @@ func (uc *BackupUseCase) exportOptionalAwards(ctx context.Context, backup *entit
 	})
 }
 
-func (uc *BackupUseCase) exportOptionalSolves(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalSolves(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeSolves {
 		return
 	}
@@ -286,7 +307,7 @@ func (uc *BackupUseCase) exportOptionalSolves(ctx context.Context, backup *entit
 	})
 }
 
-func (uc *BackupUseCase) exportOptionalHintUnlocks(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalHintUnlocks(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeHintUnlocks {
 		return
 	}
@@ -295,7 +316,7 @@ func (uc *BackupUseCase) exportOptionalHintUnlocks(ctx context.Context, backup *
 		if err != nil {
 			return fmt.Errorf("BackupUseCase - Export - HintRepo.GetAllUnlocksForBackup: %w", err)
 		}
-		result := make([]entity.HintUnlock, len(unlocks))
+		result := make([]domain.HintUnlock, len(unlocks))
 		for i, u := range unlocks {
 			result[i] = *u
 		}
@@ -306,7 +327,7 @@ func (uc *BackupUseCase) exportOptionalHintUnlocks(ctx context.Context, backup *
 	})
 }
 
-func (uc *BackupUseCase) exportOptionalFiles(ctx context.Context, backup *entity.BackupData, opts entity.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
+func (uc *BackupUseCase) exportOptionalFiles(ctx context.Context, backup *domain.BackupData, opts domain.ExportOptions, mu *sync.Mutex, g *errgroup.Group) {
 	if !opts.IncludeFiles {
 		return
 	}
@@ -322,8 +343,8 @@ func (uc *BackupUseCase) exportOptionalFiles(ctx context.Context, backup *entity
 	})
 }
 
-func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]entity.ChallengeExport, error) {
-	challengesWithSolved, err := uc.deps.ChallengeRepo.GetAll(ctx, nil, nil)
+func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]domain.ChallengeExport, error) {
+	challengesWithSolved, err := uc.deps.ChallengeRepo.GetAllForBackup(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchChallengesWithHints - ChallengeRepo.GetAll: %w", err)
 	}
@@ -331,7 +352,7 @@ func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]entity
 	for i, cws := range challengesWithSolved {
 		challengeIDs[i] = cws.Challenge.ID
 	}
-	var hintsByChallenge map[uuid.UUID][]*entity.Hint
+	var hintsByChallenge map[uuid.UUID][]*domain.Hint
 	if uc.deps.HintRepo != nil {
 		var err error
 		hintsByChallenge, err = uc.deps.HintRepo.GetByChallengeIDs(ctx, challengeIDs)
@@ -340,26 +361,34 @@ func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]entity
 		}
 	}
 	if hintsByChallenge == nil {
-		hintsByChallenge = make(map[uuid.UUID][]*entity.Hint)
+		hintsByChallenge = make(map[uuid.UUID][]*domain.Hint)
 	}
-	result := make([]entity.ChallengeExport, len(challengesWithSolved))
+	result := make([]domain.ChallengeExport, len(challengesWithSolved))
 	for i, cws := range challengesWithSolved {
 		hints := hintsByChallenge[cws.Challenge.ID]
-		hintsCopy := make([]entity.Hint, len(hints))
+		hintsCopy := make([]domain.Hint, len(hints))
 		for j, h := range hints {
 			hintsCopy[j] = *h
 		}
-		result[i] = entity.ChallengeExport{
-			Challenge: *cws.Challenge,
-			FlagHash:  cws.Challenge.FlagHash,
-			FlagRegex: cws.Challenge.FlagRegex,
-			Hints:     hintsCopy,
+		flagRegex := ""
+		if cws.Challenge.FlagRegex != nil {
+			flagRegex = *cws.Challenge.FlagRegex
+		}
+		result[i] = domain.ChallengeExport{
+			Challenge:      *cws.Challenge,
+			State:          cws.Challenge.State,
+			FlagHash:       cws.Challenge.FlagHash,
+			FlagRegex:      flagRegex,
+			ConnectionInfo: cws.Challenge.ConnectionInfo,
+			MaxAttempts:    cws.Challenge.MaxAttempts,
+			Position:       cws.Challenge.Position,
+			Hints:          hintsCopy,
 		}
 	}
 	return result, nil
 }
 
-func (uc *BackupUseCase) fetchTeamsWithMembers(ctx context.Context) ([]entity.TeamExport, error) {
+func (uc *BackupUseCase) fetchTeamsWithMembers(ctx context.Context) ([]domain.TeamExport, error) {
 	teams, err := uc.deps.TeamRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchTeamsWithMembers - TeamRepo.GetAll: %w", err)
@@ -372,14 +401,14 @@ func (uc *BackupUseCase) fetchTeamsWithMembers(ctx context.Context) ([]entity.Te
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchTeamsWithMembers - UserRepo.GetByTeamIDs: %w", err)
 	}
-	result := make([]entity.TeamExport, len(teams))
+	result := make([]domain.TeamExport, len(teams))
 	for i, team := range teams {
 		members := membersByTeam[team.ID]
 		memberIDs := make([]uuid.UUID, len(members))
 		for j, m := range members {
 			memberIDs[j] = m.ID
 		}
-		result[i] = entity.TeamExport{
+		result[i] = domain.TeamExport{
 			Team:                 *team,
 			InviteToken:          team.InviteToken,
 			InviteTokenExpiresAt: team.InviteTokenExpiresAt,
@@ -389,15 +418,15 @@ func (uc *BackupUseCase) fetchTeamsWithMembers(ctx context.Context) ([]entity.Te
 	return result, nil
 }
 
-func (uc *BackupUseCase) fetchUsers(ctx context.Context) ([]entity.UserExport, error) {
+func (uc *BackupUseCase) fetchUsers(ctx context.Context) ([]domain.UserExport, error) {
 	users, err := uc.deps.UserRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchUsers - UserRepo.GetAll: %w", err)
 	}
 
-	result := make([]entity.UserExport, 0, len(users))
+	result := make([]domain.UserExport, 0, len(users))
 	for _, u := range users {
-		result = append(result, entity.UserExport{
+		result = append(result, domain.UserExport{
 			ID:           u.ID,
 			Username:     u.Username,
 			Email:        u.Email,
@@ -414,13 +443,13 @@ func (uc *BackupUseCase) fetchUsers(ctx context.Context) ([]entity.UserExport, e
 	return result, nil
 }
 
-func (uc *BackupUseCase) fetchAwards(ctx context.Context) ([]entity.Award, error) {
+func (uc *BackupUseCase) fetchAwards(ctx context.Context) ([]domain.Award, error) {
 	awards, err := uc.deps.AwardRepo.GetAllForBackup(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchAwards - AwardRepo.GetAllForBackup: %w", err)
 	}
 
-	result := make([]entity.Award, len(awards))
+	result := make([]domain.Award, len(awards))
 	for i, a := range awards {
 		result[i] = *a
 	}
@@ -428,13 +457,13 @@ func (uc *BackupUseCase) fetchAwards(ctx context.Context) ([]entity.Award, error
 	return result, nil
 }
 
-func (uc *BackupUseCase) fetchSolves(ctx context.Context) ([]entity.Solve, error) {
+func (uc *BackupUseCase) fetchSolves(ctx context.Context) ([]domain.Solve, error) {
 	solves, err := uc.deps.SolveRepo.GetAllForBackup(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchSolves - SolveRepo.GetAllForBackup: %w", err)
 	}
 
-	result := make([]entity.Solve, len(solves))
+	result := make([]domain.Solve, len(solves))
 	for i, s := range solves {
 		result[i] = *s
 	}
@@ -442,13 +471,13 @@ func (uc *BackupUseCase) fetchSolves(ctx context.Context) ([]entity.Solve, error
 	return result, nil
 }
 
-func (uc *BackupUseCase) fetchFiles(ctx context.Context) ([]entity.File, error) {
+func (uc *BackupUseCase) fetchFiles(ctx context.Context) ([]domain.File, error) {
 	files, err := uc.deps.FileRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - fetchFiles - FileRepo.GetAll: %w", err)
 	}
 
-	result := make([]entity.File, len(files))
+	result := make([]domain.File, len(files))
 	for i, f := range files {
 		result[i] = *f
 	}
@@ -456,13 +485,13 @@ func (uc *BackupUseCase) fetchFiles(ctx context.Context) ([]entity.File, error) 
 	return result, nil
 }
 
-func (uc *BackupUseCase) ExportZIP(ctx context.Context, opts entity.ExportOptions) (io.ReadCloser, error) {
+func (uc *BackupUseCase) ExportZIP(ctx context.Context, opts domain.ExportOptions) (io.ReadCloser, error) {
 	pr, pw := io.Pipe()
 	go uc.exportZIPWorker(ctx, pw, opts)
 	return pr, nil
 }
 
-func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter, opts entity.ExportOptions) {
+func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter, opts domain.ExportOptions) {
 	defer pw.Close()
 	select {
 	case <-ctx.Done():
@@ -491,14 +520,14 @@ func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter,
 			return
 		}
 		skipped := uc.streamFilesToZip(ctx, zw, data.Files)
-		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logger.Fields{
+		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logkit.Fields{
 			"challenges": len(data.Challenges),
 			"teams":      len(data.Teams),
 			"files":      len(data.Files),
 			"skipped":    skipped,
 		})
 	} else {
-		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logger.Fields{
+		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logkit.Fields{
 			"challenges": len(data.Challenges),
 			"teams":      len(data.Teams),
 			"files":      0,
@@ -506,7 +535,7 @@ func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter,
 	}
 }
 
-func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *entity.BackupData) error {
+func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *domain.BackupData) error {
 	jsonFile, err := zw.Create("backup.json")
 	if err != nil {
 		return fmt.Errorf("BackupUseCase - ExportZIP - create backup.json: %w", err)
@@ -524,7 +553,7 @@ func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *entity.BackupData
 	return nil
 }
 
-func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, files []entity.File) int {
+func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, files []domain.File) int {
 	var skipped int
 	for _, file := range files {
 		if ctx.Err() != nil {
@@ -533,28 +562,28 @@ func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, f
 		path := fmt.Sprintf("files/challenge-%s/%s", file.ChallengeID, filepath.Base(file.Filename))
 		f, err := zw.Create(path)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logger.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - create")
+			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - create")
 			skipped++
 			continue
 		}
 
 		rc, err := uc.deps.Storage.Download(ctx, file.Location)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logger.Fields{"file": file.Filename, "location": file.Location}).Warn("BackupUseCase - streamFilesToZip - download")
+			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename, "location": file.Location}).Warn("BackupUseCase - streamFilesToZip - download")
 			skipped++
 			continue
 		}
 		func() {
 			defer func() { _ = rc.Close() }()
 			if _, err := io.Copy(f, rc); err != nil {
-				uc.deps.Logger.WithError(err).WithFields(logger.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - copy")
+				uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - copy")
 				skipped++
 			}
 		}()
 	}
 
 	if skipped > 0 {
-		uc.deps.Logger.Warn("BackupUseCase - streamFilesToZip - completed with skipped files", logger.Fields{
+		uc.deps.Logger.Warn("BackupUseCase - streamFilesToZip - completed with skipped files", logkit.Fields{
 			"total":   len(files),
 			"skipped": skipped,
 		})

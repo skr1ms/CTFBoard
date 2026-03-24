@@ -2,17 +2,15 @@ package user
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -35,7 +33,7 @@ func NewAPITokenUseCase(deps APITokenDeps) *APITokenUseCase {
 	return &APITokenUseCase{deps: deps}
 }
 
-func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*entity.APIToken, error) {
+func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error) {
 	tokens, err := uc.deps.Repo.GetByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("APITokenUseCase - List - APITokenRepo.GetByUserID: %w", err)
@@ -43,19 +41,17 @@ func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*entit
 	return tokens, nil
 }
 
-func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *entity.APIToken, err error) {
+func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *domain.APIToken, err error) {
 	if len(description) > apiTokenDescriptionMaxLen {
 		return "", nil, httperr.NewValidationErrorf("description must not exceed %d characters", apiTokenDescriptionMaxLen)
 	}
-	b := make([]byte, apiTokenRandomBytes)
-	if _, err := rand.Read(b); err != nil {
-		return "", nil, fmt.Errorf("APITokenUseCase - Create - rand: %w", err)
+	plaintext, err = crypto.SecureRandomHex(apiTokenRandomBytes)
+	if err != nil {
+		return "", nil, fmt.Errorf("APITokenUseCase - Create - SecureRandomHex: %w", err)
 	}
-	plaintext = hex.EncodeToString(b)
-	hash := sha256.Sum256([]byte(plaintext))
-	tokenHash := hex.EncodeToString(hash[:])
+	tokenHash := crypto.SHA256Hex(plaintext)
 
-	token = &entity.APIToken{
+	token = &domain.APIToken{
 		UserID:      userID,
 		TokenHash:   tokenHash,
 		Description: description,
@@ -75,7 +71,7 @@ func (uc *APITokenUseCase) Delete(ctx context.Context, ID, userID uuid.UUID) err
 	return nil
 }
 
-func (uc *APITokenUseCase) GetByTokenHash(ctx context.Context, tokenHash string) (*entity.APIToken, error) {
+func (uc *APITokenUseCase) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error) {
 	token, err := uc.deps.Repo.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
 		return nil, fmt.Errorf("APITokenUseCase - GetByTokenHash - APITokenRepo.GetByTokenHash: %w", err)
@@ -90,7 +86,7 @@ func (uc *APITokenUseCase) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID) e
 	return nil
 }
 
-func (uc *APITokenUseCase) ValidateToken(t *entity.APIToken) bool {
+func (uc *APITokenUseCase) ValidateToken(t *domain.APIToken) bool {
 	if t == nil {
 		return false
 	}

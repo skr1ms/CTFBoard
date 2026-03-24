@@ -15,11 +15,10 @@ import (
 
 // POST /teams/solo + GET /teams/my + POST /teams/join: captain creates solo team; player joins by invite_token; both see same team.
 func TestTeam_FullFlow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	h.SetupCompetition("fullflow_" + suffix)
 
 	captainName := "captain_" + suffix
@@ -47,7 +46,6 @@ func TestTeam_FullFlow(t *testing.T) {
 
 // POST /teams + POST /teams/join + POST /challenges/{ID}/submit: captain creates team, member joins, captain submits flag; GET /scoreboard shows team points.
 func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -62,7 +60,7 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 		"category":    "misc",
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	captainName := "capt_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(captainName)
 
@@ -93,11 +91,10 @@ func TestTeam_Workflow_CreateJoinSolve(t *testing.T) {
 
 // POST /teams: creating team with name that already exists returns 409 Conflict.
 func TestTeam_CreateDuplicateName(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	_, _, token1 := h.RegisterUserAndLogin("captain1_" + suffix)
 	h.CreateSoloTeam(token1, http.StatusCreated)
@@ -112,11 +109,10 @@ func TestTeam_CreateDuplicateName(t *testing.T) {
 
 // POST /teams/join: invalid invite_token returns 404.
 func TestTeam_JoinInvalidToken(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("user_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("user_" + helper.UID())
 
 	nonExistentToken := uuid.New().String()
 	h.JoinTeam(token, nonExistentToken, false, http.StatusNotFound)
@@ -124,11 +120,10 @@ func TestTeam_JoinInvalidToken(t *testing.T) {
 
 // POST /teams/join: user already in a team tries to join another returns 409 Conflict.
 func TestTeam_JoinAlreadyInTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	_, _, tokenCap := h.RegisterUserAndLogin("captain3_" + suffix)
 	h.CreateTeam(tokenCap, "TeamA_"+suffix, http.StatusCreated)
@@ -151,7 +146,6 @@ func TestTeam_JoinAlreadyInTeam(t *testing.T) {
 
 // POST /teams/join with confirm_reset: solo player with points joins another team; scoreboard shows target team with 0 (points reset).
 func TestTeam_Join_PointsCheck(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -168,7 +162,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 		"decay":         1,
 	})
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	soloName := "solo_player_" + suffix
 	_, _, tokenSolo := h.RegisterUserAndLogin(soloName)
 	h.CreateSoloTeam(tokenSolo, http.StatusCreated)
@@ -210,12 +204,11 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: admin bans team; returns 200.
 func TestTeam_Admin_Ban(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_ban")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("banteam_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -228,12 +221,11 @@ func TestTeam_Admin_Ban(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/ban: admin unbans team; returns 200.
 func TestTeam_Admin_Unban(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_unban")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("unbanteam_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -247,12 +239,11 @@ func TestTeam_Admin_Unban(t *testing.T) {
 
 // PATCH /admin/teams/{ID}/hidden: admin sets team hidden; returns 200.
 func TestTeam_Admin_SetHidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_hidden_team")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("hiddenteam_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -266,12 +257,11 @@ func TestTeam_Admin_SetHidden(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/ban: non-admin gets 403 Forbidden.
 func TestTeam_Admin_Unban_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_unban_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user_unban_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -284,12 +274,11 @@ func TestTeam_Admin_Unban_Forbidden(t *testing.T) {
 
 // PATCH /admin/teams/{ID}/hidden: non-admin gets 403 Forbidden.
 func TestTeam_Admin_SetHidden_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_hidden_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user_hidden_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -302,12 +291,11 @@ func TestTeam_Admin_SetHidden_Forbidden(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: non-admin gets 403.
 func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("admin_ban_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("user_ban_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -323,11 +311,10 @@ func TestTeam_Admin_Ban_Forbidden(t *testing.T) {
 
 // POST /teams/transfer-captain: captain transfers role to another member; GET /teams/my shows new captain_id.
 func TestTeam_TransferCaptain(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	captainName := "cap_transfer_" + suffix
 	memberName := "member_transfer_" + suffix
 
@@ -362,11 +349,10 @@ func TestTeam_TransferCaptain(t *testing.T) {
 
 // DELETE /teams/members/{ID}: captain kicks member; kicked user GET /teams/my returns 404.
 func TestTeam_KickMember(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	captainName := "cap_kick_" + suffix
 	memberName := "member_kick_" + suffix
 
@@ -398,11 +384,10 @@ func TestTeam_KickMember(t *testing.T) {
 
 // POST /teams/leave: member leaves team; GET /teams/my returns 404 for that user.
 func TestTeam_LeaveTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	captainName := "cap_leave_" + suffix
 	memberName := "member_leave_" + suffix
 
@@ -422,11 +407,10 @@ func TestTeam_LeaveTeam(t *testing.T) {
 
 // GET /teams/{ID}: returns team by ID (name, id, captain_id); member can fetch own team.
 func TestTeam_GetByID(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token := h.RegisterUserAndLogin("getteam_" + suffix)
 	h.CreateSoloTeam(token, http.StatusCreated)
 
@@ -443,11 +427,10 @@ func TestTeam_GetByID(t *testing.T) {
 
 // DELETE /teams/me: captain disbands team; GET /teams/my returns 404 for all former members.
 func TestTeam_Disband(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	captainName := "cap_disband_" + suffix
 	memberName := "member_disband_" + suffix
 
@@ -468,51 +451,46 @@ func TestTeam_Disband(t *testing.T) {
 
 // GET /teams/my: user not in any team returns 404.
 func TestTeam_GetMy_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("noteam_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("noteam_" + helper.UID())
 	h.GetMyTeam(token, http.StatusNotFound)
 }
 
 // GET /teams/{ID}: non-existent team returns 404.
 func TestTeam_GetByID_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("getbyid_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("getbyid_" + helper.UID())
 	h.GetTeamByID(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
 }
 
 // POST /teams/leave: user not in team returns 404.
 func TestTeam_Leave_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("leave_no_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("leave_no_" + helper.UID())
 	h.LeaveTeam(token, http.StatusNotFound)
 }
 
 // DELETE /teams/me: user not in team returns 404.
 func TestTeam_Disband_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("disband_no_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("disband_no_" + helper.UID())
 	h.DisbandTeam(token, http.StatusNotFound)
 }
 
 // DELETE /teams/members/{ID}: non-existent member or not captain returns 404.
 func TestTeam_KickMember_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token := h.RegisterUserAndLogin("kick_cap_" + suffix)
 	h.CreateSoloTeam(token, http.StatusCreated)
 	h.KickMember(token, "00000000-0000-0000-0000-000000000000", http.StatusNotFound)
@@ -520,11 +498,10 @@ func TestTeam_KickMember_NotFound(t *testing.T) {
 
 // POST /teams/transfer-captain: non-captain gets 403 Forbidden.
 func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	capName := "cap_tf_" + suffix
 	memName := "mem_tf_" + suffix
 	_, _, tokenCap := h.RegisterUserAndLogin(capName)
@@ -550,25 +527,23 @@ func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
 
 // POST /teams/solo: user already in team gets 400 Conflict.
 func TestTeam_CreateSolo_Conflict(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, token := h.RegisterUserAndLogin("solo_dup_" + uuid.New().String()[:8])
+	_, _, token := h.RegisterUserAndLogin("solo_dup_" + helper.UID())
 	h.CreateSoloTeam(token, http.StatusCreated)
 	h.CreateSoloTeam(token, http.StatusBadRequest)
 }
 
 // GET /admin/teams/{ID}/missing-challenges: admin gets unsolved challenges for team.
 func TestTeam_AdminGetMissingChallenges_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_miss_ch")
 	h.CreateBasicChallenge(tokenAdmin, "Miss Chall", "flag{miss}", 50)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("miss_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -582,7 +557,6 @@ func TestTeam_AdminGetMissingChallenges_Success(t *testing.T) {
 
 // GET /admin/teams/{ID}/missing-challenges: team not found returns 200 with empty list.
 func TestTeam_AdminGetMissingChallenges_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -595,13 +569,12 @@ func TestTeam_AdminGetMissingChallenges_NotFound(t *testing.T) {
 
 // GET /admin/teams/{ID}/members: admin lists team members.
 func TestTeam_AdminGetMembers_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_members_ok")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("members_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -615,12 +588,11 @@ func TestTeam_AdminGetMembers_Success(t *testing.T) {
 
 // GET /admin/teams/{ID}/members: non-admin gets 403.
 func TestTeam_AdminGetMembers_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_members_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("members_forbid_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -635,20 +607,19 @@ func TestTeam_AdminGetMembers_Forbidden(t *testing.T) {
 
 // POST /admin/teams/{ID}/members: admin adds user to team.
 func TestTeam_AdminAddMember_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_add_member")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	email, _, tokenUser := h.RegisterUserAndLogin("add_member_owner_" + suffix)
 	h.CreateTeam(tokenUser, "AddMemberTeam_"+suffix, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
 	require.NotNil(t, myTeam.JSON200)
 	teamID := *myTeam.JSON200.ID
 
-	suffix2 := uuid.New().String()[:8]
+	suffix2 := helper.UID()
 	email2, _, _ := h.RegisterUserAndLogin("add_member_new_" + suffix2)
 	userID := h.GetUserIDByEmail(email2)
 	_ = email
@@ -660,13 +631,12 @@ func TestTeam_AdminAddMember_Success(t *testing.T) {
 
 // POST /admin/teams/{ID}/members: user not found returns 404.
 func TestTeam_AdminAddMember_UserNotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_add_member_404")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("add_member_team_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -680,13 +650,12 @@ func TestTeam_AdminAddMember_UserNotFound(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/members/{userID}: admin removes user from team.
 func TestTeam_AdminRemoveMember_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_rm_member")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenCaptain := h.RegisterUserAndLogin("rm_member_captain_" + suffix)
 	teamName := "RmMemberTeam_" + suffix
 	h.CreateTeam(tokenCaptain, teamName, http.StatusCreated)
@@ -696,7 +665,7 @@ func TestTeam_AdminRemoveMember_Success(t *testing.T) {
 	require.NotNil(t, myTeam.JSON200.InviteToken)
 	inviteToken := *myTeam.JSON200.InviteToken
 
-	suffix2 := uuid.New().String()[:8]
+	suffix2 := helper.UID()
 	email2, _, tokenMember := h.RegisterUserAndLogin("rm_member_target_" + suffix2)
 	h.JoinTeam(tokenMember, inviteToken, false, http.StatusOK)
 	memberID := h.GetUserIDByEmail(email2)
@@ -708,12 +677,11 @@ func TestTeam_AdminRemoveMember_Success(t *testing.T) {
 
 // DELETE /admin/teams/{ID}/members/{userID}: non-admin gets 403.
 func TestTeam_AdminRemoveMember_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_rm_member_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	email, _, tokenUser := h.RegisterUserAndLogin("rm_member_forbid_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -729,14 +697,13 @@ func TestTeam_AdminRemoveMember_Forbidden(t *testing.T) {
 
 // GET /teams/me/solves: authed gets own team solves.
 func TestTeam_MySolves_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("team_my_solves")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Solve Chall", "flag{solve}", 50)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("my_solves_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{solve}", http.StatusOK)
@@ -749,12 +716,11 @@ func TestTeam_MySolves_Success(t *testing.T) {
 
 // GET /teams/me/solves: no team returns 404.
 func TestTeam_MySolves_NoTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_my_solves_noTeam")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("my_solves_nt_" + suffix)
 
 	resp, err := h.Client().GetTeamsMeSolvesWithResponse(context.Background(), helper.WithBearerToken(tokenUser))
@@ -764,14 +730,13 @@ func TestTeam_MySolves_NoTeam(t *testing.T) {
 
 // GET /teams/{ID}/solves: authed gets team solves.
 func TestTeam_GetSolves_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("team_id_solves")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "IDSolve Chall", "flag{idsolve}", 50)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{idsolve}", http.StatusOK)
@@ -786,12 +751,11 @@ func TestTeam_GetSolves_Success(t *testing.T) {
 
 // GET /teams/{ID}/solves: non-member gets 403 (access control; does not reveal if team exists).
 func TestTeam_GetSolves_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_id_solves_404")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_404_" + suffix)
 
 	resp, err := h.Client().GetTeamsIDSolvesWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
@@ -801,14 +765,13 @@ func TestTeam_GetSolves_NotFound(t *testing.T) {
 
 // GET /teams/me/fails: authed gets own team fails.
 func TestTeam_MyFails_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("team_my_fails")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Fail Chall", "flag{fail}", 50)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("my_fails_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{wrong}", http.StatusOK)
@@ -820,7 +783,6 @@ func TestTeam_MyFails_Success(t *testing.T) {
 
 // GET /teams/me/fails: no auth returns 401.
 func TestTeam_MyFails_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -833,14 +795,13 @@ func TestTeam_MyFails_Unauthorized(t *testing.T) {
 
 // GET /teams/{ID}/fails: authed gets team fails.
 func TestTeam_GetFails_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("team_id_fails")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "IDFail Chall", "flag{idfail}", 50)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_fails_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "flag{wrong}", http.StatusOK)
@@ -855,12 +816,11 @@ func TestTeam_GetFails_Success(t *testing.T) {
 
 // GET /teams/{ID}/fails: invalid ID returns 400.
 func TestTeam_GetFails_InvalidID(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_id_fails_400")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_fails_400_" + suffix)
 
 	resp, err := h.Client().GetTeamsIDFailsWithResponse(context.Background(), "not-a-uuid", &openapi.GetTeamsIDFailsParams{}, helper.WithBearerToken(tokenUser))
@@ -870,11 +830,10 @@ func TestTeam_GetFails_InvalidID(t *testing.T) {
 
 // GET /teams/me/invite: captain gets invite token; 200 with invite_token.
 func TestTeam_GetInviteToken_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenCap := h.RegisterUserAndLogin("invite_cap_" + suffix)
 	h.CreateSoloTeam(tokenCap, http.StatusCreated)
 
@@ -887,11 +846,10 @@ func TestTeam_GetInviteToken_Success(t *testing.T) {
 
 // GET /teams/me/invite: non-captain member gets 403.
 func TestTeam_GetInviteToken_Error_NonCaptain(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenCap := h.RegisterUserAndLogin("invite_cap2_" + suffix)
 	h.CreateTeam(tokenCap, "TeamInvite_"+suffix, http.StatusCreated)
 	myTeam := h.GetMyTeam(tokenCap, http.StatusOK)
@@ -908,11 +866,10 @@ func TestTeam_GetInviteToken_Error_NonCaptain(t *testing.T) {
 
 // PATCH /teams/me: captain renames team; 200 and GET /teams/my shows new name.
 func TestTeam_UpdateMyTeam_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenCap := h.RegisterUserAndLogin("patch_cap_" + suffix)
 	h.CreateSoloTeam(tokenCap, http.StatusCreated)
 
@@ -930,11 +887,10 @@ func TestTeam_UpdateMyTeam_Success(t *testing.T) {
 
 // PATCH /teams/me: rename to existing team name returns 409.
 func TestTeam_UpdateMyTeam_Conflict(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token1 := h.RegisterUserAndLogin("patch_u1_" + suffix)
 	h.CreateSoloTeam(token1, http.StatusCreated)
 	team1 := h.GetMyTeam(token1, http.StatusOK)
@@ -951,12 +907,11 @@ func TestTeam_UpdateMyTeam_Conflict(t *testing.T) {
 
 // GET /teams/me/awards: user in team gets 200 (empty or with awards).
 func TestTeam_GetMyAwards_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _ = h.SetupCompetition("team_awards_ok")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_user_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -968,12 +923,11 @@ func TestTeam_GetMyAwards_Success(t *testing.T) {
 
 // GET /teams/me/awards: user with no team gets 404.
 func TestTeam_GetMyAwards_NoTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_awards_not")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_noteam_" + suffix)
 
 	resp, err := h.Client().GetTeamsMeAwardsWithResponse(context.Background(), helper.WithBearerToken(tokenUser))
@@ -983,11 +937,10 @@ func TestTeam_GetMyAwards_NoTeam(t *testing.T) {
 
 // POST /teams: user with solo team gets 200 with confirmation required (no 201).
 func TestTeam_TryCreate_RequiresConfirmation(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token := h.RegisterUserAndLogin("try_confirm_" + suffix)
 	h.CreateSoloTeam(token, http.StatusCreated)
 

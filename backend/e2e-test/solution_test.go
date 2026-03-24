@@ -1,8 +1,10 @@
 package e2e_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,6 @@ import (
 
 // POST /admin/challenges/{challengeID}/solution: admin creates solution; returns 200 with content.
 func TestSolution_AdminUpsert_Create(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -31,7 +32,6 @@ func TestSolution_AdminUpsert_Create(t *testing.T) {
 
 // POST /admin/challenges/{challengeID}/solution: admin upsert overwrites existing content; returns 200.
 func TestSolution_AdminUpsert_Update(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -48,7 +48,6 @@ func TestSolution_AdminUpsert_Update(t *testing.T) {
 
 // POST /admin/challenges/{challengeID}/solution: non-existent challenge returns 404.
 func TestSolution_AdminUpsert_ChallengeNotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -59,7 +58,6 @@ func TestSolution_AdminUpsert_ChallengeNotFound(t *testing.T) {
 
 // POST /admin/challenges/{challengeID}/solution: request without token returns 401 Unauthorized.
 func TestSolution_AdminUpsert_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -71,14 +69,13 @@ func TestSolution_AdminUpsert_Unauthorized(t *testing.T) {
 
 // POST /admin/challenges/{challengeID}/solution: non-admin returns 403 Forbidden.
 func TestSolution_AdminUpsert_NonAdminForbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("sol_adm_norole")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Forbidden Chall", "FLAG{forbidden}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_user_" + suffix)
 
 	h.AdminUpsertSolution(tokenUser, challengeID, "content", http.StatusForbidden)
@@ -86,7 +83,6 @@ func TestSolution_AdminUpsert_NonAdminForbidden(t *testing.T) {
 
 // DELETE /admin/challenges/{challengeID}/solution: admin deletes solution; returns 204 NoContent.
 func TestSolution_AdminDelete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -99,7 +95,6 @@ func TestSolution_AdminDelete_Success(t *testing.T) {
 
 // DELETE /admin/challenges/{challengeID}/solution: non-existent solution returns 204 (idempotent).
 func TestSolution_AdminDelete_NonExistentIsIdempotent(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -111,7 +106,6 @@ func TestSolution_AdminDelete_NonExistentIsIdempotent(t *testing.T) {
 
 // DELETE /admin/challenges/{challengeID}/solution: request without token returns 401 Unauthorized.
 func TestSolution_AdminDelete_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -123,7 +117,6 @@ func TestSolution_AdminDelete_Unauthorized(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: solved challenge with writeups enabled returns solution content.
 func TestSolution_GetSolution_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -133,7 +126,7 @@ func TestSolution_GetSolution_Success(t *testing.T) {
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Get Solution", "FLAG{solution}", 100)
 	h.AdminUpsertSolution(tokenAdmin, challengeID, "## Full Writeup", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_solver_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{solution}", http.StatusOK)
@@ -149,7 +142,6 @@ func TestSolution_GetSolution_Success(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: unsolved challenge returns 403 Forbidden.
 func TestSolution_GetSolution_NotSolved(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -159,7 +151,7 @@ func TestSolution_GetSolution_NotSolved(t *testing.T) {
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Unsolved", "FLAG{unsolved}", 100)
 	h.AdminUpsertSolution(tokenAdmin, challengeID, "## Secret Writeup", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_unsolv_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -168,7 +160,6 @@ func TestSolution_GetSolution_NotSolved(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: writeups disabled returns 403 Forbidden.
 func TestSolution_GetSolution_WriteupDisabled(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -178,7 +169,7 @@ func TestSolution_GetSolution_WriteupDisabled(t *testing.T) {
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Disabled Writeup", "FLAG{disabled}", 100)
 	h.AdminUpsertSolution(tokenAdmin, challengeID, "## Hidden writeup", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_dis_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{disabled}", http.StatusOK)
@@ -189,7 +180,6 @@ func TestSolution_GetSolution_WriteupDisabled(t *testing.T) {
 
 // GET /challenges/{challengeID}/solution: no solution set returns 404.
 func TestSolution_GetSolution_NoSolutionSet(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -198,17 +188,20 @@ func TestSolution_GetSolution_NoSolutionSet(t *testing.T) {
 
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "No Solution", "FLAG{nosol}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_nset_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{nosol}", http.StatusOK)
 
-	h.GetSolution(tokenUser, challengeID, http.StatusNotFound)
+	require.Eventually(t, func() bool {
+		h.EnableWriteups(tokenAdmin)
+		resp, err := h.Client().GetChallengesChallengeIDSolutionWithResponse(context.Background(), challengeID, helper.WithBearerToken(tokenUser))
+		return err == nil && resp != nil && resp.StatusCode() == http.StatusNotFound
+	}, 5*time.Second, 200*time.Millisecond)
 }
 
 // GET /challenges/{challengeID}/solution: request without token returns 401 Unauthorized.
 func TestSolution_GetSolution_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -221,9 +214,8 @@ func TestSolution_GetSolution_Unauthorized(t *testing.T) {
 	h.GetSolution("", challengeID, http.StatusUnauthorized)
 }
 
-// POST/GET/DELETE /admin/challenges/{challengeID}/solution: full lifecycle (upsert --> get --> delete --> 404).
+// POST/GET/DELETE /admin/challenges/{challengeID}/solution: full lifecycle (upsert -> get -> delete -> 404).
 func TestSolution_LifecycleFull(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -232,7 +224,7 @@ func TestSolution_LifecycleFull(t *testing.T) {
 
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Lifecycle", "FLAG{lifecycle}", 100)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_life_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{lifecycle}", http.StatusOK)
@@ -262,7 +254,6 @@ func TestSolution_LifecycleFull(t *testing.T) {
 
 // GET /challenges/solutions: returns only solutions for challenges the team solved.
 func TestSolutions_List_ReturnsSolvedOnly(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -274,7 +265,7 @@ func TestSolutions_List_ReturnsSolvedOnly(t *testing.T) {
 	h.AdminUpsertSolution(tokenAdmin, c1, "## Writeup A", http.StatusOK)
 	h.AdminUpsertSolution(tokenAdmin, c2, "## Writeup B", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_list_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -291,7 +282,6 @@ func TestSolutions_List_ReturnsSolvedOnly(t *testing.T) {
 
 // GET /challenges/solutions: team solved nothing returns empty list.
 func TestSolutions_List_EmptyWhenNothingSolved(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -301,7 +291,7 @@ func TestSolutions_List_EmptyWhenNothingSolved(t *testing.T) {
 	c1 := h.CreateBasicChallenge(tokenAdmin, "Empty A", "FLAG{ea}", 100)
 	h.AdminUpsertSolution(tokenAdmin, c1, "## A writeup", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_list_e_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -313,14 +303,13 @@ func TestSolutions_List_EmptyWhenNothingSolved(t *testing.T) {
 
 // GET /challenges/solutions: writeups disabled returns 403 Forbidden.
 func TestSolutions_List_WriteupDisabled(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("sol_list_dis")
 	disableStatus := h.DisableWriteups(tokenAdmin)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_list_d_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
@@ -331,7 +320,6 @@ func TestSolutions_List_WriteupDisabled(t *testing.T) {
 
 // GET /challenges/solutions: request without token returns 401 Unauthorized.
 func TestSolutions_List_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -343,7 +331,6 @@ func TestSolutions_List_Unauthorized(t *testing.T) {
 
 // GET /challenges/solutions: user has no team returns empty list.
 func TestSolutions_List_NoTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -353,7 +340,7 @@ func TestSolutions_List_NoTeam(t *testing.T) {
 	c1 := h.CreateBasicChallenge(tokenAdmin, "No Team Chall", "FLAG{nt}", 100)
 	h.AdminUpsertSolution(tokenAdmin, c1, "## nt writeup", http.StatusOK)
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_list_nt_usr_" + suffix)
 
 	resp := h.ListSolutionsExpectOneOf(tokenUser, []int{http.StatusOK, http.StatusForbidden})

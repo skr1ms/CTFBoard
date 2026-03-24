@@ -9,25 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
 )
 
 type apiTokenTestDeps struct {
-	apiTokenRepo *mocks.MockAPITokenRepository
+	apiTokenRepo *userMock.MockAPITokenRepository
 }
 
 func newAPITokenTestDeps(t *testing.T) *apiTokenTestDeps {
 	t.Helper()
-	return &apiTokenTestDeps{apiTokenRepo: mocks.NewMockAPITokenRepository(t)}
+	return &apiTokenTestDeps{apiTokenRepo: userMock.NewMockAPITokenRepository(t)}
 }
 
 func (d *apiTokenTestDeps) createUseCase() *APITokenUseCase {
 	return NewAPITokenUseCase(APITokenDeps{Repo: d.apiTokenRepo})
 }
 
-func newTestAPIToken(userID uuid.UUID, tokenHash, description string, expiresAt *time.Time) *entity.APIToken {
-	return &entity.APIToken{
+func newTestAPIToken(userID uuid.UUID, tokenHash, description string, expiresAt *time.Time) *domain.APIToken {
+	return &domain.APIToken{
 		ID: uuid.New(), UserID: userID, TokenHash: tokenHash, Description: description,
 		ExpiresAt: expiresAt, CreatedAt: time.Now(),
 	}
@@ -38,7 +38,7 @@ func TestAPITokenUseCase_List_Success(t *testing.T) {
 	d := newAPITokenTestDeps(t)
 	ctx := context.Background()
 	userID := uuid.New()
-	tokens := []*entity.APIToken{newTestAPIToken(userID, "hash", "desc", nil)}
+	tokens := []*domain.APIToken{newTestAPIToken(userID, "hash", "desc", nil)}
 
 	d.apiTokenRepo.EXPECT().GetByUserID(mock.Anything, userID).Return(tokens, nil)
 
@@ -73,7 +73,7 @@ func TestAPITokenUseCase_Create_Success(t *testing.T) {
 	desc := "token"
 	var exp *time.Time
 
-	d.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, token *entity.APIToken) {
+	d.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, token *domain.APIToken) {
 		assert.Equal(t, userID, token.UserID)
 		assert.Equal(t, desc, token.Description)
 		assert.Equal(t, exp, token.ExpiresAt)

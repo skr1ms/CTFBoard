@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
@@ -22,7 +22,7 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 	}
 	forceLive := params.Live != nil && *params.Live
 	if forceLive {
-		if user, ok := middleware.GetUser(r.Context()); !ok || user.Role != entity.RoleAdmin {
+		if user, ok := middleware.GetUser(r.Context()); !ok || user.Role != domain.RoleAdmin {
 			forceLive = false
 		}
 	}
@@ -30,19 +30,19 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 	if h.OnError(w, r, err, "GetScoreboard", "GetScoreboard") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromScoreboardList(entries))
+	httputil.RenderOK(w, r, response.FromScoreboardList(entries))
 }
 
 // Get first blood
 // (GET /challenges/{ID}/first-blood)
 func (h *Server) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetChallengesChallengeIDFirstBloodParams) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
 	forceLive := params.Live != nil && *params.Live
 	if forceLive {
-		if user, ok := middleware.GetUser(r.Context()); !ok || user.Role != entity.RoleAdmin {
+		if user, ok := middleware.GetUser(r.Context()); !ok || user.Role != domain.RoleAdmin {
 			forceLive = false
 		}
 	}
@@ -50,5 +50,5 @@ func (h *Server) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *ht
 	if h.OnError(w, r, err, "GetChallengesChallengeIDFirstBlood", "GetFirstBlood") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromFirstBlood(entry))
+	httputil.RenderOK(w, r, response.FromFirstBlood(entry))
 }

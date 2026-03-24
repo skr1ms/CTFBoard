@@ -12,7 +12,6 @@ import (
 
 // GET /challenges/{ID}/first-blood: first solver is credited as first blood; response contains username/team.
 func TestFirstBlood_Display(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -26,7 +25,7 @@ func TestFirstBlood_Display(t *testing.T) {
 		"flag":        "FLAG{firstblood}",
 		"points":      100,
 		"category":    "web",
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	_, _, tokenUser1 := h.RegisterUserAndLogin("fbuser1_" + suffix)
@@ -36,7 +35,7 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{firstblood}", http.StatusOK)
 
-	time.Sleep(1 * time.Second)
+	require.Eventually(t, func() bool { return h.FirstBloodAvailable(tokenUser1, challengeID) }, 2*time.Second, 100*time.Millisecond)
 
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
 
@@ -45,7 +44,6 @@ func TestFirstBlood_Display(t *testing.T) {
 
 // GET /challenges/{ID}/first-blood: unsolved challenge returns 404 with "solve not found".
 func TestFirstBlood_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -67,7 +65,6 @@ func TestFirstBlood_NotFound(t *testing.T) {
 
 // GET /challenges/{ID}/first-blood: invalid challenge ID format returns 400.
 func TestFirstBlood_InvalidID(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, token := h.SetupCompetition("adminfb3")

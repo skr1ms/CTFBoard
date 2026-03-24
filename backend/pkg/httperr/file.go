@@ -6,34 +6,10 @@ import (
 )
 
 var (
-	ErrFileNotFound = &HTTPError{
-		Err:        errors.New("file not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "FILE_NOT_FOUND",
-	}
-	ErrWriteupAccessDenied = &HTTPError{
-		Err:        errors.New("writeup access denied: solve the challenge first"),
-		StatusCode: http.StatusForbidden,
-		Code:       "WRITEUP_ACCESS_DENIED",
-	}
-	ErrWriteupsDisabled = &HTTPError{
-		Err:        errors.New("writeups are disabled"),
-		StatusCode: http.StatusForbidden,
-		Code:       "WRITEUPS_DISABLED",
-	}
-	ErrFileIDMismatch = &HTTPError{
-		Err:        errors.New("file ID mismatch"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "FILE_ID_MISMATCH",
-	}
-	ErrFileInvalidToken = &HTTPError{
-		Err:        errors.New("invalid file token"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "FILE_INVALID_TOKEN",
-	}
-	ErrFileTokenExpired = &HTTPError{
-		Err:        errors.New("file token expired"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "FILE_TOKEN_EXPIRED",
-	}
+	ErrFileNotFound        = New(errors.New("file not found"), http.StatusNotFound, "FILE_NOT_FOUND")
+	ErrWriteupAccessDenied = New(errors.New("writeup access denied: solve the challenge first"), http.StatusForbidden, "WRITEUP_ACCESS_DENIED")
+	ErrWriteupsDisabled    = New(errors.New("writeups are disabled"), http.StatusForbidden, "WRITEUPS_DISABLED")
+	ErrFileIDMismatch      = New(errors.New("file ID mismatch"), http.StatusBadRequest, "FILE_ID_MISMATCH")
+	ErrFileInvalidToken    = New(errors.New("invalid file token"), http.StatusBadRequest, "FILE_INVALID_TOKEN")
+	ErrFileTokenExpired    = New(errors.New("file token expired"), http.StatusBadRequest, "FILE_TOKEN_EXPIRED")
 )

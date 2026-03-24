@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestTagUseCase_Create_Success(t *testing.T) {
@@ -17,7 +17,7 @@ func TestTagUseCase_Create_Success(t *testing.T) {
 	ctx := context.Background()
 	name, color := "tag1", "#ff0000"
 
-	d.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
+	d.tagRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *domain.Tag) {
 		assert.Equal(t, name, tag.Name)
 		assert.Equal(t, color, tag.Color)
 	})
@@ -83,7 +83,7 @@ func TestTagUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Tag{newTestTag("t1", "#aaa"), newTestTag("t2", "#bbb")}
+	list := []*domain.Tag{newTestTag("t1", "#aaa"), newTestTag("t2", "#bbb")}
 
 	d.tagRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
@@ -118,7 +118,7 @@ func TestTagUseCase_Update_Success(t *testing.T) {
 	name, color := "new", "#fff"
 
 	d.tagRepo.EXPECT().GetByID(mock.Anything, id).Return(tag, nil)
-	d.tagRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *entity.Tag) {
+	d.tagRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, tag *domain.Tag) {
 		assert.Equal(t, name, tag.Name)
 		assert.Equal(t, color, tag.Color)
 	})

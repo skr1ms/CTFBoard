@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteConfig = `-- name: DeleteConfig :exec
@@ -88,23 +90,58 @@ func (q *Queries) GetConfigByKeyForUpdate(ctx context.Context, key string) (Comp
 	return i, err
 }
 
+const getConfigsByCategory = `-- name: GetConfigsByCategory :many
+SELECT key, value, value_type, description, category, updated_at
+FROM configs
+WHERE category = $1
+ORDER BY key ASC
+`
+
+func (q *Queries) GetConfigsByCategory(ctx context.Context, category string) ([]CompetitionParam, error) {
+	rows, err := q.db.Query(ctx, getConfigsByCategory, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CompetitionParam
+	for rows.Next() {
+		var i CompetitionParam
+		if err := rows.Scan(
+			&i.Key,
+			&i.Value,
+			&i.ValueType,
+			&i.Description,
+			&i.Category,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertConfig = `-- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, category, updated_at)
-VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
     value_type = EXCLUDED.value_type,
     description = EXCLUDED.description,
     category = EXCLUDED.category,
-    updated_at = CURRENT_TIMESTAMP
+    updated_at = EXCLUDED.updated_at
 `
 
 type UpsertConfigParams struct {
-	Key         string  `json:"key"`
-	Value       string  `json:"value"`
-	ValueType   string  `json:"value_type"`
-	Description *string `json:"description"`
-	Category    string  `json:"category"`
+	Key         string             `json:"key"`
+	Value       string             `json:"value"`
+	ValueType   string             `json:"value_type"`
+	Description *string            `json:"description"`
+	Category    string             `json:"category"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpsertConfig(ctx context.Context, arg UpsertConfigParams) error {
@@ -114,6 +151,7 @@ func (q *Queries) UpsertConfig(ctx context.Context, arg UpsertConfigParams) erro
 		arg.ValueType,
 		arg.Description,
 		arg.Category,
+		arg.UpdatedAt,
 	)
 	return err
 }

@@ -8,14 +8,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	cachemocks "github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mocks"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	cacheMock "github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mock"
 )
 
 func TestNewScoreboardCacheService(t *testing.T) {
 	t.Parallel()
 	client, _ := redismock.NewClientMock()
-	c := New(client)
-	getter := cachemocks.NewMockTeamBracketIDGetter(t)
+	c := cachekit.New(client)
+	getter := cacheMock.NewMockTeamBracketIDGetter(t)
 	svc := NewScoreboardCacheService(c, getter)
 	require.NotNil(t, svc)
 }
@@ -23,7 +25,7 @@ func TestNewScoreboardCacheService(t *testing.T) {
 func TestScoreboardCacheService_InvalidateAll_Success(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
-	c := New(client)
+	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
 	ctx := context.Background()
 
@@ -44,7 +46,7 @@ func TestScoreboardCacheService_InvalidateAll_NilCache(t *testing.T) {
 func TestScoreboardCacheService_InvalidateForTeam_Success(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
-	c := New(client)
+	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
 	ctx := context.Background()
 
@@ -58,7 +60,7 @@ func TestScoreboardCacheService_InvalidateForTeam_Success(t *testing.T) {
 func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
-	c := New(client)
+	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
 	ctx := context.Background()
 
@@ -72,8 +74,8 @@ func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 func TestScoreboardCacheService_InvalidateForTeam_WithGetter(t *testing.T) {
 	t.Parallel()
 	client, redisMock := redismock.NewClientMock()
-	c := New(client)
-	svc := NewScoreboardCacheService(c, cachemocks.NewMockTeamBracketIDGetter(t))
+	c := cachekit.New(client)
+	svc := NewScoreboardCacheService(c, cacheMock.NewMockTeamBracketIDGetter(t))
 	ctx := context.Background()
 
 	redisMock.ExpectDel(KeyScoreboard, KeyScoreboardFrozen).SetVal(0)

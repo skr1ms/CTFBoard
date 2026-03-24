@@ -32,7 +32,7 @@ INSERT INTO configs (key, value, value_type, description, category) VALUES
 ('csv_delimiter', ',', 'string', 'CSV export delimiter', 'advanced'),
 ('max_content_length', '10485760', 'int', 'Max content size in bytes (10MB)', 'advanced'),
 ('registration_code', '', 'string', 'Registration access code (empty = disabled)', 'advanced'),
-('domain_whitelist', '', 'string', 'Allowed email domains (comma-separated, empty = all)', 'advanced'),
+('entity_whitelist', '', 'string', 'Allowed email entitys (comma-separated, empty = all)', 'advanced'),
 ('password_min_length', '8', 'int', 'Minimum password length', 'advanced')
 ON CONFLICT (key) DO NOTHING;
 
@@ -45,5 +45,5 @@ DELETE FROM configs WHERE key IN (
 'mail_verification_subject','mail_verification_body','mail_reset_subject','mail_reset_body',
 'social_github','social_discord','social_twitter','social_website',
 'tos_url','tos_text','privacy_url','privacy_text',
-'html_sanitization','csv_delimiter','max_content_length','registration_code','domain_whitelist','password_min_length'
+'html_sanitization','csv_delimiter','max_content_length','registration_code','entity_whitelist','password_min_length'
 );

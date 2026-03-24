@@ -4,10 +4,74 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
+
+type adminSettingsBody struct {
+	AppName                          string `mapstructure:"app_name"`
+	CorsOrigins                      string `mapstructure:"cors_origins"`
+	FrontendURL                      string `mapstructure:"frontend_url"`
+	ResendFromEmail                  string `mapstructure:"resend_from_email"`
+	ResendFromName                   string `mapstructure:"resend_from_name"`
+	SubmitLimitPerUser               *int   `mapstructure:"submit_limit_per_user"`
+	SubmitLimitDurationMin           *int   `mapstructure:"submit_limit_duration_min"`
+	VerifyTTLHours                   *int   `mapstructure:"verify_ttl_hours"`
+	ResetTTLHours                    *int   `mapstructure:"reset_ttl_hours"`
+	VerifyEmails                     *bool  `mapstructure:"verify_emails"`
+	RegistrationOpen                 *bool  `mapstructure:"registration_open"`
+	ResendEnabled                    *bool  `mapstructure:"resend_enabled"`
+	ScoreboardVisible                string `mapstructure:"scoreboard_visible"`
+	WriteupEnabled                   *bool  `mapstructure:"writeup_enabled"`
+	RateLimitForgotPasswordPerMinute *int   `mapstructure:"rate_limit_forgot_password_per_minute"`
+}
+
+func bodyToPutAdminSettingsRequest(body map[string]any) (openapi.PutAdminSettingsJSONRequestBody, error) {
+	var b adminSettingsBody
+	if err := decodeMap(body, &b); err != nil {
+		return openapi.PutAdminSettingsJSONRequestBody{}, err
+	}
+	req := openapi.PutAdminSettingsJSONRequestBody{
+		AppName:         lo.ToPtr(b.AppName),
+		CorsOrigins:     lo.ToPtr(b.CorsOrigins),
+		FrontendURL:     lo.ToPtr(b.FrontendURL),
+		ResendFromEmail: lo.ToPtr(b.ResendFromEmail),
+		ResendFromName:  lo.ToPtr(b.ResendFromName),
+	}
+	if b.SubmitLimitPerUser != nil && *b.SubmitLimitPerUser != 0 {
+		req.SubmitLimitPerUser = b.SubmitLimitPerUser
+	}
+	if b.SubmitLimitDurationMin != nil && *b.SubmitLimitDurationMin != 0 {
+		req.SubmitLimitDurationMin = b.SubmitLimitDurationMin
+	}
+	if b.VerifyTTLHours != nil && *b.VerifyTTLHours != 0 {
+		req.VerifyTTLHours = b.VerifyTTLHours
+	}
+	if b.ResetTTLHours != nil && *b.ResetTTLHours != 0 {
+		req.ResetTTLHours = b.ResetTTLHours
+	}
+	if b.VerifyEmails != nil {
+		req.VerifyEmails = b.VerifyEmails
+	}
+	if b.RegistrationOpen != nil {
+		req.RegistrationOpen = b.RegistrationOpen
+	}
+	if b.ResendEnabled != nil {
+		req.ResendEnabled = b.ResendEnabled
+	}
+	if b.ScoreboardVisible != "" {
+		req.ScoreboardVisible = (*openapi.UpdateAppSettingsRequestScoreboardVisible)(&b.ScoreboardVisible)
+	}
+	if b.WriteupEnabled != nil {
+		req.WriteupEnabled = b.WriteupEnabled
+	}
+	if b.RateLimitForgotPasswordPerMinute != nil && *b.RateLimitForgotPasswordPerMinute >= 1 {
+		req.RateLimitForgotPasswordPerMinute = b.RateLimitForgotPasswordPerMinute
+	}
+	return req, nil
+}
 
 func (h *E2EHelper) GetAdminSettings(token string) *openapi.GetAdminSettingsResponse {
 	h.t.Helper()
@@ -22,87 +86,20 @@ func (h *E2EHelper) GetAdminSettingsExpectStatus(token string, expectStatus int)
 	return resp
 }
 
-func strPtr(s string) *string { return &s }
-
 func (h *E2EHelper) PutAdminSettings(token string, body map[string]any, expectStatus int) *openapi.PutAdminSettingsResponse {
 	h.t.Helper()
-	req := openapi.PutAdminSettingsJSONRequestBody{
-		AppName:         strPtr(getStr(body, "app_name", "")),
-		CorsOrigins:     strPtr(getStr(body, "cors_origins", "")),
-		FrontendURL:     strPtr(getStr(body, "frontend_url", "")),
-		ResendFromEmail: strPtr(getStr(body, "resend_from_email", "")),
-		ResendFromName:  strPtr(getStr(body, "resend_from_name", "")),
-	}
-	if v := getInt(body, "submit_limit_per_user"); v != 0 {
-		req.SubmitLimitPerUser = &v
-	}
-	if v := getInt(body, "submit_limit_duration_min"); v != 0 {
-		req.SubmitLimitDurationMin = &v
-	}
-	if v := getInt(body, "verify_ttl_hours"); v != 0 {
-		req.VerifyTTLHours = &v
-	}
-	if v := getInt(body, "reset_ttl_hours"); v != 0 {
-		req.ResetTTLHours = &v
-	}
-	if v, ok := body["verify_emails"].(bool); ok {
-		req.VerifyEmails = &v
-	}
-	if v, ok := body["registration_open"].(bool); ok {
-		req.RegistrationOpen = &v
-	}
-	if v, ok := body["resend_enabled"].(bool); ok {
-		req.ResendEnabled = &v
-	}
-	if v, ok := body["scoreboard_visible"].(string); ok {
-		req.ScoreboardVisible = (*openapi.UpdateAppSettingsRequestScoreboardVisible)(&v)
-	}
-	if v, ok := body["writeup_enabled"].(bool); ok {
-		req.WriteupEnabled = &v
-	}
+	req, err := bodyToPutAdminSettingsRequest(body)
+	require.NoError(h.t, err)
 	resp, err := h.client.PutAdminSettingsWithResponse(context.Background(), req, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "put admin settings")
 	return resp
 }
 
-// PutAdminSettingsExpectOneOf sends PUT /admin/settings and requires status to be one of allowedStatuses (e.g. 400 or 403 when competition is active).
 func (h *E2EHelper) PutAdminSettingsExpectOneOf(token string, body map[string]any, allowedStatuses []int) *openapi.PutAdminSettingsResponse {
 	h.t.Helper()
-	req := openapi.PutAdminSettingsJSONRequestBody{
-		AppName:         strPtr(getStr(body, "app_name", "")),
-		CorsOrigins:     strPtr(getStr(body, "cors_origins", "")),
-		FrontendURL:     strPtr(getStr(body, "frontend_url", "")),
-		ResendFromEmail: strPtr(getStr(body, "resend_from_email", "")),
-		ResendFromName:  strPtr(getStr(body, "resend_from_name", "")),
-	}
-	if v := getInt(body, "submit_limit_per_user"); v != 0 {
-		req.SubmitLimitPerUser = &v
-	}
-	if v := getInt(body, "submit_limit_duration_min"); v != 0 {
-		req.SubmitLimitDurationMin = &v
-	}
-	if v := getInt(body, "verify_ttl_hours"); v != 0 {
-		req.VerifyTTLHours = &v
-	}
-	if v := getInt(body, "reset_ttl_hours"); v != 0 {
-		req.ResetTTLHours = &v
-	}
-	if v, ok := body["verify_emails"].(bool); ok {
-		req.VerifyEmails = &v
-	}
-	if v, ok := body["registration_open"].(bool); ok {
-		req.RegistrationOpen = &v
-	}
-	if v, ok := body["resend_enabled"].(bool); ok {
-		req.ResendEnabled = &v
-	}
-	if v, ok := body["scoreboard_visible"].(string); ok {
-		req.ScoreboardVisible = (*openapi.UpdateAppSettingsRequestScoreboardVisible)(&v)
-	}
-	if v, ok := body["writeup_enabled"].(bool); ok {
-		req.WriteupEnabled = &v
-	}
+	req, err := bodyToPutAdminSettingsRequest(body)
+	require.NoError(h.t, err)
 	resp, err := h.client.PutAdminSettingsWithResponse(context.Background(), req, WithBearerToken(token))
 	require.NoError(h.t, err)
 	require.Contains(h.t, allowedStatuses, resp.StatusCode(), "put admin settings: status %d not in %v body=%s", resp.StatusCode(), allowedStatuses, string(resp.Body))

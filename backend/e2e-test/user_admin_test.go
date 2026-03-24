@@ -15,7 +15,6 @@ import (
 
 // GET /admin/users: admin gets paginated user list.
 func TestAdminUsers_List_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -34,7 +33,6 @@ func TestAdminUsers_List_Success(t *testing.T) {
 
 // GET /admin/users: non-admin returns 403 Forbidden.
 func TestAdminUsers_List_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -48,7 +46,6 @@ func TestAdminUsers_List_Forbidden(t *testing.T) {
 
 // POST /admin/users: admin creates user with role.
 func TestAdminUsers_Create_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -69,7 +66,6 @@ func TestAdminUsers_Create_Success(t *testing.T) {
 
 // POST /admin/users: non-admin returns 403 Forbidden.
 func TestAdminUsers_Create_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -90,7 +86,6 @@ func TestAdminUsers_Create_Forbidden(t *testing.T) {
 
 // PATCH /admin/users/{ID}: admin updates user email.
 func TestAdminUsers_Update_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -108,7 +103,6 @@ func TestAdminUsers_Update_Success(t *testing.T) {
 
 // PATCH /admin/users/{ID}: user not found returns 404.
 func TestAdminUsers_Update_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -123,7 +117,6 @@ func TestAdminUsers_Update_NotFound(t *testing.T) {
 
 // DELETE /admin/users/{ID}: admin deletes user.
 func TestAdminUsers_Delete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -137,9 +130,8 @@ func TestAdminUsers_Delete_Success(t *testing.T) {
 	helper.RequireStatus(t, http.StatusNoContent, resp.StatusCode(), resp.Body, "admin delete user")
 }
 
-// DELETE /admin/users/{ID}: user not found --> 404.
+// DELETE /admin/users/{ID}: user not found -> 404.
 func TestAdminUsers_Delete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -152,7 +144,6 @@ func TestAdminUsers_Delete_NotFound(t *testing.T) {
 
 // GET /admin/users/{ID}/tracking: admin gets IP tracking for user.
 func TestAdminUsers_GetTracking_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -170,7 +161,6 @@ func TestAdminUsers_GetTracking_Success(t *testing.T) {
 
 // GET /admin/users/{ID}/tracking: non-admin returns 403.
 func TestAdminUsers_GetTracking_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -188,14 +178,15 @@ func TestAdminUsers_GetTracking_Forbidden(t *testing.T) {
 
 // GET /admin/users/{ID}/missing-challenges: admin gets unsolved challenges for user.
 func TestAdminUsers_GetMissingChallenges_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("adm_missing_ch")
 	uid := helper.UID()
-	h.Register("missing_"+uid, "missing_"+uid+"@test.com", "ValidPass1")
-	userID := h.GetUserIDByEmail("missing_" + uid + "@test.com")
+	_, _, tokenUser := h.RegisterUserAndLogin("missing_" + uid)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+	userID := h.GetUserIDByEmail("missing_" + uid + "@example.com")
+	h.InvalidateUserCache(userID)
 
 	h.CreateBasicChallenge(tokenAdmin, "Missing Chall", "flag{miss}", 100)
 
@@ -208,7 +199,6 @@ func TestAdminUsers_GetMissingChallenges_Success(t *testing.T) {
 
 // GET /admin/users/{ID}/missing-challenges: user not found returns 200 with empty list.
 func TestAdminUsers_GetMissingChallenges_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -221,7 +211,6 @@ func TestAdminUsers_GetMissingChallenges_NotFound(t *testing.T) {
 
 // GET /users/me/solves: authed user gets own solves.
 func TestUsers_MeSolves_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -238,7 +227,6 @@ func TestUsers_MeSolves_Success(t *testing.T) {
 
 // GET /users/me/solves: no auth returns 401.
 func TestUsers_MeSolves_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -249,7 +237,6 @@ func TestUsers_MeSolves_Unauthorized(t *testing.T) {
 
 // GET /users/{ID}/solves: authed gets another user's solves.
 func TestUsers_IDSolves_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -263,9 +250,8 @@ func TestUsers_IDSolves_Success(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get user id solves")
 }
 
-// GET /users/{ID}/solves: user not found --> 404.
+// GET /users/{ID}/solves: user not found -> 404.
 func TestUsers_IDSolves_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -278,7 +264,6 @@ func TestUsers_IDSolves_NotFound(t *testing.T) {
 
 // GET /users/me/fails: authed gets own failed submissions.
 func TestUsers_MeFails_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -297,7 +282,6 @@ func TestUsers_MeFails_Success(t *testing.T) {
 
 // GET /users/me/fails: no auth returns 401.
 func TestUsers_MeFails_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -310,7 +294,6 @@ func TestUsers_MeFails_Unauthorized(t *testing.T) {
 
 // GET /users/me/submissions: authed gets own submissions.
 func TestUsers_MeSubmissions_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -325,7 +308,6 @@ func TestUsers_MeSubmissions_Success(t *testing.T) {
 
 // GET /users/me/submissions: no auth returns 401.
 func TestUsers_MeSubmissions_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -338,7 +320,6 @@ func TestUsers_MeSubmissions_Unauthorized(t *testing.T) {
 
 // GET /users/me/awards: authed gets own awards.
 func TestUsers_MeAwards_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -351,7 +332,6 @@ func TestUsers_MeAwards_Success(t *testing.T) {
 
 // GET /users/me/awards: no auth returns 401.
 func TestUsers_MeAwards_Unauthorized(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -362,7 +342,6 @@ func TestUsers_MeAwards_Unauthorized(t *testing.T) {
 
 // GET /users/{ID}/awards: authed gets user's awards.
 func TestUsers_IDAwards_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -378,7 +357,6 @@ func TestUsers_IDAwards_Success(t *testing.T) {
 
 // GET /users/{ID}/awards: user not found returns 404.
 func TestUsers_IDAwards_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

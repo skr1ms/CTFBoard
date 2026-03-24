@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
-func setupValidatorGetByEntityType(d *fieldTestDeps, entityType entity.EntityType, fields []*entity.Field) {
+func setupValidatorGetByEntityType(d *fieldTestDeps, entityType domain.EntityType, fields []*domain.Field) {
 	d.fieldRepo.EXPECT().GetByEntityType(mock.Anything, entityType).Return(fields, nil)
 }
 
-func setupValidatorGetByEntityTypeError(d *fieldTestDeps, entityType entity.EntityType, err error) {
+func setupValidatorGetByEntityTypeError(d *fieldTestDeps, entityType domain.EntityType, err error) {
 	d.fieldRepo.EXPECT().GetByEntityType(mock.Anything, entityType).Return(nil, err)
 }
 
@@ -23,10 +23,10 @@ func TestFieldValidator_ValidateValues_Success(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f1 := newTestField("name", entity.FieldTypeText, entityType, true, nil, 0)
-	f2 := newTestField("age", entity.FieldTypeNumber, entityType, false, nil, 1)
-	fields := []*entity.Field{f1, f2}
+	entityType := domain.EntityTypeUser
+	f1 := newTestField("name", domain.FieldTypeText, entityType, true, nil, 0)
+	f2 := newTestField("age", domain.FieldTypeNumber, entityType, false, nil, 1)
+	fields := []*domain.Field{f1, f2}
 	values := map[uuid.UUID]string{
 		f1.ID: "short",
 		f2.ID: "42",
@@ -43,7 +43,7 @@ func TestFieldValidator_ValidateValues_RepoError(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
+	entityType := domain.EntityTypeUser
 
 	setupValidatorGetByEntityTypeError(d, entityType, assert.AnError)
 	v := d.createFieldValidator()
@@ -56,9 +56,9 @@ func TestFieldValidator_ValidateValues_UnknownField(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("name", entity.FieldTypeText, entityType, false, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("name", domain.FieldTypeText, entityType, false, nil, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{
 		uuid.New(): "value",
 	}
@@ -75,9 +75,9 @@ func TestFieldValidator_ValidateValues_RequiredMissing(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("required", entity.FieldTypeText, entityType, true, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("required", domain.FieldTypeText, entityType, true, nil, 0)
+	fields := []*domain.Field{f}
 
 	setupValidatorGetByEntityType(d, entityType, fields)
 	v := d.createFieldValidator()
@@ -91,9 +91,9 @@ func TestFieldValidator_ValidateValues_NumberInvalid(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("age", entity.FieldTypeNumber, entityType, false, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("age", domain.FieldTypeNumber, entityType, false, nil, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{f.ID: "not-a-number"}
 
 	setupValidatorGetByEntityType(d, entityType, fields)
@@ -108,9 +108,9 @@ func TestFieldValidator_ValidateValues_BooleanInvalid(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("flag", entity.FieldTypeBoolean, entityType, false, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("flag", domain.FieldTypeBoolean, entityType, false, nil, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{f.ID: "yes"}
 
 	setupValidatorGetByEntityType(d, entityType, fields)
@@ -125,10 +125,10 @@ func TestFieldValidator_ValidateValues_SelectInvalidOption(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
+	entityType := domain.EntityTypeUser
 	opts := []string{"a", "b"}
-	f := newTestField("choice", entity.FieldTypeSelect, entityType, false, opts, 0)
-	fields := []*entity.Field{f}
+	f := newTestField("choice", domain.FieldTypeSelect, entityType, false, opts, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{f.ID: "c"}
 
 	setupValidatorGetByEntityType(d, entityType, fields)
@@ -143,9 +143,9 @@ func TestFieldValidator_ValidateValues_TextTooLong(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("desc", entity.FieldTypeText, entityType, false, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("desc", domain.FieldTypeText, entityType, false, nil, 0)
+	fields := []*domain.Field{f}
 	long := make([]byte, 501)
 	for i := range long {
 		long[i] = 'x'
@@ -164,10 +164,10 @@ func TestFieldValidator_ValidateValues_SelectSuccess(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeTeam
+	entityType := domain.EntityTypeTeam
 	opts := []string{"a", "b"}
-	f := newTestField("choice", entity.FieldTypeSelect, entityType, true, opts, 0)
-	fields := []*entity.Field{f}
+	f := newTestField("choice", domain.FieldTypeSelect, entityType, true, opts, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{f.ID: "a"}
 
 	setupValidatorGetByEntityType(d, entityType, fields)
@@ -181,9 +181,9 @@ func TestFieldValidator_ValidateValues_BooleanSuccess(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	f := newTestField("flag", entity.FieldTypeBoolean, entityType, false, nil, 0)
-	fields := []*entity.Field{f}
+	entityType := domain.EntityTypeUser
+	f := newTestField("flag", domain.FieldTypeBoolean, entityType, false, nil, 0)
+	fields := []*domain.Field{f}
 	values := map[uuid.UUID]string{f.ID: "true"}
 
 	setupValidatorGetByEntityType(d, entityType, fields)

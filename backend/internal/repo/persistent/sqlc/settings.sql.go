@@ -168,43 +168,44 @@ UPDATE app_settings SET
     writeup_enabled = $30,
     oauth_github_enabled = $31,
     oauth_google_enabled = $32,
-    updated_at = NOW()
+    updated_at = $33
 WHERE id = 1
 `
 
 type UpdateAppSettingsParams struct {
-	AppName                          string `json:"app_name"`
-	VerifyEmails                     bool   `json:"verify_emails"`
-	FrontendURL                      string `json:"frontend_url"`
-	CORSOrigins                      string `json:"cors_origins"`
-	ResendEnabled                    bool   `json:"resend_enabled"`
-	ResendFromEmail                  string `json:"resend_from_email"`
-	ResendFromName                   string `json:"resend_from_name"`
-	VerifyTTLHours                   int32  `json:"verify_ttl_hours"`
-	ResetTTLHours                    int32  `json:"reset_ttl_hours"`
-	SubmitLimitPerUser               int32  `json:"submit_limit_per_user"`
-	SubmitLimitDurationMin           int32  `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string `json:"scoreboard_visible"`
-	RegistrationOpen                 bool   `json:"registration_open"`
-	DefaultPerPage                   int32  `json:"default_per_page"`
-	MaxPerPage                       int32  `json:"max_per_page"`
-	CSVExportMaxRows                 int32  `json:"csv_export_max_rows"`
-	RateLimitLoginPerMinute          int32  `json:"rate_limit_login_per_minute"`
-	RateLimitRegisterPerMinute       int32  `json:"rate_limit_register_per_minute"`
-	RateLimitForgotPasswordPerMinute int32  `json:"rate_limit_forgot_password_per_minute"`
-	RateLimitResetPasswordPerMinute  int32  `json:"rate_limit_reset_password_per_minute"`
-	RateLimitLogoutPerMinute         int32  `json:"rate_limit_logout_per_minute"`
-	RateLimitRefreshPerMinute        int32  `json:"rate_limit_refresh_per_minute"`
-	RateLimitScoreboardPerMinute     int32  `json:"rate_limit_scoreboard_per_minute"`
-	RateLimitGeneralIPPerMinute      int32  `json:"rate_limit_general_ip_per_minute"`
-	RateLimitVerifyEmailPerMinute    int32  `json:"rate_limit_verify_email_per_minute"`
-	RateLimitOAuthCallbackPerMinute  int32  `json:"rate_limit_oauth_callback_per_minute"`
-	RateLimitOAuthRedirectPerMinute  int32  `json:"rate_limit_oauth_redirect_per_minute"`
-	RateLimitCommentPerMinute        int32  `json:"rate_limit_comment_per_minute"`
-	MaxTeams                         int32  `json:"max_teams"`
-	WriteupEnabled                   bool   `json:"writeup_enabled"`
-	OAuthGithubEnabled               bool   `json:"oauth_github_enabled"`
-	OAuthGoogleEnabled               bool   `json:"oauth_google_enabled"`
+	AppName                          string             `json:"app_name"`
+	VerifyEmails                     bool               `json:"verify_emails"`
+	FrontendURL                      string             `json:"frontend_url"`
+	CORSOrigins                      string             `json:"cors_origins"`
+	ResendEnabled                    bool               `json:"resend_enabled"`
+	ResendFromEmail                  string             `json:"resend_from_email"`
+	ResendFromName                   string             `json:"resend_from_name"`
+	VerifyTTLHours                   int32              `json:"verify_ttl_hours"`
+	ResetTTLHours                    int32              `json:"reset_ttl_hours"`
+	SubmitLimitPerUser               int32              `json:"submit_limit_per_user"`
+	SubmitLimitDurationMin           int32              `json:"submit_limit_duration_min"`
+	ScoreboardVisible                string             `json:"scoreboard_visible"`
+	RegistrationOpen                 bool               `json:"registration_open"`
+	DefaultPerPage                   int32              `json:"default_per_page"`
+	MaxPerPage                       int32              `json:"max_per_page"`
+	CSVExportMaxRows                 int32              `json:"csv_export_max_rows"`
+	RateLimitLoginPerMinute          int32              `json:"rate_limit_login_per_minute"`
+	RateLimitRegisterPerMinute       int32              `json:"rate_limit_register_per_minute"`
+	RateLimitForgotPasswordPerMinute int32              `json:"rate_limit_forgot_password_per_minute"`
+	RateLimitResetPasswordPerMinute  int32              `json:"rate_limit_reset_password_per_minute"`
+	RateLimitLogoutPerMinute         int32              `json:"rate_limit_logout_per_minute"`
+	RateLimitRefreshPerMinute        int32              `json:"rate_limit_refresh_per_minute"`
+	RateLimitScoreboardPerMinute     int32              `json:"rate_limit_scoreboard_per_minute"`
+	RateLimitGeneralIPPerMinute      int32              `json:"rate_limit_general_ip_per_minute"`
+	RateLimitVerifyEmailPerMinute    int32              `json:"rate_limit_verify_email_per_minute"`
+	RateLimitOAuthCallbackPerMinute  int32              `json:"rate_limit_oauth_callback_per_minute"`
+	RateLimitOAuthRedirectPerMinute  int32              `json:"rate_limit_oauth_redirect_per_minute"`
+	RateLimitCommentPerMinute        int32              `json:"rate_limit_comment_per_minute"`
+	MaxTeams                         int32              `json:"max_teams"`
+	WriteupEnabled                   bool               `json:"writeup_enabled"`
+	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
+	OAuthGoogleEnabled               bool               `json:"oauth_google_enabled"`
+	UpdatedAt                        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) error {
@@ -241,6 +242,7 @@ func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsPa
 		arg.WriteupEnabled,
 		arg.OAuthGithubEnabled,
 		arg.OAuthGoogleEnabled,
+		arg.UpdatedAt,
 	)
 	return err
 }
@@ -279,8 +281,8 @@ UPDATE app_settings SET
     writeup_enabled = $30,
     oauth_github_enabled = $31,
     oauth_google_enabled = $32,
-    updated_at = NOW()
-WHERE id = 1 AND updated_at = $33
+    updated_at = $33
+WHERE id = 1 AND updated_at = $34
 RETURNING id
 `
 
@@ -318,6 +320,7 @@ type UpdateAppSettingsIfCurrentParams struct {
 	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
 	OAuthGoogleEnabled               bool               `json:"oauth_google_enabled"`
 	UpdatedAt                        pgtype.Timestamptz `json:"updated_at"`
+	UpdatedAt_2                      pgtype.Timestamptz `json:"updated_at_2"`
 }
 
 func (q *Queries) UpdateAppSettingsIfCurrent(ctx context.Context, arg UpdateAppSettingsIfCurrentParams) (int32, error) {
@@ -355,6 +358,7 @@ func (q *Queries) UpdateAppSettingsIfCurrent(ctx context.Context, arg UpdateAppS
 		arg.OAuthGithubEnabled,
 		arg.OAuthGoogleEnabled,
 		arg.UpdatedAt,
+		arg.UpdatedAt_2,
 	)
 	var id int32
 	err := row.Scan(&id)

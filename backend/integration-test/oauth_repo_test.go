@@ -8,21 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestOAuthRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_create")
 	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
 	ctx := context.Background()
 
-	acc := &entity.OAuthAccount{
+	acc := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: "gh-create-" + uuid.New().String(),
@@ -35,7 +34,6 @@ func TestOAuthRepo_Create_Success(t *testing.T) {
 
 func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_dup")
@@ -43,7 +41,7 @@ func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 	ctx := context.Background()
 
 	providerUserID := "gh-dup-" + uuid.New().String()
-	acc := &entity.OAuthAccount{
+	acc := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: providerUserID,
@@ -51,7 +49,7 @@ func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 	}
 	require.NoError(t, oauthRepo.Create(ctx, acc))
 
-	acc2 := &entity.OAuthAccount{
+	acc2 := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: providerUserID,
@@ -63,7 +61,6 @@ func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 
 func TestOAuthRepo_Upsert_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_upsert")
@@ -71,7 +68,7 @@ func TestOAuthRepo_Upsert_Success(t *testing.T) {
 	ctx := context.Background()
 
 	providerUserID := "gh-upsert-" + uuid.New().String()
-	acc := &entity.OAuthAccount{
+	acc := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: providerUserID,
@@ -87,7 +84,6 @@ func TestOAuthRepo_Upsert_Success(t *testing.T) {
 
 func TestOAuthRepo_GetByProvider_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_getprov")
@@ -95,7 +91,7 @@ func TestOAuthRepo_GetByProvider_Success(t *testing.T) {
 	ctx := context.Background()
 
 	providerUserID := "gh-get-" + uuid.New().String()
-	acc := &entity.OAuthAccount{
+	acc := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: providerUserID,
@@ -112,7 +108,6 @@ func TestOAuthRepo_GetByProvider_Success(t *testing.T) {
 
 func TestOAuthRepo_GetByProvider_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
 	ctx := context.Background()
@@ -123,14 +118,13 @@ func TestOAuthRepo_GetByProvider_NotFound(t *testing.T) {
 
 func TestOAuthRepo_GetByUserID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_getuserid")
 	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
 	ctx := context.Background()
 
-	acc := &entity.OAuthAccount{
+	acc := &domain.OAuthAccount{
 		UserID:         user.ID,
 		Provider:       "github",
 		ProviderUserID: "gh-uid-" + uuid.New().String(),
@@ -146,7 +140,6 @@ func TestOAuthRepo_GetByUserID_Success(t *testing.T) {
 
 func TestOAuthRepo_GetByUserID_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
 	ctx := context.Background()

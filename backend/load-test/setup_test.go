@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,17 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/testutil"
 )
 
 var (
 	testDBPool      *pgxpool.Pool
 	testRedisClient *redis.Client
+	testDBConnStr   string
 	testBaseURL     string
 	Fixture         *TestFixture
 )
@@ -40,8 +38,12 @@ func TestMain(m *testing.M) {
 	}
 	defer cleanup()
 
-	if err := runLoadTestMigrations(ctx, testDBPool); err != nil {
+	if err := goose.Run(context.Background(), testDBConnStr, filepath.Join("..", "migrations")); err != nil {
 		fmt.Printf("[load-test] migrations failed: %v\n", err)
+		os.Exit(1)
+	}
+	if _, err := testDBPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
+		fmt.Printf("[load-test] set competition start_time: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -88,32 +90,17 @@ func setupInfra(ctx context.Context) (func(), error) {
 }
 
 func setupContainerInfra(ctx context.Context) (func(), error) {
-	pgC, err := postgres.Run(ctx,
-		"postgres:17-alpine",
-		postgres.WithDatabase("loadtest"),
-		postgres.WithUsername(string(entity.RoleUser)),
-		postgres.WithPassword("password"),
-		testcontainers.WithCmd("postgres", "-c", "max_connections=400"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(120*time.Second),
-		),
+	pgC, connStr, err := testutil.StartPostgres(ctx,
+		testutil.PostgresWithDatabase("loadtest"),
+		testutil.PostgresWithUser(string(domain.RoleUser)),
+		testutil.PostgresWithPassword("password"),
+		testutil.PostgresWithCmd("postgres", "-c", "max_connections=400"),
+		testutil.PostgresWithStartupTimeout(120*time.Second),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("start postgres container: %w", err)
 	}
-
-	redisC, err := redisContainer.Run(ctx, "redis:alpine")
-	if err != nil {
-		_ = pgC.Terminate(ctx) //nolint:errcheck // best-effort cleanup on error
-		return nil, fmt.Errorf("start redis container: %w", err)
-	}
-
-	connStr, err := pgC.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		return nil, fmt.Errorf("postgres connection string: %w", err)
-	}
+	testDBConnStr = connStr
 
 	cfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
@@ -132,12 +119,16 @@ func setupContainerInfra(ctx context.Context) (func(), error) {
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
-	redisURI, err := redisC.ConnectionString(ctx)
+	redisURI, redisCleanup, err := testutil.StartRedis(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("redis connection string: %w", err)
+		if termErr := pgC.Terminate(ctx); termErr != nil {
+			fmt.Printf("postgres terminate on cleanup: %v\n", termErr)
+		}
+		return nil, fmt.Errorf("start redis: %w", err)
 	}
 	opts, err := redis.ParseURL(redisURI)
 	if err != nil {
+		redisCleanup()
 		return nil, fmt.Errorf("parse redis url: %w", err)
 	}
 	opts.PoolSize = 200
@@ -146,26 +137,28 @@ func setupContainerInfra(ctx context.Context) (func(), error) {
 	opts.PoolTimeout = 5 * time.Second
 	testRedisClient = redis.NewClient(opts)
 	if err := testRedisClient.Ping(ctx).Err(); err != nil {
+		_ = testRedisClient.Close()
+		redisCleanup()
 		return nil, fmt.Errorf("ping redis: %w", err)
 	}
 
 	return func() {
 		testDBPool.Close()
 		_ = testRedisClient.Close()
-		_ = pgC.Terminate(ctx)    //nolint:errcheck
-		_ = redisC.Terminate(ctx) //nolint:errcheck
+		redisCleanup()
+		_ = pgC.Terminate(ctx) //nolint:errcheck
 	}, nil
 }
 
 func setupExternalInfra(ctx context.Context) (func(), error) {
-	dbUser := getEnv("POSTGRES_USER", "test_user")
-	dbPass := getEnv("POSTGRES_PASSWORD", "test_password")
-	dbHost := getEnv("POSTGRES_HOST", "postgres")
-	dbPort := getEnv("POSTGRES_PORT", "5432")
-	dbName := getEnv("POSTGRES_DB", "loadtest")
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
+	dbUser := testutil.GetEnv("POSTGRES_USER", "test_user")
+	dbPass := testutil.GetEnv("POSTGRES_PASSWORD", "test_password")
+	dbHost := testutil.GetEnv("POSTGRES_HOST", "postgres")
+	dbPort := testutil.GetEnv("POSTGRES_PORT", "5432")
+	dbName := testutil.GetEnv("POSTGRES_DB", "loadtest")
+	testDBConnStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
 
-	cfg, err := pgxpool.ParseConfig(connStr)
+	cfg, err := pgxpool.ParseConfig(testDBConnStr)
 	if err != nil {
 		return nil, fmt.Errorf("parse pg config: %w", err)
 	}
@@ -185,9 +178,9 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 		return nil, fmt.Errorf("ping external db: %w", err)
 	}
 
-	redisHost := getEnv("REDIS_HOST", "redis")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "")
+	redisHost := testutil.GetEnv("REDIS_HOST", "redis")
+	redisPort := testutil.GetEnv("REDIS_PORT", "6379")
+	redisPassword := testutil.GetEnv("REDIS_PASSWORD", "")
 	testRedisClient = redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password:     redisPassword,
@@ -206,57 +199,6 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 	}, nil
 }
 
-func extractGooseUp(content string) string {
-	lines := strings.Split(content, "\n")
-	var result []string
-	inUp := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "-- +goose Up" {
-			inUp = true
-			continue
-		}
-		if trimmed == "-- +goose Down" {
-			break
-		}
-		if strings.HasPrefix(trimmed, "-- +goose") {
-			continue
-		}
-		if inUp {
-			result = append(result, strings.ReplaceAll(line, " CONCURRENTLY", ""))
-		}
-	}
-	return strings.Join(result, "\n")
-}
-
-func runLoadTestMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	migrationsDir := filepath.Join("..", "migrations")
-	files, err := os.ReadDir(migrationsDir)
-	if err != nil {
-		return fmt.Errorf("read migrations dir '%s': %w", migrationsDir, err)
-	}
-	fmt.Printf("[load-test] running migrations from %s...\n", migrationsDir)
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".sql") {
-			continue
-		}
-		raw, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
-		if err != nil {
-			return err
-		}
-		if _, err := pool.Exec(ctx, extractGooseUp(string(raw))); err != nil {
-			msg := err.Error()
-			if !strings.Contains(msg, "already exists") && !strings.Contains(msg, "duplicate key") {
-				fmt.Printf("[load-test] warn: migration %s: %v\n", f.Name(), err)
-			}
-		}
-	}
-	if _, err := pool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
-		return fmt.Errorf("set competition start: %w", err)
-	}
-	return nil
-}
-
 func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 	retry := func() error {
 		_, err := pool.Exec(ctx, `
@@ -266,7 +208,7 @@ func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 				submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
 				solutions, files, verification_tokens, awards, hint_unlocks, hints, solves,
 				challenges, teams, users, competition
-			RESTART IDENTITY CASCADE
+			RESTART IDentity CASCADE
 		`)
 		if err != nil {
 			return err
@@ -326,11 +268,4 @@ func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 		return nil
 	}, backoff.WithContext(bo, context.Background()))
-}
-
-func getEnv(key, fallback string) string {
-	if v, ok := os.LookupEnv(key); ok {
-		return v
-	}
-	return fallback
 }
