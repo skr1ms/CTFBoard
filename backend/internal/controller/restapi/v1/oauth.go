@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -50,18 +50,18 @@ func (h *Server) GetAuthOauthProviderCallback(w http.ResponseWriter, r *http.Req
 
 	if code == "" {
 		errMsg := sanitizeOAuthError(r.URL.Query().Get("error"))
-		h.OnError(w, r, helper.NewValidationErrorf("OAuth error: %s", errMsg), "GetAuthOauthProviderCallback", "MissingCode")
+		h.OnError(w, r, httperr.NewValidationErrorf("OAuth error: %s", errMsg), "GetAuthOauthProviderCallback", "MissingCode")
 		return
 	}
 
 	cookie, err := r.Cookie(oauthStateCookie)
 	if err != nil || cookie.Value == "" {
-		h.OnError(w, r, helper.ErrOAuthStateMissing, "GetAuthOauthProviderCallback", "StateCookie")
+		h.OnError(w, r, httperr.ErrOAuthStateMissing, "GetAuthOauthProviderCallback", "StateCookie")
 		return
 	}
 
 	if !h.user.OAuthUC.ValidateState(cookie.Value, queryState) {
-		h.OnError(w, r, helper.ErrOAuthStateMismatch, "GetAuthOauthProviderCallback", "StateValidate")
+		h.OnError(w, r, httperr.ErrOAuthStateMismatch, "GetAuthOauthProviderCallback", "StateValidate")
 		return
 	}
 
@@ -93,22 +93,16 @@ func (h *Server) GetAuthOauthProviderCallback(w http.ResponseWriter, r *http.Req
 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
-// oauthErrorAllowlist contains RFC 6749 standard error codes returned by OAuth providers.
-var oauthErrorAllowlist = map[string]bool{
-	"access_denied":             true,
-	"invalid_request":           true,
-	"unauthorized_client":       true,
-	"unsupported_response_type": true,
-	"invalid_scope":             true,
-	"server_error":              true,
-	"temporarily_unavailable":   true,
+var oauthErrorAllowlist = []string{
+	"access_denied", "invalid_request", "unauthorized_client",
+	"unsupported_response_type", "invalid_scope", "server_error", "temporarily_unavailable",
 }
 
-// sanitizeOAuthError returns the error code only if it is a known OAuth RFC 6749 value,
-// otherwise returns a generic message to prevent log injection via user-supplied query params.
 func sanitizeOAuthError(raw string) string {
-	if oauthErrorAllowlist[raw] {
-		return raw
+	for _, allowed := range oauthErrorAllowlist {
+		if raw == allowed {
+			return raw
+		}
 	}
 	return "authorization code missing"
 }

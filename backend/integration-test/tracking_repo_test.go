@@ -8,20 +8,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 )
 
 func TestTrackingRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "tracking_create")
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	entry := &entity.TrackingEntry{
+	entry := &domain.TrackingEntry{
 		UserID:    user.ID,
 		IP:        "192.168.1.1",
 		UserAgent: "test-agent/1.0",
@@ -33,7 +32,6 @@ func TestTrackingRepo_Create_Success(t *testing.T) {
 
 func TestTrackingRepo_Create_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	user := NewTestFixture(testPool.Pool).CreateUser(t, "tracking_create_err")
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
@@ -41,14 +39,13 @@ func TestTrackingRepo_Create_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	entry := &entity.TrackingEntry{UserID: user.ID, IP: "1.2.3.4"}
+	entry := &domain.TrackingEntry{UserID: user.ID, IP: "1.2.3.4"}
 	err := trackingRepo.Create(ctx, entry)
 	assert.Error(t, err)
 }
 
 func TestTrackingRepo_GetByUser_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "tracking_get")
@@ -56,7 +53,7 @@ func TestTrackingRepo_GetByUser_Success(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		entry := &entity.TrackingEntry{UserID: user.ID, IP: "10.0.0.1", UserAgent: "agent"}
+		entry := &domain.TrackingEntry{UserID: user.ID, IP: "10.0.0.1", UserAgent: "agent"}
 		require.NoError(t, trackingRepo.Create(ctx, entry))
 	}
 
@@ -70,7 +67,6 @@ func TestTrackingRepo_GetByUser_Success(t *testing.T) {
 
 func TestTrackingRepo_GetByUser_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 
@@ -83,7 +79,6 @@ func TestTrackingRepo_GetByUser_Error(t *testing.T) {
 
 func TestTrackingRepo_CountByUser_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "tracking_count")
@@ -91,7 +86,7 @@ func TestTrackingRepo_CountByUser_Success(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
-		entry := &entity.TrackingEntry{UserID: user.ID, IP: "172.16.0.1"}
+		entry := &domain.TrackingEntry{UserID: user.ID, IP: "172.16.0.1"}
 		require.NoError(t, trackingRepo.Create(ctx, entry))
 	}
 
@@ -102,7 +97,6 @@ func TestTrackingRepo_CountByUser_Success(t *testing.T) {
 
 func TestTrackingRepo_CreateChallengeOpen_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "chall_open_create")
@@ -110,7 +104,7 @@ func TestTrackingRepo_CreateChallengeOpen_Success(t *testing.T) {
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	open := &entity.ChallengeOpen{
+	open := &domain.ChallengeOpen{
 		UserID:      user.ID,
 		ChallengeID: challenge.ID,
 		IP:          "10.10.10.10",
@@ -122,7 +116,6 @@ func TestTrackingRepo_CreateChallengeOpen_Success(t *testing.T) {
 
 func TestTrackingRepo_GetChallengeOpensByChallenge_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "chall_open_get")
@@ -131,7 +124,7 @@ func TestTrackingRepo_GetChallengeOpensByChallenge_Success(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 2; i++ {
-		open := &entity.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "1.1.1.1"}
+		open := &domain.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "1.1.1.1"}
 		require.NoError(t, trackingRepo.CreateChallengeOpen(ctx, open))
 	}
 
@@ -145,7 +138,6 @@ func TestTrackingRepo_GetChallengeOpensByChallenge_Success(t *testing.T) {
 
 func TestTrackingRepo_CountByUser_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 
@@ -158,7 +150,6 @@ func TestTrackingRepo_CountByUser_Error(t *testing.T) {
 
 func TestTrackingRepo_CountChallengeOpensByChallenge_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "chall_open_count")
@@ -167,7 +158,7 @@ func TestTrackingRepo_CountChallengeOpensByChallenge_Success(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		open := &entity.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "2.2.2.2"}
+		open := &domain.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "2.2.2.2"}
 		require.NoError(t, trackingRepo.CreateChallengeOpen(ctx, open))
 	}
 
@@ -178,7 +169,6 @@ func TestTrackingRepo_CountChallengeOpensByChallenge_Success(t *testing.T) {
 
 func TestTrackingRepo_CountChallengeOpensByChallenge_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 
@@ -191,7 +181,6 @@ func TestTrackingRepo_CountChallengeOpensByChallenge_Error(t *testing.T) {
 
 func TestTrackingRepo_CreateChallengeOpen_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "chall_open_err")
@@ -201,14 +190,13 @@ func TestTrackingRepo_CreateChallengeOpen_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	open := &entity.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "3.3.3.3"}
+	open := &domain.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "3.3.3.3"}
 	err := trackingRepo.CreateChallengeOpen(ctx, open)
 	assert.Error(t, err)
 }
 
 func TestTrackingRepo_GetChallengeOpensByChallenge_Error(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 

@@ -54,6 +54,18 @@ func (h *E2EHelper) GetCompetitionStatus() *openapi.GetCompetitionStatusResponse
 	return resp
 }
 
+func (h *E2EHelper) CompetitionParamsPropagated() bool {
+	resp, err := h.client.GetCompetitionStatusWithResponse(context.Background())
+	return err == nil && resp != nil && resp.StatusCode() == http.StatusOK &&
+		resp.JSON200 != nil && resp.JSON200.Status != nil
+}
+
+func (h *E2EHelper) AdminCompetitionParamsPropagated(token string) bool {
+	resp, err := h.client.GetAdminCompetitionWithResponse(context.Background(), WithBearerToken(token))
+	return err == nil && resp != nil && resp.StatusCode() == http.StatusOK &&
+		resp.JSON200 != nil && resp.JSON200.FreezeTime != nil && resp.JSON200.EndTime != nil
+}
+
 func (h *E2EHelper) UpdateCompetition(token string, data map[string]any) {
 	h.t.Helper()
 	statusResp := h.GetCompetitionStatus()
@@ -147,7 +159,7 @@ func (h *E2EHelper) PollCompetitionStatus(expectedStatus string, timeout time.Du
 		if resp.JSON200 != nil && resp.JSON200.Status != nil && *resp.JSON200.Status == expectedStatus {
 			return true
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 	return false
 }

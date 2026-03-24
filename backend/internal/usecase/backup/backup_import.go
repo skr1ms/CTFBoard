@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,14 +13,16 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
-func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int64, opts entity.ImportOptions) (*entity.ImportResult, error) {
+func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int64, opts domain.ImportOptions) (*domain.ImportResult, error) {
 	zr, err := zip.NewReader(r, size)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - NewReader: %w", err)
@@ -47,7 +48,7 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 	if err := uc.importZIPValidateVersion(backupData); err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - importZIPValidateVersion: %w", err)
 	}
-	result := &entity.ImportResult{Success: true}
+	result := &domain.ImportResult{Success: true}
 	if err := uc.importZIPRunTx(ctx, backupData, opts); err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - importZIPRunTx: %w", err)
 	}
@@ -66,7 +67,7 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 			result.SkippedCount = len(fileErrors)
 		}
 	}
-	uc.deps.Logger.Info("BackupUseCase - ImportZIP - completed", logger.Fields{
+	uc.deps.Logger.Info("BackupUseCase - ImportZIP - completed", logkit.Fields{
 		"challenges": len(backupData.Challenges),
 		"teams":      len(backupData.Teams),
 		"users":      len(backupData.Users),
@@ -76,7 +77,7 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 	return result, nil
 }
 
-func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*entity.BackupData, error) {
+func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*domain.BackupData, error) {
 	for _, f := range zr.File {
 		if f.Name != "backup.json" {
 			continue
@@ -86,7 +87,7 @@ func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*entity.BackupData
 			return nil, fmt.Errorf("BackupUseCase - ImportZIP - open backup.json: %w", err)
 		}
 		limited := io.LimitReader(rc, maxBackupJSONSize)
-		backupData := &entity.BackupData{}
+		backupData := &domain.BackupData{}
 		if err := json.NewDecoder(limited).Decode(backupData); err != nil {
 			_ = rc.Close()
 			return nil, fmt.Errorf("BackupUseCase - ImportZIP - decode backup.json: %w", err)
@@ -97,21 +98,21 @@ func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*entity.BackupData
 	return nil, httperr.ErrBackupJSONNotFound
 }
 
-func (uc *BackupUseCase) importZIPValidateVersion(backupData *entity.BackupData) error {
-	if backupData.Version != entity.BackupVersion {
+func (uc *BackupUseCase) importZIPValidateVersion(backupData *domain.BackupData) error {
+	if backupData.Version != domain.BackupVersion {
 		return httperr.ErrBackupVersionUnsupported
 	}
 	return nil
 }
 
-func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *entity.BackupData, opts entity.ImportOptions) error {
+func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
 	return uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if opts.EraseExisting {
 			if uc.deps.AuditLogRepo != nil && opts.AdminUserID != nil {
-				auditEntry := &entity.AuditLog{
+				auditEntry := &domain.AuditLog{
 					UserID:     opts.AdminUserID,
-					Action:     entity.AuditActionImportErase,
-					EntityType: entity.AuditEntityBackup,
+					Action:     domain.AuditActionImportErase,
+					EntityType: domain.AuditEntityBackup,
 					EntityID:   "import",
 					IP:         opts.AdminIP,
 					Details:    map[string]any{"erase_existing": true},
@@ -128,7 +129,7 @@ func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *entity.
 	})
 }
 
-func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *entity.BackupData, opts entity.ImportOptions) error {
+func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
 	if err := uc.deps.BackupRepo.ImportCompetition(ctx, backupData.Competition); err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportCompetition: %w", err)
 	}
@@ -172,6 +173,9 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 	if err := uc.deps.BackupRepo.ImportSolutions(ctx, backupData); err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportSolutions: %w", err)
 	}
+	if err := uc.deps.BackupRepo.ImportRatings(ctx, backupData); err != nil {
+		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportRatings: %w", err)
+	}
 	if err := uc.deps.BackupRepo.ImportComments(ctx, backupData); err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportComments: %w", err)
 	}
@@ -187,16 +191,16 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 // importNormalizeUserRoles ensures every imported user has a valid role.
 // Unless PreserveAdminRoles is explicitly set, all admin roles are downgraded
 // to RoleUser, preventing a crafted backup from injecting admin accounts.
-func (uc *BackupUseCase) importNormalizeUserRoles(backupData *entity.BackupData, opts entity.ImportOptions) {
+func (uc *BackupUseCase) importNormalizeUserRoles(backupData *domain.BackupData, opts domain.ImportOptions) {
 	for i := range backupData.Users {
-		switch entity.Role(backupData.Users[i].Role) {
-		case entity.RoleAdmin:
+		switch domain.Role(backupData.Users[i].Role) {
+		case domain.RoleAdmin:
 			if !opts.PreserveAdminRoles {
-				backupData.Users[i].Role = string(entity.RoleUser)
+				backupData.Users[i].Role = string(domain.RoleUser)
 			}
-		case entity.RoleUser:
+		case domain.RoleUser:
 		default:
-			backupData.Users[i].Role = string(entity.RoleUser)
+			backupData.Users[i].Role = string(domain.RoleUser)
 		}
 	}
 }
@@ -208,7 +212,7 @@ const (
 	maxBackupJSONSize        = 100 * 1024 * 1024
 )
 
-func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reader, files []entity.File, opts entity.ImportOptions) ([]string, error) {
+func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reader, files []domain.File, opts domain.ImportOptions) ([]string, error) {
 	fileMap := uc.importFilesBuildFileMap(files)
 	tasks := uc.importFilesBuildTasks(zr, fileMap)
 
@@ -235,10 +239,10 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 	}
 	waitErr := g.Wait()
 	if waitErr != nil {
-		uc.deps.Logger.Warn("BackupUseCase - importFilesToStorage - first error canceled rest", logger.Fields{"error": waitErr.Error()})
+		uc.deps.Logger.Warn("BackupUseCase - importFilesToStorage - first error canceled rest", logkit.Error(waitErr))
 	}
 	if len(errs) > 0 {
-		uc.deps.Logger.Warn("BackupUseCase - importFilesToStorage - completed with errors", logger.Fields{
+		uc.deps.Logger.Warn("BackupUseCase - importFilesToStorage - completed with errors", logkit.Fields{
 			"total":    len(files),
 			"uploaded": uploaded,
 			"errors":   len(errs),
@@ -247,21 +251,18 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 	return errs, waitErr
 }
 
-func (uc *BackupUseCase) importFilesBuildFileMap(files []entity.File) map[string]entity.File {
-	m := make(map[string]entity.File)
-	for _, f := range files {
-		path := fmt.Sprintf("files/challenge-%s/%s", f.ChallengeID, f.Filename)
-		m[path] = f
-	}
-	return m
+func (uc *BackupUseCase) importFilesBuildFileMap(files []domain.File) map[string]domain.File {
+	return lo.Associate(files, func(f domain.File) (string, domain.File) {
+		return fmt.Sprintf("files/challenge-%s/%s", f.ChallengeID, f.Filename), f
+	})
 }
 
 type importFileTask struct {
 	zf   *zip.File
-	file entity.File
+	file domain.File
 }
 
-func (uc *BackupUseCase) importFilesBuildTasks(zr *zip.Reader, fileMap map[string]entity.File) []importFileTask {
+func (uc *BackupUseCase) importFilesBuildTasks(zr *zip.Reader, fileMap map[string]domain.File) []importFileTask {
 	var tasks []importFileTask
 	for _, zf := range zr.File {
 		if zf.FileInfo().Mode()&os.ModeSymlink != 0 {
@@ -276,7 +277,7 @@ func (uc *BackupUseCase) importFilesBuildTasks(zr *zip.Reader, fileMap map[strin
 	return tasks
 }
 
-func (uc *BackupUseCase) importFileUploadOne(ctx context.Context, zf *zip.File, file entity.File, opts entity.ImportOptions) string {
+func (uc *BackupUseCase) importFileUploadOne(ctx context.Context, zf *zip.File, file domain.File, opts domain.ImportOptions) string {
 	if err := ctx.Err(); err != nil {
 		return fmt.Sprintf("canceled: %s", zf.Name)
 	}
@@ -296,16 +297,16 @@ func (uc *BackupUseCase) importFileUploadOne(ctx context.Context, zf *zip.File, 
 	return ""
 }
 
-func (uc *BackupUseCase) importFileUploadWithHash(ctx context.Context, name string, rc io.Reader, size int64, file entity.File) string {
+func (uc *BackupUseCase) importFileUploadWithHash(ctx context.Context, name string, rc io.Reader, size int64, file domain.File) string {
 	hash := sha256.New()
 	tee := io.TeeReader(rc, hash)
 	if err := uc.deps.Storage.Upload(ctx, file.Location, tee, size, "application/octet-stream"); err != nil {
 		return fmt.Sprintf("upload %s: %v", name, err)
 	}
-	hashStr := hex.EncodeToString(hash.Sum(nil))
+	hashStr := crypto.HashHex(hash)
 	if hashStr != file.SHA256 {
 		if delErr := uc.deps.Storage.Delete(ctx, file.Location); delErr != nil {
-			uc.deps.Logger.WithError(delErr).WithFields(logger.Fields{"location": file.Location}).Warn("BackupUseCase - importFileUploadWithHash - delete after mismatch")
+			uc.deps.Logger.WithError(delErr).WithFields(logkit.Fields{"location": file.Location}).Warn("BackupUseCase - importFileUploadWithHash - delete after mismatch")
 		}
 		return fmt.Sprintf("sha256 mismatch for %s: expected %s, got %s", name, file.SHA256, hashStr)
 	}

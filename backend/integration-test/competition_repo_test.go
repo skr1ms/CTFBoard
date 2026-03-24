@@ -10,7 +10,6 @@ import (
 )
 
 func TestCompetitionRepo_Get_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
@@ -27,7 +26,6 @@ func TestCompetitionRepo_Get_Success(t *testing.T) {
 }
 
 func TestCompetitionRepo_Get_Error_CancelledContext(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,7 +36,6 @@ func TestCompetitionRepo_Get_Error_CancelledContext(t *testing.T) {
 }
 
 func TestCompetitionRepo_Update_Success(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.CompetitionRepo
@@ -75,7 +72,6 @@ func TestCompetitionRepo_Update_Success(t *testing.T) {
 }
 
 func TestCompetitionRepo_Update_Partial(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -99,7 +95,6 @@ func TestCompetitionRepo_Update_Partial(t *testing.T) {
 }
 
 func TestCompetitionRepo_Update_Error_CancelledContext(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 

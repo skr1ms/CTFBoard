@@ -11,7 +11,6 @@ import (
 
 // POST /challenges/{ID}/submit with is_regex flag: invalid pattern 400; valid pattern 200; duplicate 409 with ALREADY_SOLVED.
 func TestEncryptedRegex_Challenge(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -25,7 +24,7 @@ func TestEncryptedRegex_Challenge(t *testing.T) {
 		"points":      100,
 		"category":    "crypto",
 		"is_regex":    true,
-		"is_hidden":   false,
+		"state":       "visible",
 	})
 
 	_, _, tokenUser := h.RegisterUserAndLogin("user_enc_regex")
@@ -44,14 +43,13 @@ func TestEncryptedRegex_Challenge(t *testing.T) {
 
 // POST /challenges/{ID}/submit with is_regex: flag not matching pattern returns 400 invalid flag format.
 func TestEncryptedRegex_InvalidFlag_Returns400(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_enc_regex_err")
 	h.SetCompetitionRegex(tokenAdmin, "^CTF\\{.+\\}$")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Regex Err", "description": "x", "flag": "CTF{[0-9]+}",
-		"points": 100, "category": "crypto", "is_regex": true, "is_hidden": false,
+		"points": 100, "category": "crypto", "is_regex": true, "state": "visible",
 	})
 	_, _, tokenUser := h.RegisterUserAndLogin("user_enc_regex_err")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)

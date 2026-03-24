@@ -1,21 +1,22 @@
 package v1
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 // Verify email
 // (POST /auth/verify-email)
 func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.VerifyEmailRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAuthVerifyEmail",
+	req, ok := httputil.DecodeAndValidate[openapi.VerifyEmailRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -25,14 +26,14 @@ func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("email verified successfully"))
+	httputil.RenderOK(w, r, response.Message("email verified successfully"))
 }
 
 // Request password reset
 // (POST /auth/forgot-password)
 func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.ForgotPasswordRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAuthForgotPassword",
+	req, ok := httputil.DecodeAndValidate[openapi.ForgotPasswordRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
@@ -46,7 +47,7 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !allowed {
-		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthForgotPassword", "RateLimit")
+		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthForgotPassword", "RateLimit")
 		return
 	}
 	if err := h.user.EmailUC.SendPasswordResetEmail(r.Context(), email); err != nil {
@@ -54,28 +55,27 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 		// Do not return error to client (avoid email enumeration)
 	}
 
-	helper.RenderOK(w, r, response.Message("if an account exists with this email, a password reset link has been sent"))
+	httputil.RenderOK(w, r, response.Message("if an account exists with this email, a password reset link has been sent"))
 }
 
 // Reset password
 // (POST /auth/reset-password)
 func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
-	req, ok := helper.DecodeAndValidate[openapi.ResetPasswordRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostAuthResetPassword",
+	req, ok := httputil.DecodeAndValidate[openapi.ResetPasswordRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
 	}
 
 	token, newPassword := request.ResetPasswordRequestToParams(&req)
-	sum := sha256.Sum256([]byte(token))
-	tokenHash := hex.EncodeToString(sum[:])
+	tokenHash := crypto.SHA256Hex(token)
 	allowed, err := h.infra.ResetPasswordTokenRateLimiter.Check(r.Context(), tokenHash)
 	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPasswordTokenRateLimit") {
 		return
 	}
 	if !allowed {
-		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
+		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
 		return
 	}
 
@@ -84,13 +84,13 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("password reset successfully"))
+	httputil.RenderOK(w, r, response.Message("password reset successfully"))
 }
 
 // Resend verification email
 // (POST /auth/resend-verification)
 func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Request) {
-	userID, ok := helper.ParseAuthUserID(w, r)
+	userID, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
@@ -101,7 +101,7 @@ func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if !allowed {
-		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResendVerification", "RateLimit")
+		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResendVerification", "RateLimit")
 		return
 	}
 
@@ -109,5 +109,5 @@ func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	helper.RenderOK(w, r, response.Message("verification email sent"))
+	httputil.RenderOK(w, r, response.Message("verification email sent"))
 }

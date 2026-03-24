@@ -9,7 +9,7 @@ packages:
     interfaces:
       CompetitionParamUseCase:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "CompetitionParamUseCase.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCompetitionParamUseCase"

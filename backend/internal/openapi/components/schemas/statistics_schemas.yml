@@ -1,5 +1,5 @@
 schemas:
-  entity.GeneralStats:
+  GeneralStats:
     properties:
       challenge_count:
         type: integer
@@ -10,7 +10,7 @@ schemas:
       user_count:
         type: integer
     type: object
-  entity.ChallengeStats:
+  ChallengeStats:
     properties:
       category:
         type: string
@@ -23,7 +23,7 @@ schemas:
       title:
         type: string
     type: object
-  entity.ChallengeSolveEntry:
+  ChallengeSolveEntry:
     properties:
       team_id:
         type: string
@@ -33,7 +33,7 @@ schemas:
         type: string
         format: date-time
     type: object
-  entity.ChallengeDetailStats:
+  ChallengeDetailStats:
     properties:
       id:
         type: string
@@ -50,13 +50,13 @@ schemas:
       percentage_solved:
         type: number
       first_blood:
-        $ref: "#/schemas/entity.ChallengeSolveEntry"
+        $ref: "#/schemas/ChallengeSolveEntry"
       solves:
         type: array
         items:
-          $ref: "#/schemas/entity.ChallengeSolveEntry"
+          $ref: "#/schemas/ChallengeSolveEntry"
     type: object
-  entity.ChallengeSolvePercentage:
+  ChallengeSolvePercentage:
     properties:
       id:
         type: string
@@ -71,14 +71,14 @@ schemas:
       percentage:
         type: number
     type: object
-  entity.ScoreDistributionBucket:
+  ScoreDistributionBucket:
     properties:
       bucket:
         type: string
       count:
         type: integer
     type: object
-  entity.SubmissionTimeSeries:
+  SubmissionTimeSeries:
     properties:
       date:
         type: string
@@ -93,13 +93,13 @@ schemas:
       items:
         type: array
         items:
-          $ref: "#/schemas/entity.SubmissionTimeSeries"
+          $ref: "#/schemas/SubmissionTimeSeries"
       total_correct:
         type: integer
       total_incorrect:
         type: integer
     type: object
-  entity.RegistrationTimePoint:
+  RegistrationTimePoint:
     properties:
       date:
         type: string
@@ -107,7 +107,7 @@ schemas:
       count:
         type: integer
     type: object
-  entity.SolveMatrixRow:
+  SolveMatrixRow:
     properties:
       team_id:
         type: string

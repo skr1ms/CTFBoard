@@ -68,7 +68,7 @@ FROM teams t
 LEFT JOIN (
     SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.is_hidden = false
+    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
     WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
@@ -91,7 +91,7 @@ FROM teams t
 LEFT JOIN (
     SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.is_hidden = false
+    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
     WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
@@ -115,7 +115,7 @@ FROM teams t
 LEFT JOIN (
     SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
     FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.is_hidden = false
+    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
     WHERE s.solved_at <= $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
@@ -133,7 +133,7 @@ ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp
 SELECT
     COALESCE((
         SELECT SUM(s.points_at_solve) FROM solves s
-        JOIN challenges c ON c.id = s.challenge_id AND c.is_hidden = false
+        JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
         WHERE s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     ), 0)::int +
     COALESCE((
@@ -186,6 +186,7 @@ ORDER BY s.solved_at ASC;
 SELECT s.challenge_id, COUNT(*)::int AS solve_count
 FROM solves s
 JOIN teams t ON t.id = s.team_id
+JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
 WHERE s.solved_at <= $1
   AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
   AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
@@ -196,7 +197,7 @@ SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
        c.title AS challenge_title, c.category AS challenge_category, c.points AS challenge_points
 FROM solves s
 JOIN challenges c ON c.id = s.challenge_id
-WHERE s.user_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND c.is_hidden = false
+WHERE s.user_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND c.state IN ('visible', 'locked')
 ORDER BY s.solved_at DESC;
 
 -- name: GetSolvesByTeamIDWithDetails :many
@@ -205,7 +206,7 @@ SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
 FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN challenges c ON c.id = s.challenge_id
-WHERE s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND c.is_hidden = false
+WHERE s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND c.state IN ('visible', 'locked')
 ORDER BY s.solved_at DESC;
 
 -- name: GetSolvesForPointsRecalc :many

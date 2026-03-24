@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -24,7 +24,7 @@ func isAllowedCSVTable(table string) bool {
 	return allowedCSVTables[table]
 }
 
-func csvExportUsers(users []*entity.User) ([]byte, error) {
+func csvExportUsers(users []*domain.User) ([]byte, error) {
 	header := []string{"id", "username", "email", "password_hash", "role", "team_id", "is_verified", "verified_at", "is_banned", "banned_at", "banned_reason", "created_at"}
 	rows := make([][]string, 0, len(users))
 	for _, u := range users {
@@ -62,7 +62,7 @@ func csvExportUsers(users []*entity.User) ([]byte, error) {
 	return writeCSV(header, rows)
 }
 
-func csvExportTeams(teams []*entity.Team) ([]byte, error) {
+func csvExportTeams(teams []*domain.Team) ([]byte, error) {
 	header := []string{"id", "name", "captain_id", "invite_token", "invite_token_expires_at", "bracket_id", "is_solo", "is_banned", "banned_at", "banned_reason", "is_hidden", "created_at"}
 	rows := make([][]string, 0, len(teams))
 	for _, t := range teams {
@@ -100,13 +100,17 @@ func csvExportTeams(teams []*entity.Team) ([]byte, error) {
 	return writeCSV(header, rows)
 }
 
-func csvExportChallenges(challenges []*entity.Challenge) ([]byte, error) {
-	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
+func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
+	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "position", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
 	rows := make([][]string, 0, len(challenges))
 	for _, c := range challenges {
 		flagFormat := ""
 		if c.FlagFormatRegex != nil {
 			flagFormat = *c.FlagFormatRegex
+		}
+		flagRegex := ""
+		if c.FlagRegex != nil {
+			flagRegex = *c.FlagRegex
 		}
 		rows = append(rows, []string{
 			c.ID.String(),
@@ -119,23 +123,38 @@ func csvExportChallenges(challenges []*entity.Challenge) ([]byte, error) {
 			strconv.Itoa(c.MinValue),
 			strconv.Itoa(c.Decay),
 			strconv.Itoa(c.SolveCount),
-			strconv.FormatBool(c.IsHidden),
+			c.State,
+			c.ConnectionInfo,
+			strconv.Itoa(c.MaxAttempts),
+			strconv.Itoa(c.Position),
 			strconv.FormatBool(c.IsRegex),
 			strconv.FormatBool(c.IsCaseInsensitive),
-			c.FlagRegex,
+			flagRegex,
 			flagFormat,
 		})
 	}
 	return writeCSV(header, rows)
 }
 
-func csvExportSubmissions(subs []*entity.SubmissionWithDetails) ([]byte, error) {
-	header := []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at"}
+func csvExportSubmissions(subs []*domain.SubmissionWithDetails) ([]byte, error) {
+	header := []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at", "submission_type", "banned_team_id", "banned_user_id"}
 	rows := make([][]string, 0, len(subs))
 	for _, s := range subs {
 		teamID := ""
 		if s.TeamID != nil {
 			teamID = s.TeamID.String()
+		}
+		bannedTeamID := ""
+		if s.BannedTeamID != nil {
+			bannedTeamID = s.BannedTeamID.String()
+		}
+		bannedUserID := ""
+		if s.BannedUserID != nil {
+			bannedUserID = s.BannedUserID.String()
+		}
+		subType := s.Type
+		if subType == "" {
+			subType = domain.SubmissionTypeFromCorrect(s.IsCorrect)
 		}
 		rows = append(rows, []string{
 			s.ID.String(),
@@ -146,12 +165,15 @@ func csvExportSubmissions(subs []*entity.SubmissionWithDetails) ([]byte, error) 
 			strconv.FormatBool(s.IsCorrect),
 			s.IP,
 			s.CreatedAt.Format(time.RFC3339),
+			subType,
+			bannedTeamID,
+			bannedUserID,
 		})
 	}
 	return writeCSV(header, rows)
 }
 
-func csvExportSolves(solves []*entity.Solve) ([]byte, error) {
+func csvExportSolves(solves []*domain.Solve) ([]byte, error) {
 	header := []string{"id", "user_id", "team_id", "challenge_id", "solved_at", "points_at_solve", "banned_team_id", "banned_user_id"}
 	rows := make([][]string, 0, len(solves))
 	for _, s := range solves {
@@ -177,7 +199,7 @@ func csvExportSolves(solves []*entity.Solve) ([]byte, error) {
 	return writeCSV(header, rows)
 }
 
-func csvExportAwards(awards []*entity.Award) ([]byte, error) {
+func csvExportAwards(awards []*domain.Award) ([]byte, error) {
 	header := []string{"id", "team_id", "value", "description", "created_by", "created_at", "banned_team_id"}
 	rows := make([][]string, 0, len(awards))
 	for _, a := range awards {
@@ -236,7 +258,7 @@ func csvNormalizeUserRoles(header []string, rows [][]string) [][]string {
 		rowCopy := make([]string, len(row))
 		copy(rowCopy, row)
 		if roleIdx < len(rowCopy) {
-			rowCopy[roleIdx] = string(entity.RoleUser)
+			rowCopy[roleIdx] = string(domain.RoleUser)
 		}
 		out[i] = rowCopy
 	}

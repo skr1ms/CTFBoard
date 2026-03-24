@@ -36,7 +36,11 @@ Create a `.env` file from the example and set the required variables:
 cp .env.example .env
 ```
 
-Edit `.env` and set all values required for the target environment.
+Edit `.env` and set all values required for the target environment. For local development with Vault, use `.env.local.example` instead:
+
+```bash
+cp .env.local.example .env.local
+```
 
 ### 3.2 Start stack with Docker Compose
 

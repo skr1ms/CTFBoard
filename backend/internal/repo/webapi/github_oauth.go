@@ -24,7 +24,7 @@ var _ OAuthProviderAPI = (*GitHubAPI)(nil)
 
 func NewGitHubAPI(client *http.Client) *GitHubAPI {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultOAuthClient
 	}
 	return &GitHubAPI{client: client, userURL: githubUserURL, emailsURL: githubEmailsURL}
 }
@@ -63,14 +63,16 @@ func (g *GitHubAPI) FetchUserProfile(ctx context.Context, accessToken string) (*
 }
 
 func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubUser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("GitHubAPI - fetchUser - NewRequest: %w", err)
+	mkReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		return req, nil
 	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := g.client.Do(req) // #nosec G704 -- URL is trusted constant githubUserURL
+	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return nil, fmt.Errorf("GitHubAPI - fetchUser - Do: %w", err)
 	}
@@ -92,14 +94,16 @@ func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubU
 }
 
 func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.emailsURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail - NewRequest: %w", err)
+	mkReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.emailsURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		return req, nil
 	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := g.client.Do(req) // #nosec G704 -- URL is trusted constant githubEmailsURL
+	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail - Do: %w", err)
 	}

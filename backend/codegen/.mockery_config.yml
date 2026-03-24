@@ -9,8 +9,8 @@ packages:
     interfaces:
       vaultSecretGetter:
         config:
-          dir: "config/mocks"
+          dir: "config/mock"
           filename: "vault_secret_getter.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockVaultSecretGetter"
           inpackage: false

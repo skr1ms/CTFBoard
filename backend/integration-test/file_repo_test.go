@@ -9,21 +9,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestFileRepo_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "file_upload", 100)
 
-	file := &entity.File{
-		Type:        entity.FileTypeChallenge,
+	file := &domain.File{
+		Type:        domain.FileTypeChallenge,
 		ChallengeID: challenge.ID,
 		Location:    "/tmp/test_file.txt",
 		Filename:    "test_file.txt",
@@ -39,13 +38,12 @@ func TestFileRepo_Create(t *testing.T) {
 
 func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	file := &entity.File{
-		Type:        entity.FileTypeChallenge,
+	file := &domain.File{
+		Type:        domain.FileTypeChallenge,
 		ChallengeID: uuid.New(),
 		Location:    "/tmp/fail.txt",
 		Filename:    "fail.txt",
@@ -59,15 +57,14 @@ func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
 
 func TestFileRepo_GetByID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "get_by_ID", 100)
 
-	file := &entity.File{
-		Type:        entity.FileTypeChallenge,
+	file := &domain.File{
+		Type:        domain.FileTypeChallenge,
 		ChallengeID: challenge.ID,
 		Location:    "loc",
 		Filename:    "name",
@@ -86,7 +83,6 @@ func TestFileRepo_GetByID(t *testing.T) {
 
 func TestFileRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -98,7 +94,6 @@ func TestFileRepo_GetByID_NotFound(t *testing.T) {
 
 func TestFileRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -106,8 +101,8 @@ func TestFileRepo_GetAll_Success(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "getall_1", 100)
 	ch2 := f.CreateChallenge(t, "getall_2", 200)
 
-	f1 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
-	f2 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
+	f1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
+	f2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
 	require.NoError(t, f.FileRepo.Create(ctx, f1))
 	require.NoError(t, f.FileRepo.Create(ctx, f2))
 
@@ -123,7 +118,6 @@ func TestFileRepo_GetAll_Success(t *testing.T) {
 
 func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -137,20 +131,19 @@ func TestFileRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestFileRepo_GetByChallengeID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "list_files", 100)
 
-	file1 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: challenge.ID, Location: "1", Filename: "1", Size: 1, SHA256: "1"}
-	file2 := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: challenge.ID, Location: "2", Filename: "2", Size: 2, SHA256: "2"}
+	file1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "1", Filename: "1", Size: 1, SHA256: "1"}
+	file2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "2", Filename: "2", Size: 2, SHA256: "2"}
 
 	require.NoError(t, f.FileRepo.Create(ctx, file1))
 	require.NoError(t, f.FileRepo.Create(ctx, file2))
 
-	files, err := f.FileRepo.GetByChallengeID(ctx, challenge.ID, entity.FileTypeChallenge)
+	files, err := f.FileRepo.GetByChallengeID(ctx, challenge.ID, domain.FileTypeChallenge)
 	assert.NoError(t, err)
 	assert.Len(t, files, 2)
 }
@@ -163,20 +156,19 @@ func TestFileRepo_GetByChallengeID_Empty(t *testing.T) {
 
 	challenge := f.CreateChallenge(t, "empty_files", 100)
 
-	files, err := f.FileRepo.GetByChallengeID(ctx, challenge.ID, entity.FileTypeChallenge)
+	files, err := f.FileRepo.GetByChallengeID(ctx, challenge.ID, domain.FileTypeChallenge)
 	assert.NoError(t, err)
 	assert.Empty(t, files)
 }
 
 func TestFileRepo_Delete(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "del_file", 100)
-	file := &entity.File{Type: entity.FileTypeChallenge, ChallengeID: challenge.ID, Location: "d", Filename: "d", Size: 1, SHA256: "d"}
+	file := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "d", Filename: "d", Size: 1, SHA256: "d"}
 	require.NoError(t, f.FileRepo.Create(ctx, file))
 
 	err := f.FileRepo.Delete(ctx, file.ID)
@@ -188,7 +180,6 @@ func TestFileRepo_Delete(t *testing.T) {
 
 func TestFileRepo_Delete_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

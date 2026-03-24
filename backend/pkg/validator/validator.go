@@ -6,6 +6,8 @@ import (
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/slug"
 )
 
 func fieldString(f reflect.Value) string {
@@ -25,10 +27,11 @@ type Validator interface {
 
 var (
 	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+$`)
-	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	EmailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	passwordRegex = regexp.MustCompile(`^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"|,.<>/?]+$`)
 	teamNameRegex = regexp.MustCompile(`^[a-zA-Z0-9\s._\-]+$`)
 	categoryRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-]+$`)
+	hexColorRe    = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 )
 
 type CustomValidator struct {
@@ -49,6 +52,8 @@ func New() (*CustomValidator, error) {
 		"challenge_flag":        validateChallengeFlag,
 		"hint_content":          validateHintContent,
 		"not_empty":             validateNotEmpty,
+		"page_slug":             validatePageSlug,
+		"hex_color":             validateHexColor,
 	}
 
 	for name, fn := range validations {
@@ -72,28 +77,7 @@ func (cv *CustomValidator) ValidateVar(field any, tag string) error {
 //
 
 func ValidateStrongPasswordField(fl validator.FieldLevel) bool {
-	password := fieldString(fl.Field())
-	if len(password) < 6 {
-		return false
-	}
-	if len(password) > 72 {
-		return false
-	}
-	if !passwordRegex.MatchString(password) {
-		return false
-	}
-	var hasLower, hasUpper, hasDigit bool
-	for _, c := range password {
-		switch {
-		case c >= 'a' && c <= 'z':
-			hasLower = true
-		case c >= 'A' && c <= 'Z':
-			hasUpper = true
-		case c >= '0' && c <= '9':
-			hasDigit = true
-		}
-	}
-	return hasLower && hasUpper && hasDigit
+	return ValidatePassword(fieldString(fl.Field()))
 }
 
 func ValidatePassword(password string) bool {
@@ -127,11 +111,7 @@ const (
 )
 
 func ValidateUsernameField(fl validator.FieldLevel) bool {
-	username := fieldString(fl.Field())
-	if username == "" || len(username) > maxUsernameLen {
-		return false
-	}
-	return usernameRegex.MatchString(username)
+	return ValidateUsername(fieldString(fl.Field()))
 }
 
 func ValidateUsername(username string) bool {
@@ -146,18 +126,14 @@ func validateUsername(fl validator.FieldLevel) bool {
 }
 
 func ValidateEmailField(fl validator.FieldLevel) bool {
-	email := fieldString(fl.Field())
-	if email == "" || len(email) > maxEmailLen {
-		return false
-	}
-	return emailRegex.MatchString(email)
+	return ValidateEmail(fieldString(fl.Field()))
 }
 
 func ValidateEmail(email string) bool {
 	if email == "" || len(email) > maxEmailLen {
 		return false
 	}
-	return emailRegex.MatchString(email)
+	return EmailRegex.MatchString(email)
 }
 
 func validateEmail(fl validator.FieldLevel) bool {
@@ -165,11 +141,7 @@ func validateEmail(fl validator.FieldLevel) bool {
 }
 
 func validateTeamName(fl validator.FieldLevel) bool {
-	name := fieldString(fl.Field())
-	if len(name) == 0 || len(name) > 50 {
-		return false
-	}
-	return teamNameRegex.MatchString(name)
+	return ValidateTeamName(fieldString(fl.Field()))
 }
 
 func ValidateTeamName(name string) bool {
@@ -180,26 +152,19 @@ func ValidateTeamName(name string) bool {
 }
 
 func validateChallengeTitle(fl validator.FieldLevel) bool {
-	title := fieldString(fl.Field())
-	return len(title) > 0 && len(title) <= 100
+	return ValidateChallengeTitle(fieldString(fl.Field()))
 }
 
 func validateChallengeDescription(fl validator.FieldLevel) bool {
-	desc := fieldString(fl.Field())
-	return len(desc) > 0 && len(desc) <= 2000
+	return ValidateChallengeDescription(fieldString(fl.Field()))
 }
 
 func validateChallengeCategory(fl validator.FieldLevel) bool {
-	category := fieldString(fl.Field())
-	if len(category) == 0 || len(category) > 50 {
-		return false
-	}
-	return categoryRegex.MatchString(category)
+	return ValidateChallengeCategory(fieldString(fl.Field()))
 }
 
 func validateChallengeFlag(fl validator.FieldLevel) bool {
-	flag := fieldString(fl.Field())
-	return len(flag) > 0 && len(flag) <= 200
+	return ValidateChallengeFlag(fieldString(fl.Field()))
 }
 
 func ValidateChallengeTitle(title string) bool {
@@ -222,8 +187,7 @@ func ValidateChallengeFlag(flag string) bool {
 }
 
 func validateHintContent(fl validator.FieldLevel) bool {
-	content := fieldString(fl.Field())
-	return len(content) > 0 && len(content) <= 500
+	return ValidateHintContent(fieldString(fl.Field()))
 }
 
 func ValidateHintContent(content string) bool {
@@ -231,10 +195,18 @@ func ValidateHintContent(content string) bool {
 }
 
 func validateNotEmpty(fl validator.FieldLevel) bool {
-	s := fieldString(fl.Field())
-	return len(s) > 0
+	return ValidateNotEmpty(fieldString(fl.Field()))
 }
 
 func ValidateNotEmpty(s string) bool {
 	return len(s) > 0
+}
+
+func validatePageSlug(fl validator.FieldLevel) bool {
+	return slug.MatchPageSlug(fieldString(fl.Field()))
+}
+
+func validateHexColor(fl validator.FieldLevel) bool {
+	s := fieldString(fl.Field())
+	return s == "" || hexColorRe.MatchString(s)
 }

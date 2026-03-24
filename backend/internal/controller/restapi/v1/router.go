@@ -8,12 +8,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-logkit"
+
+	"github.com/wahrwelt-kit/go-cachekit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -33,6 +37,7 @@ const (
 	rlKeySubmitUser        = "submit:user"
 	rlKeyHintUnlockUser    = "hint:unlock:user"
 	rlKeyCommentUser       = "comment:user"
+	rlKeyRatingUser        = "rating:user"
 	rlKeyProfileUpdateIP   = "auth:profile-update:ip"
 	rlKeyAPITokenIP        = "user:api-token:ip"
 	rlKeyNotificationIP    = "user:notification:ip"
@@ -54,10 +59,10 @@ const (
 	adminGeneralWindow     = time.Minute
 )
 
-// ipKeyFunc returns a rate-limit key function that uses the client IP address.
-func ipKeyFunc(trustedProxyCIDRs []string) func(*http.Request) (string, error) {
+// ipKeyFunc returns a rate-limit key function that uses the client IP address from context.
+func ipKeyFunc() func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
-		return helper.GetClientIP(r, trustedProxyCIDRs), nil
+		return kitMiddleware.GetClientIPFromContext(r.Context()), nil
 	}
 }
 
@@ -83,7 +88,7 @@ func NewRouter(
 	router chi.Router,
 	deps *helper.ServerDeps,
 	verifyEmails bool,
-	rateLimitCache *helper.RateLimitConfigCache,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
 ) {
 	server := NewServer(deps)
 	wrapper := openapi.ServerInterfaceWrapper{
@@ -91,46 +96,46 @@ func NewRouter(
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			var requiredHeader *openapi.RequiredHeaderError
 			if errors.As(err, &requiredHeader) {
-				server.OnError(w, r, helper.New(err, http.StatusUnauthorized, "UNAUTHORIZED"), "OpenAPI", "RequiredHeader")
+				server.OnError(w, r, httperr.New(err, http.StatusUnauthorized, "UNAUTHORIZED"), "OpenAPI", "RequiredHeader")
 				return
 			}
 			var requiredParam *openapi.RequiredParamError
 			if errors.As(err, &requiredParam) {
-				server.OnError(w, r, helper.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "RequiredParam")
+				server.OnError(w, r, httperr.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "RequiredParam")
 				return
 			}
 			var invalidParam *openapi.InvalidParamFormatError
 			if errors.As(err, &invalidParam) {
-				server.OnError(w, r, helper.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "InvalidParamFormat")
+				server.OnError(w, r, httperr.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "InvalidParamFormat")
 				return
 			}
-			server.OnError(w, r, helper.New(errors.New("invalid request parameter"), http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "BadRequest")
+			server.OnError(w, r, httperr.New(errors.New("invalid request parameter"), http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "BadRequest")
 		},
 	}
-	sharedCache := cache.New(deps.Infra.RedisClient)
-	ipTracking := restapimiddleware.IPTracking(ctx, deps.User.TrackingUC, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger)
+	sharedCache := cachekit.New(deps.Infra.RedisClient)
+	ipTracking := restapimiddleware.IPTracking(ctx, deps.User.TrackingUC, deps.Infra.Logger)
 	notUserBanned := restapimiddleware.RequireUserNotBanned()
 	scoreboardVis := scoreboardVisibilityMiddleware(deps)
-	setupPublicRoutes(router, wrapper, deps, deps.Infra.RedisClient, deps.Infra.Logger, deps.Infra.TrustedProxyCIDRs, rateLimitCache)
+	setupPublicRoutes(router, wrapper, deps, deps.Infra.RedisClient, deps.Infra.Logger, rateLimitCache)
 	setupAuthOnlyRoutes(router, deps, wrapper, sharedCache, rateLimitCache, notUserBanned)
 	setupProtectedRoutes(router, server, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notUserBanned, scoreboardVis)
 }
 
-func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper, deps *helper.ServerDeps, redisClient *redis.Client, logger logger.Logger, trustedProxyCIDRs []string, rateLimitCache *helper.RateLimitConfigCache) {
+func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper, deps *helper.ServerDeps, redisClient *redis.Client, logger logkit.Logger, rateLimitCache *restapimiddleware.RateLimitConfigCache) {
 	getter := deps.Admin.SettingsUC
-	keyFunc := ipKeyFunc(trustedProxyCIDRs)
+	keyFunc := ipKeyFunc()
 
-	loginLimit := helper.RateLimitFromConfig(redisClient, rlKeyLoginIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.LoginPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	registerLimit := helper.RateLimitFromConfig(redisClient, rlKeyRegisterIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.RegisterPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	forgotPasswordLimit := helper.RateLimitFromConfig(redisClient, rlKeyForgotIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.ForgotPasswordPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	resetPasswordLimit := helper.RateLimitFromConfig(redisClient, rlKeyResetIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.ResetPasswordPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	logoutLimit := helper.RateLimitFromConfig(redisClient, rlKeyLogoutIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.LogoutPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	refreshLimit := helper.RateLimitFromConfig(redisClient, rlKeyRefreshIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.RefreshPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
+	loginLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyLoginIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LoginPerMinute) }, keyFunc, logger)
+	registerLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyRegisterIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RegisterPerMinute) }, keyFunc, logger)
+	forgotPasswordLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyForgotIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ForgotPasswordPerMinute) }, keyFunc, logger)
+	resetPasswordLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyResetIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ResetPasswordPerMinute) }, keyFunc, logger)
+	logoutLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyLogoutIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LogoutPerMinute) }, keyFunc, logger)
+	refreshLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyRefreshIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RefreshPerMinute) }, keyFunc, logger)
 
-	verifyEmailLimit := helper.RateLimitFromConfig(redisClient, rlKeyVerifyEmailIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	oauthCallbackLimit := helper.RateLimitFromConfig(redisClient, rlKeyOAuthCallbackIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.OAuthCallbackPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	oauthRedirectLimit := helper.RateLimitFromConfig(redisClient, rlKeyOAuthRedirectIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.OAuthRedirectPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
-	publicReadLimit := helper.RateLimitFromConfig(redisClient, rlKeyPublicReadIP, time.Minute, rateLimitCache, getter, func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, keyFunc, trustedProxyCIDRs, logger)
+	verifyEmailLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyVerifyEmailIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) }, keyFunc, logger)
+	oauthCallbackLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyOAuthCallbackIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthCallbackPerMinute) }, keyFunc, logger)
+	oauthRedirectLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyOAuthRedirectIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthRedirectPerMinute) }, keyFunc, logger)
+	publicReadLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyPublicReadIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, keyFunc, logger)
 
 	router.Group(func(r chi.Router) {
 		// Auth endpoints with rate limiting
@@ -163,12 +168,12 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 	})
 }
 
-func setupAuthOnlyRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, sharedCache *cache.Cache, rateLimitCache *helper.RateLimitConfigCache, notUserBanned func(http.Handler) http.Handler) {
-	resendVerificationLimit := helper.RateLimitFromConfig(
+func setupAuthOnlyRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, sharedCache *cachekit.Cache, rateLimitCache *restapimiddleware.RateLimitConfigCache, notUserBanned func(http.Handler) http.Handler) {
+	resendVerificationLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyResendVerifyIP, time.Minute,
 		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
 	)
 
 	router.Group(func(r chi.Router) {
@@ -186,8 +191,8 @@ func setupProtectedRoutes(
 	deps *helper.ServerDeps,
 	wrapper openapi.ServerInterfaceWrapper,
 	verifyEmails bool,
-	rateLimitCache *helper.RateLimitConfigCache,
-	sharedCache *cache.Cache,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
+	sharedCache *cachekit.Cache,
 	ipTracking func(http.Handler) http.Handler,
 	notUserBanned func(http.Handler) http.Handler,
 	scoreboardVis func(http.Handler) http.Handler,
@@ -205,39 +210,39 @@ func setupBasicAuthRoutes(
 	deps *helper.ServerDeps,
 	wrapper openapi.ServerInterfaceWrapper,
 	verifyEmails bool,
-	rateLimitCache *helper.RateLimitConfigCache,
-	sharedCache *cache.Cache,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
+	sharedCache *cachekit.Cache,
 	ipTracking func(http.Handler) http.Handler,
 	notBanned func(http.Handler) http.Handler,
 	notUserBanned func(http.Handler) http.Handler,
 	scoreboardVis func(http.Handler) http.Handler,
 ) {
 	getter := deps.Admin.SettingsUC
-	keyFunc := ipKeyFunc(deps.Infra.TrustedProxyCIDRs)
+	keyFunc := ipKeyFunc()
 
-	profileUpdateLimit := helper.RateLimitFromConfig(
+	profileUpdateLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyProfileUpdateIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		keyFunc, deps.Infra.Logger,
 	)
-	apiTokenLimit := helper.RateLimitFromConfig(
+	apiTokenLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyAPITokenIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		keyFunc, deps.Infra.Logger,
 	)
-	notificationLimit := helper.RateLimitFromConfig(
+	notificationLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyNotificationIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		keyFunc, deps.Infra.Logger,
 	)
-	protectedReadLimit := helper.RateLimitFromConfig(
+	protectedReadLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyProtectedReadIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		keyFunc, deps.Infra.Logger,
 	)
 
 	router.Group(func(r chi.Router) {
@@ -273,28 +278,28 @@ func setupBasicAuthRoutes(
 			tokens.With(apiTokenLimit).Delete("/user/tokens/{ID}", wrapper.DeleteUserTokensID)
 		})
 
-		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger, notBanned, scoreboardVis)
+		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned, scoreboardVis)
 		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, verifyEmails, sharedCache, notBanned)
 
-		fileDownloadLimit := helper.RateLimitFromConfig(
+		fileDownloadLimit := restapimiddleware.DynamicRateLimit(
 			deps.Infra.RedisClient, rlKeyFileDownloadIP, time.Minute,
 			rateLimitCache, getter,
-			func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-			ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+			func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+			ipKeyFunc(), deps.Infra.Logger,
 		)
 		r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned, fileDownloadLimit).Get("/files/by-id/{ID}/download", wrapper.GetFilesIDDownload)
 
-		setupAdminRoutes(r, wrapper, deps.Infra.RedisClient, deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger)
+		setupAdminRoutes(r, wrapper, deps.Infra.RedisClient, deps.Infra.Logger)
 	})
 }
 
-func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *helper.RateLimitConfigCache, sharedCache *cache.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
+func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
 	getter := deps.Admin.SettingsUC
-	scoreboardLimit := helper.RateLimitFromConfig(
+	scoreboardLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyScoreboardIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
 	)
 
 	router.Group(func(r chi.Router) {
@@ -327,12 +332,12 @@ func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper o
 	})
 }
 
-func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, _ bool, rateLimitCache *helper.RateLimitConfigCache, sharedCache *cache.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
-	challengeReadLimit := helper.RateLimitFromConfig(
+func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, _ bool, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
+	challengeReadLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyChallengeReadIP, time.Minute,
 		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
 	)
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
@@ -348,13 +353,13 @@ func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper op
 	})
 }
 
-func setupWebSocketRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *helper.RateLimitConfigCache, sharedCache *cache.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
+func setupWebSocketRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
 	getter := deps.Admin.SettingsUC
-	wsLimit := helper.RateLimitFromConfig(
+	wsLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyWebSocketIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
 	)
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
@@ -369,12 +374,12 @@ func setupWebSocketRoute(router chi.Router, deps *helper.ServerDeps, wrapper ope
 	})
 }
 
-func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.ServerDeps, _ openapi.ServerInterfaceWrapper, verifyEmails bool, rateLimitCache *helper.RateLimitConfigCache, sharedCache *cache.Cache, notBanned, notUserBanned, ipTracking func(http.Handler) http.Handler) {
-	fileDownloadLimit := helper.RateLimitFromConfig(
+func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.ServerDeps, _ openapi.ServerInterfaceWrapper, verifyEmails bool, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, notBanned, notUserBanned, ipTracking func(http.Handler) http.Handler) {
+	fileDownloadLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyFileDownloadIP, time.Minute,
 		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, deps.Infra.Logger,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
 	)
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
@@ -392,15 +397,19 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 	})
 }
 
-func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verifyEmails bool, redisClient *redis.Client, trustedProxyCIDRs []string, log logger.Logger, notBanned, scoreboardVisibility func(http.Handler) http.Handler) {
+func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verifyEmails bool, redisClient *redis.Client, log logkit.Logger, notBanned, scoreboardVisibility func(http.Handler) http.Handler) {
 	r.Group(func(sv chi.Router) {
+		sv.Use(notBanned)
 		sv.Use(scoreboardVisibility)
 		sv.Get("/teams", wrapper.GetTeams)
+	})
+	r.Group(func(sv chi.Router) {
+		sv.Use(scoreboardVisibility)
 		sv.Get("/teams/my", wrapper.GetTeamsMy)
 	})
 
 	r.Group(func(me chi.Router) {
-		me.Use(restapimiddleware.RequireTeamOrNotFound())
+		me.Use(restapimiddleware.RequireTeam())
 		me.Use(notBanned)
 		me.Get("/teams/me/solves", wrapper.GetTeamsMeSolves)
 		me.Get("/teams/me/fails", wrapper.GetTeamsMeFails)
@@ -416,7 +425,7 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verif
 	verified.Delete("/teams/members/{ID}", wrapper.DeleteTeamsMembersID)
 	verified.Post("/teams/transfer-captain", wrapper.PostTeamsTransferCaptain)
 
-	teamOpLimit := restapimiddleware.RateLimit(redisClient, rlKeyTeamOpUser, teamOpRateLimit, teamOpRateLimitWindow, userIDKeyFunc, trustedProxyCIDRs, log)
+	teamOpLimit := restapimiddleware.RateLimit(redisClient, rlKeyTeamOpUser, teamOpRateLimit, teamOpRateLimitWindow, userIDKeyFunc, log)
 	verified.With(teamOpLimit).Post("/teams", wrapper.PostTeams)
 	verified.With(teamOpLimit).Post("/teams/join", wrapper.PostTeamsJoin)
 	verified.With(teamOpLimit).Post("/teams/solo", wrapper.PostTeamsSolo)
@@ -426,19 +435,19 @@ func setupChallengeRoutes(
 	r chi.Router,
 	wrapper openapi.ServerInterfaceWrapper,
 	deps *helper.ServerDeps,
-	rateLimitCache *helper.RateLimitConfigCache,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
 	verifyEmails bool,
-	_ *cache.Cache,
+	_ *cachekit.Cache,
 	notBanned func(http.Handler) http.Handler,
 ) {
 	competitionUC := deps.Comp.CompetitionUC
 	log := deps.Infra.Logger
 	getter := deps.Admin.SettingsUC
-	challengeReadLimit := helper.RateLimitFromConfig(
+	challengeReadLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyChallengeReadIP, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, log,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		ipKeyFunc(), log,
 	)
 
 	r.Group(func(challenges chi.Router) {
@@ -456,11 +465,17 @@ func setupChallengeRoutes(
 		challenges.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
 	})
 
-	commentLimit := helper.RateLimitFromConfig(
+	commentLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyCommentUser, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.CommentPerMinute) },
-		userIDKeyFunc, deps.Infra.TrustedProxyCIDRs, log,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.CommentPerMinute) },
+		userIDKeyFunc, log,
+	)
+	ratingLimit := restapimiddleware.DynamicRateLimit(
+		deps.Infra.RedisClient, rlKeyRatingUser, time.Minute,
+		rateLimitCache, getter,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) },
+		userIDKeyFunc, log,
 	)
 	r.Group(func(comments chi.Router) {
 		comments.Use(restapimiddleware.CompetitionEnded(competitionUC))
@@ -472,25 +487,29 @@ func setupChallengeRoutes(
 		comments.Delete("/comments/{ID}", wrapper.DeleteCommentsID)
 	})
 
-	submitIPLimit := helper.RateLimitFromConfig(
-		deps.Infra.RedisClient, rlKeySubmitIP, time.Minute,
+	r.Group(func(ratings chi.Router) {
+		ratings.Use(restapimiddleware.ChallengeVisibility(competitionUC))
+		ratings.Use(restapimiddleware.RequireVerified(verifyEmails))
+		ratings.Use(notBanned)
+		ratings.Use(ratingLimit)
+		ratings.Get("/challenges/{challengeID}/ratings", wrapper.GetChallengesChallengeIDRatings)
+		ratings.Put("/challenges/{challengeID}/rating", wrapper.PutChallengesChallengeIDRating)
+	})
+
+	submitLimitWithAudit := restapimiddleware.SubmitRateLimitWithAudit(
+		deps.Infra.RedisClient, rlKeySubmitIP, rlKeySubmitUser, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.SubmitIPPerMinute) },
-		ipKeyFunc(deps.Infra.TrustedProxyCIDRs), deps.Infra.TrustedProxyCIDRs, log,
+		ipKeyFunc(), userIDKeyFunc,
+		log,
+		deps.Comp.SubmissionUC,
+		deps.Infra.RatelimitAuditWG,
 	)
 
-	submitUserLimit := helper.RateLimitFromConfig(
-		deps.Infra.RedisClient, rlKeySubmitUser, time.Minute,
-		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.SubmitUserPerMinute) },
-		userIDKeyFunc, deps.Infra.TrustedProxyCIDRs, log,
-	)
-
-	hintUnlockUserLimit := helper.RateLimitFromConfig(
+	hintUnlockUserLimit := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyHintUnlockUser, time.Minute,
 		rateLimitCache, getter,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.HintUnlockUserPerMinute) },
-		userIDKeyFunc, deps.Infra.TrustedProxyCIDRs, log,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.HintUnlockUserPerMinute) },
+		userIDKeyFunc, log,
 	)
 
 	r.Group(func(sub chi.Router) {
@@ -498,8 +517,7 @@ func setupChallengeRoutes(
 		sub.Use(restapimiddleware.RequireVerified(verifyEmails))
 		sub.Use(restapimiddleware.RequireTeam())
 		sub.Use(notBanned)
-		sub.Use(submitIPLimit)
-		sub.Use(submitUserLimit)
+		sub.Use(submitLimitWithAudit)
 		sub.Post("/challenges/{challengeID}/submit", wrapper.PostChallengesChallengeIDSubmit)
 	})
 
@@ -514,8 +532,8 @@ func setupChallengeRoutes(
 	})
 }
 
-func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, trustedProxyCIDRs []string, log logger.Logger) {
-	adminGeneralLimitMw := restapimiddleware.RateLimit(redisClient, rlKeyAdminGeneral, adminGeneralLimit, adminGeneralWindow, userIDKeyFunc, trustedProxyCIDRs, log)
+func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, log logkit.Logger) {
+	adminGeneralLimitMw := restapimiddleware.RateLimit(redisClient, rlKeyAdminGeneral, adminGeneralLimit, adminGeneralWindow, userIDKeyFunc, log)
 	r.Group(func(adm chi.Router) {
 		adm.Use(restapimiddleware.Admin)
 		adm.Use(adminGeneralLimitMw)
@@ -531,7 +549,7 @@ func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redi
 		setupAdminPageRoutes(adm, wrapper)
 		setupAdminNotificationRoutes(adm, wrapper)
 		setupAdminSubmissionRoutes(adm, wrapper)
-		setupAdminUtilityRoutes(adm, wrapper, redisClient, trustedProxyCIDRs, log)
+		setupAdminUtilityRoutes(adm, wrapper, redisClient, log)
 	})
 }
 
@@ -640,18 +658,18 @@ func setupAdminSubmissionRoutes(adm chi.Router, wrapper openapi.ServerInterfaceW
 	adm.Get("/admin/submissions/team/{teamID}", wrapper.GetAdminSubmissionsTeamTeamID)
 }
 
-func setupAdminUtilityRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, trustedProxyCIDRs []string, log logger.Logger) {
+func setupAdminUtilityRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, log logkit.Logger) {
 	adm.Put("/admin/hints/{ID}", wrapper.PutAdminHintsID)
 	adm.Delete("/admin/hints/{ID}", wrapper.DeleteAdminHintsID)
 	adm.Delete("/admin/files/{ID}", wrapper.DeleteAdminFilesID)
 	adm.Get("/admin/unlocks", wrapper.GetAdminUnlocks)
 	adm.Get("/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
-	destructiveLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminDestructive, adminDestructiveLimit, adminDestructiveWindow, userIDKeyFunc, trustedProxyCIDRs, log)
+	destructiveLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminDestructive, adminDestructiveLimit, adminDestructiveWindow, userIDKeyFunc, log)
 	adm.With(destructiveLimit).Post("/admin/reset", wrapper.PostAdminReset)
 	adm.With(destructiveLimit).Post("/admin/import", wrapper.PostAdminImport)
 	adm.With(destructiveLimit).Post("/admin/import/csv", wrapper.PostAdminImportCsv)
 	adm.Get("/admin/export", wrapper.GetAdminExport)
-	exportZipLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminExportZip, adminExportZipLimit, adminExportZipWindow, userIDKeyFunc, trustedProxyCIDRs, log)
+	exportZipLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminExportZip, adminExportZipLimit, adminExportZipWindow, userIDKeyFunc, log)
 	adm.With(exportZipLimit).Get("/admin/export/zip", wrapper.GetAdminExportZip)
 	adm.Get("/admin/export/csv", wrapper.GetAdminExportCsv)
 	adm.Get("/debug", wrapper.GetDebug)

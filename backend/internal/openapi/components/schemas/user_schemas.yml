@@ -181,7 +181,7 @@ schemas:
       challenge_points:
         type: integer
     type: object
-  entity.UserExport:
+  UserExport:
     properties:
       id:
         type: string
@@ -194,7 +194,7 @@ schemas:
       team_id:
         type: string
     type: object
-  entity.TrackingEntry:
+  TrackingEntry:
     properties:
       id:
         type: string
@@ -213,7 +213,7 @@ schemas:
       data:
         type: array
         items:
-          $ref: "#/schemas/entity.TrackingEntry"
+          $ref: "#/schemas/TrackingEntry"
       meta:
         $ref: "#/schemas/response.PaginationMeta"
     type: object

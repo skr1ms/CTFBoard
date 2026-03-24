@@ -7,34 +7,33 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type SolveRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.SolveRepository = (*SolveRepo)(nil)
 
 func NewSolveRepo(pool *pgxpool.Pool) *SolveRepo {
-	return &SolveRepo{pool: pool}
+	return &SolveRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-func (r *SolveRepo) q(ctx context.Context) *sqlc.Queries {
-	return sqlc.New(ExtractDB(ctx, r.pool))
-}
-
-func toEntitySolve(s sqlc.Solve) *entity.Solve {
-	return &entity.Solve{
+func toDomainSolve(s sqlc.Solve) *domain.Solve {
+	return &domain.Solve{
 		ID:            s.ID,
 		UserID:        s.UserID,
 		TeamID:        s.TeamID,
 		ChallengeID:   s.ChallengeID,
-		SolvedAt:      ptrTimeToTime(timestamptzToTime(s.SolvedAt)),
+		SolvedAt:      pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.SolvedAt)),
 		PointsAtSolve: int(s.PointsAtSolve),
 		BannedTeamID:  s.BannedTeamID,
 		BannedUserID:  s.BannedUserID,
@@ -74,40 +73,40 @@ func toFirstBloodEntry(row sqlc.GetFirstBloodRow) *repo.FirstBloodEntry {
 		Username: row.Username,
 		TeamID:   row.TeamID,
 		TeamName: row.TeamName,
-		SolvedAt: ptrTimeToTime(timestamptzToTime(row.SolvedAt)),
+		SolvedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),
 	}
 }
 
-func (r *SolveRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Solve, error) {
-	s, err := r.q(ctx).GetSolveByID(ctx, ID)
+func (r *SolveRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Solve, error) {
+	s, err := r.Q(ctx).GetSolveByID(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetByID: %w", err)
 	}
-	return toEntitySolve(s), nil
+	return toDomainSolve(s), nil
 }
 
-func (r *SolveRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*entity.Solve, error) {
-	s, err := r.q(ctx).GetSolveByTeamAndChallenge(ctx, sqlc.GetSolveByTeamAndChallengeParams{
+func (r *SolveRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Solve, error) {
+	s, err := r.Q(ctx).GetSolveByTeamAndChallenge(ctx, sqlc.GetSolveByTeamAndChallengeParams{
 		TeamID:      teamID,
 		ChallengeID: challengeID,
 	})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallenge: %w", err)
 	}
-	return toEntitySolve(s), nil
+	return toDomainSolve(s), nil
 }
 
 func (r *SolveRepo) GetSolvedChallengeIDsByTeam(ctx context.Context, teamID uuid.UUID, challengeIDs []uuid.UUID) ([]uuid.UUID, error) {
 	if len(challengeIDs) == 0 {
 		return nil, nil
 	}
-	ids, err := r.q(ctx).GetSolvedChallengeIDsByTeam(ctx, sqlc.GetSolvedChallengeIDsByTeamParams{
+	ids, err := r.Q(ctx).GetSolvedChallengeIDsByTeam(ctx, sqlc.GetSolvedChallengeIDsByTeamParams{
 		TeamID:  teamID,
 		Column2: challengeIDs,
 	})
@@ -117,20 +116,20 @@ func (r *SolveRepo) GetSolvedChallengeIDsByTeam(ctx context.Context, teamID uuid
 	return ids, nil
 }
 
-func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Solve, error) {
-	rows, err := r.q(ctx).GetSolvesByUserID(ctx, userID)
+func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Solve, error) {
+	rows, err := r.Q(ctx).GetSolvesByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByUserID: %w", err)
 	}
-	out := make([]*entity.Solve, 0, len(rows))
+	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, toEntitySolve(s))
+		out = append(out, toDomainSolve(s))
 	}
 	return out, nil
 }
 
 func (r *SolveRepo) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEntry, error) {
-	rows, err := r.q(ctx).GetScoreboard(ctx)
+	rows, err := r.Q(ctx).GetScoreboard(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetScoreboard: %w", err)
 	}
@@ -146,7 +145,7 @@ func (r *SolveRepo) GetScoreboardFrozen(ctx context.Context, freezeTime time.Tim
 }
 
 func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
-	rows, err := r.q(ctx).GetScoreboardByBracket(ctx, bracketID)
+	rows, err := r.Q(ctx).GetScoreboardByBracket(ctx, bracketID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracket: %w", err)
 	}
@@ -158,8 +157,8 @@ func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.
 }
 
 func (r *SolveRepo) GetScoreboardByBracketFrozen(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*repo.ScoreboardEntry, error) {
-	rows, err := r.q(ctx).GetScoreboardByBracketFrozen(ctx, sqlc.GetScoreboardByBracketFrozenParams{
-		SolvedAt:  timeToTimestamptz(&freezeTime),
+	rows, err := r.Q(ctx).GetScoreboardByBracketFrozen(ctx, sqlc.GetScoreboardByBracketFrozenParams{
+		SolvedAt:  pgutil.TimeToTimestamptz(&freezeTime),
 		BracketID: bracketID,
 	})
 	if err != nil {
@@ -176,7 +175,7 @@ func (r *SolveRepo) GetScoreboardByBracketFrozen(ctx context.Context, freezeTime
 // ignoring freeze time. Teams see their actual score during the frozen period;
 // the public scoreboard is what is frozen, not the team's own view.
 func (r *SolveRepo) GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, error) {
-	total, err := r.q(ctx).GetTeamScore(ctx, teamID)
+	total, err := r.Q(ctx).GetTeamScore(ctx, teamID)
 	if err != nil {
 		return 0, fmt.Errorf("SolveRepo - GetTeamScore: %w", err)
 	}
@@ -184,9 +183,9 @@ func (r *SolveRepo) GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, er
 }
 
 func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*repo.FirstBloodEntry, error) {
-	row, err := r.q(ctx).GetFirstBlood(ctx, challengeID)
+	row, err := r.Q(ctx).GetFirstBlood(ctx, challengeID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetFirstBlood: %w", err)
@@ -195,12 +194,12 @@ func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*
 }
 
 func (r *SolveRepo) GetFirstBloodFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*repo.FirstBloodEntry, error) {
-	row, err := r.q(ctx).GetFirstBloodFrozen(ctx, sqlc.GetFirstBloodFrozenParams{
+	row, err := r.Q(ctx).GetFirstBloodFrozen(ctx, sqlc.GetFirstBloodFrozenParams{
 		ChallengeID: challengeID,
-		SolvedAt:    timeToTimestamptz(&freezeTime),
+		SolvedAt:    pgutil.TimeToTimestamptz(&freezeTime),
 	})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetFirstBloodFrozen: %w", err)
@@ -210,48 +209,48 @@ func (r *SolveRepo) GetFirstBloodFrozen(ctx context.Context, challengeID uuid.UU
 		Username: row.Username,
 		TeamID:   row.TeamID,
 		TeamName: row.TeamName,
-		SolvedAt: ptrTimeToTime(timestamptzToTime(row.SolvedAt)),
+		SolvedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),
 	}, nil
 }
 
-func (r *SolveRepo) GetAll(ctx context.Context) ([]*entity.Solve, error) {
-	rows, err := r.q(ctx).GetAllSolves(ctx)
+func (r *SolveRepo) GetAll(ctx context.Context) ([]*domain.Solve, error) {
+	rows, err := r.Q(ctx).GetAllSolves(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetAll: %w", err)
 	}
-	out := make([]*entity.Solve, 0, len(rows))
+	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, toEntitySolve(s))
+		out = append(out, toDomainSolve(s))
 	}
 	return out, nil
 }
 
-func (r *SolveRepo) GetAllForBackup(ctx context.Context) ([]*entity.Solve, error) {
-	rows, err := r.q(ctx).GetSolvesForBackup(ctx)
+func (r *SolveRepo) GetAllForBackup(ctx context.Context) ([]*domain.Solve, error) {
+	rows, err := r.Q(ctx).GetSolvesForBackup(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetAllForBackup: %w", err)
 	}
-	out := make([]*entity.Solve, 0, len(rows))
+	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, toEntitySolve(s))
+		out = append(out, toDomainSolve(s))
 	}
 	return out, nil
 }
 
-func (r *SolveRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.SolveWithDetails, error) {
-	rows, err := r.q(ctx).GetSolvesByChallengeID(ctx, challengeID)
+func (r *SolveRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error) {
+	rows, err := r.Q(ctx).GetSolvesByChallengeID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByChallengeID: %w", err)
 	}
-	out := make([]*entity.SolveWithDetails, 0, len(rows))
+	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, &entity.SolveWithDetails{
-			Solve: entity.Solve{
+		out = append(out, &domain.SolveWithDetails{
+			Solve: domain.Solve{
 				ID:          s.ID,
 				UserID:      s.UserID,
 				TeamID:      s.TeamID,
 				ChallengeID: s.ChallengeID,
-				SolvedAt:    ptrTimeToTime(timestamptzToTime(s.SolvedAt)),
+				SolvedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.SolvedAt)),
 			},
 			Username: s.Username,
 			TeamName: s.TeamName,
@@ -260,23 +259,23 @@ func (r *SolveRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID)
 	return out, nil
 }
 
-func (r *SolveRepo) GetByChallengeIDFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) ([]*entity.SolveWithDetails, error) {
-	rows, err := r.q(ctx).GetSolvesByChallengeIDFrozen(ctx, sqlc.GetSolvesByChallengeIDFrozenParams{
+func (r *SolveRepo) GetByChallengeIDFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) ([]*domain.SolveWithDetails, error) {
+	rows, err := r.Q(ctx).GetSolvesByChallengeIDFrozen(ctx, sqlc.GetSolvesByChallengeIDFrozenParams{
 		ChallengeID: challengeID,
-		SolvedAt:    timeToTimestamptz(&freezeTime),
+		SolvedAt:    pgutil.TimeToTimestamptz(&freezeTime),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByChallengeIDFrozen: %w", err)
 	}
-	out := make([]*entity.SolveWithDetails, 0, len(rows))
+	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, &entity.SolveWithDetails{
-			Solve: entity.Solve{
+		out = append(out, &domain.SolveWithDetails{
+			Solve: domain.Solve{
 				ID:          s.ID,
 				UserID:      s.UserID,
 				TeamID:      s.TeamID,
 				ChallengeID: s.ChallengeID,
-				SolvedAt:    ptrTimeToTime(timestamptzToTime(s.SolvedAt)),
+				SolvedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.SolvedAt)),
 			},
 			Username: s.Username,
 			TeamName: s.TeamName,
@@ -286,7 +285,7 @@ func (r *SolveRepo) GetByChallengeIDFrozen(ctx context.Context, challengeID uuid
 }
 
 func (r *SolveRepo) GetSolveCountsFrozen(ctx context.Context, freezeTime time.Time) (map[uuid.UUID]int, error) {
-	rows, err := r.q(ctx).GetSolveCountsFrozen(ctx, timeToTimestamptz(&freezeTime))
+	rows, err := r.Q(ctx).GetSolveCountsFrozen(ctx, pgutil.TimeToTimestamptz(&freezeTime))
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetSolveCountsFrozen: %w", err)
 	}
@@ -297,66 +296,66 @@ func (r *SolveRepo) GetSolveCountsFrozen(ctx context.Context, freezeTime time.Ti
 	return out, nil
 }
 
-func (r *SolveRepo) GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]*entity.SolveWithDetails, error) {
-	rows, err := r.q(ctx).GetSolvesByUserIDWithDetails(ctx, userID)
+func (r *SolveRepo) GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]*domain.SolveWithDetails, error) {
+	rows, err := r.Q(ctx).GetSolvesByUserIDWithDetails(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByUserIDWithDetails: %w", err)
 	}
-	out := make([]*entity.SolveWithDetails, 0, len(rows))
+	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, &entity.SolveWithDetails{
-			Solve: entity.Solve{
+		out = append(out, &domain.SolveWithDetails{
+			Solve: domain.Solve{
 				ID:          s.ID,
 				UserID:      s.UserID,
 				TeamID:      s.TeamID,
 				ChallengeID: s.ChallengeID,
-				SolvedAt:    ptrTimeToTime(timestamptzToTime(s.SolvedAt)),
+				SolvedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.SolvedAt)),
 			},
 			ChallengeTitle:    s.ChallengeTitle,
-			ChallengeCategory: ptrStrToStr(s.ChallengeCategory),
-			ChallengePoints:   int32PtrToInt(s.ChallengePoints),
+			ChallengeCategory: s.ChallengeCategory,
+			ChallengePoints:   int(lo.FromPtr(s.ChallengePoints)),
 		})
 	}
 	return out, nil
 }
 
-func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]*entity.SolveWithDetails, error) {
-	rows, err := r.q(ctx).GetSolvesByTeamIDWithDetails(ctx, teamID)
+func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error) {
+	rows, err := r.Q(ctx).GetSolvesByTeamIDWithDetails(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByTeamIDWithDetails: %w", err)
 	}
-	out := make([]*entity.SolveWithDetails, 0, len(rows))
+	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, &entity.SolveWithDetails{
-			Solve: entity.Solve{
+		out = append(out, &domain.SolveWithDetails{
+			Solve: domain.Solve{
 				ID:          s.ID,
 				UserID:      s.UserID,
 				TeamID:      s.TeamID,
 				ChallengeID: s.ChallengeID,
-				SolvedAt:    ptrTimeToTime(timestamptzToTime(s.SolvedAt)),
+				SolvedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.SolvedAt)),
 			},
 			Username:          s.Username,
 			ChallengeTitle:    s.ChallengeTitle,
-			ChallengeCategory: ptrStrToStr(s.ChallengeCategory),
-			ChallengePoints:   int32PtrToInt(s.ChallengePoints),
+			ChallengeCategory: s.ChallengeCategory,
+			ChallengePoints:   int(lo.FromPtr(s.ChallengePoints)),
 		})
 	}
 	return out, nil
 }
 
-func (r *SolveRepo) Create(ctx context.Context, s *entity.Solve) error {
+func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {
 	s.ID = uuid.New()
 	s.SolvedAt = time.Now()
-	err := r.q(ctx).CreateSolve(ctx, sqlc.CreateSolveParams{
+	err := r.Q(ctx).CreateSolve(ctx, sqlc.CreateSolveParams{
 		ID:            s.ID,
 		UserID:        s.UserID,
 		TeamID:        s.TeamID,
 		ChallengeID:   s.ChallengeID,
-		SolvedAt:      timeToTimestamptz(&s.SolvedAt),
+		SolvedAt:      pgutil.TimeToTimestamptz(&s.SolvedAt),
 		PointsAtSolve: int32(s.PointsAtSolve), //nolint:gosec // points are capped by scoring config; no realistic overflow
 	})
 	if err != nil {
-		if isPgUniqueViolation(err) {
+		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrAlreadySolved
 		}
 		return fmt.Errorf("SolveRepo - Create: %w", err)
@@ -364,23 +363,23 @@ func (r *SolveRepo) Create(ctx context.Context, s *entity.Solve) error {
 	return nil
 }
 
-func (r *SolveRepo) GetByTeamAndChallengeForUpdate(ctx context.Context, teamID, challengeID uuid.UUID) (*entity.Solve, error) {
-	s, err := r.q(ctx).GetSolveByTeamAndChallengeForUpdate(ctx, sqlc.GetSolveByTeamAndChallengeForUpdateParams{
+func (r *SolveRepo) GetByTeamAndChallengeForUpdate(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Solve, error) {
+	s, err := r.Q(ctx).GetSolveByTeamAndChallengeForUpdate(ctx, sqlc.GetSolveByTeamAndChallengeForUpdateParams{
 		TeamID:      teamID,
 		ChallengeID: challengeID,
 	})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallengeForUpdate: %w", err)
 	}
-	return toEntitySolve(s), nil
+	return toDomainSolve(s), nil
 }
 
 // DeleteByTeamAndChallenge removes a solve by team and challenge. Idempotent: returns nil if the solve does not exist.
 func (r *SolveRepo) DeleteByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) error {
-	if err := r.q(ctx).DeleteSolveByTeamAndChallenge(ctx, sqlc.DeleteSolveByTeamAndChallengeParams{
+	if err := r.Q(ctx).DeleteSolveByTeamAndChallenge(ctx, sqlc.DeleteSolveByTeamAndChallengeParams{
 		TeamID:      teamID,
 		ChallengeID: challengeID,
 	}); err != nil {
@@ -390,28 +389,28 @@ func (r *SolveRepo) DeleteByTeamAndChallenge(ctx context.Context, teamID, challe
 }
 
 func (r *SolveRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.q(ctx).DeleteSolvesByTeamID(ctx, teamID); err != nil {
+	if err := r.Q(ctx).DeleteSolvesByTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("SolveRepo - DeleteByTeamID: %w", err)
 	}
 	return nil
 }
 
 func (r *SolveRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.q(ctx).SoftBanSolvesByTeamID(ctx, teamID); err != nil {
+	if err := r.Q(ctx).SoftBanSolvesByTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("SolveRepo - SoftBanByTeamID: %w", err)
 	}
 	return nil
 }
 
 func (r *SolveRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.q(ctx).RestoreSolvesByBannedTeamID(ctx, &teamID); err != nil {
+	if err := r.Q(ctx).RestoreSolvesByBannedTeamID(ctx, &teamID); err != nil {
 		return fmt.Errorf("SolveRepo - RestoreByBannedTeamID: %w", err)
 	}
 	return nil
 }
 
 func (r *SolveRepo) SoftBanByTeamIDAndUserID(ctx context.Context, teamID, userID uuid.UUID) error {
-	if err := r.q(ctx).SoftBanSolvesByTeamIDAndUserID(ctx, sqlc.SoftBanSolvesByTeamIDAndUserIDParams{
+	if err := r.Q(ctx).SoftBanSolvesByTeamIDAndUserID(ctx, sqlc.SoftBanSolvesByTeamIDAndUserIDParams{
 		TeamID: teamID,
 		UserID: userID,
 	}); err != nil {
@@ -421,7 +420,7 @@ func (r *SolveRepo) SoftBanByTeamIDAndUserID(ctx context.Context, teamID, userID
 }
 
 func (r *SolveRepo) RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error {
-	if err := r.q(ctx).RestoreSolvesByBannedUserID(ctx, &userID); err != nil {
+	if err := r.Q(ctx).RestoreSolvesByBannedUserID(ctx, &userID); err != nil {
 		return fmt.Errorf("SolveRepo - RestoreByBannedUserID: %w", err)
 	}
 	return nil
@@ -431,7 +430,7 @@ func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs [
 	if len(challengeIDs) == 0 {
 		return nil, nil
 	}
-	rows, err := r.q(ctx).GetSolvesForPointsRecalc(ctx, challengeIDs)
+	rows, err := r.Q(ctx).GetSolvesForPointsRecalc(ctx, challengeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetSolvesForPointsRecalc: %w", err)
 	}
@@ -440,7 +439,7 @@ func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs [
 		out = append(out, &repo.SolveForPointsRecalc{
 			ID:           row.ID,
 			ChallengeID:  row.ChallengeID,
-			SolvedAt:     ptrTimeToTime(timestamptzToTime(row.SolvedAt)),
+			SolvedAt:     pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),
 			InitialValue: int(row.InitialValue),
 			MinValue:     int(row.MinValue),
 			Decay:        int(row.Decay),
@@ -460,7 +459,7 @@ func (r *SolveRepo) BatchUpdateSolvePoints(ctx context.Context, solveIDs []uuid.
 	for i, p := range points {
 		pts[i] = int32(p)
 	}
-	if err := r.q(ctx).BatchUpdateSolvePoints(ctx, sqlc.BatchUpdateSolvePointsParams{
+	if err := r.Q(ctx).BatchUpdateSolvePoints(ctx, sqlc.BatchUpdateSolvePointsParams{
 		Column1: solveIDs,
 		Column2: pts,
 	}); err != nil {

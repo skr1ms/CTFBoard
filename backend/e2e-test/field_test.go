@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -12,13 +11,12 @@ import (
 
 // GET /fields: returns created fields for entity_type.
 func TestField_GetFields_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_fields_list")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	name := "field_" + suffix
 
 	createResp := h.CreateField(tokenAdmin, name, "text", "user", false, http.StatusCreated)
@@ -39,11 +37,10 @@ func TestField_GetFields_Success(t *testing.T) {
 
 // POST /admin/fields: non-admin gets 403.
 func TestField_Create_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("field_user_" + suffix)
 
 	h.CreateField(tokenUser, "x_"+suffix, "text", "user", false, http.StatusForbidden)
@@ -51,12 +48,11 @@ func TestField_Create_Forbidden(t *testing.T) {
 
 // PUT /admin/fields/{id}: admin updates field.
 func TestField_Update_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_field_upd")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	createResp := h.CreateField(tokenAdmin, "field_"+suffix, "text", "user", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
 	require.NotNil(t, createResp.JSON201.ID)
@@ -76,12 +72,11 @@ func TestField_Update_Success(t *testing.T) {
 
 // DELETE /admin/fields/{id}: admin deletes field.
 func TestField_Delete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_field_del")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	createResp := h.CreateField(tokenAdmin, "field_del_"+suffix, "text", "user", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
 

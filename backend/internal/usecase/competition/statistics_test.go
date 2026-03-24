@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestStatisticsUseCase_GetGeneralStats_Success(t *testing.T) {
@@ -21,7 +21,7 @@ func TestStatisticsUseCase_GetGeneralStats_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	stats := &entity.GeneralStats{
+	stats := &domain.GeneralStats{
 		UserCount:      100,
 		TeamCount:      20,
 		ChallengeCount: 15,
@@ -44,7 +44,7 @@ func TestStatisticsUseCase_GetGeneralStats_Cached(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	stats := &entity.GeneralStats{UserCount: 100}
+	stats := &domain.GeneralStats{UserCount: 100}
 	bytes, err := json.Marshal(stats)
 	require.NoError(t, err)
 	redisClient.ExpectGet("stats:general").SetVal(string(bytes))
@@ -77,7 +77,7 @@ func TestStatisticsUseCase_GetChallengeStats_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	stats := []*entity.ChallengeStats{
+	stats := []*domain.ChallengeStats{
 		{ID: uuid.New(), Title: "Chall 1", SolveCount: 10},
 	}
 
@@ -98,7 +98,7 @@ func TestStatisticsUseCase_GetScoreboardHistory_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	history := []*entity.ScoreboardHistoryEntry{
+	history := []*domain.ScoreboardHistoryEntry{
 		{TeamID: uuid.New(), Points: 100, Timestamp: time.Now()},
 	}
 
@@ -148,7 +148,7 @@ func TestStatisticsUseCase_GetScoreboardGraph_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	history := []*entity.ScoreboardHistoryEntry{
+	history := []*domain.ScoreboardHistoryEntry{
 		{TeamID: uuid.New(), TeamName: "Team1", Points: 100, Timestamp: time.Now()},
 	}
 
@@ -184,7 +184,7 @@ func TestStatisticsUseCase_GetChallengeDetailStats_Success(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	challengeID := uuid.New()
-	stats := &entity.ChallengeDetailStats{
+	stats := &domain.ChallengeDetailStats{
 		ID:         challengeID,
 		Title:      "Challenge 1",
 		Category:   "Web",
@@ -227,7 +227,7 @@ func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 5}}
+	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 5}}
 	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
 	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:team_registration", `.*`, 5*time.Minute).SetVal("OK")
@@ -261,7 +261,7 @@ func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 10}}
+	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 10}}
 	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
 	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:user_registration", `.*`, 5*time.Minute).SetVal("OK")
@@ -294,7 +294,7 @@ func TestStatisticsUseCase_GetSolveMatrix_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	matrix := []*entity.SolveMatrixRow{
+	matrix := []*domain.SolveMatrixRow{
 		{TeamID: uuid.New(), TeamName: "T1", ChallengeID: uuid.New(), ChallengeTitle: "C1", Solved: true},
 	}
 	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
@@ -330,7 +330,7 @@ func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createStatisticsUseCase()
 
-	data := []*entity.RegistrationTimePoint{{Date: "2025-01-01", Count: 3}}
+	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 3}}
 	redisClient.ExpectGet("stats:submission_timeseries:true").SetErr(redis.Nil)
 	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, true).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:submission_timeseries:true", `.*`, 5*time.Minute).SetVal("OK")

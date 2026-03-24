@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -40,7 +39,6 @@ func TestHintUseCase_Unlock_Concurrent_DoubleSpending(t *testing.T) {
 }
 
 func TestHintUseCase_Unlock_Concurrent_ScoreAboveCost_NoDoubleCharge(t *testing.T) {
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -56,7 +54,7 @@ func TestHintUseCase_Unlock_Concurrent_ScoreAboveCost_NoDoubleCharge(t *testing.
 
 	user, team := f.CreateUserWithTeam(t, "hint_race_200")
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		return f.AwardRepo.Create(txCtx, &entity.Award{
+		return f.AwardRepo.Create(txCtx, &domain.Award{
 			TeamID: team.ID, Value: 200, Description: "Initial",
 		})
 	})
@@ -77,10 +75,10 @@ func TestHintUseCase_Unlock_Concurrent_ScoreAboveCost_NoDoubleCharge(t *testing.
 	assert.Equal(t, 100, score, "score must be 100 (200 - one charge of 100), not double-charged")
 }
 
-func setupHintRaceTest(t *testing.T, f *TestFixture, ctx context.Context) (*entity.User, *entity.Team, *entity.Challenge, *entity.Hint) {
+func setupHintRaceTest(t *testing.T, f *TestFixture, ctx context.Context) (*domain.User, *domain.Team, *domain.Challenge, *domain.Hint) {
 	t.Helper()
 	user, team := f.CreateUserWithTeam(t, "hint_racer")
-	award := &entity.Award{
+	award := &domain.Award{
 		TeamID:      team.ID,
 		Value:       100,
 		Description: "Initial Funding",
@@ -101,7 +99,7 @@ func runConcurrentUnlocks(uc *challenge.HintUseCase, ctx context.Context, userID
 	wg.Add(2)
 
 	errCh := make(chan error, 2)
-	hintCh := make(chan *entity.Hint, 2)
+	hintCh := make(chan *domain.Hint, 2)
 
 	action := func() {
 		defer wg.Done()
@@ -133,7 +131,7 @@ func runConcurrentUnlocks(uc *challenge.HintUseCase, ctx context.Context, userID
 	return successes, errors
 }
 
-func verifyHintUnlockResults(t *testing.T, f *TestFixture, ctx context.Context, team *entity.Team, challenge *entity.Challenge, successes int, errors []error) {
+func verifyHintUnlockResults(t *testing.T, f *TestFixture, ctx context.Context, team *domain.Team, challenge *domain.Challenge, successes int, errors []error) {
 	t.Helper()
 	assert.Equal(t, 1, successes, "Only one unlock should succeed due to sufficient funds for only one")
 	assert.Equal(t, 1, len(errors), "One unlock should fail with insufficient funds or already unlocked")

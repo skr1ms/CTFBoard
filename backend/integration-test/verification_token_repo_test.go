@@ -9,23 +9,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "vt_user")
 
-	token := &entity.VerificationToken{
+	token := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     "test_token_123",
-		Type:      entity.TokenTypeEmailVerification,
+		Type:      domain.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 
@@ -41,7 +40,6 @@ func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
 
 func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -54,7 +52,6 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -62,15 +59,15 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 
 	user := f.CreateUser(t, "vt_del_user")
 
-	token := &entity.VerificationToken{
+	token := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     "token_to_delete",
-		Type:      entity.TokenTypeEmailVerification,
+		Type:      domain.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 	require.NoError(t, repo.Create(ctx, token))
 
-	err := repo.DeleteByUserAndType(ctx, user.ID, entity.TokenTypeEmailVerification)
+	err := repo.DeleteByUserAndType(ctx, user.ID, domain.TokenTypeEmailVerification)
 	assert.NoError(t, err)
 
 	_, err = repo.GetByToken(ctx, token.Token)
@@ -80,7 +77,6 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	repo := f.VerificationTokenRepo
@@ -88,10 +84,10 @@ func TestVerificationTokenRepo_MarkUsed(t *testing.T) {
 
 	user := f.CreateUser(t, "vt_used_user")
 
-	token := &entity.VerificationToken{
+	token := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     "token_mark_used",
-		Type:      entity.TokenTypeEmailVerification,
+		Type:      domain.TokenTypeEmailVerification,
 		ExpiresAt: time.Now().Add(time.Hour),
 	}
 	require.NoError(t, repo.Create(ctx, token))

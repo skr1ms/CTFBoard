@@ -4,32 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 var csvUUIDColumns = map[string]map[string]bool{
 	"users":       {"id": true, "team_id": true},
 	"teams":       {"id": true, "captain_id": true, "invite_token": true, "bracket_id": true},
 	"challenges":  {"id": true},
-	"submissions": {"id": true, "user_id": true, "team_id": true, "challenge_id": true},
+	"submissions": {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
 	"solves":      {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
 	"awards":      {"id": true, "team_id": true, "created_by": true, "banned_team_id": true},
 }
 
-var emailRegex = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
-
 const backupImportBatchSize = 100
 
 var backupEraseTables = []string{
-	"submissions", "solves", "awards", "hint_unlocks", "files", "hints", "challenge_tags", "challenge_requirements", "solutions", "challenges", "tags", "users", "teams", "notifications", "pages", "comments", "field_values", "fields", "brackets",
+	"submissions", "solves", "awards", "ratings", "hint_unlocks", "files", "hints", "challenge_tags", "challenge_requirements", "solutions", "challenges", "tags", "users", "teams", "notifications", "pages", "comments", "field_values", "fields", "brackets",
 }
 
 // quoteIdentifier returns a PostgreSQL-quoted identifier (double-quote escaped).
@@ -48,13 +46,14 @@ var backupEraseTablesQuoted = func() map[string]string {
 }()
 
 var (
-	backupSubmissionImportCols = []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at"}
+	backupSubmissionImportCols = []string{"id", "user_id", "team_id", "challenge_id", "submitted_flag", "is_correct", "ip", "created_at", "submission_type", "banned_team_id", "banned_user_id"}
 
 	backupChallengeImportCols = []string{
 		"id", "title", "description", "category", "flag_hash", "points",
-		"initial_value", "min_value", "decay", "solve_count", "is_hidden", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex",
+		"initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "position",
+		"is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex",
 	}
-	backupHintImportCols       = []string{"id", "challenge_id", "content", "cost", "order_index"}
+	backupHintImportCols       = []string{"id", "challenge_id", "content", "cost", "order_index", "title"}
 	backupTagImportCols        = []string{"id", "name", "color"}
 	backupChallengeTagCols     = []string{"challenge_id", "tag_id"}
 	backupTeamImportCols       = []string{"id", "name", "captain_id", "invite_token", "invite_token_expires_at", "bracket_id", "is_solo", "is_banned", "banned_at", "banned_reason", "is_hidden", "created_at"}
@@ -67,6 +66,7 @@ var (
 	backupChallengeReqCols     = []string{"challenge_id", "required_challenge_id"}
 	backupSolutionImportCols   = []string{"id", "challenge_id", "content"}
 	backupCommentImportCols    = []string{"id", "user_id", "challenge_id", "content", "created_at", "updated_at"}
+	backupRatingImportCols     = []string{"id", "challenge_id", "user_id", "team_id", "value", "review", "created_at", "updated_at"}
 	backupFieldImportCols      = []string{"id", "name", "field_type", "entity_type", "required", "options", "order_index", "created_at"}
 	backupFieldValueImportCols = []string{"id", "field_id", "entity_id", "value", "created_at"}
 )
@@ -76,9 +76,10 @@ const (
 		title = EXCLUDED.title, description = EXCLUDED.description, category = EXCLUDED.category,
 		flag_hash = EXCLUDED.flag_hash, points = EXCLUDED.points, initial_value = EXCLUDED.initial_value,
 		min_value = EXCLUDED.min_value, decay = EXCLUDED.decay, solve_count = EXCLUDED.solve_count,
-		is_hidden = EXCLUDED.is_hidden, is_regex = EXCLUDED.is_regex, is_case_insensitive = EXCLUDED.is_case_insensitive,
+		state = EXCLUDED.state, connection_info = EXCLUDED.connection_info, max_attempts = EXCLUDED.max_attempts, position = EXCLUDED.position,
+		is_regex = EXCLUDED.is_regex, is_case_insensitive = EXCLUDED.is_case_insensitive,
 		flag_regex = EXCLUDED.flag_regex, flag_format_regex = EXCLUDED.flag_format_regex`
-	backupHintUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, cost = EXCLUDED.cost, order_index = EXCLUDED.order_index`
+	backupHintUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, cost = EXCLUDED.cost, order_index = EXCLUDED.order_index, title = EXCLUDED.title`
 	backupTeamUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, captain_id = EXCLUDED.captain_id, invite_token = EXCLUDED.invite_token, invite_token_expires_at = EXCLUDED.invite_token_expires_at, bracket_id = EXCLUDED.bracket_id, is_solo = EXCLUDED.is_solo, is_banned = EXCLUDED.is_banned, banned_at = EXCLUDED.banned_at, banned_reason = EXCLUDED.banned_reason, is_hidden = EXCLUDED.is_hidden`
 	backupUserUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, email = EXCLUDED.email, role = EXCLUDED.role, team_id = EXCLUDED.team_id, is_verified = EXCLUDED.is_verified, verified_at = EXCLUDED.verified_at, is_banned = EXCLUDED.is_banned, banned_at = EXCLUDED.banned_at, banned_reason = EXCLUDED.banned_reason`
 	backupUserRestoredPasswordHash = "__RESTORED__"
@@ -89,6 +90,7 @@ const (
 	backupBracketUpsertSuffix      = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, is_default = EXCLUDED.is_default`
 	backupChallengeReqConflict     = `ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING`
 	backupSolutionUpsertSuffix     = `ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content`
+	backupRatingUpsertSuffix       = `ON CONFLICT (team_id, challenge_id) DO UPDATE SET user_id = EXCLUDED.user_id, value = EXCLUDED.value, review = EXCLUDED.review, updated_at = EXCLUDED.updated_at`
 	backupCommentUpsertSuffix      = `ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, updated_at = EXCLUDED.updated_at`
 	backupFieldUpsertSuffix        = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, field_type = EXCLUDED.field_type, entity_type = EXCLUDED.entity_type, required = EXCLUDED.required, options = EXCLUDED.options, order_index = EXCLUDED.order_index`
 	backupFieldValueUpsertSuffix   = `ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value`
@@ -99,7 +101,7 @@ func (r *BackupRepo) exec(ctx context.Context, b squirrel.Sqlizer) error {
 	if err != nil {
 		return fmt.Errorf("BackupRepo - exec - ToSql: %w", err)
 	}
-	_, err = ExtractDB(ctx, r.pool).Exec(ctx, sqlStr, args...)
+	_, err = r.DB(ctx).Exec(ctx, sqlStr, args...)
 	if err != nil {
 		return fmt.Errorf("BackupRepo - exec - Exec: %w", err)
 	}
@@ -107,13 +109,13 @@ func (r *BackupRepo) exec(ctx context.Context, b squirrel.Sqlizer) error {
 }
 
 type BackupRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.BackupRepository = (*BackupRepo)(nil)
 
 func NewBackupRepo(pool *pgxpool.Pool) *BackupRepo {
-	return &BackupRepo{pool: pool}
+	return &BackupRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
 func (r *BackupRepo) EraseAllTables(ctx context.Context) error {
@@ -132,17 +134,17 @@ func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 		}
 		quoted = append(quoted, q)
 	}
-	// TRUNCATE ... CASCADE handles FKs and is faster than DELETE; RESTART IDENTITY resets sequences.
+	// TRUNCATE ... CASCADE handles FKs and is faster than DELETE; RESTART IDentity resets sequences.
 	// SQL is built only from precomputed quoted identifiers, no input concatenation.
-	sql := "TRUNCATE " + strings.Join(quoted, ", ") + " RESTART IDENTITY CASCADE"
-	_, err := ExtractDB(ctx, r.pool).Exec(ctx, sql)
+	sql := "TRUNCATE " + strings.Join(quoted, ", ") + " RESTART IDentity CASCADE"
+	_, err := r.DB(ctx).Exec(ctx, sql)
 	if err != nil {
 		return fmt.Errorf("BackupRepo - EraseTables: %w", err)
 	}
 	return nil
 }
 
-func (r *BackupRepo) ImportTags(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportTags(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Tags) == 0 {
 		return nil
 	}
@@ -152,7 +154,7 @@ func (r *BackupRepo) ImportTags(ctx context.Context, data *entity.BackupData) er
 			end = len(data.Tags)
 		}
 		batch := data.Tags[i:end]
-		q := squirrel.Insert("tags").Columns(backupTagImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("tags").Columns(backupTagImportCols...)
 		for _, t := range batch {
 			q = q.Values(t.ID, t.Name, t.Color)
 		}
@@ -163,7 +165,7 @@ func (r *BackupRepo) ImportTags(ctx context.Context, data *entity.BackupData) er
 	return nil
 }
 
-func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *domain.BackupData) error {
 	var pairs []struct{ challengeID, tagID uuid.UUID }
 	for _, ch := range data.Challenges {
 		for _, tagID := range ch.TagIDs {
@@ -179,7 +181,7 @@ func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *entity.Backu
 			end = len(pairs)
 		}
 		batch := pairs[i:end]
-		q := squirrel.Insert("challenge_tags").Columns(backupChallengeTagCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("challenge_tags").Columns(backupChallengeTagCols...)
 		for _, p := range batch {
 			q = q.Values(p.challengeID, p.tagID)
 		}
@@ -190,12 +192,12 @@ func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *entity.Backu
 	return nil
 }
 
-func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *entity.Competition) error {
+func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *domain.Competition) error {
 	if comp == nil {
 		return nil
 	}
 
-	query := squirrel.Update("competition").
+	query := SB.Update("competition").
 		Set("name", comp.Name).
 		Set("start_time", comp.StartTime).
 		Set("end_time", comp.EndTime).
@@ -217,8 +219,8 @@ func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *entity.Competi
 	return nil
 }
 
-func (r *BackupRepo) ImportChallenges(ctx context.Context, data *entity.BackupData) error {
-	var allHints []entity.Hint
+func (r *BackupRepo) ImportChallenges(ctx context.Context, data *domain.BackupData) error {
+	var allHints []domain.Hint
 	for _, ch := range data.Challenges {
 		allHints = append(allHints, ch.Hints...)
 	}
@@ -228,10 +230,19 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *entity.BackupDa
 			end = len(data.Challenges)
 		}
 		batch := data.Challenges[i:end]
-		q := squirrel.Insert("challenges").Columns(backupChallengeImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("challenges").Columns(backupChallengeImportCols...)
 		for _, ch := range batch {
+			state := domain.ChallengeStateOrDefault(ch.State)
+			var flagRegex, flagFormatRegex interface{}
+			if ch.FlagRegex != "" {
+				flagRegex = ch.FlagRegex
+			}
+			if ch.FlagFormatRegex != nil && *ch.FlagFormatRegex != "" {
+				flagFormatRegex = *ch.FlagFormatRegex
+			}
 			q = q.Values(ch.ID, ch.Title, ch.Description, ch.Category, ch.FlagHash, ch.Points,
-				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, ch.IsHidden, ch.IsRegex, ch.IsCaseInsensitive, ch.FlagRegex, ch.FlagFormatRegex)
+				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, state, ch.ConnectionInfo, ch.MaxAttempts, ch.Position,
+				ch.IsRegex, ch.IsCaseInsensitive, flagRegex, flagFormatRegex)
 		}
 		if err := r.exec(ctx, q.Suffix(backupChallengeUpsertSuffix)); err != nil {
 			return fmt.Errorf("BackupRepo - ImportChallenges: %w", err)
@@ -243,9 +254,9 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *entity.BackupDa
 			end = len(allHints)
 		}
 		batch := allHints[i:end]
-		q := squirrel.Insert("hints").Columns(backupHintImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("hints").Columns(backupHintImportCols...)
 		for _, h := range batch {
-			q = q.Values(h.ID, h.ChallengeID, h.Content, h.Cost, h.OrderIndex)
+			q = q.Values(h.ID, h.ChallengeID, h.Content, h.Cost, h.OrderIndex, h.Title)
 		}
 		if err := r.exec(ctx, q.Suffix(backupHintUpsertSuffix)); err != nil {
 			return fmt.Errorf("BackupRepo - ImportChallenges hints: %w", err)
@@ -254,9 +265,9 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *entity.BackupDa
 	return nil
 }
 
-func (r *BackupRepo) ImportTeams(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error {
+func (r *BackupRepo) ImportTeams(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error {
 	suffix := backupTeamUpsertSuffix
-	if opts.ConflictMode == entity.ConflictModeSkip {
+	if opts.ConflictMode == domain.ConflictModeSkip {
 		suffix = "ON CONFLICT (id) DO NOTHING"
 	}
 	for i := 0; i < len(data.Teams); i += backupImportBatchSize {
@@ -265,7 +276,7 @@ func (r *BackupRepo) ImportTeams(ctx context.Context, data *entity.BackupData, o
 			end = len(data.Teams)
 		}
 		batch := data.Teams[i:end]
-		q := squirrel.Insert("teams").Columns(backupTeamImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("teams").Columns(backupTeamImportCols...)
 		for _, t := range batch {
 			q = q.Values(t.ID, t.Name, t.CaptainID, t.InviteToken, t.InviteTokenExpiresAt, t.BracketID, t.IsSolo, t.IsBanned, t.BannedAt, t.BannedReason, t.IsHidden, t.CreatedAt)
 		}
@@ -276,9 +287,9 @@ func (r *BackupRepo) ImportTeams(ctx context.Context, data *entity.BackupData, o
 	return nil
 }
 
-func (r *BackupRepo) ImportUsers(ctx context.Context, data *entity.BackupData, opts entity.ImportOptions) error {
+func (r *BackupRepo) ImportUsers(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error {
 	suffix := backupUserUpsertSuffix
-	if opts.ConflictMode == entity.ConflictModeSkip {
+	if opts.ConflictMode == domain.ConflictModeSkip {
 		suffix = "ON CONFLICT (id) DO NOTHING"
 	}
 	for i := 0; i < len(data.Users); i += backupImportBatchSize {
@@ -287,7 +298,7 @@ func (r *BackupRepo) ImportUsers(ctx context.Context, data *entity.BackupData, o
 			end = len(data.Users)
 		}
 		batch := data.Users[i:end]
-		q := squirrel.Insert("users").Columns(backupUserImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("users").Columns(backupUserImportCols...)
 		for _, u := range batch {
 			q = q.Values(u.ID, u.Username, u.Email, backupUserRestoredPasswordHash, u.Role, nil, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.CreatedAt)
 		}
@@ -298,8 +309,8 @@ func (r *BackupRepo) ImportUsers(ctx context.Context, data *entity.BackupData, o
 	return nil
 }
 
-func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *entity.BackupData) error {
-	var withTeam []*entity.UserExport
+func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *domain.BackupData) error {
+	var withTeam []*domain.UserExport
 	for i := range data.Users {
 		if data.Users[i].TeamID != nil {
 			withTeam = append(withTeam, &data.Users[i])
@@ -308,7 +319,7 @@ func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *entity.BackupD
 	if len(withTeam) == 0 {
 		return nil
 	}
-	db := ExtractDB(ctx, r.pool)
+	db := r.DB(ctx)
 	for i := 0; i < len(withTeam); i += backupImportBatchSize {
 		end := i + backupImportBatchSize
 		if end > len(withTeam) {
@@ -321,8 +332,15 @@ func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *entity.BackupD
 			placeholders = append(placeholders, fmt.Sprintf("($%d::uuid, $%d::uuid)", 2*j+1, 2*j+2))
 			args = append(args, u.ID, *u.TeamID)
 		}
-		sqlStr := `UPDATE users AS u SET team_id = v.team_id FROM (VALUES ` +
-			strings.Join(placeholders, ", ") + `) AS v(id, team_id) WHERE u.id = v.id`
+		q := SB.Update("users u").
+			Set("team_id", squirrel.Expr("v.team_id")).
+			From("(VALUES " + strings.Join(placeholders, ", ") + ") AS v(id, team_id)").
+			Where(squirrel.Expr("u.id = v.id")).
+			PlaceholderFormat(squirrel.Dollar)
+		sqlStr, _, err := q.ToSql()
+		if err != nil {
+			return fmt.Errorf("BackupRepo - UpdateUserTeamIDs - build SQL: %w", err)
+		}
 		if _, err := db.Exec(ctx, sqlStr, args...); err != nil {
 			return fmt.Errorf("BackupRepo - UpdateUserTeamIDs: %w", err)
 		}
@@ -330,14 +348,14 @@ func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *entity.BackupD
 	return nil
 }
 
-func (r *BackupRepo) ImportAwards(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportAwards(ctx context.Context, data *domain.BackupData) error {
 	for i := 0; i < len(data.Awards); i += backupImportBatchSize {
 		end := i + backupImportBatchSize
 		if end > len(data.Awards) {
 			end = len(data.Awards)
 		}
 		batch := data.Awards[i:end]
-		q := squirrel.Insert("awards").Columns(backupAwardImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("awards").Columns(backupAwardImportCols...)
 		for _, a := range batch {
 			q = q.Values(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt, a.BannedTeamID)
 		}
@@ -348,14 +366,14 @@ func (r *BackupRepo) ImportAwards(ctx context.Context, data *entity.BackupData) 
 	return nil
 }
 
-func (r *BackupRepo) ImportSolves(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportSolves(ctx context.Context, data *domain.BackupData) error {
 	for i := 0; i < len(data.Solves); i += backupImportBatchSize {
 		end := i + backupImportBatchSize
 		if end > len(data.Solves) {
 			end = len(data.Solves)
 		}
 		batch := data.Solves[i:end]
-		q := squirrel.Insert("solves").Columns(backupSolveImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("solves").Columns(backupSolveImportCols...)
 		for _, s := range batch {
 			q = q.Values(s.ID, s.UserID, s.TeamID, s.ChallengeID, s.SolvedAt, s.PointsAtSolve, s.BannedTeamID, s.BannedUserID)
 		}
@@ -366,14 +384,14 @@ func (r *BackupRepo) ImportSolves(ctx context.Context, data *entity.BackupData) 
 	return nil
 }
 
-func (r *BackupRepo) ImportHintUnlocks(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportHintUnlocks(ctx context.Context, data *domain.BackupData) error {
 	for i := 0; i < len(data.HintUnlocks); i += backupImportBatchSize {
 		end := i + backupImportBatchSize
 		if end > len(data.HintUnlocks) {
 			end = len(data.HintUnlocks)
 		}
 		batch := data.HintUnlocks[i:end]
-		q := squirrel.Insert("hint_unlocks").Columns(backupHintUnlockImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("hint_unlocks").Columns(backupHintUnlockImportCols...)
 		for _, u := range batch {
 			q = q.Values(u.ID, u.HintID, u.TeamID, u.UnlockedAt, u.BannedTeamID)
 		}
@@ -384,14 +402,14 @@ func (r *BackupRepo) ImportHintUnlocks(ctx context.Context, data *entity.BackupD
 	return nil
 }
 
-func (r *BackupRepo) ImportFileMetadata(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportFileMetadata(ctx context.Context, data *domain.BackupData) error {
 	for i := 0; i < len(data.Files); i += backupImportBatchSize {
 		end := i + backupImportBatchSize
 		if end > len(data.Files) {
 			end = len(data.Files)
 		}
 		batch := data.Files[i:end]
-		q := squirrel.Insert("files").Columns(backupFileImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("files").Columns(backupFileImportCols...)
 		for _, f := range batch {
 			q = q.Values(f.ID, f.Type, f.ChallengeID, f.Location, f.Filename, f.Size, f.SHA256, f.CreatedAt)
 		}
@@ -402,7 +420,7 @@ func (r *BackupRepo) ImportFileMetadata(ctx context.Context, data *entity.Backup
 	return nil
 }
 
-func (r *BackupRepo) ImportBrackets(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportBrackets(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Brackets) == 0 {
 		return nil
 	}
@@ -412,7 +430,7 @@ func (r *BackupRepo) ImportBrackets(ctx context.Context, data *entity.BackupData
 			end = len(data.Brackets)
 		}
 		batch := data.Brackets[i:end]
-		q := squirrel.Insert("brackets").Columns(backupBracketImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("brackets").Columns(backupBracketImportCols...)
 		for _, b := range batch {
 			var desc *string
 			if b.Description != "" {
@@ -427,7 +445,7 @@ func (r *BackupRepo) ImportBrackets(ctx context.Context, data *entity.BackupData
 	return nil
 }
 
-func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *domain.BackupData) error {
 	if len(data.ChallengeRequirements) == 0 {
 		return nil
 	}
@@ -437,7 +455,7 @@ func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *enti
 			end = len(data.ChallengeRequirements)
 		}
 		batch := data.ChallengeRequirements[i:end]
-		q := squirrel.Insert("challenge_requirements").Columns(backupChallengeReqCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("challenge_requirements").Columns(backupChallengeReqCols...)
 		for _, p := range batch {
 			q = q.Values(p.ChallengeID, p.RequiredChallengeID)
 		}
@@ -448,7 +466,7 @@ func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *enti
 	return nil
 }
 
-func (r *BackupRepo) ImportSolutions(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportSolutions(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Solutions) == 0 {
 		return nil
 	}
@@ -458,7 +476,7 @@ func (r *BackupRepo) ImportSolutions(ctx context.Context, data *entity.BackupDat
 			end = len(data.Solutions)
 		}
 		batch := data.Solutions[i:end]
-		q := squirrel.Insert("solutions").Columns(backupSolutionImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("solutions").Columns(backupSolutionImportCols...)
 		for _, s := range batch {
 			q = q.Values(s.ID, s.ChallengeID, s.Content)
 		}
@@ -469,7 +487,28 @@ func (r *BackupRepo) ImportSolutions(ctx context.Context, data *entity.BackupDat
 	return nil
 }
 
-func (r *BackupRepo) ImportComments(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportRatings(ctx context.Context, data *domain.BackupData) error {
+	if len(data.Ratings) == 0 {
+		return nil
+	}
+	for i := 0; i < len(data.Ratings); i += backupImportBatchSize {
+		end := i + backupImportBatchSize
+		if end > len(data.Ratings) {
+			end = len(data.Ratings)
+		}
+		batch := data.Ratings[i:end]
+		q := SB.Insert("ratings").Columns(backupRatingImportCols...)
+		for _, rating := range batch {
+			q = q.Values(rating.ID, rating.ChallengeID, rating.UserID, rating.TeamID, rating.Value, rating.Review, rating.CreatedAt, rating.UpdatedAt)
+		}
+		if err := r.exec(ctx, q.Suffix(backupRatingUpsertSuffix)); err != nil {
+			return fmt.Errorf("BackupRepo - ImportRatings: %w", err)
+		}
+	}
+	return nil
+}
+
+func (r *BackupRepo) ImportComments(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Comments) == 0 {
 		return nil
 	}
@@ -479,7 +518,7 @@ func (r *BackupRepo) ImportComments(ctx context.Context, data *entity.BackupData
 			end = len(data.Comments)
 		}
 		batch := data.Comments[i:end]
-		q := squirrel.Insert("comments").Columns(backupCommentImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("comments").Columns(backupCommentImportCols...)
 		for _, c := range batch {
 			q = q.Values(c.ID, c.UserID, c.ChallengeID, c.Content, c.CreatedAt, c.UpdatedAt)
 		}
@@ -490,7 +529,7 @@ func (r *BackupRepo) ImportComments(ctx context.Context, data *entity.BackupData
 	return nil
 }
 
-func (r *BackupRepo) ImportFields(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportFields(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Fields) == 0 {
 		return nil
 	}
@@ -500,7 +539,7 @@ func (r *BackupRepo) ImportFields(ctx context.Context, data *entity.BackupData) 
 			end = len(data.Fields)
 		}
 		batch := data.Fields[i:end]
-		q := squirrel.Insert("fields").Columns(backupFieldImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("fields").Columns(backupFieldImportCols...)
 		for _, f := range batch {
 			opts, err := json.Marshal(f.Options)
 			if err != nil {
@@ -519,7 +558,7 @@ func (r *BackupRepo) ImportFields(ctx context.Context, data *entity.BackupData) 
 	return nil
 }
 
-func (r *BackupRepo) ImportFieldValues(ctx context.Context, data *entity.BackupData) error {
+func (r *BackupRepo) ImportFieldValues(ctx context.Context, data *domain.BackupData) error {
 	if len(data.FieldValues) == 0 {
 		return nil
 	}
@@ -529,7 +568,7 @@ func (r *BackupRepo) ImportFieldValues(ctx context.Context, data *entity.BackupD
 			end = len(data.FieldValues)
 		}
 		batch := data.FieldValues[i:end]
-		q := squirrel.Insert("field_values").Columns(backupFieldValueImportCols...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert("field_values").Columns(backupFieldValueImportCols...)
 		for _, v := range batch {
 			q = q.Values(v.ID, v.FieldID, v.EntityID, v.Value, v.CreatedAt)
 		}
@@ -591,7 +630,7 @@ func validateCSVRowValues(table string, header, row []string) string {
 				return fmt.Sprintf("column %q: invalid UUID %q", col, v)
 			}
 		}
-		if col == "email" && v != "" && !emailRegex.MatchString(v) {
+		if col == "email" && v != "" && !validator.EmailRegex.MatchString(v) {
 			return fmt.Sprintf("column email: invalid format %q", v)
 		}
 	}
@@ -635,14 +674,14 @@ func (r *BackupRepo) ImportCSV(ctx context.Context, tableName string, header []s
 			end = len(validRows)
 		}
 		batch := validRows[i:end]
-		q := squirrel.Insert(tableName).Columns(header...).PlaceholderFormat(squirrel.Dollar)
+		q := SB.Insert(tableName).Columns(header...)
 		for _, rw := range batch {
 			q = q.Values(rw.vals...)
 		}
 		q = q.Suffix("ON CONFLICT (id) DO NOTHING")
 		if err := r.exec(ctx, q); err != nil {
 			for _, rw := range batch {
-				single := squirrel.Insert(tableName).Columns(header...).Values(rw.vals...).Suffix("ON CONFLICT (id) DO NOTHING").PlaceholderFormat(squirrel.Dollar)
+				single := SB.Insert(tableName).Columns(header...).Values(rw.vals...).Suffix("ON CONFLICT (id) DO NOTHING")
 				if err := r.exec(ctx, single); err != nil {
 					csvErrors = append(csvErrors, fmt.Sprintf("row %d: %v", rw.index, err))
 				} else {

@@ -1,25 +1,24 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromComment(c *entity.Comment) openapi.CommentResponse {
+func FromComment(c *domain.Comment) openapi.CommentResponse {
 	return openapi.CommentResponse{
-		ID:          ptr(c.ID.String()),
-		UserID:      ptr(c.UserID.String()),
-		ChallengeID: ptr(c.ChallengeID.String()),
-		Content:     ptr(c.Content),
-		CreatedAt:   ptr(c.CreatedAt),
-		UpdatedAt:   ptr(c.UpdatedAt),
+		ID:          httputil.Ptr(c.ID.String()),
+		UserID:      httputil.Ptr(c.UserID.String()),
+		ChallengeID: httputil.Ptr(c.ChallengeID.String()),
+		Content:     httputil.Ptr(c.Content),
+		CreatedAt:   httputil.Ptr(c.CreatedAt),
+		UpdatedAt:   httputil.Ptr(c.UpdatedAt),
 	}
 }
 
-func FromCommentList(items []*entity.Comment) []openapi.CommentResponse {
-	res := make([]openapi.CommentResponse, len(items))
-	for i, item := range items {
-		res[i] = FromComment(item)
-	}
-	return res
+func FromCommentList(items []*domain.Comment) []openapi.CommentResponse {
+	return lo.Map(items, func(item *domain.Comment, _ int) openapi.CommentResponse { return FromComment(item) })
 }

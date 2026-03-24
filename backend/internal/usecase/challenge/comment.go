@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -31,12 +31,12 @@ func NewCommentUseCase(deps CommentDeps) *CommentUseCase {
 	return &CommentUseCase{deps: deps}
 }
 
-func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Comment, error) {
+func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("CommentUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
-	if challenge.IsHidden {
+	if challenge.State == domain.ChallengeStateHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
 	list, err := uc.deps.CommentRepo.GetByChallengeID(ctx, challengeID)
@@ -46,7 +46,7 @@ func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid
 	return list, nil
 }
 
-func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*entity.Comment, error) {
+func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*domain.Comment, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
 		return nil, httperr.ErrCommentContentRequired
@@ -73,10 +73,10 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 	if err != nil {
 		return nil, fmt.Errorf("CommentUseCase - Create - ChallengeRepo.GetByID: %w", err)
 	}
-	if challenge.IsHidden {
+	if challenge.State == domain.ChallengeStateHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
-	comment := &entity.Comment{
+	comment := &domain.Comment{
 		UserID:      userID,
 		ChallengeID: challengeID,
 		Content:     content,

@@ -1,102 +1,73 @@
 package request
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-const (
-	maxRateLimitPerMinute  = 10000
-	minRateLimitPerMinute  = 1
-	minPerPage             = 1
-	maxPerPage             = 1000
-	minCSVExportMaxRows    = 1
-	maxAppNameLen          = 100
-	maxFrontendURLLen      = 512
-	maxCORSOriginsLen      = 2048
-	maxResendFromEmailLen  = 255
-	maxResendFromNameLen   = 100
-	minTTLHours            = 1
-	maxTTLHours            = 168
-	minSubmitLimitPerUser  = 1
-	minSubmitLimitDuration = 1
-	minMaxTeams            = 0
-)
-
-type rateLimitField struct {
-	name  string
-	value *int
+type updateAppSettingsConstraints struct {
+	AppName                          *string `validate:"omitempty,max=100"`
+	CorsOrigins                      *string `validate:"omitempty,max=2048"`
+	CsvExportMaxRows                 *int    `validate:"omitempty,min=1"`
+	DefaultPerPage                   *int    `validate:"omitempty,min=1,max=1000"`
+	FrontendURL                      *string `validate:"omitempty,max=512"`
+	MaxPerPage                       *int    `validate:"omitempty,min=1,max=1000"`
+	MaxTeams                         *int    `validate:"omitempty,min=0"`
+	RateLimitCommentPerMinute        *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitForgotPasswordPerMinute *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitGeneralIPPerMinute      *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitLoginPerMinute          *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitLogoutPerMinute         *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthCallbackPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthRedirectPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitRefreshPerMinute        *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitRegisterPerMinute       *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitResetPasswordPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitScoreboardPerMinute     *int    `validate:"omitempty,min=1,max=10000"`
+	RateLimitVerifyEmailPerMinute    *int    `validate:"omitempty,min=1,max=10000"`
+	ResendFromEmail                  *string `validate:"omitempty,max=255"`
+	ResendFromName                   *string `validate:"omitempty,max=100"`
+	ResetTTLHours                    *int    `validate:"omitempty,min=1,max=168"`
+	SubmitLimitDurationMin           *int    `validate:"omitempty,min=1"`
+	SubmitLimitPerUser               *int    `validate:"omitempty,min=1"`
+	VerifyTTLHours                   *int    `validate:"omitempty,min=1,max=168"`
 }
 
-func ValidateUpdateAppSettingsRequest(req *openapi.UpdateAppSettingsRequest) error {
-	fields := []rateLimitField{
-		{"rate_limit_login_per_minute", req.RateLimitLoginPerMinute},
-		{"rate_limit_register_per_minute", req.RateLimitRegisterPerMinute},
-		{"rate_limit_forgot_password_per_minute", req.RateLimitForgotPasswordPerMinute},
-		{"rate_limit_reset_password_per_minute", req.RateLimitResetPasswordPerMinute},
-		{"rate_limit_logout_per_minute", req.RateLimitLogoutPerMinute},
-		{"rate_limit_refresh_per_minute", req.RateLimitRefreshPerMinute},
-		{"rate_limit_scoreboard_per_minute", req.RateLimitScoreboardPerMinute},
-		{"rate_limit_general_ip_per_minute", req.RateLimitGeneralIPPerMinute},
-		{"rate_limit_verify_email_per_minute", req.RateLimitVerifyEmailPerMinute},
-		{"rate_limit_oauth_callback_per_minute", req.RateLimitOauthCallbackPerMinute},
-		{"rate_limit_oauth_redirect_per_minute", req.RateLimitOauthRedirectPerMinute},
-		{"rate_limit_comment_per_minute", req.RateLimitCommentPerMinute},
+func ValidateUpdateAppSettingsRequest(req *openapi.UpdateAppSettingsRequest, v validator.Validator) error {
+	c := updateAppSettingsConstraints{
+		AppName:                          req.AppName,
+		CorsOrigins:                      req.CorsOrigins,
+		CsvExportMaxRows:                 req.CsvExportMaxRows,
+		DefaultPerPage:                   req.DefaultPerPage,
+		FrontendURL:                      req.FrontendURL,
+		MaxPerPage:                       req.MaxPerPage,
+		MaxTeams:                         req.MaxTeams,
+		RateLimitCommentPerMinute:        req.RateLimitCommentPerMinute,
+		RateLimitForgotPasswordPerMinute: req.RateLimitForgotPasswordPerMinute,
+		RateLimitGeneralIPPerMinute:      req.RateLimitGeneralIPPerMinute,
+		RateLimitLoginPerMinute:          req.RateLimitLoginPerMinute,
+		RateLimitLogoutPerMinute:         req.RateLimitLogoutPerMinute,
+		RateLimitOauthCallbackPerMinute:  req.RateLimitOauthCallbackPerMinute,
+		RateLimitOauthRedirectPerMinute:  req.RateLimitOauthRedirectPerMinute,
+		RateLimitRefreshPerMinute:        req.RateLimitRefreshPerMinute,
+		RateLimitRegisterPerMinute:       req.RateLimitRegisterPerMinute,
+		RateLimitResetPasswordPerMinute:  req.RateLimitResetPasswordPerMinute,
+		RateLimitScoreboardPerMinute:     req.RateLimitScoreboardPerMinute,
+		RateLimitVerifyEmailPerMinute:    req.RateLimitVerifyEmailPerMinute,
+		ResendFromEmail:                  req.ResendFromEmail,
+		ResendFromName:                   req.ResendFromName,
+		ResetTTLHours:                    req.ResetTTLHours,
+		SubmitLimitDurationMin:           req.SubmitLimitDurationMin,
+		SubmitLimitPerUser:               req.SubmitLimitPerUser,
+		VerifyTTLHours:                   req.VerifyTTLHours,
 	}
-	for _, f := range fields {
-		if f.value != nil {
-			if *f.value < minRateLimitPerMinute {
-				return helper.NewValidationErrorf("%s must be at least %d", f.name, minRateLimitPerMinute)
-			}
-			if *f.value > maxRateLimitPerMinute {
-				return helper.NewValidationErrorf("%s must not exceed %d", f.name, maxRateLimitPerMinute)
-			}
-		}
-	}
-	if req.DefaultPerPage != nil && (*req.DefaultPerPage < minPerPage || *req.DefaultPerPage > maxPerPage) {
-		return helper.NewValidationErrorf("default_per_page must be between %d and %d", minPerPage, maxPerPage)
-	}
-	if req.MaxPerPage != nil && (*req.MaxPerPage < minPerPage || *req.MaxPerPage > maxPerPage) {
-		return helper.NewValidationErrorf("max_per_page must be between %d and %d", minPerPage, maxPerPage)
-	}
-	if req.CsvExportMaxRows != nil && *req.CsvExportMaxRows < minCSVExportMaxRows {
-		return helper.NewValidationErrorf("csv_export_max_rows must be at least %d", minCSVExportMaxRows)
-	}
-	if req.MaxTeams != nil && *req.MaxTeams < minMaxTeams {
-		return helper.NewValidationErrorf("max_teams must be at least %d", minMaxTeams)
-	}
-	if req.SubmitLimitPerUser != nil && *req.SubmitLimitPerUser < minSubmitLimitPerUser {
-		return helper.NewValidationErrorf("submit_limit_per_user must be at least %d", minSubmitLimitPerUser)
-	}
-	if req.SubmitLimitDurationMin != nil && *req.SubmitLimitDurationMin < minSubmitLimitDuration {
-		return helper.NewValidationErrorf("submit_limit_duration_min must be at least %d", minSubmitLimitDuration)
-	}
-	if req.VerifyTTLHours != nil && (*req.VerifyTTLHours < minTTLHours || *req.VerifyTTLHours > maxTTLHours) {
-		return helper.NewValidationErrorf("verify_ttl_hours must be between %d and %d", minTTLHours, maxTTLHours)
-	}
-	if req.ResetTTLHours != nil && (*req.ResetTTLHours < minTTLHours || *req.ResetTTLHours > maxTTLHours) {
-		return helper.NewValidationErrorf("reset_ttl_hours must be between %d and %d", minTTLHours, maxTTLHours)
-	}
-	if req.AppName != nil && len(*req.AppName) > maxAppNameLen {
-		return helper.NewValidationErrorf("app_name must be at most %d characters", maxAppNameLen)
-	}
-	if req.FrontendURL != nil && len(*req.FrontendURL) > maxFrontendURLLen {
-		return helper.NewValidationErrorf("frontend_url must be at most %d characters", maxFrontendURLLen)
-	}
-	if req.CorsOrigins != nil && len(*req.CorsOrigins) > maxCORSOriginsLen {
-		return helper.NewValidationErrorf("cors_origins must be at most %d characters", maxCORSOriginsLen)
-	}
-	if req.ResendFromEmail != nil && len(*req.ResendFromEmail) > maxResendFromEmailLen {
-		return helper.NewValidationErrorf("resend_from_email must be at most %d characters", maxResendFromEmailLen)
-	}
-	if req.ResendFromName != nil && len(*req.ResendFromName) > maxResendFromNameLen {
-		return helper.NewValidationErrorf("resend_from_name must be at most %d characters", maxResendFromNameLen)
-	}
-	return nil
+	return ValidateConstraints(v, &c)
 }
 
-func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id int, current *entity.Settings) *entity.Settings {
+func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id int, current *domain.Settings) *domain.Settings {
 	scoreboardVisible := current.ScoreboardVisible
 	if req.ScoreboardVisible != nil {
 		scoreboardVisible = string(*req.ScoreboardVisible)
@@ -105,39 +76,40 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 	if req.RegistrationOpen != nil {
 		registrationOpen = *req.RegistrationOpen
 	}
-	return &entity.Settings{
+	return &domain.Settings{
 		ID:                               id,
-		AppName:                          derefOr(req.AppName, current.AppName),
-		VerifyEmails:                     derefOr(req.VerifyEmails, current.VerifyEmails),
-		FrontendURL:                      derefOr(req.FrontendURL, current.FrontendURL),
-		CORSOrigins:                      derefOr(req.CorsOrigins, current.CORSOrigins),
-		ResendEnabled:                    derefOr(req.ResendEnabled, current.ResendEnabled),
-		ResendFromEmail:                  derefOr(req.ResendFromEmail, current.ResendFromEmail),
-		ResendFromName:                   derefOr(req.ResendFromName, current.ResendFromName),
-		VerifyTTLHours:                   derefOr(req.VerifyTTLHours, current.VerifyTTLHours),
-		ResetTTLHours:                    derefOr(req.ResetTTLHours, current.ResetTTLHours),
-		SubmitLimitPerUser:               derefOr(req.SubmitLimitPerUser, current.SubmitLimitPerUser),
-		SubmitLimitDurationMin:           derefOr(req.SubmitLimitDurationMin, current.SubmitLimitDurationMin),
+		UpdatedAt:                        current.UpdatedAt,
+		AppName:                          lo.FromPtrOr(req.AppName, current.AppName),
+		VerifyEmails:                     lo.FromPtrOr(req.VerifyEmails, current.VerifyEmails),
+		FrontendURL:                      lo.FromPtrOr(req.FrontendURL, current.FrontendURL),
+		CORSOrigins:                      lo.FromPtrOr(req.CorsOrigins, current.CORSOrigins),
+		ResendEnabled:                    lo.FromPtrOr(req.ResendEnabled, current.ResendEnabled),
+		ResendFromEmail:                  lo.FromPtrOr(req.ResendFromEmail, current.ResendFromEmail),
+		ResendFromName:                   lo.FromPtrOr(req.ResendFromName, current.ResendFromName),
+		VerifyTTLHours:                   lo.FromPtrOr(req.VerifyTTLHours, current.VerifyTTLHours),
+		ResetTTLHours:                    lo.FromPtrOr(req.ResetTTLHours, current.ResetTTLHours),
+		SubmitLimitPerUser:               lo.FromPtrOr(req.SubmitLimitPerUser, current.SubmitLimitPerUser),
+		SubmitLimitDurationMin:           lo.FromPtrOr(req.SubmitLimitDurationMin, current.SubmitLimitDurationMin),
 		ScoreboardVisible:                scoreboardVisible,
 		RegistrationOpen:                 registrationOpen,
-		DefaultPerPage:                   derefOr(req.DefaultPerPage, current.DefaultPerPage),
-		MaxPerPage:                       derefOr(req.MaxPerPage, current.MaxPerPage),
-		CSVExportMaxRows:                 derefOr(req.CsvExportMaxRows, current.CSVExportMaxRows),
-		RateLimitLoginPerMinute:          derefOr(req.RateLimitLoginPerMinute, current.RateLimitLoginPerMinute),
-		RateLimitRegisterPerMinute:       derefOr(req.RateLimitRegisterPerMinute, current.RateLimitRegisterPerMinute),
-		RateLimitForgotPasswordPerMinute: derefOr(req.RateLimitForgotPasswordPerMinute, current.RateLimitForgotPasswordPerMinute),
-		RateLimitResetPasswordPerMinute:  derefOr(req.RateLimitResetPasswordPerMinute, current.RateLimitResetPasswordPerMinute),
-		RateLimitLogoutPerMinute:         derefOr(req.RateLimitLogoutPerMinute, current.RateLimitLogoutPerMinute),
-		RateLimitRefreshPerMinute:        derefOr(req.RateLimitRefreshPerMinute, current.RateLimitRefreshPerMinute),
-		RateLimitScoreboardPerMinute:     derefOr(req.RateLimitScoreboardPerMinute, current.RateLimitScoreboardPerMinute),
-		RateLimitGeneralIPPerMinute:      derefOr(req.RateLimitGeneralIPPerMinute, current.RateLimitGeneralIPPerMinute),
-		RateLimitVerifyEmailPerMinute:    derefOr(req.RateLimitVerifyEmailPerMinute, current.RateLimitVerifyEmailPerMinute),
-		RateLimitOAuthCallbackPerMinute:  derefOr(req.RateLimitOauthCallbackPerMinute, current.RateLimitOAuthCallbackPerMinute),
-		RateLimitOAuthRedirectPerMinute:  derefOr(req.RateLimitOauthRedirectPerMinute, current.RateLimitOAuthRedirectPerMinute),
-		RateLimitCommentPerMinute:        derefOr(req.RateLimitCommentPerMinute, current.RateLimitCommentPerMinute),
-		MaxTeams:                         derefOr(req.MaxTeams, current.MaxTeams),
-		WriteupEnabled:                   derefOr(req.WriteupEnabled, current.WriteupEnabled),
-		OAuthGithubEnabled:               derefOr(req.OauthGithubEnabled, current.OAuthGithubEnabled),
-		OAuthGoogleEnabled:               derefOr(req.OauthGoogleEnabled, current.OAuthGoogleEnabled),
+		DefaultPerPage:                   lo.FromPtrOr(req.DefaultPerPage, current.DefaultPerPage),
+		MaxPerPage:                       lo.FromPtrOr(req.MaxPerPage, current.MaxPerPage),
+		CSVExportMaxRows:                 lo.FromPtrOr(req.CsvExportMaxRows, current.CSVExportMaxRows),
+		RateLimitLoginPerMinute:          lo.FromPtrOr(req.RateLimitLoginPerMinute, current.RateLimitLoginPerMinute),
+		RateLimitRegisterPerMinute:       lo.FromPtrOr(req.RateLimitRegisterPerMinute, current.RateLimitRegisterPerMinute),
+		RateLimitForgotPasswordPerMinute: lo.FromPtrOr(req.RateLimitForgotPasswordPerMinute, current.RateLimitForgotPasswordPerMinute),
+		RateLimitResetPasswordPerMinute:  lo.FromPtrOr(req.RateLimitResetPasswordPerMinute, current.RateLimitResetPasswordPerMinute),
+		RateLimitLogoutPerMinute:         lo.FromPtrOr(req.RateLimitLogoutPerMinute, current.RateLimitLogoutPerMinute),
+		RateLimitRefreshPerMinute:        lo.FromPtrOr(req.RateLimitRefreshPerMinute, current.RateLimitRefreshPerMinute),
+		RateLimitScoreboardPerMinute:     lo.FromPtrOr(req.RateLimitScoreboardPerMinute, current.RateLimitScoreboardPerMinute),
+		RateLimitGeneralIPPerMinute:      lo.FromPtrOr(req.RateLimitGeneralIPPerMinute, current.RateLimitGeneralIPPerMinute),
+		RateLimitVerifyEmailPerMinute:    lo.FromPtrOr(req.RateLimitVerifyEmailPerMinute, current.RateLimitVerifyEmailPerMinute),
+		RateLimitOAuthCallbackPerMinute:  lo.FromPtrOr(req.RateLimitOauthCallbackPerMinute, current.RateLimitOAuthCallbackPerMinute),
+		RateLimitOAuthRedirectPerMinute:  lo.FromPtrOr(req.RateLimitOauthRedirectPerMinute, current.RateLimitOAuthRedirectPerMinute),
+		RateLimitCommentPerMinute:        lo.FromPtrOr(req.RateLimitCommentPerMinute, current.RateLimitCommentPerMinute),
+		MaxTeams:                         lo.FromPtrOr(req.MaxTeams, current.MaxTeams),
+		WriteupEnabled:                   lo.FromPtrOr(req.WriteupEnabled, current.WriteupEnabled),
+		OAuthGithubEnabled:               lo.FromPtrOr(req.OauthGithubEnabled, current.OAuthGithubEnabled),
+		OAuthGoogleEnabled:               lo.FromPtrOr(req.OauthGoogleEnabled, current.OAuthGoogleEnabled),
 	}
 }

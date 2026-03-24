@@ -1,109 +1,125 @@
 package request
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-const (
-	maxConfigValueLength       = 10000
-	maxConfigDescriptionLength = 500
-)
+const maxBatchConfigItems = 50
 
-func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (entity.CompetitionParamValueType, error) {
+type setConfigConstraints struct {
+	Value       string `validate:"max=10000"`
+	Description string `validate:"max=500"`
+}
+
+type batchSetConfigItemConstraints struct {
+	Key         string `validate:"required"`
+	Value       string `validate:"max=10000"`
+	Description string `validate:"max=500"`
+}
+
+func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.CompetitionParamValueType, error) {
 	if v == nil {
-		return entity.CompetitionParamTypeString, nil
+		return domain.CompetitionParamTypeString, nil
 	}
 	switch *v {
 	case openapi.SetConfigRequestValueTypeInt:
-		return entity.CompetitionParamTypeInt, nil
+		return domain.CompetitionParamTypeInt, nil
 	case openapi.SetConfigRequestValueTypeBool:
-		return entity.CompetitionParamTypeBool, nil
+		return domain.CompetitionParamTypeBool, nil
 	case openapi.SetConfigRequestValueTypeJSON:
-		return entity.CompetitionParamTypeJSON, nil
+		return domain.CompetitionParamTypeJSON, nil
 	case openapi.SetConfigRequestValueTypeString:
-		return entity.CompetitionParamTypeString, nil
+		return domain.CompetitionParamTypeString, nil
 	default:
-		return entity.CompetitionParamTypeString, helper.NewValidationErrorf("invalid value_type")
+		return domain.CompetitionParamTypeString, httperr.NewValidationErrorf("invalid value_type")
 	}
 }
 
 type SetConfigParams struct {
 	Value       string
 	Description string
-	ValueType   entity.CompetitionParamValueType
+	ValueType   domain.CompetitionParamValueType
+	Category    string
+}
+
+func ValidateSetConfigRequest(req *openapi.SetConfigRequest, v validator.Validator) error {
+	c := setConfigConstraints{Value: req.Value, Description: lo.FromPtrOr(req.Description, "")}
+	return ValidateConstraints(v, &c)
 }
 
 func SetConfigRequestToParams(req *openapi.SetConfigRequest) (SetConfigParams, error) {
-	description := ""
-	if req.Description != nil {
-		description = *req.Description
-	}
-	if len(req.Value) > maxConfigValueLength {
-		return SetConfigParams{}, helper.NewValidationErrorf("value too long")
-	}
-	if len(description) > maxConfigDescriptionLength {
-		return SetConfigParams{}, helper.NewValidationErrorf("description too long")
-	}
 	valueType, err := SetConfigRequestToValueType(req.ValueType)
 	if err != nil {
 		return SetConfigParams{}, err
 	}
 	return SetConfigParams{
 		Value:       req.Value,
-		Description: description,
+		Description: lo.FromPtrOr(req.Description, ""),
 		ValueType:   valueType,
+		Category:    lo.FromPtrOr(req.Category, ""),
 	}, nil
 }
 
-func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (entity.CompetitionParamValueType, error) {
+func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (domain.CompetitionParamValueType, error) {
 	if v == nil {
-		return entity.CompetitionParamTypeString, nil
+		return domain.CompetitionParamTypeString, nil
 	}
 	switch *v {
 	case openapi.BatchSetConfigItemValueTypeInt:
-		return entity.CompetitionParamTypeInt, nil
+		return domain.CompetitionParamTypeInt, nil
 	case openapi.BatchSetConfigItemValueTypeBool:
-		return entity.CompetitionParamTypeBool, nil
+		return domain.CompetitionParamTypeBool, nil
 	case openapi.BatchSetConfigItemValueTypeJSON:
-		return entity.CompetitionParamTypeJSON, nil
+		return domain.CompetitionParamTypeJSON, nil
 	case openapi.BatchSetConfigItemValueTypeString:
-		return entity.CompetitionParamTypeString, nil
+		return domain.CompetitionParamTypeString, nil
 	default:
-		return entity.CompetitionParamTypeString, helper.NewValidationErrorf("invalid value_type")
+		return domain.CompetitionParamTypeString, httperr.NewValidationErrorf("invalid value_type")
 	}
 }
 
-func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*entity.CompetitionParam, error) {
+func ValidateBatchSetConfigRequest(req *openapi.BatchSetConfigRequest, v validator.Validator) error {
+	if req == nil || len(req.Configs) == 0 {
+		return nil
+	}
+	if len(req.Configs) > maxBatchConfigItems {
+		return httperr.NewValidationErrorf("configs: at most %d items allowed", maxBatchConfigItems)
+	}
+	for i := range req.Configs {
+		item := &req.Configs[i]
+		c := batchSetConfigItemConstraints{
+			Key: item.Key, Value: item.Value,
+			Description: lo.FromPtrOr(item.Description, ""),
+		}
+		if err := ValidateConstraints(v, &c); err != nil {
+			return httperr.NewValidationErrorf("configs[%d]: %v", i, err)
+		}
+	}
+	return nil
+}
+
+func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*domain.CompetitionParam, error) {
 	if req == nil {
 		return nil, nil
 	}
-	out := make([]*entity.CompetitionParam, 0, len(req.Configs))
+	out := make([]*domain.CompetitionParam, 0, len(req.Configs))
 	for i := range req.Configs {
 		item := &req.Configs[i]
-		if item.Key == "" {
-			return nil, helper.NewValidationErrorf("configs[%d]: key required", i)
-		}
-		desc := ""
-		if item.Description != nil {
-			desc = *item.Description
-		}
-		if len(item.Value) > maxConfigValueLength {
-			return nil, helper.NewValidationErrorf("configs[%d]: value too long", i)
-		}
-		if len(desc) > maxConfigDescriptionLength {
-			return nil, helper.NewValidationErrorf("configs[%d]: description too long", i)
-		}
 		valueType, err := batchSetConfigItemValueType(item.ValueType)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, &entity.CompetitionParam{
+		out = append(out, &domain.CompetitionParam{
 			Key:         item.Key,
 			Value:       item.Value,
 			ValueType:   valueType,
-			Description: desc,
+			Category:    lo.FromPtrOr(item.Category, ""),
+			Description: lo.FromPtrOr(item.Description, ""),
 		})
 	}
 	return out, nil

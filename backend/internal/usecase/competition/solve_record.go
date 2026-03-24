@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
@@ -15,7 +15,7 @@ import (
 // Caller must hold a lock on the team row for solve.TeamID (e.g. via TeamRepo.Lock) before calling,
 // so that concurrent submissions for the same team and challenge are serialized and IncrementSolveCount
 // does not race.
-func RecordSolveInTx(ctx context.Context, solve *entity.Solve, challenge *entity.Challenge, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository) (solveCount int, err error) {
+func RecordSolveInTx(ctx context.Context, solve *domain.Solve, challenge *domain.Challenge, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository) (solveCount int, err error) {
 	_, err = solveRepo.GetByTeamAndChallengeForUpdate(ctx, solve.TeamID, solve.ChallengeID)
 	if err == nil {
 		return 0, httperr.ErrAlreadySolved

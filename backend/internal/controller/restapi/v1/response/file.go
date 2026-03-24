@@ -1,11 +1,14 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromUploadedFile(f *entity.File) openapi.UploadFileResponse {
+func FromUploadedFile(f *domain.File) openapi.UploadFileResponse {
 	return openapi.UploadFileResponse{
 		ID:       f.ID.String(),
 		Filename: f.Filename,
@@ -14,22 +17,18 @@ func FromUploadedFile(f *entity.File) openapi.UploadFileResponse {
 	}
 }
 
-func FromFile(f *entity.File) openapi.FileItem {
+func FromFile(f *domain.File) openapi.FileItem {
 	return openapi.FileItem{
-		ID:        ptr(f.ID.String()),
-		Filename:  ptr(f.Filename),
-		Size:      ptr(int(f.Size)),
-		Sha256:    ptr(f.SHA256),
-		CreatedAt: ptr(f.CreatedAt),
+		ID:        httputil.Ptr(f.ID.String()),
+		Filename:  httputil.Ptr(f.Filename),
+		Size:      httputil.Ptr(int(f.Size)),
+		Sha256:    httputil.Ptr(f.SHA256),
+		CreatedAt: httputil.Ptr(f.CreatedAt),
 	}
 }
 
-func FromFileList(files []*entity.File) []openapi.FileItem {
-	res := make([]openapi.FileItem, len(files))
-	for i, f := range files {
-		res[i] = FromFile(f)
-	}
-	return res
+func FromFileList(files []*domain.File) []openapi.FileItem {
+	return lo.Map(files, func(f *domain.File, _ int) openapi.FileItem { return FromFile(f) })
 }
 
 func FromFileDownloadURL(url string) openapi.FileDownloadURLResponse {

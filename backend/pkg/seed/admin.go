@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
-func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, username, email, password string, log logger.Logger) error {
+func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, username, email, password string, log logkit.Logger) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	_, err := userRepo.GetByEmail(ctx, email)
 	if err == nil {
@@ -33,13 +33,13 @@ func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, usern
 	}
 
 	now := time.Now()
-	user := &entity.User{
+	user := &domain.User{
 		ID:           uuid.New(),
 		TeamID:       nil,
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(hashedPassword),
-		Role:         entity.RoleAdmin,
+		Role:         domain.RoleAdmin,
 		IsVerified:   true,
 		VerifiedAt:   &now,
 		CreatedAt:    now,

@@ -9,63 +9,63 @@ packages:
     interfaces:
       TeamRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "TeamRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTeamRepository"
 
       UserRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"
 
       CompetitionRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "CompetitionRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCompetitionRepository"
 
       AwardRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "AwardRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAwardRepository"
 
       SettingsRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "SettingsRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSettingsRepository"
 
       SolveRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "SolveRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSolveRepository"
 
       ChallengeRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "ChallengeRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockChallengeRepository"
 
       SubmissionRepository:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "SubmissionRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSubmissionRepository"
 
       TransactionManager:
         config:
-          dir: "internal/usecase/team/mocks"
+          dir: "internal/usecase/team/mock"
           filename: "TransactionManager.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTransactionManager"

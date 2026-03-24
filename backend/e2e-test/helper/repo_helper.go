@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func (h *E2EHelper) GetUserIDByEmail(email string) string {
@@ -29,7 +29,7 @@ func (h *E2EHelper) AssertUserVerified(email string, expected bool) {
 	assert.Equal(h.t, expected, isVerified, "user verification status mismatch")
 }
 
-func (h *E2EHelper) InjectToken(userID string, tokenType entity.TokenType, knownToken string) {
+func (h *E2EHelper) InjectToken(userID string, tokenType domain.TokenType, knownToken string) {
 	h.t.Helper()
 	ctx := context.Background()
 	hashedToken := h.hashToken(knownToken)

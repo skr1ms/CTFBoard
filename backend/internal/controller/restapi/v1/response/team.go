@@ -3,37 +3,39 @@ package response
 import (
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-func FromTeam(t *entity.Team) openapi.TeamResponse {
+func FromTeam(t *domain.Team) openapi.TeamResponse {
 	if t == nil {
 		return openapi.TeamResponse{}
 	}
 	return openapi.TeamResponse{
-		ID:          ptr(t.ID.String()),
-		Name:        ptr(t.Name),
-		InviteToken: ptr(t.InviteToken.String()),
-		CaptainID:   ptr(t.CaptainID.String()),
-		CreatedAt:   ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:          httputil.Ptr(t.ID.String()),
+		Name:        httputil.Ptr(t.Name),
+		InviteToken: httputil.Ptr(t.InviteToken.String()),
+		CaptainID:   httputil.Ptr(t.CaptainID.String()),
+		CreatedAt:   httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
-func FromTeamWithoutToken(t *entity.Team) openapi.TeamResponse {
+func FromTeamWithoutToken(t *domain.Team) openapi.TeamResponse {
 	if t == nil {
 		return openapi.TeamResponse{}
 	}
 	return openapi.TeamResponse{
-		ID:        ptr(t.ID.String()),
-		Name:      ptr(t.Name),
-		CaptainID: ptr(t.CaptainID.String()),
-		CreatedAt: ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:        httputil.Ptr(t.ID.String()),
+		Name:      httputil.Ptr(t.Name),
+		CaptainID: httputil.Ptr(t.CaptainID.String()),
+		CreatedAt: httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
-func FromTeamWithMembers(t *entity.Team, members []*entity.User, minTeamSize int, meetsMinSize bool) openapi.TeamWithMembersResponse {
+func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int, meetsMinSize bool) openapi.TeamWithMembersResponse {
 	if t == nil {
 		return openapi.TeamWithMembersResponse{}
 	}
@@ -45,19 +47,19 @@ func FromTeamWithMembers(t *entity.Team, members []*entity.User, minTeamSize int
 	}
 
 	res := openapi.TeamWithMembersResponse{
-		ID:           ptr(t.ID.String()),
-		Name:         ptr(t.Name),
-		InviteToken:  ptr(t.InviteToken.String()),
-		CaptainID:    ptr(t.CaptainID.String()),
-		CreatedAt:    ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:           httputil.Ptr(t.ID.String()),
+		Name:         httputil.Ptr(t.Name),
+		InviteToken:  httputil.Ptr(t.InviteToken.String()),
+		CaptainID:    httputil.Ptr(t.CaptainID.String()),
+		CreatedAt:    httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
 		Members:      &memberResponses,
-		IsBanned:     ptr(t.IsBanned),
-		MinTeamSize:  ptr(minTeamSize),
-		MeetsMinSize: ptr(meetsMinSize),
+		IsBanned:     httputil.Ptr(t.IsBanned),
+		MinTeamSize:  httputil.Ptr(minTeamSize),
+		MeetsMinSize: httputil.Ptr(meetsMinSize),
 	}
 
 	if t.BannedAt != nil {
-		res.BannedAt = ptr(t.BannedAt.Format(time.RFC3339))
+		res.BannedAt = httputil.Ptr(t.BannedAt.Format(time.RFC3339))
 	}
 	if t.BannedReason != nil {
 		res.BannedReason = t.BannedReason
@@ -66,35 +68,24 @@ func FromTeamWithMembers(t *entity.Team, members []*entity.User, minTeamSize int
 	return res
 }
 
-func FromTeamList(teams []*entity.Team, total int64, page, perPage int) openapi.TeamListResponse {
-	items := make([]openapi.TeamResponse, len(teams))
-	for i, t := range teams {
-		items[i] = FromTeamWithoutToken(t)
-	}
-	return openapi.TeamListResponse{
-		Data: &items,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromTeamList(teams []*domain.Team, total int64, page, perPage int) openapi.TeamListResponse {
+	data, meta := BuildListResponse(teams, FromTeamWithoutToken, total, page, perPage)
+	return openapi.TeamListResponse{Data: &data, Meta: meta}
 }
 
-func FromAdminTeam(t *entity.Team, memberCount *int) openapi.AdminTeamResponse {
+func FromAdminTeam(t *domain.Team, memberCount *int) openapi.AdminTeamResponse {
 	res := openapi.AdminTeamResponse{
-		ID:          ptr(t.ID.String()),
-		Name:        ptr(t.Name),
-		CaptainID:   ptr(t.CaptainID.String()),
-		IsSolo:      ptr(t.IsSolo),
-		IsBanned:    ptr(t.IsBanned),
-		IsHidden:    ptr(t.IsHidden),
+		ID:          httputil.Ptr(t.ID.String()),
+		Name:        httputil.Ptr(t.Name),
+		CaptainID:   httputil.Ptr(t.CaptainID.String()),
+		IsSolo:      httputil.Ptr(t.IsSolo),
+		IsBanned:    httputil.Ptr(t.IsBanned),
+		IsHidden:    httputil.Ptr(t.IsHidden),
 		MemberCount: memberCount,
-		CreatedAt:   ptr(t.CreatedAt),
+		CreatedAt:   httputil.Ptr(t.CreatedAt),
 	}
 	if t.BracketID != nil {
-		res.BracketID = ptr(t.BracketID.String())
+		res.BracketID = httputil.Ptr(t.BracketID.String())
 	}
 	if t.BannedReason != nil {
 		res.BannedReason = t.BannedReason
@@ -102,20 +93,9 @@ func FromAdminTeam(t *entity.Team, memberCount *int) openapi.AdminTeamResponse {
 	return res
 }
 
-func FromAdminTeamList(teams []*entity.Team, total int64, page, perPage int) openapi.AdminTeamListResponse {
-	items := make([]openapi.AdminTeamResponse, len(teams))
-	for i, t := range teams {
-		items[i] = FromAdminTeam(t, nil)
-	}
-	return openapi.AdminTeamListResponse{
-		Data: &items,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromAdminTeamList(teams []*domain.Team, total int64, page, perPage int) openapi.AdminTeamListResponse {
+	data, meta := BuildListResponse(teams, func(t *domain.Team) openapi.AdminTeamResponse { return FromAdminTeam(t, nil) }, total, page, perPage)
+	return openapi.AdminTeamListResponse{Data: &data, Meta: meta}
 }
 
 func FromTeamInvite(inviteToken string) openapi.TeamInviteResponse {
@@ -138,9 +118,9 @@ func FromAffectedData(a *usecase.TeamCreateAffectedData) *openapi.AffectedData {
 		return nil
 	}
 	return &openapi.AffectedData{
-		SolveCount:      ptr(a.SolveCount),
-		Points:          ptr(a.Points),
-		HintUnlockCount: ptr(a.HintUnlockCount),
-		AwardsTotal:     ptr(a.AwardsTotal),
+		SolveCount:      httputil.Ptr(a.SolveCount),
+		Points:          httputil.Ptr(a.Points),
+		HintUnlockCount: httputil.Ptr(a.HintUnlockCount),
+		AwardsTotal:     httputil.Ptr(a.AwardsTotal),
 	}
 }

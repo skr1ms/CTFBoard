@@ -13,7 +13,6 @@ import (
 
 // POST /challenges/{challengeID}/hints/{hintID}/unlock: hint locked until user has points; unlock deducts cost; score reflects deduction.
 func TestHint_Flow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -67,7 +66,6 @@ func TestHint_Flow(t *testing.T) {
 
 // PUT /admin/hints/{ID}: admin updates hint content and cost; GET reflects new values.
 func TestHint_Update_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -92,7 +90,6 @@ func TestHint_Update_Success(t *testing.T) {
 
 // PUT /admin/hints/{ID}: non-existent hint returns 404.
 func TestHint_Update_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -103,7 +100,6 @@ func TestHint_Update_NotFound(t *testing.T) {
 
 // DELETE /admin/hints/{ID}: admin deletes hint; GET /challenges/{ID}/hints no longer returns it.
 func TestHint_Delete_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -128,7 +124,6 @@ func TestHint_Delete_Success(t *testing.T) {
 
 // DELETE /admin/hints/{ID}: non-existent hint returns 204 (idempotent).
 func TestHint_Delete_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -139,7 +134,6 @@ func TestHint_Delete_NotFound(t *testing.T) {
 
 // POST /challenges/{ID}/hints/{hintID}/unlock: non-existent hint returns 404.
 func TestHint_Unlock_NotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -152,7 +146,6 @@ func TestHint_Unlock_NotFound(t *testing.T) {
 
 // GET /challenges/{id}/hints: when challenge has unmet requirements (locked) returns 404.
 func TestHint_LockedChallenge_HintsReturnNotFound(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -171,7 +164,6 @@ func TestHint_LockedChallenge_HintsReturnNotFound(t *testing.T) {
 
 // GET /admin/unlocks: admin lists all hint unlocks paginated.
 func TestHint_AdminListUnlocks_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -206,7 +198,6 @@ func TestHint_AdminListUnlocks_Success(t *testing.T) {
 
 // GET /admin/unlocks: non-admin returns 403 Forbidden.
 func TestHint_AdminListUnlocks_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 

@@ -6,8 +6,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
@@ -19,7 +20,7 @@ type HintUseCase struct {
 }
 
 type hintCompGetter interface {
-	Get(ctx context.Context) (*entity.Competition, error)
+	Get(ctx context.Context) (*domain.Competition, error)
 }
 
 type HintDeps struct {
@@ -33,23 +34,28 @@ type HintDeps struct {
 	UserRepo        repo.UserRepository
 	ChallengeRepo   repo.ChallengeRepository
 	ScoreboardCache cache.ScoreboardCacheInvalidator
+	Logger          logkit.Logger
 }
 
 var _ usecase.HintUseCase = (*HintUseCase)(nil)
 
 func NewHintUseCase(deps HintDeps) *HintUseCase {
+	if deps.Logger == nil {
+		deps.Logger = logkit.Noop()
+	}
 	return &HintUseCase{deps: deps}
 }
 
-func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
+func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error) {
 	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HintUseCase - Create - ChallengeRepo.GetByID: %w", err)
 	}
 	if cost < 0 {
 		return nil, httperr.NewValidationErrorf("hint cost must be non-negative")
 	}
-	hint := &entity.Hint{
+	hint := &domain.Hint{
 		ChallengeID: challengeID,
+		Title:       title,
 		Content:     content,
 		Cost:        cost,
 		OrderIndex:  orderIndex,
@@ -62,7 +68,7 @@ func (uc *HintUseCase) Create(ctx context.Context, challengeID uuid.UUID, conten
 	return hint, nil
 }
 
-func (uc *HintUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Hint, error) {
+func (uc *HintUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Hint, error) {
 	hint, err := uc.deps.HintRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("HintUseCase - GetByID - HintRepo.GetByID: %w", err)
@@ -75,7 +81,7 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 	if err != nil {
 		return nil, fmt.Errorf("HintUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
-	if challenge.IsHidden {
+	if challenge.State == domain.ChallengeStateHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
 	reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
@@ -119,9 +125,10 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 			Unlocked: unlocked,
 		}
 		if !unlocked {
-			h.Hint = &entity.Hint{
+			h.Hint = &domain.Hint{
 				ID:          hint.ID,
 				ChallengeID: hint.ChallengeID,
+				Title:       hint.Title,
 				Cost:        hint.Cost,
 				OrderIndex:  hint.OrderIndex,
 			}
@@ -132,17 +139,18 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 	return result, nil
 }
 
-func (uc *HintUseCase) Update(ctx context.Context, ID uuid.UUID, content string, cost, orderIndex int) (*entity.Hint, error) {
+func (uc *HintUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error) {
 	if cost < 0 {
 		return nil, httperr.NewValidationErrorf("hint cost must be non-negative")
 	}
-	var hint *entity.Hint
+	var hint *domain.Hint
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err error
 		hint, err = uc.deps.HintRepo.GetByIDForUpdate(ctx, ID)
 		if err != nil {
 			return fmt.Errorf("HintUseCase - Update - HintRepo.GetByIDForUpdate: %w", err)
 		}
+		hint.Title = title
 		hint.Content = content
 		hint.Cost = cost
 		hint.OrderIndex = orderIndex
@@ -164,10 +172,10 @@ func (uc *HintUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (*entity.Hint, error) {
-	var hint *entity.Hint
+func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (*domain.Hint, error) {
+	var hint *domain.Hint
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		var comp *entity.Competition
+		var comp *domain.Competition
 		if uc.deps.CompRepo != nil {
 			var errComp error
 			comp, errComp = uc.deps.CompRepo.GetForUpdate(ctx)
@@ -176,7 +184,11 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 			}
 		}
 		if comp == nil {
-			comp, _ = uc.getCompetition(ctx)
+			var errComp error
+			comp, errComp = uc.getCompetition(ctx)
+			if errComp != nil {
+				return fmt.Errorf("HintUseCase - UnlockHint - getCompetition: %w", errComp)
+			}
 		}
 		if comp == nil {
 			return httperr.ErrCompetitionNotFound
@@ -197,7 +209,7 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 		if errChal != nil {
 			return fmt.Errorf("HintUseCase - UnlockHint - ChallengeRepo.GetByID: %w", errChal)
 		}
-		if challenge.IsHidden {
+		if challenge.State == domain.ChallengeStateHidden {
 			return httperr.ErrChallengeNotFound
 		}
 		if uc.deps.SolveRepo != nil {
@@ -225,7 +237,7 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 	return hint, nil
 }
 
-func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintID uuid.UUID, hint *entity.Hint, comp *entity.Competition) error {
+func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintID uuid.UUID, hint *domain.Hint, comp *domain.Competition) error {
 	// Re-verify membership inside the transaction to close the TOCTOU window between
 	// RequireTeam middleware and the hint unlock: if the user was kicked between the
 	// two points, the unlock would otherwise be credited to a team they no longer belong to.
@@ -254,10 +266,10 @@ func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintI
 	if team.IsBanned {
 		return httperr.ErrTeamBanned
 	}
-	if comp.Mode == entity.ModeTeamsOnly && team.IsSolo {
+	if comp.Mode == domain.ModeTeamsOnly && team.IsSolo {
 		return httperr.ErrTeamModeRequired
 	}
-	if comp.Mode == entity.ModeSoloOnly && !team.IsSolo {
+	if comp.Mode == domain.ModeSoloOnly && !team.IsSolo {
 		return httperr.ErrSoloModeRequired
 	}
 	if comp.MinTeamSize > 0 && !team.IsSolo {
@@ -271,10 +283,7 @@ func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintI
 	}
 	if uc.deps.SolveRepo != nil {
 		_, err := uc.deps.SolveRepo.GetByTeamAndChallenge(ctx, teamID, hint.ChallengeID)
-		if err == nil {
-			return httperr.ErrAlreadySolved
-		}
-		if !errors.Is(err, httperr.ErrSolveNotFound) {
+		if err != nil && !errors.Is(err, httperr.ErrSolveNotFound) {
 			return fmt.Errorf("HintUseCase - UnlockHint - SolveRepo.GetByTeamAndChallenge: %w", err)
 		}
 	}
@@ -311,7 +320,7 @@ func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintI
 	return nil
 }
 
-func (uc *HintUseCase) unlockHintChargeIfNeeded(ctx context.Context, teamID uuid.UUID, hint *entity.Hint) error {
+func (uc *HintUseCase) unlockHintChargeIfNeeded(ctx context.Context, teamID uuid.UUID, hint *domain.Hint) error {
 	if hint.Cost <= 0 {
 		return nil
 	}
@@ -323,7 +332,7 @@ func (uc *HintUseCase) unlockHintChargeIfNeeded(ctx context.Context, teamID uuid
 	if teamScore < hint.Cost {
 		return httperr.ErrInsufficientPoints
 	}
-	award := &entity.Award{
+	award := &domain.Award{
 		TeamID:      teamID,
 		Value:       -hint.Cost,
 		Description: fmt.Sprintf("Hint unlock: hint #%d", hint.OrderIndex+1),
@@ -334,9 +343,9 @@ func (uc *HintUseCase) unlockHintChargeIfNeeded(ctx context.Context, teamID uuid
 	return nil
 }
 
-func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*usecase.Paginated[*entity.HintUnlockWithDetails], error) {
+func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*usecase.Paginated[*domain.HintUnlockWithDetails], error) {
 	result, err := usecase.FetchPage(ctx, page, perPage,
-		func(ctx context.Context, limit, offset int) ([]*entity.HintUnlockWithDetails, error) {
+		func(ctx context.Context, limit, offset int) ([]*domain.HintUnlockWithDetails, error) {
 			return uc.deps.HintRepo.GetAll(ctx, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
@@ -350,7 +359,7 @@ func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*u
 	return result, nil
 }
 
-func (uc *HintUseCase) getCompetition(ctx context.Context) (*entity.Competition, error) {
+func (uc *HintUseCase) getCompetition(ctx context.Context) (*domain.Competition, error) {
 	if uc.deps.CompGetter != nil {
 		return uc.deps.CompGetter.Get(ctx)
 	}

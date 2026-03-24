@@ -269,16 +269,14 @@
 /configs/public:
   get:
     operationId: GetConfigsPublic
-    description: Returns public config items (e.g. theme, visibility) for frontend. No auth required.
+    description: Returns public config as flat key-value map (typed values). No auth required.
     responses:
       "200":
         description: OK
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: '../components/schemas.yml#/ConfigItem'
+              $ref: '../components/schemas.yml#/ConfigPublicResponse'
       "400":
         description: Bad Request
         content:

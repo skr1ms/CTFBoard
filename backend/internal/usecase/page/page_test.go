@@ -8,25 +8,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	pageMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page/mock"
 )
 
 type pageTestDeps struct {
-	pageRepo *mocks.MockPageRepository
+	pageRepo *pageMock.MockPageRepository
 }
 
 func newPageTestDeps(t *testing.T) *pageTestDeps {
 	t.Helper()
-	return &pageTestDeps{pageRepo: mocks.NewMockPageRepository(t)}
+	return &pageTestDeps{pageRepo: pageMock.NewMockPageRepository(t)}
 }
 
 func (d *pageTestDeps) createUseCase() *PageUseCase {
 	return NewPageUseCase(PageDeps{PageRepo: d.pageRepo})
 }
 
-func newTestPage(title, slug, content string, isDraft bool, orderIndex int) *entity.Page {
-	return &entity.Page{
+func newTestPage(title, slug, content string, isDraft bool, orderIndex int) *domain.Page {
+	return &domain.Page{
 		ID:         uuid.New(),
 		Title:      title,
 		Slug:       slug,
@@ -36,8 +36,8 @@ func newTestPage(title, slug, content string, isDraft bool, orderIndex int) *ent
 	}
 }
 
-func newTestPageListItem(id uuid.UUID, title, slug string, orderIndex int) *entity.PageListItem {
-	return &entity.PageListItem{
+func newTestPageListItem(id uuid.UUID, title, slug string, orderIndex int) *domain.PageListItem {
+	return &domain.PageListItem{
 		ID:         id,
 		Title:      title,
 		Slug:       slug,
@@ -49,7 +49,7 @@ func TestPageUseCase_GetPublishedList_Success(t *testing.T) {
 	t.Parallel()
 	d := newPageTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.PageListItem{newTestPageListItem(uuid.New(), "t", "s", 0)}
+	list := []*domain.PageListItem{newTestPageListItem(uuid.New(), "t", "s", 0)}
 
 	d.pageRepo.EXPECT().GetPublishedList(mock.Anything).Return(list, nil)
 
@@ -143,7 +143,7 @@ func TestPageUseCase_GetAllList_Success(t *testing.T) {
 	t.Parallel()
 	d := newPageTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Page{newTestPage("T", "s", "c", false, 0)}
+	list := []*domain.Page{newTestPage("T", "s", "c", false, 0)}
 
 	d.pageRepo.EXPECT().GetAllList(mock.Anything).Return(list, nil)
 
@@ -176,7 +176,7 @@ func TestPageUseCase_Create_Success(t *testing.T) {
 	isDraft := false
 	orderIndex := 1
 
-	d.pageRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *entity.Page) {
+	d.pageRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *domain.Page) {
 		assert.Equal(t, title, p.Title)
 		assert.Equal(t, slug, p.Slug)
 		assert.Equal(t, content, p.Content)
@@ -218,7 +218,7 @@ func TestPageUseCase_Update_Success(t *testing.T) {
 
 	d.pageRepo.EXPECT().GetByID(mock.Anything, id).Return(page, nil)
 	d.pageRepo.EXPECT().GetBySlug(mock.Anything, slug).Return(nil, nil)
-	d.pageRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *entity.Page) {
+	d.pageRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *domain.Page) {
 		assert.Equal(t, title, p.Title)
 		assert.Equal(t, slug, p.Slug)
 		assert.Equal(t, orderIndex, p.OrderIndex)

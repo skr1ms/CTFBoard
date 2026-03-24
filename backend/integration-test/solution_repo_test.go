@@ -8,13 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestSolutionRepo_Upsert_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -29,7 +28,6 @@ func TestSolutionRepo_Upsert_Create(t *testing.T) {
 
 func TestSolutionRepo_Upsert_Update(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -46,7 +44,6 @@ func TestSolutionRepo_Upsert_Update(t *testing.T) {
 
 func TestSolutionRepo_GetSolution_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -63,7 +60,6 @@ func TestSolutionRepo_GetSolution_Success(t *testing.T) {
 
 func TestSolutionRepo_GetSolution_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -78,7 +74,6 @@ func TestSolutionRepo_GetSolution_NotFound(t *testing.T) {
 
 func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -87,8 +82,8 @@ func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 	_, err := f.ChallengeRepo.UpsertSolution(ctx, challenge.ID, "## With Files")
 	require.NoError(t, err)
 
-	writeupFile := &entity.File{
-		Type:        entity.FileTypeWriteup,
+	writeupFile := &domain.File{
+		Type:        domain.FileTypeWriteup,
 		ChallengeID: challenge.ID,
 		Location:    "uploads/test-writeup.pdf",
 		Filename:    "writeup.pdf",
@@ -98,8 +93,8 @@ func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 	err = f.FileRepo.Create(ctx, writeupFile)
 	require.NoError(t, err)
 
-	challengeFile := &entity.File{
-		Type:        entity.FileTypeChallenge,
+	challengeFile := &domain.File{
+		Type:        domain.FileTypeChallenge,
 		ChallengeID: challenge.ID,
 		Location:    "uploads/challenge.zip",
 		Filename:    "challenge.zip",
@@ -112,13 +107,12 @@ func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 	sol, err := f.ChallengeRepo.GetSolution(ctx, challenge.ID)
 	require.NoError(t, err)
 	require.Len(t, sol.Files, 1, "only writeup-type files should be included")
-	assert.Equal(t, entity.FileTypeWriteup, sol.Files[0].Type)
+	assert.Equal(t, domain.FileTypeWriteup, sol.Files[0].Type)
 	assert.Equal(t, "writeup.pdf", sol.Files[0].Filename)
 }
 
 func TestSolutionRepo_DeleteSolution_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -138,7 +132,6 @@ func TestSolutionRepo_DeleteSolution_Success(t *testing.T) {
 
 func TestSolutionRepo_DeleteSolution_Idempotent(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -151,7 +144,6 @@ func TestSolutionRepo_DeleteSolution_Idempotent(t *testing.T) {
 
 func TestSolutionRepo_DeleteChallengeDeletesSolution(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -174,7 +166,6 @@ func TestSolutionRepo_DeleteChallengeDeletesSolution(t *testing.T) {
 
 func TestSolutionRepo_ListSolutions_ReturnsOnlySolvedByTeam(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -200,7 +191,6 @@ func TestSolutionRepo_ListSolutions_ReturnsOnlySolvedByTeam(t *testing.T) {
 
 func TestSolutionRepo_ListSolutions_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -217,7 +207,6 @@ func TestSolutionRepo_ListSolutions_Empty(t *testing.T) {
 
 func TestSolutionRepo_ListSolutions_IncludesWriteupFiles(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -228,8 +217,8 @@ func TestSolutionRepo_ListSolutions_IncludesWriteupFiles(t *testing.T) {
 	require.NoError(t, err)
 	f.CreateSolve(t, user.ID, team.ID, challenge.ID)
 
-	wFile := &entity.File{
-		Type:        entity.FileTypeWriteup,
+	wFile := &domain.File{
+		Type:        domain.FileTypeWriteup,
 		ChallengeID: challenge.ID,
 		Location:    "uploads/sol.pdf",
 		Filename:    "sol.pdf",
@@ -247,7 +236,6 @@ func TestSolutionRepo_ListSolutions_IncludesWriteupFiles(t *testing.T) {
 
 func TestSolutionRepo_UpsertSolution_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "sol_ctx_"+uuid.New().String()[:6], 100)

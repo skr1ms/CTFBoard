@@ -1,6 +1,6 @@
 -- name: CreatePage :one
 INSERT INTO pages (id, title, slug, content, is_draft, order_index, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, title, slug, content, is_draft, order_index, created_at, updated_at;
 
 -- name: GetPageByID :one
@@ -20,7 +20,7 @@ SELECT id, title, slug, content, is_draft, order_index, created_at, updated_at
 FROM pages ORDER BY order_index ASC, created_at ASC;
 
 -- name: UpdatePage :exec
-UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = NOW()
+UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = $7
 WHERE id = $1;
 
 -- name: DeletePage :exec

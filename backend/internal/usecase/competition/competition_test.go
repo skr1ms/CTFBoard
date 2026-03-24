@@ -11,41 +11,46 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+	logMock "github.com/wahrwelt-kit/go-logkit/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	challengeMocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mocks"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
-	teamMocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mocks"
+	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
+	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type competitionTestDeps struct {
-	competitionRepo *mocks.MockCompetitionRepository
-	auditLogRepo    *mocks.MockAuditLogRepository
-	solveRepo       *mocks.MockSolveRepository
-	challengeRepo   *mocks.MockChallengeRepository
-	userRepo        *mocks.MockUserRepository
-	tm              *mocks.MockTransactionManager
-	statsRepo       *mocks.MockStatisticsRepository
-	SettingsRepo    *mocks.MockSettingsRepository
-	hintRepo        *challengeMocks.MockHintRepository
-	teamRepo        *teamMocks.MockTeamRepository
-	awardRepo       *teamMocks.MockAwardRepository
-	logger          *mocks.MockLogger
-	bracketRepo     *mocks.MockBracketRepository
-	configRepo      *mocks.MockCompetitionParamRepo
-	submissionRepo  *mocks.MockSubmissionRepository
+	competitionRepo *compMock.MockCompetitionRepository
+	auditLogRepo    *compMock.MockAuditLogRepository
+	solveRepo       *compMock.MockSolveRepository
+	challengeRepo   *compMock.MockChallengeRepository
+	userRepo        *compMock.MockUserRepository
+	tm              *compMock.MockTransactionManager
+	statsRepo       *compMock.MockStatisticsRepository
+	SettingsRepo    *compMock.MockSettingsRepository
+	hintRepo        *challengeMock.MockHintRepository
+	teamRepo        *teamMock.MockTeamRepository
+	awardRepo       *teamMock.MockAwardRepository
+	logger          *logMock.MockLogger
+	bracketRepo     *compMock.MockBracketRepository
+	configRepo      *compMock.MockCompetitionParamRepo
+	submissionRepo  *compMock.MockSubmissionRepository
 }
 
 func newCompetitionTestDeps(t *testing.T) *competitionTestDeps {
 	t.Helper()
-	l := mocks.NewMockLogger(t)
+	l := logMock.NewMockLogger(t)
 	l.On("Info", mock.Anything, mock.Anything).Maybe()
 	l.On("Warn", mock.Anything, mock.Anything).Maybe()
 	l.On("Error", mock.Anything, mock.Anything).Maybe()
@@ -53,21 +58,21 @@ func newCompetitionTestDeps(t *testing.T) *competitionTestDeps {
 	l.On("WithError", mock.Anything).Return(l).Maybe()
 	l.On("WithFields", mock.Anything).Return(l).Maybe()
 	return &competitionTestDeps{
-		competitionRepo: mocks.NewMockCompetitionRepository(t),
-		auditLogRepo:    mocks.NewMockAuditLogRepository(t),
-		solveRepo:       mocks.NewMockSolveRepository(t),
-		challengeRepo:   mocks.NewMockChallengeRepository(t),
-		userRepo:        mocks.NewMockUserRepository(t),
-		tm:              mocks.NewMockTransactionManager(t),
-		statsRepo:       mocks.NewMockStatisticsRepository(t),
-		SettingsRepo:    mocks.NewMockSettingsRepository(t),
-		hintRepo:        challengeMocks.NewMockHintRepository(t),
-		teamRepo:        teamMocks.NewMockTeamRepository(t),
-		awardRepo:       teamMocks.NewMockAwardRepository(t),
+		competitionRepo: compMock.NewMockCompetitionRepository(t),
+		auditLogRepo:    compMock.NewMockAuditLogRepository(t),
+		solveRepo:       compMock.NewMockSolveRepository(t),
+		challengeRepo:   compMock.NewMockChallengeRepository(t),
+		userRepo:        compMock.NewMockUserRepository(t),
+		tm:              compMock.NewMockTransactionManager(t),
+		statsRepo:       compMock.NewMockStatisticsRepository(t),
+		SettingsRepo:    compMock.NewMockSettingsRepository(t),
+		hintRepo:        challengeMock.NewMockHintRepository(t),
+		teamRepo:        teamMock.NewMockTeamRepository(t),
+		awardRepo:       teamMock.NewMockAwardRepository(t),
 		logger:          l,
-		bracketRepo:     mocks.NewMockBracketRepository(t),
-		configRepo:      mocks.NewMockCompetitionParamRepo(t),
-		submissionRepo:  mocks.NewMockSubmissionRepository(t),
+		bracketRepo:     compMock.NewMockBracketRepository(t),
+		configRepo:      compMock.NewMockCompetitionParamRepo(t),
+		submissionRepo:  compMock.NewMockSubmissionRepository(t),
 	}
 }
 
@@ -75,7 +80,7 @@ func (d *competitionTestDeps) createCompetitionUseCase() (*CompetitionUseCase, r
 	client, redis := redismock.NewClientMock()
 	return NewCompetitionUseCase(CompetitionDeps{
 		CompetitionRepo: d.competitionRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm,
-		Redis: &cache.RedisKeyValueStore{Client: client}, Logger: d.logger,
+		Redis: &cachekit.RedisKeyValueStore{Client: client}, Logger: d.logger,
 	}), redis
 }
 
@@ -87,7 +92,7 @@ func (d *competitionTestDeps) createSolveUseCase() (*SolveUseCase, redismock.Cli
 	client, redis := redismock.NewClientMock()
 	return NewSolveUseCase(SolveDeps{
 		SolveRepo: d.solveRepo, ChallengeRepo: d.challengeRepo, CompetitionRepo: d.competitionRepo,
-		UserRepo: d.userRepo, TeamRepo: d.teamRepo, TM: d.tm, Cache: cache.New(client),
+		UserRepo: d.userRepo, TeamRepo: d.teamRepo, TM: d.tm, Cache: cachekit.New(client),
 		ScoreboardCache: nil, ChallengeListCache: nil, Broadcaster: nil,
 	}), redis
 }
@@ -98,65 +103,65 @@ func (d *competitionTestDeps) createBracketUseCase() *BracketUseCase {
 
 func (d *competitionTestDeps) createStatisticsUseCase() (*StatisticsUseCase, redismock.ClientMock) {
 	client, mock := redismock.NewClientMock()
-	return NewStatisticsUseCase(StatisticsDeps{StatsRepo: d.statsRepo, Cache: cache.New(client)}), mock
+	return NewStatisticsUseCase(StatisticsDeps{StatsRepo: d.statsRepo, Cache: cachekit.New(client)}), mock
 }
 
 func (d *competitionTestDeps) createCompetitionParamUseCase() *CompetitionParamUseCase {
 	return d.createCompetitionParamUseCaseWithCache(nil, nil)
 }
 
-func (d *competitionTestDeps) createCompetitionParamUseCaseWithCache(cache cache.KeyValueStore, pubsub cache.PubSubStore) *CompetitionParamUseCase {
+func (d *competitionTestDeps) createCompetitionParamUseCaseWithCache(cache cachekit.KeyValueStore, pubsub cachekit.PubSubStore) *CompetitionParamUseCase {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).
 		Maybe()
-	return NewCompetitionParamUseCase(CompetitionParamDeps{
+	return NewCompetitionParamUseCase(context.Background(), CompetitionParamDeps{
 		Repo: d.configRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm, Logger: d.logger,
 		Cache: cache, PubSub: pubsub,
 	})
 }
 
-func newTestCompetition(name, mode string, allowTeamSwitch bool) *entity.Competition {
-	return &entity.Competition{
-		ID: 1, Name: name, Mode: entity.CompetitionMode(mode), AllowTeamSwitch: allowTeamSwitch,
+func newTestCompetition(name, mode string, allowTeamSwitch bool) *domain.Competition {
+	return &domain.Competition{
+		ID: 1, Name: name, Mode: domain.CompetitionMode(mode), AllowTeamSwitch: allowTeamSwitch,
 	}
 }
 
-func newTestCompetitionWithTimes(name string, startTime, endTime *time.Time) *entity.Competition {
+func newTestCompetitionWithTimes(name string, startTime, endTime *time.Time) *domain.Competition {
 	c := newTestCompetition(name, "flexible", true)
 	c.StartTime = startTime
 	c.EndTime = endTime
 	return c
 }
 
-func newTestChallenge(id uuid.UUID, title string, points int) *entity.Challenge {
-	return &entity.Challenge{ID: id, Title: title, Points: points, SolveCount: 0}
+func newTestChallenge(id uuid.UUID, title string, points int) *domain.Challenge {
+	return &domain.Challenge{ID: id, Title: title, Points: points, SolveCount: 0}
 }
 
-func newTestSolve(userID, teamID, challengeID uuid.UUID) *entity.Solve {
-	return &entity.Solve{UserID: userID, TeamID: teamID, ChallengeID: challengeID}
+func newTestSolve(userID, teamID, challengeID uuid.UUID) *domain.Solve {
+	return &domain.Solve{UserID: userID, TeamID: teamID, ChallengeID: challengeID}
 }
 
-func newTestUser(id uuid.UUID, teamID *uuid.UUID) *entity.User {
-	return &entity.User{ID: id, TeamID: teamID}
+func newTestUser(id uuid.UUID, teamID *uuid.UUID) *domain.User {
+	return &domain.User{ID: id, TeamID: teamID}
 }
 
 func newTestScoreboardEntry(teamID uuid.UUID, teamName string, points int) *repo.ScoreboardEntry {
 	return &repo.ScoreboardEntry{TeamID: teamID, TeamName: teamName, Points: points, SolvedAt: time.Now()}
 }
 
-func newTestSubmission(userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, flag string, isCorrect bool) *entity.Submission {
-	return &entity.Submission{
+func newTestSubmission(userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, flag string, isCorrect bool) *domain.Submission {
+	return &domain.Submission{
 		ID: uuid.New(), UserID: userID, TeamID: teamID, ChallengeID: challengeID,
 		SubmittedFlag: flag, IsCorrect: isCorrect,
 	}
 }
 
-func newTestBracket(name, description string, isDefault bool) *entity.Bracket {
-	return &entity.Bracket{ID: uuid.New(), Name: name, Description: description, IsDefault: isDefault}
+func newTestBracket(name, description string, isDefault bool) *domain.Bracket {
+	return &domain.Bracket{ID: uuid.New(), Name: name, Description: description, IsDefault: isDefault}
 }
 
-func newTestCompetitionParam(key, value, description string, valueType entity.CompetitionParamValueType) *entity.CompetitionParam {
-	return &entity.CompetitionParam{Key: key, Value: value, ValueType: valueType, Description: description}
+func newTestCompetitionParam(key, value, description string, valueType domain.CompetitionParamValueType) *domain.CompetitionParam {
+	return &domain.CompetitionParam{Key: key, Value: value, ValueType: valueType, Description: description}
 }
 
 func TestCompetitionUseCase_Get_Success(t *testing.T) {
@@ -218,11 +223,11 @@ func Test_competitionCacheStale_StartTimeBoundary(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	startTimeJustPassed := now.Add(-10 * time.Second)
-	comp := &entity.Competition{StartTime: &startTimeJustPassed}
+	comp := &domain.Competition{StartTime: &startTimeJustPassed}
 	assert.True(t, competitionCacheStale(comp, now))
 
 	startTimeLongAgo := now.Add(-boundaryInvalidateWindow - time.Second)
-	compOld := &entity.Competition{StartTime: &startTimeLongAgo}
+	compOld := &domain.Competition{StartTime: &startTimeLongAgo}
 	assert.False(t, competitionCacheStale(compOld, now))
 }
 
@@ -235,13 +240,13 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	comp.MinTeamSize = 1
 	comp.MaxTeamSize = 5
 
-	currentNotStarted := newTestCompetitionWithTimes("Current", timePtr(time.Now().Add(24*time.Hour)), nil)
+	currentNotStarted := newTestCompetitionWithTimes("Current", lo.ToPtr(time.Now().Add(24*time.Hour)), nil)
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentNotStarted, nil).Once()
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.ID == comp.ID &&
 			c.Name == comp.Name &&
 			c.Mode == comp.Mode &&
@@ -249,8 +254,8 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 			c.MinTeamSize == comp.MinTeamSize &&
 			c.MaxTeamSize == comp.MaxTeamSize
 	})).Return(nil).Once()
-	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
-		return a.Action == entity.AuditActionUpdate && a.EntityType == entity.AuditEntityCompetition
+	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(a *domain.AuditLog) bool {
+		return a.Action == domain.AuditActionUpdate && a.EntityType == domain.AuditEntityCompetition
 	})).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
@@ -260,13 +265,11 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
-func timePtr(t time.Time) *time.Time { return &t }
-
-func optionalsFromComp(c *entity.Competition) *usecase.CompetitionUpdateOptionals {
+func optionalsFromComp(c *domain.Competition) *usecase.CompetitionUpdateOptionals {
 	o := &usecase.CompetitionUpdateOptionals{
-		IsPaused:        ptrBool(c.IsPaused),
-		IsPublic:        ptrBool(c.IsPublic),
-		AllowTeamSwitch: ptrBool(c.AllowTeamSwitch),
+		IsPaused:        lo.ToPtr(c.IsPaused),
+		IsPublic:        lo.ToPtr(c.IsPublic),
+		AllowTeamSwitch: lo.ToPtr(c.AllowTeamSwitch),
 	}
 	if c.MinTeamSize != 0 || c.MaxTeamSize != 0 {
 		minT, maxT := c.MinTeamSize, c.MaxTeamSize
@@ -274,8 +277,6 @@ func optionalsFromComp(c *entity.Competition) *usecase.CompetitionUpdateOptional
 	}
 	return o
 }
-
-func ptrBool(b bool) *bool { return &b }
 
 func TestCompetitionUseCase_Update_Error(t *testing.T) {
 	t.Parallel()
@@ -301,7 +302,7 @@ func TestCompetitionUseCase_Update_ActiveCompetitionRejectsDangerousChanges(t *t
 	startTime := time.Now().Add(-1 * time.Hour)
 	endTime := time.Now().Add(1 * time.Hour)
 	currentActive := newTestCompetitionWithTimes("Active CTF", &startTime, &endTime)
-	currentActive.Mode = entity.ModeFlexible
+	currentActive.Mode = domain.ModeFlexible
 	currentActive.AllowTeamSwitch = true
 
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentActive, nil).Once()
@@ -325,19 +326,19 @@ func TestCompetitionUseCase_Update_PauseSetsTimestamp(t *testing.T) {
 	startTime := time.Now().Add(-1 * time.Hour)
 	endTime := time.Now().Add(23 * time.Hour)
 	currentActive := newTestCompetitionWithTimes("CTF", &startTime, &endTime)
-	currentActive.Mode = entity.ModeFlexible
+	currentActive.Mode = domain.ModeFlexible
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentActive, nil).Once()
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.IsPaused && c.PausedAt != nil && time.Since(*c.PausedAt) < time.Second
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: true, Mode: entity.ModeFlexible, AllowTeamSwitch: true}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: true, Mode: domain.ModeFlexible, AllowTeamSwitch: true}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -353,8 +354,8 @@ func TestCompetitionUseCase_Update_UnpauseShiftsEndTime(t *testing.T) {
 	freezeTime := now.Add(12 * time.Hour)
 	pausedAt := now.Add(-2 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -363,7 +364,7 @@ func TestCompetitionUseCase_Update_UnpauseShiftsEndTime(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
@@ -377,7 +378,7 @@ func TestCompetitionUseCase_Update_UnpauseShiftsEndTime(t *testing.T) {
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -392,8 +393,8 @@ func TestCompetitionUseCase_Update_UnpauseWithEndTimeInPastForceEnds(t *testing.
 	endTime := now.Add(-2 * time.Hour)
 	pausedAt := now.Add(-1 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -402,13 +403,13 @@ func TestCompetitionUseCase_Update_UnpauseWithEndTimeInPastForceEnds(t *testing.
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return !c.IsPaused && c.PausedAt == nil && c.EndTime.Equal(endTime)
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -424,8 +425,8 @@ func TestCompetitionUseCase_Update_UnpauseWhenPausedBeforeEndTimeShiftsTimes(t *
 	freezeTime := now.Add(-2 * time.Hour)
 	pausedAt := now.Add(-3 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -434,7 +435,7 @@ func TestCompetitionUseCase_Update_UnpauseWhenPausedBeforeEndTimeShiftsTimes(t *
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
@@ -448,7 +449,7 @@ func TestCompetitionUseCase_Update_UnpauseWhenPausedBeforeEndTimeShiftsTimes(t *
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -464,8 +465,8 @@ func TestCompetitionUseCase_Update_UnpauseValidationRejectsFreezeAfterEnd(t *tes
 	freezeTime := now.Add(1 * time.Hour)
 	pausedAt := now.Add(-1 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -476,7 +477,7 @@ func TestCompetitionUseCase_Update_UnpauseValidationRejectsFreezeAfterEnd(t *tes
 	}).Once()
 
 	adminEndTime := now.Add(30 * time.Minute)
-	comp := &entity.Competition{ID: 1, Name: "CTF", EndTime: &adminEndTime, IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", EndTime: &adminEndTime, IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -498,8 +499,8 @@ func TestCompetitionUseCase_Update_UnpauseAfterPreStartPause_ClampsToStartTime(t
 	freezeTime := now.Add(12 * time.Hour)
 	pausedAt := now.Add(-3 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -508,7 +509,7 @@ func TestCompetitionUseCase_Update_UnpauseAfterPreStartPause_ClampsToStartTime(t
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
@@ -522,7 +523,7 @@ func TestCompetitionUseCase_Update_UnpauseAfterPreStartPause_ClampsToStartTime(t
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
@@ -539,8 +540,8 @@ func TestCompetitionUseCase_Update_UnpauseKeepsFreezeTimeUnchanged(t *testing.T)
 	freezeTime := now.Add(-1 * time.Hour)
 	pausedAt := now.Add(-30 * time.Minute)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -549,13 +550,13 @@ func TestCompetitionUseCase_Update_UnpauseKeepsFreezeTimeUnchanged(t *testing.T)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.FreezeTime != nil && c.FreezeTime.Equal(freezeTime)
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -570,8 +571,8 @@ func TestCompetitionUseCase_Update_UnpauseWithNilEndTime_ShiftsFreezeTime(t *tes
 	freezeTime := now.Add(1 * time.Hour)
 	pausedAt := now.Add(-30 * time.Minute)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: nil, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -580,7 +581,7 @@ func TestCompetitionUseCase_Update_UnpauseWithNilEndTime_ShiftsFreezeTime(t *tes
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		if c.IsPaused || c.PausedAt != nil || c.EndTime != nil {
 			return false
 		}
@@ -592,7 +593,7 @@ func TestCompetitionUseCase_Update_UnpauseWithNilEndTime_ShiftsFreezeTime(t *tes
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
@@ -609,8 +610,8 @@ func TestCompetitionUseCase_Update_UnpauseBeforeStartTime_NoShift(t *testing.T) 
 	freezeTime := now.Add(5 * time.Hour)
 	pausedAt := now.Add(-1 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -619,7 +620,7 @@ func TestCompetitionUseCase_Update_UnpauseBeforeStartTime_NoShift(t *testing.T) 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return !c.IsPaused && c.PausedAt == nil &&
 			c.EndTime != nil && c.EndTime.Equal(endTime) &&
 			c.FreezeTime != nil && c.FreezeTime.Equal(freezeTime)
@@ -627,7 +628,7 @@ func TestCompetitionUseCase_Update_UnpauseBeforeStartTime_NoShift(t *testing.T) 
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
@@ -644,8 +645,8 @@ func TestCompetitionUseCase_Update_UnpauseWithChangedEndTime_StillShiftsFreezeTi
 	freezeTime := now.Add(1 * time.Hour)
 	pausedAt := now.Add(-1 * time.Hour)
 
-	currentPaused := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentPaused := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime, FreezeTime: &freezeTime,
 		IsPaused: true, PausedAt: &pausedAt,
 	}
@@ -655,7 +656,7 @@ func TestCompetitionUseCase_Update_UnpauseWithChangedEndTime_StillShiftsFreezeTi
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
@@ -670,7 +671,7 @@ func TestCompetitionUseCase_Update_UnpauseWithChangedEndTime_StillShiftsFreezeTi
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", EndTime: &adminEndTime, IsPaused: false, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", EndTime: &adminEndTime, IsPaused: false, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
@@ -684,14 +685,14 @@ func TestCompetitionUseCase_Update_InvalidTimesAfterMergeReturnsError(t *testing
 	startTime := time.Now().Add(2 * time.Hour)
 	endTime := time.Now().Add(24 * time.Hour)
 	currentNotStarted := newTestCompetitionWithTimes("CTF", &startTime, &endTime)
-	currentNotStarted.Mode = entity.ModeFlexible
+	currentNotStarted.Mode = domain.ModeFlexible
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentNotStarted, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
 
 	invalidEndTime := time.Now().Add(1 * time.Hour)
-	comp := &entity.Competition{ID: 1, Name: "CTF", EndTime: &invalidEndTime, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", EndTime: &invalidEndTime, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -708,14 +709,14 @@ func TestCompetitionUseCase_Update_FreezeTimeEqualEndTime_ReturnsError(t *testin
 	startTime := time.Now().Add(2 * time.Hour)
 	sameTime := time.Now().Add(24 * time.Hour)
 	currentNotStarted := newTestCompetitionWithTimes("CTF", &startTime, &sameTime)
-	currentNotStarted.Mode = entity.ModeFlexible
+	currentNotStarted.Mode = domain.ModeFlexible
 	currentNotStarted.FreezeTime = nil
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentNotStarted, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
 
-	comp := &entity.Competition{ID: 1, Name: "CTF", StartTime: &startTime, EndTime: &sameTime, FreezeTime: &sameTime, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", StartTime: &startTime, EndTime: &sameTime, FreezeTime: &sameTime, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
@@ -732,19 +733,19 @@ func TestCompetitionUseCase_Update_EndedAllowsUpdate(t *testing.T) {
 	startTime := time.Now().Add(-48 * time.Hour)
 	endTime := time.Now().Add(-1 * time.Hour)
 	currentEnded := newTestCompetitionWithTimes("CTF", &startTime, &endTime)
-	currentEnded.Mode = entity.ModeFlexible
+	currentEnded.Mode = domain.ModeFlexible
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentEnded, nil).Once()
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.Name == "Updated"
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "Updated", Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "Updated", Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
@@ -758,7 +759,7 @@ func TestCompetitionUseCase_Update_ActiveRejectsTeamSizeChange(t *testing.T) {
 	startTime := time.Now().Add(-1 * time.Hour)
 	endTime := time.Now().Add(1 * time.Hour)
 	currentActive := newTestCompetitionWithTimes("Active CTF", &startTime, &endTime)
-	currentActive.Mode = entity.ModeFlexible
+	currentActive.Mode = domain.ModeFlexible
 	currentActive.MinTeamSize = 1
 	currentActive.MaxTeamSize = 5
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentActive, nil).Once()
@@ -785,22 +786,22 @@ func TestCompetitionUseCase_Update_ActiveAllowsEndTimeChange_ForceEnd(t *testing
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
 	endTime := now.Add(23 * time.Hour)
-	currentActive := &entity.Competition{
-		ID: 1, Name: "CTF", Mode: entity.ModeFlexible,
+	currentActive := &domain.Competition{
+		ID: 1, Name: "CTF", Mode: domain.ModeFlexible,
 		StartTime: &startTime, EndTime: &endTime,
 	}
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentActive, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.EndTime != nil && c.EndTime.Before(now)
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
 	forceEndTime := now.Add(-1 * time.Minute)
-	comp := &entity.Competition{ID: 1, Name: "CTF", StartTime: &startTime, EndTime: &forceEndTime, Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "CTF", StartTime: &startTime, EndTime: &forceEndTime, Mode: domain.ModeFlexible}
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
 }
@@ -813,7 +814,7 @@ func TestCompetitionUseCase_Update_PartialUpdatePreservesBooleans(t *testing.T) 
 	startTime := time.Now().Add(-1 * time.Hour)
 	endTime := time.Now().Add(23 * time.Hour)
 	currentPaused := newTestCompetitionWithTimes("CTF", &startTime, &endTime)
-	currentPaused.Mode = entity.ModeFlexible
+	currentPaused.Mode = domain.ModeFlexible
 	currentPaused.IsPaused = true
 	currentPaused.IsPublic = true
 	currentPaused.AllowTeamSwitch = false
@@ -822,13 +823,13 @@ func TestCompetitionUseCase_Update_PartialUpdatePreservesBooleans(t *testing.T) 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *entity.Competition) bool {
+	d.competitionRepo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *domain.Competition) bool {
 		return c.Name == "Updated Name" && c.IsPaused && c.IsPublic && !c.AllowTeamSwitch
 	})).Return(nil).Once()
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	redisClient.ExpectDel(cache.KeyCompetition).SetVal(1)
 
-	comp := &entity.Competition{ID: 1, Name: "Updated Name", Mode: entity.ModeFlexible}
+	comp := &domain.Competition{ID: 1, Name: "Updated Name", Mode: domain.ModeFlexible}
 	optionals := &usecase.CompetitionUpdateOptionals{}
 	err := uc.Update(context.Background(), comp, optionals, uuid.New(), "127.0.0.1")
 	assert.NoError(t, err)
@@ -849,7 +850,7 @@ func TestCompetitionUseCase_GetStatus_Success(t *testing.T) {
 	status, err := uc.GetStatus(context.Background())
 
 	assert.NoError(t, err)
-	assert.Equal(t, entity.CompetitionStatusActive, status)
+	assert.Equal(t, domain.CompetitionStatusActive, status)
 }
 
 func TestCompetitionUseCase_GetStatus_Error(t *testing.T) {

@@ -3,9 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/wahrwelt-kit/go-logkit"
+
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/app"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func main() {
@@ -14,10 +15,10 @@ func main() {
 		log.Fatalf("Config initialization failed: %v", err)
 	}
 
-	l := logger.New(&logger.Options{
-		Level:  logger.InfoLevel,
-		Output: logger.ConsoleOutput,
-	})
+	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	if err != nil {
+		log.Fatalf("Logger initialization failed: %v", err)
+	}
 	l.Info("Configuration loaded successfully")
 
 	app.Run(cfg, l)

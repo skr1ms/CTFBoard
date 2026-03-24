@@ -9,7 +9,7 @@ packages:
     interfaces:
       NotificationRepository:
         config:
-          dir: "internal/usecase/notification/mocks"
+          dir: "internal/usecase/notification/mock"
           filename: "NotificationRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockNotificationRepository"

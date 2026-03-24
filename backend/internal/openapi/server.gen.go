@@ -333,6 +333,12 @@ type ServerInterface interface {
 	// Unlock hint
 	// (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 	PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID string, hintID string)
+	// Put rating for challenge
+	// (PUT /challenges/{challengeID}/rating)
+	PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Get ratings for challenge
+	// (GET /challenges/{challengeID}/ratings)
+	GetChallengesChallengeIDRatings(w http.ResponseWriter, r *http.Request, challengeID string)
 	// Get challenge requirements
 	// (GET /challenges/{challengeID}/requirements)
 	GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *http.Request, challengeID string)
@@ -1182,6 +1188,18 @@ func (_ Unimplemented) GetChallengesChallengeIDHints(w http.ResponseWriter, r *h
 // Unlock hint
 // (POST /challenges/{challengeID}/hints/{hintID}/unlock)
 func (_ Unimplemented) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID string, hintID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Put rating for challenge
+// (PUT /challenges/{challengeID}/rating)
+func (_ Unimplemented) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.Request, challengeID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get ratings for challenge
+// (GET /challenges/{challengeID}/ratings)
+func (_ Unimplemented) GetChallengesChallengeIDRatings(w http.ResponseWriter, r *http.Request, challengeID string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5010,6 +5028,72 @@ func (siw *ServerInterfaceWrapper) PostChallengesChallengeIDHintsHintIDUnlock(w 
 	handler.ServeHTTP(w, r)
 }
 
+// PutChallengesChallengeIDRating operation middleware
+func (siw *ServerInterfaceWrapper) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutChallengesChallengeIDRating(w, r, challengeID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetChallengesChallengeIDRatings operation middleware
+func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDRatings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetChallengesChallengeIDRatings(w, r, challengeID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetChallengesChallengeIDRequirements operation middleware
 func (siw *ServerInterfaceWrapper) GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *http.Request) {
 
@@ -7484,6 +7568,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/challenges/{challengeID}/hints/{hintID}/unlock", wrapper.PostChallengesChallengeIDHintsHintIDUnlock)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/challenges/{challengeID}/rating", wrapper.PutChallengesChallengeIDRating)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/challenges/{challengeID}/ratings", wrapper.GetChallengesChallengeIDRatings)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)

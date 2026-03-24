@@ -9,14 +9,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 type TeamUseCase struct {
@@ -41,12 +44,12 @@ type TeamDeps struct {
 	ScoreboardCache    cache.ScoreboardCacheInvalidator
 	ChallengeListCache cache.ChallengeListCacheInvalidator
 	UserCache          cache.UserCacheInvalidator
-	TeamCache          *cache.Cache
+	TeamCache          *cachekit.Cache
 	HintRepo           repo.HintRepository
 	FieldValueRepo     repo.FieldValueRepository
 	JWTRevoker         JWTRevoker
 	DefaultMaxTeamSize int
-	Logger             logger.Logger
+	Logger             logkit.Logger
 }
 
 var _ usecase.TeamUseCase = (*TeamUseCase)(nil)
@@ -56,12 +59,12 @@ func NewTeamUseCase(deps TeamDeps) *TeamUseCase {
 		deps.DefaultMaxTeamSize = 10
 	}
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	return &TeamUseCase{deps: deps}
 }
 
-func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Team, error) {
+func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetByID - TeamRepo.GetByID: %w", err)
@@ -69,7 +72,7 @@ func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Team,
 	return team, nil
 }
 
-func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*entity.Team, []*entity.User, int, bool, error) {
+func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain.Team, []*domain.User, int, bool, error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, nil, 0, false, fmt.Errorf("TeamUseCase - GetMyTeam - UserRepo.GetByID: %w", err)
@@ -79,8 +82,8 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*entity
 	}
 	teamID := *user.TeamID
 
-	var team *entity.Team
-	var members []*entity.User
+	var team *domain.Team
+	var members []*domain.User
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var err2 error
@@ -113,7 +116,7 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*entity
 	return team, members, minTeamSize, meetsMinSize, nil
 }
 
-func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error) {
+func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error) {
 	users, err := uc.deps.UserRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetTeamMembers - UserRepo.GetByTeamID: %w", err)
@@ -195,12 +198,12 @@ func (uc *TeamUseCase) invalidateTeamCache(ctx context.Context, teamID uuid.UUID
 	}
 }
 
-func (uc *TeamUseCase) ListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*entity.Team], error) {
-	var result *usecase.Paginated[*entity.Team]
+func (uc *TeamUseCase) ListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
+	var result *usecase.Paginated[*domain.Team]
 	if err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
 		var err error
 		result, err = usecase.FetchPage(roCtx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*entity.Team, error) {
+			func(ctx context.Context, limit, offset int) ([]*domain.Team, error) {
 				return uc.deps.TeamRepo.Search(ctx, search, limit, offset)
 			},
 			func(ctx context.Context) (int64, error) {
@@ -217,7 +220,7 @@ func (uc *TeamUseCase) ListTeams(ctx context.Context, search *string, page, perP
 	return result, nil
 }
 
-func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*entity.SolveWithDetails, error) {
+func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetTeamSolves - TeamRepo.GetByID: %w", err)
@@ -232,7 +235,7 @@ func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*
 	return solves, nil
 }
 
-func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page, perPage int) (*usecase.Paginated[*entity.SubmissionWithDetails], error) {
+func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetTeamFails - TeamRepo.GetByID: %w", err)
@@ -241,7 +244,7 @@ func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page,
 		return nil, httperr.ErrTeamBanned
 	}
 	result, err := usecase.FetchPage(ctx, page, perPage,
-		func(ctx context.Context, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
 			return uc.deps.SubmissionRepo.GetFailsByTeam(ctx, teamID, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
@@ -254,7 +257,7 @@ func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page,
 	return result, nil
 }
 
-func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*entity.Award, error) {
+func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*domain.Award, error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetTeamAwards - TeamRepo.GetByID: %w", err)
@@ -263,7 +266,7 @@ func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*
 		return nil, httperr.ErrTeamBanned
 	}
 	if uc.deps.AwardRepo == nil {
-		return []*entity.Award{}, nil
+		return []*domain.Award{}, nil
 	}
 	awards, err := uc.deps.AwardRepo.GetByTeamID(ctx, teamID)
 	if err != nil {
@@ -272,11 +275,11 @@ func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*
 	return awards, nil
 }
 
-func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*entity.Team, error) {
+func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
 	if _, err := uc.deps.Guard.RequireTeamSwitch(ctx); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - UpdateMyTeam - Guard.RequireTeamSwitch: %w", err)
 	}
-	var team *entity.Team
+	var team *domain.Team
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err error
 		team, err = uc.updateMyTeamTx(ctx, captainID, name)
@@ -295,7 +298,7 @@ func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, na
 	return team, nil
 }
 
-func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, name string) (*entity.Team, error) {
+func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - CompetitionRepo.Get: %w", err)
@@ -341,7 +344,7 @@ func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, 
 	return team, nil
 }
 
-func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) (*entity.Team, error) {
+func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error) {
 	if _, err := uc.deps.Guard.RequireTeamSwitch(ctx); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - GetInviteToken - Guard.RequireTeamSwitch: %w", err)
 	}
@@ -370,8 +373,8 @@ func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) 
 
 const defaultInviteTokenTTL = 7 * 24 * time.Hour
 
-func (uc *TeamUseCase) RegenerateInviteToken(ctx context.Context, captainID uuid.UUID) (*entity.Team, error) {
-	var team *entity.Team
+func (uc *TeamUseCase) RegenerateInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error) {
+	var team *domain.Team
 	err := uc.deps.TM.Run(ctx, func(txCtx context.Context) error {
 		comp, err := uc.deps.CompRepo.Get(txCtx)
 		if err != nil {

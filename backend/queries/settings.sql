@@ -69,7 +69,7 @@ UPDATE app_settings SET
     writeup_enabled = $30,
     oauth_github_enabled = $31,
     oauth_google_enabled = $32,
-    updated_at = NOW()
+    updated_at = $33
 WHERE id = 1;
 
 -- name: UpdateAppSettingsIfCurrent :one
@@ -106,6 +106,6 @@ UPDATE app_settings SET
     writeup_enabled = $30,
     oauth_github_enabled = $31,
     oauth_google_enabled = $32,
-    updated_at = NOW()
-WHERE id = 1 AND updated_at = $33
+    updated_at = $33
+WHERE id = 1 AND updated_at = $34
 RETURNING id;

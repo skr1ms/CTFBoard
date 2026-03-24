@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 )
 
 func TestScoreboardVisibility_Public(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSettingsRepository(t)
-	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisiblePublic}, nil)
+	repo := compMock.NewMockSettingsRepository(t)
+	repo.On("Get", mock.Anything).Return(&domain.Settings{ScoreboardVisible: domain.ScoreboardVisiblePublic}, nil)
 
 	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -32,8 +32,8 @@ func TestScoreboardVisibility_Public(t *testing.T) {
 
 func TestScoreboardVisibility_Hidden(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSettingsRepository(t)
-	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisibleHidden}, nil)
+	repo := compMock.NewMockSettingsRepository(t)
+	repo.On("Get", mock.Anything).Return(&domain.Settings{ScoreboardVisible: domain.ScoreboardVisibleHidden}, nil)
 
 	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -49,8 +49,8 @@ func TestScoreboardVisibility_Hidden(t *testing.T) {
 
 func TestScoreboardVisibility_AdminsOnly_Forbidden(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSettingsRepository(t)
-	repo.On("Get", mock.Anything).Return(&entity.Settings{ScoreboardVisible: entity.ScoreboardVisibleAdminsOnly}, nil)
+	repo := compMock.NewMockSettingsRepository(t)
+	repo.On("Get", mock.Anything).Return(&domain.Settings{ScoreboardVisible: domain.ScoreboardVisibleAdminsOnly}, nil)
 
 	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -66,13 +66,13 @@ func TestScoreboardVisibility_AdminsOnly_Forbidden(t *testing.T) {
 
 func TestScoreboardVisibility_AdminsOnly_Allowed(t *testing.T) {
 	t.Parallel()
-	repo := mocks.NewMockSettingsRepository(t)
+	repo := compMock.NewMockSettingsRepository(t)
 	handler := ScoreboardVisibility(repo)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
 	req := httptest.NewRequest("GET", "/scoreboard", nil)
-	ctx := context.WithValue(req.Context(), userContextKey, &entity.User{Role: entity.RoleAdmin})
+	ctx := context.WithValue(req.Context(), userContextKey, &domain.User{Role: domain.RoleAdmin})
 	req = req.WithContext(ctx)
 
 	w := httptest.NewRecorder()

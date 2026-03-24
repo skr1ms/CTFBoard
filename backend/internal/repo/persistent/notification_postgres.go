@@ -7,111 +7,104 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type NotificationRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.NotificationRepository = (*NotificationRepo)(nil)
 
 func NewNotificationRepo(pool *pgxpool.Pool) *NotificationRepo {
-	return &NotificationRepo{pool: pool}
+	return &NotificationRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-func (r *NotificationRepo) q(ctx context.Context) *sqlc.Queries {
-	return sqlc.New(ExtractDB(ctx, r.pool))
-}
-
-func (r *NotificationRepo) Create(ctx context.Context, notif *entity.Notification) error {
-	if notif.ID == uuid.Nil {
-		notif.ID = uuid.New()
-	}
+func (r *NotificationRepo) Create(ctx context.Context, notif *domain.Notification) error {
+	EnsureID(&notif.ID)
 	if notif.CreatedAt.IsZero() {
 		notif.CreatedAt = time.Now()
 	}
 	typeStr := string(notif.Type)
-	row, err := r.q(ctx).CreateNotification(ctx, sqlc.CreateNotificationParams{
+	row, err := r.Q(ctx).CreateNotification(ctx, sqlc.CreateNotificationParams{
 		ID:        notif.ID,
 		Title:     notif.Title,
 		Content:   notif.Content,
 		Type:      &typeStr,
 		IsPinned:  &notif.IsPinned,
 		IsGlobal:  &notif.IsGlobal,
-		CreatedAt: timeToTimestamptz(&notif.CreatedAt),
+		CreatedAt: pgutil.TimeToTimestamptz(&notif.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - Create: %w", err)
 	}
-	notif.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	notif.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
 	return nil
 }
 
-func (r *NotificationRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Notification, error) {
-	row, err := r.q(ctx).GetNotificationByID(ctx, ID)
+func (r *NotificationRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Notification, error) {
+	row, err := r.Q(ctx).GetNotificationByID(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrNotificationNotFound
 		}
 		return nil, fmt.Errorf("NotificationRepo - GetByID: %w", err)
 	}
-	return &entity.Notification{
+	return &domain.Notification{
 		ID:        row.ID,
 		Title:     row.Title,
 		Content:   row.Content,
-		Type:      entity.NotificationType(ptrStrToStr(row.Type)),
-		IsPinned:  boolPtrToBool(row.IsPinned),
-		IsGlobal:  boolPtrToBool(row.IsGlobal),
-		CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+		Type:      domain.NotificationType(lo.FromPtr(row.Type)),
+		IsPinned:  lo.FromPtr(row.IsPinned),
+		IsGlobal:  lo.FromPtr(row.IsGlobal),
+		CreatedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
-func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*entity.Notification, error) {
-	limit32, err := intToInt32Safe(limit)
+func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*domain.Notification, error) {
+	limit32, offset32, err := toLimitOffset(limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("NotificationRepo - GetAll - limit: %w", err)
+		return nil, fmt.Errorf("NotificationRepo - GetAll: %w", err)
 	}
-	offset32, err := intToInt32Safe(offset)
-	if err != nil {
-		return nil, fmt.Errorf("NotificationRepo - GetAll - offset: %w", err)
-	}
-	rows, err := r.q(ctx).GetAllNotifications(ctx, sqlc.GetAllNotificationsParams{
+	rows, err := r.Q(ctx).GetAllNotifications(ctx, sqlc.GetAllNotificationsParams{
 		Limit:  limit32,
 		Offset: offset32,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetAll: %w", err)
 	}
-	out := make([]*entity.Notification, len(rows))
+	out := make([]*domain.Notification, len(rows))
 	for i, row := range rows {
-		out[i] = &entity.Notification{
+		out[i] = &domain.Notification{
 			ID:        row.ID,
 			Title:     row.Title,
 			Content:   row.Content,
-			Type:      entity.NotificationType(ptrStrToStr(row.Type)),
-			IsPinned:  boolPtrToBool(row.IsPinned),
-			IsGlobal:  boolPtrToBool(row.IsGlobal),
-			CreatedAt: ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+			Type:      domain.NotificationType(lo.FromPtr(row.Type)),
+			IsPinned:  lo.FromPtr(row.IsPinned),
+			IsGlobal:  lo.FromPtr(row.IsGlobal),
+			CreatedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
 }
 
-func (r *NotificationRepo) Update(ctx context.Context, notif *entity.Notification) error {
+func (r *NotificationRepo) Update(ctx context.Context, notif *domain.Notification) error {
 	typeStr := string(notif.Type)
-	if err := r.q(ctx).UpdateNotification(ctx, sqlc.UpdateNotificationParams{
+	if err := r.Q(ctx).UpdateNotification(ctx, sqlc.UpdateNotificationParams{
 		ID:       notif.ID,
 		Title:    notif.Title,
 		Content:  notif.Content,
 		Type:     &typeStr,
 		IsPinned: &notif.IsPinned,
 	}); err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return httperr.ErrNotificationNotFound
 		}
 		return fmt.Errorf("NotificationRepo - Update: %w", err)
@@ -120,48 +113,42 @@ func (r *NotificationRepo) Update(ctx context.Context, notif *entity.Notificatio
 }
 
 func (r *NotificationRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := r.q(ctx).DeleteNotification(ctx, ID); err != nil {
+	if err := r.Q(ctx).DeleteNotification(ctx, ID); err != nil {
 		return fmt.Errorf("NotificationRepo - Delete: %w", err)
 	}
 	return nil
 }
 
-func (r *NotificationRepo) CreateUserNotification(ctx context.Context, userNotif *entity.UserNotification) error {
-	if userNotif.ID == uuid.Nil {
-		userNotif.ID = uuid.New()
-	}
+func (r *NotificationRepo) CreateUserNotification(ctx context.Context, userNotif *domain.UserNotification) error {
+	EnsureID(&userNotif.ID)
 	if userNotif.CreatedAt.IsZero() {
 		userNotif.CreatedAt = time.Now()
 	}
 	typeStr := string(userNotif.Type)
 	isRead := userNotif.IsRead
-	row, err := r.q(ctx).CreateUserNotification(ctx, sqlc.CreateUserNotificationParams{
+	row, err := r.Q(ctx).CreateUserNotification(ctx, sqlc.CreateUserNotificationParams{
 		ID:             userNotif.ID,
 		UserID:         userNotif.UserID,
 		NotificationID: userNotif.NotificationID,
-		Title:          strPtrOrNil(userNotif.Title),
-		Content:        strPtrOrNil(userNotif.Content),
+		Title:          lo.EmptyableToPtr(userNotif.Title),
+		Content:        lo.EmptyableToPtr(userNotif.Content),
 		Type:           &typeStr,
 		IsRead:         &isRead,
-		CreatedAt:      timeToTimestamptz(&userNotif.CreatedAt),
+		CreatedAt:      pgutil.TimeToTimestamptz(&userNotif.CreatedAt),
 	})
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - CreateUserNotification: %w", err)
 	}
-	userNotif.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	userNotif.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
 	return nil
 }
 
-func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*entity.UserNotification, error) {
-	limit32, err := intToInt32Safe(limit)
+func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.UserNotification, error) {
+	limit32, offset32, err := toLimitOffset(limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications - limit: %w", err)
+		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications: %w", err)
 	}
-	offset32, err := intToInt32Safe(offset)
-	if err != nil {
-		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications - offset: %w", err)
-	}
-	rows, err := r.q(ctx).GetUserNotifications(ctx, sqlc.GetUserNotificationsParams{
+	rows, err := r.Q(ctx).GetUserNotifications(ctx, sqlc.GetUserNotificationsParams{
 		UserID: userID,
 		Limit:  limit32,
 		Offset: offset32,
@@ -169,47 +156,47 @@ func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications: %w", err)
 	}
-	out := make([]*entity.UserNotification, len(rows))
+	out := make([]*domain.UserNotification, len(rows))
 	for i, row := range rows {
-		out[i] = &entity.UserNotification{
+		out[i] = &domain.UserNotification{
 			ID:             row.ID,
 			UserID:         row.UserID,
 			NotificationID: row.NotificationID,
-			Title:          ptrStrToStr(row.Title),
-			Content:        ptrStrToStr(row.Content),
-			Type:           entity.NotificationType(ptrStrToStr(row.Type)),
-			IsRead:         boolPtrToBool(row.IsRead),
-			CreatedAt:      ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+			Title:          lo.FromPtr(row.Title),
+			Content:        lo.FromPtr(row.Content),
+			Type:           domain.NotificationType(lo.FromPtr(row.Type)),
+			IsRead:         lo.FromPtr(row.IsRead),
+			CreatedAt:      pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
 	return out, nil
 }
 
-func (r *NotificationRepo) GetUserNotificationByID(ctx context.Context, ID, userID uuid.UUID) (*entity.UserNotification, error) {
-	row, err := r.q(ctx).GetUserNotificationByID(ctx, sqlc.GetUserNotificationByIDParams{
+func (r *NotificationRepo) GetUserNotificationByID(ctx context.Context, ID, userID uuid.UUID) (*domain.UserNotification, error) {
+	row, err := r.Q(ctx).GetUserNotificationByID(ctx, sqlc.GetUserNotificationByIDParams{
 		ID:     ID,
 		UserID: userID,
 	})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrNotificationNotFound
 		}
 		return nil, fmt.Errorf("NotificationRepo - GetUserNotificationByID: %w", err)
 	}
-	return &entity.UserNotification{
+	return &domain.UserNotification{
 		ID:             row.ID,
 		UserID:         row.UserID,
 		NotificationID: row.NotificationID,
-		Title:          ptrStrToStr(row.Title),
-		Content:        ptrStrToStr(row.Content),
-		Type:           entity.NotificationType(ptrStrToStr(row.Type)),
-		IsRead:         boolPtrToBool(row.IsRead),
-		CreatedAt:      ptrTimeToTime(timestamptzToTime(row.CreatedAt)),
+		Title:          lo.FromPtr(row.Title),
+		Content:        lo.FromPtr(row.Content),
+		Type:           domain.NotificationType(lo.FromPtr(row.Type)),
+		IsRead:         lo.FromPtr(row.IsRead),
+		CreatedAt:      pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
 func (r *NotificationRepo) MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := r.q(ctx).MarkUserNotificationAsRead(ctx, sqlc.MarkUserNotificationAsReadParams{
+	if err := r.Q(ctx).MarkUserNotificationAsRead(ctx, sqlc.MarkUserNotificationAsReadParams{
 		ID:     ID,
 		UserID: userID,
 	}); err != nil {
@@ -219,7 +206,7 @@ func (r *NotificationRepo) MarkAsRead(ctx context.Context, ID, userID uuid.UUID)
 }
 
 func (r *NotificationRepo) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
-	count, err := r.q(ctx).CountUnreadUserNotifications(ctx, userID)
+	count, err := r.Q(ctx).CountUnreadUserNotifications(ctx, userID)
 	if err != nil {
 		return 0, fmt.Errorf("NotificationRepo - CountUnread: %w", err)
 	}
@@ -227,7 +214,7 @@ func (r *NotificationRepo) CountUnread(ctx context.Context, userID uuid.UUID) (i
 }
 
 func (r *NotificationRepo) DeleteUserNotification(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := r.q(ctx).DeleteUserNotification(ctx, sqlc.DeleteUserNotificationParams{
+	if err := r.Q(ctx).DeleteUserNotification(ctx, sqlc.DeleteUserNotificationParams{
 		ID:     ID,
 		UserID: userID,
 	}); err != nil {

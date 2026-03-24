@@ -9,81 +9,72 @@ packages:
     interfaces:
       UserRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"
 
       TeamRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "TeamRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTeamRepository"
 
       SolveRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "SolveRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSolveRepository"
 
       VerificationTokenRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "VerificationTokenRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockVerificationTokenRepository"
 
       APITokenRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "APITokenRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAPITokenRepository"
 
       OAuthAccountRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "OAuthAccountRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockOAuthAccountRepository"
 
       SettingsRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "SettingsRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSettingsRepository"
 
       TransactionManager:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "TransactionManager.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTransactionManager"
 
       TrackingRepository:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "TrackingRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTrackingRepository"
 
   github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi:
     interfaces:
       OAuthProviderAPI:
         config:
-          dir: "internal/usecase/user/mocks"
+          dir: "internal/usecase/user/mock"
           filename: "OAuthProviderAPI.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockOAuthProviderAPI"
-
-  github.com/TakuyaYagam1/AstroCTFb/pkg/jwt:
-    interfaces:
-      Service:
-        config:
-          dir: "internal/usecase/user/mocks"
-          filename: "JWTService.go"
-          pkgname: "mocks"
-          structname: "MockJWTService"

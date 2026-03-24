@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -12,13 +11,12 @@ import (
 
 // GET /notifications + GET /user/notifications: global and user notifications are visible.
 func TestNotification_List_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_notifs_list")
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	title := "Notif " + suffix
 
 	createResp := h.CreateNotification(tokenAdmin, title, "content", "info", false, http.StatusCreated)
@@ -49,12 +47,11 @@ func TestNotification_List_Success(t *testing.T) {
 
 // POST /admin/notifications/user/{userID}: admin creates personal notification; user sees it in GET /user/notifications.
 func TestNotification_CreateUserNotification_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_notif_user")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	email, _, tokenUser := h.RegisterUserAndLogin("notif_target_" + suffix)
 	userID := h.GetUserIDByEmail(email)
 
@@ -75,11 +72,10 @@ func TestNotification_CreateUserNotification_Success(t *testing.T) {
 
 // POST /admin/notifications: non-admin gets 403.
 func TestNotification_Create_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("notif_forbid_" + suffix)
 
 	h.CreateNotification(tokenUser, "x", "x", "info", false, http.StatusForbidden)
@@ -87,12 +83,11 @@ func TestNotification_Create_Forbidden(t *testing.T) {
 
 // PATCH /user/notifications/{id}/read: user marks own notification read.
 func TestNotification_MarkRead_Success(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_notif_read")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	email, _, tokenUser := h.RegisterUserAndLogin("notif_read_user_" + suffix)
 	userID := h.GetUserIDByEmail(email)
 	createResp := h.CreateUserNotification(tokenAdmin, userID, "Personal "+suffix, "content", "info", http.StatusCreated)
@@ -104,12 +99,11 @@ func TestNotification_MarkRead_Success(t *testing.T) {
 
 // PUT /admin/notifications/{id}: non-admin gets 403.
 func TestNotification_Update_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_notif_upd_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	createResp := h.CreateNotification(tokenAdmin, "N "+suffix, "content", "info", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
 	_, _, tokenUser := h.RegisterUserAndLogin("notif_upd_user_" + suffix)
@@ -119,12 +113,11 @@ func TestNotification_Update_Forbidden(t *testing.T) {
 
 // DELETE /admin/notifications/{id}: non-admin gets 403.
 func TestNotification_Delete_Forbidden(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_notif_del_f")
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	createResp := h.CreateNotification(tokenAdmin, "N "+suffix, "content", "info", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
 	_, _, tokenUser := h.RegisterUserAndLogin("notif_del_user_" + suffix)

@@ -2,6 +2,12 @@
 SELECT key, value, value_type, description, category, updated_at
 FROM configs ORDER BY key ASC;
 
+-- name: GetConfigsByCategory :many
+SELECT key, value, value_type, description, category, updated_at
+FROM configs
+WHERE category = $1
+ORDER BY key ASC;
+
 -- name: GetConfigByKey :one
 SELECT key, value, value_type, description, category, updated_at
 FROM configs WHERE key = $1;
@@ -12,13 +18,13 @@ FROM configs WHERE key = $1 FOR UPDATE;
 
 -- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, category, updated_at)
-VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
     value_type = EXCLUDED.value_type,
     description = EXCLUDED.description,
     category = EXCLUDED.category,
-    updated_at = CURRENT_TIMESTAMP;
+    updated_at = EXCLUDED.updated_at;
 
 -- name: DeleteConfig :exec
 DELETE FROM configs WHERE key = $1;

@@ -40,7 +40,7 @@ schemas:
         type: string
         description: Presigned download URL (only present when explicitly generated)
     type: object
-  entity.File:
+  File:
     properties:
       id:
         type: string

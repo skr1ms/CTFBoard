@@ -3,29 +3,28 @@ package persistent
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type ChallengeRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.ChallengeRepository = (*ChallengeRepo)(nil)
 
 func NewChallengeRepo(pool *pgxpool.Pool) *ChallengeRepo {
-	return &ChallengeRepo{pool: pool}
-}
-
-func (r *ChallengeRepo) q(ctx context.Context) *sqlc.Queries {
-	return sqlc.New(ExtractDB(ctx, r.pool))
+	return &ChallengeRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
 type challengeRow struct {
@@ -39,86 +38,99 @@ type challengeRow struct {
 	Decay             int32
 	SolveCount        int32
 	FlagHash          string
-	IsHidden          *bool
+	ConnectionInfo    string
+	MaxAttempts       int32
+	Position          int32
+	State             string
 	IsRegex           *bool
 	IsCaseInsensitive *bool
 	FlagRegex         *string
 	FlagFormatRegex   *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
-func toEntityChallenge(r challengeRow) *entity.Challenge {
+func toDomainChallenge(r challengeRow) *domain.Challenge {
 	var pts int
 	if r.Points != nil {
 		pts = int(*r.Points)
 	}
-	return &entity.Challenge{
+	return &domain.Challenge{
 		ID:                r.ID,
 		Title:             r.Title,
 		Description:       r.Description,
-		Category:          ptrStrToStr(r.Category),
+		Category:          lo.FromPtr(r.Category),
 		Points:            pts,
 		InitialValue:      int(r.InitialValue),
 		MinValue:          int(r.MinValue),
 		Decay:             int(r.Decay),
 		SolveCount:        int(r.SolveCount),
 		FlagHash:          r.FlagHash,
-		IsHidden:          boolPtrToBool(r.IsHidden),
-		IsRegex:           boolPtrToBool(r.IsRegex),
-		IsCaseInsensitive: boolPtrToBool(r.IsCaseInsensitive),
-		FlagRegex:         ptrStrToStr(r.FlagRegex),
+		ConnectionInfo:    r.ConnectionInfo,
+		MaxAttempts:       int(r.MaxAttempts),
+		Position:          int(r.Position),
+		State:             r.State,
+		IsRegex:           lo.FromPtr(r.IsRegex),
+		IsCaseInsensitive: lo.FromPtr(r.IsCaseInsensitive),
+		FlagRegex:         r.FlagRegex,
 		FlagFormatRegex:   r.FlagFormatRegex,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt,
 	}
 }
 
-func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
-	row, err := r.q(ctx).GetChallengeByID(ctx, ID)
+func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Challenge, error) {
+	row, err := r.Q(ctx).GetChallengeByID(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetByID: %w", err)
 	}
-	return toEntityChallenge(challengeRow{
-		ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+	return toDomainChallenge(challengeRow{
+		ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-		FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
-		FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State,
+		IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive, FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 	}), nil
 }
 
-func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*entity.Challenge, error) {
+func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Challenge, error) {
 	if len(ids) == 0 {
-		return map[uuid.UUID]*entity.Challenge{}, nil
+		return map[uuid.UUID]*domain.Challenge{}, nil
 	}
-	rows, err := r.q(ctx).GetChallengesByIDs(ctx, ids)
+	rows, err := r.Q(ctx).GetChallengesByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetByIDs: %w", err)
 	}
-	out := make(map[uuid.UUID]*entity.Challenge, len(rows))
+	out := make(map[uuid.UUID]*domain.Challenge, len(rows))
 	for _, row := range rows {
-		out[row.ID] = toEntityChallenge(challengeRow{
-			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+		out[row.ID] = toDomainChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
-			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State,
+			IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive, FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		})
 	}
 	return out, nil
 }
 
 func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	rows, err := r.q(ctx).GetChallengesForTeamByTag(ctx, sqlc.GetChallengesForTeamByTagParams{TagID: tagID, TeamID: teamID})
+	rows, err := r.Q(ctx).GetChallengesForTeamByTag(ctx, sqlc.GetChallengesForTeamByTagParams{TagID: tagID, TeamID: teamID})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeamByTag: %w", err)
 	}
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(challengeRow{
-				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			Challenge: toDomainChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+				CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 			}),
 			Solved: row.Solved == 1,
 		})
@@ -127,18 +139,19 @@ func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid
 }
 
 func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	rows, err := r.q(ctx).GetChallengesByTag(ctx, tagID)
+	rows, err := r.Q(ctx).GetChallengesByTag(ctx, tagID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listByTag: %w", err)
 	}
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(challengeRow{
-				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			Challenge: toDomainChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+				CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 			}),
 			Solved: false,
 		})
@@ -147,18 +160,19 @@ func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo
 }
 
 func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
-	rows, err := r.q(ctx).GetChallengesForTeam(ctx, teamID)
+	rows, err := r.Q(ctx).GetChallengesForTeam(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeam: %w", err)
 	}
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(challengeRow{
-				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			Challenge: toDomainChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+				CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 			}),
 			Solved: row.Solved == 1,
 		})
@@ -167,18 +181,40 @@ func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*r
 }
 
 func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
-	rows, err := r.q(ctx).GetChallenges(ctx)
+	rows, err := r.Q(ctx).GetChallenges(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listAllChallenges: %w", err)
 	}
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
-			Challenge: toEntityChallenge(challengeRow{
-				ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+			Challenge: toDomainChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-				FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+				CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
+			}),
+			Solved: false,
+		})
+	}
+	return out, nil
+}
+
+func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+	rows, err := r.Q(ctx).GetChallengesAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - listAllChallengesForBackup: %w", err)
+	}
+	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &repo.ChallengeWithSolved{
+			Challenge: toDomainChallenge(challengeRow{
+				ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
+				InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
+				FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+				FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+				CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 			}),
 			Solved: false,
 		})
@@ -199,16 +235,20 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([
 	return r.listAllChallenges(ctx)
 }
 
+func (r *ChallengeRepo) GetAllForBackup(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+	return r.listAllChallengesForBackup(ctx)
+}
+
 func (r *ChallengeRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	_, err := r.q(ctx).DeleteChallenge(ctx, ID)
-	if err != nil && !isNoRows(err) {
+	_, err := r.Q(ctx).DeleteChallenge(ctx, ID)
+	if err != nil && !pgutil.IsNoRows(err) {
 		return fmt.Errorf("ChallengeRepo - Delete: %w", err)
 	}
 	return nil
 }
 
 func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
-	n, err := r.q(ctx).IncrementChallengeSolveCount(ctx, ID)
+	n, err := r.Q(ctx).IncrementChallengeSolveCount(ctx, ID)
 	if err != nil {
 		return 0, fmt.Errorf("ChallengeRepo - IncrementSolveCount: %w", err)
 	}
@@ -220,9 +260,9 @@ func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points i
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
 	}
-	_, err = r.q(ctx).UpdateChallengePoints(ctx, sqlc.UpdateChallengePointsParams{ID: ID, Points: &pts})
+	_, err = r.Q(ctx).UpdateChallengePoints(ctx, sqlc.UpdateChallengePointsParams{ID: ID, Points: &pts})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return httperr.ErrChallengeNotFound
 		}
 		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
@@ -231,24 +271,24 @@ func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points i
 }
 
 func (r *ChallengeRepo) GetFlags(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error) {
-	row, err := r.q(ctx).GetChallengeFlags(ctx, ID)
+	row, err := r.Q(ctx).GetChallengeFlags(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetFlags: %w", err)
 	}
 	return &repo.ChallengeFlags{
 		FlagHash:          row.FlagHash,
-		IsRegex:           boolPtrToBool(row.IsRegex),
-		IsCaseInsensitive: boolPtrToBool(row.IsCaseInsensitive),
+		IsRegex:           lo.FromPtr(row.IsRegex),
+		IsCaseInsensitive: lo.FromPtr(row.IsCaseInsensitive),
 		FlagRegex:         row.FlagRegex,
 		FlagFormatRegex:   row.FlagFormatRegex,
 	}, nil
 }
 
 func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error) {
-	rows, err := r.q(ctx).GetChallengeRequirements(ctx, ID)
+	rows, err := r.Q(ctx).GetChallengeRequirements(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetRequirements: %w", err)
 	}
@@ -257,20 +297,20 @@ func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*r
 		out[i] = &repo.ChallengeRequirement{
 			ChallengeID:    row.ID,
 			ChallengeTitle: row.Title,
-			Category:       row.Category,
+			Category:       lo.EmptyableToPtr(row.Category),
 		}
 	}
 	return out, nil
 }
 
-func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*entity.ChallengeRequirementPair, error) {
-	rows, err := r.q(ctx).GetAllChallengeRequirements(ctx)
+func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*domain.ChallengeRequirementPair, error) {
+	rows, err := r.Q(ctx).GetAllChallengeRequirements(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetAllRequirementPairs: %w", err)
 	}
-	out := make([]*entity.ChallengeRequirementPair, len(rows))
+	out := make([]*domain.ChallengeRequirementPair, len(rows))
 	for i, row := range rows {
-		out[i] = &entity.ChallengeRequirementPair{
+		out[i] = &domain.ChallengeRequirementPair{
 			ChallengeID:         row.ChallengeID,
 			RequiredChallengeID: row.RequiredChallengeID,
 		}
@@ -279,16 +319,15 @@ func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*entity.C
 }
 
 func (r *ChallengeRepo) SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error {
-	if err := r.q(ctx).DeleteChallengeRequirements(ctx, challengeID); err != nil {
+	if err := r.Q(ctx).DeleteChallengeRequirements(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - Delete: %w", err)
 	}
 	if len(requirementIDs) == 0 {
 		return nil
 	}
-	qb := squirrel.Insert("challenge_requirements").
+	qb := SB.Insert("challenge_requirements").
 		Columns("challenge_id", "required_challenge_id").
-		Suffix("ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING").
-		PlaceholderFormat(squirrel.Dollar)
+		Suffix("ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING")
 	for _, reqID := range requirementIDs {
 		qb = qb.Values(challengeID, reqID)
 	}
@@ -296,38 +335,38 @@ func (r *ChallengeRepo) SetRequirements(ctx context.Context, challengeID uuid.UU
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - ToSql: %w", err)
 	}
-	if _, err := ExtractDB(ctx, r.pool).Exec(ctx, query, args...); err != nil {
+	if _, err := r.DB(ctx).Exec(ctx, query, args...); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - Exec: %w", err)
 	}
 	return nil
 }
 
 func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error) {
-	row, err := r.q(ctx).GetSolutionByChallengeID(ctx, ID)
+	row, err := r.Q(ctx).GetSolutionByChallengeID(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetSolution: %w", err)
 	}
-	files, err := r.q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
+	files, err := r.Q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
 		ChallengeID: ID,
-		Type:        string(entity.FileTypeWriteup),
+		Type:        string(domain.FileTypeWriteup),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetSolution - GetFiles: %w", err)
 	}
-	entityFiles := make([]*entity.File, 0, len(files))
+	entityFiles := make([]*domain.File, 0, len(files))
 	for _, f := range files {
-		entityFiles = append(entityFiles, &entity.File{
+		entityFiles = append(entityFiles, &domain.File{
 			ID:          f.ID,
-			Type:        entity.FileType(f.Type),
+			Type:        domain.FileType(f.Type),
 			ChallengeID: f.ChallengeID,
 			Location:    f.Location,
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(f.CreatedAt)),
 		})
 	}
 	return &repo.ChallengeSolution{
@@ -337,14 +376,14 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 	}, nil
 }
 
-func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*entity.SolutionBackup, error) {
-	rows, err := r.q(ctx).GetAllSolutions(ctx)
+func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.SolutionBackup, error) {
+	rows, err := r.Q(ctx).GetAllSolutions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetAllSolutions: %w", err)
 	}
-	out := make([]*entity.SolutionBackup, len(rows))
+	out := make([]*domain.SolutionBackup, len(rows))
 	for i, row := range rows {
-		out[i] = &entity.SolutionBackup{
+		out[i] = &domain.SolutionBackup{
 			ID:          row.ID,
 			ChallengeID: row.ChallengeID,
 			Content:     row.Content,
@@ -354,7 +393,7 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*entity.Solution
 }
 
 func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error) {
-	rows, err := r.q(ctx).GetSolutionsByTeamID(ctx, teamID)
+	rows, err := r.Q(ctx).GetSolutionsByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - ListSolutions: %w", err)
 	}
@@ -367,22 +406,22 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 		ids[i] = row.ChallengeID
 	}
 
-	files, err := r.q(ctx).GetWriteupFilesByIDs(ctx, ids)
+	files, err := r.Q(ctx).GetWriteupFilesByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - ListSolutions - ListWriteupFilesByIDs: %w", err)
 	}
 
-	fileMap := make(map[uuid.UUID][]*entity.File, len(files))
+	fileMap := make(map[uuid.UUID][]*domain.File, len(files))
 	for _, f := range files {
-		fileMap[f.ChallengeID] = append(fileMap[f.ChallengeID], &entity.File{
+		fileMap[f.ChallengeID] = append(fileMap[f.ChallengeID], &domain.File{
 			ID:          f.ID,
-			Type:        entity.FileType(f.Type),
+			Type:        domain.FileType(f.Type),
 			ChallengeID: f.ChallengeID,
 			Location:    f.Location,
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(f.CreatedAt)),
 		})
 	}
 
@@ -390,16 +429,12 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 	for i, row := range rows {
 		ef := fileMap[row.ChallengeID]
 		if ef == nil {
-			ef = []*entity.File{}
-		}
-		cat := ""
-		if row.ChallengeCategory != nil {
-			cat = *row.ChallengeCategory
+			ef = []*domain.File{}
 		}
 		out[i] = &repo.ChallengeSolutionEntry{
 			ChallengeID:       row.ChallengeID,
 			ChallengeTitle:    row.ChallengeTitle,
-			ChallengeCategory: cat,
+			ChallengeCategory: row.ChallengeCategory,
 			Content:           row.Content,
 			Files:             ef,
 		}
@@ -408,31 +443,31 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 }
 
 func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error) {
-	row, err := r.q(ctx).UpsertSolution(ctx, sqlc.UpsertSolutionParams{
+	row, err := r.Q(ctx).UpsertSolution(ctx, sqlc.UpsertSolutionParams{
 		ChallengeID: challengeID,
 		Content:     content,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - UpsertSolution: %w", err)
 	}
-	files, err := r.q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
+	files, err := r.Q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
 		ChallengeID: challengeID,
-		Type:        string(entity.FileTypeWriteup),
+		Type:        string(domain.FileTypeWriteup),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - UpsertSolution - GetFiles: %w", err)
 	}
-	entityFiles := make([]*entity.File, 0, len(files))
+	entityFiles := make([]*domain.File, 0, len(files))
 	for _, f := range files {
-		entityFiles = append(entityFiles, &entity.File{
+		entityFiles = append(entityFiles, &domain.File{
 			ID:          f.ID,
-			Type:        entity.FileType(f.Type),
+			Type:        domain.FileType(f.Type),
 			ChallengeID: f.ChallengeID,
 			Location:    f.Location,
 			Filename:    f.Filename,
 			Size:        f.Size,
 			SHA256:      f.SHA256,
-			CreatedAt:   ptrTimeToTime(timestamptzToTime(f.CreatedAt)),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(f.CreatedAt)),
 		})
 	}
 	return &repo.ChallengeSolution{
@@ -443,47 +478,49 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 }
 
 func (r *ChallengeRepo) DeleteSolution(ctx context.Context, challengeID uuid.UUID) error {
-	if err := r.q(ctx).DeleteSolution(ctx, challengeID); err != nil {
+	if err := r.Q(ctx).DeleteSolution(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - DeleteSolution: %w", err)
 	}
 	return nil
 }
 
-func (r *ChallengeRepo) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*entity.Challenge, error) {
-	rows, err := r.q(ctx).GetMissingChallengesByTeamID(ctx, teamID)
+func (r *ChallengeRepo) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error) {
+	rows, err := r.Q(ctx).GetMissingChallengesByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetMissingChallengesByTeamID: %w", err)
 	}
-	out := make([]*entity.Challenge, 0, len(rows))
+	out := make([]*domain.Challenge, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityChallenge(challengeRow{
-			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+		out = append(out, toDomainChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+			FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		}))
 	}
 	return out, nil
 }
 
-func (r *ChallengeRepo) GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*entity.Challenge, error) {
-	rows, err := r.q(ctx).GetMissingChallengesByUserID(ctx, userID)
+func (r *ChallengeRepo) GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error) {
+	rows, err := r.Q(ctx).GetMissingChallengesByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetMissingChallengesByUserID: %w", err)
 	}
-	out := make([]*entity.Challenge, 0, len(rows))
+	out := make([]*domain.Challenge, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toEntityChallenge(challengeRow{
-			ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+		out = append(out, toDomainChallenge(challengeRow{
+			ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 			InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-			FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+			FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 			FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		}))
 	}
 	return out, nil
 }
 
-func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
+func (r *ChallengeRepo) Create(ctx context.Context, c *domain.Challenge) error {
 	pts, err := intToInt32Safe(c.Points)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - Points: %w", err)
@@ -504,29 +541,47 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *entity.Challenge) error {
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - SolveCount: %w", err)
 	}
-	if err := r.q(ctx).CreateChallenge(ctx, sqlc.CreateChallengeParams{
+	maxAttempts, err := intToInt32Safe(c.MaxAttempts)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create - MaxAttempts: %w", err)
+	}
+	position, err := intToInt32Safe(c.Position)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Create - Position: %w", err)
+	}
+	state := c.State
+	if state == "" {
+		state = domain.ChallengeStateHidden
+	}
+	now := time.Now()
+	if err := r.Q(ctx).CreateChallenge(ctx, sqlc.CreateChallengeParams{
 		ID:                c.ID,
 		Title:             c.Title,
 		Description:       c.Description,
-		Category:          strPtrOrNil(c.Category),
+		Category:          c.Category,
 		Points:            &pts,
 		InitialValue:      initialValue,
 		MinValue:          minValue,
 		Decay:             decay,
 		SolveCount:        solveCount,
 		FlagHash:          c.FlagHash,
-		IsHidden:          &c.IsHidden,
+		ConnectionInfo:    c.ConnectionInfo,
+		MaxAttempts:       maxAttempts,
+		Position:          position,
+		State:             state,
 		IsRegex:           &c.IsRegex,
 		IsCaseInsensitive: &c.IsCaseInsensitive,
-		FlagRegex:         strPtrOrNil(c.FlagRegex),
+		FlagRegex:         c.FlagRegex,
 		FlagFormatRegex:   c.FlagFormatRegex,
+		CreatedAt:         pgutil.TimeToTimestamptz(&now),
+		UpdatedAt:         pgutil.TimeToTimestamptz(&now),
 	}); err != nil {
 		return fmt.Errorf("ChallengeRepo - Create: %w", err)
 	}
 	return nil
 }
 
-func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
+func (r *ChallengeRepo) Update(ctx context.Context, c *domain.Challenge) error {
 	pts, err := intToInt32Safe(c.Points)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - Points: %w", err)
@@ -543,47 +598,65 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *entity.Challenge) error {
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - Decay: %w", err)
 	}
-	if err := r.q(ctx).UpdateChallenge(ctx, sqlc.UpdateChallengeParams{
+	maxAttempts, err := intToInt32Safe(c.MaxAttempts)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update - MaxAttempts: %w", err)
+	}
+	position, err := intToInt32Safe(c.Position)
+	if err != nil {
+		return fmt.Errorf("ChallengeRepo - Update - Position: %w", err)
+	}
+	state := c.State
+	if state == "" {
+		state = domain.ChallengeStateHidden
+	}
+	c.UpdatedAt = time.Now()
+	if err := r.Q(ctx).UpdateChallenge(ctx, sqlc.UpdateChallengeParams{
 		ID:                c.ID,
 		Title:             c.Title,
 		Description:       c.Description,
-		Category:          strPtrOrNil(c.Category),
+		Category:          c.Category,
 		Points:            &pts,
 		InitialValue:      initialValue,
 		MinValue:          minValue,
 		Decay:             decay,
 		FlagHash:          c.FlagHash,
-		IsHidden:          &c.IsHidden,
+		ConnectionInfo:    c.ConnectionInfo,
+		MaxAttempts:       maxAttempts,
+		Position:          position,
+		State:             state,
 		IsRegex:           &c.IsRegex,
 		IsCaseInsensitive: &c.IsCaseInsensitive,
-		FlagRegex:         strPtrOrNil(c.FlagRegex),
+		FlagRegex:         c.FlagRegex,
 		FlagFormatRegex:   c.FlagFormatRegex,
+		UpdatedAt:         pgutil.TimeToTimestamptz(&c.UpdatedAt),
 	}); err != nil {
 		return fmt.Errorf("ChallengeRepo - Update: %w", err)
 	}
 	return nil
 }
 
-func (r *ChallengeRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Challenge, error) {
-	row, err := r.q(ctx).GetChallengeByIDForUpdate(ctx, ID)
+func (r *ChallengeRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*domain.Challenge, error) {
+	row, err := r.Q(ctx).GetChallengeByIDForUpdate(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
 		return nil, fmt.Errorf("ChallengeRepo - GetByIDForUpdate: %w", err)
 	}
-	return toEntityChallenge(challengeRow{
-		ID: row.ID, Title: row.Title, Description: row.Description, Category: row.Category, Points: row.Points,
+	return toDomainChallenge(challengeRow{
+		ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
-		FlagHash: row.FlagHash, IsHidden: row.IsHidden, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
+		FlagHash: row.FlagHash, ConnectionInfo: row.ConnectionInfo, MaxAttempts: row.MaxAttempts, Position: row.Position, State: row.State, IsRegex: row.IsRegex, IsCaseInsensitive: row.IsCaseInsensitive,
 		FlagRegex: row.FlagRegex, FlagFormatRegex: row.FlagFormatRegex,
+		CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 	}), nil
 }
 
 func (r *ChallengeRepo) DecrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error) {
-	n, err := r.q(ctx).DecrementChallengeSolveCount(ctx, ID)
+	n, err := r.Q(ctx).DecrementChallengeSolveCount(ctx, ID)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return 0, httperr.ErrChallengeNotFound
 		}
 		return 0, fmt.Errorf("ChallengeRepo - DecrementSolveCount: %w", err)
@@ -595,7 +668,7 @@ func (r *ChallengeRepo) BatchDecrementSolveCount(ctx context.Context, ids []uuid
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := r.q(ctx).BatchDecrementChallengeSolveCount(ctx, ids); err != nil {
+	if err := r.Q(ctx).BatchDecrementChallengeSolveCount(ctx, ids); err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchDecrementSolveCount: %w", err)
 	}
 	return nil
@@ -605,7 +678,7 @@ func (r *ChallengeRepo) BatchIncrementSolveCount(ctx context.Context, ids []uuid
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := r.q(ctx).BatchIncrementChallengeSolveCount(ctx, ids); err != nil {
+	if err := r.Q(ctx).BatchIncrementChallengeSolveCount(ctx, ids); err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchIncrementSolveCount: %w", err)
 	}
 	return nil
@@ -626,23 +699,22 @@ func (r *ChallengeRepo) BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, 
 		}
 		pts[i] = v
 	}
-	if err := r.q(ctx).BatchUpdateChallengePoints(ctx, sqlc.BatchUpdateChallengePointsParams{Column1: ids, Column2: pts}); err != nil {
+	if err := r.Q(ctx).BatchUpdateChallengePoints(ctx, sqlc.BatchUpdateChallengePointsParams{Column1: ids, Column2: pts}); err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: %w", err)
 	}
 	return nil
 }
 
 func (r *ChallengeRepo) SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {
-	if err := r.q(ctx).DeleteChallengeTags(ctx, challengeID); err != nil {
+	if err := r.Q(ctx).DeleteChallengeTags(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - Delete: %w", err)
 	}
 	if len(tagIDs) == 0 {
 		return nil
 	}
-	qb := squirrel.Insert("challenge_tags").
+	qb := SB.Insert("challenge_tags").
 		Columns("challenge_id", "tag_id").
-		Suffix("ON CONFLICT (challenge_id, tag_id) DO NOTHING").
-		PlaceholderFormat(squirrel.Dollar)
+		Suffix("ON CONFLICT (challenge_id, tag_id) DO NOTHING")
 	for _, tagID := range tagIDs {
 		qb = qb.Values(challengeID, tagID)
 	}
@@ -650,7 +722,7 @@ func (r *ChallengeRepo) SetTags(ctx context.Context, challengeID uuid.UUID, tagI
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - ToSql: %w", err)
 	}
-	if _, err := ExtractDB(ctx, r.pool).Exec(ctx, query, args...); err != nil {
+	if _, err := r.DB(ctx).Exec(ctx, query, args...); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - Exec: %w", err)
 	}
 	return nil

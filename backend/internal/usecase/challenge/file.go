@@ -2,10 +2,8 @@ package challenge
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -17,10 +15,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -44,7 +43,7 @@ func NewFileUseCase(deps FileDeps) *FileUseCase {
 	return &FileUseCase{deps: deps}
 }
 
-func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType, filename string, reader io.Reader, size int64, contentType string) (*entity.File, error) {
+func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error) {
 	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
 		return nil, err
 	}
@@ -68,7 +67,7 @@ func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileTy
 		return nil, fmt.Errorf("FileUseCase - Upload - file.Seek: %w", err)
 	}
 
-	sha256Hash := hex.EncodeToString(hash.Sum(nil))
+	sha256Hash := crypto.HashHex(hash)
 	storagePath, err := storage.GenerateStoragePath(filename)
 	if err != nil {
 		return nil, fmt.Errorf("FileUseCase - Upload - GenerateStoragePath: %w", err)
@@ -78,7 +77,7 @@ func (uc *FileUseCase) Upload(ctx context.Context, challengeID uuid.UUID, fileTy
 		return nil, fmt.Errorf("FileUseCase - Upload - Storage.Put: %w", err)
 	}
 
-	file := &entity.File{
+	file := &domain.File{
 		Type:        fileType,
 		ChallengeID: challengeID,
 		Location:    storagePath,
@@ -106,7 +105,7 @@ func (uc *FileUseCase) Download(ctx context.Context, path string) (io.ReadCloser
 	return rc, nil
 }
 
-func (uc *FileUseCase) VerifyDownloadTokenAndGetFile(ctx context.Context, path, token string) (*entity.File, error) {
+func (uc *FileUseCase) VerifyDownloadTokenAndGetFile(ctx context.Context, path, token string) (*domain.File, error) {
 	fileID, err := uc.VerifyDownloadToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("FileUseCase - VerifyDownloadTokenAndGetFile - JWT.Validate: %w", err)
@@ -137,13 +136,13 @@ func (uc *FileUseCase) GetDownloadURL(ctx context.Context, fileID uuid.UUID) (st
 
 // GetByChallengeIDWithAccess: for writeup type, returns only if teamID solved the challenge or caller is admin.
 // Returns ErrChallengeNotFound if the challenge is hidden and caller is not admin.
-func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType, teamID *uuid.UUID, isAdmin bool) ([]*entity.File, error) {
+func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, teamID *uuid.UUID, isAdmin bool) ([]*domain.File, error) {
 	if !isAdmin {
 		challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 		if err != nil {
 			return nil, fmt.Errorf("FileUseCase - GetByChallengeIDWithAccess - ChallengeRepo.GetByID: %w", err)
 		}
-		if challenge.IsHidden {
+		if challenge.State == domain.ChallengeStateHidden {
 			return nil, httperr.ErrChallengeNotFound
 		}
 		reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
@@ -163,7 +162,7 @@ func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challenge
 			}
 		}
 	}
-	if fileType == entity.FileTypeWriteup && !isAdmin {
+	if fileType == domain.FileTypeWriteup && !isAdmin {
 		if teamID == nil {
 			return nil, httperr.ErrWriteupAccessDenied
 		}
@@ -184,9 +183,7 @@ func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challenge
 func (uc *FileUseCase) GenerateDownloadToken(fileID uuid.UUID, expiry time.Time) string {
 	expiryUnix := expiry.Unix()
 	message := fmt.Sprintf("%s:%d", fileID.String(), expiryUnix)
-	mac := hmac.New(sha256.New, []byte(uc.deps.DownloadSecret))
-	mac.Write([]byte(message))
-	signature := mac.Sum(nil)
+	signature := crypto.HMACSign([]byte(uc.deps.DownloadSecret), []byte(message))
 	token := fmt.Sprintf("%s:%d:%s", fileID.String(), expiryUnix, base64.URLEncoding.EncodeToString(signature))
 	return base64.URLEncoding.EncodeToString([]byte(token))
 }
@@ -216,10 +213,7 @@ func (uc *FileUseCase) VerifyDownloadToken(token string) (uuid.UUID, error) {
 		return uuid.Nil, httperr.ErrFileInvalidToken
 	}
 	message := fmt.Sprintf("%s:%d", fileID.String(), expiryUnix)
-	mac := hmac.New(sha256.New, []byte(uc.deps.DownloadSecret))
-	mac.Write([]byte(message))
-	expectedSignature := mac.Sum(nil)
-	if !hmac.Equal(signature, expectedSignature) {
+	if !crypto.HMACVerify([]byte(uc.deps.DownloadSecret), []byte(message), signature) {
 		return uuid.Nil, httperr.ErrFileInvalidToken
 	}
 	return fileID, nil
@@ -237,7 +231,7 @@ func (uc *FileUseCase) GetDownloadURLWithAccess(ctx context.Context, fileID uuid
 		if errChal != nil {
 			return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - ChallengeRepo.GetByID: %w", errChal)
 		}
-		if challenge.IsHidden {
+		if challenge.State == domain.ChallengeStateHidden {
 			return "", httperr.ErrChallengeNotFound
 		}
 		reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, file.ChallengeID)
@@ -257,7 +251,7 @@ func (uc *FileUseCase) GetDownloadURLWithAccess(ctx context.Context, fileID uuid
 			}
 		}
 	}
-	if file.Type == entity.FileTypeWriteup && !isAdmin {
+	if file.Type == domain.FileTypeWriteup && !isAdmin {
 		if teamID == nil {
 			return "", httperr.ErrWriteupAccessDenied
 		}
@@ -271,11 +265,18 @@ func (uc *FileUseCase) GetDownloadURLWithAccess(ctx context.Context, fileID uuid
 	}
 	expiry := time.Now().Add(uc.deps.Expiry)
 	token := uc.GenerateDownloadToken(fileID, expiry)
-	downloadURL := fmt.Sprintf("%s/api/v1/files/download/%s?token=%s", uc.deps.BaseURL, url.PathEscape(file.Location), url.QueryEscape(token))
+	downloadURL := fmt.Sprintf("%s/api/v1/files/download/%s?token=%s", uc.deps.BaseURL, escapeLocationPath(file.Location), url.QueryEscape(token))
 	return downloadURL, nil
 }
 
-func (uc *FileUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType entity.FileType) ([]*entity.File, error) {
+func escapeLocationPath(location string) string {
+	if i := strings.IndexByte(location, '/'); i >= 0 {
+		return location[:i+1] + url.PathEscape(location[i+1:])
+	}
+	return url.PathEscape(location)
+}
+
+func (uc *FileUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error) {
 	files, err := uc.deps.FileRepo.GetByChallengeID(ctx, challengeID, fileType)
 	if err != nil {
 		return nil, fmt.Errorf("FileUseCase - GetByChallengeID - FileRepo.GetByChallengeID: %w", err)

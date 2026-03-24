@@ -1,28 +1,30 @@
 package v1
 
 import (
+	"context"
 	"net/http"
 	"slices"
 
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	"github.com/wahrwelt-kit/go-logkit"
+	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
-	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 type Controller struct {
-	hub            *pkgWS.Hub
-	logger         logger.Logger
+	hub            *wskit.Hub
+	logger         logkit.Logger
 	allowedOrigins []string
 }
 
 func NewController(
-	hub *pkgWS.Hub,
-	logger logger.Logger,
+	hub *wskit.Hub,
+	logger logkit.Logger,
 	allowedOrigins []string,
 ) *Controller {
 	return &Controller{
@@ -39,7 +41,7 @@ func (c *Controller) RegisterRoutes(router chi.Router) {
 func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.GetUser(r.Context())
 	if !ok || user == nil {
-		httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
+		httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
 		return
 	}
 
@@ -58,14 +60,11 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := websocket.Accept(w, r, opts)
+	client, err := wskit.Accept(context.WithoutCancel(r.Context()), w, r, c.hub, opts)
 	if err != nil {
 		c.logger.WithError(err).Error("ws - HandleWS - Accept")
 		return
 	}
-
-	client := pkgWS.NewClient(c.hub, conn, r.Context())
-	c.hub.Register(client)
 
 	go client.WritePump()
 	go client.ReadPump()

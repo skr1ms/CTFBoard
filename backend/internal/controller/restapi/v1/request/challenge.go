@@ -2,9 +2,11 @@ package request
 
 import (
 	"github.com/google/uuid"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 const (
@@ -22,7 +24,10 @@ type ChallengeParams struct {
 	MinValue          int
 	Decay             int
 	Flag              string
-	IsHidden          bool
+	ConnectionInfo    string
+	MaxAttempts       int
+	Position          int
+	State             string
 	IsRegex           bool
 	IsCaseInsensitive bool
 	FlagFormatRegex   *string
@@ -38,65 +43,53 @@ type UpdateChallengeParams struct {
 	MinValue          *int
 	Decay             *int
 	Flag              string
-	IsHidden          bool
-	IsRegex           bool
-	IsCaseInsensitive bool
+	ConnectionInfo    *string
+	MaxAttempts       *int
+	Position          *int
+	State             string
+	IsRegex           *bool
+	IsCaseInsensitive *bool
 	FlagFormatRegex   *string
 	TagIDs            []uuid.UUID
 }
 
-func parseTagIDs(rawIDs *[]string) ([]uuid.UUID, error) {
-	if rawIDs == nil {
-		return nil, nil
-	}
-	ids := make([]uuid.UUID, 0, len(*rawIDs))
-	for _, s := range *rawIDs {
-		id, err := uuid.Parse(s)
-		if err != nil {
-			return nil, helper.NewValidationErrorf("invalid tag_id")
-		}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
-func ParseRequirementIDs(rawIDs *[]string) ([]uuid.UUID, error) {
-	if rawIDs == nil {
-		return nil, nil
-	}
-	ids := make([]uuid.UUID, 0, len(*rawIDs))
-	for _, s := range *rawIDs {
-		id, err := uuid.Parse(s)
-		if err != nil {
-			return nil, helper.NewValidationErrorf("invalid requirement_id")
-		}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
 func validateChallengeNumericParams(points, initialValue, minValue, decay int) error {
 	if points < 0 {
-		return helper.NewValidationErrorf("points must be >= 0")
+		return httperr.NewValidationErrorf("points must be >= 0")
 	}
 	if initialValue < 0 || minValue < 0 || decay < 0 {
-		return helper.NewValidationErrorf("initial_value, min_value and decay must be >= 0")
+		return httperr.NewValidationErrorf("initial_value, min_value and decay must be >= 0")
 	}
 	if initialValue < minValue {
-		return helper.NewValidationErrorf("initial_value must be >= min_value")
+		return httperr.NewValidationErrorf("initial_value must be >= min_value")
 	}
 	return nil
 }
 
+var allowedChallengeStates = []string{"visible", "hidden", "locked"}
+
+func validateChallengeState(state string) error {
+	for _, a := range allowedChallengeStates {
+		if state == a {
+			return nil
+		}
+	}
+	return httperr.NewValidationErrorf("state must be one of: visible, hidden, locked")
+}
+
 func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (ChallengeParams, error) {
-	tagIDs, err := parseTagIDs(req.TagIds)
+	tagIDs, err := ParseUUIDSlice(req.TagIds, "tag_id")
 	if err != nil {
 		return ChallengeParams{}, err
 	}
-	initialValue := derefOr(req.InitialValue, staticScoringInitialValue)
-	minValue := derefOr(req.MinValue, staticScoringMinValue)
-	decay := derefOr(req.Decay, staticScoringDecay)
+	initialValue := lo.FromPtrOr(req.InitialValue, staticScoringInitialValue)
+	minValue := lo.FromPtrOr(req.MinValue, staticScoringMinValue)
+	decay := lo.FromPtrOr(req.Decay, staticScoringDecay)
 	if err := validateChallengeNumericParams(req.Points, initialValue, minValue, decay); err != nil {
+		return ChallengeParams{}, err
+	}
+	state := challengeStateFromReq(req.State)
+	if err := validateChallengeState(state); err != nil {
 		return ChallengeParams{}, err
 	}
 	return ChallengeParams{
@@ -105,23 +98,44 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 		Category:          req.Category,
 		Points:            req.Points,
 		Flag:              req.Flag,
+		ConnectionInfo:    lo.FromPtrOr(req.ConnectionInfo, ""),
+		MaxAttempts:       lo.FromPtrOr(req.MaxAttempts, 0),
+		Position:          lo.FromPtrOr(req.Position, 0),
+		State:             state,
 		FlagFormatRegex:   req.FlagFormatRegex,
 		TagIDs:            tagIDs,
 		InitialValue:      initialValue,
 		MinValue:          minValue,
 		Decay:             decay,
-		IsHidden:          derefOr(req.IsHidden, false),
-		IsRegex:           derefOr(req.IsRegex, false),
-		IsCaseInsensitive: derefOr(req.IsCaseInsensitive, false),
+		IsRegex:           lo.FromPtrOr(req.IsRegex, false),
+		IsCaseInsensitive: lo.FromPtrOr(req.IsCaseInsensitive, false),
 	}, nil
 }
 
-const maxSubmittedFlagLen = 200
+func challengeStateFromReq(s *openapi.CreateChallengeRequestState) string {
+	if s == nil {
+		return string(openapi.CreateChallengeRequestStateVisible)
+	}
+	return string(*s)
+}
+
+func updateChallengeStateFromReq(s *openapi.UpdateChallengeRequestState) string {
+	if s == nil {
+		return ""
+	}
+	return string(*s)
+}
+
+type submitFlagConstraints struct {
+	Flag string `validate:"required,max=200"`
+}
+
+func ValidateSubmitFlagRequest(req *openapi.SubmitFlagRequest, v validator.Validator) error {
+	c := submitFlagConstraints{Flag: req.Flag}
+	return ValidateConstraints(v, &c)
+}
 
 func SubmitFlagRequestToParams(req *openapi.SubmitFlagRequest) (string, error) {
-	if len(req.Flag) > maxSubmittedFlagLen {
-		return "", helper.NewValidationErrorf("flag too long")
-	}
 	return req.Flag, nil
 }
 
@@ -130,25 +144,19 @@ func AdminUpsertSolutionRequestToParams(req *openapi.AdminUpsertSolutionRequest)
 }
 
 func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (UpdateChallengeParams, error) {
-	tagIDs, err := parseTagIDs(req.TagIds)
+	tagIDs, err := ParseUUIDSlice(req.TagIds, "tag_id")
 	if err != nil {
 		return UpdateChallengeParams{}, err
 	}
 	iv, mv, dc := req.InitialValue, req.MinValue, req.Decay
-	if iv != nil || mv != nil || dc != nil {
-		effectiveIV := staticScoringInitialValue
-		if iv != nil {
-			effectiveIV = *iv
+	if iv != nil && mv != nil && dc != nil {
+		if err := validateChallengeNumericParams(req.Points, *iv, *mv, *dc); err != nil {
+			return UpdateChallengeParams{}, err
 		}
-		effectiveMV := staticScoringMinValue
-		if mv != nil {
-			effectiveMV = *mv
-		}
-		effectiveDC := staticScoringDecay
-		if dc != nil {
-			effectiveDC = *dc
-		}
-		if err := validateChallengeNumericParams(req.Points, effectiveIV, effectiveMV, effectiveDC); err != nil {
+	}
+	state := updateChallengeStateFromReq(req.State)
+	if state != "" {
+		if err := validateChallengeState(state); err != nil {
 			return UpdateChallengeParams{}, err
 		}
 	}
@@ -162,9 +170,12 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 		Decay:             req.Decay,
 		FlagFormatRegex:   req.FlagFormatRegex,
 		TagIDs:            tagIDs,
-		Flag:              derefOr(req.Flag, ""),
-		IsHidden:          derefOr(req.IsHidden, false),
-		IsRegex:           derefOr(req.IsRegex, false),
-		IsCaseInsensitive: derefOr(req.IsCaseInsensitive, false),
+		Flag:              lo.FromPtrOr(req.Flag, ""),
+		ConnectionInfo:    req.ConnectionInfo,
+		MaxAttempts:       req.MaxAttempts,
+		Position:          req.Position,
+		State:             state,
+		IsRegex:           req.IsRegex,
+		IsCaseInsensitive: req.IsCaseInsensitive,
 	}, nil
 }

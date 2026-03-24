@@ -3,61 +3,63 @@ package response
 import (
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromCompetition(c *entity.Competition) openapi.CompetitionResponse {
+func FromCompetition(c *domain.Competition) openapi.CompetitionResponse {
 	var startTime, endTime, freezeTime, pausedAt *string
 	if c.StartTime != nil {
-		startTime = ptr(c.StartTime.Format(time.RFC3339))
+		startTime = httputil.Ptr(c.StartTime.Format(time.RFC3339))
 	}
 	if c.EndTime != nil {
-		endTime = ptr(c.EndTime.Format(time.RFC3339))
+		endTime = httputil.Ptr(c.EndTime.Format(time.RFC3339))
 	}
 	if c.FreezeTime != nil {
-		freezeTime = ptr(c.FreezeTime.Format(time.RFC3339))
+		freezeTime = httputil.Ptr(c.FreezeTime.Format(time.RFC3339))
 	}
 	if c.PausedAt != nil {
-		pausedAt = ptr(c.PausedAt.Format(time.RFC3339))
+		pausedAt = httputil.Ptr(c.PausedAt.Format(time.RFC3339))
 	}
 	return openapi.CompetitionResponse{
-		ID:                           ptr(c.ID),
-		Name:                         ptr(c.Name),
+		ID:                           httputil.Ptr(c.ID),
+		Name:                         httputil.Ptr(c.Name),
 		StartTime:                    startTime,
 		EndTime:                      endTime,
 		FreezeTime:                   freezeTime,
-		IsPaused:                     ptr(c.IsPaused),
+		IsPaused:                     httputil.Ptr(c.IsPaused),
 		PausedAt:                     pausedAt,
-		IsPublic:                     ptr(c.IsPublic),
-		KeepScoreboardFrozenAfterEnd: ptr(c.KeepScoreboardFrozenAfterEnd),
-		Status:                       ptr(string(c.GetStatus())),
-		Mode:                         ptr(string(c.Mode)),
+		IsPublic:                     httputil.Ptr(c.IsPublic),
+		KeepScoreboardFrozenAfterEnd: httputil.Ptr(c.KeepScoreboardFrozenAfterEnd),
+		Status:                       httputil.Ptr(string(c.GetStatus())),
+		Mode:                         httputil.Ptr(string(c.Mode)),
 	}
 }
 
-func FromCompetitionStatus(c *entity.Competition) openapi.CompetitionStatusResponse {
+func FromCompetitionStatus(c *domain.Competition) openapi.CompetitionStatusResponse {
 	var startTime, endTime, freezeTime, pausedAt *string
 	if c.StartTime != nil {
-		startTime = ptr(c.StartTime.Format(time.RFC3339))
+		startTime = httputil.Ptr(c.StartTime.Format(time.RFC3339))
 	}
 	if c.EndTime != nil {
-		endTime = ptr(c.EndTime.Format(time.RFC3339))
+		endTime = httputil.Ptr(c.EndTime.Format(time.RFC3339))
 	}
 	if c.FreezeTime != nil {
-		freezeTime = ptr(c.FreezeTime.Format(time.RFC3339))
+		freezeTime = httputil.Ptr(c.FreezeTime.Format(time.RFC3339))
 	}
 	if c.PausedAt != nil {
-		pausedAt = ptr(c.PausedAt.Format(time.RFC3339))
+		pausedAt = httputil.Ptr(c.PausedAt.Format(time.RFC3339))
 	}
 	return openapi.CompetitionStatusResponse{
-		Status:                       ptr(string(c.GetStatus())),
-		Name:                         ptr(c.Name),
+		Status:                       httputil.Ptr(string(c.GetStatus())),
+		Name:                         httputil.Ptr(c.Name),
 		StartTime:                    startTime,
 		EndTime:                      endTime,
 		FreezeTime:                   freezeTime,
 		PausedAt:                     pausedAt,
-		KeepScoreboardFrozenAfterEnd: ptr(c.KeepScoreboardFrozenAfterEnd),
-		SubmissionAllowed:            ptr(c.IsSubmissionAllowed()),
+		KeepScoreboardFrozenAfterEnd: httputil.Ptr(c.KeepScoreboardFrozenAfterEnd),
+		SubmissionAllowed:            httputil.Ptr(c.IsSubmissionAllowed()),
 	}
 }

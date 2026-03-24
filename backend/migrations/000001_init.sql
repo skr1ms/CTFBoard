@@ -96,7 +96,6 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_users_team ON users (team_id);
-CREATE INDEX idx_users_is_banned ON users (is_banned);
 CREATE INDEX idx_users_username_trgm ON users USING gin (username gin_trgm_ops);
 
 -- Teams (captain_id and bracket_id are inline; users.team_id added below)
@@ -120,10 +119,6 @@ CREATE TABLE teams (
 CREATE UNIQUE INDEX teams_name_active_key ON teams (name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX teams_invite_token_active_key ON teams (invite_token) WHERE deleted_at IS NULL;
 CREATE INDEX idx_teams_bracket_id ON teams (bracket_id);
-CREATE INDEX idx_teams_active ON teams (id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_teams_is_solo ON teams (is_solo);
-CREATE INDEX idx_teams_is_banned ON teams (is_banned);
-CREATE INDEX idx_teams_is_hidden ON teams (is_hidden);
 
 -- Closes the circular dependency: users.team_id -> teams.id
 ALTER TABLE users ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL;
@@ -179,10 +174,13 @@ CREATE TABLE challenges (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
-    category VARCHAR(50),
+    category VARCHAR(50) NOT NULL DEFAULT '',
     points INT DEFAULT 0,
     flag_hash VARCHAR(255) NOT NULL,
-    is_hidden BOOLEAN DEFAULT FALSE,
+    connection_info TEXT NOT NULL DEFAULT '',
+    max_attempts INT NOT NULL DEFAULT 0,
+    position INT NOT NULL DEFAULT 0,
+    state VARCHAR(20) NOT NULL DEFAULT 'visible' CHECK (state IN ('visible', 'hidden', 'locked')),
     initial_value INT NOT NULL DEFAULT 500,
     min_value INT NOT NULL DEFAULT 100,
     decay INT NOT NULL DEFAULT 20,
@@ -190,7 +188,9 @@ CREATE TABLE challenges (
     is_regex BOOLEAN DEFAULT FALSE,
     is_case_insensitive BOOLEAN DEFAULT FALSE,
     flag_regex TEXT,
-    flag_format_regex TEXT
+    flag_format_regex TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tags (for challenge categorization)
@@ -207,7 +207,6 @@ CREATE TABLE challenge_tags (
     PRIMARY KEY (challenge_id, tag_id)
 );
 
-CREATE INDEX idx_challenge_tags_challenge_id ON challenge_tags (challenge_id);
 CREATE INDEX idx_challenge_tags_tag_id ON challenge_tags (tag_id);
 
 -- Challenge prerequisites (challenge requires solving other challenges)
@@ -225,6 +224,7 @@ CREATE INDEX idx_challenge_requirements_required_id ON challenge_requirements (r
 CREATE TABLE hints (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
+    title TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL,
     cost INT NOT NULL DEFAULT 0,
     order_index INT NOT NULL DEFAULT 0
@@ -287,7 +287,6 @@ CREATE TABLE solves (
 
 CREATE INDEX idx_solves_user ON solves (user_id);
 CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
-CREATE INDEX idx_solves_team_challenge ON solves (team_id, challenge_id);
 CREATE INDEX idx_solves_banned_team_id ON solves (banned_team_id) WHERE banned_team_id IS NOT NULL;
 CREATE INDEX idx_solves_banned_user_id ON solves (banned_user_id) WHERE banned_user_id IS NOT NULL;
 
@@ -299,20 +298,35 @@ CREATE TABLE submissions (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     submitted_flag TEXT NOT NULL,
     is_correct BOOLEAN NOT NULL DEFAULT FALSE,
-    ip VARCHAR(45),
+    submission_type VARCHAR(20) NOT NULL DEFAULT 'incorrect',
+    ip VARCHAR(45) NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
-    banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL
+    banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT chk_submission_type CHECK (submission_type IN ('correct', 'incorrect', 'ratelimited')),
+    CONSTRAINT chk_submission_type_correct CHECK ((submission_type = 'correct') = is_correct)
 );
 
-CREATE INDEX idx_submissions_user_id ON submissions (user_id);
-CREATE INDEX idx_submissions_team_id ON submissions (team_id);
-CREATE INDEX idx_submissions_challenge_id ON submissions (challenge_id);
 CREATE INDEX idx_submissions_created_at ON submissions (created_at DESC);
-CREATE INDEX idx_submissions_is_correct ON submissions (is_correct);
-CREATE INDEX IF NOT EXISTS idx_submissions_user_correct ON submissions (user_id, is_correct);
-CREATE INDEX IF NOT EXISTS idx_submissions_team_correct ON submissions (team_id, is_correct);
+CREATE INDEX idx_submissions_user_correct ON submissions (user_id, is_correct);
+CREATE INDEX idx_submissions_team_correct ON submissions (team_id, is_correct);
 CREATE INDEX idx_submissions_banned_team_id ON submissions (banned_team_id) WHERE banned_team_id IS NOT NULL;
+
+-- Ratings (one per team per challenge)
+CREATE TABLE ratings (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
+    value INT NOT NULL CHECK (value >= 1 AND value <= 5),
+    review TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_rating_team_challenge UNIQUE (team_id, challenge_id)
+);
+CREATE INDEX idx_ratings_challenge_id ON ratings (challenge_id);
+CREATE INDEX idx_ratings_team_id ON ratings (team_id);
+CREATE INDEX idx_ratings_user_id ON ratings (user_id);
 
 -- Comments (challenge discussion after CTF ends)
 CREATE TABLE comments (
@@ -343,7 +357,6 @@ CREATE TABLE awards (
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_awards_team ON awards (team_id);
 CREATE INDEX idx_awards_banned_team_id ON awards (banned_team_id) WHERE banned_team_id IS NOT NULL;
 
 -- Team audit log (join/leave/kick etc. per team)
@@ -356,7 +369,6 @@ CREATE TABLE team_audit_log (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_team_audit_log_team_id ON team_audit_log (team_id);
 CREATE INDEX idx_team_audit_log_user_id ON team_audit_log (user_id);
 CREATE INDEX idx_team_audit_log_action ON team_audit_log (action);
 CREATE INDEX idx_team_audit_log_team_action ON team_audit_log (team_id, action, created_at DESC);
@@ -393,7 +405,6 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX idx_notifications_created_at ON notifications (created_at DESC);
-CREATE INDEX idx_notifications_is_pinned ON notifications (is_pinned);
 
 -- User notifications (global announcements and user-specific)
 CREATE TABLE user_notifications (
@@ -402,14 +413,13 @@ CREATE TABLE user_notifications (
     notification_id uuid REFERENCES notifications (id) ON DELETE CASCADE,
     title VARCHAR(200),
     content TEXT,
-    type VARCHAR(20) DEFAULT 'info',
+    type VARCHAR(20) DEFAULT 'info' CHECK (type IN ('info', 'warning', 'success', 'error')),
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_notification CHECK (notification_id IS NOT NULL OR (title IS NOT NULL AND content IS NOT NULL))
 );
 
 CREATE INDEX idx_user_notifications_user_id ON user_notifications (user_id);
-CREATE INDEX idx_user_notifications_is_read ON user_notifications (is_read);
 
 -- Pages (static content)
 CREATE TABLE pages (
@@ -423,7 +433,6 @@ CREATE TABLE pages (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_pages_is_draft ON pages (is_draft);
 CREATE INDEX idx_pages_order ON pages (order_index);
 
 -- =============================================================================
@@ -471,7 +480,6 @@ CREATE TABLE configs (
 );
 
 CREATE INDEX idx_configs_updated_at ON configs (updated_at);
-CREATE INDEX idx_configs_category ON configs (category);
 CREATE INDEX idx_configs_category_key ON configs (category, key);
 
 -- IP/user-agent tracking per user
@@ -484,7 +492,6 @@ CREATE TABLE tracking (
 );
 
 CREATE INDEX idx_tracking_user_id ON tracking (user_id);
-CREATE INDEX idx_tracking_ip ON tracking (ip);
 CREATE INDEX idx_tracking_tracked_at ON tracking (tracked_at DESC);
 CREATE INDEX idx_tracking_ip_user_id ON tracking (ip, user_id);
 

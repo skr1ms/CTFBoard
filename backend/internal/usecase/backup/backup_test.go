@@ -13,17 +13,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mocks"
+	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestNewBackupUseCase(t *testing.T) {
 	t.Parallel()
 	deps := BackupDeps{
-		Logger: mocks.NewMockLogger(t),
+		Logger: logMock.NewMockLogger(t),
 	}
 	uc := NewBackupUseCase(deps)
 	assert.NotNil(t, uc)
@@ -31,16 +32,16 @@ func TestNewBackupUseCase(t *testing.T) {
 
 func TestBackupUseCase_Export_Success(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
-	challRepo := mocks.NewMockChallengeRepository(t)
-	storage := mocks.NewMockStorageProvider(t)
-	logger := mocks.NewMockLogger(t)
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	storage := backupMock.NewMockStorageProvider(t)
+	log := logMock.NewMockLogger(t)
 
-	comp := &entity.Competition{Name: "Test", Mode: "flexible"}
+	comp := &domain.Competition{Name: "Test", Mode: "flexible"}
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
-	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
-	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
-	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
@@ -54,18 +55,18 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 		BackupRepo:      nil,
 		Storage:         storage,
 		TM:              nil,
-		Logger:          logger,
+		Logger:          log,
 	}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
-	opts := entity.ExportOptions{}
+	opts := domain.ExportOptions{}
 
 	data, err := uc.Export(ctx, opts)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, data)
-	assert.Equal(t, entity.BackupVersion, data.Version)
+	assert.Equal(t, domain.BackupVersion, data.Version)
 	assert.NotZero(t, data.ExportedAt)
 	assert.Equal(t, comp, data.Competition)
 	assert.Empty(t, data.Challenges)
@@ -73,26 +74,26 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 
 func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
-	challRepo := mocks.NewMockChallengeRepository(t)
-	logger := mocks.NewMockLogger(t)
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	log := logMock.NewMockLogger(t)
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
-	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
-	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
-	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
-	storage := mocks.NewMockStorageProvider(t)
+	storage := backupMock.NewMockStorageProvider(t)
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
 		ChallengeRepo:   challRepo,
-		Logger:          logger,
+		Logger:          log,
 		Storage:         storage,
 	}
 	uc := NewBackupUseCase(deps)
 
-	_, err := uc.Export(context.Background(), entity.ExportOptions{})
+	_, err := uc.Export(context.Background(), domain.ExportOptions{})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "BackupUseCase - Export")
@@ -100,28 +101,28 @@ func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {
 
 func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
-	challRepo := mocks.NewMockChallengeRepository(t)
-	storage := mocks.NewMockStorageProvider(t)
-	logger := mocks.NewMockLogger(t)
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	storage := backupMock.NewMockStorageProvider(t)
+	log := logMock.NewMockLogger(t)
 
-	comp := &entity.Competition{Name: "Test", Mode: "flexible"}
+	comp := &domain.Competition{Name: "Test", Mode: "flexible"}
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
-	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
-	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
-	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
-	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
+	log.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
 		ChallengeRepo:   challRepo,
 		Storage:         storage,
-		Logger:          logger,
+		Logger:          log,
 	}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
-	rc, err := uc.ExportZIP(ctx, entity.ExportOptions{})
+	rc, err := uc.ExportZIP(ctx, domain.ExportOptions{})
 	require.NoError(t, err)
 	defer rc.Close()
 
@@ -134,26 +135,26 @@ func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 
 func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
-	challRepo := mocks.NewMockChallengeRepository(t)
-	storage := mocks.NewMockStorageProvider(t)
-	logger := mocks.NewMockLogger(t)
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	storage := backupMock.NewMockStorageProvider(t)
+	log := logMock.NewMockLogger(t)
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
-	challRepo.EXPECT().GetAll(mock.Anything, mock.Anything, mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
-	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*entity.ChallengeRequirementPair{}, nil).Maybe()
-	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*entity.SolutionBackup{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
 		ChallengeRepo:   challRepo,
 		Storage:         storage,
-		Logger:          logger,
+		Logger:          log,
 	}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
-	rc, err := uc.ExportZIP(ctx, entity.ExportOptions{})
+	rc, err := uc.ExportZIP(ctx, domain.ExportOptions{})
 	require.NoError(t, err)
 	defer rc.Close()
 
@@ -164,14 +165,14 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 
 func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	t.Parallel()
-	tm := mocks.NewMockTransactionManager(t)
-	backupRepo := mocks.NewMockBackupRepository(t)
-	logger := mocks.NewMockLogger(t)
+	tm := backupMock.NewMockTransactionManager(t)
+	backupRepo := backupMock.NewMockBackupRepository(t)
+	log := logMock.NewMockLogger(t)
 
-	backupData := &entity.BackupData{
-		Version:     entity.BackupVersion,
+	backupData := &domain.BackupData{
+		Version:     domain.BackupVersion,
 		ExportedAt:  time.Now().UTC(),
-		Competition: &entity.Competition{Name: "Test", Mode: "flexible"},
+		Competition: &domain.Competition{Name: "Test", Mode: "flexible"},
 	}
 	zipBuf := new(bytes.Buffer)
 	zw := zip.NewWriter(zipBuf)
@@ -197,15 +198,16 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	backupRepo.EXPECT().ImportFileMetadata(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportChallengeRequirements(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportSolutions(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportRatings(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportComments(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportFields(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportFieldValues(mock.Anything, mock.Anything).Return(nil).Once()
-	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
+	log.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 
 	deps := BackupDeps{
 		TM:         tm,
 		BackupRepo: backupRepo,
-		Logger:     logger,
+		Logger:     log,
 	}
 	uc := NewBackupUseCase(deps)
 
@@ -213,7 +215,7 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	r := bytes.NewReader(zipBuf.Bytes())
 	readerAt := io.NewSectionReader(r, 0, int64(zipBuf.Len()))
 
-	result, err := uc.ImportZIP(ctx, readerAt, int64(zipBuf.Len()), entity.ImportOptions{})
+	result, err := uc.ImportZIP(ctx, readerAt, int64(zipBuf.Len()), domain.ImportOptions{})
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -222,16 +224,16 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 
 func TestBackupUseCase_ImportZIP_Error_InvalidZIP(t *testing.T) {
 	t.Parallel()
-	logger := mocks.NewMockLogger(t)
+	log := logMock.NewMockLogger(t)
 
-	deps := BackupDeps{Logger: logger}
+	deps := BackupDeps{Logger: log}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
 	invalidZIP := bytes.NewReader([]byte("not a zip file"))
 	readerAt := io.NewSectionReader(invalidZIP, 0, 13)
 
-	_, err := uc.ImportZIP(ctx, readerAt, 13, entity.ImportOptions{})
+	_, err := uc.ImportZIP(ctx, readerAt, 13, domain.ImportOptions{})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "BackupUseCase - ImportZIP")
@@ -239,9 +241,9 @@ func TestBackupUseCase_ImportZIP_Error_InvalidZIP(t *testing.T) {
 
 func TestBackupUseCase_Reset_Success(t *testing.T) {
 	t.Parallel()
-	tm := mocks.NewMockTransactionManager(t)
-	backupRepo := mocks.NewMockBackupRepository(t)
-	logger := mocks.NewMockLogger(t)
+	tm := backupMock.NewMockTransactionManager(t)
+	backupRepo := backupMock.NewMockBackupRepository(t)
+	log := logMock.NewMockLogger(t)
 
 	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
@@ -251,12 +253,12 @@ func TestBackupUseCase_Reset_Success(t *testing.T) {
 	deps := BackupDeps{
 		TM:         tm,
 		BackupRepo: backupRepo,
-		Logger:     logger,
+		Logger:     log,
 	}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
-	opts := entity.AdminResetOptions{Submissions: true}
+	opts := domain.AdminResetOptions{Submissions: true}
 
 	err := uc.Reset(ctx, opts)
 
@@ -265,19 +267,19 @@ func TestBackupUseCase_Reset_Success(t *testing.T) {
 
 func TestBackupUseCase_Reset_Error(t *testing.T) {
 	t.Parallel()
-	tm := mocks.NewMockTransactionManager(t)
-	logger := mocks.NewMockLogger(t)
+	tm := backupMock.NewMockTransactionManager(t)
+	log := logMock.NewMockLogger(t)
 
 	tm.EXPECT().Run(mock.Anything, mock.Anything).Return(errors.New("tx failed")).Once()
 
 	deps := BackupDeps{
 		TM:     tm,
-		Logger: logger,
+		Logger: log,
 	}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
-	opts := entity.AdminResetOptions{Submissions: true}
+	opts := domain.AdminResetOptions{Submissions: true}
 
 	err := uc.Reset(ctx, opts)
 
@@ -287,14 +289,14 @@ func TestBackupUseCase_Reset_Error(t *testing.T) {
 
 func TestBackupUseCase_ExportCSV_Success(t *testing.T) {
 	t.Parallel()
-	userRepo := mocks.NewMockUserRepository(t)
-	logger := mocks.NewMockLogger(t)
+	userRepo := backupMock.NewMockUserRepository(t)
+	log := logMock.NewMockLogger(t)
 
-	userRepo.EXPECT().GetAll(mock.Anything).Return([]*entity.User{}, nil).Once()
+	userRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.User{}, nil).Once()
 
 	deps := BackupDeps{
 		UserRepo: userRepo,
-		Logger:   logger,
+		Logger:   log,
 	}
 	uc := NewBackupUseCase(deps)
 
@@ -310,9 +312,9 @@ func TestBackupUseCase_ExportCSV_Success(t *testing.T) {
 
 func TestBackupUseCase_ExportCSV_Error_UnknownTable(t *testing.T) {
 	t.Parallel()
-	logger := mocks.NewMockLogger(t)
+	log := logMock.NewMockLogger(t)
 
-	deps := BackupDeps{Logger: logger}
+	deps := BackupDeps{Logger: log}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
@@ -325,9 +327,9 @@ func TestBackupUseCase_ExportCSV_Error_UnknownTable(t *testing.T) {
 
 func TestBackupUseCase_ImportCSV_Success(t *testing.T) {
 	t.Parallel()
-	tm := mocks.NewMockTransactionManager(t)
-	backupRepo := mocks.NewMockBackupRepository(t)
-	logger := mocks.NewMockLogger(t)
+	tm := backupMock.NewMockTransactionManager(t)
+	backupRepo := backupMock.NewMockBackupRepository(t)
+	log := logMock.NewMockLogger(t)
 
 	header := []string{"id", "username", "email", "role", "is_verified", "team_id", "created_at"}
 	rows := [][]string{
@@ -342,7 +344,7 @@ func TestBackupUseCase_ImportCSV_Success(t *testing.T) {
 	deps := BackupDeps{
 		TM:         tm,
 		BackupRepo: backupRepo,
-		Logger:     logger,
+		Logger:     log,
 	}
 	uc := NewBackupUseCase(deps)
 
@@ -358,9 +360,9 @@ func TestBackupUseCase_ImportCSV_Success(t *testing.T) {
 
 func TestBackupUseCase_ImportCSV_Error_InvalidFormat(t *testing.T) {
 	t.Parallel()
-	logger := mocks.NewMockLogger(t)
+	log := logMock.NewMockLogger(t)
 
-	deps := BackupDeps{Logger: logger}
+	deps := BackupDeps{Logger: log}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()
@@ -374,9 +376,9 @@ func TestBackupUseCase_ImportCSV_Error_InvalidFormat(t *testing.T) {
 
 func TestBackupUseCase_ImportCSV_Error_UnknownTable(t *testing.T) {
 	t.Parallel()
-	logger := mocks.NewMockLogger(t)
+	log := logMock.NewMockLogger(t)
 
-	deps := BackupDeps{Logger: logger}
+	deps := BackupDeps{Logger: log}
 	uc := NewBackupUseCase(deps)
 
 	ctx := context.Background()

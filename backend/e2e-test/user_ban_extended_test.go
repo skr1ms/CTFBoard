@@ -5,18 +5,17 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
+// POST /challenges/{id}/hints/{hintId}/unlock: banned user gets 401 (token revoked).
 func TestBannedUser_CannotUnlockHint(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("aubh_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "User Ban Hint "+suffix, "flag{user_ban_hint_"+suffix+"}", 100)
@@ -43,12 +42,12 @@ func TestBannedUser_CannotUnlockHint(t *testing.T) {
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusUnauthorized)
 }
 
+// GET /files/{ID}/download: banned user gets 401 (token revoked).
 func TestBannedUser_CannotDownloadFile(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("aubf_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "User Ban File "+suffix, "flag{user_ban_file_"+suffix+"}", 100)
@@ -77,12 +76,12 @@ func TestBannedUser_CannotDownloadFile(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusUnauthorized)
 }
 
+// Submit, hint unlock, file download: banned user all return 401 (token revoked).
 func TestBannedUser_AllActionsBlocked(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("auba_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "User Ban All "+suffix, "flag{user_ban_all_"+suffix+"}", 100)
@@ -115,12 +114,12 @@ func TestBannedUser_AllActionsBlocked(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusUnauthorized)
 }
 
+// POST /teams/leave: banned user gets 403.
 func TestBannedUser_LeaveRejected(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("aubleave_" + suffix)
 
 	_, _, tokenCap := h.RegisterUserAndLogin("cap_ban_leave_" + suffix)
@@ -140,15 +139,15 @@ func TestBannedUser_LeaveRejected(t *testing.T) {
 	h.BanUser(tokenAdmin, memberID, "Testing leave after ban", http.StatusOK)
 	h.InvalidateUserCache(memberID)
 
-	h.LeaveTeam(tokenMember, http.StatusForbidden)
+	h.LeaveTeam(tokenMember, http.StatusUnauthorized)
 }
 
+// Ban former team member: team score drops (solves removed from team).
 func TestBannedUser_FormerMemberSolvesRemovedFromTeam(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("aubformer_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "Former Ban "+suffix, "flag{former_ban_"+suffix+"}", 100)
@@ -174,16 +173,17 @@ func TestBannedUser_FormerMemberSolvesRemovedFromTeam(t *testing.T) {
 	memberID := *meResp.JSON200.ID
 	h.BanUser(tokenAdmin, memberID, "Testing former member ban", http.StatusOK)
 	h.InvalidateUserCache(memberID)
+	invalidateScoreboardCache(context.Background())
 
 	h.AssertTeamScore(tokenCap, teamName, 0)
 }
 
+// DELETE /admin/teams/{ID}/ban + DELETE /admin/users/{ID}/ban: unban team then user; user can log in again.
 func TestUnbanTeam_ThenUnbanUser_UserCanLogin(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("unban_flow_" + suffix)
 
 	_, passwordCap, tokenCap := h.RegisterUserAndLogin("cap_unban_" + suffix)

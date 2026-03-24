@@ -2,17 +2,18 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, password, role string) (*entity.User, error) {
+func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, password, role string) (*domain.User, error) {
 	email = normalizeEmail(email)
 	uc.bcryptSem <- struct{}{}
 	defer func() { <-uc.bcryptSem }()
@@ -21,16 +22,16 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 		return nil, fmt.Errorf("UserUseCase - AdminCreate - GenerateFromPassword: %w", err)
 	}
 	if role == "" {
-		role = string(entity.RoleUser)
+		role = string(domain.RoleUser)
 	}
-	if entity.Role(role) != entity.RoleUser && entity.Role(role) != entity.RoleAdmin {
+	if domain.Role(role) != domain.RoleUser && domain.Role(role) != domain.RoleAdmin {
 		return nil, httperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", role)
 	}
-	user := &entity.User{
+	user := &domain.User{
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(passwordHash),
-		Role:         entity.Role(role),
+		Role:         domain.Role(role),
 	}
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.registerCheckUniqueness(ctx, username, email); err != nil {
@@ -44,7 +45,7 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 			if err != nil {
 				return fmt.Errorf("UserUseCase - AdminCreate - CompRepo.Get: %w", err)
 			}
-			if comp.Mode == entity.ModeSoloOnly {
+			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
 				if err != nil {
 					return fmt.Errorf("UserUseCase - AdminCreate - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
@@ -60,12 +61,12 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 	return user, nil
 }
 
-func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, username, email, role, password *string, isVerified *bool) (*entity.User, error) {
+func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, username, email, role, password *string, isVerified *bool) (*domain.User, error) {
 	if email != nil {
 		norm := normalizeEmail(*email)
 		email = &norm
 	}
-	if role != nil && entity.Role(*role) != entity.RoleUser && entity.Role(*role) != entity.RoleAdmin {
+	if role != nil && domain.Role(*role) != domain.RoleUser && domain.Role(*role) != domain.RoleAdmin {
 		return nil, httperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", *role)
 	}
 	var passwordHash *string
@@ -115,6 +116,9 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 	var scoreboardInvalidateTeamID *uuid.UUID
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
+			if errors.Is(err, httperr.ErrUserNotFound) {
+				return nil
+			}
 			return fmt.Errorf("UserUseCase - AdminDelete - UserRepo.Lock: %w", err)
 		}
 		u, err := uc.deps.UserRepo.GetByID(ctx, userID)
@@ -122,9 +126,9 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 			return fmt.Errorf("UserUseCase - AdminDelete - UserRepo.GetByID: %w", err)
 		}
 		if u == nil {
-			return httperr.ErrUserNotFound
+			return nil
 		}
-		if u.Role == entity.RoleAdmin {
+		if u.Role == domain.RoleAdmin {
 			return httperr.ErrAccessDenied
 		}
 		if u.TeamID != nil && uc.deps.TeamRepo != nil {

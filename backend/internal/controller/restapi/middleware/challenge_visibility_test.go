@@ -10,19 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 )
 
 func TestChallengeVisibility_Success(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	uc := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	startTime := time.Now().Add(-1 * time.Hour)
 	endTime := time.Now().Add(1 * time.Hour)
-	comp := &entity.Competition{
+	comp := &domain.Competition{
 		StartTime: &startTime,
 		EndTime:   &endTime,
 	}
@@ -43,12 +43,12 @@ func TestChallengeVisibility_Success(t *testing.T) {
 
 func TestChallengeVisibility_Forbidden(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	uc := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	startTime := time.Now().Add(1 * time.Hour)
 	endTime := time.Now().Add(2 * time.Hour)
-	comp := &entity.Competition{
+	comp := &domain.Competition{
 		StartTime: &startTime,
 		EndTime:   &endTime,
 	}
@@ -69,7 +69,7 @@ func TestChallengeVisibility_Forbidden(t *testing.T) {
 
 func TestChallengeVisibility_AdminBypass(t *testing.T) {
 	t.Parallel()
-	compRepo := mocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	uc := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	handler := ChallengeVisibility(uc)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -77,7 +77,7 @@ func TestChallengeVisibility_AdminBypass(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest("GET", "/challenges", nil)
-	ctx := context.WithValue(req.Context(), userContextKey, &entity.User{Role: entity.RoleAdmin})
+	ctx := context.WithValue(req.Context(), userContextKey, &domain.User{Role: domain.RoleAdmin})
 	req = req.WithContext(ctx)
 
 	w := httptest.NewRecorder()

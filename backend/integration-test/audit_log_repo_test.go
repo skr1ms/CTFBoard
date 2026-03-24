@@ -7,21 +7,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestAuditLogRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
 	user := f.CreateUser(t, uuid.New().String())
 
-	auditLog := &entity.AuditLog{
+	auditLog := &domain.AuditLog{
 		UserID:     &user.ID,
 		Action:     "create",
-		EntityType: entity.AuditEntityUser,
+		EntityType: domain.AuditEntityUser,
 		EntityID:   user.ID.String(),
 		IP:         "127.0.0.1",
 		Details:    map[string]any{"foo": "bar"},
@@ -38,16 +37,15 @@ func TestAuditLogRepo_Create_Success(t *testing.T) {
 
 func TestAuditLogRepo_Create_Error_InvalidUUID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 
 	nonExistentuuid := uuid.New()
 
-	auditLog := &entity.AuditLog{
+	auditLog := &domain.AuditLog{
 		UserID:     &nonExistentuuid,
 		Action:     "create",
-		EntityType: entity.AuditEntityUser,
+		EntityType: domain.AuditEntityUser,
 		EntityID:   "something",
 		IP:         "127.0.0.1",
 	}

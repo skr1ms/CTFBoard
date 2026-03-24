@@ -8,19 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestSubmissionRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "sub")
 	challenge := f.CreateChallenge(t, "subch", 100)
-	sub := &entity.Submission{
+	sub := &domain.Submission{
 		UserID:        user.ID,
 		TeamID:        &team.ID,
 		ChallengeID:   challenge.ID,
@@ -34,14 +33,13 @@ func TestSubmissionRepo_Create_Success(t *testing.T) {
 
 func TestSubmissionRepo_Create_Error_InvalidUserID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	_, team := f.CreateUserWithTeam(t, "suberr")
 	challenge := f.CreateChallenge(t, "suberrch", 100)
-	sub := &entity.Submission{
+	sub := &domain.Submission{
 		UserID:        uuid.New(),
 		TeamID:        &team.ID,
 		ChallengeID:   challenge.ID,
@@ -52,16 +50,40 @@ func TestSubmissionRepo_Create_Error_InvalidUserID(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestSubmissionRepo_Create_RatelimitedType(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "subrate")
+	challenge := f.CreateChallenge(t, "subratech", 100)
+	sub := &domain.Submission{
+		UserID:        user.ID,
+		TeamID:        &team.ID,
+		ChallengeID:   challenge.ID,
+		SubmittedFlag: "",
+		IsCorrect:     false,
+		Type:          domain.SubmissionTypeRatelimited,
+	}
+	err := f.SubmissionRepo.Create(ctx, sub)
+	require.NoError(t, err)
+	assert.NotEmpty(t, sub.ID)
+	list, err := f.SubmissionRepo.GetByChallenge(ctx, challenge.ID, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, domain.SubmissionTypeRatelimited, list[0].Type)
+}
+
 func TestSubmissionRepo_GetByChallenge_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "gbch")
 	challenge := f.CreateChallenge(t, "gbch", 100)
-	sub := &entity.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
+	sub := &domain.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
 	err := f.SubmissionRepo.Create(ctx, sub)
 	require.NoError(t, err)
 	list, err := f.SubmissionRepo.GetByChallenge(ctx, challenge.ID, 10, 0)
@@ -71,7 +93,6 @@ func TestSubmissionRepo_GetByChallenge_Success(t *testing.T) {
 
 func TestSubmissionRepo_GetByChallenge_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "gbcherr", 100)
@@ -84,14 +105,13 @@ func TestSubmissionRepo_GetByChallenge_Error_CancelledContext(t *testing.T) {
 
 func TestSubmissionRepo_GetByUser_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "gbu")
 	challenge := f.CreateChallenge(t, "gbu", 100)
-	sub := &entity.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
+	sub := &domain.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
 	err := f.SubmissionRepo.Create(ctx, sub)
 	require.NoError(t, err)
 	list, err := f.SubmissionRepo.GetByUser(ctx, user.ID, 10, 0)
@@ -101,7 +121,6 @@ func TestSubmissionRepo_GetByUser_Success(t *testing.T) {
 
 func TestSubmissionRepo_GetByUser_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "gbuerr")
@@ -114,14 +133,13 @@ func TestSubmissionRepo_GetByUser_Error_CancelledContext(t *testing.T) {
 
 func TestSubmissionRepo_GetByTeam_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "gbt")
 	challenge := f.CreateChallenge(t, "gbt", 100)
-	sub := &entity.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
+	sub := &domain.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
 	err := f.SubmissionRepo.Create(ctx, sub)
 	require.NoError(t, err)
 	list, err := f.SubmissionRepo.GetByTeam(ctx, team.ID, 10, 0)
@@ -131,7 +149,6 @@ func TestSubmissionRepo_GetByTeam_Success(t *testing.T) {
 
 func TestSubmissionRepo_GetByTeam_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	_, team := f.CreateUserWithTeam(t, "gbterr")
@@ -144,7 +161,6 @@ func TestSubmissionRepo_GetByTeam_Error_CancelledContext(t *testing.T) {
 
 func TestSubmissionRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -156,7 +172,6 @@ func TestSubmissionRepo_GetAll_Success(t *testing.T) {
 
 func TestSubmissionRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -168,14 +183,13 @@ func TestSubmissionRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestSubmissionRepo_CountByChallenge_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user, team := f.CreateUserWithTeam(t, "cntch")
 	challenge := f.CreateChallenge(t, "cntch", 100)
-	sub := &entity.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
+	sub := &domain.Submission{UserID: user.ID, TeamID: &team.ID, ChallengeID: challenge.ID, SubmittedFlag: "x", IsCorrect: false}
 	err := f.SubmissionRepo.Create(ctx, sub)
 	require.NoError(t, err)
 	n, err := f.SubmissionRepo.CountByChallenge(ctx, challenge.ID)
@@ -185,7 +199,6 @@ func TestSubmissionRepo_CountByChallenge_Success(t *testing.T) {
 
 func TestSubmissionRepo_CountByChallenge_Success_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -197,7 +210,6 @@ func TestSubmissionRepo_CountByChallenge_Success_Empty(t *testing.T) {
 
 func TestSubmissionRepo_CountByChallenge_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "cnterr", 100)
@@ -210,7 +222,6 @@ func TestSubmissionRepo_CountByChallenge_Error_CancelledContext(t *testing.T) {
 
 func TestSubmissionRepo_GetStats_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -224,7 +235,6 @@ func TestSubmissionRepo_GetStats_Success(t *testing.T) {
 
 func TestSubmissionRepo_GetStats_Success_NoSubmissions(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -240,7 +250,6 @@ func TestSubmissionRepo_GetStats_Success_NoSubmissions(t *testing.T) {
 
 func TestSubmissionRepo_GetStats_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "statserr", 100)

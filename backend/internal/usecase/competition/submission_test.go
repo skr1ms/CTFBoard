@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestSubmissionUseCase_LogSubmission_Success(t *testing.T) {
@@ -48,7 +48,7 @@ func TestSubmissionUseCase_GetByChallenge_Success(t *testing.T) {
 	ctx := context.Background()
 	challengeID := uuid.New()
 	page, perPage := 1, 20
-	var list []*entity.SubmissionWithDetails
+	var list []*domain.SubmissionWithDetails
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(list, nil)
@@ -85,7 +85,7 @@ func TestSubmissionUseCase_GetByUser_Success(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
 	page, perPage := 1, 20
-	var list []*entity.SubmissionWithDetails
+	var list []*domain.SubmissionWithDetails
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(list, nil)
@@ -122,7 +122,7 @@ func TestSubmissionUseCase_GetByTeam_Success(t *testing.T) {
 	ctx := context.Background()
 	teamID := uuid.New()
 	page, perPage := 1, 20
-	var list []*entity.SubmissionWithDetails
+	var list []*domain.SubmissionWithDetails
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(list, nil)
@@ -158,7 +158,7 @@ func TestSubmissionUseCase_GetAll_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	page, perPage := 1, 20
-	var list []*entity.SubmissionWithDetails
+	var list []*domain.SubmissionWithDetails
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(list, nil)
@@ -193,7 +193,7 @@ func TestSubmissionUseCase_GetStats_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	challengeID := uuid.New()
-	stats := &entity.SubmissionStats{Total: 10, Correct: 3, Incorrect: 7}
+	stats := &domain.SubmissionStats{Total: 10, Correct: 3, Incorrect: 7}
 
 	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(stats, nil)
 

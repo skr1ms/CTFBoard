@@ -3,31 +3,30 @@ package persistent
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type SettingsRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.SettingsRepository = (*SettingsRepo)(nil)
 
 func NewSettingsRepo(pool *pgxpool.Pool) *SettingsRepo {
-	return &SettingsRepo{pool: pool}
+	return &SettingsRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-func (r *SettingsRepo) q(ctx context.Context) *sqlc.Queries {
-	return sqlc.New(ExtractDB(ctx, r.pool))
-}
-
-func toEntityAppSettings(s sqlc.AppSettings) *entity.Settings {
-	return &entity.Settings{
+func toDomainAppSettings(s sqlc.AppSettings) *domain.Settings {
+	return &domain.Settings{
 		ID:                               int(s.ID),
 		AppName:                          s.AppName,
 		VerifyEmails:                     s.VerifyEmails,
@@ -61,114 +60,70 @@ func toEntityAppSettings(s sqlc.AppSettings) *entity.Settings {
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,
 		OAuthGoogleEnabled:               s.OAuthGoogleEnabled,
-		UpdatedAt:                        ptrTimeToTime(timestamptzToTime(s.UpdatedAt)),
+		UpdatedAt:                        pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(s.UpdatedAt)),
 	}
 }
 
-func (r *SettingsRepo) Get(ctx context.Context) (*entity.Settings, error) {
-	s, err := r.q(ctx).GetAppSettings(ctx)
+func (r *SettingsRepo) Get(ctx context.Context) (*domain.Settings, error) {
+	s, err := r.Q(ctx).GetAppSettings(ctx)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAppSettingsNotFound
 		}
 		return nil, fmt.Errorf("SettingsRepo - Get: %w", err)
 	}
-	return toEntityAppSettings(s), nil
+	return toDomainAppSettings(s), nil
 }
 
-func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*entity.Settings, error) {
-	s, err := r.q(ctx).GetAppSettingsForUpdate(ctx)
+func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*domain.Settings, error) {
+	s, err := r.Q(ctx).GetAppSettingsForUpdate(ctx)
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAppSettingsNotFound
 		}
 		return nil, fmt.Errorf("SettingsRepo - GetForUpdate: %w", err)
 	}
-	return toEntityAppSettings(s), nil
+	return toDomainAppSettings(s), nil
 }
 
-func (r *SettingsRepo) Update(ctx context.Context, s *entity.Settings) error {
-	verifyTTL, err := intToInt32Safe(s.VerifyTTLHours)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - VerifyTTLHours: %w", err)
+func settingsIntFields(s *domain.Settings) []IntField {
+	return []IntField{
+		{"VerifyTTLHours", s.VerifyTTLHours},
+		{"ResetTTLHours", s.ResetTTLHours},
+		{"SubmitLimitPerUser", s.SubmitLimitPerUser},
+		{"SubmitLimitDurationMin", s.SubmitLimitDurationMin},
+		{"DefaultPerPage", s.DefaultPerPage},
+		{"MaxPerPage", s.MaxPerPage},
+		{"CSVExportMaxRows", s.CSVExportMaxRows},
+		{"RateLimitLoginPerMinute", s.RateLimitLoginPerMinute},
+		{"RateLimitRegisterPerMinute", s.RateLimitRegisterPerMinute},
+		{"RateLimitForgotPasswordPerMinute", s.RateLimitForgotPasswordPerMinute},
+		{"RateLimitResetPasswordPerMinute", s.RateLimitResetPasswordPerMinute},
+		{"RateLimitLogoutPerMinute", s.RateLimitLogoutPerMinute},
+		{"RateLimitRefreshPerMinute", s.RateLimitRefreshPerMinute},
+		{"RateLimitScoreboardPerMinute", s.RateLimitScoreboardPerMinute},
+		{"RateLimitGeneralIPPerMinute", s.RateLimitGeneralIPPerMinute},
+		{"RateLimitVerifyEmailPerMinute", s.RateLimitVerifyEmailPerMinute},
+		{"RateLimitOAuthCallbackPerMinute", s.RateLimitOAuthCallbackPerMinute},
+		{"RateLimitOAuthRedirectPerMinute", s.RateLimitOAuthRedirectPerMinute},
+		{"RateLimitCommentPerMinute", s.RateLimitCommentPerMinute},
+		{"MaxTeams", s.MaxTeams},
 	}
-	resetTTL, err := intToInt32Safe(s.ResetTTLHours)
+}
+
+func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
+	vals, err := ConvertIntFieldsToInt32(settingsIntFields(s))
 	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - ResetTTLHours: %w", err)
+		return fmt.Errorf("SettingsRepo - Update - %w", err)
 	}
-	submitLimit, err := intToInt32Safe(s.SubmitLimitPerUser)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - SubmitLimitPerUser: %w", err)
-	}
-	submitDuration, err := intToInt32Safe(s.SubmitLimitDurationMin)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - SubmitLimitDurationMin: %w", err)
-	}
-	defaultPerPage, err := intToInt32Safe(s.DefaultPerPage)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - DefaultPerPage: %w", err)
-	}
-	maxPerPage, err := intToInt32Safe(s.MaxPerPage)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - MaxPerPage: %w", err)
-	}
-	csvExportMaxRows, err := intToInt32Safe(s.CSVExportMaxRows)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - CSVExportMaxRows: %w", err)
-	}
-	rateLimitLogin, err := intToInt32Safe(s.RateLimitLoginPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitLoginPerMinute: %w", err)
-	}
-	rateLimitRegister, err := intToInt32Safe(s.RateLimitRegisterPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitRegisterPerMinute: %w", err)
-	}
-	rateLimitForgotPassword, err := intToInt32Safe(s.RateLimitForgotPasswordPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitForgotPasswordPerMinute: %w", err)
-	}
-	rateLimitResetPassword, err := intToInt32Safe(s.RateLimitResetPasswordPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitResetPasswordPerMinute: %w", err)
-	}
-	rateLimitLogout, err := intToInt32Safe(s.RateLimitLogoutPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitLogoutPerMinute: %w", err)
-	}
-	rateLimitRefresh, err := intToInt32Safe(s.RateLimitRefreshPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitRefreshPerMinute: %w", err)
-	}
-	rateLimitScoreboard, err := intToInt32Safe(s.RateLimitScoreboardPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitScoreboardPerMinute: %w", err)
-	}
-	rateLimitGeneralIP, err := intToInt32Safe(s.RateLimitGeneralIPPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitGeneralIPPerMinute: %w", err)
-	}
-	rateLimitVerifyEmail, err := intToInt32Safe(s.RateLimitVerifyEmailPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitVerifyEmailPerMinute: %w", err)
-	}
-	rateLimitOAuthCallback, err := intToInt32Safe(s.RateLimitOAuthCallbackPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitOAuthCallbackPerMinute: %w", err)
-	}
-	rateLimitOAuthRedirect, err := intToInt32Safe(s.RateLimitOAuthRedirectPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitOAuthRedirectPerMinute: %w", err)
-	}
-	rateLimitComment, err := intToInt32Safe(s.RateLimitCommentPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - RateLimitCommentPerMinute: %w", err)
-	}
-	maxTeams, err := intToInt32Safe(s.MaxTeams)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - MaxTeams: %w", err)
-	}
-	err = r.q(ctx).UpdateAppSettings(ctx, sqlc.UpdateAppSettingsParams{
+	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
+	defaultPerPage, maxPerPage, csvExportMaxRows := vals[4], vals[5], vals[6]
+	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
+	rateLimitLogout, rateLimitRefresh, rateLimitScoreboard, rateLimitGeneralIP := vals[11], vals[12], vals[13], vals[14]
+	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
+	maxTeams := vals[19]
+	now := time.Now()
+	err = r.Q(ctx).UpdateAppSettings(ctx, sqlc.UpdateAppSettingsParams{
 		AppName:                          s.AppName,
 		VerifyEmails:                     s.VerifyEmails,
 		FrontendURL:                      s.FrontendURL,
@@ -201,6 +156,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *entity.Settings) error {
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,
 		OAuthGoogleEnabled:               s.OAuthGoogleEnabled,
+		UpdatedAt:                        pgutil.TimeToTimestamptz(&now),
 	})
 	if err != nil {
 		return fmt.Errorf("SettingsRepo - Update: %w", err)
@@ -208,88 +164,19 @@ func (r *SettingsRepo) Update(ctx context.Context, s *entity.Settings) error {
 	return nil
 }
 
-func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *entity.Settings) error {
-	verifyTTL, err := intToInt32Safe(s.VerifyTTLHours)
+func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) error {
+	vals, err := ConvertIntFieldsToInt32(settingsIntFields(s))
 	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - VerifyTTLHours: %w", err)
+		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - %w", err)
 	}
-	resetTTL, err := intToInt32Safe(s.ResetTTLHours)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - ResetTTLHours: %w", err)
-	}
-	submitLimit, err := intToInt32Safe(s.SubmitLimitPerUser)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - SubmitLimitPerUser: %w", err)
-	}
-	submitDuration, err := intToInt32Safe(s.SubmitLimitDurationMin)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - SubmitLimitDurationMin: %w", err)
-	}
-	defaultPerPage, err := intToInt32Safe(s.DefaultPerPage)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - DefaultPerPage: %w", err)
-	}
-	maxPerPage, err := intToInt32Safe(s.MaxPerPage)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - MaxPerPage: %w", err)
-	}
-	csvExportMaxRows, err := intToInt32Safe(s.CSVExportMaxRows)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - CSVExportMaxRows: %w", err)
-	}
-	rateLimitLogin, err := intToInt32Safe(s.RateLimitLoginPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitLoginPerMinute: %w", err)
-	}
-	rateLimitRegister, err := intToInt32Safe(s.RateLimitRegisterPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitRegisterPerMinute: %w", err)
-	}
-	rateLimitForgotPassword, err := intToInt32Safe(s.RateLimitForgotPasswordPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitForgotPasswordPerMinute: %w", err)
-	}
-	rateLimitResetPassword, err := intToInt32Safe(s.RateLimitResetPasswordPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitResetPasswordPerMinute: %w", err)
-	}
-	rateLimitLogout, err := intToInt32Safe(s.RateLimitLogoutPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitLogoutPerMinute: %w", err)
-	}
-	rateLimitRefresh, err := intToInt32Safe(s.RateLimitRefreshPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitRefreshPerMinute: %w", err)
-	}
-	rateLimitScoreboard, err := intToInt32Safe(s.RateLimitScoreboardPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitScoreboardPerMinute: %w", err)
-	}
-	rateLimitGeneralIP, err := intToInt32Safe(s.RateLimitGeneralIPPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitGeneralIPPerMinute: %w", err)
-	}
-	rateLimitVerifyEmail, err := intToInt32Safe(s.RateLimitVerifyEmailPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitVerifyEmailPerMinute: %w", err)
-	}
-	rateLimitOAuthCallback, err := intToInt32Safe(s.RateLimitOAuthCallbackPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitOAuthCallbackPerMinute: %w", err)
-	}
-	rateLimitOAuthRedirect, err := intToInt32Safe(s.RateLimitOAuthRedirectPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitOAuthRedirectPerMinute: %w", err)
-	}
-	rateLimitComment, err := intToInt32Safe(s.RateLimitCommentPerMinute)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - RateLimitCommentPerMinute: %w", err)
-	}
-	maxTeams, err := intToInt32Safe(s.MaxTeams)
-	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - MaxTeams: %w", err)
-	}
-	_, err = r.q(ctx).UpdateAppSettingsIfCurrent(ctx, sqlc.UpdateAppSettingsIfCurrentParams{
+	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
+	defaultPerPage, maxPerPage, csvExportMaxRows := vals[4], vals[5], vals[6]
+	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
+	rateLimitLogout, rateLimitRefresh, rateLimitScoreboard, rateLimitGeneralIP := vals[11], vals[12], vals[13], vals[14]
+	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
+	maxTeams := vals[19]
+	now := time.Now()
+	_, err = r.Q(ctx).UpdateAppSettingsIfCurrent(ctx, sqlc.UpdateAppSettingsIfCurrentParams{
 		AppName:                          s.AppName,
 		VerifyEmails:                     s.VerifyEmails,
 		FrontendURL:                      s.FrontendURL,
@@ -322,10 +209,11 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *entity.Settings) 
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,
 		OAuthGoogleEnabled:               s.OAuthGoogleEnabled,
-		UpdatedAt:                        timeToTimestamptz(&s.UpdatedAt),
+		UpdatedAt:                        pgutil.TimeToTimestamptz(&now),
+		UpdatedAt_2:                      pgutil.TimeToTimestamptz(&s.UpdatedAt),
 	})
 	if err != nil {
-		if isNoRows(err) {
+		if pgutil.IsNoRows(err) {
 			return httperr.ErrSettingsConflict
 		}
 		return fmt.Errorf("SettingsRepo - UpdateIfCurrent: %w", err)

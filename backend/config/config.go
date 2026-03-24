@@ -5,18 +5,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	pkgjwt "github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/vault"
 )
 
@@ -38,10 +39,12 @@ type (
 	App struct {
 		Name              string
 		Version           string
-		ChiMode           string
+		StructuredLogger  bool
+		SecureCookies     bool
 		LogLevel          string
 		FlagEncryptionKey string
 		VerifyEmails      bool
+		DebugEnabled      bool
 	}
 
 	Admin struct {
@@ -73,6 +76,7 @@ type (
 		RefreshKeys   []JWTKey
 		AccessTTL     time.Duration
 		RefreshTTL    time.Duration
+		Issuer        string
 	}
 
 	JWTKey struct {
@@ -137,122 +141,106 @@ type (
 )
 
 type rawConfig struct {
-	AppName, AppVersion, ChiMode, LogLevel, FlagEncryptionKey                              string
-	VerifyEmails                                                                           bool
-	BackendPort, APIBaseURL, MigrationsPath                                                string
-	CORSOrigins                                                                            []string
-	TrustedProxyCIDRs, MetricsAllowedIPs                                                   []string
-	ShutdownTimeoutSec                                                                     int
-	PostgresHost, PostgresPort, PostgresUser, PostgresPassword, PostgresDB                 string
-	RedisHost, RedisPort, RedisPassword                                                    string
-	RedisPoolSize, RedisMinIdle                                                            int
-	JWTAccessSecret, JWTRefreshSecret                                                      string
-	JWTAccessTTLMin, JWTRefreshTTLHrs                                                      int
-	ResendAPIKey, S3AccessKey, S3SecretKey                                                 string
-	AdminUsername, AdminEmail, AdminPassword                                               string
-	RateLimitSubmitFlag, RateLimitSubmitFlagDuration                                       int
-	ResendFromEmail, ResendFromName, FrontendURL                                           string
-	ResendEnabled                                                                          bool
-	ResendVerifyTTLHrs, ResendResetTTLHrs                                                  int
-	StorageProvider, StorageLocalPath                                                      string
-	S3Endpoint, S3PublicEndpoint, S3Bucket, S3Region                                       string
-	S3UseSSL                                                                               bool
-	StoragePresignedExpiryMin                                                              int
-	CompetitionMode                                                                        string
-	AllowTeamSwitch                                                                        bool
-	MinTeamSize, MaxTeamSize                                                               int
-	OAuthStateSecret, OAuthGitHubClientID, OAuthGitHubClientSecret, OAuthGitHubRedirectURL string
-	OAuthGoogleClientID, OAuthGoogleClientSecret, OAuthGoogleRedirectURL                   string
-	DBSSLMode                                                                              string
+	AppName                     string `env:"APP_NAME" env-default:"AstroCTFb"`
+	AppVersion                  string `env:"APP_VERSION" env-default:"1.0.0"`
+	StructuredLogger            bool   `env:"STRUCTURED_LOGGER" env-default:"true"`
+	SecureCookies               bool   `env:"SECURE_COOKIES" env-default:"false"`
+	DebugEnabled                bool   `env:"DEBUG_ENABLED" env-default:"false"`
+	LogLevel                    string `env:"LOG_LEVEL" env-default:"info"`
+	FlagEncryptionKey           string `env:"FLAG_ENCRYPTION_KEY"`
+	VerifyEmails                bool   `env:"VERIFY_EMAILS" env-default:"false"`
+	BackendPort                 string `env:"BACKEND_PORT" env-default:"8080"`
+	APIBaseURL                  string `env:"API_BASE_URL" env-default:"http://localhost:8080"`
+	MigrationsPath              string `env:"MIGRATIONS_PATH" env-default:"migrations"`
+	CORSOriginsStr              string `env:"CORS_ORIGINS" env-default:"http://localhost:3000,http://localhost:5173,http://localhost:5000"`
+	TrustedProxyCIDRsStr        string `env:"TRUSTED_PROXY_CIDRS"`
+	MetricsAllowedIPsStr        string `env:"METRICS_ALLOWED_IPS"`
+	ShutdownTimeoutSec          int    `env:"HTTP_SHUTDOWN_TIMEOUT" env-default:"15"`
+	PostgresHost                string `env:"POSTGRES_HOST" env-default:"postgres"`
+	PostgresPort                string `env:"POSTGRES_PORT" env-default:"5432"`
+	PostgresUser                string `env:"POSTGRES_USER"`
+	PostgresPassword            string `env:"POSTGRES_PASSWORD"`
+	PostgresDB                  string `env:"POSTGRES_DB"`
+	PostgresMaxConns            int    `env:"POSTGRES_MAX_CONNS" env-default:"100"`
+	PostgresMinConns            int    `env:"POSTGRES_MIN_CONNS" env-default:"10"`
+	RedisHost                   string `env:"REDIS_HOST" env-default:"redis"`
+	RedisPort                   string `env:"REDIS_PORT" env-default:"6379"`
+	RedisPassword               string `env:"REDIS_PASSWORD"`
+	RedisPoolSize               int    `env:"REDIS_POOL_SIZE" env-default:"50"`
+	RedisMinIdle                int    `env:"REDIS_MIN_IDLE" env-default:"10"`
+	JWTAccessSecret             string `env:"JWT_ACCESS_SECRET"`
+	JWTRefreshSecret            string `env:"JWT_REFRESH_SECRET"`
+	JWTAccessKeysStr            string `env:"JWT_ACCESS_KEYS" env-default:""`
+	JWTRefreshKeysStr           string `env:"JWT_REFRESH_KEYS" env-default:""`
+	JWTAccessTTLMin             int    `env:"JWT_ACCESS_TTL_MINUTES" env-default:"15"`
+	JWTRefreshTTLHrs            int    `env:"JWT_REFRESH_TTL_HOURS" env-default:"72"`
+	JWTIssuer                   string `env:"JWT_ISSUER" env-default:"astroctfb"`
+	ResendAPIKey                string `env:"RESEND_API_KEY"`
+	S3AccessKey                 string `env:"STORAGE_S3_ACCESS_KEY"`
+	S3SecretKey                 string `env:"STORAGE_S3_SECRET_KEY"`
+	AdminUsername               string `env:"ADMIN_USERNAME"`
+	AdminEmail                  string `env:"ADMIN_EMAIL"`
+	AdminPassword               string `env:"ADMIN_PASSWORD"`
+	RateLimitSubmitFlag         int    `env:"RATE_LIMIT_SUBMIT_FLAG" env-default:"10"`
+	RateLimitSubmitFlagDuration int    `env:"RATE_LIMIT_SUBMIT_FLAG_DURATION" env-default:"1"`
+	ResendFromEmail             string `env:"RESEND_FROM_EMAIL" env-default:"noreply@astroctfb.local"`
+	ResendFromName              string `env:"RESEND_FROM_NAME" env-default:"AstroCTFb"`
+	ResendEnabled               bool   `env:"RESEND_ENABLED" env-default:"false"`
+	ResendVerifyTTLHrs          int    `env:"RESEND_VERIFY_TTL_HOURS" env-default:"24"`
+	ResendResetTTLHrs           int    `env:"RESEND_RESET_TTL_HOURS" env-default:"1"`
+	FrontendURL                 string `env:"FRONTEND_URL" env-default:"http://localhost:3000"`
+	StorageProvider             string `env:"STORAGE_PROVIDER" env-default:"filesystem"`
+	StorageLocalPath            string `env:"STORAGE_LOCAL_PATH" env-default:"./uploads"`
+	S3Endpoint                  string `env:"STORAGE_S3_ENDPOINT" env-default:"urchin:9000"`
+	S3PublicEndpoint            string `env:"STORAGE_S3_PUBLIC_ENDPOINT"`
+	S3Bucket                    string `env:"STORAGE_S3_BUCKET" env-default:"tasks"`
+	S3Region                    string `env:"STORAGE_S3_REGION" env-default:"us-east-1"`
+	S3UseSSL                    bool   `env:"STORAGE_S3_USE_SSL" env-default:"false"`
+	StoragePresignedExpiryMin   int    `env:"STORAGE_PRESIGNED_EXPIRY_MINUTES" env-default:"60"`
+	CompetitionMode             string `env:"COMPETITION_MODE" env-default:"flexible"`
+	AllowTeamSwitch             bool   `env:"ALLOW_TEAM_SWITCH" env-default:"true"`
+	MinTeamSize                 int    `env:"MIN_TEAM_SIZE" env-default:"1"`
+	MaxTeamSize                 int    `env:"MAX_TEAM_SIZE" env-default:"10"`
+	OAuthStateSecret            string `env:"OAUTH_STATE_SECRET"`
+	OAuthGitHubClientID         string `env:"OAUTH_GITHUB_CLIENT_ID"`
+	OAuthGitHubClientSecret     string `env:"OAUTH_GITHUB_CLIENT_SECRET"`
+	OAuthGitHubRedirectURL      string `env:"OAUTH_GITHUB_REDIRECT_URL"`
+	OAuthGoogleClientID         string `env:"OAUTH_GOOGLE_CLIENT_ID"`
+	OAuthGoogleClientSecret     string `env:"OAUTH_GOOGLE_CLIENT_SECRET"`
+	OAuthGoogleRedirectURL      string `env:"OAUTH_GOOGLE_REDIRECT_URL"`
+	DBSSLMode                   string `env:"POSTGRES_SSL_MODE" env-default:"disable"`
+
+	CORSOrigins       []string
+	TrustedProxyCIDRs []string
+	MetricsAllowedIPs []string
 }
 
-func loadFromEnv() *rawConfig {
+func loadFromEnv(l logkit.Logger) *rawConfig {
 	envPaths := []string{".env", "../.env", "../../.env", "/app/.env"}
-	envLoaded := false
 	for _, path := range envPaths {
 		if err := godotenv.Load(path); err == nil {
-			log.Printf("[config] .env file loaded from %s", path)
-			envLoaded = true
+			l.Info("Config: .env file loaded", logkit.Fields{"path": path})
 			break
 		}
 	}
-	if !envLoaded {
-		log.Println("[config] .env file not found, using environment variables (production mode)")
-	}
-
 	raw := &rawConfig{}
-	raw.AppName = getEnv("APP_NAME", "AstroCTFb")
-	raw.AppVersion = getEnv("APP_VERSION", "1.0.0")
-	raw.ChiMode = getEnv("CHI_MODE", "production")
-	raw.LogLevel = getEnv("LOG_LEVEL", "info")
-	raw.FlagEncryptionKey = getEnv("FLAG_ENCRYPTION_KEY", "")
-	raw.VerifyEmails = getEnvBool("VERIFY_EMAILS", false)
-	raw.BackendPort = getEnv("BACKEND_PORT", "8080")
-	raw.APIBaseURL = getEnv("API_BASE_URL", "http://localhost:8080")
-	raw.MigrationsPath = getEnv("MIGRATIONS_PATH", "migrations")
-	raw.CORSOrigins = parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5000"))
-	raw.TrustedProxyCIDRs = parseTrustedProxyCIDRs(getEnv("TRUSTED_PROXY_CIDRS", ""))
-	raw.MetricsAllowedIPs = parseCommaSeparated(getEnv("METRICS_ALLOWED_IPS", ""))
-	raw.ShutdownTimeoutSec = getEnvInt("HTTP_SHUTDOWN_TIMEOUT", 15)
+	if err := cleanenv.ReadEnv(raw); err != nil {
+		l.WithError(err).Warn("Config: cleanenv.ReadEnv (using defaults where set)")
+	}
+	raw.CORSOrigins = parseCORSOrigins(raw.CORSOriginsStr)
+	raw.TrustedProxyCIDRs = parseTrustedProxyCIDRs(raw.TrustedProxyCIDRsStr, l)
+	raw.MetricsAllowedIPs = parseCommaSeparated(raw.MetricsAllowedIPsStr)
 	if raw.ShutdownTimeoutSec < 1 {
 		raw.ShutdownTimeoutSec = 15
 	}
-	raw.PostgresHost = getEnv("POSTGRES_HOST", "postgres")
-	raw.PostgresPort = getEnv("POSTGRES_PORT", "5432")
-	raw.PostgresUser = getEnv("POSTGRES_USER", "")
-	raw.PostgresPassword = getEnv("POSTGRES_PASSWORD", "")
-	raw.PostgresDB = getEnv("POSTGRES_DB", "")
-	raw.RedisHost = getEnv("REDIS_HOST", "redis")
-	raw.RedisPort = getEnv("REDIS_PORT", "6379")
-	raw.RedisPassword = getEnv("REDIS_PASSWORD", "")
-	raw.RedisPoolSize = getEnvInt("REDIS_POOL_SIZE", 50)
-	raw.RedisMinIdle = getEnvInt("REDIS_MIN_IDLE", 10)
-	raw.JWTAccessSecret = getEnv("JWT_ACCESS_SECRET", "")
-	raw.JWTRefreshSecret = getEnv("JWT_REFRESH_SECRET", "")
-	raw.JWTAccessTTLMin = getEnvInt("JWT_ACCESS_TTL_MINUTES", 15)
-	raw.JWTRefreshTTLHrs = getEnvInt("JWT_REFRESH_TTL_HOURS", 72)
-	raw.ResendAPIKey = getEnv("RESEND_API_KEY", "")
-	raw.S3AccessKey = getEnv("STORAGE_S3_ACCESS_KEY", "")
-	raw.S3SecretKey = getEnv("STORAGE_S3_SECRET_KEY", "")
-	raw.AdminUsername = getEnv("ADMIN_USERNAME", "")
-	raw.AdminEmail = getEnv("ADMIN_EMAIL", "")
-	raw.AdminPassword = getEnv("ADMIN_PASSWORD", "")
-	raw.RateLimitSubmitFlag = getEnvInt("RATE_LIMIT_SUBMIT_FLAG", 10)
-	raw.RateLimitSubmitFlagDuration = getEnvInt("RATE_LIMIT_SUBMIT_FLAG_DURATION", 1)
-	raw.ResendFromEmail = getEnv("RESEND_FROM_EMAIL", "noreply@astroctfb.local")
-	raw.ResendFromName = getEnv("RESEND_FROM_NAME", "AstroCTFb")
-	raw.ResendEnabled = getEnvBool("RESEND_ENABLED", false)
-	raw.ResendVerifyTTLHrs = getEnvInt("RESEND_VERIFY_TTL_HOURS", 24)
-	raw.ResendResetTTLHrs = getEnvInt("RESEND_RESET_TTL_HOURS", 1)
-	raw.FrontendURL = getEnv("FRONTEND_URL", "http://localhost:3000")
-	raw.StorageProvider = getEnv("STORAGE_PROVIDER", "filesystem")
-	raw.StorageLocalPath = getEnv("STORAGE_LOCAL_PATH", "./uploads")
-	s3DefaultEndpoint, s3DefaultBucket := "urchin:9000", "tasks"
-	if raw.StorageProvider == "s3" {
-		s3DefaultEndpoint, s3DefaultBucket = "", ""
+	if raw.StorageProvider == "s3" && raw.S3Endpoint == "urchin:9000" {
+		raw.S3Endpoint = ""
+		raw.S3Bucket = ""
 	}
-	raw.S3Endpoint = getEnv("STORAGE_S3_ENDPOINT", s3DefaultEndpoint)
-	raw.S3PublicEndpoint = getEnv("STORAGE_S3_PUBLIC_ENDPOINT", "")
-	raw.S3Bucket = getEnv("STORAGE_S3_BUCKET", s3DefaultBucket)
-	raw.S3Region = getEnv("STORAGE_S3_REGION", "us-east-1")
-	raw.S3UseSSL = getEnvBool("STORAGE_S3_USE_SSL", false)
-	raw.StoragePresignedExpiryMin = getEnvInt("STORAGE_PRESIGNED_EXPIRY_MINUTES", 60)
-	raw.CompetitionMode = getEnv("COMPETITION_MODE", "flexible")
-	raw.AllowTeamSwitch = getEnvBool("ALLOW_TEAM_SWITCH", true)
-	raw.MinTeamSize = getEnvInt("MIN_TEAM_SIZE", 1)
-	raw.MaxTeamSize = getEnvInt("MAX_TEAM_SIZE", 10)
-	raw.OAuthStateSecret = getEnv("OAUTH_STATE_SECRET", "")
-	raw.OAuthGitHubClientID = getEnv("OAUTH_GITHUB_CLIENT_ID", "")
-	raw.OAuthGitHubClientSecret = getEnv("OAUTH_GITHUB_CLIENT_SECRET", "")
-	raw.OAuthGitHubRedirectURL = getEnv("OAUTH_GITHUB_REDIRECT_URL", "")
-	raw.OAuthGoogleClientID = getEnv("OAUTH_GOOGLE_CLIENT_ID", "")
-	raw.OAuthGoogleClientSecret = getEnv("OAUTH_GOOGLE_CLIENT_SECRET", "")
-	raw.OAuthGoogleRedirectURL = getEnv("OAUTH_GOOGLE_REDIRECT_URL", "")
-	raw.DBSSLMode = getEnv("POSTGRES_SSL_MODE", "disable")
 	return raw
 }
 
-func loadFromVault(ctx context.Context, raw *rawConfig, l logger.Logger) {
+func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 	vaultAddr := os.Getenv("VAULT_ADDR")
 	vaultToken := os.Getenv("VAULT_TOKEN")
 	if vaultAddr == "" || vaultToken == "" {
@@ -274,7 +262,7 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logger.Logger) {
 	}
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/database", "database", "using env", apply(func(s map[string]any) {
-		if u, ok := s[string(entity.RoleUser)].(string); ok && u != "" {
+		if u, ok := s[string(domain.RoleUser)].(string); ok && u != "" {
 			raw.PostgresUser = u
 		}
 		if p, ok := s["password"].(string); ok && p != "" {
@@ -355,11 +343,11 @@ func validate(raw *rawConfig) error {
 	if raw.JWTAccessSecret == "" || raw.JWTRefreshSecret == "" {
 		return fmt.Errorf("required jwt configuration is missing (env or vault)")
 	}
-	if len(raw.JWTAccessSecret) < pkgjwt.MinSecretLength {
-		return fmt.Errorf("JWT_ACCESS_SECRET must be at least %d bytes, got %d", pkgjwt.MinSecretLength, len(raw.JWTAccessSecret))
+	if len(raw.JWTAccessSecret) < jwtkit.MinSecretLength {
+		return fmt.Errorf("JWT_ACCESS_SECRET must be at least %d bytes, got %d", jwtkit.MinSecretLength, len(raw.JWTAccessSecret))
 	}
-	if len(raw.JWTRefreshSecret) < pkgjwt.MinSecretLength {
-		return fmt.Errorf("JWT_REFRESH_SECRET must be at least %d bytes, got %d", pkgjwt.MinSecretLength, len(raw.JWTRefreshSecret))
+	if len(raw.JWTRefreshSecret) < jwtkit.MinSecretLength {
+		return fmt.Errorf("JWT_REFRESH_SECRET must be at least %d bytes, got %d", jwtkit.MinSecretLength, len(raw.JWTRefreshSecret))
 	}
 	if raw.RedisPassword == "" {
 		return fmt.Errorf("required redis configuration is missing (env or vault)")
@@ -376,7 +364,7 @@ func validate(raw *rawConfig) error {
 	if (raw.OAuthGitHubClientID != "" || raw.OAuthGoogleClientID != "") && raw.OAuthStateSecret == "" {
 		return fmt.Errorf("OAUTH_STATE_SECRET is required when OAuth clients are configured")
 	}
-	if !entity.CompetitionMode(raw.CompetitionMode).IsValid() {
+	if !domain.CompetitionMode(raw.CompetitionMode).IsValid() {
 		return fmt.Errorf("invalid COMPETITION_MODE %q: must be solo_only, teams_only, or flexible", raw.CompetitionMode)
 	}
 	if raw.MinTeamSize < 1 || raw.MaxTeamSize < raw.MinTeamSize {
@@ -393,9 +381,9 @@ func validate(raw *rawConfig) error {
 	return nil
 }
 
-func buildConfig(raw *rawConfig) (*Config, error) {
+func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	jwtAccessKeys := []JWTKey{{Kid: "0", Secret: raw.JWTAccessSecret}}
-	if s := getEnv("JWT_ACCESS_KEYS", ""); s != "" {
+	if s := raw.JWTAccessKeysStr; s != "" {
 		var parsed []JWTKey
 		if err := json.Unmarshal([]byte(s), &parsed); err != nil {
 			return nil, fmt.Errorf("JWT_ACCESS_KEYS invalid JSON: %w", err)
@@ -404,14 +392,14 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 			return nil, fmt.Errorf("JWT_ACCESS_KEYS must contain at least one key")
 		}
 		for i, k := range parsed {
-			if len(k.Secret) < pkgjwt.MinSecretLength {
-				return nil, fmt.Errorf("JWT_ACCESS_KEYS[%d] secret must be at least %d bytes", i, pkgjwt.MinSecretLength)
+			if len(k.Secret) < jwtkit.MinSecretLength {
+				return nil, fmt.Errorf("JWT_ACCESS_KEYS[%d] secret must be at least %d bytes", i, jwtkit.MinSecretLength)
 			}
 		}
 		jwtAccessKeys = parsed
 	}
 	jwtRefreshKeys := []JWTKey{{Kid: "0", Secret: raw.JWTRefreshSecret}}
-	if s := getEnv("JWT_REFRESH_KEYS", ""); s != "" {
+	if s := raw.JWTRefreshKeysStr; s != "" {
 		var parsed []JWTKey
 		if err := json.Unmarshal([]byte(s), &parsed); err != nil {
 			return nil, fmt.Errorf("JWT_REFRESH_KEYS invalid JSON: %w", err)
@@ -420,8 +408,8 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 			return nil, fmt.Errorf("JWT_REFRESH_KEYS must contain at least one key")
 		}
 		for i, k := range parsed {
-			if len(k.Secret) < pkgjwt.MinSecretLength {
-				return nil, fmt.Errorf("JWT_REFRESH_KEYS[%d] secret must be at least %d bytes", i, pkgjwt.MinSecretLength)
+			if len(k.Secret) < jwtkit.MinSecretLength {
+				return nil, fmt.Errorf("JWT_REFRESH_KEYS[%d] secret must be at least %d bytes", i, jwtkit.MinSecretLength)
 			}
 		}
 		jwtRefreshKeys = parsed
@@ -439,10 +427,12 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 		App: App{
 			Name:              raw.AppName,
 			Version:           raw.AppVersion,
-			ChiMode:           raw.ChiMode,
+			StructuredLogger:  raw.StructuredLogger,
+			SecureCookies:     raw.SecureCookies || strings.HasPrefix(raw.APIBaseURL, "https://"),
 			LogLevel:          raw.LogLevel,
 			FlagEncryptionKey: raw.FlagEncryptionKey,
 			VerifyEmails:      raw.VerifyEmails,
+			DebugEnabled:      raw.DebugEnabled,
 		},
 		Admin: Admin{
 			Username: raw.AdminUsername,
@@ -460,8 +450,8 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 		DB: DB{
 			URL:            dbURL,
 			MigrationsPath: raw.MigrationsPath,
-			MaxConns:       getEnvInt("POSTGRES_MAX_CONNS", 100),
-			MinConns:       getEnvInt("POSTGRES_MIN_CONNS", 10),
+			MaxConns:       raw.PostgresMaxConns,
+			MinConns:       raw.PostgresMinConns,
 		},
 		JWT: JWT{
 			AccessSecret:  raw.JWTAccessSecret,
@@ -470,6 +460,7 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 			RefreshKeys:   jwtRefreshKeys,
 			AccessTTL:     time.Duration(raw.JWTAccessTTLMin) * time.Minute,
 			RefreshTTL:    time.Duration(raw.JWTRefreshTTLHrs) * time.Hour,
+			Issuer:        raw.JWTIssuer,
 		},
 		Redis: Redis{
 			Host:         raw.RedisHost,
@@ -531,37 +522,43 @@ func buildConfig(raw *rawConfig) (*Config, error) {
 	if cfg.Enabled && cfg.APIKey == "" {
 		return nil, fmt.Errorf("config: RESEND_API_KEY is required when RESEND_ENABLED=true")
 	}
-	if cfg.Mode == string(entity.ModeSoloOnly) && cfg.MinTeamSize > 1 {
-		log.Printf("WARNING: COMPETITION_MODE=solo_only with MIN_TEAM_SIZE=%d > 1 is a misconfiguration: "+
-			"solo teams always have exactly 1 member, so all solo players will be blocked from submitting flags. "+
-			"Set MIN_TEAM_SIZE=1 or switch to a team mode.", cfg.MinTeamSize)
+	if cfg.Mode == string(domain.ModeSoloOnly) && cfg.MinTeamSize > 1 {
+		l.Warn("Config: COMPETITION_MODE=solo_only with MIN_TEAM_SIZE>1 misconfigures flag submit for solo; set MIN_TEAM_SIZE=1 or change mode",
+			logkit.Fields{"min_team_size": cfg.MinTeamSize})
 	}
-	if cfg.Mode == string(entity.ModeFlexible) && cfg.MinTeamSize > 1 {
-		log.Printf("WARNING: COMPETITION_MODE=flexible with MIN_TEAM_SIZE=%d > 1: "+
-			"MinTeamSize applies only to multi-member teams; solo teams are exempt.", cfg.MinTeamSize)
+	if cfg.Mode == string(domain.ModeFlexible) && cfg.MinTeamSize > 1 {
+		l.Warn("Config: COMPETITION_MODE=flexible with MIN_TEAM_SIZE>1; MinTeamSize applies only to multi-member teams",
+			logkit.Fields{"min_team_size": cfg.MinTeamSize})
 	}
 	return cfg, nil
 }
 
 func New() (*Config, error) {
-	raw := loadFromEnv()
-	var lvl logger.Level
+	bootL, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	if err != nil {
+		return nil, fmt.Errorf("config: bootstrap logger: %w", err)
+	}
+	raw := loadFromEnv(bootL)
+	var lvl logkit.Level
 	switch raw.LogLevel {
 	case "debug":
-		lvl = logger.DebugLevel
+		lvl = logkit.DebugLevel
 	case "warn":
-		lvl = logger.WarnLevel
+		lvl = logkit.WarnLevel
 	case "error":
-		lvl = logger.ErrorLevel
+		lvl = logkit.ErrorLevel
 	default:
-		lvl = logger.InfoLevel
+		lvl = logkit.InfoLevel
 	}
-	l := logger.New(&logger.Options{Level: lvl, Output: logger.ConsoleOutput})
+	l, err := logkit.New(logkit.WithLevel(lvl), logkit.WithOutput(logkit.ConsoleOutput))
+	if err != nil {
+		return nil, fmt.Errorf("config: create logger: %w", err)
+	}
 	vaultCtx, vaultCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer vaultCancel()
 	loadFromVault(vaultCtx, raw, l)
 	if err := validate(raw); err != nil {
 		return nil, err
 	}
-	return buildConfig(raw)
+	return buildConfig(raw, l)
 }

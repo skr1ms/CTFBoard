@@ -3,17 +3,20 @@ package response
 import (
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromAPIToken(t *entity.APIToken) openapi.APITokenResponse {
+func FromAPIToken(t *domain.APIToken) openapi.APITokenResponse {
 	res := openapi.APITokenResponse{
-		ID:        ptr(t.ID.String()),
-		CreatedAt: ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:        httputil.Ptr(t.ID.String()),
+		CreatedAt: httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
 	}
 	if t.Description != "" {
-		res.Description = ptr(t.Description)
+		res.Description = httputil.Ptr(t.Description)
 	}
 	if t.ExpiresAt != nil {
 		res.ExpiresAt = t.ExpiresAt
@@ -24,22 +27,18 @@ func FromAPIToken(t *entity.APIToken) openapi.APITokenResponse {
 	return res
 }
 
-func FromAPITokenList(ts []*entity.APIToken) []openapi.APITokenResponse {
-	res := make([]openapi.APITokenResponse, len(ts))
-	for i, t := range ts {
-		res[i] = FromAPIToken(t)
-	}
-	return res
+func FromAPITokenList(ts []*domain.APIToken) []openapi.APITokenResponse {
+	return lo.Map(ts, func(t *domain.APIToken, _ int) openapi.APITokenResponse { return FromAPIToken(t) })
 }
 
-func FromAPITokenCreated(plaintext string, t *entity.APIToken) openapi.APITokenCreatedResponse {
+func FromAPITokenCreated(plaintext string, t *domain.APIToken) openapi.APITokenCreatedResponse {
 	res := openapi.APITokenCreatedResponse{
-		ID:        ptr(t.ID.String()),
+		ID:        httputil.Ptr(t.ID.String()),
 		Token:     plaintext,
-		CreatedAt: ptr(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
 	}
 	if t.Description != "" {
-		res.Description = ptr(t.Description)
+		res.Description = httputil.Ptr(t.Description)
 	}
 	if t.ExpiresAt != nil {
 		res.ExpiresAt = t.ExpiresAt

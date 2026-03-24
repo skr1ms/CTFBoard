@@ -2,10 +2,21 @@ package request
 
 import (
 	"github.com/google/uuid"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
+
+type transferCaptainConstraints struct {
+	NewCaptainID string `validate:"required,uuid"`
+}
+
+func ValidateTransferCaptainRequest(req *openapi.TransferCaptainRequest, v validator.Validator) error {
+	c := transferCaptainConstraints{NewCaptainID: req.NewCaptainID}
+	return ValidateConstraints(v, &c)
+}
 
 func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, confirmReset bool) {
 	confirmReset = false
@@ -31,19 +42,16 @@ func JoinTeamRequestToParams(req *openapi.JoinTeamRequest) (inviteToken string, 
 }
 
 func TransferCaptainRequestToParams(req *openapi.TransferCaptainRequest) (uuid.UUID, error) {
-	if req.NewCaptainID == "" {
-		return uuid.Nil, helper.NewValidationErrorf("new_captain_id is required")
-	}
 	parsed, err := uuid.Parse(req.NewCaptainID)
 	if err != nil {
-		return uuid.Nil, helper.NewValidationErrorf("invalid new_captain_id")
+		return uuid.Nil, httperr.NewValidationErrorf("invalid new_captain_id")
 	}
 	return parsed, nil
 }
 
 func BanTeamRequestToParams(req *openapi.BanTeamRequest) (reason string, banMembers bool) {
 	reason = req.Reason
-	banMembers = derefOr(req.BanMembers, false)
+	banMembers = lo.FromPtrOr(req.BanMembers, false)
 	return reason, banMembers
 }
 
@@ -55,7 +63,7 @@ func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) (*bool, error) {
 func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *string, captainID, bracketID *uuid.UUID, isHidden *bool, err error) {
 	name = req.Name
 	if name != nil && *name == "" {
-		err = helper.NewValidationErrorf("name cannot be empty")
+		err = httperr.NewValidationErrorf("name cannot be empty")
 		return name, captainID, bracketID, isHidden, err
 	}
 	isHidden = req.IsHidden

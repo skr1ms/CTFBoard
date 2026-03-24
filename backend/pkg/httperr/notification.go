@@ -6,14 +6,6 @@ import (
 )
 
 var (
-	ErrNotificationNotFound = &HTTPError{
-		Err:        errors.New("notification not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "NOTIFICATION_NOT_FOUND",
-	}
-	ErrNotificationTitleContentRequired = &HTTPError{
-		Err:        errors.New("title and content are required"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "NOTIFICATION_TITLE_CONTENT_REQUIRED",
-	}
+	ErrNotificationNotFound             = New(errors.New("notification not found"), http.StatusNotFound, "NOTIFICATION_NOT_FOUND")
+	ErrNotificationTitleContentRequired = New(errors.New("title and content are required"), http.StatusBadRequest, "NOTIFICATION_TITLE_CONTENT_REQUIRED")
 )

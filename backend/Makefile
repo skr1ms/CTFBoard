@@ -43,7 +43,7 @@ compose-ps: ## List compose services status
 
 # APP ==================================================================================================================
 
-OAPI_CODEGEN_VERSION ?= v2.4.0
+OAPI_CODEGEN_VERSION ?= v2.5.1
 SQLC_VERSION ?= v1.28.0
 MOCKERY_VERSION ?= v2.49.0
 WIRE_VERSION ?= v0.6.0
@@ -143,8 +143,6 @@ mockery: ## Generate all mocks (one config per usecase so same interface can out
 	@mockery --config codegen/.mockery_middleware.yml
 	@mockery --config codegen/.mockery_cache.yml
 	@mockery --config codegen/.mockery_usecase.yml
-	@mockery --config codegen/.mockery_helper.yml
-	@mockery --config codegen/.mockery_jwt.yml
 	@mockery --config codegen/.mockery_config.yml
 	@echo "All mocks generated"
 
@@ -186,12 +184,6 @@ generate-mocks-middleware: ## Generate mocks for middleware interfaces (APIToken
 
 generate-mocks-cache: ## Generate mocks for cache interfaces (TeamBracketIDGetter)
 	@mockery --config codegen/.mockery_cache.yml
-
-generate-mocks-helper: ## Generate mocks for v1/helper interfaces (SettingsGetter)
-	@mockery --config codegen/.mockery_helper.yml
-
-generate-mocks-jwt: ## Generate mocks for pkg/jwt interfaces (RevocationStore)
-	@mockery --config codegen/.mockery_jwt.yml
 
 generate-mocks-config: ## Generate mocks for config interfaces (vaultSecretGetter)
 	@mockery --config codegen/.mockery_config.yml
@@ -333,7 +325,7 @@ test-usecase-email-no-race: ## Run email usecase tests without race
 
 COVERPKG = ./cmd/...,./config/...,./internal/...,./pkg/...
 
-COVERPKG_TESTABLE = ./internal/controller/...,./internal/usecase,./internal/usecase/challenge,./internal/usecase/competition,./internal/usecase/email,./internal/usecase/settings,./internal/usecase/notification,./internal/usecase/page,./internal/usecase/team,./internal/usecase/user,./internal/repo/persistent,./internal/storage,./config/...,./pkg/crypto,./pkg/httputil,./pkg/jwt,./pkg/mailer,./pkg/cache,./pkg/validator,./pkg/vault,./pkg/websocket
+COVERPKG_TESTABLE = ./internal/controller/...,./internal/usecase,./internal/usecase/challenge,./internal/usecase/competition,./internal/usecase/email,./internal/usecase/settings,./internal/usecase/notification,./internal/usecase/page,./internal/usecase/team,./internal/usecase/user,./internal/repo/persistent,./internal/storage,./config/...,./pkg/crypto,./pkg/mailer,./pkg/cache,./pkg/validator,./pkg/vault,./pkg/websocket
 
 test-coverage: ## Generate coverage report (unit + integration + e2e, -coverpkg to include production code)
 	@echo "Running all tests with coverage (requires Docker for e2e)..."

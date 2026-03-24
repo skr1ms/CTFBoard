@@ -9,16 +9,20 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func normalizeEmail(email string) string {
@@ -39,13 +43,13 @@ func registrationAdvisoryKey(prefix, value string) int64 {
 // FieldValidator validates custom field values (e.g. on registration).
 // Implemented by *settings.FieldValidator.
 type FieldValidator interface {
-	ValidateValues(ctx context.Context, entityType entity.EntityType, values map[uuid.UUID]string) error
+	ValidateValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]string) error
 }
 
 // EmailVerificationSender sends verification email (e.g. usecase.EmailUseCase).
 // Optional; when set, used to send verification after email change in UpdateProfile.
 type EmailVerificationSender interface {
-	SendVerificationEmail(ctx context.Context, user *entity.User) error
+	SendVerificationEmail(ctx context.Context, user *domain.User) error
 }
 
 // FailedLoginTracker counts failed logins per email for lockout. Optional.
@@ -57,7 +61,7 @@ type FailedLoginTracker interface {
 
 // SoloTeamCreator creates a solo team for a user. Used to auto-create solo teams on registration when competition mode is solo_only.
 type SoloTeamCreator interface {
-	CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*entity.Team, error)
+	CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*domain.Team, error)
 }
 
 // UserCacheInvalidator evicts a cached user entry so ban/unban takes effect immediately.
@@ -68,7 +72,7 @@ type UserCacheInvalidator interface {
 
 // PersonalNotificationSender sends a personal notification to a user. Optional; used e.g. to notify team captain when team falls below MinTeamSize after a ban.
 type PersonalNotificationSender interface {
-	CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType entity.NotificationType) (*entity.UserNotification, error)
+	CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error)
 }
 
 type UserUseCase struct {
@@ -86,7 +90,7 @@ type UserDeps struct {
 	AwardRepo                  repo.AwardRepository
 	HintRepo                   repo.HintRepository
 	TM                         repo.TransactionManager
-	JWTService                 jwt.Service
+	JWTService                 jwtkit.Service
 	FieldValidator             FieldValidator
 	FieldValueRepo             repo.FieldValueRepository
 	SettingsRepo               repo.SettingsRepository
@@ -94,11 +98,11 @@ type UserDeps struct {
 	FailedLogin                FailedLoginTracker
 	CompRepo                   repo.CompetitionRepository
 	SoloTeamCreator            SoloTeamCreator
-	Logger                     logger.Logger
+	Logger                     logkit.Logger
 	UserCache                  UserCacheInvalidator
 	ScoreboardCache            cache.ScoreboardCacheInvalidator
 	ChallengeListCache         cache.ChallengeListCacheInvalidator
-	TeamCache                  *cache.Cache
+	TeamCache                  *cachekit.Cache
 	PersonalNotificationSender PersonalNotificationSender
 }
 
@@ -110,7 +114,7 @@ func NewUserUseCase(deps UserDeps) *UserUseCase {
 		n = 2
 	}
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	dummy, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-pad-astroctfb"), bcrypt.DefaultCost)
 	if err != nil {
@@ -159,7 +163,7 @@ func sanitizeCustomFields(fields map[string]string) map[string]string {
 	return out
 }
 
-func (uc *UserUseCase) Register(ctx context.Context, username, email, password string, customFields map[string]string) (*entity.User, error) {
+func (uc *UserUseCase) Register(ctx context.Context, username, email, password string, customFields map[string]string) (*domain.User, error) {
 	email = normalizeEmail(email)
 	if err := validateCustomFieldsLimits(customFields); err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - validateCustomFieldsLimits: %w", err)
@@ -174,11 +178,11 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateFromPassword: %w", err)
 	}
-	user := &entity.User{
+	user := &domain.User{
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(passwordHash),
-		Role:         entity.RoleUser,
+		Role:         domain.RoleUser,
 	}
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if uc.deps.SettingsRepo != nil {
@@ -222,7 +226,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 			if err != nil {
 				return fmt.Errorf("UserUseCase - Register - CompRepo.Get: %w", err)
 			}
-			if comp.Mode == entity.ModeSoloOnly {
+			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
 				if err != nil {
 					return fmt.Errorf("UserUseCase - Register - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
@@ -250,7 +254,7 @@ func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customF
 		}
 		fieldValues[id] = v
 	}
-	if err := uc.deps.FieldValidator.ValidateValues(ctx, entity.EntityTypeUser, fieldValues); err != nil {
+	if err := uc.deps.FieldValidator.ValidateValues(ctx, domain.EntityTypeUser, fieldValues); err != nil {
 		return fmt.Errorf("UserUseCase - registerValidateCustomFields - FieldValidator.ValidateValues: %w", err)
 	}
 	return nil
@@ -274,7 +278,7 @@ func (uc *UserUseCase) registerCheckUniqueness(ctx context.Context, username, em
 	return nil
 }
 
-func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.TokenPair, error) {
+func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtkit.TokenPair, error) {
 	email = normalizeEmail(email)
 	if uc.deps.FailedLogin != nil {
 		locked, err := uc.deps.FailedLogin.IsLocked(ctx, email)
@@ -282,7 +286,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.
 			return nil, fmt.Errorf("UserUseCase - Login - FailedLogin.IsLocked: %w", err)
 		}
 		if locked {
-			return nil, httperr.ErrTooManyRequests
+			return nil, httperr.ErrTooManyRequests()
 		}
 	}
 
@@ -304,12 +308,12 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.
 		uc.recordFailedLogin(ctx, email)
 		return nil, httperr.ErrInvalidCredentials
 	}
-	if user.WasInBannedTeam && user.Role != entity.RoleAdmin {
+	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
 		uc.recordFailedLogin(ctx, email)
 		return nil, httperr.ErrInvalidCredentials
 	}
 
-	if user.PasswordHash == "" || user.PasswordHash == entity.OAuthOnlyPasswordSentinel {
+	if user.PasswordHash == "" || user.PasswordHash == domain.OAuthOnlyPasswordSentinel {
 		uc.recordFailedLogin(ctx, email)
 		return nil, httperr.ErrInvalidCredentials
 	}
@@ -323,7 +327,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwt.
 
 	uc.clearFailedLogin(ctx, email)
 
-	tokenPair, err := uc.deps.JWTService.GenerateTokenPair(user.ID, user.Email, user.Username, string(user.Role))
+	tokenPair, err := uc.deps.JWTService.GenerateTokenPair(ctx, user.ID, string(user.Role))
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Login - JWTService.GenerateTokenPair: %w", err)
 	}
@@ -343,7 +347,7 @@ func (uc *UserUseCase) clearFailedLogin(ctx context.Context, email string) {
 	}
 }
 
-func (uc *UserUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.User, error) {
+func (uc *UserUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetByID - UserRepo.GetByID: %w", err)
@@ -352,8 +356,8 @@ func (uc *UserUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.User,
 }
 
 func (uc *UserUseCase) GetProfile(ctx context.Context, userID uuid.UUID) (*usecase.UserProfile, error) {
-	var user *entity.User
-	var solves []*entity.Solve
+	var user *domain.User
+	var solves []*domain.Solve
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -384,55 +388,40 @@ func (uc *UserUseCase) GetProfile(ctx context.Context, userID uuid.UUID) (*useca
 	}, nil
 }
 
-func (uc *UserUseCase) ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*usecase.Paginated[*entity.User], error) {
+func (uc *UserUseCase) ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*usecase.Paginated[*domain.User], error) {
 	offset := (page - 1) * perPage
-	var users []*entity.User
+	var users []*domain.User
 	var total int64
 	if err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
-		g, gCtx := errgroup.WithContext(roCtx)
 		if field == "ip" && search != nil && *search != "" {
-			g.Go(func() error {
-				var err error
-				users, err = uc.deps.UserRepo.SearchByIP(gCtx, *search, perPage, offset)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - ListUsers - UserRepo.SearchByIP: %w", err)
-				}
-				return nil
-			})
-			g.Go(func() error {
-				var err error
-				total, err = uc.deps.UserRepo.CountSearchByIP(gCtx, *search)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - ListUsers - UserRepo.CountSearchByIP: %w", err)
-				}
-				return nil
-			})
-		} else {
-			g.Go(func() error {
-				var err error
-				users, err = uc.deps.UserRepo.Search(gCtx, search, perPage, offset)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - ListUsers - UserRepo.Search: %w", err)
-				}
-				return nil
-			})
-			g.Go(func() error {
-				var err error
-				total, err = uc.deps.UserRepo.CountSearch(gCtx, search)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - ListUsers - UserRepo.CountSearch: %w", err)
-				}
-				return nil
-			})
+			var err error
+			users, err = uc.deps.UserRepo.SearchByIP(roCtx, *search, perPage, offset)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - ListUsers - UserRepo.SearchByIP: %w", err)
+			}
+			total, err = uc.deps.UserRepo.CountSearchByIP(roCtx, *search)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - ListUsers - UserRepo.CountSearchByIP: %w", err)
+			}
+			return nil
 		}
-		return g.Wait()
+		var err error
+		users, err = uc.deps.UserRepo.Search(roCtx, search, perPage, offset)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - ListUsers - UserRepo.Search: %w", err)
+		}
+		total, err = uc.deps.UserRepo.CountSearch(roCtx, search)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - ListUsers - UserRepo.CountSearch: %w", err)
+		}
+		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("UserUseCase - ListUsers - TM.ReadOnly: %w", err)
 	}
 	return usecase.NewPaginated(users, total, page, perPage), nil
 }
 
-func (uc *UserUseCase) GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*entity.SolveWithDetails, error) {
+func (uc *UserUseCase) GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*domain.SolveWithDetails, error) {
 	if _, err := uc.deps.UserRepo.GetByID(ctx, userID); err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetUserSolves - UserRepo.GetByID: %w", err)
 	}
@@ -443,12 +432,12 @@ func (uc *UserUseCase) GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*
 	return solves, nil
 }
 
-func (uc *UserUseCase) GetUserFails(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*entity.SubmissionWithDetails], error) {
+func (uc *UserUseCase) GetUserFails(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
 	if _, err := uc.deps.UserRepo.GetByID(ctx, userID); err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetUserFails - UserRepo.GetByID: %w", err)
 	}
 	result, err := usecase.FetchPage(ctx, page, perPage,
-		func(ctx context.Context, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
 			return uc.deps.SubmissionRepo.GetFailsByUser(ctx, userID, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
@@ -461,16 +450,16 @@ func (uc *UserUseCase) GetUserFails(ctx context.Context, userID uuid.UUID, page,
 	return result, nil
 }
 
-func (uc *UserUseCase) GetUserAwards(ctx context.Context, userID uuid.UUID) ([]*entity.Award, error) {
+func (uc *UserUseCase) GetUserAwards(ctx context.Context, userID uuid.UUID) ([]*domain.Award, error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - GetUserAwards - UserRepo.GetByID: %w", err)
 	}
 	if user.TeamID == nil {
-		return []*entity.Award{}, nil
+		return []*domain.Award{}, nil
 	}
 	if uc.deps.AwardRepo == nil {
-		return []*entity.Award{}, nil
+		return []*domain.Award{}, nil
 	}
 	awards, err := uc.deps.AwardRepo.GetByTeamID(ctx, *user.TeamID)
 	if err != nil {
@@ -505,7 +494,7 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 	return nil
 }
 
-func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, currentPassword, newPassword *string) (*entity.User, error) {
+func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, currentPassword, newPassword *string) (*domain.User, error) {
 	if email != nil {
 		norm := normalizeEmail(*email)
 		email = &norm
@@ -578,9 +567,9 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 	return user, nil
 }
 
-func (uc *UserUseCase) GetMySubmissions(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*entity.SubmissionWithDetails], error) {
+func (uc *UserUseCase) GetMySubmissions(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
 	result, err := usecase.FetchPage(ctx, page, perPage,
-		func(ctx context.Context, limit, offset int) ([]*entity.SubmissionWithDetails, error) {
+		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
 			return uc.deps.SubmissionRepo.GetByUser(ctx, userID, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {

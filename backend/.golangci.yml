@@ -172,8 +172,6 @@ linters:
         path: internal/controller/
       - linters: [contextcheck]
         path: internal/usecase/
-      - linters: [contextcheck]
-        path: pkg/websocket/
       - linters: [funlen]
         path: config/
       - linters: [gocognit]
@@ -195,15 +193,11 @@ linters:
       - linters: [mnd]
         path: cmd/
       - linters: [revive]
-        path: internal/entity/
+        path: internal/domain/
       - linters: [revive]
         path: internal/usecase/
       - linters: [revive]
         path: pkg/crypto/
-      - linters: [revive]
-        path: pkg/jwt/
-      - linters: [revive]
-        path: pkg/httputil/
       - linters: [unparam]
         path: internal/usecase/
     paths:

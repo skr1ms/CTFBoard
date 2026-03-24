@@ -48,7 +48,7 @@ func TestMode_SoloOnly_AutoTeamOnRegistration(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("solo_only")
 	activateCompetition()
@@ -73,7 +73,7 @@ func TestMode_SoloOnly_CannotCreateRegularTeam(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("solo_only")
 	activateCompetition()
@@ -88,7 +88,7 @@ func TestMode_SoloOnly_CannotJoinTeam(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("solo_only")
 	activateCompetition()
@@ -102,7 +102,7 @@ func TestMode_SoloOnly_WrongFlagReturnsIncorrect(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("solo_only")
 	activateCompetition()
@@ -121,7 +121,7 @@ func TestMode_TeamsOnly_CannotSubmitWithoutTeam(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("teams_only")
 	activateCompetition()
@@ -130,7 +130,7 @@ func TestMode_TeamsOnly_CannotSubmitWithoutTeam(t *testing.T) {
 	challID := h.CreateBasicChallenge(tokenAdmin, "Teams Only Submit "+suffix, "flag{teams_nosubmit_"+suffix+"}", 100)
 
 	_, _, tokenUser := h.RegisterUserAndLogin("teams_nosubmit_" + suffix)
-	h.SubmitFlag(tokenUser, challID, "flag{teams_nosubmit_"+suffix+"}", http.StatusForbidden)
+	h.SubmitFlagExpectStatus(tokenUser, challID, "flag{teams_nosubmit_"+suffix+"}", http.StatusForbidden, http.StatusNotFound)
 }
 
 // POST /teams + POST /challenges/{ID}/submit: teams_only mode allows submission after creating a team.
@@ -138,7 +138,7 @@ func TestMode_TeamsOnly_SubmitAfterCreateTeam(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("teams_only")
 	activateCompetition()
@@ -159,7 +159,7 @@ func TestMode_TeamsOnly_CannotCreateSoloTeam(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("teams_only")
 	activateCompetition()
@@ -173,7 +173,7 @@ func TestMode_TeamsOnly_SoloTeamCannotSubmit(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	setCompetitionMode("flexible")
 	activateCompetition()

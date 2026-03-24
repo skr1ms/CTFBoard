@@ -3,17 +3,19 @@ package user
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 )
 
+//nolint:funlen // ban flow: lock, validations, DB updates, cache invalidation, notifications
 func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason string, actorID uuid.UUID) error {
 	if userID == actorID {
 		return httperr.ErrAccessDenied
@@ -29,7 +31,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 		if err != nil {
 			return fmt.Errorf("UserUseCase - BanUser - UserRepo.GetByID: %w", err)
 		}
-		if u.Role == entity.RoleAdmin {
+		if u.Role == domain.RoleAdmin {
 			return httperr.ErrAccessDenied
 		}
 		if u.IsBanned {
@@ -85,10 +87,10 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 					if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, nil); err != nil {
 						return fmt.Errorf("UserUseCase - BanUser - UserRepo.UpdateTeamID: %w", err)
 					}
-					auditLog := &entity.TeamAuditLog{
+					auditLog := &domain.TeamAuditLog{
 						TeamID:  team.ID,
 						UserID:  &userID,
-						Action:  entity.TeamActionMemberBanned,
+						Action:  domain.TeamActionMemberBanned,
 						Details: map[string]any{"reason": "user_banned"},
 					}
 					if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -98,14 +100,14 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 					if team.CaptainID == userID {
 						remaining, errRem := uc.deps.UserRepo.GetByTeamID(ctx, team.ID)
 						if errRem == nil && len(remaining) > 0 {
-							var eligible []*entity.User
+							var eligible []*domain.User
 							for _, u := range remaining {
 								if !u.IsBanned {
 									eligible = append(eligible, u)
 								}
 							}
 							if len(eligible) > 0 {
-								sort.Slice(eligible, func(i, j int) bool { return eligible[i].ID.String() < eligible[j].ID.String() })
+								slices.SortFunc(eligible, func(a, b *domain.User) int { return strings.Compare(a.ID.String(), b.ID.String()) })
 								newCaptainID := eligible[0].ID
 								if err := uc.deps.TeamRepo.UpdateCaptain(ctx, team.ID, newCaptainID); err != nil {
 									return fmt.Errorf("UserUseCase - BanUser - TeamRepo.UpdateCaptain: %w", err)
@@ -127,7 +129,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 						if errComp == nil && comp != nil && comp.MinTeamSize > 0 {
 							count, errCount := uc.deps.TeamRepo.CountTeamMembers(ctx, team.ID)
 							if errCount == nil && count > 0 && count < comp.MinTeamSize {
-								uc.deps.Logger.Warn("team below MinTeamSize after user ban", logger.Fields{"team_id": team.ID.String(), "member_count": count, "min_team_size": comp.MinTeamSize})
+								uc.deps.Logger.Warn("team below MinTeamSize after user ban", logkit.Fields{"team_id": team.ID.String(), "member_count": count, "min_team_size": comp.MinTeamSize})
 								captainIDToNotify = currentCaptainID
 								shouldNotifyCaptain = true
 							}
@@ -164,7 +166,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 		}
 	}
 	if shouldNotifyCaptain && uc.deps.PersonalNotificationSender != nil {
-		_, err := uc.deps.PersonalNotificationSender.CreatePersonal(ctx, captainIDToNotify, "Team below minimum size", "A member of your team was banned. Your team is now below the minimum size required to submit. Please add members or contact an administrator.", entity.NotificationWarning)
+		_, err := uc.deps.PersonalNotificationSender.CreatePersonal(ctx, captainIDToNotify, "Team below minimum size", "A member of your team was banned. Your team is now below the minimum size required to submit. Please add members or contact an administrator.", domain.NotificationWarning)
 		if err != nil && uc.deps.Logger != nil {
 			uc.deps.Logger.WithError(err).Warn("UserUseCase - BanUser - CreatePersonal notification failed")
 		}

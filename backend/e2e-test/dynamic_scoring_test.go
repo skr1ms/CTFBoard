@@ -11,7 +11,6 @@ import (
 
 // POST /challenges/{ID}/submit (dynamic scoring): first solver gets initial_value; second solver gets decayed score; GET /scoreboard reflects correct points.
 func TestDynamicScoring_Flow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -26,7 +25,7 @@ func TestDynamicScoring_Flow(t *testing.T) {
 		"min_value":     100,
 		"decay":         1,
 		"category":      "misc",
-		"is_hidden":     false,
+		"state":         "visible",
 	})
 
 	_, _, user1 := h.RegisterUserAndLogin("user_dyn_1")
@@ -56,14 +55,13 @@ func TestDynamicScoring_Flow(t *testing.T) {
 
 // POST /challenges/{ID}/submit: wrong flag returns 200 with correct=false.
 func TestDynamicScoring_InvalidFlag_Returns200(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic_err")
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title": "Dyn Err", "description": "x", "flag": "flag{dyn_err}",
 		"points": 500, "initial_value": 500, "min_value": 100, "decay": 1,
-		"category": "misc", "is_hidden": false,
+		"category": "misc", "state": "visible",
 	})
 	_, _, tokenUser := h.RegisterUserAndLogin("user_dyn_err")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)

@@ -9,21 +9,24 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPage = `-- name: CreatePage :one
 INSERT INTO pages (id, title, slug, content, is_draft, order_index, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, title, slug, content, is_draft, order_index, created_at, updated_at
 `
 
 type CreatePageParams struct {
-	ID         uuid.UUID `json:"id"`
-	Title      string    `json:"title"`
-	Slug       string    `json:"slug"`
-	Content    string    `json:"content"`
-	IsDraft    *bool     `json:"is_draft"`
-	OrderIndex *int32    `json:"order_index"`
+	ID         uuid.UUID          `json:"id"`
+	Title      string             `json:"title"`
+	Slug       string             `json:"slug"`
+	Content    string             `json:"content"`
+	IsDraft    *bool              `json:"is_draft"`
+	OrderIndex *int32             `json:"order_index"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreatePage(ctx context.Context, arg CreatePageParams) (Page, error) {
@@ -34,6 +37,8 @@ func (q *Queries) CreatePage(ctx context.Context, arg CreatePageParams) (Page, e
 		arg.Content,
 		arg.IsDraft,
 		arg.OrderIndex,
+		arg.CreatedAt,
+		arg.UpdatedAt,
 	)
 	var i Page
 	err := row.Scan(
@@ -172,17 +177,18 @@ func (q *Queries) GetPublishedPages(ctx context.Context) ([]GetPublishedPagesRow
 }
 
 const updatePage = `-- name: UpdatePage :exec
-UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = NOW()
+UPDATE pages SET title = $2, slug = $3, content = $4, is_draft = $5, order_index = $6, updated_at = $7
 WHERE id = $1
 `
 
 type UpdatePageParams struct {
-	ID         uuid.UUID `json:"id"`
-	Title      string    `json:"title"`
-	Slug       string    `json:"slug"`
-	Content    string    `json:"content"`
-	IsDraft    *bool     `json:"is_draft"`
-	OrderIndex *int32    `json:"order_index"`
+	ID         uuid.UUID          `json:"id"`
+	Title      string             `json:"title"`
+	Slug       string             `json:"slug"`
+	Content    string             `json:"content"`
+	IsDraft    *bool              `json:"is_draft"`
+	OrderIndex *int32             `json:"order_index"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) error {
@@ -193,6 +199,7 @@ func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) error {
 		arg.Content,
 		arg.IsDraft,
 		arg.OrderIndex,
+		arg.UpdatedAt,
 	)
 	return err
 }

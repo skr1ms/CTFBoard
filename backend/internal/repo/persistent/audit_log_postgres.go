@@ -6,43 +6,42 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
 type AuditLogRepo struct {
-	pool *pgxpool.Pool
+	BaseRepo
 }
 
 var _ repo.AuditLogRepository = (*AuditLogRepo)(nil)
 
 func NewAuditLogRepo(pool *pgxpool.Pool) *AuditLogRepo {
-	return &AuditLogRepo{pool: pool}
+	return &AuditLogRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-func (r *AuditLogRepo) q(ctx context.Context) *sqlc.Queries {
-	return sqlc.New(ExtractDB(ctx, r.pool))
-}
-
-func (r *AuditLogRepo) Create(ctx context.Context, l *entity.AuditLog) error {
+func (r *AuditLogRepo) Create(ctx context.Context, l *domain.AuditLog) error {
 	details, err := json.Marshal(l.Details)
 	if err != nil {
 		return fmt.Errorf("AuditLogRepo - Create - Marshal: %w", err)
 	}
-	row, err := r.q(ctx).CreateAuditLog(ctx, sqlc.CreateAuditLogParams{
+	row, err := r.Q(ctx).CreateAuditLog(ctx, sqlc.CreateAuditLogParams{
 		UserID:     l.UserID,
 		Action:     string(l.Action),
 		EntityType: string(l.EntityType),
-		EntityID:   strPtrOrNil(l.EntityID),
-		IP:         strPtrOrNil(l.IP),
+		EntityID:   lo.EmptyableToPtr(l.EntityID),
+		IP:         lo.EmptyableToPtr(l.IP),
 		Details:    details,
 	})
 	if err != nil {
 		return fmt.Errorf("AuditLogRepo - Create: %w", err)
 	}
 	l.ID = row.ID
-	l.CreatedAt = ptrTimeToTime(timestamptzToTime(row.CreatedAt))
+	l.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
 	return nil
 }

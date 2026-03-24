@@ -6,13 +6,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 type userContextKeyType = contextKey
@@ -25,19 +29,19 @@ const (
 // InjectUser loads the user via cache (userCacheTTL) or usecase. After BanUser the
 // usecase invalidates the user cache; a brief window until invalidation propagates is accepted.
 
-func InjectUser(userUC usecase.UserUseCase, c *cache.Cache, log logger.Logger) func(http.Handler) http.Handler {
+func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID := httputil.GetUserID(r.Context())
+			userID := GetUserID(r.Context())
 			if userID == "" {
 				if log != nil {
 					log.Warn("InjectUser - userID is empty (check middleware order: Auth before InjectUser)")
 				}
-				httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
+				httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
 				return
 			}
 
-			if _, already := r.Context().Value(userContextKey).(*entity.User); already {
+			if _, already := r.Context().Value(userContextKey).(*domain.User); already {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -48,9 +52,9 @@ func InjectUser(userUC usecase.UserUseCase, c *cache.Cache, log logger.Logger) f
 				return
 			}
 
-			var user *entity.User
+			var user *domain.User
 			if c != nil {
-				user, err = cache.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func() (*entity.User, error) {
+				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(context.Context) (*domain.User, error) {
 					return userUC.GetByID(r.Context(), userUUID)
 				})
 			} else {
@@ -70,7 +74,7 @@ func InjectUser(userUC usecase.UserUseCase, c *cache.Cache, log logger.Logger) f
 	}
 }
 
-func GetUser(ctx context.Context) (*entity.User, bool) {
-	user, ok := ctx.Value(userContextKey).(*entity.User)
+func GetUser(ctx context.Context) (*domain.User, bool) {
+	user, ok := ctx.Value(userContextKey).(*domain.User)
 	return user, ok
 }

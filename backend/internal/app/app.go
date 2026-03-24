@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,20 +11,24 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/oklog/run"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
+
+	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
+	"github.com/wahrwelt-kit/go-pgkit/postgres"
+	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/wire"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/migrator"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/postgres"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/seed"
-	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 const (
@@ -31,21 +36,27 @@ const (
 	asyncMailerWorkers   = 2
 )
 
-func Run(cfg *config.Config, l logger.Logger) {
+func Run(cfg *config.Config, l logkit.Logger) {
 	l.Info("Application initialized", map[string]any{
-		"mode":      cfg.ChiMode,
-		"log_level": cfg.LogLevel,
-		"version":   cfg.Version,
+		"structured_logger": cfg.StructuredLogger,
+		"secure_cookies":    cfg.SecureCookies,
+		"log_level":         cfg.LogLevel,
+		"version":           cfg.Version,
 	})
 
-	pool, err := postgres.New(&cfg.DB)
+	ctx := context.Background()
+	pool, err := postgres.New(ctx, &postgres.Config{
+		URL:      cfg.DB.URL,
+		MaxConns: cfg.DB.MaxConns,
+		MinConns: cfg.DB.MinConns,
+	})
 	if err != nil {
 		l.WithError(err).Error("failed to connect to database")
 		return
 	}
 	defer pool.Close()
 
-	redisClient, err := cache.NewRedisClient(&cfg.Redis)
+	redisClient, err := cache.NewRedisClient(ctx, &cfg.Redis)
 	if err != nil {
 		l.WithError(err).Error("failed to connect to redis")
 		return
@@ -56,7 +67,7 @@ func Run(cfg *config.Config, l logger.Logger) {
 		}
 	}()
 
-	if err := migrator.Run(&cfg.DB); err != nil {
+	if err := goose.Run(ctx, cfg.DB.URL, cfg.DB.MigrationsPath); err != nil {
 		l.WithError(err).Error("failed to run migrations")
 		return
 	}
@@ -77,22 +88,37 @@ func Run(cfg *config.Config, l logger.Logger) {
 		}()
 	}
 
-	jwtRevoker := jwt.NewRedisRevocationStore(redisClient)
-	accessKeys := make([]jwt.KeyEntry, len(cfg.AccessKeys))
+	jwtRevoker := jwtkit.NewRedisRevocationStore(redisClient)
+	accessKeys := make([]jwtkit.KeyEntry, len(cfg.AccessKeys))
 	for i, k := range cfg.AccessKeys {
-		accessKeys[i] = jwt.KeyEntry{Kid: k.Kid, Secret: k.Secret}
+		accessKeys[i] = jwtkit.KeyEntry{Kid: k.Kid, Secret: []byte(k.Secret)}
 	}
-	refreshKeys := make([]jwt.KeyEntry, len(cfg.RefreshKeys))
+	refreshKeys := make([]jwtkit.KeyEntry, len(cfg.RefreshKeys))
 	for i, k := range cfg.RefreshKeys {
-		refreshKeys[i] = jwt.KeyEntry{Kid: k.Kid, Secret: k.Secret}
+		refreshKeys[i] = jwtkit.KeyEntry{Kid: k.Kid, Secret: []byte(k.Secret)}
 	}
-	jwtService, err := jwt.NewJWTService(accessKeys, refreshKeys, cfg.AccessTTL, cfg.RefreshTTL, jwtRevoker, nil)
+	jwtService, err := jwtkit.NewJWTService(jwtkit.Config{
+		AccessKeys:  accessKeys,
+		RefreshKeys: refreshKeys,
+		AccessTTL:   cfg.AccessTTL,
+		RefreshTTL:  cfg.RefreshTTL,
+		Issuer:      cfg.Issuer,
+		Revoker:     jwtRevoker,
+	})
 	if err != nil {
 		l.WithError(err).Error("failed to create JWT service")
 		return
 	}
-	wsHub := pkgWS.NewHub(redisClient, cache.PubSubScoreboard)
-	wsHub.SetTimeoutLogger(func(op string) { l.Warn("websocket hub operation timed out", logger.Fields{"op": op}) })
+	wsHub := wskit.NewHub(
+		wskit.WithRedis(redisClient, cache.PubSubScoreboard),
+		wskit.WithOnTimeout(func(op string) { l.Warn("websocket hub operation timed out", logkit.Fields{"op": op}) }),
+		wskit.WithOnConnect(func(client *wskit.Client) {
+			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
+			if err == nil {
+				client.Send(data)
+			}
+		}),
+	)
 	go wsHub.Run(ctx)
 	go wsHub.SubscribeToRedis(ctx)
 
@@ -107,29 +133,72 @@ func Run(cfg *config.Config, l logger.Logger) {
 		return
 	}
 
-	jwtService.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, string, string, error) {
+	jwtService.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, error) {
 		u, err := app.UserRepo.GetByID(ctx, userID)
 		if err != nil {
-			return "", "", "", fmt.Errorf("app - SetUserRoleLookup - GetByID: %w", err)
+			return "", fmt.Errorf("app - SetUserRoleLookup - GetByID: %w", err)
 		}
 		if u.IsBanned {
-			return "", "", "", httperr.ErrUserBanned
+			return "", httperr.ErrUserBanned
 		}
-		if u.WasInBannedTeam && u.Role != entity.RoleAdmin {
-			return "", "", "", httperr.ErrUserBanned
+		if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
+			return "", httperr.ErrUserBanned
 		}
-		return u.Email, u.Username, string(u.Role), nil
+		return string(u.Role), nil
 	})
 
 	if app.SubmissionBatcher != nil {
 		defer app.SubmissionBatcher.Stop()
 	}
+	if app.SolveUseCase != nil {
+		defer app.SolveUseCase.StopLocalScoreboardCache()
+	}
 
 	runSeed(cfg, app, l)
-	runServerUntilShutdown(ctx, app.Server, cfg.HTTP.Port, cfg.ShutdownTimeout, l)
+
+	var g run.Group
+	g.Add(func() error {
+		l.Info("Starting HTTP server", map[string]any{"port": cfg.HTTP.Port})
+		return app.Server.ListenAndServe()
+	}, func(err error) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			l.WithError(err).Error("HTTP server error")
+		}
+		l.Info("Shutting down server")
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer shutdownCancel()
+		if err := app.Server.Shutdown(shutdownCtx); err != nil {
+			l.WithError(err).Error("Server forced to shutdown")
+			_ = app.Server.Close()
+		}
+		if app.RatelimitAuditWG != nil {
+			waitDone := make(chan struct{})
+			go func() {
+				app.RatelimitAuditWG.Wait()
+				close(waitDone)
+			}()
+			select {
+			case <-waitDone:
+			case <-time.After(5 * time.Second):
+				l.Warn("ratelimit audit wait group timeout")
+			}
+		}
+		if app.Broadcaster != nil {
+			app.Broadcaster.Wait()
+		}
+	})
+	g.Add(func() error {
+		<-ctx.Done()
+		return ctx.Err()
+	}, func(_ error) {
+		cancel()
+	})
+	if err := g.Run(); err != nil {
+		l.WithError(err).Error("run group error")
+	}
 }
 
-func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
+func runSeed(cfg *config.Config, app *wire.App, l logkit.Logger) {
 	adminUsername, adminEmail, adminPassword := cfg.Username, cfg.Email, cfg.Admin.Password
 	if adminUsername == "" || adminEmail == "" || adminPassword == "" {
 		l.Info("Admin credentials not provided, skipping default admin creation")
@@ -140,29 +209,7 @@ func runSeed(cfg *config.Config, app *wire.App, l logger.Logger) {
 	}
 }
 
-func runServerUntilShutdown(ctx context.Context, server *http.Server, port string, shutdownTimeout time.Duration, l logger.Logger) {
-	serverErrors := make(chan error, 1)
-	go func() {
-		l.Info("Starting HTTP server", map[string]any{"port": port})
-		serverErrors <- server.ListenAndServe()
-	}()
-	select {
-	case err := <-serverErrors:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			l.WithError(err).Error("HTTP server error")
-		}
-	case <-ctx.Done():
-		l.Info("Shutting down server")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			l.WithError(err).Error("Server forced to shutdown")
-			_ = server.Close()
-		}
-	}
-}
-
-func provideStorage(ctx context.Context, cfg *config.Config, l logger.Logger) (storage.Provider, error) {
+func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (storage.Provider, error) {
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
 			cfg.S3Endpoint,

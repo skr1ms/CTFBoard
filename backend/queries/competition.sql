@@ -28,5 +28,5 @@ UPDATE competition SET
     min_team_size = $11,
     max_team_size = $12,
     keep_scoreboard_frozen_after_end = $13,
-    updated_at = NOW()
+    updated_at = $14
 WHERE id = 1;

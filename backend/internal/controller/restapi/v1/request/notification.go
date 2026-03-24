@@ -1,75 +1,87 @@
 package request
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-const (
-	maxNotificationTitleLength   = 200
-	maxNotificationContentLength = 5000
-)
+type createNotificationConstraints struct {
+	Title   string `validate:"required,max=200"`
+	Content string `validate:"required,max=5000"`
+	Type    string `validate:"omitempty,oneof=info warning success error"`
+}
 
-func validNotificationType(s string) (entity.NotificationType, bool) {
-	switch entity.NotificationType(s) {
-	case entity.NotificationInfo, entity.NotificationWarning, entity.NotificationSuccess, entity.NotificationError:
-		return entity.NotificationType(s), true
+type updateNotificationConstraints struct {
+	Title   string `validate:"required,max=200"`
+	Content string `validate:"required,max=5000"`
+	Type    string `validate:"omitempty,oneof=info warning success error"`
+}
+
+func validNotificationType(s string) (domain.NotificationType, bool) {
+	switch domain.NotificationType(s) {
+	case domain.NotificationInfo, domain.NotificationWarning, domain.NotificationSuccess, domain.NotificationError:
+		return domain.NotificationType(s), true
 	default:
 		return "", false
 	}
 }
 
-func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (title, content string, notifType entity.NotificationType, isPinned bool, err error) {
-	notifType = entity.NotificationInfo
-	if req.Type != nil {
-		if t, ok := validNotificationType(string(*req.Type)); ok {
-			notifType = t
-		} else {
-			return "", "", "", false, helper.NewValidationErrorf("invalid notification type: must be one of info, warning, success, error")
-		}
+func ValidateCreateNotificationRequest(req *openapi.CreateNotificationRequest, v validator.Validator) error {
+	t := string(lo.FromPtrOr(req.Type, openapi.CreateNotificationRequestType("")))
+	if t == "" {
+		t = "info"
 	}
-	if len(req.Title) > maxNotificationTitleLength {
-		return "", "", "", false, helper.NewValidationErrorf("title must be at most %d characters", maxNotificationTitleLength)
-	}
-	if len(req.Content) > maxNotificationContentLength {
-		return "", "", "", false, helper.NewValidationErrorf("content must be at most %d characters", maxNotificationContentLength)
-	}
-	return req.Title, req.Content, notifType, derefOr(req.IsPinned, false), nil
+	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	return ValidateConstraints(v, &c)
 }
 
-func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRequest) (title, content string, notifType entity.NotificationType, err error) {
-	notifType = entity.NotificationInfo
+func ValidateCreateUserNotificationRequest(req *openapi.CreateUserNotificationRequest, v validator.Validator) error {
+	t := string(lo.FromPtrOr(req.Type, openapi.CreateUserNotificationRequestType("")))
+	if t == "" {
+		t = "info"
+	}
+	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	return ValidateConstraints(v, &c)
+}
+
+func ValidateUpdateNotificationRequest(req *openapi.UpdateNotificationRequest, v validator.Validator) error {
+	t := string(lo.FromPtrOr(req.Type, openapi.UpdateNotificationRequestType("")))
+	if t == "" {
+		t = "info"
+	}
+	c := updateNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	return ValidateConstraints(v, &c)
+}
+
+func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
+	notifType = domain.NotificationInfo
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
 			notifType = t
-		} else {
-			return "", "", "", helper.NewValidationErrorf("invalid notification type: must be one of info, warning, success, error")
 		}
 	}
-	if len(req.Title) > maxNotificationTitleLength {
-		return "", "", "", helper.NewValidationErrorf("title must be at most %d characters", maxNotificationTitleLength)
-	}
-	if len(req.Content) > maxNotificationContentLength {
-		return "", "", "", helper.NewValidationErrorf("content must be at most %d characters", maxNotificationContentLength)
+	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
+}
+
+func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRequest) (title, content string, notifType domain.NotificationType, err error) {
+	notifType = domain.NotificationInfo
+	if req.Type != nil {
+		if t, ok := validNotificationType(string(*req.Type)); ok {
+			notifType = t
+		}
 	}
 	return req.Title, req.Content, notifType, nil
 }
 
-func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest) (title, content string, notifType entity.NotificationType, isPinned bool, err error) {
-	notifType = entity.NotificationInfo
+func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
+	notifType = domain.NotificationInfo
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
 			notifType = t
-		} else {
-			return "", "", "", false, helper.NewValidationErrorf("invalid notification type: must be one of info, warning, success, error")
 		}
 	}
-	if len(req.Title) > maxNotificationTitleLength {
-		return "", "", "", false, helper.NewValidationErrorf("title must be at most %d characters", maxNotificationTitleLength)
-	}
-	if len(req.Content) > maxNotificationContentLength {
-		return "", "", "", false, helper.NewValidationErrorf("content must be at most %d characters", maxNotificationContentLength)
-	}
-	return req.Title, req.Content, notifType, derefOr(req.IsPinned, false), nil
+	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
 }

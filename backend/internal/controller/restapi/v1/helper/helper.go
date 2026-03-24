@@ -2,67 +2,35 @@ package helper
 
 import (
 	"net/http"
-	"strconv"
+
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
-func RequireUser(w http.ResponseWriter, r *http.Request) (*entity.User, bool) {
+type SettingsGetter = middleware.SettingsGetter
+
+type OnErrorFunc func(w http.ResponseWriter, r *http.Request, err error, op, step string) bool
+
+func ParseSearchQuery(w http.ResponseWriter, r *http.Request, q *string, maxLen int, onError OnErrorFunc, op, step string) (string, bool) {
+	if q == nil || *q == "" {
+		return "", true
+	}
+	if !httputil.ValidateSearchQ(*q) {
+		onError(w, r, httperr.NewValidationErrorf("invalid search query"), op, step)
+		return "", false
+	}
+	return httputil.SanitizeSearchQ(*q, maxLen), true
+}
+
+func RequireUser(w http.ResponseWriter, r *http.Request) (*domain.User, bool) {
 	user, ok := middleware.GetUser(r.Context())
 	if !ok || user == nil {
-		httputil.HandleError(w, r, httperr.ErrNotAuthenticated)
+		httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
 		return nil, false
 	}
 	return user, true
-}
-
-const maxPage = 10000
-
-func ClampPage(p *int) int {
-	if p == nil || *p < 1 {
-		return 1
-	}
-	if *p > maxPage {
-		return maxPage
-	}
-	return *p
-}
-
-func ClampPerPage(p *int, defaultVal, maxVal int) int {
-	if p == nil || *p <= 0 {
-		return defaultVal
-	}
-	if *p > maxVal {
-		return maxVal
-	}
-	return *p
-}
-
-func ClampLimit(p *int, defaultVal, maxVal int) int {
-	if p == nil || *p <= 0 {
-		return defaultVal
-	}
-	if *p > maxVal {
-		return maxVal
-	}
-	return *p
-}
-
-func ParseIntQuery(r *http.Request, key string) *int {
-	q := r.URL.Query().Get(key)
-	if q == "" {
-		return nil
-	}
-	n, err := strconv.Atoi(q)
-	if err != nil || n < 1 {
-		return nil
-	}
-	return &n
-}
-
-func Ptr[T any](v T) *T {
-	return &v
 }

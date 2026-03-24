@@ -9,19 +9,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestUserRepo_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	user := &entity.User{
+	user := &domain.User{
 		Username:     "testuser",
 		Email:        "test@example.com",
 		PasswordHash: "hash123",
@@ -38,14 +37,13 @@ func TestUserRepo_Create(t *testing.T) {
 
 func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	u1 := f.CreateUser(t, "duplicate")
 
-	user2 := &entity.User{
+	user2 := &domain.User{
 		Username:     u1.Username,
 		Email:        "other@example.com",
 		PasswordHash: "hash456",
@@ -57,14 +55,13 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 
 func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	u1 := f.CreateUser(t, "user1")
 
-	user2 := &entity.User{
+	user2 := &domain.User{
 		Username:     "otheruser",
 		Email:        u1.Email,
 		PasswordHash: "hash456",
@@ -76,7 +73,6 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 
 func TestUserRepo_GetByID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -93,7 +89,6 @@ func TestUserRepo_GetByID(t *testing.T) {
 
 func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -106,7 +101,6 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 
 func TestUserRepo_GetByEmail(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -122,7 +116,6 @@ func TestUserRepo_GetByEmail(t *testing.T) {
 
 func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -134,7 +127,6 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 
 func TestUserRepo_GetByUsername(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -149,7 +141,6 @@ func TestUserRepo_GetByUsername(t *testing.T) {
 
 func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -161,7 +152,6 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 
 func TestUserRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -181,7 +171,6 @@ func TestUserRepo_GetAll_Success(t *testing.T) {
 
 func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -195,7 +184,6 @@ func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestUserRepo_GetByTeamID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -217,7 +205,6 @@ func TestUserRepo_GetByTeamID(t *testing.T) {
 
 func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -232,7 +219,6 @@ func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
 
 func TestUserRepo_UpdateTeamID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -250,7 +236,6 @@ func TestUserRepo_UpdateTeamID(t *testing.T) {
 
 func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -270,16 +255,15 @@ func TestUserRepo_UpdateTeamID_Remove(t *testing.T) {
 
 func TestUserRepo_Role_Persistence(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	repo := persistent.NewUserRepo(testPool.Pool)
 	ctx := context.Background()
 
-	user := &entity.User{
+	user := &domain.User{
 		Username:     "roleuser",
 		Email:        "roleuser@example.com",
 		PasswordHash: "hash123",
-		Role:         entity.RoleAdmin,
+		Role:         domain.RoleAdmin,
 	}
 
 	err := repo.Create(ctx, user)
@@ -287,12 +271,11 @@ func TestUserRepo_Role_Persistence(t *testing.T) {
 
 	gotUser, err := repo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
-	assert.Equal(t, entity.RoleAdmin, gotUser.Role)
+	assert.Equal(t, domain.RoleAdmin, gotUser.Role)
 }
 
 func TestUserRepo_Lock_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -307,7 +290,6 @@ func TestUserRepo_Lock_Success(t *testing.T) {
 
 func TestUserRepo_Lock_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "lock_cancel")

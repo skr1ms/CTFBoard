@@ -3,21 +3,22 @@ package team
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*entity.Team], error) {
-	var result *usecase.Paginated[*entity.Team]
+func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
+	var result *usecase.Paginated[*domain.Team]
 	if err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
 		var err error
 		result, err = usecase.FetchPage(roCtx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*entity.Team, error) {
+			func(ctx context.Context, limit, offset int) ([]*domain.Team, error) {
 				return uc.deps.TeamRepo.SearchAdmin(ctx, search, limit, offset)
 			},
 			func(ctx context.Context) (int64, error) {
@@ -34,7 +35,7 @@ func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page,
 	return result, nil
 }
 
-func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) (*entity.Team, error) {
+func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) (*domain.Team, error) {
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if captainID != nil {
 			if err := uc.deps.UserRepo.Lock(ctx, *captainID); err != nil {
@@ -85,8 +86,8 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 		if err != nil {
 			return fmt.Errorf("TeamUseCase - AdminDelete - UserRepo.GetByTeamID: %w", err)
 		}
-		sort.Slice(members, func(i, j int) bool {
-			return members[i].ID.String() < members[j].ID.String()
+		slices.SortFunc(members, func(a, b *domain.User) int {
+			return strings.Compare(a.ID.String(), b.ID.String())
 		})
 		for _, m := range members {
 			if err := uc.deps.UserRepo.Lock(ctx, m.ID); err != nil {
@@ -100,8 +101,8 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 		if err != nil {
 			return fmt.Errorf("TeamUseCase - AdminDelete - UserRepo.GetByTeamID (recheck): %w", err)
 		}
-		sort.Slice(membersAfter, func(i, j int) bool {
-			return membersAfter[i].ID.String() < membersAfter[j].ID.String()
+		slices.SortFunc(membersAfter, func(a, b *domain.User) int {
+			return strings.Compare(a.ID.String(), b.ID.String())
 		})
 		if len(membersAfter) != len(members) {
 			return httperr.ErrTeamConflict
@@ -138,10 +139,10 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 		if err := uc.deps.TeamRepo.Delete(ctx, teamID); err != nil {
 			return fmt.Errorf("TeamUseCase - AdminDelete - TeamRepo.Delete: %w", err)
 		}
-		auditLog := &entity.TeamAuditLog{
+		auditLog := &domain.TeamAuditLog{
 			TeamID:  teamID,
 			UserID:  nil,
-			Action:  entity.TeamActionDeleted,
+			Action:  domain.TeamActionDeleted,
 			Details: map[string]any{"reason": "deleted_by_admin"},
 		}
 		if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -160,7 +161,7 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 	return nil
 }
 
-func (uc *TeamUseCase) AdminGetMembers(ctx context.Context, teamID uuid.UUID) ([]*entity.User, error) {
+func (uc *TeamUseCase) AdminGetMembers(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error) {
 	if _, err := uc.deps.TeamRepo.GetByID(ctx, teamID); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - AdminGetMembers - TeamRepo.GetByID: %w", err)
 	}
@@ -233,10 +234,10 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, &teamID); err != nil {
 		return fmt.Errorf("TeamUseCase - AdminAddMember - UserRepo.UpdateTeamID: %w", err)
 	}
-	auditLog := &entity.TeamAuditLog{
+	auditLog := &domain.TeamAuditLog{
 		TeamID:  teamID,
 		UserID:  &userID,
-		Action:  entity.TeamActionJoined,
+		Action:  domain.TeamActionJoined,
 		Details: map[string]any{"reason": "added_by_admin"},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
@@ -272,10 +273,10 @@ func (uc *TeamUseCase) AdminRemoveMember(ctx context.Context, teamID, userID uui
 		if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, nil); err != nil {
 			return fmt.Errorf("TeamUseCase - AdminRemoveMember - UserRepo.UpdateTeamID: %w", err)
 		}
-		auditLog := &entity.TeamAuditLog{
+		auditLog := &domain.TeamAuditLog{
 			TeamID:  teamID,
 			UserID:  &userID,
-			Action:  entity.TeamActionMemberKicked,
+			Action:  domain.TeamActionMemberKicked,
 			Details: map[string]any{"reason": "removed_by_admin"},
 		}
 		if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {

@@ -9,20 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestCommentRepo_Create_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "com")
 	challenge := f.CreateChallenge(t, "comch", 100)
-	comment := &entity.Comment{UserID: user.ID, ChallengeID: challenge.ID, Content: "hello"}
+	comment := &domain.Comment{UserID: user.ID, ChallengeID: challenge.ID, Content: "hello"}
 	err := f.CommentRepo.Create(ctx, comment)
 	require.NoError(t, err)
 	assert.NotEmpty(t, comment.ID)
@@ -30,20 +29,18 @@ func TestCommentRepo_Create_Success(t *testing.T) {
 
 func TestCommentRepo_Create_Error_InvalidUserID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "comerr", 100)
-	comment := &entity.Comment{UserID: uuid.New(), ChallengeID: challenge.ID, Content: "x"}
+	comment := &domain.Comment{UserID: uuid.New(), ChallengeID: challenge.ID, Content: "x"}
 	err := f.CommentRepo.Create(ctx, comment)
 	assert.Error(t, err)
 }
 
 func TestCommentRepo_GetByID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -57,7 +54,6 @@ func TestCommentRepo_GetByID_Success(t *testing.T) {
 
 func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -69,7 +65,6 @@ func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
 
 func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -85,7 +80,6 @@ func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
 
 func TestCommentRepo_GetByChallengeID_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	challenge := f.CreateChallenge(t, "gbcherr", 100)
@@ -98,7 +92,6 @@ func TestCommentRepo_GetByChallengeID_Error_CancelledContext(t *testing.T) {
 
 func TestCommentRepo_Update_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -114,7 +107,6 @@ func TestCommentRepo_Update_Success(t *testing.T) {
 
 func TestCommentRepo_Update_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	comment := f.CreateComment(t, f.CreateUser(t, "upderr").ID, f.CreateChallenge(t, "upderr", 100).ID, "x")
@@ -127,7 +119,6 @@ func TestCommentRepo_Update_Error_CancelledContext(t *testing.T) {
 
 func TestCommentRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -142,7 +133,6 @@ func TestCommentRepo_Delete_Success(t *testing.T) {
 
 func TestCommentRepo_Delete_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

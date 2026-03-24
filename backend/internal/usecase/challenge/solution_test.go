@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -24,7 +25,7 @@ func TestAdminUpsertSolution_Success(t *testing.T) {
 	content := "## Solution\nThis is the writeup."
 
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: content, Files: []*entity.File{}}
+	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: content, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("UpsertSolution", mock.Anything, challengeID, content).Return(solution, nil)
@@ -77,7 +78,7 @@ func TestAdminUpsertSolution_EmptyContent(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "", Files: []*entity.File{}}
+	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "", Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("UpsertSolution", mock.Anything, challengeID, "").Return(solution, nil)
@@ -102,7 +103,7 @@ func TestAdminUpsertSolution_ContentTooLong(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	var httpErr *httperr.HTTPError
-	assert.True(t, errors.As(err, &httpErr) && httpErr.HTTPStatus() == 400 && httpErr.Code == "VALIDATION_ERROR")
+	assert.True(t, errors.As(err, &httpErr) && httpErr.HTTPStatus() == 400 && httpErr.GetCode() == "VALIDATION_ERROR")
 }
 
 func TestAdminDeleteSolution_Success(t *testing.T) {
@@ -157,10 +158,10 @@ func TestListSolutions_Success(t *testing.T) {
 	cid2 := uuid.New()
 
 	entries := []*repo.ChallengeSolutionEntry{
-		{ChallengeID: cid1, ChallengeTitle: "Web 1", ChallengeCategory: "web", Content: "## WS1", Files: []*entity.File{}},
-		{ChallengeID: cid2, ChallengeTitle: "Pwn 1", ChallengeCategory: "pwn", Content: "## PS1", Files: []*entity.File{}},
+		{ChallengeID: cid1, ChallengeTitle: "Web 1", ChallengeCategory: "web", Content: "## WS1", Files: []*domain.File{}},
+		{ChallengeID: cid2, ChallengeTitle: "Pwn 1", ChallengeCategory: "pwn", Content: "## PS1", Files: []*domain.File{}},
 	}
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("ListSolutions", mock.Anything, teamID).Return(entries, nil)
 
 	result, err := uc.ListSolutions(context.Background(), teamID)
@@ -178,7 +179,7 @@ func TestListSolutions_Empty(t *testing.T) {
 
 	teamID := uuid.New()
 
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("ListSolutions", mock.Anything, teamID).Return([]*repo.ChallengeSolutionEntry{}, nil)
 
 	result, err := uc.ListSolutions(context.Background(), teamID)
@@ -194,7 +195,7 @@ func TestListSolutions_RepoError(t *testing.T) {
 
 	teamID := uuid.New()
 
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("ListSolutions", mock.Anything, teamID).Return(nil, errors.New("db error"))
 
 	result, err := uc.ListSolutions(context.Background(), teamID)
@@ -212,10 +213,10 @@ func TestGetSolution_Success(t *testing.T) {
 	teamID := uuid.New()
 
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solve := &entity.Solve{ID: uuid.New(), TeamID: teamID, ChallengeID: challengeID}
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", Files: []*entity.File{}}
+	solve := &domain.Solve{ID: uuid.New(), TeamID: teamID, ChallengeID: challengeID}
+	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", Files: []*domain.File{}}
 
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(solve, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)
@@ -258,7 +259,7 @@ func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrNotAuthenticated))
+	assert.True(t, errors.Is(err, httperr.ErrNotAuthenticatedSentinel))
 }
 
 func TestGetSolution_NotSolved_Forbidden(t *testing.T) {
@@ -270,7 +271,7 @@ func TestGetSolution_NotSolved_Forbidden(t *testing.T) {
 	teamID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
 
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
 
@@ -288,9 +289,9 @@ func TestGetSolution_SolutionNotFound(t *testing.T) {
 	challengeID := uuid.New()
 	teamID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solve := &entity.Solve{ID: uuid.New(), TeamID: teamID, ChallengeID: challengeID}
+	solve := &domain.Solve{ID: uuid.New(), TeamID: teamID, ChallengeID: challengeID}
 
-	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil)
+	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(solve, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(nil, httperr.ErrChallengeNotFound)

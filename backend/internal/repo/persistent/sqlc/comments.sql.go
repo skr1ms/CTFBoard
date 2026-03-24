@@ -9,19 +9,22 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createComment = `-- name: CreateComment :one
 INSERT INTO comments (id, user_id, challenge_id, content, created_at, updated_at)
-VALUES ($1, $2, $3, $4, NOW(), NOW())
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, user_id, challenge_id, content, created_at, updated_at
 `
 
 type CreateCommentParams struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	Content     string    `json:"content"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Content     string             `json:"content"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {
@@ -30,6 +33,8 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (C
 		arg.UserID,
 		arg.ChallengeID,
 		arg.Content,
+		arg.CreatedAt,
+		arg.UpdatedAt,
 	)
 	var i Comment
 	err := row.Scan(
@@ -136,15 +141,16 @@ func (q *Queries) GetCommentsByChallengeID(ctx context.Context, challengeID uuid
 }
 
 const updateComment = `-- name: UpdateComment :exec
-UPDATE comments SET content = $2, updated_at = NOW() WHERE id = $1
+UPDATE comments SET content = $2, updated_at = $3 WHERE id = $1
 `
 
 type UpdateCommentParams struct {
-	ID      uuid.UUID `json:"id"`
-	Content string    `json:"content"`
+	ID        uuid.UUID          `json:"id"`
+	Content   string             `json:"content"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdateComment(ctx context.Context, arg UpdateCommentParams) error {
-	_, err := q.db.Exec(ctx, updateComment, arg.ID, arg.Content)
+	_, err := q.db.Exec(ctx, updateComment, arg.ID, arg.Content, arg.UpdatedAt)
 	return err
 }

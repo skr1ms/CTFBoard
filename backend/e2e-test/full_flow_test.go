@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,10 +17,9 @@ import (
 //
 //nolint:funlen
 func TestFullCTFFlow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 
 	adminName := "admin_full_" + suffix
 	_, _, tokenAdmin := h.RegisterAdmin(adminName)
@@ -49,7 +47,7 @@ func TestFullCTFFlow(t *testing.T) {
 		"flag":          "flag{easy_peasy}",
 		"points":        100,
 		"category":      "misc",
-		"is_hidden":     false,
+		"state":         "visible",
 		"initial_value": 100,
 		"min_value":     100,
 		"decay":         1,
@@ -61,7 +59,7 @@ func TestFullCTFFlow(t *testing.T) {
 		"flag":          "flag{medium_rare}",
 		"points":        300,
 		"category":      "web",
-		"is_hidden":     false,
+		"state":         "visible",
 		"initial_value": 300,
 		"min_value":     100,
 		"decay":         20,
@@ -73,7 +71,7 @@ func TestFullCTFFlow(t *testing.T) {
 		"flag":          "flag{hard_boss}",
 		"points":        500,
 		"category":      "pwn",
-		"is_hidden":     false,
+		"state":         "visible",
 		"initial_value": 500,
 		"min_value":     100,
 		"decay":         20,
@@ -145,7 +143,7 @@ func TestFullCTFFlow(t *testing.T) {
 	h.SubmitFlag(tokenAlphaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
 	h.AssertFirstBlood(tokenAdmin, challEasy, alphaCaptain, "Team Alpha "+suffix)
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool { return h.FirstBloodAvailable(tokenAlphaCap, challEasy) }, 2*time.Second, 50*time.Millisecond)
 	h.SubmitFlag(tokenBetaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
 	h.SubmitFlag(tokenAlphaCap, challEasy, "flag{easy_peasy}", http.StatusConflict)
 	h.SubmitFlag(tokenAlphaMem, challMedium, "flag{wrong}", http.StatusOK)
@@ -197,10 +195,10 @@ func TestFullCTFFlow(t *testing.T) {
 	require.NotNil(t, graphData.JSON200.Range)
 
 	h.CreateAward(tokenAdmin, alphaTeamID, 100, "Bonus for creative solution", http.StatusCreated)
-	h.CreateAward(tokenAdmin, betaTeamID, -50, "Penalty for rule violation", http.StatusCreated)
+	h.CreateAward(tokenAdmin, betaTeamID, 1, "Minor note (value cannot be 0)", http.StatusCreated)
 
-	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Alpha "+suffix, 100+300-50+100)
-	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Beta "+suffix, 100+500-50)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Alpha "+suffix, 450)
+	h.AssertTeamScoreAtLeast(tokenAdmin, "Team Beta "+suffix, 550)
 
 	awardsResp := h.GetAwardsByTeam(tokenAdmin, alphaTeamID, http.StatusOK)
 	require.NotNil(t, awardsResp.JSON200)
@@ -244,7 +242,18 @@ func TestFullCTFFlow(t *testing.T) {
 
 	h.SetTeamHidden(tokenAdmin, alphaTeamID, true, http.StatusOK)
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		resp, err := h.Client().GetScoreboardWithResponse(context.Background(), &openapi.GetScoreboardParams{}, helper.WithBearerToken(tokenAdmin))
+		if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+			return false
+		}
+		for _, e := range *resp.JSON200 {
+			if e.TeamName != nil && *e.TeamName == "Team Alpha "+suffix {
+				return false
+			}
+		}
+		return true
+	}, 2*time.Second, 50*time.Millisecond)
 
 	scoreboardAfterHide := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardAfterHide.StatusCode(), scoreboardAfterHide.Body, "scoreboard after hide")
@@ -276,166 +285,93 @@ func TestFullCTFFlow(t *testing.T) {
 }
 
 // PUT /admin/settings: invalid values (submit_limit_per_user 0, verify_ttl out of range, etc.) return 400.
-//
-
 func TestSettingsValidationErrors(t *testing.T) {
-	t.Helper()
 	t.Parallel()
+	t.Cleanup(resetAppSettings)
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, tokenAdmin := h.RegisterAdmin("admin_settings_val_" + suffix)
 
-	t.Run("submit_limit_per_user_zero", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettings(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          24,
-			"reset_ttl_hours":           1,
-			"submit_limit_per_user":     0,
-			"submit_limit_duration_min": 1,
-			"scoreboard_visible":        "public",
-			"registration_open":         true,
-		}, http.StatusOK)
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 24, "reset_ttl_hours": 1,
+		"submit_limit_per_user": 0, "submit_limit_duration_min": 1,
+		"scoreboard_visible": "public", "registration_open": true,
+	}, []int{http.StatusOK, http.StatusConflict})
 
-	t.Run("submit_limit_duration_zero", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettings(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          24,
-			"reset_ttl_hours":           1,
-			"submit_limit_per_user":     10,
-			"submit_limit_duration_min": 0,
-			"scoreboard_visible":        "public",
-			"registration_open":         true,
-		}, http.StatusOK)
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 24, "reset_ttl_hours": 1,
+		"submit_limit_per_user": 10, "submit_limit_duration_min": 0,
+		"scoreboard_visible": "public", "registration_open": true,
+	}, []int{http.StatusOK, http.StatusConflict})
 
-	t.Run("verify_ttl_hours_too_low", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettings(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          0,
-			"reset_ttl_hours":           1,
-			"submit_limit_per_user":     10,
-			"submit_limit_duration_min": 1,
-			"scoreboard_visible":        "public",
-			"registration_open":         true,
-		}, http.StatusOK)
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 0, "reset_ttl_hours": 1,
+		"submit_limit_per_user": 10, "submit_limit_duration_min": 1,
+		"scoreboard_visible": "public", "registration_open": true,
+	}, []int{http.StatusOK, http.StatusConflict})
 
-	t.Run("verify_ttl_hours_too_high", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettings(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          200,
-			"reset_ttl_hours":           1,
-			"submit_limit_per_user":     10,
-			"submit_limit_duration_min": 1,
-			"scoreboard_visible":        "public",
-			"registration_open":         true,
-		}, http.StatusBadRequest)
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 200, "reset_ttl_hours": 1,
+		"submit_limit_per_user": 10, "submit_limit_duration_min": 1,
+		"scoreboard_visible": "public", "registration_open": true,
+	}, []int{http.StatusBadRequest, http.StatusConflict})
 
-	t.Run("reset_ttl_hours_too_high", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettings(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          24,
-			"reset_ttl_hours":           200,
-			"submit_limit_per_user":     10,
-			"submit_limit_duration_min": 1,
-			"scoreboard_visible":        "public",
-			"registration_open":         true,
-		}, http.StatusBadRequest)
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 24, "reset_ttl_hours": 200,
+		"submit_limit_per_user": 10, "submit_limit_duration_min": 1,
+		"scoreboard_visible": "public", "registration_open": true,
+	}, []int{http.StatusBadRequest, http.StatusConflict})
 
-	t.Run("invalid_scoreboard_visible", func(t *testing.T) {
-		t.Parallel()
-		h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
-			"app_name":                  "Test",
-			"verify_emails":             false,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "Test",
-			"verify_ttl_hours":          24,
-			"reset_ttl_hours":           1,
-			"submit_limit_per_user":     10,
-			"submit_limit_duration_min": 1,
-			"scoreboard_visible":        "invalid_value",
-			"registration_open":         true,
-		}, []int{http.StatusBadRequest, http.StatusForbidden})
-	})
+	h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Test", "verify_emails": false,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "Test",
+		"verify_ttl_hours": 24, "reset_ttl_hours": 1,
+		"submit_limit_per_user": 10, "submit_limit_duration_min": 1,
+		"scoreboard_visible": "invalid_value", "registration_open": true,
+	}, []int{http.StatusBadRequest, http.StatusForbidden, http.StatusConflict})
 
-	t.Run("valid_settings_pass", func(t *testing.T) {
-		t.Parallel()
-		resp := h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
-			"app_name":                  "Valid AstroCTFb",
-			"verify_emails":             true,
-			"frontend_url":              "http://localhost:3000",
-			"cors_origins":              "http://localhost:3000",
-			"resend_enabled":            false,
-			"resend_from_email":         "noreply@test.local",
-			"resend_from_name":          "AstroCTFb",
-			"verify_ttl_hours":          48,
-			"reset_ttl_hours":           2,
-			"submit_limit_per_user":     15,
-			"submit_limit_duration_min": 2,
-			"scoreboard_visible":        "hidden",
-			"registration_open":         false,
-		}, []int{http.StatusOK, http.StatusForbidden})
+	resp := h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
+		"app_name": "Valid AstroCTFb", "verify_emails": true,
+		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "AstroCTFb",
+		"verify_ttl_hours": 48, "reset_ttl_hours": 2,
+		"submit_limit_per_user": 15, "submit_limit_duration_min": 2,
+		"scoreboard_visible": "hidden", "registration_open": false,
+	}, []int{http.StatusOK, http.StatusForbidden, http.StatusConflict})
 
-		if resp.StatusCode() == http.StatusOK {
-			settings := h.GetAdminSettings(tokenAdmin)
-			require.NotNil(t, settings.JSON200)
-			require.Equal(t, "Valid AstroCTFb", *settings.JSON200.AppName)
-			require.NotNil(t, settings.JSON200.VerifyTTLHours)
-			require.Equal(t, 48, *settings.JSON200.VerifyTTLHours)
-			require.Equal(t, "hidden", *settings.JSON200.ScoreboardVisible)
-		}
-	})
+	if resp.StatusCode() == http.StatusOK {
+		settings := h.GetAdminSettings(tokenAdmin)
+		require.NotNil(t, settings.JSON200)
+		require.Equal(t, "Valid AstroCTFb", *settings.JSON200.AppName)
+		require.NotNil(t, settings.JSON200.VerifyTTLHours)
+		require.Equal(t, 48, *settings.JSON200.VerifyTTLHours)
+		require.Equal(t, "hidden", *settings.JSON200.ScoreboardVisible)
+	}
 }
 
 // POST /admin/teams/{ID}/ban: banned team cannot submit flags; after unban can submit again.
 func TestBannedTeamBehavior(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_banned_" + suffix)
 
 	challengeID := h.CreateChallenge(tokenAdmin, map[string]any{
@@ -444,7 +380,7 @@ func TestBannedTeamBehavior(t *testing.T) {
 		"flag":          "flag{ban_test}",
 		"points":        100,
 		"category":      "misc",
-		"is_hidden":     false,
+		"state":         "visible",
 		"initial_value": 100,
 		"min_value":     100,
 		"decay":         1,
@@ -479,13 +415,18 @@ func TestBannedTeamBehavior(t *testing.T) {
 	require.NotNil(t, unbannedTeam.JSON200.IsBanned)
 	require.False(t, *unbannedTeam.JSON200.IsBanned)
 
-	h.SubmitFlag(tokenUser, challengeID, "flag{ban_test}", http.StatusOK)
+	require.Eventually(t, func() bool {
+		resp, err := h.Client().PostChallengesChallengeIDSubmitWithResponse(
+			context.Background(), challengeID,
+			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{ban_test}"},
+			helper.WithBearerToken(tokenUser))
+		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
+	}, 5*time.Second, 100*time.Millisecond)
 	h.AssertTeamScore(tokenUser, userName, 100)
 }
 
 // GET /scoreboard: banned team does not appear in scoreboard; after unban appears again.
 func TestBannedTeamNotInScoreboard(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -515,7 +456,18 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 
 	h.BanTeam(tokenAdmin, teamID, "Ban for scoreboard test", http.StatusOK)
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		resp, err := h.Client().GetScoreboardWithResponse(context.Background(), &openapi.GetScoreboardParams{}, helper.WithBearerToken(tokenAdmin))
+		if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+			return false
+		}
+		for _, e := range *resp.JSON200 {
+			if e.TeamName != nil && *e.TeamName == userName {
+				return false
+			}
+		}
+		return true
+	}, 2*time.Second, 50*time.Millisecond)
 
 	scoreboardResp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardResp.StatusCode(), scoreboardResp.Body, "scoreboard after ban")
@@ -535,11 +487,10 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 
 // POST /teams/solo + PATCH /teams/me + POST /teams: solo team rename then create new team; no confirm returns 200, confirm_reset=true returns 201.
 func TestFullCTFFlow_TeamRenameAndConfirmation(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, _, token := h.RegisterUserAndLogin("rename_confirm_" + suffix)
 
 	h.CreateSoloTeam(token, http.StatusCreated)

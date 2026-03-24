@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
@@ -13,11 +12,10 @@ import (
 
 // POST /admin/teams/{ID}/ban: banned team cannot unlock hints; after unban can unlock again.
 func TestBannedTeam_CannotUnlockHint(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_ban_hint_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "Hint Ban Challenge "+suffix, "flag{hint_ban_"+suffix+"}", 100)
@@ -51,11 +49,10 @@ func TestBannedTeam_CannotUnlockHint(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: banned team cannot get file download URL; after unban can download.
 func TestBannedTeam_CannotDownloadFile(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_ban_file_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "File Ban Challenge "+suffix, "flag{file_ban_"+suffix+"}", 100)
@@ -88,12 +85,12 @@ func TestBannedTeam_CannotDownloadFile(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusOK)
 }
 
+// GET /files/{ID}/download by signed URL: after team ban returns 403 (token issued before ban).
 func TestBannedTeam_DownloadByPathWithTokenRejectedAfterTeamBan(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_ban_dlpath_" + suffix)
 	h.EnableWriteups(tokenAdmin)
 
@@ -119,11 +116,10 @@ func TestBannedTeam_DownloadByPathWithTokenRejectedAfterTeamBan(t *testing.T) {
 
 // POST /admin/teams/{ID}/ban: all three actions (submit + hint + file) are blocked simultaneously.
 func TestBannedTeam_AllActionsBlocked(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_ban_all_" + suffix)
 
 	challID := h.CreateBasicChallenge(tokenAdmin, "All Ban Challenge "+suffix, "flag{all_ban_"+suffix+"}", 100)
@@ -155,12 +151,12 @@ func TestBannedTeam_AllActionsBlocked(t *testing.T) {
 	h.GetFilesIDDownloadExpectStatus(tokenUser, fileID, http.StatusForbidden)
 }
 
+// POST /auth/login: admin who is member of a banned team can still log in.
 func TestBannedTeam_AdminMemberCanStillLogin(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	suffix := uuid.New().String()[:8]
+	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("admin_ban_adminmb_" + suffix)
 
 	_, _, tokenCap := h.RegisterUserAndLogin("cap_adminmb_" + suffix)

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestCommentUseCase_GetByChallengeID_Success(t *testing.T) {
@@ -18,7 +18,7 @@ func TestCommentUseCase_GetByChallengeID_Success(t *testing.T) {
 	challengeID := uuid.New()
 	userID := uuid.New()
 	ch := newTestChallenge(challengeID, "title", "cat", 100, "hash")
-	list := []*entity.Comment{newTestComment(userID, challengeID, "text")}
+	list := []*domain.Comment{newTestComment(userID, challengeID, "text")}
 
 	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(ch, nil)
 	d.commentRepo.EXPECT().GetByChallengeID(mock.Anything, challengeID).Return(list, nil)
@@ -57,7 +57,7 @@ func TestCommentUseCase_Create_Success(t *testing.T) {
 	ch := newTestChallenge(challengeID, "title", "cat", 100, "hash")
 
 	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(ch, nil)
-	d.commentRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, c *entity.Comment) {
+	d.commentRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, c *domain.Comment) {
 		assert.Equal(t, userID, c.UserID)
 		assert.Equal(t, challengeID, c.ChallengeID)
 		assert.Equal(t, content, c.Content)

@@ -9,14 +9,14 @@ packages:
     interfaces:
       FieldRepository:
         config:
-          dir: "internal/usecase/settings/mocks"
+          dir: "internal/usecase/settings/mock"
           filename: "FieldRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockFieldRepository"
-      
+
       SettingsRepository:
         config:
-          dir: "internal/usecase/competition/mocks"
+          dir: "internal/usecase/competition/mock"
           filename: "SettingsRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSettingsRepository"

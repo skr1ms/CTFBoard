@@ -2,11 +2,11 @@ package wire
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +18,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
+	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
@@ -42,13 +48,10 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/loginlockout"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	pkgWS "github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 const (
@@ -72,6 +75,12 @@ const (
 	resetPasswordTokenRateWindow = time.Minute
 	perKeyRateLimitWindow        = 24 * time.Hour
 )
+
+type healthCheckerFunc func(context.Context) error
+
+func (f healthCheckerFunc) Check(ctx context.Context) error {
+	return f(ctx)
+}
 
 func ProvideUserRepo(pool *pgxpool.Pool) *persistent.UserRepo {
 	return persistent.NewUserRepo(pool)
@@ -157,6 +166,10 @@ func ProvideCommentRepo(pool *pgxpool.Pool) *persistent.CommentRepo {
 	return persistent.NewCommentRepo(pool)
 }
 
+func ProvideRatingRepo(pool *pgxpool.Pool) *persistent.RatingRepo {
+	return persistent.NewRatingRepo(pool)
+}
+
 func ProvideSettingsRepo(pool *pgxpool.Pool) *persistent.SettingsRepo {
 	return persistent.NewSettingsRepo(pool)
 }
@@ -186,12 +199,12 @@ func ProvideOAuthUseCase(
 	oauthRepo repo.OAuthAccountRepository,
 	TM repo.TransactionManager,
 	settingsRepo repo.SettingsRepository,
-	jwtService *jwt.JWTService,
+	jwtService *jwtkit.JWTService,
 	providers map[string]webapi.OAuthProviderAPI,
 	cfg *config.Config,
 	compRepo repo.CompetitionRepository,
 	soloTeamCreator user.SoloTeamCreator,
-	l logger.Logger,
+	l logkit.Logger,
 ) *user.OAuthUseCase {
 	return user.NewOAuthUseCase(user.OAuthDeps{
 		UserRepo:        userRepo,
@@ -231,7 +244,7 @@ func ProvideUserUseCase(
 	awardRepo repo.AwardRepository,
 	hintRepo repo.HintRepository,
 	TM repo.TransactionManager,
-	jwtService *jwt.JWTService,
+	jwtService *jwtkit.JWTService,
 	fieldValidator *settings.FieldValidator,
 	fieldValueRepo repo.FieldValueRepository,
 	SettingsRepo repo.SettingsRepository,
@@ -243,8 +256,8 @@ func ProvideUserUseCase(
 	userCacheSvc *cache.UserCacheService,
 	scoreboardCache *cache.ScoreboardCacheService,
 	challengeListCache cache.ChallengeListCacheInvalidator,
-	sharedCache *cache.Cache,
-	l logger.Logger,
+	sharedCache *cachekit.Cache,
+	l logkit.Logger,
 ) *user.UserUseCase {
 	return user.NewUserUseCase(user.UserDeps{
 		UserRepo: userRepo, TeamRepo: teamRepo, SolveRepo: solveRepo,
@@ -278,11 +291,11 @@ func (g *teamBracketIDGetter) GetTeamBracketID(ctx context.Context, teamID uuid.
 	return team.BracketID, nil
 }
 
-func ProvideScoreboardCacheService(c *cache.Cache, teamRepo repo.TeamRepository) *cache.ScoreboardCacheService {
+func ProvideScoreboardCacheService(c *cachekit.Cache, teamRepo repo.TeamRepository) *cache.ScoreboardCacheService {
 	return cache.NewScoreboardCacheService(c, &teamBracketIDGetter{r: teamRepo})
 }
 
-func ProvideUserCacheService(c *cache.Cache) *cache.UserCacheService {
+func ProvideUserCacheService(c *cachekit.Cache) *cache.UserCacheService {
 	return cache.NewUserCacheService(c)
 }
 
@@ -301,11 +314,11 @@ func ProvideTeamUseCase(
 	scoreboardCache *cache.ScoreboardCacheService,
 	challengeListCache cache.ChallengeListCacheInvalidator,
 	userCacheSvc *cache.UserCacheService,
-	sharedCache *cache.Cache,
+	sharedCache *cachekit.Cache,
 	hintRepo repo.HintRepository,
 	fieldValueRepo repo.FieldValueRepository,
-	jwtService *jwt.JWTService,
-	l logger.Logger,
+	jwtService *jwtkit.JWTService,
+	l logkit.Logger,
 ) *team.TeamUseCase {
 	return team.NewTeamUseCase(team.TeamDeps{
 		TeamRepo:           teamRepo,
@@ -350,24 +363,27 @@ func ProvideChallengeUseCase(
 	challengeRepo repo.ChallengeRepository,
 	tagRepo repo.TagRepository,
 	solveRepo repo.SolveRepository,
+	submissionRepo repo.SubmissionRepository,
 	TM repo.TransactionManager,
 	compRepo repo.CompetitionRepository,
 	compUC *competition.CompetitionUseCase,
 	teamRepo repo.TeamRepository,
 	userRepo repo.UserRepository,
 	scoreboardCache *cache.ScoreboardCacheService,
-	c *cache.Cache,
-	broadcaster *pkgWS.Broadcaster,
+	c *cachekit.Cache,
+	broadcaster *websocket.Broadcaster,
 	auditLogRepo repo.AuditLogRepository,
 	cryptoService crypto.Service,
 	fileRepo repo.FileRepository,
 	storageProvider storage.Provider,
 	hintUC *challenge.HintUseCase,
+	l logkit.Logger,
 ) *challenge.ChallengeUseCase {
 	return challenge.NewChallengeUseCase(challenge.ChallengeDeps{
 		ChallengeRepo:   challengeRepo,
 		TagRepo:         tagRepo,
 		SolveRepo:       solveRepo,
+		SubmissionRepo:  submissionRepo,
 		TM:              TM,
 		CompRepo:        compRepo,
 		CompUC:          compUC,
@@ -381,6 +397,7 @@ func ProvideChallengeUseCase(
 		FileRepo:        fileRepo,
 		Storage:         storageProvider,
 		HintUC:          hintUC,
+		Logger:          l,
 	})
 }
 
@@ -395,6 +412,7 @@ func ProvideHintUseCase(
 	userRepo repo.UserRepository,
 	challengeRepo repo.ChallengeRepository,
 	scoreboardCache *cache.ScoreboardCacheService,
+	l logkit.Logger,
 ) *challenge.HintUseCase {
 	return challenge.NewHintUseCase(challenge.HintDeps{
 		HintRepo:        hintRepo,
@@ -407,6 +425,7 @@ func ProvideHintUseCase(
 		UserRepo:        userRepo,
 		ChallengeRepo:   challengeRepo,
 		ScoreboardCache: scoreboardCache,
+		Logger:          l,
 	})
 }
 
@@ -414,10 +433,10 @@ func ProvideCompetitionUseCase(
 	competitionRepo repo.CompetitionRepository,
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
-	kv cache.KeyValueStore,
-	statsCache *cache.Cache,
+	kv cachekit.KeyValueStore,
+	statsCache *cachekit.Cache,
 	scoreboardCache cache.ScoreboardCacheInvalidator,
-	l logger.Logger,
+	l logkit.Logger,
 ) *competition.CompetitionUseCase {
 	var statsInvalidator competition.StatisticsCacheInvalidator
 	if statsCache != nil {
@@ -442,10 +461,10 @@ func ProvideSolveUseCase(
 	userRepo repo.UserRepository,
 	teamRepo repo.TeamRepository,
 	TM repo.TransactionManager,
-	c *cache.Cache,
+	c *cachekit.Cache,
 	scoreboardCache *cache.ScoreboardCacheService,
 	challengeListCache cache.ChallengeListCacheInvalidator,
-	broadcaster *pkgWS.Broadcaster,
+	broadcaster *websocket.Broadcaster,
 ) *competition.SolveUseCase {
 	return competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo:          solveRepo,
@@ -462,25 +481,25 @@ func ProvideSolveUseCase(
 	})
 }
 
-func ProvideBroadcaster(hub *pkgWS.Hub) *pkgWS.Broadcaster {
-	return pkgWS.NewBroadcaster(hub)
+func ProvideBroadcaster(hub *wskit.Hub) *websocket.Broadcaster {
+	return websocket.NewBroadcaster(hub)
 }
 
-func ProvideCache(r *redis.Client) *cache.Cache {
-	return cache.New(r)
+func ProvideCache(r *redis.Client) *cachekit.Cache {
+	return cachekit.New(r)
 }
 
-func ProvideKeyValueStore(r *redis.Client) cache.KeyValueStore {
-	return &cache.RedisKeyValueStore{Client: r}
+func ProvideKeyValueStore(r *redis.Client) cachekit.KeyValueStore {
+	return &cachekit.RedisKeyValueStore{Client: r}
 }
 
-func ProvidePubSubStore(r *redis.Client) cache.PubSubStore {
-	return &cache.RedisPubSubStore{Client: r}
+func ProvidePubSubStore(r *redis.Client) cachekit.PubSubStore {
+	return &cachekit.RedisPubSubStore{Client: r}
 }
 
 func ProvideStatisticsUseCase(
 	statsRepo repo.StatisticsRepository,
-	c *cache.Cache,
+	c *cachekit.Cache,
 	compUC *competition.CompetitionUseCase,
 	TM repo.TransactionManager,
 ) *competition.StatisticsUseCase {
@@ -492,7 +511,7 @@ func ProvideStatisticsUseCase(
 	})
 }
 
-func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competitionUC *competition.CompetitionUseCase, TM repo.TransactionManager, challengeUC *challenge.ChallengeUseCase, userRepo repo.UserRepository, teamRepo repo.TeamRepository, l logger.Logger) *competition.SubmissionUseCase {
+func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competitionUC *competition.CompetitionUseCase, TM repo.TransactionManager, challengeUC *challenge.ChallengeUseCase, userRepo repo.UserRepository, teamRepo repo.TeamRepository, l logkit.Logger) *competition.SubmissionUseCase {
 	return competition.NewSubmissionUseCase(competition.SubmissionDeps{
 		SubmissionRepo:   submissionRepo,
 		CompGetter:       competitionUC,
@@ -506,7 +525,7 @@ func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competit
 	})
 }
 
-func ProvideSubmissionBatcher(submissionRepo repo.SubmissionRepository, l logger.Logger) *competition.SubmissionBatcher {
+func ProvideSubmissionBatcher(submissionRepo repo.SubmissionRepository, l logkit.Logger) *competition.SubmissionBatcher {
 	return competition.NewSubmissionBatcher(submissionRepo, competition.WithBatcherLogger(l))
 }
 
@@ -522,15 +541,16 @@ func ProvideFieldValidator(fieldRepo repo.FieldRepository) *settings.FieldValida
 	return settings.NewFieldValidator(fieldRepo)
 }
 
-func ProvideNotificationUseCase(notifRepo repo.NotificationRepository, broadcaster *pkgWS.Broadcaster) *notification.NotificationUseCase {
+func ProvideNotificationUseCase(notifRepo repo.NotificationRepository, broadcaster *websocket.Broadcaster, l logkit.Logger) *notification.NotificationUseCase {
 	return notification.NewNotificationUseCase(notification.NotificationDeps{
 		NotifRepo:   notifRepo,
 		Broadcaster: broadcaster,
+		Logger:      l,
 	})
 }
 
-func ProvidePageUseCase(pageRepo repo.PageRepository) *page.PageUseCase {
-	return page.NewPageUseCase(page.PageDeps{PageRepo: pageRepo})
+func ProvidePageUseCase(pageRepo repo.PageRepository, l logkit.Logger) *page.PageUseCase {
+	return page.NewPageUseCase(page.PageDeps{PageRepo: pageRepo, Logger: l})
 }
 
 func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo repo.ChallengeRepository, userRepo repo.UserRepository, teamRepo repo.TeamRepository, tm repo.TransactionManager) *challenge.CommentUseCase {
@@ -539,6 +559,15 @@ func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo rep
 		ChallengeRepo: challengeRepo,
 		UserRepo:      userRepo,
 		TeamRepo:      teamRepo,
+		TM:            tm,
+	})
+}
+
+func ProvideRatingUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, ratingRepo repo.RatingRepository, tm repo.TransactionManager) *challenge.RatingUseCase {
+	return challenge.NewRatingUseCase(challenge.RatingDeps{
+		ChallengeRepo: challengeRepo,
+		SolveRepo:     solveRepo,
+		RatingRepo:    ratingRepo,
 		TM:            tm,
 	})
 }
@@ -599,9 +628,10 @@ func ProvideBackupUseCase(
 	commentRepo repo.CommentRepository,
 	fieldRepo repo.FieldRepository,
 	fieldValueRepo repo.FieldValueRepository,
+	ratingRepo repo.RatingRepository,
 	storageProvider storage.Provider,
 	TM repo.TransactionManager,
-	l logger.Logger,
+	l logkit.Logger,
 ) *backup.BackupUseCase {
 	return backup.NewBackupUseCase(backup.BackupDeps{
 		CompetitionRepo: competitionRepo,
@@ -621,6 +651,7 @@ func ProvideBackupUseCase(
 		CommentRepo:     commentRepo,
 		FieldRepo:       fieldRepo,
 		FieldValueRepo:  fieldValueRepo,
+		RatingRepo:      ratingRepo,
 		Storage:         storageProvider,
 		TM:              TM,
 		Logger:          l,
@@ -631,7 +662,7 @@ func ProvideSettingsUseCase(
 	SettingsRepo repo.SettingsRepository,
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
-	kv cache.KeyValueStore,
+	kv cachekit.KeyValueStore,
 	competitionRepo repo.CompetitionRepository,
 	competitionParamUC *competition.CompetitionParamUseCase,
 ) *settings.SettingsUseCase {
@@ -646,20 +677,22 @@ func ProvideSettingsUseCase(
 }
 
 func ProvideCompetitionParamUseCase(
+	ctx context.Context,
 	paramRepo repo.CompetitionParamRepository,
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
-	l logger.Logger,
-	kv cache.KeyValueStore,
-	pubsub cache.PubSubStore,
+	l logkit.Logger,
+	kv cachekit.KeyValueStore,
+	pubsub cachekit.PubSubStore,
 ) *competition.CompetitionParamUseCase {
-	return competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
+	return competition.NewCompetitionParamUseCase(ctx, competition.CompetitionParamDeps{
 		Repo:         paramRepo,
 		AuditLogRepo: auditLogRepo,
 		TM:           TM,
 		Logger:       l,
 		Cache:        kv,
 		PubSub:       pubsub,
+		StopContext:  ctx,
 	})
 }
 
@@ -670,15 +703,17 @@ func ProvideEmailUseCase(
 	mailer mailer.Mailer,
 	cfg *config.Config,
 	competitionParamUC *competition.CompetitionParamUseCase,
+	l logkit.Logger,
 ) *email.EmailUseCase {
 	return email.NewEmailUseCase(email.EmailDeps{
 		UserRepo: userRepo, TokenRepo: tokenRepo, TM: TM, Mailer: mailer,
 		ConfigUC:  competitionParamUC,
 		VerifyTTL: cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
+		Logger: l,
 	})
 }
 
-func ProvideWsController(wsHub *pkgWS.Hub, l logger.Logger, cfg *config.Config) *wsController.Controller {
+func ProvideWsController(wsHub *wskit.Hub, l logkit.Logger, cfg *config.Config) *wsController.Controller {
 	return wsController.NewController(wsHub, l, cfg.CORSOrigins)
 }
 
@@ -706,15 +741,16 @@ func ProvideServerDeps(
 	settingsUC *settings.SettingsUseCase,
 	competitionParamUC *competition.CompetitionParamUseCase,
 	commentUC *challenge.CommentUseCase,
+	ratingUC *challenge.RatingUseCase,
 	trackingUC *user.TrackingUseCase,
 	oauthUC *user.OAuthUseCase,
-	jwtService *jwt.JWTService,
+	jwtService *jwtkit.JWTService,
 	redisClient *redis.Client,
 	SettingsRepo repo.SettingsRepository,
 	storageProvider storage.Provider,
 	wsCtrl *wsController.Controller,
 	v validator.Validator,
-	l logger.Logger,
+	l logkit.Logger,
 ) (*helper.ServerDeps, error) {
 	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyForgot, forgotPasswordRateLimit, perKeyRateLimitWindow)
 	if err != nil {
@@ -728,7 +764,8 @@ func ProvideServerDeps(
 	if err != nil {
 		return nil, fmt.Errorf("wire - ProvideServerDeps - create reset-password-token rate limiter: %w", err)
 	}
-	rateLimitCache := helper.NewRateLimitConfigCache(rateLimitCacheTTL)
+	rateLimitCache := restapimiddleware.NewRateLimitConfigCache(rateLimitCacheTTL)
+	ratelimitAuditWG := &sync.WaitGroup{}
 	return &helper.ServerDeps{
 		Challenge: helper.ChallengeDeps{
 			ChallengeUC: challengeUC,
@@ -736,6 +773,7 @@ func ProvideServerDeps(
 			FileUC:      fileUC,
 			TagUC:       tagUC,
 			CommentUC:   commentUC,
+			RatingUC:    ratingUC,
 		},
 		Team: helper.TeamDeps{
 			TeamUC:  teamUC,
@@ -748,7 +786,7 @@ func ProvideServerDeps(
 			TrackingUC:    trackingUC,
 			OAuthUC:       oauthUC,
 			FrontendURL:   cfg.FrontendURL,
-			SecureCookies: cfg.ChiMode == "production" || strings.HasPrefix(cfg.BaseURL, "https://"),
+			SecureCookies: cfg.SecureCookies,
 		},
 		Comp: helper.CompetitionDeps{
 			CompetitionUC:     competitionUC,
@@ -775,25 +813,33 @@ func ProvideServerDeps(
 			Validator:                     v,
 			Logger:                        l,
 			TrustedProxyCIDRs:             cfg.TrustedProxyCIDRs,
+			StructuredLogger:              cfg.StructuredLogger,
+			DebugEnabled:                  cfg.DebugEnabled,
 			RateLimitConfigCache:          rateLimitCache,
 			ForgotPasswordRateLimiter:     forgotLimiter,
 			ResendVerificationRateLimiter: resendLimiter,
 			ResetPasswordTokenRateLimiter: resetTokenLimiter,
+			RatelimitAuditWG:              ratelimitAuditWG,
 		},
 	}, nil
 }
 
-func ProvideRouter(ctx context.Context, cfg *config.Config, l logger.Logger, deps *helper.ServerDeps) chi.Router {
+func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, deps *helper.ServerDeps) chi.Router {
 	router := chi.NewRouter()
-	router.Use(middleware.RequestID)
-	if cfg.ChiMode == "production" {
-		router.Use(restapimiddleware.Logger(l, cfg.TrustedProxyCIDRs))
+	router.Use(kitMiddleware.RequestID())
+	clientIP, err := kitMiddleware.ClientIP(cfg.TrustedProxyCIDRs)
+	if err != nil {
+		panic(err)
+	}
+	router.Use(clientIP)
+	if cfg.StructuredLogger {
+		router.Use(kitMiddleware.Logger(l, cfg.TrustedProxyCIDRs))
 	} else {
 		router.Use(middleware.Logger)
 	}
-	router.Use(restapimiddleware.Metrics)
-	router.Use(middleware.Recoverer)
-	timeoutMW := middleware.Timeout(requestTimeout)
+	router.Use(kitMiddleware.Metrics(prometheus.DefaultRegisterer, httputil.ChiPathFromRequest))
+	router.Use(kitMiddleware.Recoverer(l))
+	timeoutMW := kitMiddleware.Timeout(requestTimeout)
 	router.Use(func(next http.Handler) http.Handler {
 		withTimeout := timeoutMW(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -804,44 +850,11 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logger.Logger, dep
 			withTimeout.ServeHTTP(w, r)
 		})
 	})
-	router.Use(securityHeadersMiddleware)
-	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		status := map[string]string{}
-		allOK := true
-
-		if _, err := deps.Admin.SettingsRepo.Get(ctx); err != nil {
-			status["db"] = "error"
-			allOK = false
-		} else {
-			status["db"] = "ok"
-		}
-
-		if err := deps.Infra.RedisClient.Ping(ctx).Err(); err != nil {
-			status["redis"] = "error"
-			allOK = false
-		} else {
-			status["redis"] = "ok"
-		}
-
-		if err := deps.Infra.StorageProvider.Ping(ctx); err != nil {
-			status["storage"] = "error"
-			allOK = false
-		} else {
-			status["storage"] = "ok"
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if !allOK {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		jsonBytes, err := json.Marshal(status)
-		if err != nil {
-			return
-		}
-		_, _ = w.Write(jsonBytes) //nolint:errcheck
+	router.Use(kitMiddleware.SecurityHeaders(true))
+	healthHandler := httputil.HealthHandler(map[string]httputil.Checker{
+		"db":      healthCheckerFunc(func(ctx context.Context) error { _, err := deps.Admin.SettingsRepo.Get(ctx); return err }),
+		"redis":   healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.RedisClient.Ping(ctx).Err() }),
+		"storage": healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.StorageProvider.Ping(ctx) }),
 	})
 	router.Get("/health", healthHandler)
 	metricsHandler := promhttp.HandlerFor(
@@ -849,7 +862,7 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logger.Logger, dep
 		promhttp.HandlerOpts{EnableOpenMetrics: true},
 	)
 	if len(cfg.MetricsAllowedIPs) > 0 {
-		metricsHandler = metricsAllowlistMiddleware(cfg.MetricsAllowedIPs, cfg.TrustedProxyCIDRs, metricsHandler)
+		metricsHandler = metricsAllowlistMiddleware(cfg.MetricsAllowedIPs, metricsHandler)
 	}
 	router.Handle("/metrics", metricsHandler)
 	openapiJSONHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -858,22 +871,17 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logger.Logger, dep
 			httputil.HandleError(w, r, err)
 			return
 		}
-		jsonBytes, err := json.Marshal(swagger)
-		if err != nil {
-			httputil.HandleError(w, r, err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(jsonBytes) //nolint:errcheck
+		httputil.RenderOK(w, r, swagger)
 	})
 	router.Get("/openapi.json", openapiJSONHandler)
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
-	generalIPLimitMiddleware := helper.RateLimitFromConfig(
+	generalIPLimitMiddleware := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyGeneral, time.Minute,
 		deps.Infra.RateLimitConfigCache, deps.Admin.SettingsUC,
-		func(c *helper.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		func(r *http.Request) (string, error) { return helper.GetClientIP(r, cfg.TrustedProxyCIDRs), nil },
-		cfg.TrustedProxyCIDRs,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		func(r *http.Request) (string, error) {
+			return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+		},
 		l,
 	)
 	router.Use(generalIPLimitMiddleware)
@@ -896,20 +904,7 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logger.Logger, dep
 	return router
 }
 
-func securityHeadersMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		// API-only: restrict fetching to same-origin; allow JSON/form data only.
-		w.Header().Set("Content-Security-Policy", "default-src 'none'")
-		// Disable all browser feature APIs for API responses.
-		w.Header().Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func metricsAllowlistMiddleware(allowedIPs, trustedProxyCIDRs []string, next http.Handler) http.Handler {
+func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Handler {
 	nets := make([]*net.IPNet, 0, len(allowedIPs))
 	ips := make([]net.IP, 0, len(allowedIPs))
 	for _, s := range allowedIPs {
@@ -927,7 +922,7 @@ func metricsAllowlistMiddleware(allowedIPs, trustedProxyCIDRs []string, next htt
 		}
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := helper.GetClientIP(r, trustedProxyCIDRs)
+		clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
 		ip := net.ParseIP(clientIP)
 		if ip == nil {
 			httputil.HandleError(w, r, httperr.ErrAccessDenied)
@@ -959,6 +954,13 @@ func ProvideServer(router chi.Router, cfg *config.Config) *http.Server {
 	}
 }
 
-func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher) *App {
-	return &App{Server: server, UserRepo: userRepo, SubmissionBatcher: batcher}
+func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher, solveUC *competition.SolveUseCase, serverDeps *helper.ServerDeps, broadcaster *websocket.Broadcaster) *App {
+	return &App{
+		Server:            server,
+		UserRepo:          userRepo,
+		SubmissionBatcher: batcher,
+		SolveUseCase:      solveUC,
+		RatelimitAuditWG:  serverDeps.Infra.RatelimitAuditWG,
+		Broadcaster:       broadcaster,
+	}
 }

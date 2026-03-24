@@ -10,34 +10,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	jwtMock "github.com/wahrwelt-kit/go-jwtkit/mock"
 	"golang.org/x/oauth2"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
 )
 
 type oauthTestDeps struct {
-	UserRepo     *mocks.MockUserRepository
-	OAuthRepo    *mocks.MockOAuthAccountRepository
-	TM           *mocks.MockTransactionManager
-	JWTService   *mocks.MockJWTService
-	SettingsRepo *mocks.MockSettingsRepository
-	ProviderAPI  *mocks.MockOAuthProviderAPI
+	UserRepo     *userMock.MockUserRepository
+	OAuthRepo    *userMock.MockOAuthAccountRepository
+	TM           *userMock.MockTransactionManager
+	JWTService   *jwtMock.MockService
+	SettingsRepo *userMock.MockSettingsRepository
+	ProviderAPI  *userMock.MockOAuthProviderAPI
 }
 
 func newOAuthTestDeps(t *testing.T) *oauthTestDeps {
 	t.Helper()
 	return &oauthTestDeps{
-		UserRepo:     mocks.NewMockUserRepository(t),
-		OAuthRepo:    mocks.NewMockOAuthAccountRepository(t),
-		TM:           mocks.NewMockTransactionManager(t),
-		JWTService:   mocks.NewMockJWTService(t),
-		SettingsRepo: mocks.NewMockSettingsRepository(t),
-		ProviderAPI:  mocks.NewMockOAuthProviderAPI(t),
+		UserRepo:     userMock.NewMockUserRepository(t),
+		OAuthRepo:    userMock.NewMockOAuthAccountRepository(t),
+		TM:           userMock.NewMockTransactionManager(t),
+		JWTService:   jwtMock.NewMockService(t),
+		SettingsRepo: userMock.NewMockSettingsRepository(t),
+		ProviderAPI:  userMock.NewMockOAuthProviderAPI(t),
 	}
 }
 
@@ -56,12 +57,12 @@ func (d *oauthTestDeps) createUseCase() *OAuthUseCase {
 	})
 }
 
-func defaultOAuthSettings() *entity.Settings {
-	return &entity.Settings{OAuthGithubEnabled: true, OAuthGoogleEnabled: false}
+func defaultOAuthSettings() *domain.Settings {
+	return &domain.Settings{OAuthGithubEnabled: true, OAuthGoogleEnabled: false}
 }
 
-func newTestOAuthAccount(userID uuid.UUID, provider, providerUserID, accessToken string) *entity.OAuthAccount {
-	return &entity.OAuthAccount{
+func newTestOAuthAccount(userID uuid.UUID, provider, providerUserID, accessToken string) *domain.OAuthAccount {
+	return &domain.OAuthAccount{
 		ID: uuid.New(), UserID: userID, Provider: provider,
 		ProviderUserID: providerUserID, AccessToken: accessToken,
 	}
@@ -100,7 +101,7 @@ func TestOAuthUseCase_GetAuthURL_ProviderDisabled(t *testing.T) {
 func TestOAuthUseCase_ValidateState_Match(t *testing.T) {
 	t.Parallel()
 	d := newOAuthTestDeps(t)
-	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&entity.Settings{OAuthGithubEnabled: true}, nil)
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{OAuthGithubEnabled: true}, nil)
 
 	uc := d.createUseCase()
 	_, state, err := uc.GetAuthURL(context.Background(), "github")
@@ -123,12 +124,12 @@ func TestOAuthUseCase_LoginExistingUser_Success(t *testing.T) {
 
 	userID := uuid.New()
 	existingAcc := newTestOAuthAccount(userID, "github", "gh-123", "old-token")
-	existingUser := &entity.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: entity.RoleUser}
-	tokenPair := &jwt.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh", AccessExpiresAt: time.Now().Unix()}
+	existingUser := &domain.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: domain.RoleUser}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh", AccessExpiresAt: time.Now().Unix()}
 
 	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
 	d.UserRepo.EXPECT().GetByID(mock.Anything, userID).Return(existingUser, nil)
-	d.JWTService.EXPECT().GenerateTokenPair(userID, existingUser.Email, existingUser.Username, string(existingUser.Role)).Return(tokenPair, nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, userID, string(existingUser.Role)).Return(tokenPair, nil)
 
 	pair, err := uc.loginExistingOAuthUser(context.Background(), existingAcc, &oauth2.Token{AccessToken: "new-token"}, "github")
 	require.NoError(t, err)
@@ -156,7 +157,7 @@ func TestOAuthUseCase_LoginExistingUser_WasInBannedTeam_Rejected(t *testing.T) {
 
 	userID := uuid.New()
 	existingAcc := newTestOAuthAccount(userID, "github", "gh-123", "old-token")
-	existingUser := &entity.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: entity.RoleUser, WasInBannedTeam: true}
+	existingUser := &domain.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: domain.RoleUser, WasInBannedTeam: true}
 
 	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
 	d.UserRepo.EXPECT().GetByID(mock.Anything, userID).Return(existingUser, nil)
@@ -171,19 +172,19 @@ func TestOAuthUseCase_RegisterNewUser_Success(t *testing.T) {
 	uc := d.createUseCase()
 
 	profile := &webapi.OAuthUserProfile{ID: "gh-789", Email: "newuser@gh.com", Username: "newghuser"}
-	tokenPair := &jwt.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Unix()}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Unix()}
 
 	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&entity.Settings{RegistrationOpen: true}, nil).Once()
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 	d.UserRepo.EXPECT().GetByEmail(mock.Anything, "newuser@gh.com").Return(nil, httperr.ErrUserNotFound)
 	d.UserRepo.EXPECT().GetByUsername(mock.Anything, "newghuser").Return(nil, httperr.ErrUserNotFound)
-	d.UserRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *entity.User) {
+	d.UserRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *domain.User) {
 		u.ID = uuid.New()
 	})
 	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
-	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, "newuser@gh.com", "newghuser", string(entity.RoleUser)).Return(tokenPair, nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, mock.Anything, string(domain.RoleUser)).Return(tokenPair, nil)
 
 	pair, err := uc.registerNewOAuthUser(context.Background(), profile, &oauth2.Token{AccessToken: "gh-access"}, "github")
 	require.NoError(t, err)
@@ -213,7 +214,7 @@ func TestOAuthUseCase_RegisterNewUser_RegistrationClosed(t *testing.T) {
 	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
-	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&entity.Settings{RegistrationOpen: false}, nil).Once()
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: false}, nil).Once()
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &oauth2.Token{AccessToken: "token"}, "github")
 	assert.Error(t, err)

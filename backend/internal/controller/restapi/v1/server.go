@@ -6,37 +6,33 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-const buildDownloadURLsConcurrency = 10
+const (
+	buildDownloadURLsConcurrency = 10
+	maxLogoutBodySize            = 4096
+	maxSearchQueryLen            = 100
+)
 
 func (h *Server) pageParams(ctx context.Context, page, perPage *int) (int, int) {
 	pageNum, perPageNum, err := helper.ResolvePageParams(ctx, h.admin.SettingsUC, page, perPage)
 	if err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - pageParams - ResolvePageParams failed, using fallback")
-		return helper.ClampPage(page), helper.ClampPerPage(perPage, usecase.DefaultPerPage, usecase.DefaultMaxPerPage)
+		return httputil.ClampPage(page), httputil.ClampPerPage(perPage, usecase.DefaultPerPage, usecase.DefaultMaxPerPage)
 	}
 	return pageNum, perPageNum
 }
 
 func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, step string) bool {
-	if err == nil {
-		return false
-	}
-	msg := "restapi - v1 - " + op + " - " + step
-	if helper.IsExpectedClientError(err) {
-		h.infra.Logger.WithError(err).Info(msg)
-	} else {
-		h.infra.Logger.WithError(err).Error(msg)
-	}
-	helper.HandleError(w, r, err)
-	return true
+	return h.errHandler.Handle(w, r, err, "restapi - v1 - "+op+" - "+step)
 }
 
 // checkWriteupEnabled loads app settings and ensures writeups are enabled. If not, it
@@ -47,7 +43,7 @@ func (h *Server) checkWriteupEnabled(w http.ResponseWriter, r *http.Request, han
 		return false
 	}
 	if !settings.WriteupEnabled {
-		h.OnError(w, r, helper.ErrWriteupsDisabled, handlerName, op)
+		h.OnError(w, r, httperr.ErrWriteupsDisabled, handlerName, op)
 		return false
 	}
 	return true
@@ -57,12 +53,13 @@ var _ openapi.ServerInterface = (*Server)(nil)
 
 type Server struct {
 	openapi.Unimplemented
-	challenge helper.ChallengeDeps
-	team      helper.TeamDeps
-	user      helper.UserDeps
-	comp      helper.CompetitionDeps
-	admin     helper.AdminDeps
-	infra     helper.InfraDeps
+	challenge  helper.ChallengeDeps
+	team       helper.TeamDeps
+	user       helper.UserDeps
+	comp       helper.CompetitionDeps
+	admin      helper.AdminDeps
+	infra      helper.InfraDeps
+	errHandler *httputil.ErrorHandler
 }
 
 func NewServer(deps *helper.ServerDeps) *Server {
@@ -70,16 +67,17 @@ func NewServer(deps *helper.ServerDeps) *Server {
 		return nil
 	}
 	return &Server{
-		challenge: deps.Challenge,
-		team:      deps.Team,
-		user:      deps.User,
-		comp:      deps.Comp,
-		admin:     deps.Admin,
-		infra:     deps.Infra,
+		challenge:  deps.Challenge,
+		team:       deps.Team,
+		user:       deps.User,
+		comp:       deps.Comp,
+		admin:      deps.Admin,
+		infra:      deps.Infra,
+		errHandler: &httputil.ErrorHandler{Logger: deps.Infra.Logger},
 	}
 }
 
-func (h *Server) buildDownloadURLs(ctx context.Context, files []*entity.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error) {
+func (h *Server) buildDownloadURLs(ctx context.Context, files []*domain.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error) {
 	if len(files) == 0 {
 		return nil, nil
 	}
@@ -88,7 +86,6 @@ func (h *Server) buildDownloadURLs(ctx context.Context, files []*entity.File, te
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(buildDownloadURLsConcurrency)
 	for _, f := range files {
-		f := f
 		g.Go(func() error {
 			u, err := h.challenge.FileUC.GetDownloadURLWithAccess(gCtx, f.ID, teamID, isAdmin)
 			if err != nil {

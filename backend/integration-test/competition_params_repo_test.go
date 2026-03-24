@@ -8,13 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestCompetitionParamRepo_GetAll_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -25,7 +24,6 @@ func TestCompetitionParamRepo_GetAll_Success(t *testing.T) {
 
 func TestCompetitionParamRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,12 +35,11 @@ func TestCompetitionParamRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestCompetitionParamRepo_GetByKey_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	p := &entity.CompetitionParam{Key: "test_key_success", Value: "v", ValueType: entity.CompetitionParamTypeString}
+	p := &domain.CompetitionParam{Key: "test_key_success", Value: "v", ValueType: domain.CompetitionParamTypeString}
 	err := f.CompetitionParamRepo.Upsert(ctx, p)
 	require.NoError(t, err)
 	got, err := f.CompetitionParamRepo.GetByKey(ctx, p.Key)
@@ -53,7 +50,6 @@ func TestCompetitionParamRepo_GetByKey_Success(t *testing.T) {
 
 func TestCompetitionParamRepo_GetByKey_Error_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -65,12 +61,11 @@ func TestCompetitionParamRepo_GetByKey_Error_NotFound(t *testing.T) {
 
 func TestCompetitionParamRepo_Upsert_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	p := &entity.CompetitionParam{Key: "upsert_key", Value: "v1", ValueType: entity.CompetitionParamTypeString}
+	p := &domain.CompetitionParam{Key: "upsert_key", Value: "v1", ValueType: domain.CompetitionParamTypeString}
 	err := f.CompetitionParamRepo.Upsert(ctx, p)
 	require.NoError(t, err)
 	p.Value = "v2"
@@ -83,25 +78,23 @@ func TestCompetitionParamRepo_Upsert_Success(t *testing.T) {
 
 func TestCompetitionParamRepo_Upsert_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	p := &entity.CompetitionParam{Key: "bad_ctx", Value: "x", ValueType: entity.CompetitionParamTypeString}
+	p := &domain.CompetitionParam{Key: "bad_ctx", Value: "x", ValueType: domain.CompetitionParamTypeString}
 	err := f.CompetitionParamRepo.Upsert(ctx, p)
 	assert.Error(t, err)
 }
 
 func TestCompetitionParamRepo_Delete_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	p := &entity.CompetitionParam{Key: "del_key", Value: "v", ValueType: entity.CompetitionParamTypeString}
+	p := &domain.CompetitionParam{Key: "del_key", Value: "v", ValueType: domain.CompetitionParamTypeString}
 	err := f.CompetitionParamRepo.Upsert(ctx, p)
 	require.NoError(t, err)
 	err = f.CompetitionParamRepo.Delete(ctx, p.Key)
@@ -113,7 +106,6 @@ func TestCompetitionParamRepo_Delete_Success(t *testing.T) {
 
 func TestCompetitionParamRepo_Delete_Error_NoRows(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

@@ -12,11 +12,13 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 // validPathHexLen is the length of the hex directory prefix in uploaded file paths (e.g. "a3f1...0b/filename.txt").
@@ -117,12 +119,12 @@ func validateFileMagic(header []byte) bool {
 // Upload file to challenge
 // (POST /admin/challenges/{challengeID}/files)
 func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
 
-	if !helper.ParseMultipartFormLimit(w, r, maxFileUploadSize) {
+	if !helper.ParseMultipartFormLimit(w, r, maxFileUploadSize, maxFileUploadSize) {
 		return
 	}
 
@@ -135,18 +137,18 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		return
 	}
 	if !validateUploadFilename(body.File.Filename()) {
-		h.OnError(w, r, helper.NewValidationErrorf("file type not allowed"), "PostAdminChallengesChallengeIDFiles", "Filename")
+		h.OnError(w, r, httperr.NewValidationErrorf("file type not allowed"), "PostAdminChallengesChallengeIDFiles", "Filename")
 		return
 	}
 
-	fileType := entity.FileTypeChallenge
+	fileType := domain.FileTypeChallenge
 	if body.Type != nil && *body.Type != "" {
 		if err := helper.ValidateMultipartEnum("type", string(*body.Type), []string{string(openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeChallenge), string(openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeWriteup)}); err != nil {
-			h.OnError(w, r, helper.NewValidationErrorf("type must be %q or %q", entity.FileTypeChallenge, entity.FileTypeWriteup), "PostAdminChallengesChallengeIDFiles", "Type")
+			h.OnError(w, r, httperr.NewValidationErrorf("type must be %q or %q", domain.FileTypeChallenge, domain.FileTypeWriteup), "PostAdminChallengesChallengeIDFiles", "Type")
 			return
 		}
 		if *body.Type == openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeWriteup {
-			fileType = entity.FileTypeWriteup
+			fileType = domain.FileTypeWriteup
 		}
 	}
 
@@ -158,12 +160,12 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 
 	peek := make([]byte, 8)
 	n, err := io.ReadFull(reader, peek)
-	if err != nil && !errors.Is(err, io.EOF) {
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 		h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "ReadFull")
 		return
 	}
 	if n > 0 && !validateFileMagic(peek[:n]) {
-		h.OnError(w, r, helper.NewValidationErrorf("file type not allowed"), "PostAdminChallengesChallengeIDFiles", "MagicBytes")
+		h.OnError(w, r, httperr.NewValidationErrorf("file type not allowed"), "PostAdminChallengesChallengeIDFiles", "MagicBytes")
 		return
 	}
 	fileReader := io.MultiReader(bytes.NewReader(peek[:n]), reader)
@@ -174,13 +176,13 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		return
 	}
 
-	helper.RenderCreated(w, r, response.FromUploadedFile(uploadedFile))
+	httputil.RenderCreated(w, r, response.FromUploadedFile(uploadedFile))
 }
 
 // Delete file
 // (DELETE /admin/files/{ID})
 func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID string) {
-	fileIDParsed, ok := helper.ParseUUID(w, r, ID)
+	fileIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -190,13 +192,13 @@ func (h *Server) DeleteAdminFilesID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }
 
 // Get download URL
 // (GET /files/{ID}/download)
 func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID string) {
-	fileIDParsed, ok := helper.ParseUUID(w, r, ID)
+	fileIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -211,8 +213,8 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 	if h.OnError(w, r, err, "GetFilesIDDownload", "GetStatus") {
 		return
 	}
-	if status == entity.CompetitionStatusNotStarted {
-		h.OnError(w, r, helper.ErrCompetitionNotStarted, "GetFilesIDDownload", "CompetitionCheck")
+	if status == domain.CompetitionStatusNotStarted {
+		h.OnError(w, r, httperr.ErrCompetitionNotStarted, "GetFilesIDDownload", "CompetitionCheck")
 		return
 	}
 
@@ -223,23 +225,23 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 			return
 		}
 		if team.IsBanned {
-			h.OnError(w, r, helper.ErrTeamBanned, "GetFilesIDDownload", "TeamBannedCheck")
+			h.OnError(w, r, httperr.ErrTeamBanned, "GetFilesIDDownload", "TeamBannedCheck")
 			return
 		}
 	}
 
-	url, err := h.challenge.FileUC.GetDownloadURLWithAccess(r.Context(), fileIDParsed, user.TeamID, user.Role == entity.RoleAdmin)
+	url, err := h.challenge.FileUC.GetDownloadURLWithAccess(r.Context(), fileIDParsed, user.TeamID, user.Role == domain.RoleAdmin)
 	if h.OnError(w, r, err, "GetFilesIDDownload", "GetDownloadURLWithAccess") {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFileDownloadURL(url))
+	httputil.RenderOK(w, r, response.FromFileDownloadURL(url))
 }
 
 // Get challenge files
 // (GET /challenges/{challengeID}/files)
 func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string, params openapi.GetChallengesChallengeIDFilesParams) {
-	challengeIDParsed, ok := helper.ParseUUID(w, r, challengeID)
+	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
 	if !ok {
 		return
 	}
@@ -249,27 +251,27 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var fileType entity.FileType
+	var fileType domain.FileType
 	if params.Type == nil || *params.Type == "challenge" {
-		fileType = entity.FileTypeChallenge
+		fileType = domain.FileTypeChallenge
 	} else if *params.Type == "writeup" {
-		fileType = entity.FileTypeWriteup
+		fileType = domain.FileTypeWriteup
 	} else {
-		h.OnError(w, r, helper.NewValidationErrorf("type must be %q or %q", entity.FileTypeChallenge, entity.FileTypeWriteup), "GetChallengesChallengeIDFiles", "Type")
+		h.OnError(w, r, httperr.NewValidationErrorf("type must be %q or %q", domain.FileTypeChallenge, domain.FileTypeWriteup), "GetChallengesChallengeIDFiles", "Type")
 		return
 	}
 
-	files, err := h.challenge.FileUC.GetByChallengeIDWithAccess(r.Context(), challengeIDParsed, fileType, user.TeamID, user.Role == entity.RoleAdmin)
+	files, err := h.challenge.FileUC.GetByChallengeIDWithAccess(r.Context(), challengeIDParsed, fileType, user.TeamID, user.Role == domain.RoleAdmin)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDFiles", "GetByChallengeIDWithAccess") {
 		return
 	}
 
-	helper.RenderOK(w, r, response.FromFileList(files))
+	httputil.RenderOK(w, r, response.FromFileList(files))
 }
 
 func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, path, token string) {
 	if !validateDownloadPath(path) {
-		h.OnError(w, r, helper.NewValidationErrorf("invalid file path"), "Download", "PathValidate")
+		h.OnError(w, r, httperr.NewValidationErrorf("invalid file path"), "Download", "PathValidate")
 		return
 	}
 	user, ok := helper.RequireUser(w, r)
@@ -282,19 +284,19 @@ func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		if team.IsBanned {
-			h.OnError(w, r, helper.ErrTeamBanned, "Download", "BanCheck")
+			h.OnError(w, r, httperr.ErrTeamBanned, "Download", "BanCheck")
 			return
 		}
 	}
 	if token == "" {
-		h.OnError(w, r, helper.ErrTokenRequired, "Download", "TokenCheck")
+		h.OnError(w, r, httperr.ErrTokenRequired, "Download", "TokenCheck")
 		return
 	}
 	file, err := h.challenge.FileUC.VerifyDownloadTokenAndGetFile(r.Context(), path, token)
 	if h.OnError(w, r, err, "Download", "VerifyDownloadTokenAndGetFile") {
 		return
 	}
-	_, err = h.challenge.FileUC.GetDownloadURLWithAccess(r.Context(), file.ID, user.TeamID, user.Role == entity.RoleAdmin)
+	_, err = h.challenge.FileUC.GetDownloadURLWithAccess(r.Context(), file.ID, user.TeamID, user.Role == domain.RoleAdmin)
 	if h.OnError(w, r, err, "Download", "AccessCheck") {
 		return
 	}
@@ -309,24 +311,28 @@ func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, 
 	}
 	contentType, bodyReader := detectContentTypeFromReader(filename, rc)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if err := helper.RenderStream(w, contentType, filename, bodyReader); err != nil {
+	if err := httputil.RenderStream(w, contentType, filename, bodyReader); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - Download - Copy")
 	}
 }
 
+// Stream file download (chi wildcard route)
+// (GET /files/download/*)
 func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
-		h.OnError(w, r, helper.NewValidationErrorf("path is required"), "Download", "PathCheck")
+		h.OnError(w, r, httperr.NewValidationErrorf("path is required"), "Download", "PathCheck")
 		return
 	}
 	token := r.URL.Query().Get("token")
 	h.downloadByPathAndToken(w, r, path, token)
 }
 
+// Stream file download by path and token
+// (GET /files/download/{path})
 func (h *Server) GetFilesDownloadPath(w http.ResponseWriter, r *http.Request, path string, params openapi.GetFilesDownloadPathParams) {
 	if path == "" {
-		h.OnError(w, r, helper.NewValidationErrorf("path is required"), "GetFilesDownloadPath", "PathCheck")
+		h.OnError(w, r, httperr.NewValidationErrorf("path is required"), "GetFilesDownloadPath", "PathCheck")
 		return
 	}
 	h.downloadByPathAndToken(w, r, path, params.Token)

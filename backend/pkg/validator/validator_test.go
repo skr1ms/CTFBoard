@@ -50,7 +50,7 @@ func TestValidateEmail_Error(t *testing.T) {
 	t.Parallel()
 	assert.False(t, ValidateEmail(""))
 	assert.False(t, ValidateEmail("invalid"))
-	assert.False(t, ValidateEmail("missing@domain"))
+	assert.False(t, ValidateEmail("missing@entity"))
 }
 
 func TestValidateTeamName_Success(t *testing.T) {

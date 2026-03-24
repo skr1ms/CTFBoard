@@ -2,87 +2,265 @@ package middleware
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
-	"strconv"
+	"net/http/httptest"
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
+	httprateredis "github.com/go-chi/httprate-redis"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
-	"github.com/ulule/limiter/v3"
-	sredis "github.com/ulule/limiter/v3/drivers/store/redis"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-logkit"
+	"golang.org/x/sync/semaphore"
+
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
-var (
-	rateLimitRedisErrors     *prometheus.CounterVec
-	rateLimitRedisErrorsOnce sync.Once
+type perKeyCtxKey struct{}
+
+const (
+	DynamicLimitKeyPrefix       = "limiter:dynamic:"
+	defaultLoginPerMin          = 10
+	defaultRegisterPerMin       = 5
+	defaultForgotPasswordPerMin = 3
+	defaultResetPasswordPerMin  = 5
+	defaultLogoutPerMin         = 10
+	defaultRefreshPerMin        = 10
+	defaultScoreboardPerMin     = 30
+	defaultGeneralIPPerMin      = 100
+	defaultVerifyEmailPerMin    = 10
+	defaultOAuthCallbackPerMin  = 20
+	defaultOAuthRedirectPerMin  = 20
+	defaultHintUnlockMinFloor   = 30
+	defaultSubmitPerUser        = 10
+	defaultSubmitDurationMin    = 1
+	submitIPMultiplier          = 3
+	hintUnlockMultiplier        = 3
+	defaultCommentPerMinute     = 30
+	defaultRatingPerMinute      = 30
+	DynamicLimitFallback        = 10
 )
 
-func initRateLimitMetrics() {
-	rateLimitRedisErrorsOnce.Do(func() {
-		rateLimitRedisErrors = prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "rate_limit_redis_errors_total",
-				Help: "Total number of Redis errors encountered by rate-limit middleware.",
-			},
-			[]string{"limiter"},
-		)
-		prometheus.MustRegister(rateLimitRedisErrors)
+var defaultFallbackConfig = &RateLimitConfig{
+	LoginPerMinute:          defaultLoginPerMin,
+	RegisterPerMinute:       defaultRegisterPerMin,
+	ForgotPasswordPerMinute: defaultForgotPasswordPerMin,
+	ResetPasswordPerMinute:  defaultResetPasswordPerMin,
+	LogoutPerMinute:         defaultLogoutPerMin,
+	RefreshPerMinute:        defaultRefreshPerMin,
+	ScoreboardPerMinute:     defaultScoreboardPerMin,
+	GeneralIPPerMinute:      defaultGeneralIPPerMin,
+	VerifyEmailPerMinute:    defaultVerifyEmailPerMin,
+	OAuthCallbackPerMinute:  defaultOAuthCallbackPerMin,
+	OAuthRedirectPerMinute:  defaultOAuthRedirectPerMin,
+	SubmitUserPerMinute:     defaultSubmitPerUser,
+	SubmitIPPerMinute:       defaultSubmitPerUser * submitIPMultiplier,
+	HintUnlockUserPerMinute: defaultSubmitPerUser * hintUnlockMultiplier,
+	CommentPerMinute:        defaultCommentPerMinute,
+	RatingPerMinute:         defaultRatingPerMinute,
+}
+
+type SettingsGetter interface {
+	Get(ctx context.Context) (*domain.Settings, error)
+}
+
+type RateLimitConfig struct {
+	LoginPerMinute          int
+	RegisterPerMinute       int
+	ForgotPasswordPerMinute int
+	ResetPasswordPerMinute  int
+	LogoutPerMinute         int
+	RefreshPerMinute        int
+	ScoreboardPerMinute     int
+	GeneralIPPerMinute      int
+	VerifyEmailPerMinute    int
+	OAuthCallbackPerMinute  int
+	OAuthRedirectPerMinute  int
+	SubmitUserPerMinute     int
+	SubmitIPPerMinute       int
+	HintUnlockUserPerMinute int
+	CommentPerMinute        int
+	RatingPerMinute         int
+}
+
+const rateLimitConfigCacheKey = "rate_limit_config"
+
+type RateLimitConfigCache struct {
+	cv *cachekit.CachedValue[*RateLimitConfig]
+}
+
+func NewRateLimitConfigCache(ttl time.Duration) *RateLimitConfigCache {
+	return &RateLimitConfigCache{
+		cv: cachekit.NewCachedValue[*RateLimitConfig](context.Background(), rateLimitConfigCacheKey, ttl),
+	}
+}
+
+func (c *RateLimitConfigCache) Get(ctx context.Context, getter SettingsGetter) (*RateLimitConfig, error) {
+	return c.cv.Get(ctx, func(ctx context.Context) (*RateLimitConfig, error) {
+		return GetRateLimitConfig(ctx, getter)
 	})
 }
 
-func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.Duration, keyFunc func(r *http.Request) (string, error), trustedProxyCIDRs []string, logger logger.Logger) func(next http.Handler) http.Handler {
-	store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
-		Prefix:   cache.KeyLimiterPrefix + keyPrefix,
-		MaxRetry: 3,
-	})
-	if err != nil {
-		logger.WithError(err).Fatal("failed to create rate limit store")
+func (c *RateLimitConfigCache) GetStale() *RateLimitConfig {
+	cfg, ok := c.cv.GetStale()
+	if !ok {
 		return nil
 	}
+	return cfg
+}
 
-	rate := limiter.Rate{
-		Period: window,
-		Limit:  limit,
+func (c *RateLimitConfigCache) Invalidate() {
+	c.cv.Invalidate()
+}
+
+func rateLimitDefault(value, defaultValue int) int {
+	if v := max(value, 0); v != 0 {
+		return v
 	}
-	instance := limiter.New(store, rate)
-	memFallback := newCombinedMemLimiter()
-	initRateLimitMetrics()
+	return defaultValue
+}
 
+func GetRateLimitConfig(ctx context.Context, getter SettingsGetter) (*RateLimitConfig, error) {
+	settings, err := getter.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetRateLimitConfig - Get: %w", err)
+	}
+	submitUser := rateLimitDefault(settings.SubmitLimitPerUser, defaultSubmitPerUser)
+	durMin := rateLimitDefault(settings.SubmitLimitDurationMin, defaultSubmitDurationMin)
+	submitUserPerMin := submitUser / durMin
+	if submitUserPerMin <= 0 {
+		submitUserPerMin = 1
+	}
+	hintUnlockUserPerMin := submitUserPerMin * hintUnlockMultiplier
+	if hintUnlockUserPerMin < defaultHintUnlockMinFloor {
+		hintUnlockUserPerMin = defaultHintUnlockMinFloor
+	}
+	return &RateLimitConfig{
+		LoginPerMinute:          rateLimitDefault(settings.RateLimitLoginPerMinute, defaultLoginPerMin),
+		RegisterPerMinute:       rateLimitDefault(settings.RateLimitRegisterPerMinute, defaultRegisterPerMin),
+		ForgotPasswordPerMinute: rateLimitDefault(settings.RateLimitForgotPasswordPerMinute, defaultForgotPasswordPerMin),
+		ResetPasswordPerMinute:  rateLimitDefault(settings.RateLimitResetPasswordPerMinute, defaultResetPasswordPerMin),
+		LogoutPerMinute:         rateLimitDefault(settings.RateLimitLogoutPerMinute, defaultLogoutPerMin),
+		RefreshPerMinute:        rateLimitDefault(settings.RateLimitRefreshPerMinute, defaultRefreshPerMin),
+		ScoreboardPerMinute:     rateLimitDefault(settings.RateLimitScoreboardPerMinute, defaultScoreboardPerMin),
+		GeneralIPPerMinute:      rateLimitDefault(settings.RateLimitGeneralIPPerMinute, defaultGeneralIPPerMin),
+		VerifyEmailPerMinute:    rateLimitDefault(settings.RateLimitVerifyEmailPerMinute, defaultVerifyEmailPerMin),
+		OAuthCallbackPerMinute:  rateLimitDefault(settings.RateLimitOAuthCallbackPerMinute, defaultOAuthCallbackPerMin),
+		OAuthRedirectPerMinute:  rateLimitDefault(settings.RateLimitOAuthRedirectPerMinute, defaultOAuthRedirectPerMin),
+		SubmitUserPerMinute:     submitUserPerMin,
+		SubmitIPPerMinute:       submitUserPerMin * submitIPMultiplier,
+		HintUnlockUserPerMinute: hintUnlockUserPerMin,
+		CommentPerMinute:        rateLimitDefault(settings.RateLimitCommentPerMinute, defaultCommentPerMinute),
+		RatingPerMinute:         defaultRatingPerMinute,
+	}, nil
+}
+
+var rateLimitRedisErrors = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "rate_limit_redis_errors_total",
+		Help: "Total number of Redis errors encountered by rate-limit middleware.",
+	},
+	[]string{"limiter"},
+)
+
+func RateLimit(client *redis.Client, keyPrefix string, limit int64, window time.Duration, keyFunc func(r *http.Request) (string, error), log logkit.Logger) func(next http.Handler) http.Handler {
+	kf := func(r *http.Request) (string, error) {
+		k, err := keyFunc(r)
+		if err != nil || k == "" {
+			return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+		}
+		return k, nil
+	}
+	counter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+		Client:    client,
+		PrefixKey: cache.KeyLimiterPrefix + keyPrefix,
+		OnError: func(err error) {
+			if log != nil {
+				log.WithError(err).WithFields(map[string]any{"key_prefix": keyPrefix}).Warn("middleware - RateLimit: Redis error, using in-memory fallback")
+			}
+			rateLimitRedisErrors.WithLabelValues(keyPrefix).Inc()
+		},
+	})
+	if err != nil {
+		log.WithError(err).Fatal("failed to create rate limit store")
+		return nil
+	}
+	return httprate.Limit(int(limit), window,
+		httprate.WithKeyFuncs(kf),
+		httprate.WithLimitCounter(counter),
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			httputil.HandleError(w, r, httperr.ErrTooManyRequests())
+		}),
+	)
+}
+
+func DynamicRateLimit(
+	client *redis.Client,
+	keyPrefix string,
+	window time.Duration,
+	cache *RateLimitConfigCache,
+	getter SettingsGetter,
+	getLimit func(*RateLimitConfig) int64,
+	keyFunc func(*http.Request) (string, error),
+	log logkit.Logger,
+) func(next http.Handler) http.Handler {
+	counter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+		Client:    client,
+		PrefixKey: DynamicLimitKeyPrefix + keyPrefix,
+		OnError: func(err error) {
+			log.WithError(err).WithFields(map[string]any{"key_prefix": keyPrefix}).Warn("dynamic rate limit: Redis error, using in-memory fallback")
+			rateLimitRedisErrors.WithLabelValues(keyPrefix).Inc()
+		},
+	})
+	if err != nil {
+		log.WithError(err).Fatal("failed to create dynamic rate limit store")
+		return nil
+	}
+	kf := func(r *http.Request) (string, error) {
+		k, err := keyFunc(r)
+		if err != nil || k == "" {
+			return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+		}
+		return k, nil
+	}
+	limiter := httprate.NewRateLimiter(int(DynamicLimitFallback), window,
+		httprate.WithKeyFuncs(kf),
+		httprate.WithLimitCounter(counter),
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			httputil.HandleError(w, r, httperr.ErrTooManyRequests())
+		}),
+	)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key, err := keyFunc(r)
-			if err != nil || key == "" {
-				key = httputil.GetClientIP(r, trustedProxyCIDRs)
-			}
-			lctx, lerr := instance.Get(r.Context(), key)
-			if lerr != nil {
-				if logger != nil {
-					logger.WithError(lerr).WithFields(map[string]any{"key_prefix": keyPrefix}).Warn("middleware - RateLimit: Redis error, using in-memory fallback")
+			ctx := r.Context()
+			cfg, err := cache.Get(ctx, getter)
+			if err != nil {
+				log.WithError(err).Warn("rate limit config cache get failed, using stale config")
+				cfg = cache.GetStale()
+				if cfg == nil {
+					cfg = defaultFallbackConfig
 				}
-				rateLimitRedisErrors.WithLabelValues(keyPrefix).Inc()
-				memCount := memFallback.incr(key, window)
-				if memCount > limit {
-					httputil.HandleError(w, r, httperr.ErrTooManyRequests)
-					return
-				}
-				next.ServeHTTP(w, r)
-				return
 			}
-			if lctx.Reached {
-				w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(lctx.Limit, 10))
-				w.Header().Set("X-RateLimit-Remaining", "0")
-				httputil.HandleError(w, r, httperr.ErrTooManyRequests)
-				return
+			limit := getLimit(cfg)
+			if limit <= 0 {
+				limit = DynamicLimitFallback
 			}
-			w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(lctx.Limit, 10))
-			w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(lctx.Remaining, 10))
-			next.ServeHTTP(w, r)
+			r = r.WithContext(httprate.WithRequestLimit(ctx, int(limit)))
+			limiter.Handler(next).ServeHTTP(w, r)
 		})
 	}
 }
@@ -94,201 +272,232 @@ type RateLimitSpec struct {
 	KeyFunc   func(r *http.Request) (string, error)
 }
 
-const (
-	combinedMemLimiterMaxKeys = 10000
-	combinedMemLimiterCap     = 128
-)
-
-type combinedMemEntry struct {
-	count   int64
-	expires time.Time
-}
-
-type combinedMemLimiter struct {
-	mu      sync.Mutex
-	entries map[string]*combinedMemEntry
-	maxKeys int
-}
-
-func newCombinedMemLimiter() *combinedMemLimiter {
-	return newCombinedMemLimiterWithMaxKeys(combinedMemLimiterMaxKeys)
-}
-
-func newCombinedMemLimiterWithMaxKeys(maxKeys int) *combinedMemLimiter {
-	return &combinedMemLimiter{
-		entries: make(map[string]*combinedMemEntry, combinedMemLimiterCap),
-		maxKeys: maxKeys,
-	}
-}
-
-func (m *combinedMemLimiter) purgeStale() {
-	now := time.Now()
-	for k, e := range m.entries {
-		if now.After(e.expires) {
-			delete(m.entries, k)
-		}
-	}
-}
-
-func (m *combinedMemLimiter) evictOldest() {
-	var oldestKey string
-	var oldestExpires time.Time
-	first := true
-	for k, e := range m.entries {
-		if first || e.expires.Before(oldestExpires) {
-			oldestKey = k
-			oldestExpires = e.expires
-			first = false
-		}
-	}
-	if oldestKey != "" {
-		delete(m.entries, oldestKey)
-	}
-}
-
-func (m *combinedMemLimiter) incr(key string, window time.Duration) int64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	now := time.Now()
-	e, ok := m.entries[key]
-	if !ok || now.After(e.expires) {
-		if !ok {
-			if len(m.entries) >= m.maxKeys {
-				m.purgeStale()
-				if len(m.entries) >= m.maxKeys {
-					m.evictOldest()
-				}
-			}
-		}
-		e = &combinedMemEntry{count: 1, expires: now.Add(window)}
-		m.entries[key] = e
-		return 1
-	}
-	e.count++
-	return e.count
-}
-
-func CombinedRateLimit(client *redis.Client, specs []RateLimitSpec, trustedProxyCIDRs []string, log logger.Logger) func(next http.Handler) http.Handler {
-	type entry struct {
-		instance   *limiter.Limiter
-		keyFunc    func(r *http.Request) (string, error)
-		memLimiter *combinedMemLimiter
-	}
-
-	entries := make([]entry, 0, len(specs))
+func CombinedRateLimit(client *redis.Client, specs []RateLimitSpec, log logkit.Logger) func(next http.Handler) http.Handler {
+	mws := make([]func(http.Handler) http.Handler, 0, len(specs))
 	for _, s := range specs {
-		store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
-			Prefix:   cache.KeyLimiterPrefix + s.KeyPrefix,
-			MaxRetry: 3,
+		kf := func(r *http.Request) (string, error) {
+			k, err := s.KeyFunc(r)
+			if err != nil || k == "" {
+				return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+			}
+			return k, nil
+		}
+		counter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+			Client:    client,
+			PrefixKey: cache.KeyLimiterPrefix + s.KeyPrefix,
+			OnError: func(err error) {
+				log.WithError(err).WithFields(logkit.Fields{"key_prefix": s.KeyPrefix}).Warn("middleware - CombinedRateLimit: Redis error, using in-memory fallback")
+				rateLimitRedisErrors.WithLabelValues(s.KeyPrefix).Inc()
+			},
 		})
 		if err != nil {
-			log.WithError(err).WithFields(logger.Fields{"key_prefix": s.KeyPrefix}).Fatal("middleware - CombinedRateLimit: failed to create store")
+			log.WithError(err).WithFields(logkit.Fields{"key_prefix": s.KeyPrefix}).Fatal("middleware - CombinedRateLimit: failed to create store")
 			return nil
 		}
-		entries = append(entries, entry{
-			instance:   limiter.New(store, limiter.Rate{Period: s.Window, Limit: s.Limit}),
-			keyFunc:    s.KeyFunc,
-			memLimiter: newCombinedMemLimiter(),
-		})
+		mw := httprate.Limit(int(s.Limit), s.Window,
+			httprate.WithKeyFuncs(kf),
+			httprate.WithLimitCounter(counter),
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				httputil.HandleError(w, r, httperr.ErrTooManyRequests())
+			}),
+		)
+		mws = append(mws, mw)
 	}
-
-	type checkResult struct {
-		lctx limiter.Context
-		err  error
-	}
-
-	initRateLimitMetrics()
-
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			results := make([]checkResult, len(entries))
-			var wg sync.WaitGroup
-			wg.Add(len(entries))
-
-			for i, e := range entries {
-				go func() {
-					defer wg.Done()
-					key, kerr := e.keyFunc(r)
-					if kerr != nil || key == "" {
-						key = httputil.GetClientIP(r, trustedProxyCIDRs)
-					}
-					lctx, lerr := e.instance.Get(r.Context(), key)
-					results[i] = checkResult{lctx: lctx, err: lerr}
-				}()
-			}
-			wg.Wait()
-
-			var minLimit, minRemaining int64 = -1, -1
-			for i, res := range results {
-				if res.err != nil {
-					log.WithError(res.err).WithFields(logger.Fields{"key_prefix": specs[i].KeyPrefix}).Error("middleware - CombinedRateLimit: Redis error, using in-memory fallback")
-					rateLimitRedisErrors.WithLabelValues(specs[i].KeyPrefix).Inc()
-					key, kerr := entries[i].keyFunc(r)
-					if kerr != nil || key == "" {
-						key = httputil.GetClientIP(r, trustedProxyCIDRs)
-					}
-					memCount := entries[i].memLimiter.incr(key, specs[i].Window)
-					if memCount > specs[i].Limit {
-						httputil.HandleError(w, r, httperr.ErrTooManyRequests)
-						return
-					}
-					if minLimit < 0 || specs[i].Limit < minLimit {
-						minLimit = specs[i].Limit
-					}
-					remaining := specs[i].Limit - memCount
-					if remaining < 0 {
-						remaining = 0
-					}
-					if minRemaining < 0 || remaining < minRemaining {
-						minRemaining = remaining
-					}
-					continue
-				}
-				if res.lctx.Reached {
-					w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(res.lctx.Limit, 10))
-					w.Header().Set("X-RateLimit-Remaining", "0")
-					httputil.HandleError(w, r, httperr.ErrTooManyRequests)
-					return
-				}
-				if minLimit < 0 || res.lctx.Limit < minLimit {
-					minLimit = res.lctx.Limit
-				}
-				if minRemaining < 0 || res.lctx.Remaining < minRemaining {
-					minRemaining = res.lctx.Remaining
-				}
-			}
-			if minLimit >= 0 {
-				w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(minLimit, 10))
-				w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(minRemaining, 10))
-			}
-
-			next.ServeHTTP(w, r)
-		})
+		h := next
+		for i := len(mws) - 1; i >= 0; i-- {
+			h = mws[i](h)
+		}
+		return h
 	}
 }
 
 type PerKeyRateLimiter struct {
-	instance *limiter.Limiter
+	limiter *httprate.RateLimiter
+}
+
+func perKeyKeyFunc(r *http.Request) (string, error) {
+	k := r.Context().Value(perKeyCtxKey{})
+	if s, ok := k.(string); ok {
+		return s, nil
+	}
+	return "", errors.New("per-key rate limiter: key not in context")
 }
 
 func NewPerKeyRateLimiter(client *redis.Client, keyPrefix string, limit int64, window time.Duration) (*PerKeyRateLimiter, error) {
-	store, err := sredis.NewStoreWithOptions(client, limiter.StoreOptions{
-		Prefix:   cache.KeyLimiterPrefix + keyPrefix,
-		MaxRetry: 3,
+	counter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+		Client:    client,
+		PrefixKey: cache.KeyLimiterPrefix + keyPrefix,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &PerKeyRateLimiter{
-		instance: limiter.New(store, limiter.Rate{Period: window, Limit: limit}),
-	}, nil
+	limiter := httprate.NewRateLimiter(int(limit), window,
+		httprate.WithKeyFuncs(perKeyKeyFunc),
+		httprate.WithLimitCounter(counter),
+	)
+	return &PerKeyRateLimiter{limiter: limiter}, nil
 }
 
-// Check returns true if the request for key is within the rate limit.
 func (l *PerKeyRateLimiter) Check(ctx context.Context, key string) (bool, error) {
-	lctx, err := l.instance.Get(ctx, key)
-	if err != nil {
-		return false, err
+	ctx = httprate.WithRequestLimit(ctx, 0)
+	ctx = context.WithValue(ctx, perKeyCtxKey{}, key)
+	r := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	l.limiter.Handler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(w, r)
+	if w.Code == http.StatusTooManyRequests {
+		return false, nil
 	}
-	return !lctx.Reached, nil
+	if w.Code == http.StatusPreconditionRequired {
+		return false, errors.New("rate limit backend error")
+	}
+	return true, nil
+}
+
+const maxConcurrentRatelimitAudit = 64
+
+var ratelimitAuditSem = semaphore.NewWeighted(maxConcurrentRatelimitAudit)
+
+func SubmitRateLimitWithAudit(
+	client *redis.Client,
+	ipKeyPrefix, userKeyPrefix string,
+	window time.Duration,
+	cache *RateLimitConfigCache,
+	getter SettingsGetter,
+	ipKeyFunc, userIDKeyFunc func(*http.Request) (string, error),
+	log logkit.Logger,
+	submissionUC usecase.SubmissionUseCase,
+	ratelimitAuditWG *sync.WaitGroup,
+) func(next http.Handler) http.Handler {
+	ipCounter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+		Client:    client,
+		PrefixKey: DynamicLimitKeyPrefix + ipKeyPrefix,
+		OnError: func(err error) {
+			log.WithError(err).WithFields(map[string]any{"limiter": ipKeyPrefix}).Warn("submit rate limit: Redis error (IP), using in-memory fallback")
+			rateLimitRedisErrors.WithLabelValues(ipKeyPrefix).Inc()
+		},
+	})
+	if err != nil {
+		log.WithError(err).Fatal("failed to create submit rate limit store (IP)")
+		return nil
+	}
+	userCounter, err := httprateredis.NewRedisLimitCounter(&httprateredis.Config{
+		Client:    client,
+		PrefixKey: DynamicLimitKeyPrefix + userKeyPrefix,
+		OnError: func(err error) {
+			log.WithError(err).WithFields(map[string]any{"limiter": userKeyPrefix}).Warn("submit rate limit: Redis error (user), using in-memory fallback")
+			rateLimitRedisErrors.WithLabelValues(userKeyPrefix).Inc()
+		},
+	})
+	if err != nil {
+		log.WithError(err).Fatal("failed to create submit rate limit store (user)")
+		return nil
+	}
+	onRateLimited := func(r *http.Request) {
+		saveRatelimitedSubmissionAsync(r, submissionUC, log, ratelimitAuditWG)
+	}
+	ipKeyFn := func(r *http.Request) (string, error) {
+		k, err := ipKeyFunc(r)
+		if err != nil || k == "" {
+			return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+		}
+		return k, nil
+	}
+	userKeyFn := func(r *http.Request) (string, error) {
+		k, err := userIDKeyFunc(r)
+		if err != nil || k == "" {
+			return kitMiddleware.GetClientIPFromContext(r.Context()), nil
+		}
+		return k, nil
+	}
+	ipLimiter := httprate.NewRateLimiter(int(DynamicLimitFallback), window,
+		httprate.WithKeyFuncs(ipKeyFn),
+		httprate.WithLimitCounter(ipCounter),
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			onRateLimited(r)
+			httputil.HandleError(w, r, httperr.ErrTooManyRequests())
+		}),
+	)
+	userLimiter := httprate.NewRateLimiter(int(DynamicLimitFallback), window,
+		httprate.WithKeyFuncs(userKeyFn),
+		httprate.WithLimitCounter(userCounter),
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			onRateLimited(r)
+			httputil.HandleError(w, r, httperr.ErrTooManyRequests())
+		}),
+	)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			cfg, err := cache.Get(ctx, getter)
+			if err != nil {
+				log.WithError(err).Warn("rate limit config cache get failed, using stale config")
+				cfg = cache.GetStale()
+				if cfg == nil {
+					cfg = defaultFallbackConfig
+				}
+			}
+			ipLimit := int64(cfg.SubmitIPPerMinute)
+			if ipLimit <= 0 {
+				ipLimit = DynamicLimitFallback
+			}
+			userLimit := int64(cfg.SubmitUserPerMinute)
+			if userLimit <= 0 {
+				userLimit = DynamicLimitFallback
+			}
+			r = r.WithContext(httprate.WithRequestLimit(ctx, int(ipLimit)))
+			ipLimiter.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				r = r.WithContext(httprate.WithRequestLimit(r.Context(), int(userLimit)))
+				userLimiter.Handler(next).ServeHTTP(w, r)
+			})).ServeHTTP(w, r)
+		})
+	}
+}
+
+func saveRatelimitedSubmissionAsync(r *http.Request, submissionUC usecase.SubmissionUseCase, log logkit.Logger, wg *sync.WaitGroup) {
+	if submissionUC == nil {
+		return
+	}
+	if !ratelimitAuditSem.TryAcquire(1) {
+		log.Warn("submit rate limit audit: semaphore full, dropping ratelimited submission record")
+		return
+	}
+	user, ok := GetUser(r.Context())
+	if !ok || user == nil || user.TeamID == nil {
+		ratelimitAuditSem.Release(1)
+		return
+	}
+	challengeIDStr := chi.URLParam(r, "challengeID")
+	challengeID, err := uuid.Parse(challengeIDStr)
+	if err != nil {
+		log.WithError(err).WithFields(map[string]any{"challengeID": challengeIDStr}).Warn("submit rate limit audit: invalid challengeID, skipping audit record")
+		ratelimitAuditSem.Release(1)
+		return
+	}
+	userID := user.ID
+	teamID := *user.TeamID
+	ip := kitMiddleware.GetClientIPFromContext(r.Context())
+	body := func() {
+		defer ratelimitAuditSem.Release(1)
+		logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		sub := &domain.Submission{
+			UserID:        userID,
+			TeamID:        &teamID,
+			ChallengeID:   challengeID,
+			SubmittedFlag: "",
+			IsCorrect:     false,
+			Type:          domain.SubmissionTypeRatelimited,
+			IP:            ip,
+			CreatedAt:     time.Now(),
+		}
+		if logErr := submissionUC.LogSubmission(logCtx, sub); logErr != nil {
+			log.WithError(logErr).Warn("submit rate limit audit: LogSubmission failed")
+		}
+	}
+	if wg != nil {
+		wg.Go(body)
+	} else {
+		go body()
+	}
 }

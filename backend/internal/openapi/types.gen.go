@@ -22,6 +22,34 @@ const (
 	BatchSetConfigItemValueTypeString BatchSetConfigItemValueType = "string"
 )
 
+// Defines values for ChallengeDetailResponseState.
+const (
+	ChallengeDetailResponseStateHidden  ChallengeDetailResponseState = "hidden"
+	ChallengeDetailResponseStateLocked  ChallengeDetailResponseState = "locked"
+	ChallengeDetailResponseStateVisible ChallengeDetailResponseState = "visible"
+)
+
+// Defines values for ChallengeExportState.
+const (
+	ChallengeExportStateHidden  ChallengeExportState = "hidden"
+	ChallengeExportStateLocked  ChallengeExportState = "locked"
+	ChallengeExportStateVisible ChallengeExportState = "visible"
+)
+
+// Defines values for ChallengeResponseState.
+const (
+	ChallengeResponseStateHidden  ChallengeResponseState = "hidden"
+	ChallengeResponseStateLocked  ChallengeResponseState = "locked"
+	ChallengeResponseStateVisible ChallengeResponseState = "visible"
+)
+
+// Defines values for CreateChallengeRequestState.
+const (
+	CreateChallengeRequestStateHidden  CreateChallengeRequestState = "hidden"
+	CreateChallengeRequestStateLocked  CreateChallengeRequestState = "locked"
+	CreateChallengeRequestStateVisible CreateChallengeRequestState = "visible"
+)
+
 // Defines values for CreateFieldRequestEntityType.
 const (
 	CreateFieldRequestEntityTypeTeam CreateFieldRequestEntityType = "team"
@@ -76,9 +104,16 @@ const (
 
 // Defines values for UpdateAppSettingsRequestScoreboardVisible.
 const (
-	AdminsOnly UpdateAppSettingsRequestScoreboardVisible = "admins_only"
-	Hidden     UpdateAppSettingsRequestScoreboardVisible = "hidden"
-	Public     UpdateAppSettingsRequestScoreboardVisible = "public"
+	UpdateAppSettingsRequestScoreboardVisibleAdminsOnly UpdateAppSettingsRequestScoreboardVisible = "admins_only"
+	UpdateAppSettingsRequestScoreboardVisibleHidden     UpdateAppSettingsRequestScoreboardVisible = "hidden"
+	UpdateAppSettingsRequestScoreboardVisiblePublic     UpdateAppSettingsRequestScoreboardVisible = "public"
+)
+
+// Defines values for UpdateChallengeRequestState.
+const (
+	UpdateChallengeRequestStateHidden  UpdateChallengeRequestState = "hidden"
+	UpdateChallengeRequestStateLocked  UpdateChallengeRequestState = "locked"
+	UpdateChallengeRequestStateVisible UpdateChallengeRequestState = "visible"
 )
 
 // Defines values for UpdateFieldRequestFieldType.
@@ -383,6 +418,8 @@ type BanUserRequest struct {
 
 // BatchSetConfigItem defines model for BatchSetConfigItem.
 type BatchSetConfigItem struct {
+	// Category optional category for non-registry keys
+	Category    *string                      `json:"category,omitempty"`
 	Description *string                      `json:"description,omitempty"`
 	Key         string                       `json:"key"`
 	Value       string                       `json:"value"`
@@ -416,18 +453,25 @@ type CSVImportResult struct {
 
 // ChallengeDetailResponse defines model for ChallengeDetailResponse.
 type ChallengeDetailResponse struct {
-	Category    *string             `json:"category,omitempty"`
-	Description *string             `json:"description,omitempty"`
-	Files       *[]FileItem         `json:"files,omitempty"`
-	FirstBlood  *FirstBloodResponse `json:"first_blood,omitempty"`
-	Hints       *[]HintItem         `json:"hints,omitempty"`
-	ID          *string             `json:"id,omitempty"`
-	Points      *int                `json:"points,omitempty"`
-	SolveCount  *int                `json:"solve_count,omitempty"`
-	SolvedByMe  *bool               `json:"solved_by_me,omitempty"`
-	Tags        *[]TagResponse      `json:"tags,omitempty"`
-	Title       *string             `json:"title,omitempty"`
+	Category       *string                       `json:"category,omitempty"`
+	ConnectionInfo *string                       `json:"connection_info,omitempty"`
+	Description    *string                       `json:"description,omitempty"`
+	Files          *[]FileItem                   `json:"files,omitempty"`
+	FirstBlood     *FirstBloodResponse           `json:"first_blood,omitempty"`
+	Hints          *[]HintItem                   `json:"hints,omitempty"`
+	ID             *string                       `json:"id,omitempty"`
+	MaxAttempts    *int                          `json:"max_attempts,omitempty"`
+	Points         *int                          `json:"points,omitempty"`
+	Position       *int                          `json:"position,omitempty"`
+	SolveCount     *int                          `json:"solve_count,omitempty"`
+	SolvedByMe     *bool                         `json:"solved_by_me,omitempty"`
+	State          *ChallengeDetailResponseState `json:"state,omitempty"`
+	Tags           *[]TagResponse                `json:"tags,omitempty"`
+	Title          *string                       `json:"title,omitempty"`
 }
+
+// ChallengeDetailResponseState defines model for ChallengeDetailResponse.State.
+type ChallengeDetailResponseState string
 
 // ChallengeDetailStats defines model for ChallengeDetailStats.
 type ChallengeDetailStats struct {
@@ -444,15 +488,21 @@ type ChallengeDetailStats struct {
 
 // ChallengeExport defines model for ChallengeExport.
 type ChallengeExport struct {
-	Category    *string `json:"category,omitempty"`
-	Description *string `json:"description,omitempty"`
-	FlagHash    *string `json:"flag_hash,omitempty"`
-	Hints       *[]Hint `json:"hints,omitempty"`
-	ID          *string `json:"id,omitempty"`
-	IsHidden    *bool   `json:"is_hidden,omitempty"`
-	Points      *int    `json:"points,omitempty"`
-	Title       *string `json:"title,omitempty"`
+	Category       *string               `json:"category,omitempty"`
+	ConnectionInfo *string               `json:"connection_info,omitempty"`
+	Description    *string               `json:"description,omitempty"`
+	FlagHash       *string               `json:"flag_hash,omitempty"`
+	Hints          *[]Hint               `json:"hints,omitempty"`
+	ID             *string               `json:"id,omitempty"`
+	MaxAttempts    *int                  `json:"max_attempts,omitempty"`
+	Points         *int                  `json:"points,omitempty"`
+	Position       *int                  `json:"position,omitempty"`
+	State          *ChallengeExportState `json:"state,omitempty"`
+	Title          *string               `json:"title,omitempty"`
 }
+
+// ChallengeExportState defines model for ChallengeExport.State.
+type ChallengeExportState string
 
 // ChallengeFlagsResponse defines model for ChallengeFlagsResponse.
 type ChallengeFlagsResponse struct {
@@ -474,16 +524,22 @@ type ChallengeRequirementResponse struct {
 
 // ChallengeResponse defines model for ChallengeResponse.
 type ChallengeResponse struct {
-	Category    *string        `json:"category,omitempty"`
-	Description *string        `json:"description,omitempty"`
-	ID          *string        `json:"id,omitempty"`
-	IsHidden    *bool          `json:"is_hidden,omitempty"`
-	Points      *int           `json:"points,omitempty"`
-	SolveCount  *int           `json:"solve_count,omitempty"`
-	Solved      *bool          `json:"solved,omitempty"`
-	Tags        *[]TagResponse `json:"tags,omitempty"`
-	Title       *string        `json:"title,omitempty"`
+	Category       *string                 `json:"category,omitempty"`
+	ConnectionInfo *string                 `json:"connection_info,omitempty"`
+	Description    *string                 `json:"description,omitempty"`
+	ID             *string                 `json:"id,omitempty"`
+	MaxAttempts    *int                    `json:"max_attempts,omitempty"`
+	Points         *int                    `json:"points,omitempty"`
+	Position       *int                    `json:"position,omitempty"`
+	SolveCount     *int                    `json:"solve_count,omitempty"`
+	Solved         *bool                   `json:"solved,omitempty"`
+	State          *ChallengeResponseState `json:"state,omitempty"`
+	Tags           *[]TagResponse          `json:"tags,omitempty"`
+	Title          *string                 `json:"title,omitempty"`
 }
+
+// ChallengeResponseState defines model for ChallengeResponse.State.
+type ChallengeResponseState string
 
 // ChallengeSolutionEntry defines model for ChallengeSolutionEntry.
 type ChallengeSolutionEntry struct {
@@ -581,15 +637,8 @@ type ConfigCategoryItem struct {
 	Name  string `json:"name"`
 }
 
-// ConfigItem defines model for ConfigItem.
-type ConfigItem struct {
-	Category    *string    `json:"category,omitempty"`
-	Description *string    `json:"description,omitempty"`
-	Key         string     `json:"key"`
-	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
-	Value       string     `json:"value"`
-	ValueType   string     `json:"value_type"`
-}
+// ConfigPublicResponse Public config as flat key-value map; values are typed (string, number, boolean).
+type ConfigPublicResponse map[string]interface{}
 
 // ConfigResponse defines model for ConfigResponse.
 type ConfigResponse struct {
@@ -629,24 +678,38 @@ type CreateBracketRequest struct {
 
 // CreateChallengeRequest defines model for CreateChallengeRequest.
 type CreateChallengeRequest struct {
-	Category    string `json:"category" validate:"required,challenge_category"`
-	Decay       *int   `json:"decay,omitempty"`
-	Description string `json:"description" validate:"required,challenge_description"`
-	Flag        string `json:"flag" validate:"required,challenge_flag"`
+	Category string `json:"category" validate:"required,challenge_category"`
+
+	// ConnectionInfo Connection info (e.g. SSH, URL) for the challenge
+	ConnectionInfo *string `json:"connection_info,omitempty"`
+	Decay          *int    `json:"decay,omitempty"`
+	Description    string  `json:"description" validate:"required,challenge_description"`
+	Flag           string  `json:"flag" validate:"required,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
 	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
 	InitialValue      *int    `json:"initial_value,omitempty"`
 	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
-	IsHidden          *bool   `json:"is_hidden,omitempty"`
 	IsRegex           *bool   `json:"is_regex,omitempty"`
-	MinValue          *int    `json:"min_value,omitempty"`
-	Points            int     `json:"points"`
+
+	// MaxAttempts Max submission attempts per team (0 = unlimited)
+	MaxAttempts *int `json:"max_attempts,omitempty"`
+	MinValue    *int `json:"min_value,omitempty"`
+	Points      int  `json:"points"`
+
+	// Position Display order (lower = first)
+	Position *int `json:"position,omitempty"`
+
+	// State Challenge visibility and submit policy
+	State *CreateChallengeRequestState `json:"state,omitempty"`
 
 	// TagIds Tag IDs for the challenge
 	TagIds *[]string `json:"tag_ids,omitempty"`
 	Title  string    `json:"title" validate:"required,challenge_title"`
 }
+
+// CreateChallengeRequestState Challenge visibility and submit policy
+type CreateChallengeRequestState string
 
 // CreateCommentRequest defines model for CreateCommentRequest.
 type CreateCommentRequest struct {
@@ -673,9 +736,10 @@ type CreateFieldRequestFieldType string
 
 // CreateHintRequest defines model for CreateHintRequest.
 type CreateHintRequest struct {
-	Content    string `json:"content" validate:"required,hint_content"`
-	Cost       *int   `json:"cost,omitempty"`
-	OrderIndex *int   `json:"order_index,omitempty"`
+	Content    string  `json:"content" validate:"required,hint_content"`
+	Cost       *int    `json:"cost,omitempty"`
+	OrderIndex *int    `json:"order_index,omitempty"`
+	Title      *string `json:"title,omitempty"`
 }
 
 // CreateNotificationRequest defines model for CreateNotificationRequest.
@@ -827,6 +891,7 @@ type Hint struct {
 	Cost        *int    `json:"cost,omitempty"`
 	ID          *string `json:"id,omitempty"`
 	OrderIndex  *int    `json:"order_index,omitempty"`
+	Title       *string `json:"title,omitempty"`
 }
 
 // HintAdminResponse defines model for HintAdminResponse.
@@ -836,6 +901,7 @@ type HintAdminResponse struct {
 	Cost        *int    `json:"cost,omitempty"`
 	ID          *string `json:"id,omitempty"`
 	OrderIndex  *int    `json:"order_index,omitempty"`
+	Title       *string `json:"title,omitempty"`
 }
 
 // HintItem defines model for HintItem.
@@ -844,6 +910,7 @@ type HintItem struct {
 	Cost       *int    `json:"cost,omitempty"`
 	ID         *string `json:"id,omitempty"`
 	OrderIndex *int    `json:"order_index,omitempty"`
+	Title      *string `json:"title,omitempty"`
 	Unlocked   *bool   `json:"unlocked,omitempty"`
 }
 
@@ -853,6 +920,7 @@ type HintResponse struct {
 	Cost       *int    `json:"cost,omitempty"`
 	ID         *string `json:"id,omitempty"`
 	OrderIndex *int    `json:"order_index,omitempty"`
+	Title      *string `json:"title,omitempty"`
 	Unlocked   *bool   `json:"unlocked,omitempty"`
 }
 
@@ -951,6 +1019,26 @@ type PaginationMeta struct {
 	TotalPages *int `json:"total_pages,omitempty"`
 }
 
+// PutChallengeRatingRequest defines model for PutChallengeRatingRequest.
+type PutChallengeRatingRequest struct {
+	// Review Optional review text
+	Review *string `json:"review,omitempty"`
+
+	// Value Rating value (e.g. 1-5)
+	Value int `json:"value" validate:"required,min=1,max=5"`
+}
+
+// RatingResponse defines model for RatingResponse.
+type RatingResponse struct {
+	ChallengeID *string    `json:"challenge_id,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	ID          *string    `json:"id,omitempty"`
+	Review      *string    `json:"review,omitempty"`
+	TeamID      *string    `json:"team_id,omitempty"`
+	UserID      *string    `json:"user_id,omitempty"`
+	Value       *int       `json:"value,omitempty"`
+}
+
 // RegisterRequest defines model for RegisterRequest.
 type RegisterRequest struct {
 	// CustomFields Custom field values (field_id -> value)
@@ -1022,6 +1110,8 @@ type SetChallengeRequirementsRequest struct {
 
 // SetConfigRequest defines model for SetConfigRequest.
 type SetConfigRequest struct {
+	// Category optional category for non-registry keys
+	Category    *string                    `json:"category,omitempty"`
 	Description *string                    `json:"description,omitempty"`
 	Value       string                     `json:"value"`
 	ValueType   *SetConfigRequestValueType `json:"value_type,omitempty"`
@@ -1287,24 +1377,38 @@ type UpdateBracketRequest struct {
 
 // UpdateChallengeRequest defines model for UpdateChallengeRequest.
 type UpdateChallengeRequest struct {
-	Category    string  `json:"category" validate:"required,challenge_category"`
-	Decay       *int    `json:"decay,omitempty"`
-	Description string  `json:"description" validate:"required,challenge_description"`
-	Flag        *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
+	Category string `json:"category" validate:"required,challenge_category"`
+
+	// ConnectionInfo Connection info (e.g. SSH, URL) for the challenge
+	ConnectionInfo *string `json:"connection_info,omitempty"`
+	Decay          *int    `json:"decay,omitempty"`
+	Description    string  `json:"description" validate:"required,challenge_description"`
+	Flag           *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
 	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
 	InitialValue      *int    `json:"initial_value,omitempty"`
 	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
-	IsHidden          *bool   `json:"is_hidden,omitempty"`
 	IsRegex           *bool   `json:"is_regex,omitempty"`
-	MinValue          *int    `json:"min_value,omitempty"`
-	Points            int     `json:"points"`
+
+	// MaxAttempts Max submission attempts per team (0 = unlimited)
+	MaxAttempts *int `json:"max_attempts,omitempty"`
+	MinValue    *int `json:"min_value,omitempty"`
+	Points      int  `json:"points"`
+
+	// Position Display order (lower = first)
+	Position *int `json:"position,omitempty"`
+
+	// State Challenge visibility and submit policy
+	State *UpdateChallengeRequestState `json:"state,omitempty"`
 
 	// TagIds Tag IDs for the challenge
 	TagIds *[]string `json:"tag_ids,omitempty"`
 	Title  string    `json:"title" validate:"required,challenge_title"`
 }
+
+// UpdateChallengeRequestState Challenge visibility and submit policy
+type UpdateChallengeRequestState string
 
 // UpdateCompetitionRequest defines model for UpdateCompetitionRequest.
 type UpdateCompetitionRequest struct {
@@ -1338,9 +1442,10 @@ type UpdateFieldRequestFieldType string
 
 // UpdateHintRequest defines model for UpdateHintRequest.
 type UpdateHintRequest struct {
-	Content    string `json:"content" validate:"required,hint_content"`
-	Cost       *int   `json:"cost,omitempty"`
-	OrderIndex *int   `json:"order_index,omitempty"`
+	Content    string  `json:"content" validate:"required,hint_content"`
+	Cost       *int    `json:"cost,omitempty"`
+	OrderIndex *int    `json:"order_index,omitempty"`
+	Title      *string `json:"title,omitempty"`
 }
 
 // UpdateNotificationRequest defines model for UpdateNotificationRequest.
@@ -1923,6 +2028,9 @@ type PostAuthVerifyEmailJSONRequestBody = VerifyEmailRequest
 
 // PostChallengesChallengeIDCommentsJSONRequestBody defines body for PostChallengesChallengeIDComments for application/json ContentType.
 type PostChallengesChallengeIDCommentsJSONRequestBody = CreateCommentRequest
+
+// PutChallengesChallengeIDRatingJSONRequestBody defines body for PutChallengesChallengeIDRating for application/json ContentType.
+type PutChallengesChallengeIDRatingJSONRequestBody = PutChallengeRatingRequest
 
 // PostChallengesChallengeIDSubmitJSONRequestBody defines body for PostChallengesChallengeIDSubmit for application/json ContentType.
 type PostChallengesChallengeIDSubmitJSONRequestBody = SubmitFlagRequest

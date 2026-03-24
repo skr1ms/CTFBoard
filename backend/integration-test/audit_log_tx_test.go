@@ -9,11 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestAuditLogTx_SettingsUpdate_CommitsBoth(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
@@ -28,10 +27,10 @@ func TestAuditLogTx_SettingsUpdate_CommitsBoth(t *testing.T) {
 		if innerErr := f.SettingsRepo.Update(txCtx, original); innerErr != nil {
 			return innerErr
 		}
-		return f.AuditLogRepo.Create(txCtx, &entity.AuditLog{
+		return f.AuditLogRepo.Create(txCtx, &domain.AuditLog{
 			UserID:     &actor.ID,
-			Action:     entity.AuditActionUpdate,
-			EntityType: entity.AuditEntityAppSettings,
+			Action:     domain.AuditActionUpdate,
+			EntityType: domain.AuditEntityAppSettings,
 			EntityID:   "settings",
 			IP:         "127.0.0.1",
 			Details:    map[string]any{"app_name": "AuditTxCommit"},
@@ -50,7 +49,6 @@ func TestAuditLogTx_SettingsUpdate_CommitsBoth(t *testing.T) {
 }
 
 func TestAuditLogTx_SettingsUpdate_RollbackOnForcedError(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
@@ -66,10 +64,10 @@ func TestAuditLogTx_SettingsUpdate_RollbackOnForcedError(t *testing.T) {
 		if innerErr := f.SettingsRepo.Update(txCtx, original); innerErr != nil {
 			return innerErr
 		}
-		if innerErr := f.AuditLogRepo.Create(txCtx, &entity.AuditLog{
+		if innerErr := f.AuditLogRepo.Create(txCtx, &domain.AuditLog{
 			UserID:     &actor.ID,
-			Action:     entity.AuditActionUpdate,
-			EntityType: entity.AuditEntityAppSettings,
+			Action:     domain.AuditActionUpdate,
+			EntityType: domain.AuditEntityAppSettings,
 			EntityID:   "settings",
 			IP:         "127.0.0.1",
 		}); innerErr != nil {
@@ -90,7 +88,6 @@ func TestAuditLogTx_SettingsUpdate_RollbackOnForcedError(t *testing.T) {
 }
 
 func TestAuditLogTx_SettingsUpdate_RollbackOnInvalidAuditLog(t *testing.T) {
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
@@ -106,10 +103,10 @@ func TestAuditLogTx_SettingsUpdate_RollbackOnInvalidAuditLog(t *testing.T) {
 		if innerErr := f.SettingsRepo.Update(txCtx, original); innerErr != nil {
 			return innerErr
 		}
-		return f.AuditLogRepo.Create(txCtx, &entity.AuditLog{
+		return f.AuditLogRepo.Create(txCtx, &domain.AuditLog{
 			UserID:     &nonExistentUserID,
-			Action:     entity.AuditActionUpdate,
-			EntityType: entity.AuditEntityAppSettings,
+			Action:     domain.AuditActionUpdate,
+			EntityType: domain.AuditEntityAppSettings,
 			EntityID:   "settings",
 			IP:         "127.0.0.1",
 		})

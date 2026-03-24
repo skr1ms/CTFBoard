@@ -3,7 +3,8 @@ package v1
 import (
 	"net/http"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -12,7 +13,7 @@ import (
 // List my API tokens
 // (GET /user/tokens)
 func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
-	userIDParsed, ok := helper.ParseAuthUserID(w, r)
+	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
@@ -21,27 +22,26 @@ func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetUserTokens", "List") {
 		return
 	}
-	helper.RenderOK(w, r, response.FromAPITokenList(tokens))
+	httputil.RenderOK(w, r, response.FromAPITokenList(tokens))
 }
 
 // Create API token
 // (POST /user/tokens)
 func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
-	userIDParsed, ok := helper.ParseAuthUserID(w, r)
+	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
 
-	req, ok := helper.DecodeAndValidate[openapi.CreateAPITokenRequest](
-		w, r, h.infra.Validator, h.infra.Logger, "PostUserTokens",
+	req, ok := httputil.DecodeAndValidate[openapi.CreateAPITokenRequest](
+		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
 	}
 
 	description, expiresAt, err := request.CreateAPITokenRequestToParams(&req)
-	if err != nil {
-		h.OnError(w, r, err, "PostUserTokens", "CreateAPITokenRequestToParams")
+	if h.OnError(w, r, err, "PostUserTokens", "CreateAPITokenRequestToParams") {
 		return
 	}
 	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), userIDParsed, description, expiresAt)
@@ -49,18 +49,18 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RenderCreated(w, r, response.FromAPITokenCreated(plaintext, token))
+	httputil.RenderCreated(w, r, response.FromAPITokenCreated(plaintext, token))
 }
 
 // Revoke API token
 // (DELETE /user/tokens/{ID})
 func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := helper.ParseAuthUserID(w, r)
+	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
 		return
 	}
 
-	tokenIDParsed, ok := helper.ParseUUID(w, r, ID)
+	tokenIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
@@ -69,5 +69,5 @@ func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	helper.RenderNoContent(w, r)
+	httputil.RenderNoContent(w, r)
 }

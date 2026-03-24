@@ -11,7 +11,6 @@ import (
 
 // Competition flag_regex: invalid format returns 400 INVALID_FLAG_FORMAT; valid format wrong content returns 400 invalid flag; correct flag returns 200.
 func TestFlagRegex_Flow(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
@@ -38,7 +37,6 @@ func TestFlagRegex_Flow(t *testing.T) {
 
 // Competition flag_regex: submit with invalid format returns 400 INVALID_FLAG_FORMAT.
 func TestFlagRegex_InvalidFormat_Returns400(t *testing.T) {
-	t.Helper()
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, tokenAdmin := h.SetupCompetition("admin_regex_err")

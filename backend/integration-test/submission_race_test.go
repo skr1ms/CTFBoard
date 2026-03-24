@@ -8,12 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestSubmissionRace_ConcurrentWrongFlagSubmits_NoDuplicateCountingOrPanic(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -30,7 +29,7 @@ func TestSubmissionRace_ConcurrentWrongFlagSubmits_NoDuplicateCountingOrPanic(t 
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
-			sub := &entity.Submission{
+			sub := &domain.Submission{
 				UserID:        user.ID,
 				TeamID:        &team.ID,
 				ChallengeID:   challenge.ID,
@@ -56,14 +55,13 @@ func TestSubmissionRace_ConcurrentWrongFlagSubmits_NoDuplicateCountingOrPanic(t 
 
 func TestSubmissionRace_ConcurrentSubmissions_MultipleChallenges(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
 	const workers = 5
-	users := make([]*entity.User, workers)
-	teams := make([]*entity.Team, workers)
+	users := make([]*domain.User, workers)
+	teams := make([]*domain.Team, workers)
 	for i := 0; i < workers; i++ {
 		suffix := "mrace" + string(rune('a'+i))
 		u, tm := f.CreateUserWithTeam(t, suffix)
@@ -77,7 +75,7 @@ func TestSubmissionRace_ConcurrentSubmissions_MultipleChallenges(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			sub := &entity.Submission{
+			sub := &domain.Submission{
 				UserID:        users[i].ID,
 				TeamID:        &teams[i].ID,
 				ChallengeID:   challenge.ID,

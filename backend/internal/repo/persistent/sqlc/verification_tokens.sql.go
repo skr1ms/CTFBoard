@@ -81,10 +81,15 @@ func (q *Queries) GetVerificationTokenByToken(ctx context.Context, token string)
 }
 
 const markVerificationTokenUsed = `-- name: MarkVerificationTokenUsed :exec
-UPDATE verification_tokens SET used_at = NOW() WHERE id = $1
+UPDATE verification_tokens SET used_at = $2 WHERE id = $1
 `
 
-func (q *Queries) MarkVerificationTokenUsed(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markVerificationTokenUsed, id)
+type MarkVerificationTokenUsedParams struct {
+	ID     uuid.UUID          `json:"id"`
+	UsedAt pgtype.Timestamptz `json:"used_at"`
+}
+
+func (q *Queries) MarkVerificationTokenUsed(ctx context.Context, arg MarkVerificationTokenUsedParams) error {
+	_, err := q.db.Exec(ctx, markVerificationTokenUsed, arg.ID, arg.UsedAt)
 	return err
 }

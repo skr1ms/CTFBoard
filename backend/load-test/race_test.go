@@ -101,7 +101,7 @@ func TestRace_FlagSubmission(t *testing.T) {
 		"exactly 1 solve must be recorded for challenge %s despite %d concurrent submits (got %d)",
 		chalID, raceConcurrency, solveCount)
 
-	fmt.Printf("[race] PASS: %d concurrent submits --> 1 solve in DB\n", raceConcurrency)
+	fmt.Printf("[race] PASS: %d concurrent submits -> 1 solve in DB\n", raceConcurrency)
 }
 
 func TestRace_HintUnlock(t *testing.T) {
@@ -172,7 +172,7 @@ func TestRace_HintUnlock(t *testing.T) {
 		"exactly 1 hint_unlock row must exist for hint %s despite %d concurrent requests (got %d)",
 		hintID, raceConcurrency, unlockCount)
 
-	fmt.Printf("[race] PASS: %d concurrent unlocks --> 1 hint_unlock row in DB\n", raceConcurrency)
+	fmt.Printf("[race] PASS: %d concurrent unlocks -> 1 hint_unlock row in DB\n", raceConcurrency)
 }
 
 func TestRace_ConcurrentTeamCreation(t *testing.T) {

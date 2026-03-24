@@ -2,12 +2,14 @@ package e2e_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,16 +21,18 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-jwtkit"
+	"github.com/wahrwelt-kit/go-logkit"
+
+	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-wskit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
@@ -42,15 +46,18 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
+
+	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/jwt"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/testutil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
+// teamBracketGetter adapts TeamRepository for scoreboard cache (bracket by team).
 type teamBracketGetter struct {
 	r repo.TeamRepository
 }
@@ -64,14 +71,17 @@ func (g *teamBracketGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UU
 }
 
 var (
-	TestPool  *pgxpool.Pool
-	TestRedis *redis.Client
-	testPort  string
+	TestPool           *pgxpool.Pool
+	TestRedis          *redis.Client
+	testPort           string
+	e2eConnStr         string
+	testRateLimitCache *restapimiddleware.RateLimitConfigCache
 )
 
 // Mocks
 type noOpMailer struct{}
 
+// Send is a no-op for e2e tests (no real email sent).
 func (m *noOpMailer) Send(context.Context, mailer.Message) error {
 	return nil
 }
@@ -90,9 +100,20 @@ func TestMain(m *testing.M) {
 	}
 	defer cleanup()
 
-	// Run Migrations
-	if err := runMigrations(ctx, TestPool); err != nil {
+	_, thisFile, _, _ := runtime.Caller(0)
+	backendDir := filepath.Dir(filepath.Dir(thisFile))
+	oldWd, _ := os.Getwd()
+	if err := os.Chdir(backendDir); err != nil {
+		fmt.Printf("chdir to backend: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := goose.Run(context.Background(), e2eConnStr, "migrations"); err != nil {
 		fmt.Printf("Migrations failed: %v\n", err)
+		os.Exit(1)
+	}
+	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
+		fmt.Printf("Update competition start_time: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -117,6 +138,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// GetTestBaseURL returns the base URL of the test server (e.g. http://localhost:PORT).
 func GetTestBaseURL() string {
 	return fmt.Sprintf("http://localhost:%s", testPort)
 }
@@ -135,8 +157,8 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 			field_values, fields, brackets, pages, user_notifications, notifications,
 			submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
 			solutions, files, verification_tokens, awards, hint_unlocks, hints, solves,
-			challenges, teams, users, competition
-			RESTART IDENTITY CASCADE`)
+			ratings, challenges, teams, users, competition
+			RESTART IDentity CASCADE`)
 		if err != nil {
 			return err
 		}
@@ -160,27 +182,51 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 			) VALUES (
 				1, 'AstroCTFb', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
 				FALSE, 'noreply@astroctfb.local', 'AstroCTFb',
-				24, 1, 10, 1,
+				24, 1, 500000, 1,
 				'public', TRUE,
-				1000, 1000,
-				1000, 1000,
-				1000, 1000,
-				1000, 1000,
-				1000, 1000,
+				10000, 10000,
+				100000, 10000,
+				10000, 10000,
+				10000, 10000,
+				10000, 10000,
 				now()
 			) ON CONFLICT (id) DO UPDATE SET
-				rate_limit_login_per_minute = 1000,
-				rate_limit_register_per_minute = 1000,
-				rate_limit_forgot_password_per_minute = 1000,
-				rate_limit_reset_password_per_minute = 1000,
-				rate_limit_logout_per_minute = 1000,
-				rate_limit_refresh_per_minute = 1000,
-				rate_limit_scoreboard_per_minute = 1000,
-				rate_limit_general_ip_per_minute = 1000,
-				rate_limit_verify_email_per_minute = 1000,
-				rate_limit_oauth_callback_per_minute = 1000,
+				submit_limit_per_user = 500000,
+				submit_limit_duration_min = 1,
+				rate_limit_login_per_minute = 10000,
+				rate_limit_register_per_minute = 10000,
+				rate_limit_forgot_password_per_minute = 100000,
+				rate_limit_reset_password_per_minute = 10000,
+				rate_limit_logout_per_minute = 10000,
+				rate_limit_refresh_per_minute = 10000,
+				rate_limit_scoreboard_per_minute = 10000,
+				rate_limit_general_ip_per_minute = 10000,
+				rate_limit_verify_email_per_minute = 10000,
+				rate_limit_oauth_callback_per_minute = 10000,
 				updated_at = NOW()`)
-		return err
+		if err != nil {
+			return err
+		}
+		if TestRedis != nil {
+			_ = TestRedis.Del(ctx, cache.KeyAppSettings)
+			for _, pattern := range []string{"limiter:*", "e2e:*"} {
+				var cursor uint64
+				for {
+					keys, next, scanErr := TestRedis.Scan(ctx, cursor, pattern, 100).Result()
+					if scanErr != nil {
+						break
+					}
+					if len(keys) > 0 {
+						_ = TestRedis.Del(ctx, keys...)
+					}
+					cursor = next
+					if cursor == 0 {
+						break
+					}
+				}
+			}
+		}
+		return nil
 	}
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = 50 * time.Millisecond
@@ -203,6 +249,27 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 		return err
 	}
 	return nil
+}
+
+func resetAppSettings() {
+	ctx := context.Background()
+	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET
+		submit_limit_per_user = 500000, submit_limit_duration_min = 1,
+		rate_limit_login_per_minute = 10000, rate_limit_register_per_minute = 10000,
+		rate_limit_forgot_password_per_minute = 100000, rate_limit_reset_password_per_minute = 10000,
+		rate_limit_logout_per_minute = 10000, rate_limit_refresh_per_minute = 10000,
+		rate_limit_scoreboard_per_minute = 10000, rate_limit_general_ip_per_minute = 10000,
+		rate_limit_verify_email_per_minute = 10000, rate_limit_oauth_callback_per_minute = 10000,
+		updated_at = NOW() WHERE id = 1`)
+	if err != nil {
+		panic("resetAppSettings: " + err.Error())
+	}
+	if TestRedis != nil {
+		_ = TestRedis.Del(ctx, "app_settings")
+	}
+	if testRateLimitCache != nil {
+		testRateLimitCache.Invalidate()
+	}
 }
 
 // resetCompetitionToActive sets competition id=1 to active (start in past, end in future, not paused, no freeze).
@@ -231,6 +298,13 @@ func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
 	_ = TestRedis.Del(ctx, "competition")
 }
 
+func WithCompetitionTimes(t *testing.T, start, end time.Time, freeze *time.Time) {
+	t.Helper()
+	t.Cleanup(resetCompetitionToActive)
+	setCompetitionTimes(start, end, freeze)
+}
+
+// setCompetitionPaused sets competition id=1 is_paused in DB and clears competition cache.
 func setCompetitionPaused(paused bool) {
 	ctx := context.Background()
 	var err error
@@ -245,11 +319,12 @@ func setCompetitionPaused(paused bool) {
 	_ = TestRedis.Del(ctx, "competition")
 }
 
+// invalidateScoreboardCache clears scoreboard and frozen scoreboard keys in Redis.
 func invalidateScoreboardCache(ctx context.Context) {
 	if TestRedis == nil {
 		return
 	}
-	c := cache.New(TestRedis)
+	c := cachekit.New(TestRedis)
 	if err := c.Del(ctx, cache.KeyScoreboard); err != nil {
 		return
 	}
@@ -263,6 +338,7 @@ func invalidateScoreboardCache(ctx context.Context) {
 
 // Infrastructure Setup
 
+// setupInfrastructure starts DB and Redis (testcontainers or external) and returns cleanup.
 func setupInfrastructure(ctx context.Context) (func(), error) {
 	if os.Getenv("USE_EXTERNAL_DB") == "true" {
 		fmt.Println("Using EXTERNAL infrastructure (CI mode)...")
@@ -273,87 +349,65 @@ func setupInfrastructure(ctx context.Context) (func(), error) {
 }
 
 func setupTestContainers(ctx context.Context) (func(), error) {
-	// PostgreSQL
-	postgresC, err := postgres.Run(ctx,
-		"postgres:17-alpine",
-		postgres.WithDatabase("test"),
-		postgres.WithUsername(string(entity.RoleUser)),
-		postgres.WithPassword("password"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(120*time.Second),
-		),
+	postgresC, connStr, err := testutil.StartPostgres(ctx,
+		testutil.PostgresWithUser(string(domain.RoleUser)),
+		testutil.PostgresWithPassword("password"),
+		testutil.PostgresWithStartupTimeout(120*time.Second),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
+	e2eConnStr = connStr
 
-	// Redis
-	redisC, err := redisContainer.Run(ctx, "redis:alpine")
+	poolCfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start redis container: %w", err)
+		return nil, fmt.Errorf("failed to parse pool config: %w", err)
 	}
-
-	// PostgreSQL Connection
-	connStr, err := postgresC.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get db connection string: %w", err)
-	}
-
-	TestPool, err = pgxpool.New(ctx, connStr)
+	poolCfg.MaxConns = 20
+	TestPool, err = pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
-
-	// Verify DB Connection
 	if err := TestPool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping db: %w", err)
 	}
 
-	// Redis Connection
-	redisURI, err := redisC.ConnectionString(ctx)
+	var redisCleanup func()
+	TestRedis, redisCleanup, err = testutil.StartRedisClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get redis connection string: %w", err)
+		if termErr := postgresC.Terminate(ctx); termErr != nil {
+			fmt.Printf("postgres terminate on cleanup: %v\n", termErr)
+		}
+		return nil, fmt.Errorf("failed to start redis: %w", err)
 	}
 
-	opts, err := redis.ParseURL(redisURI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse redis url: %w", err)
-	}
-	TestRedis = redis.NewClient(opts)
-
-	// Verify Redis Connection
-	if err := TestRedis.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("redis ping failed: %w", err)
-	}
-
-	// Cleanup func
 	cleanup := func() {
 		fmt.Println("Cleaning up containers...")
 		TestPool.Close()
-		_ = TestRedis.Close()
+		redisCleanup()
 		if err := postgresC.Terminate(ctx); err != nil {
 			fmt.Printf("postgres terminate: %v\n", err)
-		}
-		if err := redisC.Terminate(ctx); err != nil {
-			fmt.Printf("redis terminate: %v\n", err)
 		}
 	}
 	return cleanup, nil
 }
 
+// setupExternalInfra connects to existing Postgres and Redis from env (CI) and returns cleanup.
 func setupExternalInfra(ctx context.Context) (func(), error) {
 	// PostgreSQL Setup
-	dbUser := getEnv("POSTGRES_USER", "test_user")
-	dbPass := getEnv("POSTGRES_PASSWORD", "test_password")
-	dbHost := getEnv("POSTGRES_HOST", "postgres")
-	dbPort := getEnv("POSTGRES_PORT", "5432")
-	dbName := getEnv("POSTGRES_DB", "test_board")
+	dbUser := testutil.GetEnv("POSTGRES_USER", "test_user")
+	dbPass := testutil.GetEnv("POSTGRES_PASSWORD", "test_password")
+	dbHost := testutil.GetEnv("POSTGRES_HOST", "postgres")
+	dbPort := testutil.GetEnv("POSTGRES_PORT", "5432")
+	dbName := testutil.GetEnv("POSTGRES_DB", "test_board")
 
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
-	var err error
-	TestPool, err = pgxpool.New(ctx, connStr)
+	e2eConnStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
+	poolCfg, err := pgxpool.ParseConfig(e2eConnStr)
+	if err != nil {
+		return nil, err
+	}
+	poolCfg.MaxConns = 20
+	TestPool, err = pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -365,9 +419,9 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 	}
 
 	// Redis Setup
-	redisHost := getEnv("REDIS_HOST", "redis")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "")
+	redisHost := testutil.GetEnv("REDIS_HOST", "redis")
+	redisPort := testutil.GetEnv("REDIS_PORT", "6379")
+	redisPassword := testutil.GetEnv("REDIS_PASSWORD", "")
 
 	TestRedis = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
@@ -384,73 +438,17 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 	}, nil
 }
 
-// Migrations
-
-func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	migrationsDir := filepath.Join("..", "migrations")
-
-	files, err := os.ReadDir(migrationsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read migrations dir '%s': %w", migrationsDir, err)
-	}
-
-	fmt.Printf("Running migrations from %s...\n", migrationsDir)
-
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".sql") {
-			continue
-		}
-
-		raw, err := os.ReadFile(filepath.Join(migrationsDir, f.Name()))
-		if err != nil {
-			return err
-		}
-
-		if _, err := pool.Exec(ctx, extractGooseUp(string(raw))); err != nil {
-			if !isIgnorableDBError(err) {
-				fmt.Printf("Warn: migration error in %s: %v\n", f.Name(), err)
-			}
-		}
-	}
-
-	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
-		return fmt.Errorf("update competition start_time: %w", err)
-	}
-	return nil
-}
-
-func extractGooseUp(content string) string {
-	lines := strings.Split(content, "\n")
-	var result []string
-	inUp := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "-- +goose Up" {
-			inUp = true
-			continue
-		}
-		if trimmed == "-- +goose Down" {
-			break
-		}
-		if strings.HasPrefix(trimmed, "-- +goose") {
-			continue
-		}
-		if inUp {
-			result = append(result, strings.ReplaceAll(line, " CONCURRENTLY", ""))
-		}
-	}
-	return strings.Join(result, "\n")
-}
-
 // Server setup
 
+// testDeps holds logger, validator, JWT, crypto for e2e server.
 type testDeps struct {
-	logger    logger.Logger
+	logger    logkit.Logger
 	validator validator.Validator
-	jwt       *jwt.JWTService
+	jwt       *jwtkit.JWTService
 	crypto    *crypto.CryptoService
 }
 
+// testRepos holds all persistent repositories and transaction manager for e2e.
 type testRepos struct {
 	apiTokenRepo     *persistent.APITokenRepo
 	SettingsRepo     *persistent.SettingsRepo
@@ -468,6 +466,7 @@ type testRepos struct {
 	hintRepo         *persistent.HintRepo
 	notificationRepo *persistent.NotificationRepo
 	pageRepo         *persistent.PageRepo
+	ratingRepo       *persistent.RatingRepo
 	solveRepo        *persistent.SolveRepo
 	statsRepo        *persistent.StatisticsRepo
 	submissionRepo   *persistent.SubmissionRepo
@@ -479,6 +478,7 @@ type testRepos struct {
 	userRepo         *persistent.UserRepo
 }
 
+// testUseCases holds all application use cases and settings repo for e2e server.
 type testUseCases struct {
 	user               *user.UserUseCase
 	team               *team.TeamUseCase
@@ -497,6 +497,7 @@ type testUseCases struct {
 	tagUC              *challenge.TagUseCase
 	fieldUC            *settings.FieldUseCase
 	pageUC             *page.PageUseCase
+	ratingUC           *challenge.RatingUseCase
 	bracketUC          *competition.BracketUseCase
 	notifUC            usecase.NotificationUseCase
 	apiTokenUC         usecase.APITokenUseCase
@@ -506,6 +507,7 @@ type testUseCases struct {
 	SettingsRepo       repo.SettingsRepository
 }
 
+// startTestServer builds deps, use cases, router, starts HTTP server on random port; returns shutdown and temp dir cleanup.
 func startTestServer() (func(), error) {
 	deps, err := initTestDeps()
 	if err != nil {
@@ -540,7 +542,23 @@ func startTestServer() (func(), error) {
 		}
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	baseURL := "http://localhost:" + testPort
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", nil)
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil && resp != nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -554,19 +572,23 @@ func startTestServer() (func(), error) {
 
 // Deps (logger, validator, jwt, crypto)
 func initTestDeps() (*testDeps, error) {
-	l := logger.New(&logger.Options{
-		Level:  logger.ErrorLevel,
-		Output: logger.ConsoleOutput,
-	})
+	l, err := logkit.New(logkit.WithLevel(logkit.ErrorLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	if err != nil {
+		return nil, fmt.Errorf("create logger: %w", err)
+	}
 	validatorService, err := validator.New()
 	if err != nil {
 		panic("e2e: failed to create validator: " + err.Error())
 	}
-	jwtRevoker := jwt.NewRedisRevocationStore(TestRedis)
-	jwtService, err := jwt.NewJWTService(
-		[]jwt.KeyEntry{{Kid: "0", Secret: "test-access-secret-min-32-bytes!"}},
-		[]jwt.KeyEntry{{Kid: "0", Secret: "test-refresh-secret-min32-bytes!"}},
-		24*time.Hour, 72*time.Hour, jwtRevoker, nil)
+	jwtRevoker := jwtkit.NewRedisRevocationStore(TestRedis)
+	jwtService, err := jwtkit.NewJWTService(jwtkit.Config{
+		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-access-secret-min-32-bytes!")}},
+		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-refresh-secret-min32-bytes!")}},
+		AccessTTL:   24 * time.Hour,
+		RefreshTTL:  72 * time.Hour,
+		Issuer:      "e2e-issuer",
+		Revoker:     jwtRevoker,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to init JWT service: %w", err)
 	}
@@ -583,6 +605,7 @@ func initTestDeps() (*testDeps, error) {
 	}, nil
 }
 
+// initTestRepos creates all persistent repos and transaction manager from TestPool.
 func initTestRepos() *testRepos {
 	tm := persistent.NewTransactionManager(TestPool)
 	return &testRepos{
@@ -605,6 +628,7 @@ func initTestRepos() *testRepos {
 		fieldValueRepo:   persistent.NewFieldValueRepo(TestPool),
 		submissionRepo:   persistent.NewSubmissionRepo(TestPool),
 		pageRepo:         persistent.NewPageRepo(TestPool),
+		ratingRepo:       persistent.NewRatingRepo(TestPool),
 		bracketRepo:      persistent.NewBracketRepo(TestPool),
 		notificationRepo: persistent.NewNotificationRepo(TestPool),
 		apiTokenRepo:     persistent.NewAPITokenRepo(TestPool),
@@ -614,7 +638,7 @@ func initTestRepos() *testRepos {
 	}
 }
 
-func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
+func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 	tempStorageDir, err := os.MkdirTemp("", "astroctfb-e2e-storage")
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("failed to create temp storage dir: %w", err)
@@ -624,16 +648,24 @@ func initTestStorageAndHub() (string, storage.Provider, *websocket.Hub, error) {
 		return "", nil, nil, fmt.Errorf("failed to create storage provider: %w", err)
 	}
 	ctx := context.Background()
-	hub := websocket.NewHub(TestRedis, "astroctfb:events")
+	hub := wskit.NewHub(
+		wskit.WithRedis(TestRedis, "astroctfb:events"),
+		wskit.WithOnConnect(func(c *wskit.Client) {
+			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
+			if err == nil {
+				c.Send(data)
+			}
+		}),
+	)
 	go hub.Run(ctx)
 	go hub.SubscribeToRedis(ctx)
 	return tempStorageDir, fileStorage, hub, nil
 }
 
-func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *websocket.Hub) *testUseCases {
+func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *wskit.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
 	broadcaster := websocket.NewBroadcaster(hub)
-	testCache := cache.New(TestRedis)
+	testCache := cachekit.New(TestRedis)
 	scoreboardCache := cache.NewScoreboardCacheService(testCache, &teamBracketGetter{repos.teamRepo})
 	competitionGuard := competition.NewGuard(repos.compRepo)
 	userCacheSvc := cache.NewUserCacheService(testCache)
@@ -674,12 +706,15 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		CompRepo:        repos.compRepo,
 		SoloTeamCreator: teamUC,
 		UserCache:       userCacheSvc,
+		ChallengeRepo:   repos.challengeRepo,
+		ScoreboardCache: scoreboardCache,
+		Logger:          deps.logger,
 	})
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{
 		CompetitionRepo: repos.compRepo,
 		AuditLogRepo:    repos.auditLogRepo,
 		TM:              repos.tm,
-		Redis:           &cache.RedisKeyValueStore{Client: TestRedis},
+		Redis:           &cachekit.RedisKeyValueStore{Client: TestRedis},
 		ScoreboardCache: scoreboardCache,
 		Logger:          deps.logger,
 	})
@@ -687,13 +722,21 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		ChallengeRepo:   repos.challengeRepo,
 		TagRepo:         repos.tagRepo,
 		SolveRepo:       repos.solveRepo,
+		SubmissionRepo:  repos.submissionRepo,
 		TM:              repos.tm,
 		CompRepo:        repos.compRepo,
 		TeamRepo:        repos.teamRepo,
+		UserRepo:        repos.userRepo,
 		ScoreboardCache: scoreboardCache,
 		Broadcaster:     broadcaster,
 		AuditLogRepo:    repos.auditLogRepo,
 		Crypto:          deps.crypto,
+	})
+	ratingUC := challenge.NewRatingUseCase(challenge.RatingDeps{
+		ChallengeRepo: repos.challengeRepo,
+		SolveRepo:     repos.solveRepo,
+		RatingRepo:    repos.ratingRepo,
+		TM:            repos.tm,
 	})
 	solveUC := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo, CompetitionRepo: repos.compRepo,
@@ -731,11 +774,11 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		Repo:         repos.SettingsRepo,
 		AuditLogRepo: repos.auditLogRepo,
 		TM:           repos.tm,
-		Redis:        &cache.RedisKeyValueStore{Client: TestRedis},
+		Redis:        &cachekit.RedisKeyValueStore{Client: TestRedis},
 		CompRepo:     repos.compRepo,
 		Logger:       deps.logger,
 	})
-	competitionParamUC := competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
+	competitionParamUC := competition.NewCompetitionParamUseCase(context.Background(), competition.CompetitionParamDeps{
 		Repo:         repos.paramRepo,
 		AuditLogRepo: repos.auditLogRepo,
 		TM:           repos.tm,
@@ -743,7 +786,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	})
 	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
 	trackingUC := user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: repos.trackingRepo})
-	ws := wsV1.NewController(hub, deps.logger, []string{"*"})
+	ws := wsV1.NewController(hub, deps.logger, []string{"localhost:*"})
 	fileUC := challenge.NewFileUseCase(challenge.FileDeps{
 		FileRepo:       repos.fileRepo,
 		ChallengeRepo:  repos.challengeRepo,
@@ -757,12 +800,13 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
-		pageUC: pageUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
+		pageUC: pageUC, ratingUC: ratingUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
 		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC,
 		SettingsRepo: repos.SettingsRepo,
 	}
 }
 
+// initTestUseCases initializes repos, storage, hub, and builds all use cases; returns temp dir path.
 func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	repos := initTestRepos()
 	tempStorageDir, fileStorage, hub, err := initTestStorageAndHub()
@@ -774,17 +818,28 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 }
 
 // Router (chi, middleware, api v1 routes)
-func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwt.JWTService, tempStorageDir string) *chi.Mux {
+func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(60*time.Second))
-	r.Use(restapimiddleware.Logger(l, nil))
+	timeoutMW := kitMiddleware.Timeout(60 * time.Second)
+	r.Use(kitMiddleware.RequestID(), middleware.RealIP, kitMiddleware.Recoverer(l))
+	r.Use(func(next http.Handler) http.Handler {
+		withTimeout := timeoutMW(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if strings.HasSuffix(req.URL.Path, "/ws") {
+				next.ServeHTTP(w, req)
+				return
+			}
+			withTimeout.ServeHTTP(w, req)
+		})
+	})
+	r.Use(kitMiddleware.Logger(l, nil))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
 	})
 
-	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:forgot", 3, 24*time.Hour)
+	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:forgot", 20, 24*time.Hour)
 	if err != nil {
 		panic("e2e: failed to create forgot-password rate limiter: " + err.Error())
 	}
@@ -799,7 +854,7 @@ func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, val
 
 	deps := &helper.ServerDeps{
 		Challenge: helper.ChallengeDeps{
-			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC,
+			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC, RatingUC: uc.ratingUC,
 		},
 		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
 		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
@@ -812,20 +867,17 @@ func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, val
 			Validator:                     validatorService,
 			Logger:                        l,
 			TrustedProxyCIDRs:             nil,
+			StructuredLogger:              false,
+			DebugEnabled:                  false,
 			ForgotPasswordRateLimiter:     forgotLimiter,
 			ResendVerificationRateLimiter: resendLimiter,
 			ResetPasswordTokenRateLimiter: resetTokenLimiter,
 		},
 	}
+	testRateLimitCache = restapimiddleware.NewRateLimitConfigCache(1 * time.Second)
+	deps.Infra.RateLimitConfigCache = testRateLimitCache
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		rateLimitCache := helper.NewRateLimitConfigCache(30 * time.Second)
-		v1.NewRouter(ctx, apiRouter, deps, false, rateLimitCache)
-
-		// Static routes for E2E Filesystem
-		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
-			fs := http.StripPrefix("/api/v1/files/download/", http.FileServer(http.Dir(tempStorageDir)))
-			fs.ServeHTTP(w, r)
-		})
+		v1.NewRouter(ctx, apiRouter, deps, false, testRateLimitCache)
 	})
 
 	return r
@@ -833,15 +885,4 @@ func setupTestRouter(ctx context.Context, l logger.Logger, uc *testUseCases, val
 
 // Utils
 
-func getEnv(key, fallback string) string {
-	if v, exists := os.LookupEnv(key); exists {
-		return v
-	}
-	return fallback
-}
-
-func isIgnorableDBError(err error) bool {
-	msg := err.Error()
-	return strings.Contains(msg, "already exists") ||
-		strings.Contains(msg, "duplicate key")
-}
+// getEnv returns os.LookupEnv(key) or fallback.

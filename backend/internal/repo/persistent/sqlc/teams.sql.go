@@ -558,11 +558,17 @@ func (q *Queries) SetTeamHidden(ctx context.Context, arg SetTeamHiddenParams) (u
 }
 
 const softDeleteTeam = `-- name: SoftDeleteTeam :one
-UPDATE teams SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id
+UPDATE teams SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id
 `
 
-func (q *Queries) SoftDeleteTeam(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, softDeleteTeam, id)
+type SoftDeleteTeamParams struct {
+	ID        uuid.UUID          `json:"id"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) SoftDeleteTeam(ctx context.Context, arg SoftDeleteTeamParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, softDeleteTeam, arg.ID, arg.DeletedAt)
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }

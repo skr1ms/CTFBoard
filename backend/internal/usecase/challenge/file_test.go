@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -25,16 +25,16 @@ func TestFileUseCase_Upload(t *testing.T) {
 
 		ctx := context.Background()
 		challengeID := uuid.New()
-		fileType := entity.FileTypeChallenge
+		fileType := domain.FileTypeChallenge
 		filename := "test_task.txt"
 		content := []byte("test content")
 		reader := bytes.NewReader(content)
 		size := int64(len(content))
 		contentType := "text/plain"
 
-		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&entity.Challenge{ID: challengeID}, nil).Once()
+		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&domain.Challenge{ID: challengeID}, nil).Once()
 		d.s3Provider.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(nil)
-		d.fileRepo.On("Create", ctx, mock.MatchedBy(func(f *entity.File) bool {
+		d.fileRepo.On("Create", ctx, mock.MatchedBy(func(f *domain.File) bool {
 			return f.ChallengeID == challengeID &&
 				f.Filename == filename &&
 				f.Size == size &&
@@ -59,7 +59,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 
 		ctx := context.Background()
 		challengeID := uuid.New()
-		fileType := entity.FileTypeChallenge
+		fileType := domain.FileTypeChallenge
 		filename := "test_task.txt"
 		reader := bytes.NewReader([]byte("test"))
 		size := int64(4)
@@ -67,7 +67,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 
 		expectedErr := errors.New("storage error")
 
-		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&entity.Challenge{ID: challengeID}, nil).Once()
+		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&domain.Challenge{ID: challengeID}, nil).Once()
 		d.s3Provider.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(expectedErr)
 
 		file, err := uc.Upload(ctx, challengeID, fileType, filename, reader, size, contentType)
@@ -131,14 +131,14 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 
 		ctx := context.Background()
 		fileID := uuid.New()
-		fileEntity := &entity.File{
+		fileentity := &domain.File{
 			ID:       fileID,
 			Location: "loc/path/file.txt",
 		}
 		expectedURL := "http://example.com/file"
 
-		d.fileRepo.On("GetByID", ctx, fileID).Return(fileEntity, nil)
-		d.s3Provider.On("GetPresignedURL", ctx, fileEntity.Location, time.Hour).Return(expectedURL, nil)
+		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
+		d.s3Provider.On("GetPresignedURL", ctx, fileentity.Location, time.Hour).Return(expectedURL, nil)
 
 		url, err := uc.GetDownloadURL(ctx, fileID)
 		assert.NoError(t, err)
@@ -177,8 +177,8 @@ func TestFileUseCase_GetByChallengeID(t *testing.T) {
 
 		ctx := context.Background()
 		challengeID := uuid.New()
-		fileType := entity.FileTypeChallenge
-		expectedFiles := []*entity.File{
+		fileType := domain.FileTypeChallenge
+		expectedFiles := []*domain.File{
 			{ID: uuid.New(), Filename: "f1"},
 			{ID: uuid.New(), Filename: "f2"},
 		}
@@ -199,7 +199,7 @@ func TestFileUseCase_GetByChallengeID(t *testing.T) {
 
 		ctx := context.Background()
 		challengeID := uuid.New()
-		fileType := entity.FileTypeChallenge
+		fileType := domain.FileTypeChallenge
 		expectedErr := errors.New("db error")
 
 		d.fileRepo.On("GetByChallengeID", ctx, challengeID, fileType).Return(nil, expectedErr)
@@ -221,10 +221,10 @@ func TestFileUseCase_Delete(t *testing.T) {
 
 		ctx := context.Background()
 		fileID := uuid.New()
-		fileEntity := &entity.File{ID: fileID, Location: "loc"}
+		fileentity := &domain.File{ID: fileID, Location: "loc"}
 
-		d.fileRepo.On("GetByID", ctx, fileID).Return(fileEntity, nil)
-		d.s3Provider.On("Delete", ctx, fileEntity.Location).Return(nil)
+		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
+		d.s3Provider.On("Delete", ctx, fileentity.Location).Return(nil)
 		d.fileRepo.On("Delete", ctx, fileID).Return(nil)
 
 		err := uc.Delete(ctx, fileID)
@@ -259,12 +259,12 @@ func TestFileUseCase_Delete(t *testing.T) {
 
 		ctx := context.Background()
 		fileID := uuid.New()
-		fileEntity := &entity.File{ID: fileID, Location: "loc"}
+		fileentity := &domain.File{ID: fileID, Location: "loc"}
 		expectedErr := errors.New("s3 err")
 
-		d.fileRepo.On("GetByID", ctx, fileID).Return(fileEntity, nil)
+		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
 		d.fileRepo.On("Delete", ctx, fileID).Return(nil)
-		d.s3Provider.On("Delete", ctx, fileEntity.Location).Return(expectedErr)
+		d.s3Provider.On("Delete", ctx, fileentity.Location).Return(expectedErr)
 
 		err := uc.Delete(ctx, fileID)
 		assert.Error(t, err)

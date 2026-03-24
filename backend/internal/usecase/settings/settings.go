@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 const cacheTTL = 5 * time.Minute
@@ -28,26 +29,26 @@ type SettingsDeps struct {
 	Repo         repo.SettingsRepository
 	AuditLogRepo repo.AuditLogRepository
 	TM           repo.TransactionManager
-	Redis        cache.KeyValueStore
+	Redis        cachekit.KeyValueStore
 	CompRepo     repo.CompetitionRepository
 	ConfigUC     usecase.CompetitionParamUseCase
-	Logger       logger.Logger
+	Logger       logkit.Logger
 }
 
 var _ usecase.SettingsUseCase = (*SettingsUseCase)(nil)
 
 func NewSettingsUseCase(deps SettingsDeps) *SettingsUseCase {
 	if deps.Logger == nil {
-		deps.Logger = logger.Noop()
+		deps.Logger = logkit.Noop()
 	}
 	return &SettingsUseCase{deps: deps}
 }
 
-func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.Settings, error) {
+func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 	if uc.deps.Redis != nil {
 		val, err := uc.deps.Redis.Get(ctx, cache.KeyAppSettings)
 		if err == nil {
-			var s entity.Settings
+			var s domain.Settings
 			if err := json.Unmarshal([]byte(val), &s); err == nil {
 				return &s, nil
 			}
@@ -69,14 +70,14 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*entity.Settings, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SettingsUseCase - Get - SettingsRepo.Get: %w", err)
 	}
-	s, ok := v.(*entity.Settings)
+	s, ok := v.(*domain.Settings)
 	if !ok {
 		return nil, fmt.Errorf("SettingsUseCase - Get: unexpected type")
 	}
 	return s, nil
 }
 
-func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actorID uuid.UUID, clientIP string) error {
+func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actorID uuid.UUID, clientIP string) error {
 	if err := uc.validate(s); err != nil {
 		return fmt.Errorf("SettingsUseCase - Update - validate: %w", err)
 	}
@@ -89,7 +90,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actor
 			comp, err := uc.deps.CompRepo.Get(ctx)
 			if err == nil {
 				status := comp.GetStatus()
-				if status == entity.CompetitionStatusActive || status == entity.CompetitionStatusFrozen || status == entity.CompetitionStatusPaused {
+				if status == domain.CompetitionStatusActive || status == domain.CompetitionStatusFrozen || status == domain.CompetitionStatusPaused {
 					if s.ScoreboardVisible != current.ScoreboardVisible || s.RegistrationOpen != current.RegistrationOpen {
 						return httperr.ErrSettingsCannotChangeDuringCompetition
 					}
@@ -99,10 +100,10 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actor
 		if err := uc.deps.Repo.UpdateIfCurrent(ctx, s); err != nil {
 			return fmt.Errorf("SettingsUseCase - Update - SettingsRepo.UpdateIfCurrent: %w", err)
 		}
-		auditLog := &entity.AuditLog{
+		auditLog := &domain.AuditLog{
 			UserID:     &actorID,
-			Action:     entity.AuditActionUpdate,
-			EntityType: entity.AuditEntityAppSettings,
+			Action:     domain.AuditActionUpdate,
+			EntityType: domain.AuditEntityAppSettings,
 			EntityID:   "settings",
 			IP:         clientIP,
 			Details: map[string]any{
@@ -123,7 +124,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *entity.Settings, actor
 	return nil
 }
 
-func (uc *SettingsUseCase) validate(s *entity.Settings) error {
+func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 	if err := validateTimings(s); err != nil {
 		return fmt.Errorf("SettingsUseCase - validate - validateTimings: %w", err)
 	}
@@ -134,14 +135,14 @@ func (uc *SettingsUseCase) validate(s *entity.Settings) error {
 		return fmt.Errorf("SettingsUseCase - validate - validateRateLimits: %w", err)
 	}
 	switch s.ScoreboardVisible {
-	case entity.ScoreboardVisiblePublic, entity.ScoreboardVisibleHidden, entity.ScoreboardVisibleAdminsOnly:
+	case domain.ScoreboardVisiblePublic, domain.ScoreboardVisibleHidden, domain.ScoreboardVisibleAdminsOnly:
 	default:
 		return httperr.NewValidationErrorf("scoreboard_visible must be public, hidden, or admins_only")
 	}
 	return nil
 }
 
-func validateTimings(s *entity.Settings) error {
+func validateTimings(s *domain.Settings) error {
 	if s.SubmitLimitPerUser < 1 {
 		return httperr.NewValidationErrorf("submit_limit_per_user must be >= 1")
 	}
@@ -157,7 +158,7 @@ func validateTimings(s *entity.Settings) error {
 	return nil
 }
 
-func validatePagination(s *entity.Settings) error {
+func validatePagination(s *domain.Settings) error {
 	if s.DefaultPerPage < 1 || s.DefaultPerPage > 1000 {
 		return httperr.NewValidationErrorf("default_per_page must be between 1 and 1000")
 	}
@@ -173,7 +174,7 @@ func validatePagination(s *entity.Settings) error {
 	return nil
 }
 
-func validateRateLimits(s *entity.Settings) error {
+func validateRateLimits(s *domain.Settings) error {
 	if s.RateLimitLoginPerMinute < 1 {
 		return httperr.NewValidationErrorf("rate_limit_login_per_minute must be >= 1")
 	}

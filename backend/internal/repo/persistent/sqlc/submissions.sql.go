@@ -13,7 +13,7 @@ import (
 )
 
 const countAllSubmissions = `-- name: CountAllSubmissions :one
-SELECT COUNT(*) FROM submissions WHERE banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountAllSubmissions(ctx context.Context) (int64, error) {
@@ -24,7 +24,7 @@ func (q *Queries) CountAllSubmissions(ctx context.Context) (int64, error) {
 }
 
 const countAllSubmissionsFrozen = `-- name: CountAllSubmissionsFrozen :one
-SELECT COUNT(*) FROM submissions WHERE created_at <= $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE created_at <= $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountAllSubmissionsFrozen(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error) {
@@ -35,11 +35,11 @@ func (q *Queries) CountAllSubmissionsFrozen(ctx context.Context, createdAt pgtyp
 }
 
 const countFailedSubmissionsByIP = `-- name: CountFailedSubmissionsByIP :one
-SELECT COUNT(*) FROM submissions WHERE ip = $1 AND is_correct = FALSE AND created_at > $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE ip = $1 AND is_correct = FALSE AND created_at > $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type CountFailedSubmissionsByIPParams struct {
-	IP        *string            `json:"ip"`
+	IP        string             `json:"ip"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -51,7 +51,7 @@ func (q *Queries) CountFailedSubmissionsByIP(ctx context.Context, arg CountFaile
 }
 
 const countFailsByTeamID = `-- name: CountFailsByTeamID :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountFailsByTeamID(ctx context.Context, teamID *uuid.UUID) (int64, error) {
@@ -62,7 +62,7 @@ func (q *Queries) CountFailsByTeamID(ctx context.Context, teamID *uuid.UUID) (in
 }
 
 const countFailsByUserID = `-- name: CountFailsByUserID :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountFailsByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
@@ -73,7 +73,7 @@ func (q *Queries) CountFailsByUserID(ctx context.Context, userID uuid.UUID) (int
 }
 
 const countSubmissionsByChallenge = `-- name: CountSubmissionsByChallenge :one
-SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountSubmissionsByChallenge(ctx context.Context, challengeID uuid.UUID) (int64, error) {
@@ -84,7 +84,7 @@ func (q *Queries) CountSubmissionsByChallenge(ctx context.Context, challengeID u
 }
 
 const countSubmissionsByChallengeFrozen = `-- name: CountSubmissionsByChallengeFrozen :one
-SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type CountSubmissionsByChallengeFrozenParams struct {
@@ -100,7 +100,7 @@ func (q *Queries) CountSubmissionsByChallengeFrozen(ctx context.Context, arg Cou
 }
 
 const countSubmissionsByTeam = `-- name: CountSubmissionsByTeam :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountSubmissionsByTeam(ctx context.Context, teamID *uuid.UUID) (int64, error) {
@@ -110,8 +110,25 @@ func (q *Queries) CountSubmissionsByTeam(ctx context.Context, teamID *uuid.UUID)
 	return count, err
 }
 
+const countSubmissionsByTeamAndChallenge = `-- name: CountSubmissionsByTeamAndChallenge :one
+SELECT COUNT(*)::bigint FROM submissions WHERE team_id = $1 AND challenge_id = $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+`
+
+type CountSubmissionsByTeamAndChallengeParams struct {
+	TeamID      *uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID  `json:"challenge_id"`
+}
+
+// Counts only correct and incorrect submissions for max_attempts; ratelimited entries are excluded (audit-only, not a real attempt).
+func (q *Queries) CountSubmissionsByTeamAndChallenge(ctx context.Context, arg CountSubmissionsByTeamAndChallengeParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubmissionsByTeamAndChallenge, arg.TeamID, arg.ChallengeID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countSubmissionsByTeamFrozen = `-- name: CountSubmissionsByTeamFrozen :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type CountSubmissionsByTeamFrozenParams struct {
@@ -127,7 +144,7 @@ func (q *Queries) CountSubmissionsByTeamFrozen(ctx context.Context, arg CountSub
 }
 
 const countSubmissionsByUser = `-- name: CountSubmissionsByUser :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountSubmissionsByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
@@ -138,7 +155,7 @@ func (q *Queries) CountSubmissionsByUser(ctx context.Context, userID uuid.UUID) 
 }
 
 const countSubmissionsByUserFrozen = `-- name: CountSubmissionsByUserFrozen :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type CountSubmissionsByUserFrozenParams struct {
@@ -154,19 +171,20 @@ func (q *Queries) CountSubmissionsByUserFrozen(ctx context.Context, arg CountSub
 }
 
 const createSubmission = `-- name: CreateSubmission :exec
-INSERT INTO submissions (id, user_id, team_id, challenge_id, submitted_flag, is_correct, ip, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO submissions (id, user_id, team_id, challenge_id, submitted_flag, is_correct, submission_type, ip, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateSubmissionParams struct {
-	ID            uuid.UUID          `json:"id"`
-	UserID        uuid.UUID          `json:"user_id"`
-	TeamID        *uuid.UUID         `json:"team_id"`
-	ChallengeID   uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag string             `json:"submitted_flag"`
-	IsCorrect     bool               `json:"is_correct"`
-	IP            *string            `json:"ip"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	TeamID         *uuid.UUID         `json:"team_id"`
+	ChallengeID    uuid.UUID          `json:"challenge_id"`
+	SubmittedFlag  string             `json:"submitted_flag"`
+	IsCorrect      bool               `json:"is_correct"`
+	SubmissionType string             `json:"submission_type"`
+	IP             string             `json:"ip"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateSubmission(ctx context.Context, arg CreateSubmissionParams) error {
@@ -177,6 +195,7 @@ func (q *Queries) CreateSubmission(ctx context.Context, arg CreateSubmissionPara
 		arg.ChallengeID,
 		arg.SubmittedFlag,
 		arg.IsCorrect,
+		arg.SubmissionType,
 		arg.IP,
 		arg.CreatedAt,
 	)
@@ -202,7 +221,7 @@ func (q *Queries) DeleteSubmissionsByTeamID(ctx context.Context, teamID *uuid.UU
 }
 
 const getAllSubmissions = `-- name: GetAllSubmissions :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -225,13 +244,14 @@ type GetAllSubmissionsRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	TeamName          string             `json:"team_name"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsParams) ([]GetAllSubmissionsRow, error) {
@@ -250,6 +270,7 @@ func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsPa
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -269,7 +290,7 @@ func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsPa
 }
 
 const getAllSubmissionsFrozen = `-- name: GetAllSubmissionsFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -293,13 +314,14 @@ type GetAllSubmissionsFrozenRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	TeamName          string             `json:"team_name"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetAllSubmissionsFrozen(ctx context.Context, arg GetAllSubmissionsFrozenParams) ([]GetAllSubmissionsFrozenRow, error) {
@@ -318,6 +340,7 @@ func (q *Queries) GetAllSubmissionsFrozen(ctx context.Context, arg GetAllSubmiss
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -337,12 +360,12 @@ func (q *Queries) GetAllSubmissionsFrozen(ctx context.Context, arg GetAllSubmiss
 }
 
 const getFailsByTeamID = `-- name: GetFailsByTeamID :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
 JOIN challenges c ON c.id = s.challenge_id
-WHERE s.team_id = $1 AND s.is_correct = FALSE AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+WHERE s.team_id = $1 AND s.is_correct = FALSE AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND s.submission_type IN ('correct', 'incorrect')
 ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -360,12 +383,13 @@ type GetFailsByTeamIDRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetFailsByTeamID(ctx context.Context, arg GetFailsByTeamIDParams) ([]GetFailsByTeamIDRow, error) {
@@ -384,6 +408,7 @@ func (q *Queries) GetFailsByTeamID(ctx context.Context, arg GetFailsByTeamIDPara
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -402,11 +427,11 @@ func (q *Queries) GetFailsByTeamID(ctx context.Context, arg GetFailsByTeamIDPara
 }
 
 const getFailsByUserID = `-- name: GetFailsByUserID :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN challenges c ON c.id = s.challenge_id
-WHERE s.user_id = $1 AND s.is_correct = FALSE AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+WHERE s.user_id = $1 AND s.is_correct = FALSE AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND s.submission_type IN ('correct', 'incorrect')
 ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -424,11 +449,12 @@ type GetFailsByUserIDRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetFailsByUserID(ctx context.Context, arg GetFailsByUserIDParams) ([]GetFailsByUserIDRow, error) {
@@ -447,6 +473,7 @@ func (q *Queries) GetFailsByUserID(ctx context.Context, arg GetFailsByUserIDPara
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -464,7 +491,7 @@ func (q *Queries) GetFailsByUserID(ctx context.Context, arg GetFailsByUserIDPara
 }
 
 const getSubmissionByID = `-- name: GetSubmissionByID :one
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
     u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -480,13 +507,14 @@ type GetSubmissionByIDRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	TeamName          string             `json:"team_name"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetSubmissionByID(ctx context.Context, id uuid.UUID) (GetSubmissionByIDRow, error) {
@@ -499,6 +527,7 @@ func (q *Queries) GetSubmissionByID(ctx context.Context, id uuid.UUID) (GetSubmi
 		&i.ChallengeID,
 		&i.SubmittedFlag,
 		&i.IsCorrect,
+		&i.SubmissionType,
 		&i.IP,
 		&i.CreatedAt,
 		&i.BannedUserID,
@@ -511,7 +540,7 @@ func (q *Queries) GetSubmissionByID(ctx context.Context, id uuid.UUID) (GetSubmi
 }
 
 const getSubmissionByIDForUpdate = `-- name: GetSubmissionByIDForUpdate :one
-SELECT id, user_id, team_id, challenge_id, submitted_flag, is_correct, ip, created_at, banned_team_id, banned_user_id
+SELECT id, user_id, team_id, challenge_id, submitted_flag, is_correct, submission_type, ip, created_at, banned_team_id, banned_user_id
 FROM submissions
 WHERE id = $1
 FOR UPDATE
@@ -527,6 +556,7 @@ func (q *Queries) GetSubmissionByIDForUpdate(ctx context.Context, id uuid.UUID) 
 		&i.ChallengeID,
 		&i.SubmittedFlag,
 		&i.IsCorrect,
+		&i.SubmissionType,
 		&i.IP,
 		&i.CreatedAt,
 		&i.BannedTeamID,
@@ -541,7 +571,7 @@ SELECT
     COUNT(*) FILTER (WHERE is_correct = TRUE) AS correct,
     COUNT(*) FILTER (WHERE is_correct = FALSE) AS incorrect
 FROM submissions
-WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type GetSubmissionStatsRow struct {
@@ -563,7 +593,7 @@ SELECT
     COUNT(*) FILTER (WHERE is_correct = TRUE) AS correct,
     COUNT(*) FILTER (WHERE is_correct = FALSE) AS incorrect
 FROM submissions
-WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type GetSubmissionStatsFrozenParams struct {
@@ -585,7 +615,7 @@ func (q *Queries) GetSubmissionStatsFrozen(ctx context.Context, arg GetSubmissio
 }
 
 const getSubmissionsByChallenge = `-- name: GetSubmissionsByChallenge :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, COALESCE(t.name, '') AS team_name
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -602,17 +632,18 @@ type GetSubmissionsByChallengeParams struct {
 }
 
 type GetSubmissionsByChallengeRow struct {
-	ID            uuid.UUID          `json:"id"`
-	UserID        uuid.UUID          `json:"user_id"`
-	TeamID        *uuid.UUID         `json:"team_id"`
-	ChallengeID   uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag string             `json:"submitted_flag"`
-	IsCorrect     bool               `json:"is_correct"`
-	IP            *string            `json:"ip"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	BannedUserID  *uuid.UUID         `json:"banned_user_id"`
-	Username      string             `json:"username"`
-	TeamName      string             `json:"team_name"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	TeamID         *uuid.UUID         `json:"team_id"`
+	ChallengeID    uuid.UUID          `json:"challenge_id"`
+	SubmittedFlag  string             `json:"submitted_flag"`
+	IsCorrect      bool               `json:"is_correct"`
+	SubmissionType string             `json:"submission_type"`
+	IP             string             `json:"ip"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	BannedUserID   *uuid.UUID         `json:"banned_user_id"`
+	Username       string             `json:"username"`
+	TeamName       string             `json:"team_name"`
 }
 
 func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissionsByChallengeParams) ([]GetSubmissionsByChallengeRow, error) {
@@ -631,6 +662,7 @@ func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissi
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -648,7 +680,7 @@ func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissi
 }
 
 const getSubmissionsByChallengeFrozen = `-- name: GetSubmissionsByChallengeFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, COALESCE(t.name, '') AS team_name
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -666,17 +698,18 @@ type GetSubmissionsByChallengeFrozenParams struct {
 }
 
 type GetSubmissionsByChallengeFrozenRow struct {
-	ID            uuid.UUID          `json:"id"`
-	UserID        uuid.UUID          `json:"user_id"`
-	TeamID        *uuid.UUID         `json:"team_id"`
-	ChallengeID   uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag string             `json:"submitted_flag"`
-	IsCorrect     bool               `json:"is_correct"`
-	IP            *string            `json:"ip"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	BannedUserID  *uuid.UUID         `json:"banned_user_id"`
-	Username      string             `json:"username"`
-	TeamName      string             `json:"team_name"`
+	ID             uuid.UUID          `json:"id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	TeamID         *uuid.UUID         `json:"team_id"`
+	ChallengeID    uuid.UUID          `json:"challenge_id"`
+	SubmittedFlag  string             `json:"submitted_flag"`
+	IsCorrect      bool               `json:"is_correct"`
+	SubmissionType string             `json:"submission_type"`
+	IP             string             `json:"ip"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	BannedUserID   *uuid.UUID         `json:"banned_user_id"`
+	Username       string             `json:"username"`
+	TeamName       string             `json:"team_name"`
 }
 
 func (q *Queries) GetSubmissionsByChallengeFrozen(ctx context.Context, arg GetSubmissionsByChallengeFrozenParams) ([]GetSubmissionsByChallengeFrozenRow, error) {
@@ -700,6 +733,7 @@ func (q *Queries) GetSubmissionsByChallengeFrozen(ctx context.Context, arg GetSu
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -717,7 +751,7 @@ func (q *Queries) GetSubmissionsByChallengeFrozen(ctx context.Context, arg GetSu
 }
 
 const getSubmissionsByTeam = `-- name: GetSubmissionsByTeam :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -740,12 +774,13 @@ type GetSubmissionsByTeamRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsByTeamParams) ([]GetSubmissionsByTeamRow, error) {
@@ -764,6 +799,7 @@ func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsBy
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -782,7 +818,7 @@ func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsBy
 }
 
 const getSubmissionsByTeamFrozen = `-- name: GetSubmissionsByTeamFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN users u ON u.id = s.user_id
@@ -806,12 +842,13 @@ type GetSubmissionsByTeamFrozenRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	Username          string             `json:"username"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetSubmissionsByTeamFrozen(ctx context.Context, arg GetSubmissionsByTeamFrozenParams) ([]GetSubmissionsByTeamFrozenRow, error) {
@@ -835,6 +872,7 @@ func (q *Queries) GetSubmissionsByTeamFrozen(ctx context.Context, arg GetSubmiss
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -853,7 +891,7 @@ func (q *Queries) GetSubmissionsByTeamFrozen(ctx context.Context, arg GetSubmiss
 }
 
 const getSubmissionsByUser = `-- name: GetSubmissionsByUser :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN challenges c ON c.id = s.challenge_id
@@ -875,11 +913,12 @@ type GetSubmissionsByUserRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsByUserParams) ([]GetSubmissionsByUserRow, error) {
@@ -898,6 +937,7 @@ func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsBy
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -915,7 +955,7 @@ func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsBy
 }
 
 const getSubmissionsByUserFrozen = `-- name: GetSubmissionsByUserFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.ip, s.created_at, s.banned_user_id,
+SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN challenges c ON c.id = s.challenge_id
@@ -938,11 +978,12 @@ type GetSubmissionsByUserFrozenRow struct {
 	ChallengeID       uuid.UUID          `json:"challenge_id"`
 	SubmittedFlag     string             `json:"submitted_flag"`
 	IsCorrect         bool               `json:"is_correct"`
-	IP                *string            `json:"ip"`
+	SubmissionType    string             `json:"submission_type"`
+	IP                string             `json:"ip"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
 	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory *string            `json:"challenge_category"`
+	ChallengeCategory string             `json:"challenge_category"`
 }
 
 func (q *Queries) GetSubmissionsByUserFrozen(ctx context.Context, arg GetSubmissionsByUserFrozenParams) ([]GetSubmissionsByUserFrozenRow, error) {
@@ -966,6 +1007,7 @@ func (q *Queries) GetSubmissionsByUserFrozen(ctx context.Context, arg GetSubmiss
 			&i.ChallengeID,
 			&i.SubmittedFlag,
 			&i.IsCorrect,
+			&i.SubmissionType,
 			&i.IP,
 			&i.CreatedAt,
 			&i.BannedUserID,
@@ -1019,7 +1061,10 @@ func (q *Queries) SoftBanSubmissionsByUserID(ctx context.Context, userID uuid.UU
 }
 
 const updateSubmission = `-- name: UpdateSubmission :exec
-UPDATE submissions SET is_correct = $2 WHERE id = $1
+UPDATE submissions
+SET is_correct = $2,
+    submission_type = CASE WHEN $2 THEN 'correct' ELSE 'incorrect' END
+WHERE id = $1
 `
 
 type UpdateSubmissionParams struct {

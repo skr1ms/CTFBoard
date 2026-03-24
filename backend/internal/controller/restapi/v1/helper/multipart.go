@@ -3,49 +3,77 @@ package helper
 import (
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 
+	"github.com/go-playground/form/v4"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
+
+var multipartFormDecoder = func() *form.Decoder {
+	d := form.NewDecoder()
+	d.SetTagName("json")
+	return d
+}()
 
 type multipartErrorReporter func(w http.ResponseWriter, r *http.Request, err error, op, step string) bool
 
 func RequireMultipartFile(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op, step string, fileSize int64) bool {
 	if fileSize == 0 {
-		onError(w, r, NewValidationErrorf("file is required"), op, step)
+		onError(w, r, httperr.NewValidationErrorf("file is required"), op, step)
 		return false
 	}
 	return true
 }
 
 func ValidateMultipartEnum(fieldName, value string, allowed []string) error {
-	for _, a := range allowed {
-		if a == value {
-			return nil
-		}
+	if lo.Contains(allowed, value) {
+		return nil
 	}
-	return NewValidationErrorf("invalid %s: allowed values are %s", fieldName, strings.Join(allowed, ", "))
+	return httperr.NewValidationErrorf("invalid %s: allowed values are %s", fieldName, strings.Join(allowed, ", "))
 }
 
-func ParseMultipartFormLimit(w http.ResponseWriter, r *http.Request, maxMemory int64) bool {
-	return httputil.ParseMultipartFormLimit(w, r, maxMemory)
+func ParseMultipartFormLimit(w http.ResponseWriter, r *http.Request, maxBodySize, maxMemory int64) bool {
+	return httputil.ParseMultipartFormLimit(w, r, maxBodySize, maxMemory)
 }
 
 const maxMultipartStringFieldLen = 10_000
 
-func multipartFormValue(form map[string][]string, name string) string {
-	if form == nil {
-		return ""
+func checkMultipartValueLengths(vals map[string][]string) error {
+	for name, list := range vals {
+		for _, v := range list {
+			if len(v) > maxMultipartStringFieldLen {
+				return httperr.NewValidationErrorf("%s exceeds maximum length", name)
+			}
+		}
 	}
-	vals := form[name]
-	if len(vals) == 0 {
-		return ""
+	return nil
+}
+
+func setMultipartFileFields(r *http.Request, dst reflect.Value) {
+	t := dst.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.Type != reflect.TypeOf(openapi_types.File{}) {
+			continue
+		}
+		tag := field.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name := strings.Split(tag, ",")[0]
+		headers, ok := r.MultipartForm.File[name]
+		if !ok || len(headers) == 0 {
+			continue
+		}
+		var file openapi_types.File
+		file.InitFromMultipart(headers[0])
+		dst.Field(i).Set(reflect.ValueOf(file))
 	}
-	return vals[0]
 }
 
 // DecodeMultipartForm populates a struct from a parsed multipart form. Fields are matched
@@ -56,69 +84,14 @@ func DecodeMultipartForm[T any](r *http.Request, dst *T, v validator.Validator) 
 		return nil
 	}
 	vals := r.MultipartForm.Value
-	rv := reflect.ValueOf(dst).Elem()
-	t := rv.Type()
-	for i := range t.NumField() {
-		field := t.Field(i)
-		fv := rv.Field(i)
-
-		tag := field.Tag.Get("json")
-		if tag == "" || tag == "-" {
-			continue
-		}
-		name := strings.Split(tag, ",")[0]
-		val := multipartFormValue(vals, name)
-
-		switch fv.Type() {
-		case reflect.TypeOf((*bool)(nil)):
-			if val != "" {
-				b, err := strconv.ParseBool(val)
-				if err != nil {
-					return NewValidationErrorf("%s must be true or false", name)
-				}
-				fv.Set(reflect.ValueOf(&b))
-			}
-		case reflect.TypeOf(""):
-			if val != "" {
-				if len(val) > maxMultipartStringFieldLen {
-					return NewValidationErrorf("%s exceeds maximum length", name)
-				}
-				fv.SetString(val)
-			}
-		case reflect.TypeOf((*string)(nil)):
-			if val != "" {
-				if len(val) > maxMultipartStringFieldLen {
-					return NewValidationErrorf("%s exceeds maximum length", name)
-				}
-				s := val
-				fv.Set(reflect.ValueOf(&s))
-			}
-		case reflect.TypeOf(openapi_types.File{}):
-			if headers, ok := r.MultipartForm.File[name]; ok && len(headers) > 0 {
-				var f openapi_types.File
-				f.InitFromMultipart(headers[0])
-				fv.Set(reflect.ValueOf(f))
-			}
-		default:
-			if fv.Kind() == reflect.String {
-				if val != "" {
-					if len(val) > maxMultipartStringFieldLen {
-						return NewValidationErrorf("%s exceeds maximum length", name)
-					}
-					fv.SetString(val)
-				}
-			} else if fv.Kind() == reflect.Ptr && fv.Type().Elem().Kind() == reflect.String {
-				if val != "" {
-					if len(val) > maxMultipartStringFieldLen {
-						return NewValidationErrorf("%s exceeds maximum length", name)
-					}
-					ptr := reflect.New(fv.Type().Elem())
-					ptr.Elem().SetString(val)
-					fv.Set(ptr)
-				}
-			}
-		}
+	if err := checkMultipartValueLengths(vals); err != nil {
+		return err
 	}
+	if err := multipartFormDecoder.Decode(dst, vals); err != nil {
+		return httperr.NewValidationErrorf("%v", err)
+	}
+	rv := reflect.ValueOf(dst).Elem()
+	setMultipartFileFields(r, rv)
 	if v != nil {
 		return v.Validate(dst)
 	}

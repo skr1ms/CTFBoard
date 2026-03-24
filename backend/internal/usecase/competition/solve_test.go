@@ -8,10 +8,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -30,9 +31,9 @@ func TestSolveUseCase_Create(t *testing.T) {
 		return fn(ctx)
 	})
 	d.userRepo.EXPECT().Lock(mock.Anything, solve.UserID).Return(nil).Once()
-	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&entity.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&domain.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
-	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, httperr.ErrCompetitionNotFound).Once()
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
 	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
@@ -61,12 +62,12 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 		return httperr.ErrAlreadySolved
 	})
 	d.userRepo.EXPECT().Lock(mock.Anything, solve.UserID).Return(nil).Once()
-	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&entity.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&domain.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
-	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, httperr.ErrCompetitionNotFound).Once()
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
-	existingSolve := &entity.Solve{
+	existingSolve := &domain.Solve{
 		ID:          uuid.New(),
 		TeamID:      teamID,
 		ChallengeID: challengeID,
@@ -95,9 +96,9 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 		return fn(ctx)
 	})
 	d.userRepo.EXPECT().Lock(mock.Anything, solve.UserID).Return(nil).Once()
-	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&entity.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, solve.UserID).Return(&domain.User{ID: solve.UserID, IsBanned: false, TeamID: &teamID}, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
-	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&entity.Team{ID: teamID, IsBanned: false}, nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, httperr.ErrCompetitionNotFound).Once()
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
 	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
@@ -126,14 +127,14 @@ func TestSolveUseCase_Create_AutoDetectTeam(t *testing.T) {
 	user := newTestUser(userID, &teamID)
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	team := &entity.Team{ID: teamID, IsBanned: false}
+	team := &domain.Team{ID: teamID, IsBanned: false}
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil)
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, httperr.ErrCompetitionNotFound).Once()
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
 	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.EXPECT().GetByTeamAndChallengeForUpdate(mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
-	d.solveRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s *entity.Solve) bool {
+	d.solveRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s *domain.Solve) bool {
 		return s.TeamID == teamID
 	})).Return(nil)
 	d.challengeRepo.EXPECT().IncrementSolveCount(mock.Anything, challengeID).Return(1, nil)
@@ -184,7 +185,7 @@ func TestSolveUseCase_Create_TeamBanned_Error(t *testing.T) {
 	user := newTestUser(userID, &teamID)
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	bannedTeam := &entity.Team{ID: teamID, IsBanned: true}
+	bannedTeam := &domain.Team{ID: teamID, IsBanned: true}
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(bannedTeam, nil)
 
@@ -285,7 +286,7 @@ func TestSolveUseCase_GetFirstBlood_Success(t *testing.T) {
 		SolvedAt: time.Now(),
 	}
 
-	activeComp := newTestCompetitionWithTimes("CTF", timePtr(time.Now().Add(-time.Hour)), timePtr(time.Now().Add(time.Hour)))
+	activeComp := newTestCompetitionWithTimes("CTF", lo.ToPtr(time.Now().Add(-time.Hour)), lo.ToPtr(time.Now().Add(time.Hour)))
 	d.competitionRepo.On("Get", mock.Anything).Return(activeComp, nil).Maybe()
 
 	challenge := newTestChallenge(challengeID, "Test", 100)
@@ -305,7 +306,7 @@ func TestSolveUseCase_GetFirstBlood_Error(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, _ := d.createSolveUseCase()
 
-	activeComp := newTestCompetitionWithTimes("CTF", timePtr(time.Now().Add(-time.Hour)), timePtr(time.Now().Add(time.Hour)))
+	activeComp := newTestCompetitionWithTimes("CTF", lo.ToPtr(time.Now().Add(-time.Hour)), lo.ToPtr(time.Now().Add(time.Hour)))
 	d.competitionRepo.On("Get", mock.Anything).Return(activeComp, nil).Maybe()
 
 	challengeID := uuid.New()

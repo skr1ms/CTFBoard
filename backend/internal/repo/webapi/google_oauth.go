@@ -19,7 +19,7 @@ var _ OAuthProviderAPI = (*GoogleAPI)(nil)
 
 func NewGoogleAPI(client *http.Client) *GoogleAPI {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultOAuthClient
 	}
 	return &GoogleAPI{client: client, userInfoURL: googleUserInfoURL}
 }
@@ -32,13 +32,15 @@ type googleUserInfo struct {
 }
 
 func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*OAuthUserProfile, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userInfoURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("GoogleAPI - FetchUserProfile - NewRequest: %w", err)
+	mkReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userInfoURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
 	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := g.client.Do(req) // #nosec G704 -- URL is trusted constant googleUserInfoURL
+	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return nil, fmt.Errorf("GoogleAPI - FetchUserProfile - Do: %w", err)
 	}

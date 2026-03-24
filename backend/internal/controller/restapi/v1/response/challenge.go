@@ -3,32 +3,38 @@ package response
 import (
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-func FromChallenge(c *entity.Challenge) openapi.ChallengeResponse {
+func FromChallenge(c *domain.Challenge) openapi.ChallengeResponse {
 	if c == nil {
 		return openapi.ChallengeResponse{}
 	}
 	return openapi.ChallengeResponse{
-		ID:          ptr(c.ID.String()),
-		Title:       ptr(c.Title),
-		Description: ptr(c.Description),
-		Category:    ptr(c.Category),
-		Points:      ptr(c.Points),
-		SolveCount:  ptr(c.SolveCount),
-		IsHidden:    ptr(c.IsHidden),
+		ID:             httputil.Ptr(c.ID.String()),
+		Title:          httputil.Ptr(c.Title),
+		Description:    httputil.Ptr(c.Description),
+		Category:       httputil.Ptr(c.Category),
+		ConnectionInfo: httputil.Ptr(c.ConnectionInfo),
+		MaxAttempts:    httputil.Ptr(c.MaxAttempts),
+		Position:       httputil.Ptr(c.Position),
+		Points:         httputil.Ptr(c.Points),
+		SolveCount:     httputil.Ptr(c.SolveCount),
+		State:          ptrChallengeResponseState(c.State),
 	}
 }
 
-func FromChallengeWithSolved(cws *entity.ChallengeWithSolved) openapi.ChallengeResponse {
+func FromChallengeWithSolved(cws *domain.ChallengeWithSolved) openapi.ChallengeResponse {
 	if cws == nil {
 		return openapi.ChallengeResponse{}
 	}
 	res := FromChallenge(cws.Challenge)
-	res.Solved = ptr(cws.Solved)
+	res.Solved = httputil.Ptr(cws.Solved)
 	return res
 }
 
@@ -45,68 +51,64 @@ func FromChallengeWithTags(cwt *usecase.ChallengeWithTags) openapi.ChallengeResp
 }
 
 func FromChallengeList(items []*usecase.ChallengeWithTags) []openapi.ChallengeResponse {
-	res := make([]openapi.ChallengeResponse, len(items))
-	for i, item := range items {
-		res[i] = FromChallengeWithTags(item)
-	}
-	return res
+	return lo.Map(items, func(item *usecase.ChallengeWithTags, _ int) openapi.ChallengeResponse {
+		return FromChallengeWithTags(item)
+	})
 }
 
-func FromTag(t *entity.Tag) openapi.TagResponse {
+func FromTag(t *domain.Tag) openapi.TagResponse {
 	return openapi.TagResponse{
-		ID:    ptr(t.ID.String()),
-		Name:  ptr(t.Name),
-		Color: ptr(t.Color),
+		ID:    httputil.Ptr(t.ID.String()),
+		Name:  httputil.Ptr(t.Name),
+		Color: httputil.Ptr(t.Color),
 	}
 }
 
-func FromTagList(items []*entity.Tag) []openapi.TagResponse {
-	res := make([]openapi.TagResponse, len(items))
-	for i, item := range items {
-		res[i] = FromTag(item)
-	}
-	return res
+func FromTagList(items []*domain.Tag) []openapi.TagResponse {
+	return lo.Map(items, func(item *domain.Tag, _ int) openapi.TagResponse { return FromTag(item) })
 }
 
-func FromScoreboardEntry(e *entity.ScoreboardEntry) openapi.ScoreboardEntryResponse {
+func FromScoreboardEntry(e *domain.ScoreboardEntry) openapi.ScoreboardEntryResponse {
 	res := openapi.ScoreboardEntryResponse{
-		TeamID:   ptr(e.TeamID.String()),
-		TeamName: ptr(e.TeamName),
-		Points:   ptr(e.Points),
+		TeamID:   httputil.Ptr(e.TeamID.String()),
+		TeamName: httputil.Ptr(e.TeamName),
+		Points:   httputil.Ptr(e.Points),
 	}
 	if !e.SolvedAt.IsZero() {
-		res.LastSolved = ptr(e.SolvedAt.Format(time.RFC3339))
+		res.LastSolved = httputil.Ptr(e.SolvedAt.Format(time.RFC3339))
 	}
 	return res
 }
 
-func FromScoreboardList(items []*entity.ScoreboardEntry) []openapi.ScoreboardEntryResponse {
-	res := make([]openapi.ScoreboardEntryResponse, len(items))
-	for i, item := range items {
-		res[i] = FromScoreboardEntry(item)
-	}
-	return res
+func FromScoreboardList(items []*domain.ScoreboardEntry) []openapi.ScoreboardEntryResponse {
+	return lo.Map(items, func(item *domain.ScoreboardEntry, _ int) openapi.ScoreboardEntryResponse {
+		return FromScoreboardEntry(item)
+	})
 }
 
-func FromFirstBlood(fb *entity.FirstBloodEntry) openapi.FirstBloodResponse {
+func FromFirstBlood(fb *domain.FirstBloodEntry) openapi.FirstBloodResponse {
 	return openapi.FirstBloodResponse{
-		UserID:   ptr(fb.UserID.String()),
-		Username: ptr(fb.Username),
-		TeamID:   ptr(fb.TeamID.String()),
-		TeamName: ptr(fb.TeamName),
-		SolvedAt: ptr(fb.SolvedAt.Format(time.RFC3339)),
+		UserID:   httputil.Ptr(fb.UserID.String()),
+		Username: httputil.Ptr(fb.Username),
+		TeamID:   httputil.Ptr(fb.TeamID.String()),
+		TeamName: httputil.Ptr(fb.TeamName),
+		SolvedAt: httputil.Ptr(fb.SolvedAt.Format(time.RFC3339)),
 	}
 }
 
 func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResponse {
 	res := openapi.ChallengeDetailResponse{
-		ID:          ptr(d.Challenge.ID.String()),
-		Title:       ptr(d.Challenge.Title),
-		Description: ptr(d.Challenge.Description),
-		Category:    ptr(d.Challenge.Category),
-		Points:      ptr(d.Challenge.Points),
-		SolveCount:  ptr(d.SolveCount),
-		SolvedByMe:  ptr(d.SolvedByMe),
+		ID:             httputil.Ptr(d.Challenge.ID.String()),
+		Title:          httputil.Ptr(d.Challenge.Title),
+		Description:    httputil.Ptr(d.Challenge.Description),
+		Category:       httputil.Ptr(d.Challenge.Category),
+		ConnectionInfo: httputil.Ptr(d.Challenge.ConnectionInfo),
+		MaxAttempts:    httputil.Ptr(d.Challenge.MaxAttempts),
+		Position:       httputil.Ptr(d.Challenge.Position),
+		State:          ptrChallengeDetailResponseState(d.Challenge.State),
+		Points:         httputil.Ptr(d.Challenge.Points),
+		SolveCount:     httputil.Ptr(d.SolveCount),
+		SolvedByMe:     httputil.Ptr(d.SolvedByMe),
 	}
 
 	if len(d.Tags) > 0 {
@@ -134,19 +136,19 @@ func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResp
 	}
 
 	if d.FirstBlood != nil {
-		res.FirstBlood = ptr(FromFirstBlood(d.FirstBlood))
+		res.FirstBlood = httputil.Ptr(FromFirstBlood(d.FirstBlood))
 	}
 
 	return res
 }
 
-func FromChallengeSolves(solves []*entity.SolveWithDetails) []openapi.ChallengeSolveEntry {
+func FromChallengeSolves(solves []*domain.SolveWithDetails) []openapi.ChallengeSolveEntry {
 	res := make([]openapi.ChallengeSolveEntry, len(solves))
 	for i, s := range solves {
 		res[i] = openapi.ChallengeSolveEntry{
-			TeamID:   ptr(s.TeamID.String()),
-			TeamName: ptr(s.TeamName),
-			SolvedAt: ptr(s.SolvedAt),
+			TeamID:   httputil.Ptr(s.TeamID.String()),
+			TeamName: httputil.Ptr(s.TeamName),
+			SolvedAt: httputil.Ptr(s.SolvedAt),
 		}
 	}
 	return res
@@ -154,40 +156,41 @@ func FromChallengeSolves(solves []*entity.SolveWithDetails) []openapi.ChallengeS
 
 func FromHintWithUnlockStatus(h *usecase.HintWithUnlockStatus) openapi.HintItem {
 	res := openapi.HintItem{
-		ID:         ptr(h.Hint.ID.String()),
-		Cost:       ptr(h.Hint.Cost),
-		OrderIndex: ptr(h.Hint.OrderIndex),
-		Unlocked:   ptr(h.Unlocked),
+		ID:         httputil.Ptr(h.Hint.ID.String()),
+		Title:      httputil.Ptr(h.Hint.Title),
+		Cost:       httputil.Ptr(h.Hint.Cost),
+		OrderIndex: httputil.Ptr(h.Hint.OrderIndex),
+		Unlocked:   httputil.Ptr(h.Unlocked),
 	}
 	if h.Unlocked {
-		res.Content = ptr(h.Hint.Content)
+		res.Content = httputil.Ptr(h.Hint.Content)
 	}
 	return res
 }
 
-func FromChallengeRequirements(items []*entity.ChallengeRequirement) []openapi.ChallengeRequirementResponse {
+func FromChallengeRequirements(items []*domain.ChallengeRequirement) []openapi.ChallengeRequirementResponse {
 	res := make([]openapi.ChallengeRequirementResponse, len(items))
 	for i, item := range items {
 		res[i] = openapi.ChallengeRequirementResponse{
-			ChallengeID:       ptr(item.ChallengeID.String()),
-			ChallengeTitle:    ptr(item.ChallengeTitle),
+			ChallengeID:       httputil.Ptr(item.ChallengeID.String()),
+			ChallengeTitle:    httputil.Ptr(item.ChallengeTitle),
 			ChallengeCategory: item.Category,
 		}
 	}
 	return res
 }
 
-func FromChallengeSolution(sol *entity.ChallengeSolution, downloadURLs map[string]string) openapi.ChallengeSolutionResponse {
+func FromChallengeSolution(sol *domain.ChallengeSolution, downloadURLs map[string]string) openapi.ChallengeSolutionResponse {
 	res := openapi.ChallengeSolutionResponse{
-		ChallengeID: ptr(sol.ChallengeID.String()),
-		Content:     ptr(sol.Content),
+		ChallengeID: httputil.Ptr(sol.ChallengeID.String()),
+		Content:     httputil.Ptr(sol.Content),
 	}
 	if len(sol.Files) > 0 {
 		files := make([]openapi.FileItem, len(sol.Files))
 		for i, f := range sol.Files {
 			item := FromFile(f)
 			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = ptr(url)
+				item.URL = httputil.Ptr(url)
 			}
 			files[i] = item
 		}
@@ -196,27 +199,25 @@ func FromChallengeSolution(sol *entity.ChallengeSolution, downloadURLs map[strin
 	return res
 }
 
-func FromChallengeSolutionEntryList(entries []*entity.ChallengeSolutionEntry, downloadURLs map[string]string) []openapi.ChallengeSolutionEntry {
-	res := make([]openapi.ChallengeSolutionEntry, len(entries))
-	for i, entry := range entries {
-		res[i] = FromChallengeSolutionEntry(entry, downloadURLs)
-	}
-	return res
+func FromChallengeSolutionEntryList(entries []*domain.ChallengeSolutionEntry, downloadURLs map[string]string) []openapi.ChallengeSolutionEntry {
+	return lo.Map(entries, func(e *domain.ChallengeSolutionEntry, _ int) openapi.ChallengeSolutionEntry {
+		return FromChallengeSolutionEntry(e, downloadURLs)
+	})
 }
 
-func FromChallengeSolutionEntry(entry *entity.ChallengeSolutionEntry, downloadURLs map[string]string) openapi.ChallengeSolutionEntry {
+func FromChallengeSolutionEntry(entry *domain.ChallengeSolutionEntry, downloadURLs map[string]string) openapi.ChallengeSolutionEntry {
 	res := openapi.ChallengeSolutionEntry{
-		ChallengeID:       ptr(entry.ChallengeID.String()),
-		ChallengeTitle:    ptr(entry.ChallengeTitle),
-		ChallengeCategory: ptr(entry.ChallengeCategory),
-		Content:           ptr(entry.Content),
+		ChallengeID:       httputil.Ptr(entry.ChallengeID.String()),
+		ChallengeTitle:    httputil.Ptr(entry.ChallengeTitle),
+		ChallengeCategory: httputil.Ptr(entry.ChallengeCategory),
+		Content:           httputil.Ptr(entry.Content),
 	}
 	if len(entry.Files) > 0 {
 		files := make([]openapi.FileItem, len(entry.Files))
 		for i, f := range entry.Files {
 			item := FromFile(f)
 			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = ptr(url)
+				item.URL = httputil.Ptr(url)
 			}
 			files[i] = item
 		}
@@ -229,11 +230,11 @@ func FromSubmitFlag(correct bool, message string) openapi.SubmitFlagResponse {
 	return openapi.SubmitFlagResponse{Correct: correct, Message: message}
 }
 
-func FromChallengeFlags(flags *entity.ChallengeFlags) openapi.ChallengeFlagsResponse {
+func FromChallengeFlags(flags *domain.ChallengeFlags) openapi.ChallengeFlagsResponse {
 	res := openapi.ChallengeFlagsResponse{
 		Flags:             &[]string{flags.FlagHash},
-		IsRegex:           ptr(flags.IsRegex),
-		IsCaseInsensitive: ptr(flags.IsCaseInsensitive),
+		IsRegex:           httputil.Ptr(flags.IsRegex),
+		IsCaseInsensitive: httputil.Ptr(flags.IsCaseInsensitive),
 	}
 	if flags.FlagRegex != nil && *flags.FlagRegex != "" {
 		res.FlagRegex = flags.FlagRegex
@@ -244,12 +245,8 @@ func FromChallengeFlags(flags *entity.ChallengeFlags) openapi.ChallengeFlagsResp
 	return res
 }
 
-func FromChallengeEntityList(challenges []*entity.Challenge) []openapi.ChallengeResponse {
-	res := make([]openapi.ChallengeResponse, len(challenges))
-	for i, c := range challenges {
-		res[i] = FromChallenge(c)
-	}
-	return res
+func FromChallenges(challenges []*domain.Challenge) []openapi.ChallengeResponse {
+	return lo.Map(challenges, func(c *domain.Challenge, _ int) openapi.ChallengeResponse { return FromChallenge(c) })
 }
 
 func FromChallengeTypes(types []string) []string {
@@ -258,4 +255,20 @@ func FromChallengeTypes(types []string) []string {
 
 func EmptyChallengeSolutionEntryList() []openapi.ChallengeSolutionEntry {
 	return []openapi.ChallengeSolutionEntry{}
+}
+
+func ptrChallengeResponseState(s string) *openapi.ChallengeResponseState {
+	if s == "" {
+		return nil
+	}
+	v := openapi.ChallengeResponseState(s)
+	return &v
+}
+
+func ptrChallengeDetailResponseState(s string) *openapi.ChallengeDetailResponseState {
+	if s == "" {
+		return nil
+	}
+	v := openapi.ChallengeDetailResponseState(s)
+	return &v
 }

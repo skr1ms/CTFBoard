@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -25,22 +26,26 @@ type NotificationUseCase struct {
 type NotificationDeps struct {
 	NotifRepo   repo.NotificationRepository
 	Broadcaster NotificationBroadcaster
+	Logger      logkit.Logger
 }
 
 var _ usecase.NotificationUseCase = (*NotificationUseCase)(nil)
 
 func NewNotificationUseCase(deps NotificationDeps) *NotificationUseCase {
+	if deps.Logger == nil {
+		deps.Logger = logkit.Noop()
+	}
 	return &NotificationUseCase{deps: deps}
 }
 
-func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content string, notifType entity.NotificationType, isPinned bool) (*entity.Notification, error) {
+func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
 	if title == "" || content == "" {
 		return nil, httperr.ErrNotificationTitleContentRequired
 	}
 	if !notifType.IsValid() {
 		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
-	notif := &entity.Notification{
+	notif := &domain.Notification{
 		ID:        uuid.New(),
 		Title:     title,
 		Content:   content,
@@ -58,14 +63,14 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 	return notif, nil
 }
 
-func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType entity.NotificationType) (*entity.UserNotification, error) {
+func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error) {
 	if title == "" || content == "" {
 		return nil, httperr.ErrNotificationTitleContentRequired
 	}
 	if !notifType.IsValid() {
 		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
-	userNotif := &entity.UserNotification{
+	userNotif := &domain.UserNotification{
 		ID:             uuid.New(),
 		UserID:         userID,
 		NotificationID: nil,
@@ -81,7 +86,7 @@ func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.U
 	return userNotif, nil
 }
 
-func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int) ([]*entity.Notification, error) {
+func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int) ([]*domain.Notification, error) {
 	offset := (page - 1) * perPage
 	notifs, err := uc.deps.NotifRepo.GetAll(ctx, perPage, offset)
 	if err != nil {
@@ -90,7 +95,7 @@ func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int)
 	return notifs, nil
 }
 
-func (uc *NotificationUseCase) GetUserNotifications(ctx context.Context, userID uuid.UUID, page, perPage int) ([]*entity.UserNotification, error) {
+func (uc *NotificationUseCase) GetUserNotifications(ctx context.Context, userID uuid.UUID, page, perPage int) ([]*domain.UserNotification, error) {
 	offset := (page - 1) * perPage
 	userNotifs, err := uc.deps.NotifRepo.GetUserNotifications(ctx, userID, perPage, offset)
 	if err != nil {
@@ -117,7 +122,7 @@ func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID
 	return count, nil
 }
 
-func (uc *NotificationUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, notifType entity.NotificationType, isPinned bool) (*entity.Notification, error) {
+func (uc *NotificationUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
 	if !notifType.IsValid() {
 		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}

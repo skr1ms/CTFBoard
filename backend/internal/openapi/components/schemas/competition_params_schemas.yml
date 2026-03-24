@@ -29,26 +29,10 @@ schemas:
         type: string
       count:
         type: integer
-  response.ConfigItem:
-    properties:
-      key:
-        type: string
-      value:
-        type: string
-      value_type:
-        type: string
-      category:
-        type: string
-      description:
-        type: string
-      updated_at:
-        type: string
-        format: date-time
-    required:
-      - key
-      - value
-      - value_type
+  response.ConfigPublicResponse:
     type: object
+    additionalProperties: true
+    description: Public config as flat key-value map; values are typed (string, number, boolean).
   request.SetConfigRequest:
     properties:
       value:
@@ -64,6 +48,9 @@ schemas:
         default: string
       description:
         type: string
+      category:
+        type: string
+        description: optional category for non-registry keys
     required:
       - value
     type: object
@@ -71,6 +58,7 @@ schemas:
     properties:
       configs:
         type: array
+        maxItems: 50
         items:
           $ref: '#/schemas/request.BatchSetConfigItem'
     required:
@@ -92,6 +80,9 @@ schemas:
         default: string
       description:
         type: string
+      category:
+        type: string
+        description: optional category for non-registry keys
     required:
       - key
       - value

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
@@ -126,7 +126,7 @@ func TestAuth_EmailVerification_Flow(t *testing.T) {
 
 	userID := h.GetUserIDByEmail(email)
 	rawToken := "known_verification_token"
-	h.InjectToken(userID, entity.TokenTypeEmailVerification, rawToken)
+	h.InjectToken(userID, domain.TokenTypeEmailVerification, rawToken)
 
 	h.VerifyEmail(rawToken)
 	h.AssertUserVerified(email, true)
@@ -147,7 +147,7 @@ func TestAuth_PasswordReset_Flow(t *testing.T) {
 
 	userID := h.GetUserIDByEmail(email)
 	rawToken := "known_reset_token"
-	h.InjectToken(userID, entity.TokenTypePasswordReset, rawToken)
+	h.InjectToken(userID, domain.TokenTypePasswordReset, rawToken)
 
 	newPassword := "NewValid1"
 	h.ResetPassword(rawToken, newPassword)
@@ -156,17 +156,16 @@ func TestAuth_PasswordReset_Flow(t *testing.T) {
 	h.Login(email, newPassword, http.StatusOK)
 }
 
-// POST /auth/forgot-password: after 3 requests (limit) rate limit returns 429 Too Many Requests.
+// POST /auth/forgot-password: over limit returns 429 (per-email limit 20 in e2e).
 func TestAuth_RateLimiting_Exists(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	email := "spam_" + helper.UID() + "@example.com"
-
-	for i := 0; i < 3; i++ {
+	const limit = 20
+	for i := 0; i < limit; i++ {
 		h.ForgotPassword(email, http.StatusOK)
 	}
-
 	h.ForgotPassword(email, http.StatusTooManyRequests)
 }
 

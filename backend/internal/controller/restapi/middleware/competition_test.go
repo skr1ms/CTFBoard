@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	compmocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 )
 
-func newActiveCompetition() *entity.Competition {
+func newActiveCompetition() *domain.Competition {
 	past := time.Now().Add(-1 * time.Hour)
 	future := time.Now().Add(24 * time.Hour)
-	return &entity.Competition{
+	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
 		StartTime: &past,
@@ -28,10 +28,10 @@ func newActiveCompetition() *entity.Competition {
 	}
 }
 
-func newEndedCompetition() *entity.Competition {
+func newEndedCompetition() *domain.Competition {
 	past := time.Now().Add(-48 * time.Hour)
 	pastEnd := time.Now().Add(-1 * time.Hour)
-	return &entity.Competition{
+	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
 		StartTime: &past,
@@ -40,20 +40,20 @@ func newEndedCompetition() *entity.Competition {
 	}
 }
 
-func newNotStartedCompetition() *entity.Competition {
+func newNotStartedCompetition() *domain.Competition {
 	future := time.Now().Add(1 * time.Hour)
-	return &entity.Competition{
+	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
 		StartTime: &future,
 	}
 }
 
-func newPausedButEndedCompetition() *entity.Competition {
+func newPausedButEndedCompetition() *domain.Competition {
 	startPast := time.Now().Add(-48 * time.Hour)
 	endPast := time.Now().Add(-1 * time.Hour)
 	pausedAt := time.Now().Add(-30 * time.Minute)
-	return &entity.Competition{
+	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
 		StartTime: &startPast,
@@ -65,14 +65,14 @@ func newPausedButEndedCompetition() *entity.Competition {
 
 func TestCompetitionActive_ActiveCompetition_Passes(t *testing.T) {
 	t.Parallel()
-	compRepo := compmocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	compRepo.EXPECT().Get(mock.Anything).Return(newActiveCompetition(), nil)
 
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	r := chi.NewRouter()
 	r.Use(CompetitionActive(compUC))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -83,14 +83,14 @@ func TestCompetitionActive_ActiveCompetition_Passes(t *testing.T) {
 
 func TestCompetitionActive_NotActive_Returns403(t *testing.T) {
 	t.Parallel()
-	compRepo := compmocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	compRepo.EXPECT().Get(mock.Anything).Return(newNotStartedCompetition(), nil)
 
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	r := chi.NewRouter()
 	r.Use(CompetitionActive(compUC))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -101,14 +101,14 @@ func TestCompetitionActive_NotActive_Returns403(t *testing.T) {
 
 func TestCompetitionEnded_Ended_Passes(t *testing.T) {
 	t.Parallel()
-	compRepo := compmocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	compRepo.EXPECT().Get(mock.Anything).Return(newEndedCompetition(), nil)
 
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	r := chi.NewRouter()
 	r.Use(CompetitionEnded(compUC))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -119,14 +119,14 @@ func TestCompetitionEnded_Ended_Passes(t *testing.T) {
 
 func TestCompetitionEnded_NotEnded_Returns403(t *testing.T) {
 	t.Parallel()
-	compRepo := compmocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	compRepo.EXPECT().Get(mock.Anything).Return(newActiveCompetition(), nil)
 
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	r := chi.NewRouter()
 	r.Use(CompetitionEnded(compUC))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -137,14 +137,14 @@ func TestCompetitionEnded_NotEnded_Returns403(t *testing.T) {
 
 func TestCompetitionEnded_PausedButEndTimePassed_Passes(t *testing.T) {
 	t.Parallel()
-	compRepo := compmocks.NewMockCompetitionRepository(t)
+	compRepo := compMock.NewMockCompetitionRepository(t)
 	compRepo.EXPECT().Get(mock.Anything).Return(newPausedButEndedCompetition(), nil)
 
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{CompetitionRepo: compRepo})
 
 	r := chi.NewRouter()
 	r.Use(CompetitionEnded(compUC))
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/", okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()

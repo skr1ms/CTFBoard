@@ -12,19 +12,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 type mockTeamGetter struct {
-	team *entity.Team
+	team *domain.Team
 	err  error
 }
 
-func (m *mockTeamGetter) GetByID(_ context.Context, _ uuid.UUID) (*entity.Team, error) {
+func (m *mockTeamGetter) GetByID(_ context.Context, _ uuid.UUID) (*domain.Team, error) {
 	return m.team, m.err
 }
 
-func injectUser(u *entity.User) func(http.Handler) http.Handler {
+func injectUser(u *domain.User) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := withUser(r.Context(), u)
@@ -55,7 +55,7 @@ func TestRequireUserNotBanned_NoUser_PassesThrough(t *testing.T) {
 
 func TestRequireUserNotBanned_Admin_PassesThrough(t *testing.T) {
 	t.Parallel()
-	admin := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin, IsBanned: true}
+	admin := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, IsBanned: true}
 	r := buildRouter(injectUser(admin), RequireUserNotBanned())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -65,7 +65,7 @@ func TestRequireUserNotBanned_Admin_PassesThrough(t *testing.T) {
 
 func TestRequireUserNotBanned_NotBanned_PassesThrough(t *testing.T) {
 	t.Parallel()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, IsBanned: false}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsBanned: false}
 	r := buildRouter(injectUser(user), RequireUserNotBanned())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -76,7 +76,7 @@ func TestRequireUserNotBanned_NotBanned_PassesThrough(t *testing.T) {
 func TestRequireUserNotBanned_Banned_Returns403(t *testing.T) {
 	t.Parallel()
 	teamID := uuid.New()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, IsBanned: true, TeamID: &teamID}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsBanned: true, TeamID: &teamID}
 	r := buildRouter(injectUser(user), RequireUserNotBanned())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -97,8 +97,8 @@ func TestRequireTeamNotBanned_NoUser_PassesThrough(t *testing.T) {
 func TestRequireTeamNotBanned_Admin_PassesThrough(t *testing.T) {
 	t.Parallel()
 	teamID := uuid.New()
-	admin := &entity.User{ID: uuid.New(), Role: entity.RoleAdmin, TeamID: &teamID}
-	getter := &mockTeamGetter{team: &entity.Team{IsBanned: true}}
+	admin := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, TeamID: &teamID}
+	getter := &mockTeamGetter{team: &domain.Team{IsBanned: true}}
 	r := buildRouter(injectUser(admin), RequireTeamNotBanned(getter, nil))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -108,7 +108,7 @@ func TestRequireTeamNotBanned_Admin_PassesThrough(t *testing.T) {
 
 func TestRequireTeamNotBanned_NoTeam_PassesThrough(t *testing.T) {
 	t.Parallel()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: nil}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: nil}
 	getter := &mockTeamGetter{}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -120,8 +120,8 @@ func TestRequireTeamNotBanned_NoTeam_PassesThrough(t *testing.T) {
 func TestRequireTeamNotBanned_TeamNotBanned_PassesThrough(t *testing.T) {
 	t.Parallel()
 	teamID := uuid.New()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: &teamID}
-	getter := &mockTeamGetter{team: &entity.Team{IsBanned: false}}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
+	getter := &mockTeamGetter{team: &domain.Team{IsBanned: false}}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -132,8 +132,8 @@ func TestRequireTeamNotBanned_TeamNotBanned_PassesThrough(t *testing.T) {
 func TestRequireTeamNotBanned_TeamBanned_Returns403(t *testing.T) {
 	t.Parallel()
 	teamID := uuid.New()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: &teamID}
-	getter := &mockTeamGetter{team: &entity.Team{IsBanned: true}}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
+	getter := &mockTeamGetter{team: &domain.Team{IsBanned: true}}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
@@ -144,7 +144,7 @@ func TestRequireTeamNotBanned_TeamBanned_Returns403(t *testing.T) {
 func TestRequireTeamNotBanned_GetterError_Returns500(t *testing.T) {
 	t.Parallel()
 	teamID := uuid.New()
-	user := &entity.User{ID: uuid.New(), Role: entity.RoleUser, TeamID: &teamID}
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
 	getter := &mockTeamGetter{err: errors.New("db error")}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

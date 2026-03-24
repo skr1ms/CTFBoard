@@ -9,30 +9,30 @@ packages:
     interfaces:
       UserRepository:
         config:
-          dir: "internal/usecase/email/mocks"
+          dir: "internal/usecase/email/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"
 
       VerificationTokenRepository:
         config:
-          dir: "internal/usecase/email/mocks"
+          dir: "internal/usecase/email/mock"
           filename: "VerificationTokenRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockVerificationTokenRepository"
 
       TransactionManager:
         config:
-          dir: "internal/usecase/email/mocks"
+          dir: "internal/usecase/email/mock"
           filename: "TransactionManager.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTransactionManager"
 
   github.com/TakuyaYagam1/AstroCTFb/pkg/mailer:
     interfaces:
       Mailer:
         config:
-          dir: "internal/usecase/email/mocks"
+          dir: "internal/usecase/email/mock"
           filename: "Mailer.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockMailer"

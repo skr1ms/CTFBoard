@@ -1,76 +1,67 @@
 package response
 
 import (
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/samber/lo"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func FromHintWithUnlock(hw *usecase.HintWithUnlockStatus) openapi.HintResponse {
 	res := openapi.HintResponse{
-		ID:         ptr(hw.Hint.ID.String()),
-		Cost:       ptr(hw.Hint.Cost),
-		OrderIndex: ptr(hw.Hint.OrderIndex),
-		Unlocked:   ptr(hw.Unlocked),
+		ID:         httputil.Ptr(hw.Hint.ID.String()),
+		Title:      httputil.Ptr(hw.Hint.Title),
+		Cost:       httputil.Ptr(hw.Hint.Cost),
+		OrderIndex: httputil.Ptr(hw.Hint.OrderIndex),
+		Unlocked:   httputil.Ptr(hw.Unlocked),
 	}
 	if hw.Unlocked {
-		res.Content = ptr(hw.Hint.Content)
+		res.Content = httputil.Ptr(hw.Hint.Content)
 	}
 	return res
 }
 
 func FromHintWithUnlockList(hints []*usecase.HintWithUnlockStatus) []openapi.HintResponse {
-	res := make([]openapi.HintResponse, len(hints))
-	for i, h := range hints {
-		res[i] = FromHintWithUnlock(h)
-	}
-	return res
+	return lo.Map(hints, func(h *usecase.HintWithUnlockStatus, _ int) openapi.HintResponse { return FromHintWithUnlock(h) })
 }
 
-func FromUnlockedHint(h *entity.Hint) openapi.HintResponse {
+func FromUnlockedHint(h *domain.Hint) openapi.HintResponse {
 	return openapi.HintResponse{
-		ID:         ptr(h.ID.String()),
-		Cost:       ptr(h.Cost),
-		OrderIndex: ptr(h.OrderIndex),
-		Content:    ptr(h.Content),
-		Unlocked:   ptr(true),
+		ID:         httputil.Ptr(h.ID.String()),
+		Title:      httputil.Ptr(h.Title),
+		Cost:       httputil.Ptr(h.Cost),
+		OrderIndex: httputil.Ptr(h.OrderIndex),
+		Content:    httputil.Ptr(h.Content),
+		Unlocked:   httputil.Ptr(true),
 	}
 }
 
-func FromHint(h *entity.Hint) openapi.HintAdminResponse {
+func FromHint(h *domain.Hint) openapi.HintAdminResponse {
 	return openapi.HintAdminResponse{
-		ID:          ptr(h.ID.String()),
-		ChallengeID: ptr(h.ChallengeID.String()),
-		Content:     ptr(h.Content),
-		Cost:        ptr(h.Cost),
-		OrderIndex:  ptr(h.OrderIndex),
+		ID:          httputil.Ptr(h.ID.String()),
+		ChallengeID: httputil.Ptr(h.ChallengeID.String()),
+		Title:       httputil.Ptr(h.Title),
+		Content:     httputil.Ptr(h.Content),
+		Cost:        httputil.Ptr(h.Cost),
+		OrderIndex:  httputil.Ptr(h.OrderIndex),
 	}
 }
 
-func FromHintUnlock(u *entity.HintUnlockWithDetails) openapi.HintUnlockResponse {
+func FromHintUnlock(u *domain.HintUnlockWithDetails) openapi.HintUnlockResponse {
 	t := u.UnlockedAt
 	return openapi.HintUnlockResponse{
-		ID:          ptr(u.ID.String()),
-		HintID:      ptr(u.HintID.String()),
-		TeamID:      ptr(u.TeamID.String()),
+		ID:          httputil.Ptr(u.ID.String()),
+		HintID:      httputil.Ptr(u.HintID.String()),
+		TeamID:      httputil.Ptr(u.TeamID.String()),
 		UnlockedAt:  &t,
-		ChallengeID: ptr(u.ChallengeID.String()),
-		HintCost:    ptr(u.HintCost),
+		ChallengeID: httputil.Ptr(u.ChallengeID.String()),
+		HintCost:    httputil.Ptr(u.HintCost),
 	}
 }
 
-func FromHintUnlockList(items []*entity.HintUnlockWithDetails, total int64, page, perPage int) openapi.HintUnlockListResponse {
-	res := make([]openapi.HintUnlockResponse, len(items))
-	for i, item := range items {
-		res[i] = FromHintUnlock(item)
-	}
-	return openapi.HintUnlockListResponse{
-		Data: &res,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromHintUnlockList(items []*domain.HintUnlockWithDetails, total int64, page, perPage int) openapi.HintUnlockListResponse {
+	data, meta := BuildListResponse(items, FromHintUnlock, total, page, perPage)
+	return openapi.HintUnlockListResponse{Data: &data, Meta: meta}
 }

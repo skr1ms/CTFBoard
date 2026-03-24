@@ -3,86 +3,66 @@ package response
 import (
 	"time"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func FromSubmission(s *entity.SubmissionWithDetails) openapi.SubmissionResponse {
+func FromSubmission(s *domain.SubmissionWithDetails) openapi.SubmissionResponse {
 	res := openapi.SubmissionResponse{
-		ID:                ptr(s.ID.String()),
-		UserID:            ptr(s.UserID.String()),
-		ChallengeID:       ptr(s.ChallengeID.String()),
-		SubmittedFlag:     ptr(s.SubmittedFlag),
-		IsCorrect:         ptr(s.IsCorrect),
-		CreatedAt:         ptr(s.CreatedAt.Format(time.RFC3339)),
-		Username:          ptr(s.Username),
-		TeamName:          ptr(s.TeamName),
-		ChallengeTitle:    ptr(s.ChallengeTitle),
-		ChallengeCategory: ptr(s.ChallengeCategory),
+		ID:                httputil.Ptr(s.ID.String()),
+		UserID:            httputil.Ptr(s.UserID.String()),
+		ChallengeID:       httputil.Ptr(s.ChallengeID.String()),
+		SubmittedFlag:     httputil.Ptr(s.SubmittedFlag),
+		IsCorrect:         httputil.Ptr(s.IsCorrect),
+		CreatedAt:         httputil.Ptr(s.CreatedAt.Format(time.RFC3339)),
+		Username:          httputil.Ptr(s.Username),
+		TeamName:          httputil.Ptr(s.TeamName),
+		ChallengeTitle:    httputil.Ptr(s.ChallengeTitle),
+		ChallengeCategory: httputil.Ptr(s.ChallengeCategory),
 	}
 	if s.TeamID != nil {
-		res.TeamID = ptr(s.TeamID.String())
+		res.TeamID = httputil.Ptr(s.TeamID.String())
 	}
 	if s.IP != "" {
-		res.IP = ptr(s.IP)
+		res.IP = httputil.Ptr(s.IP)
 	}
 	return res
 }
 
-func FromSubmissionPublic(s *entity.SubmissionWithDetails) openapi.SubmissionResponse {
+func FromSubmissionPublic(s *domain.SubmissionWithDetails) openapi.SubmissionResponse {
 	res := openapi.SubmissionResponse{
-		ID:                ptr(s.ID.String()),
-		UserID:            ptr(s.UserID.String()),
-		ChallengeID:       ptr(s.ChallengeID.String()),
-		IsCorrect:         ptr(s.IsCorrect),
-		CreatedAt:         ptr(s.CreatedAt.Format(time.RFC3339)),
-		Username:          ptr(s.Username),
-		TeamName:          ptr(s.TeamName),
-		ChallengeTitle:    ptr(s.ChallengeTitle),
-		ChallengeCategory: ptr(s.ChallengeCategory),
+		ID:                httputil.Ptr(s.ID.String()),
+		UserID:            httputil.Ptr(s.UserID.String()),
+		ChallengeID:       httputil.Ptr(s.ChallengeID.String()),
+		IsCorrect:         httputil.Ptr(s.IsCorrect),
+		CreatedAt:         httputil.Ptr(s.CreatedAt.Format(time.RFC3339)),
+		Username:          httputil.Ptr(s.Username),
+		TeamName:          httputil.Ptr(s.TeamName),
+		ChallengeTitle:    httputil.Ptr(s.ChallengeTitle),
+		ChallengeCategory: httputil.Ptr(s.ChallengeCategory),
 	}
 	if s.TeamID != nil {
-		res.TeamID = ptr(s.TeamID.String())
+		res.TeamID = httputil.Ptr(s.TeamID.String())
 	}
 	return res
 }
 
-func FromSubmissionListPublic(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
-	data := make([]openapi.SubmissionResponse, len(items))
-	for i, item := range items {
-		data[i] = FromSubmissionPublic(item)
-	}
-	return openapi.SubmissionListResponse{
-		Data: &data,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromSubmissionListPublic(items []*domain.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
+	data, meta := BuildListResponse(items, FromSubmissionPublic, total, page, perPage)
+	return openapi.SubmissionListResponse{Data: &data, Meta: meta}
 }
 
-func FromSubmissionList(items []*entity.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
-	data := make([]openapi.SubmissionResponse, len(items))
-	for i, item := range items {
-		data[i] = FromSubmission(item)
-	}
-	return openapi.SubmissionListResponse{
-		Data: &data,
-		Meta: &openapi.PaginationMeta{
-			Page:       ptr(page),
-			PerPage:    ptr(perPage),
-			Total:      ptr(int(total)),
-			TotalPages: ptr(TotalPages(total, perPage)),
-		},
-	}
+func FromSubmissionList(items []*domain.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
+	data, meta := BuildListResponse(items, FromSubmission, total, page, perPage)
+	return openapi.SubmissionListResponse{Data: &data, Meta: meta}
 }
 
-func FromSubmissionStats(stats *entity.SubmissionStats) openapi.SubmissionStatsResponse {
+func FromSubmissionStats(stats *domain.SubmissionStats) openapi.SubmissionStatsResponse {
 	return openapi.SubmissionStatsResponse{
-		Total:     ptr(stats.Total),
-		Correct:   ptr(stats.Correct),
-		Incorrect: ptr(stats.Incorrect),
+		Total:     httputil.Ptr(stats.Total),
+		Correct:   httputil.Ptr(stats.Correct),
+		Incorrect: httputil.Ptr(stats.Incorrect),
 	}
 }

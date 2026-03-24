@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -28,7 +28,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
 		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
-		Cache: cache.New(db), ScoreboardCache: nil, Broadcaster: nil,
+		Cache: cachekit.New(db), ScoreboardCache: nil, Broadcaster: nil,
 	})
 
 	captain, team := f.CreateUserWithTeam(t, "solve_racer")
@@ -44,7 +44,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 
 	submit := func(uID uuid.UUID) {
 		defer wg.Done()
-		solve := &entity.Solve{
+		solve := &domain.Solve{
 			UserID:      uID,
 			TeamID:      team.ID,
 			ChallengeID: challenge.ID,
@@ -76,7 +76,6 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 
 func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
@@ -86,7 +85,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
 		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
-		Cache: cache.New(db), ScoreboardCache: nil, Broadcaster: nil,
+		Cache: cachekit.New(db), ScoreboardCache: nil, Broadcaster: nil,
 	})
 
 	challenge := f.CreateDynamicChallenge(t, "DecayRace", 1000, 100, 10)
@@ -103,7 +102,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 			suffix := fmt.Sprintf("decay_%d", IDx)
 			u, tm := f.CreateUserWithTeam(t, suffix)
 
-			solve := &entity.Solve{
+			solve := &domain.Solve{
 				UserID:      u.ID,
 				TeamID:      tm.ID,
 				ChallengeID: challenge.ID,

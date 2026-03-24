@@ -51,12 +51,12 @@ func (q *Queries) DeleteField(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const deleteFieldValuesByEntityID = `-- name: DeleteFieldValuesByEntityID :exec
+const deleteFieldValuesByentityID = `-- name: DeleteFieldValuesByentityID :exec
 DELETE FROM field_values WHERE entity_id = $1
 `
 
-func (q *Queries) DeleteFieldValuesByEntityID(ctx context.Context, entityID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteFieldValuesByEntityID, entityID)
+func (q *Queries) DeleteFieldValuesByentityID(ctx context.Context, entityID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteFieldValuesByentityID, entityID)
 	return err
 }
 
@@ -146,13 +146,13 @@ func (q *Queries) GetFieldByID(ctx context.Context, id uuid.UUID) (Field, error)
 	return i, err
 }
 
-const getFieldValuesByEntityID = `-- name: GetFieldValuesByEntityID :many
+const getFieldValuesByentityID = `-- name: GetFieldValuesByentityID :many
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values WHERE entity_id = $1
 `
 
-func (q *Queries) GetFieldValuesByEntityID(ctx context.Context, entityID uuid.UUID) ([]FieldValue, error) {
-	rows, err := q.db.Query(ctx, getFieldValuesByEntityID, entityID)
+func (q *Queries) GetFieldValuesByentityID(ctx context.Context, entityID uuid.UUID) ([]FieldValue, error) {
+	rows, err := q.db.Query(ctx, getFieldValuesByentityID, entityID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,13 +177,13 @@ func (q *Queries) GetFieldValuesByEntityID(ctx context.Context, entityID uuid.UU
 	return items, nil
 }
 
-const getFieldsByEntityType = `-- name: GetFieldsByEntityType :many
+const getFieldsByentityType = `-- name: GetFieldsByentityType :many
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE entity_type = $1 ORDER BY order_index, name
 `
 
-func (q *Queries) GetFieldsByEntityType(ctx context.Context, entityType string) ([]Field, error) {
-	rows, err := q.db.Query(ctx, getFieldsByEntityType, entityType)
+func (q *Queries) GetFieldsByentityType(ctx context.Context, entityType string) ([]Field, error) {
+	rows, err := q.db.Query(ctx, getFieldsByentityType, entityType)
 	if err != nil {
 		return nil, err
 	}

@@ -11,20 +11,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	usermocks "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mocks"
+	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httputil"
 )
 
 func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 	t.Parallel()
 	userID := uuid.New()
-	expectedUser := &entity.User{ID: userID, Role: entity.RoleUser}
+	expectedUser := &domain.User{ID: userID, Role: domain.RoleUser}
 
-	userRepo := usermocks.NewMockUserRepository(t)
+	userRepo := userMock.NewMockUserRepository(t)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(expectedUser, nil)
 
 	userUC := user.NewUserUseCase(user.UserDeps{UserRepo: userRepo})
@@ -55,7 +55,7 @@ func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 	t.Parallel()
 	userID := uuid.New()
 
-	userRepo := usermocks.NewMockUserRepository(t)
+	userRepo := userMock.NewMockUserRepository(t)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, httperr.ErrUserNotFound)
 
 	userUC := user.NewUserUseCase(user.UserDeps{UserRepo: userRepo})

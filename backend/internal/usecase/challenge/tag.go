@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
@@ -29,11 +29,11 @@ func NewTagUseCase(deps TagDeps) *TagUseCase {
 	return &TagUseCase{deps: deps}
 }
 
-func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*entity.Tag, error) {
+func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*domain.Tag, error) {
 	if name == "" {
 		return nil, httperr.ErrTagNameRequired
 	}
-	tag := &entity.Tag{
+	tag := &domain.Tag{
 		ID:    uuid.New(),
 		Name:  name,
 		Color: color,
@@ -47,7 +47,7 @@ func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*entity.T
 	return tag, nil
 }
 
-func (uc *TagUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Tag, error) {
+func (uc *TagUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error) {
 	tag, err := uc.deps.TagRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("TagUseCase - GetByID - TagRepo.GetByID: %w", err)
@@ -55,7 +55,7 @@ func (uc *TagUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*entity.Tag, e
 	return tag, nil
 }
 
-func (uc *TagUseCase) GetAll(ctx context.Context) ([]*entity.Tag, error) {
+func (uc *TagUseCase) GetAll(ctx context.Context) ([]*domain.Tag, error) {
 	tags, err := uc.deps.TagRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TagUseCase - GetAll - TagRepo.GetAll: %w", err)
@@ -63,7 +63,7 @@ func (uc *TagUseCase) GetAll(ctx context.Context) ([]*entity.Tag, error) {
 	return tags, nil
 }
 
-func (uc *TagUseCase) Update(ctx context.Context, ID uuid.UUID, name, color string) (*entity.Tag, error) {
+func (uc *TagUseCase) Update(ctx context.Context, ID uuid.UUID, name, color string) (*domain.Tag, error) {
 	if name == "" {
 		return nil, httperr.ErrTagNameRequired
 	}
@@ -90,12 +90,12 @@ func (uc *TagUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func (uc *TagUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*entity.Tag, error) {
+func (uc *TagUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("TagUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
-	if challenge.IsHidden {
+	if challenge.State == domain.ChallengeStateHidden {
 		return nil, httperr.ErrChallengeNotFound
 	}
 	tags, err := uc.deps.TagRepo.GetByChallengeID(ctx, challengeID)

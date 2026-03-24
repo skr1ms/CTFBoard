@@ -10,7 +10,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
@@ -23,7 +23,7 @@ import (
 // at most the cache TTL (local 5s, Redis 15s). Competition.Update forbids
 // changing mode/start_time when active, so the risk is acceptable.
 type competitionSource interface {
-	Get(ctx context.Context) (*entity.Competition, error)
+	Get(ctx context.Context) (*domain.Competition, error)
 }
 
 type Guard struct {
@@ -36,7 +36,7 @@ func NewGuard(src competitionSource) *Guard {
 	return &Guard{src: src}
 }
 
-func (g *Guard) Get(ctx context.Context) (*entity.Competition, error) {
+func (g *Guard) Get(ctx context.Context) (*domain.Competition, error) {
 	comp, err := g.src.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - Get - src.Get: %w", err)
@@ -48,16 +48,16 @@ func (g *Guard) Get(ctx context.Context) (*entity.Competition, error) {
 // When AllowTeamSwitch is false (roster frozen), Create/Join/Leave/Disband/Kick/TransferCaptain
 // are blocked. In teams_only mode with AllowTeamSwitch=false, new users cannot create or
 // join a team; admin can add them via AdminAddMember which bypasses this guard.
-func (g *Guard) RequireTeamSwitch(ctx context.Context) (*entity.Competition, error) {
+func (g *Guard) RequireTeamSwitch(ctx context.Context) (*domain.Competition, error) {
 	comp, err := g.src.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitch - src.Get: %w", err)
 	}
 	status := comp.GetStatus()
-	if status == entity.CompetitionStatusEnded {
+	if status == domain.CompetitionStatusEnded {
 		return nil, httperr.ErrCompetitionEnded
 	}
-	if status == entity.CompetitionStatusPaused {
+	if status == domain.CompetitionStatusPaused {
 		return nil, httperr.ErrCompetitionPaused
 	}
 	if !comp.AllowTeamSwitch {
@@ -66,7 +66,7 @@ func (g *Guard) RequireTeamSwitch(ctx context.Context) (*entity.Competition, err
 	return comp, nil
 }
 
-func (g *Guard) RequireTeamSwitchAndTeamsMode(ctx context.Context) (*entity.Competition, error) {
+func (g *Guard) RequireTeamSwitchAndTeamsMode(ctx context.Context) (*domain.Competition, error) {
 	comp, err := g.RequireTeamSwitch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitchAndTeamsMode - RequireTeamSwitch: %w", err)
@@ -77,7 +77,7 @@ func (g *Guard) RequireTeamSwitchAndTeamsMode(ctx context.Context) (*entity.Comp
 	return comp, nil
 }
 
-func (g *Guard) RequireTeamSwitchAndSoloMode(ctx context.Context) (*entity.Competition, error) {
+func (g *Guard) RequireTeamSwitchAndSoloMode(ctx context.Context) (*domain.Competition, error) {
 	comp, err := g.RequireTeamSwitch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitchAndSoloMode - RequireTeamSwitch: %w", err)

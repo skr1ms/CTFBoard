@@ -9,102 +9,109 @@ packages:
     interfaces:
       ChallengeRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "ChallengeRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockChallengeRepository"
 
       SolveRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "SolveRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockSolveRepository"
 
       TeamRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "TeamRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTeamRepository"
 
       FileRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "FileRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockFileRepository"
 
       HintRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "HintRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockHintRepository"
 
       AwardRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "AwardRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAwardRepository"
 
       CompetitionRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "CompetitionRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCompetitionRepository"
 
       AuditLogRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "AuditLogRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockAuditLogRepository"
 
       TagRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "TagRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTagRepository"
 
       CommentRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "CommentRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCommentRepository"
 
       TransactionManager:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "TransactionManager.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockTransactionManager"
 
       UserRepository:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "UserRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockUserRepository"
+
+      SubmissionRepository:
+        config:
+          dir: "internal/usecase/challenge/mock"
+          filename: "SubmissionRepository.go"
+          pkgname: "mock"
+          structname: "MockSubmissionRepository"
 
   github.com/TakuyaYagam1/AstroCTFb/internal/storage:
     interfaces:
       Provider:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "S3Provider.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockS3Provider"
 
   github.com/TakuyaYagam1/AstroCTFb/pkg/crypto:
     interfaces:
       Service:
         config:
-          dir: "internal/usecase/challenge/mocks"
+          dir: "internal/usecase/challenge/mock"
           filename: "CryptoService.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockCryptoService"

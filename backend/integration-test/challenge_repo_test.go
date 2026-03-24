@@ -9,24 +9,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestChallengeRepo_Create(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
 
-	challenge := &entity.Challenge{
+	challenge := &domain.Challenge{
 		Title:        "Test Challenge",
 		Description:  "Test Description",
 		Category:     "Web",
 		Points:       100,
 		FlagHash:     "hash123",
-		IsHidden:     false,
+		State:        domain.ChallengeStateVisible,
 		InitialValue: 100,
 		MinValue:     50,
 		Decay:        10,
@@ -41,7 +40,6 @@ func TestChallengeRepo_Create(t *testing.T) {
 
 func TestChallengeRepo_GetByID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -61,7 +59,6 @@ func TestChallengeRepo_GetByID(t *testing.T) {
 
 func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -74,7 +71,6 @@ func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -82,13 +78,13 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "public_1", 100)
 	ch2 := f.CreateChallenge(t, "public_2", 200)
 
-	hiddenChallenge := &entity.Challenge{
+	hiddenChallenge := &domain.Challenge{
 		Title:       "HIDden Challenge",
 		Description: "Description",
 		Category:    "Pwn",
 		Points:      300,
 		FlagHash:    "hash3",
-		IsHidden:    true,
+		State:       domain.ChallengeStateHidden,
 	}
 	hiddenChallenge.ID = uuid.New()
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
@@ -105,14 +101,13 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 	assert.True(t, ids[ch1.ID], "ch1 should be in result")
 	assert.True(t, ids[ch2.ID], "ch2 should be in result")
 	for _, ch := range challenges {
-		assert.False(t, ch.Challenge.IsHidden)
+		assert.Equal(t, domain.ChallengeStateVisible, ch.Challenge.State)
 		assert.False(t, ch.Solved)
 	}
 }
 
 func TestChallengeRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -126,7 +121,6 @@ func TestChallengeRepo_GetAll_Error_CancelledContext(t *testing.T) {
 
 func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -163,7 +157,6 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 
 func TestChallengeRepo_Update(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -175,7 +168,7 @@ func TestChallengeRepo_Update(t *testing.T) {
 	challenge.Category = "Crypto"
 	challenge.Points = 200
 	challenge.FlagHash = "updated_hash"
-	challenge.IsHidden = true
+	challenge.State = domain.ChallengeStateHidden
 	challenge.InitialValue = 200
 	challenge.MinValue = 80
 	challenge.Decay = 15
@@ -195,7 +188,7 @@ func TestChallengeRepo_Update(t *testing.T) {
 	assert.Equal(t, "Crypto", gotChallenge.Category)
 	assert.Equal(t, 200, gotChallenge.Points)
 	assert.Equal(t, "updated_hash", gotChallenge.FlagHash)
-	assert.True(t, gotChallenge.IsHidden)
+	assert.Equal(t, domain.ChallengeStateHidden, gotChallenge.State)
 	assert.Equal(t, 200, gotChallenge.InitialValue)
 	assert.Equal(t, 80, gotChallenge.MinValue)
 	assert.Equal(t, 15, gotChallenge.Decay)
@@ -203,7 +196,6 @@ func TestChallengeRepo_Update(t *testing.T) {
 
 func TestChallengeRepo_Delete(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -220,7 +212,6 @@ func TestChallengeRepo_Delete(t *testing.T) {
 
 func TestChallengeRepo_GetByIDTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -249,7 +240,6 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 
 func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -265,7 +255,6 @@ func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 
 func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -285,7 +274,6 @@ func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 
 func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -305,7 +293,6 @@ func TestChallengeRepo_UpdatePointsTx(t *testing.T) {
 
 func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -343,7 +330,6 @@ func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 
 func TestChallengeRepo_GetRequirements_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -365,7 +351,6 @@ func TestChallengeRepo_GetRequirements_Success(t *testing.T) {
 
 func TestChallengeRepo_GetRequirements_Empty(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -379,7 +364,6 @@ func TestChallengeRepo_GetRequirements_Empty(t *testing.T) {
 
 func TestChallengeRepo_GetRequirements_CancelledContext(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 
@@ -393,7 +377,6 @@ func TestChallengeRepo_GetRequirements_CancelledContext(t *testing.T) {
 
 func TestChallengeRepo_SetRequirements_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -415,7 +398,6 @@ func TestChallengeRepo_SetRequirements_Success(t *testing.T) {
 
 func TestChallengeRepo_SetRequirements_InvalidRequiredID(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -430,7 +412,6 @@ func TestChallengeRepo_SetRequirements_InvalidRequiredID(t *testing.T) {
 
 func TestChallengeRepo_GetByIDs_Success(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -453,7 +434,6 @@ func TestChallengeRepo_GetByIDs_Success(t *testing.T) {
 
 func TestChallengeRepo_GetByIDs_EmptyIDs(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()
@@ -469,7 +449,6 @@ func TestChallengeRepo_GetByIDs_EmptyIDs(t *testing.T) {
 
 func TestChallengeRepo_GetByIDs_PartialMatch(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	ctx := context.Background()

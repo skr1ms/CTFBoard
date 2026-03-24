@@ -91,7 +91,7 @@ UPDATE competition SET
     min_team_size = $11,
     max_team_size = $12,
     keep_scoreboard_frozen_after_end = $13,
-    updated_at = NOW()
+    updated_at = $14
 WHERE id = 1
 `
 
@@ -109,6 +109,7 @@ type UpdateCompetitionParams struct {
 	MinTeamSize                  *int32             `json:"min_team_size"`
 	MaxTeamSize                  *int32             `json:"max_team_size"`
 	KeepScoreboardFrozenAfterEnd bool               `json:"keep_scoreboard_frozen_after_end"`
+	UpdatedAt                    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionParams) error {
@@ -126,6 +127,7 @@ func (q *Queries) UpdateCompetition(ctx context.Context, arg UpdateCompetitionPa
 		arg.MinTeamSize,
 		arg.MaxTeamSize,
 		arg.KeepScoreboardFrozenAfterEnd,
+		arg.UpdatedAt,
 	)
 	return err
 }

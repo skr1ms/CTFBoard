@@ -10,7 +10,7 @@ Be respectful and constructive in all interactions. We're here to build somethin
 
 ### Prerequisites
 
-- **Go 1.25+** - backend is written in Go (see `backend/go.mod`)
+- **Go 1.26+** - backend is written in Go (see `backend/go.mod`)
 - **Docker & Docker Compose** - for running PostgreSQL, Redis, and storage locally
 - **Make** - build automation (`backend/Makefile`)
 - **Node.js / npx** - required for OpenAPI spec bundling (`make openapi`)
@@ -42,8 +42,8 @@ git remote add upstream https://github.com/TakuyaYagam1/AstroCTFb.git
 ### Local Setup
 
 ```bash
-# Copy env and configure
-cp .env.example .env.local
+# Copy env and configure (use .env.local.example for Docker stack with Vault)
+cp .env.local.example .env.local
 # Edit .env.local - set DB password, JWT secrets, etc.
 
 # Start infrastructure (PostgreSQL, Redis, SeaweedFS, monitoring)
@@ -170,7 +170,8 @@ AstroCTFb follows **Clean Architecture**:
 
 1. Add to `backend/config/config.go` (parse in `New()`)
 2. Add to `.env.example` and `.env.local.example` with a comment
-3. Document in PR description
+3. Document in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
+4. Document in PR description
 
 ## Testing
 

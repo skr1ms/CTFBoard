@@ -6,35 +6,10 @@ import (
 )
 
 var (
-	ErrOAuthAccountNotFound = &HTTPError{
-		Err:        errors.New("oauth account not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "OAUTH_ACCOUNT_NOT_FOUND",
-	}
-	ErrOAuthProviderDisabled = &HTTPError{
-		Err:        errors.New("oauth provider is not enabled"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "OAUTH_PROVIDER_DISABLED",
-	}
-	ErrOAuthUnsupportedProvider = &HTTPError{
-		Err:        errors.New("unsupported oauth provider"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "OAUTH_UNSUPPORTED_PROVIDER",
-	}
-	ErrOAuthStateMissing = &HTTPError{
-		Err:        errors.New("missing oauth state cookie"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "OAUTH_STATE_MISSING",
-	}
-	ErrOAuthStateMismatch = &HTTPError{
-		Err:        errors.New("oauth state mismatch"),
-		StatusCode: http.StatusBadRequest,
-		Code:       "OAUTH_STATE_MISMATCH",
-	}
-
-	ErrOAuthAccountAlreadyLinked = &HTTPError{
-		Err:        errors.New("oauth account already linked to another user"),
-		StatusCode: http.StatusConflict,
-		Code:       "OAUTH_ACCOUNT_ALREADY_LINKED",
-	}
+	ErrOAuthAccountNotFound      = New(errors.New("oauth account not found"), http.StatusNotFound, "OAUTH_ACCOUNT_NOT_FOUND")
+	ErrOAuthProviderDisabled     = New(errors.New("oauth provider is not enabled"), http.StatusBadRequest, "OAUTH_PROVIDER_DISABLED")
+	ErrOAuthUnsupportedProvider  = New(errors.New("unsupported oauth provider"), http.StatusBadRequest, "OAUTH_UNSUPPORTED_PROVIDER")
+	ErrOAuthStateMissing         = New(errors.New("missing oauth state cookie"), http.StatusBadRequest, "OAUTH_STATE_MISSING")
+	ErrOAuthStateMismatch        = New(errors.New("oauth state mismatch"), http.StatusBadRequest, "OAUTH_STATE_MISMATCH")
+	ErrOAuthAccountAlreadyLinked = New(errors.New("oauth account already linked to another user"), http.StatusConflict, "OAUTH_ACCOUNT_ALREADY_LINKED")
 )

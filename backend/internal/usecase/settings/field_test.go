@@ -8,18 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mocks"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	settingsMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type fieldTestDeps struct {
-	fieldRepo *mocks.MockFieldRepository
+	fieldRepo *settingsMock.MockFieldRepository
 }
 
 func newFieldTestDeps(t *testing.T) *fieldTestDeps {
 	t.Helper()
-	return &fieldTestDeps{fieldRepo: mocks.NewMockFieldRepository(t)}
+	return &fieldTestDeps{fieldRepo: settingsMock.NewMockFieldRepository(t)}
 }
 
 func (d *fieldTestDeps) createUseCase() *FieldUseCase {
@@ -30,8 +30,8 @@ func (d *fieldTestDeps) createFieldValidator() *FieldValidator {
 	return NewFieldValidator(d.fieldRepo)
 }
 
-func newTestField(name string, fieldType entity.FieldType, entityType entity.EntityType, required bool, options []string, orderIndex int) *entity.Field {
-	return &entity.Field{
+func newTestField(name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) *domain.Field {
+	return &domain.Field{
 		ID:         uuid.New(),
 		Name:       name,
 		FieldType:  fieldType,
@@ -46,8 +46,8 @@ func TestFieldUseCase_GetByEntityType_Success(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
-	list := []*entity.Field{newTestField("name", entity.FieldTypeText, entityType, true, nil, 0)}
+	entityType := domain.EntityTypeUser
+	list := []*domain.Field{newTestField("name", domain.FieldTypeText, entityType, true, nil, 0)}
 
 	d.fieldRepo.EXPECT().GetByEntityType(mock.Anything, entityType).Return(list, nil)
 
@@ -63,7 +63,7 @@ func TestFieldUseCase_GetByEntityType_Error(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	entityType := entity.EntityTypeUser
+	entityType := domain.EntityTypeUser
 
 	d.fieldRepo.EXPECT().GetByEntityType(mock.Anything, entityType).Return(nil, assert.AnError)
 
@@ -79,13 +79,13 @@ func TestFieldUseCase_Create_Success(t *testing.T) {
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
 	name := "field1"
-	fieldType := entity.FieldTypeText
-	entityType := entity.EntityTypeTeam
+	fieldType := domain.FieldTypeText
+	entityType := domain.EntityTypeTeam
 	required := true
 	options := []string{"a", "b"}
 	orderIndex := 1
 
-	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *entity.Field) {
+	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
 		assert.Equal(t, name, f.Name)
 		assert.Equal(t, fieldType, f.FieldType)
 		assert.Equal(t, entityType, f.EntityType)
@@ -110,7 +110,7 @@ func TestFieldUseCase_Create_Error(t *testing.T) {
 	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createUseCase()
-	got, err := uc.Create(ctx, "name", entity.FieldTypeText, entity.EntityTypeUser, false, nil, 0)
+	got, err := uc.Create(ctx, "name", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -121,7 +121,7 @@ func TestFieldUseCase_GetByID_Success(t *testing.T) {
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
-	field := newTestField("f", entity.FieldTypeText, entity.EntityTypeUser, false, nil, 0)
+	field := newTestField("f", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)
 	field.ID = id
 
 	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(field, nil)
@@ -152,7 +152,7 @@ func TestFieldUseCase_GetAll_Success(t *testing.T) {
 	t.Parallel()
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
-	list := []*entity.Field{newTestField("f", entity.FieldTypeText, entity.EntityTypeUser, false, nil, 0)}
+	list := []*domain.Field{newTestField("f", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)}
 
 	d.fieldRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
@@ -182,16 +182,16 @@ func TestFieldUseCase_Update_Success(t *testing.T) {
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
 	id := uuid.New()
-	field := newTestField("old", entity.FieldTypeText, entity.EntityTypeUser, false, nil, 0)
+	field := newTestField("old", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)
 	field.ID = id
 	name := "new"
-	fieldType := entity.FieldTypeSelect
+	fieldType := domain.FieldTypeSelect
 	required := true
 	options := []string{"x"}
 	orderIndex := 2
 
 	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(field, nil)
-	d.fieldRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *entity.Field) {
+	d.fieldRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
 		assert.Equal(t, name, f.Name)
 		assert.Equal(t, fieldType, f.FieldType)
 		assert.Equal(t, required, f.Required)
@@ -215,7 +215,7 @@ func TestFieldUseCase_Update_Error(t *testing.T) {
 	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, httperr.ErrFieldNotFound)
 
 	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, "name", entity.FieldTypeText, false, nil, 0)
+	got, err := uc.Update(ctx, id, "name", domain.FieldTypeText, false, nil, 0)
 
 	assert.ErrorIs(t, err, httperr.ErrFieldNotFound)
 	assert.Nil(t, got)

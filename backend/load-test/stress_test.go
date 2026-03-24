@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/logger"
 )
 
 func TestStress_FlagSubmit(t *testing.T) {
@@ -136,7 +136,8 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 		testRedisClient.Del(ctx, keys...)
 	}
 
-	log := logger.New(&logger.Options{Level: logger.ErrorLevel, Output: logger.ConsoleOutput})
+	log, err := logkit.New(logkit.WithLevel(logkit.ErrorLevel), logkit.WithOutput(logkit.ConsoleOutput))
+	require.NoError(t, err)
 
 	limited := restapimiddleware.CombinedRateLimit(testRedisClient, []restapimiddleware.RateLimitSpec{
 		{
@@ -147,7 +148,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 				return "brute_single_user", nil
 			},
 		},
-	}, nil, log)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	}, log)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

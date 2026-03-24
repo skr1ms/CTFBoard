@@ -6,39 +6,11 @@ import (
 )
 
 var (
-	ErrCompetitionNotFound = &HTTPError{
-		Err:        errors.New("competition not found"),
-		StatusCode: http.StatusNotFound,
-		Code:       "COMPETITION_NOT_FOUND",
-	}
-	ErrCompetitionNotStarted = &HTTPError{
-		Err:        errors.New("competition has not started yet"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_NOT_STARTED",
-	}
-	ErrCompetitionEnded = &HTTPError{
-		Err:        errors.New("competition has ended"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_ENDED",
-	}
-	ErrCompetitionPaused = &HTTPError{
-		Err:        errors.New("competition is paused"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_PAUSED",
-	}
-	ErrSubmissionNotAllowed = &HTTPError{
-		Err:        errors.New("submissions are not allowed at this time"),
-		StatusCode: http.StatusForbidden,
-		Code:       "SUBMISSION_NOT_ALLOWED",
-	}
-	ErrCommentsAvailableAfterEnd = &HTTPError{
-		Err:        errors.New("comments available only after competition has ended"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_NOT_ENDED",
-	}
-	ErrCompetitionActiveCannotUpdate = &HTTPError{
-		Err:        errors.New("cannot update competition mode, times, or team size while competition is active, frozen, or paused"),
-		StatusCode: http.StatusForbidden,
-		Code:       "COMPETITION_ACTIVE_CANNOT_UPDATE",
-	}
+	ErrCompetitionNotFound           = New(errors.New("competition not found"), http.StatusNotFound, "COMPETITION_NOT_FOUND")
+	ErrCompetitionNotStarted         = New(errors.New("competition has not started yet"), http.StatusForbidden, "COMPETITION_NOT_STARTED")
+	ErrCompetitionEnded              = New(errors.New("competition has ended"), http.StatusForbidden, "COMPETITION_ENDED")
+	ErrCompetitionPaused             = New(errors.New("competition is paused"), http.StatusForbidden, "COMPETITION_PAUSED")
+	ErrSubmissionNotAllowed          = New(errors.New("submissions are not allowed at this time"), http.StatusForbidden, "SUBMISSION_NOT_ALLOWED")
+	ErrCommentsAvailableAfterEnd     = New(errors.New("comments available only after competition has ended"), http.StatusForbidden, "COMPETITION_NOT_ENDED")
+	ErrCompetitionActiveCannotUpdate = New(errors.New("cannot update competition mode, times, or team size while competition is active, frozen, or paused"), http.StatusForbidden, "COMPETITION_ACTIVE_CANNOT_UPDATE")
 )

@@ -14,26 +14,29 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/entity"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mocks"
+	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
+
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 type settingsTestDeps struct {
-	SettingsRepo *mocks.MockSettingsRepository
-	auditLogRepo *mocks.MockAuditLogRepository
-	tm           *mocks.MockTransactionManager
+	SettingsRepo *compMock.MockSettingsRepository
+	auditLogRepo *compMock.MockAuditLogRepository
+	tm           *compMock.MockTransactionManager
 }
 
 func newSettingsTestDeps(t *testing.T) *settingsTestDeps {
 	t.Helper()
-	tm := mocks.NewMockTransactionManager(t)
+	tm := compMock.NewMockTransactionManager(t)
 	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Maybe()
 	return &settingsTestDeps{
-		SettingsRepo: mocks.NewMockSettingsRepository(t),
-		auditLogRepo: mocks.NewMockAuditLogRepository(t),
+		SettingsRepo: compMock.NewMockSettingsRepository(t),
+		auditLogRepo: compMock.NewMockAuditLogRepository(t),
 		tm:           tm,
 	}
 }
@@ -45,12 +48,12 @@ func (d *settingsTestDeps) createSettingsUseCase(t *testing.T) (*SettingsUseCase
 		Repo:         d.SettingsRepo,
 		AuditLogRepo: d.auditLogRepo,
 		TM:           d.tm,
-		Redis:        &cache.RedisKeyValueStore{Client: client},
+		Redis:        &cachekit.RedisKeyValueStore{Client: client},
 	}), redis
 }
 
-func newTestAppSettings() *entity.Settings {
-	return &entity.Settings{
+func newTestAppSettings() *domain.Settings {
+	return &domain.Settings{
 		ID:                               1,
 		AppName:                          "AstroCTFb",
 		VerifyEmails:                     true,
@@ -63,7 +66,7 @@ func newTestAppSettings() *entity.Settings {
 		ResetTTLHours:                    1,
 		SubmitLimitPerUser:               10,
 		SubmitLimitDurationMin:           1,
-		ScoreboardVisible:                entity.ScoreboardVisiblePublic,
+		ScoreboardVisible:                domain.ScoreboardVisiblePublic,
 		RegistrationOpen:                 true,
 		DefaultPerPage:                   20,
 		MaxPerPage:                       100,
@@ -85,7 +88,7 @@ func newTestAppSettings() *entity.Settings {
 	}
 }
 
-func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetTTL int, visibility string) *entity.Settings {
+func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetTTL int, visibility string) *domain.Settings {
 	s := newTestAppSettings()
 	s.SubmitLimitPerUser = submitLimit
 	s.SubmitLimitDurationMin = submitDuration
@@ -160,13 +163,13 @@ func TestSettingsUseCase_Update_Success(t *testing.T) {
 	clientIP := "127.0.0.1"
 
 	d.SettingsRepo.On("GetForUpdate", mock.Anything).Return(settings, nil)
-	d.SettingsRepo.On("UpdateIfCurrent", mock.Anything, mock.MatchedBy(func(s *entity.Settings) bool {
+	d.SettingsRepo.On("UpdateIfCurrent", mock.Anything, mock.MatchedBy(func(s *domain.Settings) bool {
 		return s.ID == settings.ID && s.AppName == settings.AppName
 	})).Return(nil)
 	redisClient.ExpectDel(cache.KeyAppSettings).SetVal(1)
-	d.auditLogRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *entity.AuditLog) bool {
-		return a.Action == entity.AuditActionUpdate &&
-			a.EntityType == entity.AuditEntityAppSettings &&
+	d.auditLogRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.AuditLog) bool {
+		return a.Action == domain.AuditActionUpdate &&
+			a.EntityType == domain.AuditEntityAppSettings &&
 			a.EntityID == "settings" &&
 			a.IP == clientIP &&
 			*a.UserID == actorID
@@ -218,7 +221,7 @@ func TestSettingsUseCase_Validate_SubmitLimitPerUser(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(0, 1, 24, 1, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(0, 1, 24, 1, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -232,7 +235,7 @@ func TestSettingsUseCase_Validate_SubmitLimitDuration(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(10, 0, 24, 1, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(10, 0, 24, 1, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -246,7 +249,7 @@ func TestSettingsUseCase_Validate_VerifyTTL_TooLow(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(10, 1, 0, 1, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(10, 1, 0, 1, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -260,7 +263,7 @@ func TestSettingsUseCase_Validate_VerifyTTL_TooHigh(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(10, 1, 200, 1, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(10, 1, 200, 1, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -274,7 +277,7 @@ func TestSettingsUseCase_Validate_ResetTTL_TooLow(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(10, 1, 24, 0, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(10, 1, 24, 0, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -288,7 +291,7 @@ func TestSettingsUseCase_Validate_ResetTTL_TooHigh(t *testing.T) {
 	d := newSettingsTestDeps(t)
 	uc, redisClient := d.createSettingsUseCase(t)
 
-	settings := newTestAppSettingsWithValues(10, 1, 24, 200, entity.ScoreboardVisiblePublic)
+	settings := newTestAppSettingsWithValues(10, 1, 24, 200, domain.ScoreboardVisiblePublic)
 
 	err := uc.Update(context.Background(), settings, uuid.New(), "127.0.0.1")
 
@@ -314,9 +317,9 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_Invalid(t *testing.T) {
 func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
 	t.Parallel()
 	validValues := []string{
-		entity.ScoreboardVisiblePublic,
-		entity.ScoreboardVisibleHidden,
-		entity.ScoreboardVisibleAdminsOnly,
+		domain.ScoreboardVisiblePublic,
+		domain.ScoreboardVisibleHidden,
+		domain.ScoreboardVisibleAdminsOnly,
 	}
 
 	for _, visibility := range validValues {
@@ -369,12 +372,12 @@ func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
 		visibility  string
 		wantErr     bool
 	}{
-		{"min valid values", 1, 1, 1, 1, entity.ScoreboardVisiblePublic, false},
-		{"max valid TTL", 10, 1, 168, 168, entity.ScoreboardVisiblePublic, false},
-		{"verify TTL at boundary 168", 10, 1, 168, 1, entity.ScoreboardVisiblePublic, false},
-		{"verify TTL over boundary", 10, 1, 169, 1, entity.ScoreboardVisiblePublic, true},
-		{"reset TTL at boundary 168", 10, 1, 24, 168, entity.ScoreboardVisiblePublic, false},
-		{"reset TTL over boundary", 10, 1, 24, 169, entity.ScoreboardVisiblePublic, true},
+		{"min valid values", 1, 1, 1, 1, domain.ScoreboardVisiblePublic, false},
+		{"max valid TTL", 10, 1, 168, 168, domain.ScoreboardVisiblePublic, false},
+		{"verify TTL at boundary 168", 10, 1, 168, 1, domain.ScoreboardVisiblePublic, false},
+		{"verify TTL over boundary", 10, 1, 169, 1, domain.ScoreboardVisiblePublic, true},
+		{"reset TTL at boundary 168", 10, 1, 24, 168, domain.ScoreboardVisiblePublic, false},
+		{"reset TTL over boundary", 10, 1, 24, 169, domain.ScoreboardVisiblePublic, true},
 	}
 
 	for _, tt := range tests {

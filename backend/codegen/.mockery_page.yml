@@ -9,7 +9,7 @@ packages:
     interfaces:
       PageRepository:
         config:
-          dir: "internal/usecase/page/mocks"
+          dir: "internal/usecase/page/mock"
           filename: "PageRepository.go"
-          pkgname: "mocks"
+          pkgname: "mock"
           structname: "MockPageRepository"

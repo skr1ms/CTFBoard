@@ -11,6 +11,8 @@ import (
 
 const jwtSecret32 = "12345678901234567890123456789012"
 
+const flagKey64Hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 func setupEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 	for k, v := range env {
@@ -23,13 +25,14 @@ func setupEnv(t *testing.T, env map[string]string) {
 	})
 }
 
+func disableVaultForTest(t *testing.T) {
+	t.Helper()
+	t.Setenv("VAULT_ADDR", "")
+	t.Setenv("VAULT_TOKEN", "")
+}
+
 func TestNew_Success(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -38,7 +41,7 @@ func TestNew_Success(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
-		"FLAG_ENCRYPTION_KEY": "flagkey",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 		"RESEND_ENABLED":      "false",
 	})
 
@@ -48,12 +51,11 @@ func TestNew_Success(t *testing.T) {
 	assert.Contains(t, cfg.URL, "d")
 	assert.Equal(t, jwtSecret32, cfg.AccessSecret)
 	assert.Equal(t, "redis_pwd", cfg.Redis.Password)
-	assert.Equal(t, "flagkey", cfg.FlagEncryptionKey)
+	assert.Equal(t, flagKey64Hex, cfg.FlagEncryptionKey)
 }
 
 func TestNew_Error_MissingPostgres(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "",
@@ -62,7 +64,7 @@ func TestNew_Error_MissingPostgres(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "rp",
-		"FLAG_ENCRYPTION_KEY": "fk",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 	})
 
 	_, err := New()
@@ -71,8 +73,7 @@ func TestNew_Error_MissingPostgres(t *testing.T) {
 }
 
 func TestNew_Error_MissingJWT(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -81,7 +82,7 @@ func TestNew_Error_MissingJWT(t *testing.T) {
 		"JWT_ACCESS_SECRET":   "",
 		"JWT_REFRESH_SECRET":  "",
 		"REDIS_PASSWORD":      "rp",
-		"FLAG_ENCRYPTION_KEY": "fk",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 	})
 
 	_, err := New()
@@ -90,8 +91,7 @@ func TestNew_Error_MissingJWT(t *testing.T) {
 }
 
 func TestNew_Error_MissingRedis(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -100,7 +100,7 @@ func TestNew_Error_MissingRedis(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "",
-		"FLAG_ENCRYPTION_KEY": "fk",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 	})
 
 	_, err := New()
@@ -109,8 +109,7 @@ func TestNew_Error_MissingRedis(t *testing.T) {
 }
 
 func TestNew_Error_MissingFlagKey(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -128,12 +127,7 @@ func TestNew_Error_MissingFlagKey(t *testing.T) {
 }
 
 func TestNew_ShutdownTimeout_Default(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -142,7 +136,7 @@ func TestNew_ShutdownTimeout_Default(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
-		"FLAG_ENCRYPTION_KEY": "flagkey",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 		"RESEND_ENABLED":      "false",
 	})
 	// HTTP_SHUTDOWN_TIMEOUT not set -> default 15s
@@ -152,12 +146,7 @@ func TestNew_ShutdownTimeout_Default(t *testing.T) {
 }
 
 func TestNew_ShutdownTimeout_Custom(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":         "u",
@@ -166,7 +155,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 		"JWT_ACCESS_SECRET":     jwtSecret32,
 		"JWT_REFRESH_SECRET":    jwtSecret32,
 		"REDIS_PASSWORD":        "redis_pwd",
-		"FLAG_ENCRYPTION_KEY":   "flagkey",
+		"FLAG_ENCRYPTION_KEY":   flagKey64Hex,
 		"RESEND_ENABLED":        "false",
 		"HTTP_SHUTDOWN_TIMEOUT": "30",
 	})
@@ -176,12 +165,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 }
 
 func TestNew_Error_ResendEnabledNoAPIKey(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -190,7 +174,7 @@ func TestNew_Error_ResendEnabledNoAPIKey(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
-		"FLAG_ENCRYPTION_KEY": "flagkey",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 		"RESEND_ENABLED":      "true",
 		"RESEND_API_KEY":      "",
 	})
@@ -202,12 +186,7 @@ func TestNew_Error_ResendEnabledNoAPIKey(t *testing.T) {
 }
 
 func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
+	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
 		"POSTGRES_USER":       "u",
@@ -216,7 +195,7 @@ func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
 		"JWT_ACCESS_SECRET":   jwtSecret32,
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
-		"FLAG_ENCRYPTION_KEY": "flagkey",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 		"RESEND_ENABLED":      "false",
 		"STORAGE_PROVIDER":    "s3",
 		"STORAGE_S3_ENDPOINT": "",

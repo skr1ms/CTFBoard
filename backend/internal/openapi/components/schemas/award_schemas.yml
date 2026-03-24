@@ -1,5 +1,5 @@
 schemas:
-  entity.Award:
+  Award:
     properties:
       id:
         type: string

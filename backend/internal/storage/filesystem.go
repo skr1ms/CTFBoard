@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
 
 const (
@@ -139,6 +140,6 @@ func GenerateStoragePath(filename string) (string, error) {
 	}
 	h := sha256.New()
 	_, _ = fmt.Fprintf(h, "%d-%s", time.Now().UnixNano(), safeName)
-	hash := hex.EncodeToString(h.Sum(nil))[:hashPrefixLen]
+	hash := crypto.HashHex(h)[:hashPrefixLen]
 	return filepath.Join(hash, safeName), nil
 }
