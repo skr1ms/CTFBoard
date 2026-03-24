@@ -48,7 +48,7 @@ SQLC_VERSION ?= v1.28.0
 MOCKERY_VERSION ?= v2.49.0
 WIRE_VERSION ?= v0.6.0
 GOLANGCI_LINT_VERSION ?= v2.0.0
-REDOCLY_VERSION ?= 1.25.0
+REDOCLY_VERSION ?= 1.26.0
 
 install-tools: ## Install development tools (versions pinned for reproducible builds)
 	@echo "Installing tools..."
