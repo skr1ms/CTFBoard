@@ -1,10 +1,10 @@
 package response
 
 import (
+	"context"
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -15,16 +15,17 @@ func FromChallenge(c *domain.Challenge) openapi.ChallengeResponse {
 	if c == nil {
 		return openapi.ChallengeResponse{}
 	}
+
 	return openapi.ChallengeResponse{
-		ID:             httputil.Ptr(c.ID.String()),
-		Title:          httputil.Ptr(c.Title),
-		Description:    httputil.Ptr(c.Description),
-		Category:       httputil.Ptr(c.Category),
-		ConnectionInfo: httputil.Ptr(c.ConnectionInfo),
-		MaxAttempts:    httputil.Ptr(c.MaxAttempts),
-		Position:       httputil.Ptr(c.Position),
-		Points:         httputil.Ptr(c.Points),
-		SolveCount:     httputil.Ptr(c.SolveCount),
+		ID:             new(c.ID.String()),
+		Title:          new(c.Title),
+		Description:    new(c.Description),
+		Category:       new(c.Category),
+		ConnectionInfo: new(c.ConnectionInfo),
+		MaxAttempts:    new(c.MaxAttempts),
+		Position:       new(c.Position),
+		Points:         new(c.Points),
+		SolveCount:     new(c.SolveCount),
 		State:          ptrChallengeResponseState(c.State),
 	}
 }
@@ -33,8 +34,10 @@ func FromChallengeWithSolved(cws *domain.ChallengeWithSolved) openapi.ChallengeR
 	if cws == nil {
 		return openapi.ChallengeResponse{}
 	}
+
 	res := FromChallenge(cws.Challenge)
-	res.Solved = httputil.Ptr(cws.Solved)
+	res.Solved = new(cws.Solved)
+
 	return res
 }
 
@@ -45,8 +48,10 @@ func FromChallengeWithTags(cwt *usecase.ChallengeWithTags) openapi.ChallengeResp
 		for i, t := range cwt.Tags {
 			tags[i] = FromTag(t)
 		}
+
 		res.Tags = &tags
 	}
+
 	return res
 }
 
@@ -58,9 +63,9 @@ func FromChallengeList(items []*usecase.ChallengeWithTags) []openapi.ChallengeRe
 
 func FromTag(t *domain.Tag) openapi.TagResponse {
 	return openapi.TagResponse{
-		ID:    httputil.Ptr(t.ID.String()),
-		Name:  httputil.Ptr(t.Name),
-		Color: httputil.Ptr(t.Color),
+		ID:    new(t.ID.String()),
+		Name:  new(t.Name),
+		Color: new(t.Color),
 	}
 }
 
@@ -70,13 +75,14 @@ func FromTagList(items []*domain.Tag) []openapi.TagResponse {
 
 func FromScoreboardEntry(e *domain.ScoreboardEntry) openapi.ScoreboardEntryResponse {
 	res := openapi.ScoreboardEntryResponse{
-		TeamID:   httputil.Ptr(e.TeamID.String()),
-		TeamName: httputil.Ptr(e.TeamName),
-		Points:   httputil.Ptr(e.Points),
+		TeamID:   new(e.TeamID.String()),
+		TeamName: new(e.TeamName),
+		Points:   new(e.Points),
 	}
 	if !e.SolvedAt.IsZero() {
-		res.LastSolved = httputil.Ptr(e.SolvedAt.Format(time.RFC3339))
+		res.LastSolved = new(e.SolvedAt.Format(time.RFC3339))
 	}
+
 	return res
 }
 
@@ -86,29 +92,51 @@ func FromScoreboardList(items []*domain.ScoreboardEntry) []openapi.ScoreboardEnt
 	})
 }
 
+func FromScoreboardListWithAvatars(ctx context.Context, items []*domain.ScoreboardEntry, avatarUC usecase.AvatarUseCase) ([]openapi.ScoreboardEntryResponse, error) {
+	result := make([]openapi.ScoreboardEntryResponse, len(items))
+	for i, item := range items {
+		res := FromScoreboardEntry(item)
+
+		if avatarUC != nil {
+			_, thumbURL, err := avatarUC.GetTeamAvatarURL(ctx, item.TeamID)
+			if err != nil {
+				return nil, err
+			}
+
+			if thumbURL != nil && *thumbURL != "" {
+				res.TeamAvatarThumbnailURL = thumbURL
+			}
+		}
+
+		result[i] = res
+	}
+
+	return result, nil
+}
+
 func FromFirstBlood(fb *domain.FirstBloodEntry) openapi.FirstBloodResponse {
 	return openapi.FirstBloodResponse{
-		UserID:   httputil.Ptr(fb.UserID.String()),
-		Username: httputil.Ptr(fb.Username),
-		TeamID:   httputil.Ptr(fb.TeamID.String()),
-		TeamName: httputil.Ptr(fb.TeamName),
-		SolvedAt: httputil.Ptr(fb.SolvedAt.Format(time.RFC3339)),
+		UserID:   new(fb.UserID.String()),
+		Username: new(fb.Username),
+		TeamID:   new(fb.TeamID.String()),
+		TeamName: new(fb.TeamName),
+		SolvedAt: new(fb.SolvedAt.Format(time.RFC3339)),
 	}
 }
 
 func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResponse {
 	res := openapi.ChallengeDetailResponse{
-		ID:             httputil.Ptr(d.Challenge.ID.String()),
-		Title:          httputil.Ptr(d.Challenge.Title),
-		Description:    httputil.Ptr(d.Challenge.Description),
-		Category:       httputil.Ptr(d.Challenge.Category),
-		ConnectionInfo: httputil.Ptr(d.Challenge.ConnectionInfo),
-		MaxAttempts:    httputil.Ptr(d.Challenge.MaxAttempts),
-		Position:       httputil.Ptr(d.Challenge.Position),
+		ID:             new(d.Challenge.ID.String()),
+		Title:          new(d.Challenge.Title),
+		Description:    new(d.Challenge.Description),
+		Category:       new(d.Challenge.Category),
+		ConnectionInfo: new(d.Challenge.ConnectionInfo),
+		MaxAttempts:    new(d.Challenge.MaxAttempts),
+		Position:       new(d.Challenge.Position),
 		State:          ptrChallengeDetailResponseState(d.Challenge.State),
-		Points:         httputil.Ptr(d.Challenge.Points),
-		SolveCount:     httputil.Ptr(d.SolveCount),
-		SolvedByMe:     httputil.Ptr(d.SolvedByMe),
+		Points:         new(d.Challenge.Points),
+		SolveCount:     new(d.SolveCount),
+		SolvedByMe:     new(d.SolvedByMe),
 	}
 
 	if len(d.Tags) > 0 {
@@ -116,6 +144,7 @@ func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResp
 		for i, t := range d.Tags {
 			tags[i] = FromTag(t)
 		}
+
 		res.Tags = &tags
 	}
 
@@ -124,6 +153,7 @@ func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResp
 		for i, f := range d.Files {
 			files[i] = FromFile(f)
 		}
+
 		res.Files = &files
 	}
 
@@ -132,11 +162,12 @@ func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResp
 		for i, h := range d.Hints {
 			hints[i] = FromHintWithUnlockStatus(h)
 		}
+
 		res.Hints = &hints
 	}
 
 	if d.FirstBlood != nil {
-		res.FirstBlood = httputil.Ptr(FromFirstBlood(d.FirstBlood))
+		res.FirstBlood = new(FromFirstBlood(d.FirstBlood))
 	}
 
 	return res
@@ -146,25 +177,27 @@ func FromChallengeSolves(solves []*domain.SolveWithDetails) []openapi.ChallengeS
 	res := make([]openapi.ChallengeSolveEntry, len(solves))
 	for i, s := range solves {
 		res[i] = openapi.ChallengeSolveEntry{
-			TeamID:   httputil.Ptr(s.TeamID.String()),
-			TeamName: httputil.Ptr(s.TeamName),
-			SolvedAt: httputil.Ptr(s.SolvedAt),
+			TeamID:   new(s.TeamID.String()),
+			TeamName: new(s.TeamName),
+			SolvedAt: new(s.SolvedAt),
 		}
 	}
+
 	return res
 }
 
 func FromHintWithUnlockStatus(h *usecase.HintWithUnlockStatus) openapi.HintItem {
 	res := openapi.HintItem{
-		ID:         httputil.Ptr(h.Hint.ID.String()),
-		Title:      httputil.Ptr(h.Hint.Title),
-		Cost:       httputil.Ptr(h.Hint.Cost),
-		OrderIndex: httputil.Ptr(h.Hint.OrderIndex),
-		Unlocked:   httputil.Ptr(h.Unlocked),
+		ID:         new(h.Hint.ID.String()),
+		Title:      new(h.Hint.Title),
+		Cost:       new(h.Hint.Cost),
+		OrderIndex: new(h.Hint.OrderIndex),
+		Unlocked:   new(h.Unlocked),
 	}
 	if h.Unlocked {
-		res.Content = httputil.Ptr(h.Hint.Content)
+		res.Content = new(h.Hint.Content)
 	}
+
 	return res
 }
 
@@ -172,30 +205,34 @@ func FromChallengeRequirements(items []*domain.ChallengeRequirement) []openapi.C
 	res := make([]openapi.ChallengeRequirementResponse, len(items))
 	for i, item := range items {
 		res[i] = openapi.ChallengeRequirementResponse{
-			ChallengeID:       httputil.Ptr(item.ChallengeID.String()),
-			ChallengeTitle:    httputil.Ptr(item.ChallengeTitle),
+			ChallengeID:       new(item.ChallengeID.String()),
+			ChallengeTitle:    new(item.ChallengeTitle),
 			ChallengeCategory: item.Category,
 		}
 	}
+
 	return res
 }
 
 func FromChallengeSolution(sol *domain.ChallengeSolution, downloadURLs map[string]string) openapi.ChallengeSolutionResponse {
 	res := openapi.ChallengeSolutionResponse{
-		ChallengeID: httputil.Ptr(sol.ChallengeID.String()),
-		Content:     httputil.Ptr(sol.Content),
+		ChallengeID: new(sol.ChallengeID.String()),
+		Content:     new(sol.Content),
 	}
 	if len(sol.Files) > 0 {
 		files := make([]openapi.FileItem, len(sol.Files))
 		for i, f := range sol.Files {
 			item := FromFile(f)
 			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = httputil.Ptr(url)
+				item.URL = new(url)
 			}
+
 			files[i] = item
 		}
+
 		res.Files = &files
 	}
+
 	return res
 }
 
@@ -207,22 +244,25 @@ func FromChallengeSolutionEntryList(entries []*domain.ChallengeSolutionEntry, do
 
 func FromChallengeSolutionEntry(entry *domain.ChallengeSolutionEntry, downloadURLs map[string]string) openapi.ChallengeSolutionEntry {
 	res := openapi.ChallengeSolutionEntry{
-		ChallengeID:       httputil.Ptr(entry.ChallengeID.String()),
-		ChallengeTitle:    httputil.Ptr(entry.ChallengeTitle),
-		ChallengeCategory: httputil.Ptr(entry.ChallengeCategory),
-		Content:           httputil.Ptr(entry.Content),
+		ChallengeID:       new(entry.ChallengeID.String()),
+		ChallengeTitle:    new(entry.ChallengeTitle),
+		ChallengeCategory: new(entry.ChallengeCategory),
+		Content:           new(entry.Content),
 	}
 	if len(entry.Files) > 0 {
 		files := make([]openapi.FileItem, len(entry.Files))
 		for i, f := range entry.Files {
 			item := FromFile(f)
 			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = httputil.Ptr(url)
+				item.URL = new(url)
 			}
+
 			files[i] = item
 		}
+
 		res.Files = &files
 	}
+
 	return res
 }
 
@@ -233,15 +273,17 @@ func FromSubmitFlag(correct bool, message string) openapi.SubmitFlagResponse {
 func FromChallengeFlags(flags *domain.ChallengeFlags) openapi.ChallengeFlagsResponse {
 	res := openapi.ChallengeFlagsResponse{
 		Flags:             &[]string{flags.FlagHash},
-		IsRegex:           httputil.Ptr(flags.IsRegex),
-		IsCaseInsensitive: httputil.Ptr(flags.IsCaseInsensitive),
+		IsRegex:           new(flags.IsRegex),
+		IsCaseInsensitive: new(flags.IsCaseInsensitive),
 	}
 	if flags.FlagRegex != nil && *flags.FlagRegex != "" {
 		res.FlagRegex = flags.FlagRegex
 	}
+
 	if flags.FlagFormatRegex != nil {
 		res.FlagFormatRegex = flags.FlagFormatRegex
 	}
+
 	return res
 }
 
@@ -261,7 +303,9 @@ func ptrChallengeResponseState(s string) *openapi.ChallengeResponseState {
 	if s == "" {
 		return nil
 	}
+
 	v := openapi.ChallengeResponseState(s)
+
 	return &v
 }
 
@@ -269,6 +313,8 @@ func ptrChallengeDetailResponseState(s string) *openapi.ChallengeDetailResponseS
 	if s == "" {
 		return nil
 	}
+
 	v := openapi.ChallengeDetailResponseState(s)
+
 	return &v
 }

@@ -53,6 +53,7 @@ func NewOAuthUseCase(deps OAuthDeps) *OAuthUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
+
 	return &OAuthUseCase{
 		deps:        deps,
 		stateSecret: []byte(deps.Cfg.StateSecret),
@@ -69,10 +70,12 @@ func (uc *OAuthUseCase) GetAuthURL(ctx context.Context, provider string) (authUR
 	if err != nil {
 		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL: %w", err)
 	}
+
 	nonce, err := hex.DecodeString(nonceHex)
 	if err != nil {
 		return "", "", fmt.Errorf("OAuthUseCase - GetAuthURL - hex.DecodeString: %w", err)
 	}
+
 	mac := hmac.New(sha256.New, uc.stateSecret)
 	mac.Write(nonce)
 	sig := hex.EncodeToString(mac.Sum(nil))
@@ -85,17 +88,21 @@ func (uc *OAuthUseCase) ValidateState(cookieState, queryState string) bool {
 	if !hmac.Equal([]byte(cookieState), []byte(queryState)) {
 		return false
 	}
+
 	parts := strings.SplitN(queryState, ".", 2)
 	if len(parts) != 2 {
 		return false
 	}
+
 	nonce, err := hex.DecodeString(parts[0])
 	if err != nil {
 		return false
 	}
+
 	mac := hmac.New(sha256.New, uc.stateSecret)
 	mac.Write(nonce)
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
+
 	return hmac.Equal([]byte(parts[1]), []byte(expectedSig))
 }
 
@@ -144,6 +151,7 @@ func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code strin
 	if existingUser != nil && (existingUser.IsVerified || existingUser.PasswordHash == domain.OAuthOnlyPasswordSentinel) {
 		return uc.linkOAuthToExistingUser(ctx, existingUser, profile, token, provider)
 	}
+
 	if existingUser != nil {
 		// Local account exists but email is not yet verified — treat as a new registration
 		// to avoid account takeover. The user should verify their email first.
@@ -160,13 +168,16 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 	_ string,
 ) (*jwtkit.TokenPair, error) {
 	oauthAcc.AccessToken = token.AccessToken
+
 	rt := token.RefreshToken
 	if rt != "" {
 		oauthAcc.RefreshToken = &rt
 	}
+
 	if !token.Expiry.IsZero() {
 		oauthAcc.ExpiresAt = &token.Expiry
 	}
+
 	if err := uc.deps.OAuthRepo.Upsert(ctx, oauthAcc); err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - loginExisting - Upsert: %w", err)
 	}
@@ -175,9 +186,11 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 	if err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - loginExisting - GetByID: %w", err)
 	}
+
 	if user.IsBanned {
 		return nil, httperr.ErrInvalidCredentials
 	}
+
 	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
 		return nil, httperr.ErrInvalidCredentials
 	}
@@ -186,6 +199,7 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 	if err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - completeOAuthLogin - GenerateTokenPair: %w", err)
 	}
+
 	return pair, nil
 }
 
@@ -200,6 +214,7 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 	if existingUser.IsBanned {
 		return nil, httperr.ErrUserBanned
 	}
+
 	if existingUser.WasInBannedTeam && existingUser.Role != domain.RoleAdmin {
 		return nil, httperr.ErrUserWasInBannedTeam
 	}
@@ -213,12 +228,14 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 	if token.RefreshToken != "" {
 		oauthAcc.RefreshToken = &token.RefreshToken
 	}
+
 	if !token.Expiry.IsZero() {
 		oauthAcc.ExpiresAt = &token.Expiry
 	}
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.OAuthRepo.Upsert(ctx, oauthAcc); err != nil {
+		err := uc.deps.OAuthRepo.Upsert(ctx, oauthAcc)
+		if err != nil {
 			return fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - OAuthRepo.Upsert: %w", err)
 		}
 		// In solo_only mode an existing user without a team (e.g. registered before
@@ -229,14 +246,17 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 			if err != nil {
 				return fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - CompRepo.Get: %w", err)
 			}
+
 			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, existingUser.ID)
 				if err != nil {
 					return fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
 				}
+
 				existingUser.TeamID = &team.ID
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -247,6 +267,7 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 	if err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - GenerateTokenPair: %w", err)
 	}
+
 	return pair, nil
 }
 
@@ -271,6 +292,7 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 	if token.RefreshToken != "" {
 		oauthAcc.RefreshToken = &token.RefreshToken
 	}
+
 	if !token.Expiry.IsZero() {
 		oauthAcc.ExpiresAt = &token.Expiry
 	}
@@ -280,24 +302,30 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 		if err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SettingsRepo.Get: %w", err)
 		}
+
 		if !settings.RegistrationOpen {
 			return httperr.ErrRegistrationClosed
 		}
+
 		existing, err := uc.deps.UserRepo.GetByEmail(ctx, profile.Email)
 		if err != nil && !errors.Is(err, httperr.ErrUserNotFound) {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - UserRepo.GetByEmail: %w", err)
 		}
+
 		if existing != nil {
 			return httperr.ErrUserAlreadyExists
 		}
+
 		username, err := uc.resolveUsername(ctx, profile.Username, provider, profile.ID)
 		if err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - resolveUsername: %w", err)
 		}
+
 		user.Username = username
 		if err := uc.deps.UserRepo.Create(ctx, user); err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - UserRepo.Create: %w", err)
 		}
+
 		oauthAcc.UserID = user.ID
 		if err := uc.deps.OAuthRepo.Upsert(ctx, oauthAcc); err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - OAuthRepo.Upsert: %w", err)
@@ -309,14 +337,17 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 			if err != nil {
 				return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - CompRepo.Get: %w", err)
 			}
+
 			if comp.Mode == domain.ModeSoloOnly {
 				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
 				if err != nil {
 					return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
 				}
+
 				user.TeamID = &team.ID
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -327,6 +358,7 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 	if err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - registerNewOAuthUser - GenerateTokenPair: %w", err)
 	}
+
 	return pair, nil
 }
 
@@ -335,6 +367,7 @@ func truncateUsername(s string) string {
 	if len(runes) <= usernameMaxLen {
 		return s
 	}
+
 	return string(runes[:usernameMaxLen])
 }
 
@@ -344,25 +377,30 @@ func (uc *OAuthUseCase) resolveUsername(ctx context.Context, desired, provider, 
 	if desired == "" {
 		desired = provider + "-user"
 	}
+
 	desired = truncateUsername(desired)
 
 	_, err := uc.deps.UserRepo.GetByUsername(ctx, desired)
 	if errors.Is(err, httperr.ErrUserNotFound) {
 		return desired, nil
 	}
+
 	if err != nil {
 		return "", fmt.Errorf("OAuthUseCase - resolveUsername - UserRepo.GetByUsername: %w", err)
 	}
 
 	// desired is taken - use provider-scoped fallback that includes the unique provider ID.
 	fallback := truncateUsername(fmt.Sprintf("%s-%s-%s", desired, provider, providerID))
+
 	_, err = uc.deps.UserRepo.GetByUsername(ctx, fallback)
 	if errors.Is(err, httperr.ErrUserNotFound) {
 		return fallback, nil
 	}
+
 	if err != nil {
 		return "", fmt.Errorf("OAuthUseCase - resolveUsername - UserRepo.GetByUsername fallback: %w", err)
 	}
+
 	return "", httperr.ErrUsernameTaken
 }
 
@@ -377,6 +415,7 @@ func (uc *OAuthUseCase) oauthConfig(ctx context.Context, provider string) (*oaut
 		if !settings.OAuthGithubEnabled {
 			return nil, httperr.ErrOAuthProviderDisabled
 		}
+
 		return &oauth2.Config{
 			ClientID:     uc.deps.Cfg.GitHub.ClientID,
 			ClientSecret: uc.deps.Cfg.GitHub.ClientSecret,
@@ -389,6 +428,7 @@ func (uc *OAuthUseCase) oauthConfig(ctx context.Context, provider string) (*oaut
 		if !settings.OAuthGoogleEnabled {
 			return nil, httperr.ErrOAuthProviderDisabled
 		}
+
 		return &oauth2.Config{
 			ClientID:     uc.deps.Cfg.Google.ClientID,
 			ClientSecret: uc.deps.Cfg.Google.ClientSecret,

@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -53,8 +52,10 @@ func (r *CompetitionRepo) Get(ctx context.Context) (*domain.Competition, error) 
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrCompetitionNotFound
 		}
+
 		return nil, fmt.Errorf("CompetitionRepo - Get: %w", err)
 	}
+
 	return toDomainCompetition(c), nil
 }
 
@@ -64,8 +65,10 @@ func (r *CompetitionRepo) GetForUpdate(ctx context.Context) (*domain.Competition
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrCompetitionNotFound
 		}
+
 		return nil, fmt.Errorf("CompetitionRepo - GetForUpdate: %w", err)
 	}
+
 	return toDomainCompetition(c), nil
 }
 
@@ -74,21 +77,28 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *domain.Competition) err
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update - MinTeamSize: %w", err)
 	}
+
 	maxTeamSize, err := intToInt32Safe(c.MaxTeamSize)
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update - MaxTeamSize: %w", err)
 	}
+
 	now := time.Now()
+
 	err = r.Q(ctx).UpdateCompetition(ctx, sqlc.UpdateCompetitionParams{
-		Name:                         c.Name,
-		StartTime:                    pgutil.TimeToTimestamptz(c.StartTime),
-		EndTime:                      pgutil.TimeToTimestamptz(c.EndTime),
-		FreezeTime:                   pgutil.TimeToTimestamptz(c.FreezeTime),
-		IsPaused:                     &c.IsPaused,
-		PausedAt:                     pgutil.TimeToTimestamptz(c.PausedAt),
-		IsPublic:                     &c.IsPublic,
-		FlagRegex:                    c.FlagRegex,
-		Mode:                         func() *string { s := string(c.Mode); return &s }(),
+		Name:       c.Name,
+		StartTime:  pgutil.TimeToTimestamptz(c.StartTime),
+		EndTime:    pgutil.TimeToTimestamptz(c.EndTime),
+		FreezeTime: pgutil.TimeToTimestamptz(c.FreezeTime),
+		IsPaused:   &c.IsPaused,
+		PausedAt:   pgutil.TimeToTimestamptz(c.PausedAt),
+		IsPublic:   &c.IsPublic,
+		FlagRegex:  c.FlagRegex,
+		Mode: func() *string {
+			s := string(c.Mode)
+
+			return &s
+		}(),
 		AllowTeamSwitch:              &c.AllowTeamSwitch,
 		MinTeamSize:                  &minTeamSize,
 		MaxTeamSize:                  &maxTeamSize,
@@ -98,5 +108,6 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *domain.Competition) err
 	if err != nil {
 		return fmt.Errorf("CompetitionRepo - Update: %w", err)
 	}
+
 	return nil
 }

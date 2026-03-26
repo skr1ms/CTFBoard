@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -18,6 +19,12 @@ import (
 	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
+
+type stubPgxExecer struct{}
+
+func (stubPgxExecer) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, nil
+}
 
 type challengeTestDeps struct {
 	challengeRepo  *challengeMock.MockChallengeRepository
@@ -39,6 +46,7 @@ type challengeTestDeps struct {
 
 func newChallengeTestDeps(t *testing.T) *challengeTestDeps {
 	t.Helper()
+
 	return &challengeTestDeps{
 		challengeRepo:  challengeMock.NewMockChallengeRepository(t),
 		solveRepo:      challengeMock.NewMockSolveRepository(t),
@@ -60,6 +68,7 @@ func newChallengeTestDeps(t *testing.T) *challengeTestDeps {
 
 func (d *challengeTestDeps) createChallengeUseCase() (*ChallengeUseCase, redismock.ClientMock) {
 	_, redis := redismock.NewClientMock()
+
 	return NewChallengeUseCase(ChallengeDeps{
 		ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo, SubmissionRepo: nil, TM: d.tm,
 		CompRepo: d.compRepo, TeamRepo: d.teamRepo, AuditLogRepo: d.auditLogRepo,
@@ -67,8 +76,13 @@ func (d *challengeTestDeps) createChallengeUseCase() (*ChallengeUseCase, redismo
 	}), redis
 }
 
+func (d *challengeTestDeps) expectUnlockHintDB() {
+	d.tm.EXPECT().DB(mock.Anything).Return(stubPgxExecer{}).Once()
+}
+
 func (d *challengeTestDeps) createChallengeUseCaseWithSubmissionRepo() (*ChallengeUseCase, redismock.ClientMock) {
 	_, redis := redismock.NewClientMock()
+
 	return NewChallengeUseCase(ChallengeDeps{
 		ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo, SubmissionRepo: d.submissionRepo, TM: d.tm,
 		CompRepo: d.compRepo, TeamRepo: d.teamRepo, AuditLogRepo: d.auditLogRepo,
@@ -78,6 +92,7 @@ func (d *challengeTestDeps) createChallengeUseCaseWithSubmissionRepo() (*Challen
 
 func (d *challengeTestDeps) createChallengeUseCaseWithCompAndCrypto() (*ChallengeUseCase, redismock.ClientMock) {
 	_, redis := redismock.NewClientMock()
+
 	return NewChallengeUseCase(ChallengeDeps{
 		ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo, SubmissionRepo: nil, TM: d.tm,
 		CompRepo: d.compRepo, TeamRepo: d.teamRepo, AuditLogRepo: d.auditLogRepo,
@@ -94,6 +109,7 @@ func (d *challengeTestDeps) createFileUseCase() *FileUseCase {
 
 func (d *challengeTestDeps) createHintUseCase() (*HintUseCase, redismock.ClientMock) {
 	_, redis := redismock.NewClientMock()
+
 	return NewHintUseCase(HintDeps{
 		HintRepo: d.hintRepo, AwardRepo: d.awardRepo, TM: d.tm, SolveRepo: d.solveRepo,
 		CompRepo: d.compRepo, TeamRepo: d.teamRepo, UserRepo: d.userRepo, ChallengeRepo: d.challengeRepo, ScoreboardCache: nil,
@@ -110,6 +126,7 @@ func (d *challengeTestDeps) createCommentUseCase() *CommentUseCase {
 
 func challengeTestSha256Hash(text string) string {
 	hash := sha256.Sum256([]byte(text))
+
 	return hex.EncodeToString(hash[:])
 }
 
@@ -131,12 +148,14 @@ func newTestTeam(id uuid.UUID) *domain.Team {
 func newTestBannedTeam(id uuid.UUID) *domain.Team {
 	team := newTestTeam(id)
 	team.IsBanned = true
+
 	return team
 }
 
 func newActiveCompetition() *domain.Competition {
 	start := time.Now().Add(-1 * time.Hour)
 	end := time.Now().Add(24 * time.Hour)
+
 	return &domain.Competition{StartTime: &start, EndTime: &end}
 }
 
@@ -205,6 +224,7 @@ func TestChallengeUseCase_GetAll_Error(t *testing.T) {
 
 	teamID := uuid.New()
 	expectedError := assert.AnError
+
 	d.compRepo.On("Get", mock.Anything).Return(nil, nil)
 	d.challengeRepo.On("GetAll", mock.Anything, &teamID, mock.Anything).Return(nil, expectedError)
 
@@ -224,11 +244,14 @@ func TestChallengeUseCase_Create_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		ctx, ok := args.Get(0).(context.Context)
 		if !ok {
 			return
 		}
-		if err := fn(ctx); err != nil {
+
+		err := fn(ctx)
+		if err != nil {
 			return
 		}
 	})
@@ -279,11 +302,14 @@ func TestChallengeUseCase_Update(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		ctx, ok := args.Get(0).(context.Context)
 		if !ok {
 			return
 		}
-		if err := fn(ctx); err != nil {
+
+		err := fn(ctx)
+		if err != nil {
 			return
 		}
 	})
@@ -317,11 +343,14 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		ctx, ok := args.Get(0).(context.Context)
 		if !ok {
 			return
 		}
-		if err := fn(ctx); err != nil {
+
+		err := fn(ctx)
+		if err != nil {
 			return
 		}
 	})
@@ -347,6 +376,7 @@ func TestChallengeUseCase_Update_GetByIDError(t *testing.T) {
 
 	challengeID := uuid.New()
 	expectedError := assert.AnError
+
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
@@ -388,11 +418,13 @@ func TestChallengeUseCase_Delete_Success(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := &domain.Challenge{ID: challengeID, Title: "ToDelete"}
+
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(args.Get(0).(context.Context)) //nolint:errcheck
 	})
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
@@ -445,10 +477,12 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
@@ -505,7 +539,7 @@ func TestChallengeUseCase_SubmitFlag_MaxAttemptsReached(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrMaxAttemptsReached))
+	assert.ErrorIs(t, err, httperr.ErrMaxAttemptsReached)
 	assert.False(t, valid)
 }
 
@@ -535,10 +569,12 @@ func TestChallengeUseCase_SubmitFlag_MaxAttemptsOneUnderLimit(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		assert.NoError(t, fn(ctx))
 	})
 
@@ -567,7 +603,7 @@ func TestChallengeUseCase_SubmitFlag_LockedState(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{correct}", userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeLocked))
+	assert.ErrorIs(t, err, httperr.ErrChallengeLocked)
 	assert.False(t, valid)
 }
 
@@ -582,7 +618,7 @@ func TestChallengeUseCase_SubmitFlag_NoTeam(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, nil, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserMustBeInTeam))
+	assert.ErrorIs(t, err, httperr.ErrUserMustBeInTeam)
 	assert.False(t, valid)
 }
 
@@ -602,7 +638,7 @@ func TestChallengeUseCase_SubmitFlag_BannedTeam(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamBanned))
+	assert.ErrorIs(t, err, httperr.ErrTeamBanned)
 	assert.False(t, valid)
 }
 
@@ -623,7 +659,7 @@ func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 	assert.False(t, valid)
 }
 
@@ -687,10 +723,12 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(existingSolve, nil)
@@ -698,7 +736,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrAlreadySolved))
+	assert.ErrorIs(t, err, httperr.ErrAlreadySolved)
 	assert.False(t, valid)
 }
 
@@ -767,10 +805,12 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
@@ -819,10 +859,12 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, expectedError)
@@ -860,7 +902,7 @@ func TestChallengeUseCase_SubmitFlag_InvalidFormat(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, "InvalidFlag", uuid.New(), &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrInvalidFlagFormat))
+	assert.ErrorIs(t, err, httperr.ErrInvalidFlagFormat)
 	assert.False(t, valid)
 }
 
@@ -877,11 +919,14 @@ func TestChallengeUseCase_Create_Regex_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		ctx, ok := args.Get(0).(context.Context)
 		if !ok {
 			return
 		}
-		if err := fn(ctx); err != nil {
+
+		err := fn(ctx)
+		if err != nil {
 			return
 		}
 	})
@@ -936,6 +981,7 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 
 	flag := "^flag{new}$"
 	encryptedFlag := "encrypted_new_regex"
+
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
 	d.crypto.On("Encrypt", flag).Return(encryptedFlag, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
@@ -943,11 +989,14 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		ctx, ok := args.Get(0).(context.Context)
 		if !ok {
 			return
 		}
-		if err := fn(ctx); err != nil {
+
+		err := fn(ctx)
+		if err != nil {
 			return
 		}
 	})
@@ -980,6 +1029,7 @@ func TestChallengeUseCase_Update_Regex_EncryptionError(t *testing.T) {
 
 	flag := "^flag{new}$"
 	expectedError := errors.New("encryption failed")
+
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
 	d.crypto.On("Encrypt", flag).Return("", expectedError)
@@ -1027,10 +1077,12 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
@@ -1106,10 +1158,12 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
@@ -1165,7 +1219,7 @@ func TestChallengeUseCase_GetRequirements_ChallengeNotFound(t *testing.T) {
 	got, err := uc.GetRequirements(context.Background(), challengeID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 	assert.Nil(t, got)
 }
 
@@ -1178,9 +1232,11 @@ func TestChallengeUseCase_SetRequirements_Success(t *testing.T) {
 	reqIDs := []uuid.UUID{uuid.New(), uuid.New()}
 
 	reqChallenges := make(map[uuid.UUID]*domain.Challenge)
+
 	for _, reqID := range reqIDs {
 		reqChallenges[reqID] = &domain.Challenge{ID: reqID}
 	}
+
 	d.challengeRepo.On("GetByIDs", mock.Anything, reqIDs).Return(reqChallenges, nil)
 	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
@@ -1210,6 +1266,7 @@ func TestChallengeUseCase_SetRequirements_ChallengeNotFound(t *testing.T) {
 	err := uc.SetRequirements(context.Background(), challengeID, reqIDs)
 
 	assert.Error(t, err)
+
 	var httpErr *httperr.HTTPError
 	assert.True(t, errors.As(err, &httpErr) && httpErr.GetCode() == "VALIDATION_ERROR")
 }
@@ -1229,6 +1286,7 @@ func TestChallengeUseCase_SetRequirements_Cycle(t *testing.T) {
 	err := uc.SetRequirements(context.Background(), challengeID, reqIDs)
 
 	assert.Error(t, err)
+
 	var httpErr *httperr.HTTPError
 	assert.True(t, errors.As(err, &httpErr) && httpErr.GetCode() == "VALIDATION_ERROR")
 	assert.Contains(t, err.Error(), "cycle")
@@ -1254,7 +1312,7 @@ func TestChallengeUseCase_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testin
 	detail, err := uc.GetDetail(context.Background(), challengeID, &teamID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 	assert.Nil(t, detail)
 }
 
@@ -1283,7 +1341,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsNotMet(t *testing.T) {
 	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrRequirementsNotMet))
+	assert.ErrorIs(t, err, httperr.ErrRequirementsNotMet)
 	assert.False(t, valid)
 }
 
@@ -1317,10 +1375,12 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		fn, ok := args.Get(1).(func(context.Context) error)
 		if !ok {
 			return
 		}
+
 		_ = fn(ctx) //nolint:errcheck
 	})
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)

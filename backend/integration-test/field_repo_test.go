@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -64,7 +63,7 @@ func TestFieldRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.FieldRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrFieldNotFound))
+	assert.ErrorIs(t, err, httperr.ErrFieldNotFound)
 }
 
 func TestFieldRepo_GetByEntityType_Success(t *testing.T) {
@@ -77,10 +76,13 @@ func TestFieldRepo_GetByEntityType_Success(t *testing.T) {
 	f2 := f.CreateField(t, "et2", domain.EntityTypeUser)
 	list, err := f.FieldRepo.GetByEntityType(ctx, domain.EntityTypeUser)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, fl := range list {
 		ids[fl.ID] = true
 	}
+
 	assert.True(t, ids[f1.ID], "field 1 should be in result")
 	assert.True(t, ids[f2.ID], "field 2 should be in result")
 }
@@ -105,10 +107,13 @@ func TestFieldRepo_GetAll_Success(t *testing.T) {
 	field := f.CreateField(t, "ga1", domain.EntityTypeTeam)
 	list, err := f.FieldRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, fl := range list {
 		ids[fl.ID] = true
 	}
+
 	assert.True(t, ids[field.ID], "field should be in GetAll result")
 }
 
@@ -160,7 +165,7 @@ func TestFieldRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.FieldRepo.GetByID(ctx, field.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrFieldNotFound))
+	assert.ErrorIs(t, err, httperr.ErrFieldNotFound)
 }
 
 func TestFieldRepo_Delete_Error_NotFound(t *testing.T) {
@@ -213,6 +218,7 @@ func TestFieldValueRepo_SetValues_Success(t *testing.T) {
 	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, vals, 1)
+
 	err = f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "value2"})
 	require.NoError(t, err)
 	vals, err = f.FieldValueRepo.GetByEntityID(ctx, user.ID)

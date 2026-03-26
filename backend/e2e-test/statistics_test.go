@@ -42,7 +42,9 @@ func TestStatistics_Challenges(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := helper.UID()
+
 	resetCompetitionToActive()
+
 	_, tokenAdmin := h.SetupCompetition("adm_st_ch_" + suffix)
 	h.CreateBasicChallenge(tokenAdmin, "Chall A "+suffix, "flag{a}", 50)
 	h.CreateBasicChallenge(tokenAdmin, "Chall B "+suffix, "flag{b}", 100)
@@ -58,6 +60,7 @@ func TestStatistics_Scoreboard(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	resetCompetitionToActive()
+
 	_, tokenAdmin := h.SetupCompetition("admin_stats_sb")
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "SB Chall", "flag{sb}", 100)
 
@@ -149,6 +152,7 @@ func TestStatistics_ChallengeDetail_Success(t *testing.T) {
 	require.NotNil(t, resp.JSON200.PercentageSolved)
 	require.NotNil(t, resp.JSON200.Solves)
 	require.GreaterOrEqual(t, len(*resp.JSON200.Solves), 1)
+
 	if resp.JSON200.FirstBlood != nil {
 		require.NotNil(t, resp.JSON200.FirstBlood.TeamID)
 		require.NotNil(t, resp.JSON200.FirstBlood.TeamName)
@@ -171,12 +175,14 @@ func TestStatistics_ChallengeDetail_InvalidID_Returns400(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 	_, token := h.SetupCompetition("admin_invalid_id")
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/statistics/challenges/not-a-uuid", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/statistics/challenges/not-a-uuid", http.NoBody)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", token)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
+
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
@@ -339,6 +345,7 @@ func TestStatistics_AdminSolveMatrix_Forbidden(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("stats_matrix_403")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("matrix_user_" + suffix)
 

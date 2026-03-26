@@ -53,11 +53,14 @@ func (p *S3Provider) EnsureBucket(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("S3Provider - EnsureBucket: %w", err)
 	}
+
 	if !exists {
-		if err := p.client.MakeBucket(ctx, p.bucket, minio.MakeBucketOptions{}); err != nil {
+		err := p.client.MakeBucket(ctx, p.bucket, minio.MakeBucketOptions{})
+		if err != nil {
 			return fmt.Errorf("S3Provider - EnsureBucket: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -73,16 +76,22 @@ func (p *S3Provider) Upload(ctx context.Context, path string, reader io.Reader, 
 			if isS3PermanentError(err) {
 				return backoff.Permanent(fmt.Errorf("S3Provider - Upload: %w", err))
 			}
+
 			return fmt.Errorf("S3Provider - Upload: %w", err)
 		}
+
 		return nil
 	}
 
 	bo := backoff.NewExponentialBackOff()
+
 	bo.InitialInterval = s3BackoffInitialInterval
-	if err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, s3BackoffMaxRetries), ctx)); err != nil {
+
+	err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, s3BackoffMaxRetries), ctx))
+	if err != nil {
 		return fmt.Errorf("S3Provider - Upload: %w", err)
 	}
+
 	return nil
 }
 
@@ -104,18 +113,23 @@ func (p *S3Provider) Delete(ctx context.Context, path string) error {
 	if err != nil {
 		return fmt.Errorf("S3Provider - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func (p *S3Provider) List(ctx context.Context, prefix string) ([]string, error) {
 	opts := minio.ListObjectsOptions{Prefix: prefix, Recursive: true}
+
 	var paths []string
+
 	for obj := range p.client.ListObjects(ctx, p.bucket, opts) {
 		if obj.Err != nil {
 			return nil, fmt.Errorf("S3Provider - List: %w", obj.Err)
 		}
+
 		paths = append(paths, obj.Key)
 	}
+
 	return paths, nil
 }
 
@@ -124,6 +138,7 @@ func (p *S3Provider) Ping(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("S3Provider - Ping: %w", err)
 	}
+
 	return nil
 }
 
@@ -136,6 +151,7 @@ func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry ti
 			if isS3PermanentError(err) {
 				return backoff.Permanent(fmt.Errorf("S3Provider - GetPresignedURL: %w", err))
 			}
+
 			return fmt.Errorf("S3Provider - GetPresignedURL: %w", err)
 		}
 
@@ -144,19 +160,25 @@ func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry ti
 			if parseErr != nil {
 				return backoff.Permanent(fmt.Errorf("S3Provider - GetPresignedURL: %w", parseErr))
 			}
+
 			presignedURL.Scheme = publicURL.Scheme
 			presignedURL.Host = publicURL.Host
 		}
 
 		result = presignedURL.String()
+
 		return nil
 	}
 
 	bo := backoff.NewExponentialBackOff()
+
 	bo.InitialInterval = s3BackoffInitialInterval
-	if err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, s3BackoffMaxRetries), ctx)); err != nil {
+
+	err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, s3BackoffMaxRetries), ctx))
+	if err != nil {
 		return "", fmt.Errorf("S3Provider - GetPresignedURL: %w", err)
 	}
+
 	return result, nil
 }
 
@@ -164,6 +186,7 @@ func isS3PermanentError(err error) bool {
 	if err == nil {
 		return false
 	}
+
 	resp := minio.ToErrorResponse(err)
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden,
@@ -171,5 +194,6 @@ func isS3PermanentError(err error) bool {
 		http.StatusMethodNotAllowed:
 		return true
 	}
+
 	return false
 }

@@ -20,29 +20,37 @@ func RecordSolveInTx(ctx context.Context, solve *domain.Solve, challenge *domain
 	if err == nil {
 		return 0, httperr.ErrAlreadySolved
 	}
+
 	if !errors.Is(err, httperr.ErrSolveNotFound) {
 		return 0, fmt.Errorf("RecordSolveInTx - GetByTeamAndChallengeForUpdate: %w", err)
 	}
+
 	solveCount, err = challengeRepo.IncrementSolveCount(ctx, solve.ChallengeID)
 	if err != nil {
 		return 0, fmt.Errorf("RecordSolveInTx - IncrementSolveCount: %w", err)
 	}
+
 	pointsAtSolve, err := scoring.ApplySolveScore(ctx,
 		challenge.InitialValue, challenge.MinValue, challenge.Decay, challenge.Points, solveCount,
 		func(ctx context.Context, pts int) error {
-			if err := challengeRepo.UpdatePoints(ctx, challenge.ID, pts); err != nil {
+			err := challengeRepo.UpdatePoints(ctx, challenge.ID, pts)
+			if err != nil {
 				return fmt.Errorf("RecordSolveInTx - UpdatePoints: %w", err)
 			}
+
 			challenge.Points = pts
+
 			return nil
 		},
 	)
 	if err != nil {
 		return 0, fmt.Errorf("RecordSolveInTx - ApplySolveScore: %w", err)
 	}
+
 	solve.PointsAtSolve = pointsAtSolve
 	if err := solveRepo.Create(ctx, solve); err != nil {
 		return 0, fmt.Errorf("RecordSolveInTx - SolveRepo.Create: %w", err)
 	}
+
 	return solveCount, nil
 }

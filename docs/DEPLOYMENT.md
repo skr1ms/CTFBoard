@@ -1,6 +1,6 @@
 # Deployment
 
-<!-- markdownlint-disable MD060 -->
+<!-- markdownlint-disable MD060 ->
 
 This document specifies the deployment of the AstroCTFb backend service for production and development environments. All steps and requirements are normative unless marked as optional.
 
@@ -8,7 +8,7 @@ This document specifies the deployment of the AstroCTFb backend service for prod
 
 1. Start Vault.
 2. Initialise Vault: create sealed and root tokens.
-3. Put required secrets into KV v2 under the `astroctfb/` path. Mount path is set by `VAULT_MOUNT_PATH` (default `secret`). See [ENVIRONMENT.md](ENVIRONMENT.md) for required paths and keys.
+3. Put required secrets into KV v2 under the `secret/` mount (path prefix `astroctfb/`). See [ENVIRONMENT.md](ENVIRONMENT.md) for required paths and keys.
 4. Optionally configure Telegram alerts in `monitoring/alertmanager/alertmanager.yml` (receiver `telegram-notifications`: `bot_token`, `chat_id`) and replace placeholder credentials in `deployment/seaweedfs/s3.json` with real S3 access key and secret.
 5. Start the rest of the production stack.
 

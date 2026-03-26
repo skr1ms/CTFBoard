@@ -1,6 +1,8 @@
 package request
 
 import (
+	"slices"
+
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 
@@ -57,23 +59,25 @@ func validateChallengeNumericParams(points, initialValue, minValue, decay int) e
 	if points < 0 {
 		return httperr.NewValidationErrorf("points must be >= 0")
 	}
+
 	if initialValue < 0 || minValue < 0 || decay < 0 {
 		return httperr.NewValidationErrorf("initial_value, min_value and decay must be >= 0")
 	}
+
 	if initialValue < minValue {
 		return httperr.NewValidationErrorf("initial_value must be >= min_value")
 	}
+
 	return nil
 }
 
 var allowedChallengeStates = []string{"visible", "hidden", "locked"}
 
 func validateChallengeState(state string) error {
-	for _, a := range allowedChallengeStates {
-		if state == a {
-			return nil
-		}
+	if slices.Contains(allowedChallengeStates, state) {
+		return nil
 	}
+
 	return httperr.NewValidationErrorf("state must be one of: visible, hidden, locked")
 }
 
@@ -82,16 +86,20 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 	if err != nil {
 		return ChallengeParams{}, err
 	}
+
 	initialValue := lo.FromPtrOr(req.InitialValue, staticScoringInitialValue)
 	minValue := lo.FromPtrOr(req.MinValue, staticScoringMinValue)
+
 	decay := lo.FromPtrOr(req.Decay, staticScoringDecay)
 	if err := validateChallengeNumericParams(req.Points, initialValue, minValue, decay); err != nil {
 		return ChallengeParams{}, err
 	}
+
 	state := challengeStateFromReq(req.State)
 	if err := validateChallengeState(state); err != nil {
 		return ChallengeParams{}, err
 	}
+
 	return ChallengeParams{
 		Title:             req.Title,
 		Description:       req.Description,
@@ -116,6 +124,7 @@ func challengeStateFromReq(s *openapi.CreateChallengeRequestState) string {
 	if s == nil {
 		return string(openapi.CreateChallengeRequestStateVisible)
 	}
+
 	return string(*s)
 }
 
@@ -123,6 +132,7 @@ func updateChallengeStateFromReq(s *openapi.UpdateChallengeRequestState) string 
 	if s == nil {
 		return ""
 	}
+
 	return string(*s)
 }
 
@@ -132,6 +142,7 @@ type submitFlagConstraints struct {
 
 func ValidateSubmitFlagRequest(req *openapi.SubmitFlagRequest, v validator.Validator) error {
 	c := submitFlagConstraints{Flag: req.Flag}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -148,18 +159,23 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 	if err != nil {
 		return UpdateChallengeParams{}, err
 	}
+
 	iv, mv, dc := req.InitialValue, req.MinValue, req.Decay
 	if iv != nil && mv != nil && dc != nil {
-		if err := validateChallengeNumericParams(req.Points, *iv, *mv, *dc); err != nil {
+		err := validateChallengeNumericParams(req.Points, *iv, *mv, *dc)
+		if err != nil {
 			return UpdateChallengeParams{}, err
 		}
 	}
+
 	state := updateChallengeStateFromReq(req.State)
 	if state != "" {
-		if err := validateChallengeState(state); err != nil {
+		err := validateChallengeState(state)
+		if err != nil {
 			return UpdateChallengeParams{}, err
 		}
 	}
+
 	return UpdateChallengeParams{
 		Title:             req.Title,
 		Description:       req.Description,

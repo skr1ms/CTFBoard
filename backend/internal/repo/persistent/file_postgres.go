@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -41,9 +40,11 @@ func toDomainFile(f sqlc.File) *domain.File {
 
 func (r *FileRepo) Create(ctx context.Context, file *domain.File) error {
 	EnsureID(&file.ID)
+
 	if file.CreatedAt.IsZero() {
 		file.CreatedAt = time.Now()
 	}
+
 	err := r.Q(ctx).CreateFile(ctx, sqlc.CreateFileParams{
 		ID:          file.ID,
 		Type:        string(file.Type),
@@ -57,6 +58,7 @@ func (r *FileRepo) Create(ctx context.Context, file *domain.File) error {
 	if err != nil {
 		return fmt.Errorf("FileRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -66,8 +68,10 @@ func (r *FileRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.File, err
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrFileNotFound
 		}
+
 		return nil, fmt.Errorf("FileRepo - GetByID: %w", err)
 	}
+
 	return toDomainFile(f), nil
 }
 
@@ -77,8 +81,10 @@ func (r *FileRepo) GetByLocation(ctx context.Context, location string) (*domain.
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrFileNotFound
 		}
+
 		return nil, fmt.Errorf("FileRepo - GetByLocation: %w", err)
 	}
+
 	return toDomainFile(f), nil
 }
 
@@ -90,10 +96,12 @@ func (r *FileRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, 
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - GetByChallengeID: %w", err)
 	}
+
 	out := make([]*domain.File, 0, len(rows))
 	for _, f := range rows {
 		out = append(out, toDomainFile(f))
 	}
+
 	return out, nil
 }
 
@@ -102,10 +110,12 @@ func (r *FileRepo) GetAllByChallengeID(ctx context.Context, challengeID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - GetAllByChallengeID: %w", err)
 	}
+
 	out := make([]*domain.File, 0, len(rows))
 	for _, f := range rows {
 		out = append(out, toDomainFile(f))
 	}
+
 	return out, nil
 }
 
@@ -113,15 +123,19 @@ func (r *FileRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UU
 	if len(challengeIDs) == 0 {
 		return map[uuid.UUID][]*domain.File{}, nil
 	}
+
 	rows, err := r.Q(ctx).GetFilesByChallengeIDs(ctx, challengeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - GetByChallengeIDs: %w", err)
 	}
+
 	out := make(map[uuid.UUID][]*domain.File)
+
 	for _, f := range rows {
 		ef := toDomainFile(f)
 		out[f.ChallengeID] = append(out[f.ChallengeID], ef)
 	}
+
 	return out, nil
 }
 
@@ -130,10 +144,12 @@ func (r *FileRepo) GetAll(ctx context.Context) ([]*domain.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.File, 0, len(rows))
 	for _, f := range rows {
 		out = append(out, toDomainFile(f))
 	}
+
 	return out, nil
 }
 
@@ -142,6 +158,7 @@ func (r *FileRepo) ListLocations(ctx context.Context, limit, offset int) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - ListLocations: %w", err)
 	}
+
 	rows, err := r.Q(ctx).ListFileLocations(ctx, sqlc.ListFileLocationsParams{
 		Limit:  limit32,
 		Offset: offset32,
@@ -149,6 +166,7 @@ func (r *FileRepo) ListLocations(ctx context.Context, limit, offset int) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - ListLocations: %w", err)
 	}
+
 	return rows, nil
 }
 
@@ -158,7 +176,9 @@ func (r *FileRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 		if pgutil.IsNoRows(err) {
 			return httperr.ErrFileNotFound
 		}
+
 		return fmt.Errorf("FileRepo - Delete: %w", err)
 	}
+
 	return nil
 }

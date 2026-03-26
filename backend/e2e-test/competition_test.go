@@ -105,6 +105,7 @@ func TestCompetition_Admin_Put_Forbidden(t *testing.T) {
 	_, _ = h.SetupCompetition("admin_put_f")
 	_, _, tokenUser := h.RegisterUserAndLogin("nonadmin_put")
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
 	now := time.Now().UTC()
 	h.PutAdminCompetitionExpectStatus(tokenUser, map[string]any{
 		"name": "X", "start_time": now.Add(-1 * time.Hour).Format(time.RFC3339),
@@ -167,6 +168,7 @@ func TestCompetition_PauseUnpause_ShiftsFreezeAndEndTime_StatusActive(t *testing
 
 	require.True(t, freezeAfter.After(freezeBefore), "FreezeTime should shift forward after unpause")
 	require.True(t, endAfter.After(endBefore), "EndTime should shift forward after unpause")
+
 	tolerance := 2 * time.Second
 	require.InDelta(t, pauseDuration.Seconds(), freezeAfter.Sub(freezeBefore).Seconds(), tolerance.Seconds())
 	require.InDelta(t, pauseDuration.Seconds(), endAfter.Sub(endBefore).Seconds(), tolerance.Seconds())
@@ -233,9 +235,11 @@ func TestCompetition_UnpauseAfterEndTimePassed_StatusEnded(t *testing.T) {
 	_, err := TestPool.Exec(ctx, `UPDATE competition SET start_time = $1, end_time = $2, is_paused = TRUE, paused_at = $3, updated_at = now() WHERE id = 1`,
 		startPast, endPast, pausedAt)
 	require.NoError(t, err)
+
 	if TestRedis != nil {
 		require.NoError(t, TestRedis.Del(ctx, "competition").Err())
 	}
+
 	require.Eventually(t, h.CompetitionParamsPropagated, 10*time.Second, 500*time.Millisecond)
 
 	require.True(t, h.PollCompetitionStatus("paused", 10*time.Second), "competition should be paused (end_time passed)")

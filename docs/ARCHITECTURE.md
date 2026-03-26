@@ -1,6 +1,6 @@
 # Project structure
 
-<!-- markdownlint-disable MD060 -->
+<!-- markdownlint-disable MD060 ->
 
 This document specifies the layout and responsibilities of the AstroCTFb codebase. The backend is implemented in Go and follows a layered (clean) architecture with separate presentation, application, domain, and data layers.
 
@@ -29,7 +29,7 @@ backend/
 ├── codegen/                    # Code generation configuration
 │   ├── .mockery_*.yml          # Mockery configs per package
 │   ├── oapi-codegen-*.yml      # OpenAPI client/server/types
-│   └── sqlc.yaml               # sqlc (SQL --> Go) config
+│   └── sqlc.yaml               # sqlc (SQL -> Go) config
 ├── config/                     # Configuration loading (env, Vault)
 ├── internal/
 │   ├── app/                    # Application bootstrap and wiring
@@ -180,11 +180,11 @@ flowchart LR
     Repo[Repository]
     DB[(PostgreSQL)]
   end
-  HTTP --> MW
-  MW -->|"auth, rate limit, competition"| Handler
-  Handler --> UC
-  UC --> Repo
-  Repo --> DB
+  HTTP -> MW
+  MW ->|"auth, rate limit, competition"| Handler
+  Handler -> UC
+  UC -> Repo
+  Repo -> DB
 ```
 
 Middleware includes authentication (JWT/API token), logging, metrics, rate limiting, and guards (competition, require team, require verified). Handlers map requests to use-case calls and use `v1/helper` for rendering and errors.

@@ -38,6 +38,7 @@ func TestBannedUser_CannotUnlockHint(t *testing.T) {
 	h.InvalidateUserCache(userID)
 
 	hintID2 := h.CreateHint(tokenAdmin, challID, "Second hint for user ban test", 0)
+
 	t.Log("=== After ban: hint unlock blocked (token revoked) ===")
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusUnauthorized)
 }
@@ -201,20 +202,25 @@ func TestUnbanTeam_ThenUnbanUser_UserCanLogin(t *testing.T) {
 	h.BanTeamWithOptions(tokenAdmin, teamID, "test", true, http.StatusOK)
 	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)
 	h.UnbanUser(tokenAdmin, capID, http.StatusNoContent)
+
 	if h.Redis() != nil {
 		var cursor uint64
+
 		for {
 			keys, next, err := h.Redis().Scan(context.Background(), cursor, "user:*", 100).Result()
 			require.NoError(t, err)
+
 			if len(keys) > 0 {
 				_ = h.Redis().Del(context.Background(), keys...)
 			}
+
 			cursor = next
 			if cursor == 0 {
 				break
 			}
 		}
 	}
+
 	emailCap := "cap_unban_" + suffix + "@example.com"
 	h.Login(emailCap, passwordCap, http.StatusOK)
 }

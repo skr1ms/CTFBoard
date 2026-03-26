@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -19,11 +18,11 @@ func FromUploadedFile(f *domain.File) openapi.UploadFileResponse {
 
 func FromFile(f *domain.File) openapi.FileItem {
 	return openapi.FileItem{
-		ID:        httputil.Ptr(f.ID.String()),
-		Filename:  httputil.Ptr(f.Filename),
-		Size:      httputil.Ptr(int(f.Size)),
-		Sha256:    httputil.Ptr(f.SHA256),
-		CreatedAt: httputil.Ptr(f.CreatedAt),
+		ID:        new(f.ID.String()),
+		Filename:  new(f.Filename),
+		Size:      new(int(f.Size)),
+		Sha256:    new(f.SHA256),
+		CreatedAt: new(f.CreatedAt),
 	}
 }
 

@@ -1,6 +1,6 @@
 # Environment variables
 
-<!-- markdownlint-disable MD060 -->
+<!-- markdownlint-disable MD060 ->
 
 Full reference for backend configuration. When Vault is used, secrets are read from KV v2 and override the corresponding env-derived values; see the [HashiCorp Vault](#hashicorp-vault) section for required variables and secret paths.
 
@@ -138,9 +138,8 @@ Vault is **optional at the code level** but **required in production**. When bot
 | `VAULT_ADDR` | Vault server address | (none) | **Yes (production)** |
 | `VAULT_TOKEN` | Vault access token | (none) | **Yes (production)** |
 | `VAULT_PORT` | Host port Vault is bound to (docker-compose only) | `8200` | No |
-| `VAULT_MOUNT_PATH` | KV v2 secrets engine mount path | `secret` | No |
 
-When both `VAULT_ADDR` and `VAULT_TOKEN` are set, secret paths are relative to the KV v2 mount (e.g. `astroctfb/database`). **Do not pass Vault-managed secrets as env vars in the production `docker-compose.yml`** - they would be visible via `docker inspect` and are ignored anyway once Vault overrides them.
+When both `VAULT_ADDR` and `VAULT_TOKEN` are set, the backend reads KV v2 from the fixed mount path `secret` (e.g. `secret/data/astroctfb/database`). **Do not pass Vault-managed secrets as env vars in the production `docker-compose.yml`** - they would be visible via `docker inspect` and are ignored anyway once Vault overrides them.
 
 ### Vault secret paths (KV v2)
 

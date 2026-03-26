@@ -15,7 +15,7 @@ func adminForceLive(live *bool) bool {
 }
 
 // Get all submissions (admin)
-// (GET /admin/submissions)
+// (GET /admin/submissions).
 func (h *Server) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params openapi.GetAdminSubmissionsParams) {
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 	forceLive := adminForceLive(params.Live)
@@ -29,7 +29,7 @@ func (h *Server) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, par
 }
 
 // Get submissions by challenge (admin)
-// (GET /admin/submissions/challenge/{challengeID})
+// (GET /admin/submissions/challenge/{challengeID}).
 func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsChallengeChallengeIDParams) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -48,12 +48,13 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeID(w http.ResponseWriter, 
 }
 
 // Get submission stats by challenge (admin)
-// (GET /admin/submissions/challenge/{challengeID}/stats)
+// (GET /admin/submissions/challenge/{challengeID}/stats).
 func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsChallengeChallengeIDStatsParams) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
+
 	forceLive := adminForceLive(params.Live)
 
 	stats, err := h.comp.SubmissionUC.GetStats(r.Context(), challengeIDParsed, forceLive)
@@ -65,7 +66,7 @@ func (h *Server) GetAdminSubmissionsChallengeChallengeIDStats(w http.ResponseWri
 }
 
 // Get submissions by user (admin)
-// (GET /admin/submissions/user/{userID})
+// (GET /admin/submissions/user/{userID}).
 func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsUserUserIDParams) {
 	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -84,7 +85,7 @@ func (h *Server) GetAdminSubmissionsUserUserID(w http.ResponseWriter, r *http.Re
 }
 
 // Get submissions by team (admin)
-// (GET /admin/submissions/team/{teamID})
+// (GET /admin/submissions/team/{teamID}).
 func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetAdminSubmissionsTeamTeamIDParams) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -103,58 +104,66 @@ func (h *Server) GetAdminSubmissionsTeamTeamID(w http.ResponseWriter, r *http.Re
 }
 
 // Get submission by ID (admin)
-// (GET /admin/submissions/{ID})
+// (GET /admin/submissions/{ID}).
 func (h *Server) GetAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
 	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
+
 	sub, err := h.comp.SubmissionUC.GetByID(r.Context(), submissionIDParsed)
 	if h.OnError(w, r, err, "GetAdminSubmissionsID", "GetByID") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromSubmission(sub))
 }
 
 // Update submission (admin)
-// (PATCH /admin/submissions/{ID})
+// (PATCH /admin/submissions/{ID}).
 func (h *Server) PatchAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
 	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
+
 	req, ok := httputil.DecodeAndValidate[openapi.AdminUpdateSubmissionRequest](
 		w, r, h.infra.Validator,
 	)
 	if !ok {
 		return
 	}
+
 	isCorrect, err := request.AdminUpdateSubmissionRequestToParams(&req)
 	if h.OnError(w, r, err, "PatchAdminSubmissionsID", "AdminUpdateSubmissionRequestToParams") {
 		return
 	}
+
 	sub, err := h.comp.SubmissionUC.Update(r.Context(), submissionIDParsed, *isCorrect)
 	if h.OnError(w, r, err, "PatchAdminSubmissionsID", "Update") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromSubmission(sub))
 }
 
 // Delete submission (admin)
-// (DELETE /admin/submissions/{ID})
+// (DELETE /admin/submissions/{ID}).
 func (h *Server) DeleteAdminSubmissionsID(w http.ResponseWriter, r *http.Request, ID string) {
 	submissionIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
+
 	if h.OnError(w, r, h.comp.SubmissionUC.Delete(r.Context(), submissionIDParsed), "DeleteAdminSubmissionsID", "Delete") {
 		return
 	}
+
 	httputil.RenderNoContent(w, r)
 }
 
 // Create submission (admin)
-// (POST /admin/submissions)
+// (POST /admin/submissions).
 func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.AdminCreateSubmissionRequest](
 		w, r, h.infra.Validator,
@@ -162,16 +171,20 @@ func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	if err := request.ValidateAdminCreateSubmissionRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminSubmissions", "Validate") {
 		return
 	}
+
 	params, err := request.AdminCreateSubmissionRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminSubmissions", "ParseParams") {
 		return
 	}
+
 	sub, err := h.comp.SubmissionUC.AdminCreate(r.Context(), params.UserID, params.TeamID, params.ChallengeID, params.SubmittedFlag, params.IsCorrect, params.IP)
 	if h.OnError(w, r, err, "PostAdminSubmissions", "AdminCreate") {
 		return
 	}
+
 	httputil.RenderCreated(w, r, response.FromSubmission(sub))
 }

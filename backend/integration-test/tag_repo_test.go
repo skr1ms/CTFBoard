@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -58,7 +57,7 @@ func TestTagRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
 }
 
 func TestTagRepo_GetByName_Success(t *testing.T) {
@@ -81,7 +80,7 @@ func TestTagRepo_GetByName_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByName(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
 }
 
 func TestTagRepo_GetAll_Success(t *testing.T) {
@@ -94,10 +93,13 @@ func TestTagRepo_GetAll_Success(t *testing.T) {
 	t2 := f.CreateTag(t, "b")
 	list, err := f.TagRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, tag := range list {
 		ids[tag.ID] = true
 	}
+
 	assert.True(t, ids[t1.ID], "tag 1 should be in GetAll result")
 	assert.True(t, ids[t2.ID], "tag 2 should be in GetAll result")
 }
@@ -151,7 +153,7 @@ func TestTagRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.TagRepo.GetByID(ctx, tag.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTagNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
 }
 
 func TestTagRepo_Delete_Error_NoRows(t *testing.T) {

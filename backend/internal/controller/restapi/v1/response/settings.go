@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -13,40 +12,41 @@ import (
 
 func FromAppSettings(s *domain.Settings) openapi.AppSettingsResponse {
 	updatedAt := s.UpdatedAt.Format(time.RFC3339)
+
 	return openapi.AppSettingsResponse{
-		AppName:                          httputil.Ptr(s.AppName),
-		CorsOrigins:                      httputil.Ptr(s.CORSOrigins),
-		CsvExportMaxRows:                 httputil.Ptr(s.CSVExportMaxRows),
-		DefaultPerPage:                   httputil.Ptr(s.DefaultPerPage),
-		FrontendURL:                      httputil.Ptr(s.FrontendURL),
-		MaxPerPage:                       httputil.Ptr(s.MaxPerPage),
-		MaxTeams:                         httputil.Ptr(s.MaxTeams),
-		RateLimitForgotPasswordPerMinute: httputil.Ptr(s.RateLimitForgotPasswordPerMinute),
-		RateLimitGeneralIPPerMinute:      httputil.Ptr(s.RateLimitGeneralIPPerMinute),
-		RateLimitLoginPerMinute:          httputil.Ptr(s.RateLimitLoginPerMinute),
-		RateLimitLogoutPerMinute:         httputil.Ptr(s.RateLimitLogoutPerMinute),
-		RateLimitRefreshPerMinute:        httputil.Ptr(s.RateLimitRefreshPerMinute),
-		RateLimitRegisterPerMinute:       httputil.Ptr(s.RateLimitRegisterPerMinute),
-		RateLimitResetPasswordPerMinute:  httputil.Ptr(s.RateLimitResetPasswordPerMinute),
-		RateLimitScoreboardPerMinute:     httputil.Ptr(s.RateLimitScoreboardPerMinute),
-		RateLimitVerifyEmailPerMinute:    httputil.Ptr(s.RateLimitVerifyEmailPerMinute),
-		RateLimitOauthCallbackPerMinute:  httputil.Ptr(s.RateLimitOAuthCallbackPerMinute),
-		RateLimitOauthRedirectPerMinute:  httputil.Ptr(s.RateLimitOAuthRedirectPerMinute),
-		RateLimitCommentPerMinute:        httputil.Ptr(s.RateLimitCommentPerMinute),
-		RegistrationOpen:                 httputil.Ptr(s.RegistrationOpen),
-		ResendEnabled:                    httputil.Ptr(s.ResendEnabled),
-		ResendFromEmail:                  httputil.Ptr(s.ResendFromEmail),
-		ResendFromName:                   httputil.Ptr(s.ResendFromName),
-		ResetTTLHours:                    httputil.Ptr(s.ResetTTLHours),
-		ScoreboardVisible:                httputil.Ptr(s.ScoreboardVisible),
-		SubmitLimitDurationMin:           httputil.Ptr(s.SubmitLimitDurationMin),
-		SubmitLimitPerUser:               httputil.Ptr(s.SubmitLimitPerUser),
-		VerifyEmails:                     httputil.Ptr(s.VerifyEmails),
-		VerifyTTLHours:                   httputil.Ptr(s.VerifyTTLHours),
-		WriteupEnabled:                   httputil.Ptr(s.WriteupEnabled),
-		OauthGithubEnabled:               httputil.Ptr(s.OAuthGithubEnabled),
-		OauthGoogleEnabled:               httputil.Ptr(s.OAuthGoogleEnabled),
-		UpdatedAt:                        httputil.Ptr(updatedAt),
+		AppName:                          new(s.AppName),
+		CorsOrigins:                      new(s.CORSOrigins),
+		CsvExportMaxRows:                 new(s.CSVExportMaxRows),
+		DefaultPerPage:                   new(s.DefaultPerPage),
+		FrontendURL:                      new(s.FrontendURL),
+		MaxPerPage:                       new(s.MaxPerPage),
+		MaxTeams:                         new(s.MaxTeams),
+		RateLimitForgotPasswordPerMinute: new(s.RateLimitForgotPasswordPerMinute),
+		RateLimitGeneralIPPerMinute:      new(s.RateLimitGeneralIPPerMinute),
+		RateLimitLoginPerMinute:          new(s.RateLimitLoginPerMinute),
+		RateLimitLogoutPerMinute:         new(s.RateLimitLogoutPerMinute),
+		RateLimitRefreshPerMinute:        new(s.RateLimitRefreshPerMinute),
+		RateLimitRegisterPerMinute:       new(s.RateLimitRegisterPerMinute),
+		RateLimitResetPasswordPerMinute:  new(s.RateLimitResetPasswordPerMinute),
+		RateLimitScoreboardPerMinute:     new(s.RateLimitScoreboardPerMinute),
+		RateLimitVerifyEmailPerMinute:    new(s.RateLimitVerifyEmailPerMinute),
+		RateLimitOauthCallbackPerMinute:  new(s.RateLimitOAuthCallbackPerMinute),
+		RateLimitOauthRedirectPerMinute:  new(s.RateLimitOAuthRedirectPerMinute),
+		RateLimitCommentPerMinute:        new(s.RateLimitCommentPerMinute),
+		RegistrationOpen:                 new(s.RegistrationOpen),
+		ResendEnabled:                    new(s.ResendEnabled),
+		ResendFromEmail:                  new(s.ResendFromEmail),
+		ResendFromName:                   new(s.ResendFromName),
+		ResetTTLHours:                    new(s.ResetTTLHours),
+		ScoreboardVisible:                new(s.ScoreboardVisible),
+		SubmitLimitDurationMin:           new(s.SubmitLimitDurationMin),
+		SubmitLimitPerUser:               new(s.SubmitLimitPerUser),
+		VerifyEmails:                     new(s.VerifyEmails),
+		VerifyTTLHours:                   new(s.VerifyTTLHours),
+		WriteupEnabled:                   new(s.WriteupEnabled),
+		OauthGithubEnabled:               new(s.OAuthGithubEnabled),
+		OauthGoogleEnabled:               new(s.OAuthGoogleEnabled),
+		UpdatedAt:                        new(updatedAt),
 	}
 }
 
@@ -57,14 +57,17 @@ func FromConfig(c *domain.CompetitionParam) openapi.ConfigResponse {
 		ValueType: string(c.ValueType),
 	}
 	if c.Category != "" {
-		res.Category = httputil.Ptr(c.Category)
+		res.Category = new(c.Category)
 	}
+
 	if c.Description != "" {
-		res.Description = httputil.Ptr(c.Description)
+		res.Description = new(c.Description)
 	}
+
 	if !c.UpdatedAt.IsZero() {
-		res.UpdatedAt = httputil.Ptr(c.UpdatedAt)
+		res.UpdatedAt = new(c.UpdatedAt)
 	}
+
 	return res
 }
 
@@ -79,7 +82,8 @@ func FromConfigList(items []*domain.CompetitionParam) []openapi.ConfigResponse {
 func FromConfigListToPublicMap(items []*domain.CompetitionParam) openapi.ConfigPublicResponse {
 	out := make(openapi.ConfigPublicResponse, len(items))
 	for _, c := range items {
-		var v interface{}
+		var v any
+
 		switch c.ValueType {
 		case domain.CompetitionParamTypeBool:
 			v = c.Value == "true"
@@ -94,7 +98,9 @@ func FromConfigListToPublicMap(items []*domain.CompetitionParam) openapi.ConfigP
 		default:
 			v = c.Value
 		}
+
 		out[c.Key] = v
 	}
+
 	return out
 }

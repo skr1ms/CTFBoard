@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -70,8 +69,10 @@ func (r *SettingsRepo) Get(ctx context.Context) (*domain.Settings, error) {
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAppSettingsNotFound
 		}
+
 		return nil, fmt.Errorf("SettingsRepo - Get: %w", err)
 	}
+
 	return toDomainAppSettings(s), nil
 }
 
@@ -81,8 +82,10 @@ func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*domain.Settings, erro
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAppSettingsNotFound
 		}
+
 		return nil, fmt.Errorf("SettingsRepo - GetForUpdate: %w", err)
 	}
+
 	return toDomainAppSettings(s), nil
 }
 
@@ -116,6 +119,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	if err != nil {
 		return fmt.Errorf("SettingsRepo - Update - %w", err)
 	}
+
 	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
 	defaultPerPage, maxPerPage, csvExportMaxRows := vals[4], vals[5], vals[6]
 	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
@@ -123,6 +127,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
 	maxTeams := vals[19]
 	now := time.Now()
+
 	err = r.Q(ctx).UpdateAppSettings(ctx, sqlc.UpdateAppSettingsParams{
 		AppName:                          s.AppName,
 		VerifyEmails:                     s.VerifyEmails,
@@ -161,6 +166,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	if err != nil {
 		return fmt.Errorf("SettingsRepo - Update: %w", err)
 	}
+
 	return nil
 }
 
@@ -169,6 +175,7 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 	if err != nil {
 		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - %w", err)
 	}
+
 	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
 	defaultPerPage, maxPerPage, csvExportMaxRows := vals[4], vals[5], vals[6]
 	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
@@ -176,6 +183,7 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
 	maxTeams := vals[19]
 	now := time.Now()
+
 	_, err = r.Q(ctx).UpdateAppSettingsIfCurrent(ctx, sqlc.UpdateAppSettingsIfCurrentParams{
 		AppName:                          s.AppName,
 		VerifyEmails:                     s.VerifyEmails,
@@ -216,7 +224,9 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 		if pgutil.IsNoRows(err) {
 			return httperr.ErrSettingsConflict
 		}
+
 		return fmt.Errorf("SettingsRepo - UpdateIfCurrent: %w", err)
 	}
+
 	return nil
 }

@@ -2,16 +2,16 @@ package storage
 
 import (
 	"context"
-	"crypto/sha256"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
 
 const (
@@ -45,7 +45,8 @@ func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
 func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Reader, _ int64, _ string) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		if err := p.root.MkdirAll(dir, defaultDirMode); err != nil {
+		err := p.root.MkdirAll(dir, defaultDirMode)
+		if err != nil {
 			return fmt.Errorf("FilesystemProvider - Upload: %w", err)
 		}
 	}
@@ -54,6 +55,7 @@ func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Re
 	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Upload: %w", err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	if _, err := io.Copy(file, reader); err != nil {
@@ -68,6 +70,7 @@ func (p *FilesystemProvider) Download(_ context.Context, path string) (io.ReadCl
 	if err != nil {
 		return nil, fmt.Errorf("FilesystemProvider - Download: %w", err)
 	}
+
 	return file, nil
 }
 
@@ -76,7 +79,8 @@ func (p *FilesystemProvider) Close() error {
 }
 
 func (p *FilesystemProvider) Delete(_ context.Context, path string) error {
-	if err := p.root.Remove(path); err != nil {
+	err := p.root.Remove(path)
+	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Delete: %w", err)
 	}
 
@@ -93,41 +97,65 @@ func (p *FilesystemProvider) Ping(_ context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Ping: %w", err)
 	}
+
 	return nil
 }
 
 func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string, error) {
-	dir := filepath.Join(p.basePath, prefix)
+	cleanPrefix := filepath.Clean(prefix)
+	if strings.HasPrefix(cleanPrefix, "..") || filepath.IsAbs(cleanPrefix) {
+		return nil, fmt.Errorf("FilesystemProvider - List: invalid prefix %q", prefix)
+	}
+
+	fullPath := filepath.Join(p.basePath, cleanPrefix)
+
+	relCheck, err := filepath.Rel(p.basePath, fullPath)
+	if err != nil || strings.HasPrefix(relCheck, "..") {
+		return nil, fmt.Errorf("FilesystemProvider - List: path traversal attempt blocked")
+	}
+
 	var paths []string
-	err := filepath.WalkDir(dir, func(fullPath string, d os.DirEntry, err error) error {
+
+	err = filepath.WalkDir(fullPath, func(walkPath string, d os.DirEntry, err error) error {
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil
 			}
+
 			return err
 		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
+
 		if d.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(p.basePath, fullPath)
+
+		rel, err := filepath.Rel(p.basePath, walkPath)
 		if err != nil {
 			return err
 		}
+
 		paths = append(paths, filepath.ToSlash(rel))
+
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("FilesystemProvider - List: %w", err)
 	}
+
 	return paths, nil
 }
 
 func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ time.Duration) (string, error) {
+	if strings.HasPrefix(path, "users/") || strings.HasPrefix(path, "teams/") {
+		return fmt.Sprintf("/api/v1/avatars/%s", path), nil
+	}
+
 	return fmt.Sprintf("/api/v1/files/download/%s", path), nil
 }
 
@@ -138,8 +166,13 @@ func GenerateStoragePath(filename string) (string, error) {
 	if safeName == "" || strings.Contains(safeName, "..") {
 		return "", ErrInvalidStorageFilename
 	}
-	h := sha256.New()
-	_, _ = fmt.Fprintf(h, "%d-%s", time.Now().UnixNano(), safeName)
-	hash := crypto.HashHex(h)[:hashPrefixLen]
-	return filepath.Join(hash, safeName), nil
+
+	var buf [hashPrefixLen / 2]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", fmt.Errorf("GenerateStoragePath - crypto/rand: %w", err)
+	}
+
+	hash := hex.EncodeToString(buf[:])
+
+	return path.Join("tasks", hash, safeName), nil
 }

@@ -17,10 +17,12 @@ func decodeMap(m map[string]any, dest any) error {
 		WeaklyTypedInput: true,
 		Result:           dest,
 	}
+
 	dec, err := mapstructure.NewDecoder(config)
 	if err != nil {
 		return err
 	}
+
 	return dec.Decode(m)
 }
 
@@ -28,6 +30,7 @@ func getStr(m map[string]any, key, def string) string {
 	if v, ok := m[key].(string); ok {
 		return v
 	}
+
 	return def
 }
 
@@ -38,6 +41,7 @@ func getInt(m map[string]any, key string) int {
 	case float64:
 		return int(v)
 	}
+
 	return 0
 }
 
@@ -47,8 +51,10 @@ func getIntPtr(m map[string]any, key string) *int {
 		return &v
 	case float64:
 		i := int(v)
+
 		return &i
 	}
+
 	return nil
 }
 
@@ -57,6 +63,7 @@ func getStrSlice(m map[string]any, key string) []string {
 	if !ok {
 		return nil
 	}
+
 	switch arr := v.(type) {
 	case []string:
 		return arr
@@ -67,8 +74,10 @@ func getStrSlice(m map[string]any, key string) []string {
 				out = append(out, s)
 			}
 		}
+
 		return out
 	}
+
 	return nil
 }
 
@@ -77,7 +86,9 @@ func WithBearerToken(token string) openapi.RequestEditorFn {
 		if token != "" && !strings.HasPrefix(token, "Bearer ") {
 			token = "Bearer " + token
 		}
+
 		req.Header.Set("Authorization", token)
+
 		return nil
 	}
 }
@@ -91,6 +102,7 @@ func RequireLoginOK(t *testing.T, resp *openapi.PostAuthLoginResponse) string {
 	t.Helper()
 	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "login")
 	require.NotNil(t, resp.JSON200)
+
 	return *resp.JSON200.AccessToken
 }
 
@@ -100,6 +112,7 @@ func RequireRefreshOK(t *testing.T, resp *openapi.PostAuthRefreshResponse) (acce
 	require.NotNil(t, resp.JSON200)
 	require.NotNil(t, resp.JSON200.AccessToken)
 	require.NotNil(t, resp.JSON200.RefreshToken)
+
 	return *resp.JSON200.AccessToken, *resp.JSON200.RefreshToken
 }
 
@@ -107,6 +120,7 @@ func RequireMeOK(t *testing.T, resp *openapi.GetAuthMeResponse) *openapi.MeRespo
 	t.Helper()
 	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "me")
 	require.NotNil(t, resp.JSON200)
+
 	return resp.JSON200
 }
 
@@ -136,6 +150,7 @@ func RequireMyTeamOK(t *testing.T, resp *openapi.GetTeamsMyResponse) string {
 	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get my team")
 	require.NotNil(t, resp.JSON200)
 	require.NotNil(t, resp.JSON200.ID)
+
 	return *resp.JSON200.ID
 }
 
@@ -149,18 +164,22 @@ func RequireAwardsCount(t *testing.T, resp *openapi.GetAdminAwardsTeamTeamIDResp
 func RequireChallengeFields(t *testing.T, c *openapi.ChallengeResponse, title string, solved *bool, solveCount, points *int) {
 	t.Helper()
 	require.NotNil(t, c, "challenge is nil")
+
 	if title != "" {
 		require.NotNil(t, c.Title)
 		require.Equal(t, title, *c.Title)
 	}
+
 	if solved != nil {
 		require.NotNil(t, c.Solved)
 		require.Equal(t, *solved, *c.Solved)
 	}
+
 	if solveCount != nil {
 		require.NotNil(t, c.SolveCount)
 		require.Equal(t, *solveCount, *c.SolveCount)
 	}
+
 	if points != nil {
 		require.NotNil(t, c.Points)
 		require.Equal(t, *points, *c.Points)

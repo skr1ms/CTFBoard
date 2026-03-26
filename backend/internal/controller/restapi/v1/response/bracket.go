@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -10,11 +9,11 @@ import (
 
 func FromBracket(b *domain.Bracket) openapi.BracketResponse {
 	return openapi.BracketResponse{
-		ID:          httputil.Ptr(b.ID.String()),
-		Name:        httputil.Ptr(b.Name),
-		Description: httputil.Ptr(b.Description),
-		IsDefault:   httputil.Ptr(b.IsDefault),
-		CreatedAt:   httputil.Ptr(b.CreatedAt),
+		ID:          new(b.ID.String()),
+		Name:        new(b.Name),
+		Description: new(b.Description),
+		IsDefault:   new(b.IsDefault),
+		CreatedAt:   new(b.CreatedAt),
 	}
 }
 

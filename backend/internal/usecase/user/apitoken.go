@@ -38,6 +38,7 @@ func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*domai
 	if err != nil {
 		return nil, fmt.Errorf("APITokenUseCase - List - APITokenRepo.GetByUserID: %w", err)
 	}
+
 	return tokens, nil
 }
 
@@ -45,10 +46,12 @@ func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, descrip
 	if len(description) > apiTokenDescriptionMaxLen {
 		return "", nil, httperr.NewValidationErrorf("description must not exceed %d characters", apiTokenDescriptionMaxLen)
 	}
+
 	plaintext, err = crypto.SecureRandomHex(apiTokenRandomBytes)
 	if err != nil {
 		return "", nil, fmt.Errorf("APITokenUseCase - Create - SecureRandomHex: %w", err)
 	}
+
 	tokenHash := crypto.SHA256Hex(plaintext)
 
 	token = &domain.APIToken{
@@ -61,13 +64,16 @@ func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, descrip
 	if err := uc.deps.Repo.Create(ctx, token); err != nil {
 		return "", nil, fmt.Errorf("APITokenUseCase - Create - APITokenRepo.Create: %w", err)
 	}
+
 	return plaintext, token, nil
 }
 
 func (uc *APITokenUseCase) Delete(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := uc.deps.Repo.Delete(ctx, ID, userID); err != nil {
+	err := uc.deps.Repo.Delete(ctx, ID, userID)
+	if err != nil {
 		return fmt.Errorf("APITokenUseCase - Delete - APITokenRepo.Delete: %w", err)
 	}
+
 	return nil
 }
 
@@ -76,13 +82,16 @@ func (uc *APITokenUseCase) GetByTokenHash(ctx context.Context, tokenHash string)
 	if err != nil {
 		return nil, fmt.Errorf("APITokenUseCase - GetByTokenHash - APITokenRepo.GetByTokenHash: %w", err)
 	}
+
 	return token, nil
 }
 
 func (uc *APITokenUseCase) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID) error {
-	if err := uc.deps.Repo.UpdateLastUsedAt(ctx, ID, time.Now()); err != nil {
+	err := uc.deps.Repo.UpdateLastUsedAt(ctx, ID, time.Now())
+	if err != nil {
 		return fmt.Errorf("APITokenUseCase - UpdateLastUsedAt - APITokenRepo.UpdateLastUsedAt: %w", err)
 	}
+
 	return nil
 }
 
@@ -90,8 +99,10 @@ func (uc *APITokenUseCase) ValidateToken(t *domain.APIToken) bool {
 	if t == nil {
 		return false
 	}
+
 	if t.ExpiresAt != nil && t.ExpiresAt.Before(time.Now()) {
 		return false
 	}
+
 	return true
 }

@@ -37,6 +37,7 @@ func TestBannedTeam_CannotUnlockHint(t *testing.T) {
 
 	// Re-try unlock on a DIFFERENT hint to confirm ban blocks, not "already unlocked"
 	hintID2 := h.CreateHint(tokenAdmin, challID, "Second hint for ban test", 0)
+
 	t.Log("=== After ban: hint unlock blocked ===")
 	h.UnlockHint(tokenUser, challID, hintID2, http.StatusForbidden)
 

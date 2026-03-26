@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -64,7 +63,7 @@ func TestNotificationRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.NotificationRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrNotificationNotFound))
+	assert.ErrorIs(t, err, httperr.ErrNotificationNotFound)
 }
 
 func TestNotificationRepo_GetAll_Success(t *testing.T) {
@@ -76,10 +75,13 @@ func TestNotificationRepo_GetAll_Success(t *testing.T) {
 	notif := f.CreateNotification(t, "ga1")
 	list, err := f.NotificationRepo.GetAll(ctx, 10, 0)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, n := range list {
 		ids[n.ID] = true
 	}
+
 	assert.True(t, ids[notif.ID], "notification should be in GetAll result")
 }
 
@@ -132,7 +134,7 @@ func TestNotificationRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.NotificationRepo.GetByID(ctx, notif.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrNotificationNotFound))
+	assert.ErrorIs(t, err, httperr.ErrNotificationNotFound)
 }
 
 func TestNotificationRepo_Delete_Error_NotFound(t *testing.T) {

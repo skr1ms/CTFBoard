@@ -12,7 +12,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -51,7 +50,7 @@ func TestAdminUpsertSolution_ChallengeNotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 }
 
 func TestAdminUpsertSolution_RepoError(t *testing.T) {
@@ -102,6 +101,7 @@ func TestAdminUpsertSolution_ContentTooLong(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+
 	var httpErr *httperr.HTTPError
 	assert.True(t, errors.As(err, &httpErr) && httpErr.HTTPStatus() == 400 && httpErr.GetCode() == "VALIDATION_ERROR")
 }
@@ -161,6 +161,7 @@ func TestListSolutions_Success(t *testing.T) {
 		{ChallengeID: cid1, ChallengeTitle: "Web 1", ChallengeCategory: "web", Content: "## WS1", Files: []*domain.File{}},
 		{ChallengeID: cid2, ChallengeTitle: "Pwn 1", ChallengeCategory: "pwn", Content: "## PS1", Files: []*domain.File{}},
 	}
+
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("ListSolutions", mock.Anything, teamID).Return(entries, nil)
 
@@ -242,7 +243,7 @@ func TestGetSolution_ChallengeNotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 }
 
 func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
@@ -259,7 +260,7 @@ func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrNotAuthenticatedSentinel))
+	assert.ErrorIs(t, err, httperr.ErrNotAuthenticatedSentinel)
 }
 
 func TestGetSolution_NotSolved_Forbidden(t *testing.T) {

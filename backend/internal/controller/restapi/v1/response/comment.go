@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -10,12 +9,12 @@ import (
 
 func FromComment(c *domain.Comment) openapi.CommentResponse {
 	return openapi.CommentResponse{
-		ID:          httputil.Ptr(c.ID.String()),
-		UserID:      httputil.Ptr(c.UserID.String()),
-		ChallengeID: httputil.Ptr(c.ChallengeID.String()),
-		Content:     httputil.Ptr(c.Content),
-		CreatedAt:   httputil.Ptr(c.CreatedAt),
-		UpdatedAt:   httputil.Ptr(c.UpdatedAt),
+		ID:          new(c.ID.String()),
+		UserID:      new(c.UserID.String()),
+		ChallengeID: new(c.ChallengeID.String()),
+		Content:     new(c.Content),
+		CreatedAt:   new(c.CreatedAt),
+		UpdatedAt:   new(c.UpdatedAt),
 	}
 }
 

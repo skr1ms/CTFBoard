@@ -20,6 +20,7 @@ func (ft FieldType) IsValid() bool {
 	case FieldTypeText, FieldTypeNumber, FieldTypeSelect, FieldTypeBoolean:
 		return true
 	}
+
 	return false
 }
 
@@ -35,6 +36,7 @@ func (et EntityType) IsValid() bool {
 	case EntityTypeUser, EntityTypeTeam:
 		return true
 	}
+
 	return false
 }
 

@@ -162,10 +162,12 @@ func TestAuth_RateLimiting_Exists(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	email := "spam_" + helper.UID() + "@example.com"
+
 	const limit = 20
-	for i := 0; i < limit; i++ {
+	for range limit {
 		h.ForgotPassword(email, http.StatusOK)
 	}
+
 	h.ForgotPassword(email, http.StatusTooManyRequests)
 }
 
@@ -242,14 +244,18 @@ func TestAuth_Refresh_AdminWasInBannedTeam_Success(t *testing.T) {
 
 	_, err := h.Pool().Exec(context.Background(), "UPDATE users SET was_in_banned_team = true WHERE id = $1", adminID)
 	require.NoError(t, err)
+
 	if h.Redis() != nil {
 		var cursor uint64
+
 		for {
 			keys, next, err := h.Redis().Scan(context.Background(), cursor, "user:*", 100).Result()
 			require.NoError(t, err)
+
 			if len(keys) > 0 {
 				require.NoError(t, h.Redis().Del(context.Background(), keys...).Err())
 			}
+
 			cursor = next
 			if cursor == 0 {
 				break

@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -78,7 +77,7 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.TeamRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
@@ -103,7 +102,7 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 
 	_, err := f.TeamRepo.GetByInviteToken(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_GetByName(t *testing.T) {
@@ -128,7 +127,7 @@ func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 
 	_, err := f.TeamRepo.GetByName(ctx, "nonexistent_team")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_Create_Solo(t *testing.T) {
@@ -268,7 +267,7 @@ func TestTeamRepo_HardDeleteTeams_Success(t *testing.T) {
 
 	_, err = f.TeamRepo.GetByID(ctx, team.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_HardDeleteTeams_Error_CancelledContext(t *testing.T) {
@@ -294,10 +293,13 @@ func TestTeamRepo_GetAll_Success(t *testing.T) {
 
 	teams, err := f.TeamRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, tm := range teams {
 		ids[tm.ID] = true
 	}
+
 	assert.True(t, ids[team1.ID])
 	assert.True(t, ids[team2.ID])
 }
@@ -327,6 +329,7 @@ func TestTeamRepo_CountActiveTeams_Success(t *testing.T) {
 	count, err := f.TeamRepo.CountActiveTeams(ctx)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, count, 2)
+
 	_ = team1
 	_ = team2
 }
@@ -444,5 +447,5 @@ func TestTeamRepo_GetSoloTeamByUserID_NotFound(t *testing.T) {
 	user := f.CreateUser(t, "solo_notfound")
 	_, err := f.TeamRepo.GetSoloTeamByUserID(ctx, user.ID)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }

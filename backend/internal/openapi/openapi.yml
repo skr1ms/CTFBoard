@@ -173,6 +173,16 @@ paths:
   /user/tokens/{ID}:
     $ref: './routes/api_token.yml#/~1user~1tokens~1{ID}'
 
+  # Avatar (avatar.go)
+  /users/me/avatar:
+    $ref: './routes/avatar.yml#/~1users~1me~1avatar'
+  /teams/me/avatar:
+    $ref: './routes/avatar.yml#/~1teams~1me~1avatar'
+  /admin/users/{ID}/avatar:
+    $ref: './routes/avatar.yml#/~1admin~1users~1{ID}~1avatar'
+  /admin/teams/{ID}/avatar:
+    $ref: './routes/avatar.yml#/~1admin~1teams~1{ID}~1avatar'
+
   # Team (team.go)
   /teams:
     $ref: './routes/team.yml#/~1teams'

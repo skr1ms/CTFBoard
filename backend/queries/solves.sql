@@ -79,7 +79,8 @@ LEFT JOIN (
     GROUP BY team_id
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000;
 
 -- name: GetScoreboardByBracket :many
 SELECT
@@ -103,7 +104,8 @@ LEFT JOIN (
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
   AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000;
 
 -- name: GetScoreboardByBracketFrozen :many
 SELECT
@@ -127,7 +129,8 @@ LEFT JOIN (
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
   AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC;
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000;
 
 -- name: GetTeamScore :one
 SELECT

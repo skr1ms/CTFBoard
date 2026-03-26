@@ -302,6 +302,7 @@ type Team struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
@@ -337,6 +338,7 @@ type User struct {
 	BannedAt        pgtype.Timestamptz `json:"banned_at"`
 	BannedReason    *string            `json:"banned_reason"`
 	WasInBannedTeam bool               `json:"was_in_banned_team"`
+	AvatarUrl       *string            `json:"avatar_url"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 

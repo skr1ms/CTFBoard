@@ -15,11 +15,14 @@ import (
 // assertScoreboardSolveMessage checks that msg is a scoreboard_update with payload type solve or first_blood.
 func assertScoreboardSolveMessage(t *testing.T, msg map[string]any) {
 	t.Helper()
+
 	typ, ok := msg["type"].(string)
 	if !ok || typ != "scoreboard_update" {
 		t.Errorf("expected type scoreboard_update, got %q (full message: %+v)", typ, msg)
+
 		return
 	}
+
 	payload, ok := msg["payload"].(map[string]any)
 	if ok && payload != nil {
 		payloadType, ok := payload["type"].(string)
@@ -34,12 +37,16 @@ func startWSReader(conn *websocket.Conn, readTimeout time.Duration) (received <-
 	rec := make(chan map[string]any, 4)
 	errCh := make(chan error, 1)
 	d := make(chan struct{})
+
 	go func() {
 		defer close(d)
+
 		readCtx, readCancel := context.WithTimeout(context.Background(), readTimeout)
 		defer readCancel()
+
 		runWSReadLoop(conn, readCtx, rec, errCh)
 	}()
+
 	return rec, errCh, d
 }
 
@@ -52,8 +59,10 @@ func runWSReadLoop(conn *websocket.Conn, readCtx context.Context, rec chan<- map
 			case errCh <- err:
 			default:
 			}
+
 			return
 		}
+
 		var msg map[string]any
 		if json.Unmarshal(data, &msg) == nil {
 			rec <- msg
@@ -69,12 +78,15 @@ const (
 // waitWSConnected blocks until a "connected" message is received or timeout/error.
 func waitWSConnected(t *testing.T, received <-chan map[string]any, readErr <-chan error, done <-chan struct{}) {
 	t.Helper()
+
 	deadline := time.After(wsConnectedTimeout)
+
 	for {
 		select {
 		case msg := <-received:
 			typ, ok := msg["type"].(string)
 			t.Logf("ws received message type=%q", typ)
+
 			if ok && typ == "connected" {
 				return
 			}
@@ -91,14 +103,18 @@ func waitWSConnected(t *testing.T, received <-chan map[string]any, readErr <-cha
 // waitScoreboardUpdate blocks until a scoreboard_update message is received or timeout/error.
 func waitScoreboardUpdate(t *testing.T, received <-chan map[string]any, readErr <-chan error, done <-chan struct{}) {
 	t.Helper()
+
 	deadline := time.After(wsReceiveTimeout)
+
 	for {
 		select {
 		case msg := <-received:
 			typ, ok := msg["type"].(string)
 			t.Logf("ws received message type=%q", typ)
+
 			if ok && typ == "scoreboard_update" {
 				assertScoreboardSolveMessage(t, msg)
+
 				return
 			}
 		case err := <-readErr:
@@ -124,23 +140,29 @@ func TestWebSocket_ReceiveSolveEvent(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	dialOpts := &websocket.DialOptions{
 		HTTPHeader: http.Header{"Authorization": []string{tokenUser}},
 	}
+
 	conn, resp, err := websocket.Dial(ctx, wsURL, dialOpts)
 	if err != nil {
 		t.Fatalf("ws dial failed (url=%s): %v", wsURL, err)
 	}
+
 	t.Logf("ws dial ok url=%s", wsURL)
+
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
+
 	defer conn.Close(websocket.StatusNormalClosure, "")
 
 	received, readErr, done := startWSReader(conn, wsReceiveTimeout+5*time.Second)
+
 	t.Logf("ws waiting for connected")
 	waitWSConnected(t, received, readErr, done)
 	t.Logf("ws connected, submitting flag challengeID=%s", challengeID)
@@ -154,25 +176,33 @@ func TestWebSocket_InvalidPath_NotFound(t *testing.T) {
 	t.Parallel()
 	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws-invalid"
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
 	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
+
 	if err != nil {
 		return
 	}
+
 	if conn != nil {
 		conn.Close(websocket.StatusNormalClosure, "")
 	}
+
 	status := 0
+
 	if resp != nil {
 		status = resp.StatusCode
 	}
+
 	if status == http.StatusNotFound {
 		return
 	}
+
 	t.Fatalf("expected 404 or dial error for invalid path, got status=%d err=%v", status, err)
 }
 
@@ -182,24 +212,29 @@ func TestWebSocket_Connect_Success(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("admin_ws_connect")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("ws_connect_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	dialOpts := &websocket.DialOptions{
 		HTTPHeader: http.Header{"Authorization": []string{tokenUser}},
 	}
+
 	conn, resp, err := websocket.Dial(ctx, wsURL, dialOpts)
 	if err != nil {
 		t.Fatalf("ws connect failed (url=%s): %v", wsURL, err)
 	}
+
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
+
 	defer conn.Close(websocket.StatusNormalClosure, "")
 
 	received, readErr, done := startWSReader(conn, wsConnectedTimeout+2*time.Second)
@@ -212,6 +247,7 @@ func TestWebSocket_Connect_Unauthorized(t *testing.T) {
 	_, _ = helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL()), TestPool
 
 	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -219,19 +255,24 @@ func TestWebSocket_Connect_Unauthorized(t *testing.T) {
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
+
 	if conn != nil {
 		conn.Close(websocket.StatusNormalClosure, "")
 	}
+
 	if err != nil {
 		return
 	}
+
 	if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 		return
 	}
+
 	t.Fatalf("expected dial error or 401 for unauthenticated ws connect, got status=%v err=%v", func() int {
 		if resp != nil {
 			return resp.StatusCode
 		}
+
 		return 0
 	}(), err)
 }

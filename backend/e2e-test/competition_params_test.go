@@ -24,13 +24,17 @@ func TestConfig_UpsertAndList_Success(t *testing.T) {
 
 	listResp := h.GetAdminConfigs(tokenAdmin, http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, cfg := range *listResp.JSON200 {
 		if cfg.Key == key {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "upserted config must be in admin configs list")
 }
 
@@ -100,6 +104,7 @@ func TestConfig_BatchUpdate_ValuesMatch(t *testing.T) {
 	h.PutAdminConfigsBatch(tokenAdmin, batch, http.StatusOK)
 	resp1 := h.GetAdminConfigKey(tokenAdmin, "ctf_name", http.StatusOK)
 	resp2 := h.GetAdminConfigKey(tokenAdmin, "theme_color_primary", http.StatusOK)
+
 	require.NotNil(t, resp1.JSON200)
 	require.Equal(t, "BatchCTF", resp1.JSON200.Value)
 	require.NotNil(t, resp2.JSON200)
@@ -114,12 +119,15 @@ func TestConfig_Categories_ReturnsAllCategories(t *testing.T) {
 	resp := h.GetAdminConfigsCategories(tokenAdmin, http.StatusOK)
 	require.NotNil(t, resp.JSON200)
 	require.GreaterOrEqual(t, len(*resp.JSON200), 1)
+
 	seen := make(map[string]int)
+
 	for _, item := range *resp.JSON200 {
 		require.NotEmpty(t, item.Name)
 		require.GreaterOrEqual(t, item.Count, 0)
 		seen[item.Name] = item.Count
 	}
+
 	require.Contains(t, seen, "general")
 	require.Contains(t, seen, "theme")
 }
@@ -131,6 +139,7 @@ func TestConfig_GetByCategory_ThemeOnly(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_config_category")
 	resp := h.GetAdminConfigsCategory(tokenAdmin, "theme", http.StatusOK)
 	require.NotNil(t, resp.JSON200)
+
 	for _, item := range *resp.JSON200 {
 		require.NotNil(t, item.Category, "item %q should have category", item.Key)
 		require.Equal(t, "theme", *item.Category, "item %q should have category theme", item.Key)
@@ -144,6 +153,7 @@ func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 	h.SetupCompetition("admin_config_public")
 	resp := h.GetConfigsPublic(http.StatusOK)
 	require.NotNil(t, resp.JSON200)
+
 	allowed := map[string]bool{
 		"ctf_name": true, "ctf_description": true, "ctf_logo": true,
 		"tos_url": true, "privacy_url": true,
@@ -151,6 +161,7 @@ func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 		"theme_footer_html": true, "theme_dark_mode": true,
 		"social_github": true, "social_discord": true, "social_twitter": true, "social_website": true,
 	}
+
 	for key := range *resp.JSON200 {
 		require.True(t, allowed[key], "public config key %q must be in whitelist", key)
 	}

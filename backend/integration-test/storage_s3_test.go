@@ -39,6 +39,7 @@ func TestStorageS3_Workflow(t *testing.T) {
 	t.Run("Download", func(t *testing.T) {
 		rc, err := provider.Download(ctx, path)
 		require.NoError(t, err)
+
 		defer func() { _ = rc.Close() }()
 
 		data, err := io.ReadAll(rc)

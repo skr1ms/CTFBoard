@@ -44,6 +44,7 @@ func (m CompetitionMode) IsValid() bool {
 	case ModeSoloOnly, ModeTeamsOnly, ModeFlexible:
 		return true
 	}
+
 	return false
 }
 
@@ -59,15 +60,19 @@ func (c *Competition) getStatusAt(now time.Time) CompetitionStatus {
 	if c.StartTime == nil || now.Before(*c.StartTime) {
 		return CompetitionStatusNotStarted
 	}
+
 	if c.IsPaused {
 		return CompetitionStatusPaused
 	}
+
 	if c.EndTime != nil && now.After(*c.EndTime) {
 		return CompetitionStatusEnded
 	}
+
 	if c.FreezeTime != nil && now.After(*c.FreezeTime) {
 		return CompetitionStatusFrozen
 	}
+
 	return CompetitionStatusActive
 }
 
@@ -75,12 +80,15 @@ func (c *Competition) isFreezeActiveAt(now time.Time) bool {
 	if c.StartTime == nil || now.Before(*c.StartTime) {
 		return false
 	}
+
 	if c.FreezeTime == nil || !now.After(*c.FreezeTime) {
 		return false
 	}
+
 	if !c.IsPaused && c.EndTime != nil && now.After(*c.EndTime) && !c.KeepScoreboardFrozenAfterEnd {
 		return false
 	}
+
 	return true
 }
 
@@ -99,11 +107,13 @@ func (c *Competition) IsFreezeActive() bool {
 func (c *Competition) IsSubmissionAllowed() bool {
 	now := time.Now()
 	status := c.getStatusAt(now)
+
 	return status == CompetitionStatusActive || status == CompetitionStatusFrozen
 }
 
 func (c *Competition) IsSubmissionAllowedAt(now time.Time) bool {
 	status := c.getStatusAt(now)
+
 	return status == CompetitionStatusActive || status == CompetitionStatusFrozen
 }
 
@@ -111,5 +121,6 @@ func (c *Competition) IsEffectivelyEnded(now time.Time) bool {
 	if c.GetStatusAt(now) == CompetitionStatusEnded {
 		return true
 	}
+
 	return c.IsPaused && c.EndTime != nil && now.After(*c.EndTime)
 }

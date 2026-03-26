@@ -154,19 +154,23 @@ var configRegistry = map[string]ConfigDef{
 func GetConfigDef(key string) (ConfigDef, bool) {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
+
 	def, ok := configRegistry[key]
+
 	return def, ok
 }
 
 func ConfigRegistryCount() int {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
+
 	return len(configRegistry)
 }
 
 func RangeConfigRegistry(f func(key string, def ConfigDef) bool) {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
+
 	for k, d := range configRegistry {
 		if !f(k, d) {
 			return
@@ -179,5 +183,6 @@ func GetConfigDefault(key string) (string, bool) {
 	if !ok {
 		return "", false
 	}
+
 	return def.DefaultValue, true
 }

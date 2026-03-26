@@ -18,7 +18,7 @@ func TestOAuthRepo_Create_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_create")
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	acc := &domain.OAuthAccount{
@@ -37,7 +37,7 @@ func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_dup")
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	providerUserID := "gh-dup-" + uuid.New().String()
@@ -64,7 +64,7 @@ func TestOAuthRepo_Upsert_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_upsert")
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	providerUserID := "gh-upsert-" + uuid.New().String()
@@ -87,7 +87,7 @@ func TestOAuthRepo_GetByProvider_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_getprov")
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	providerUserID := "gh-get-" + uuid.New().String()
@@ -109,7 +109,7 @@ func TestOAuthRepo_GetByProvider_Success(t *testing.T) {
 func TestOAuthRepo_GetByProvider_NotFound(t *testing.T) {
 	t.Parallel()
 	testPool := SetupTestPool(t)
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	_, err := oauthRepo.GetByProvider(ctx, "github", "nonexistent-id")
@@ -121,7 +121,7 @@ func TestOAuthRepo_GetByUserID_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	user := f.CreateUser(t, "oauth_getuserid")
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	acc := &domain.OAuthAccount{
@@ -141,7 +141,7 @@ func TestOAuthRepo_GetByUserID_Success(t *testing.T) {
 func TestOAuthRepo_GetByUserID_Empty(t *testing.T) {
 	t.Parallel()
 	testPool := SetupTestPool(t)
-	oauthRepo := persistent.NewOAuthRepo(testPool.Pool)
+	oauthRepo := persistent.NewOAuthRepo(testPool.Pool, itestCryptoService())
 	ctx := context.Background()
 
 	accs, err := oauthRepo.GetByUserID(ctx, uuid.New())

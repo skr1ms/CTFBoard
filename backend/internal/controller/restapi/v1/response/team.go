@@ -3,8 +3,6 @@ package response
 import (
 	"time"
 
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
@@ -14,12 +12,13 @@ func FromTeam(t *domain.Team) openapi.TeamResponse {
 	if t == nil {
 		return openapi.TeamResponse{}
 	}
+
 	return openapi.TeamResponse{
-		ID:          httputil.Ptr(t.ID.String()),
-		Name:        httputil.Ptr(t.Name),
-		InviteToken: httputil.Ptr(t.InviteToken.String()),
-		CaptainID:   httputil.Ptr(t.CaptainID.String()),
-		CreatedAt:   httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:          new(t.ID.String()),
+		Name:        new(t.Name),
+		InviteToken: new(t.InviteToken.String()),
+		CaptainID:   new(t.CaptainID.String()),
+		CreatedAt:   new(t.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
@@ -27,11 +26,12 @@ func FromTeamWithoutToken(t *domain.Team) openapi.TeamResponse {
 	if t == nil {
 		return openapi.TeamResponse{}
 	}
+
 	return openapi.TeamResponse{
-		ID:        httputil.Ptr(t.ID.String()),
-		Name:      httputil.Ptr(t.Name),
-		CaptainID: httputil.Ptr(t.CaptainID.String()),
-		CreatedAt: httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:        new(t.ID.String()),
+		Name:      new(t.Name),
+		CaptainID: new(t.CaptainID.String()),
+		CreatedAt: new(t.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
@@ -39,6 +39,7 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 	if t == nil {
 		return openapi.TeamWithMembersResponse{}
 	}
+
 	memberResponses := make([]openapi.UserResponse, 0, len(members))
 	for _, member := range members {
 		if member != nil {
@@ -47,20 +48,21 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 	}
 
 	res := openapi.TeamWithMembersResponse{
-		ID:           httputil.Ptr(t.ID.String()),
-		Name:         httputil.Ptr(t.Name),
-		InviteToken:  httputil.Ptr(t.InviteToken.String()),
-		CaptainID:    httputil.Ptr(t.CaptainID.String()),
-		CreatedAt:    httputil.Ptr(t.CreatedAt.Format(time.RFC3339)),
+		ID:           new(t.ID.String()),
+		Name:         new(t.Name),
+		InviteToken:  new(t.InviteToken.String()),
+		CaptainID:    new(t.CaptainID.String()),
+		CreatedAt:    new(t.CreatedAt.Format(time.RFC3339)),
 		Members:      &memberResponses,
-		IsBanned:     httputil.Ptr(t.IsBanned),
-		MinTeamSize:  httputil.Ptr(minTeamSize),
-		MeetsMinSize: httputil.Ptr(meetsMinSize),
+		IsBanned:     new(t.IsBanned),
+		MinTeamSize:  new(minTeamSize),
+		MeetsMinSize: new(meetsMinSize),
 	}
 
 	if t.BannedAt != nil {
-		res.BannedAt = httputil.Ptr(t.BannedAt.Format(time.RFC3339))
+		res.BannedAt = new(t.BannedAt.Format(time.RFC3339))
 	}
+
 	if t.BannedReason != nil {
 		res.BannedReason = t.BannedReason
 	}
@@ -70,31 +72,35 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 
 func FromTeamList(teams []*domain.Team, total int64, page, perPage int) openapi.TeamListResponse {
 	data, meta := BuildListResponse(teams, FromTeamWithoutToken, total, page, perPage)
+
 	return openapi.TeamListResponse{Data: &data, Meta: meta}
 }
 
 func FromAdminTeam(t *domain.Team, memberCount *int) openapi.AdminTeamResponse {
 	res := openapi.AdminTeamResponse{
-		ID:          httputil.Ptr(t.ID.String()),
-		Name:        httputil.Ptr(t.Name),
-		CaptainID:   httputil.Ptr(t.CaptainID.String()),
-		IsSolo:      httputil.Ptr(t.IsSolo),
-		IsBanned:    httputil.Ptr(t.IsBanned),
-		IsHidden:    httputil.Ptr(t.IsHidden),
+		ID:          new(t.ID.String()),
+		Name:        new(t.Name),
+		CaptainID:   new(t.CaptainID.String()),
+		IsSolo:      new(t.IsSolo),
+		IsBanned:    new(t.IsBanned),
+		IsHidden:    new(t.IsHidden),
 		MemberCount: memberCount,
-		CreatedAt:   httputil.Ptr(t.CreatedAt),
+		CreatedAt:   new(t.CreatedAt),
 	}
 	if t.BracketID != nil {
-		res.BracketID = httputil.Ptr(t.BracketID.String())
+		res.BracketID = new(t.BracketID.String())
 	}
+
 	if t.BannedReason != nil {
 		res.BannedReason = t.BannedReason
 	}
+
 	return res
 }
 
 func FromAdminTeamList(teams []*domain.Team, total int64, page, perPage int) openapi.AdminTeamListResponse {
 	data, meta := BuildListResponse(teams, func(t *domain.Team) openapi.AdminTeamResponse { return FromAdminTeam(t, nil) }, total, page, perPage)
+
 	return openapi.AdminTeamListResponse{Data: &data, Meta: meta}
 }
 
@@ -117,10 +123,11 @@ func FromAffectedData(a *usecase.TeamCreateAffectedData) *openapi.AffectedData {
 	if a == nil {
 		return nil
 	}
+
 	return &openapi.AffectedData{
-		SolveCount:      httputil.Ptr(a.SolveCount),
-		Points:          httputil.Ptr(a.Points),
-		HintUnlockCount: httputil.Ptr(a.HintUnlockCount),
-		AwardsTotal:     httputil.Ptr(a.AwardsTotal),
+		SolveCount:      new(a.SolveCount),
+		Points:          new(a.Points),
+		HintUnlockCount: new(a.HintUnlockCount),
+		AwardsTotal:     new(a.AwardsTotal),
 	}
 }

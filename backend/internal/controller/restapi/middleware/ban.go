@@ -6,12 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/wahrwelt-kit/go-cachekit"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
@@ -32,12 +30,17 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 			user, ok := GetUser(r.Context())
 			if !ok || user == nil || user.Role == domain.RoleAdmin || user.TeamID == nil {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
 			teamIDStr := user.TeamID.String()
-			var team *domain.Team
-			var err error
+
+			var (
+				team *domain.Team
+				err  error
+			)
+
 			if c != nil {
 				team, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyTeam(teamIDStr), teamBanCacheTTL, func(context.Context) (*domain.Team, error) {
 					return teamGetter.GetByID(r.Context(), *user.TeamID)
@@ -45,16 +48,22 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 			} else {
 				team, err = teamGetter.GetByID(r.Context(), *user.TeamID)
 			}
+
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
+
 			if team == nil {
 				next.ServeHTTP(w, r)
+
 				return
 			}
+
 			if team.IsBanned {
 				httputil.HandleError(w, r, httperr.ErrTeamBanned)
+
 				return
 			}
 
@@ -69,12 +78,16 @@ func RequireUserNotBanned() func(http.Handler) http.Handler {
 			user, ok := GetUser(r.Context())
 			if !ok || user == nil || user.Role == domain.RoleAdmin {
 				next.ServeHTTP(w, r)
+
 				return
 			}
+
 			if user.IsBanned {
 				httputil.HandleError(w, r, httperr.ErrUserBanned)
+
 				return
 			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

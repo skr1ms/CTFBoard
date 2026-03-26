@@ -18,6 +18,7 @@ type pageTestDeps struct {
 
 func newPageTestDeps(t *testing.T) *pageTestDeps {
 	t.Helper()
+
 	return &pageTestDeps{pageRepo: pageMock.NewMockPageRepository(t)}
 }
 

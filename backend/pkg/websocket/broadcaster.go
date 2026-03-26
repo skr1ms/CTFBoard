@@ -27,6 +27,7 @@ func (b *Broadcaster) Wait() {
 	if b == nil {
 		return
 	}
+
 	b.wg.Wait()
 }
 
@@ -34,6 +35,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 	if b == nil || b.hub == nil {
 		return
 	}
+
 	now := time.Now()
 	solveEv := wskit.Event{
 		Type: "scoreboard_update",
@@ -57,10 +59,13 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		},
 		Timestamp: now,
 	}
+
 	b.wg.Go(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+
 		_ = b.hub.BroadcastEvent(ctx, solveEv)
+
 		if isFirstBlood {
 			_ = b.hub.BroadcastEvent(ctx, firstBloodEv)
 		}
@@ -71,6 +76,7 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 	if b == nil || b.hub == nil {
 		return
 	}
+
 	now := time.Now()
 	ev := wskit.Event{
 		Type: "notification",
@@ -82,9 +88,11 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 		},
 		Timestamp: now,
 	}
+
 	b.wg.Go(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+
 		_ = b.hub.BroadcastEvent(ctx, ev)
 	})
 }

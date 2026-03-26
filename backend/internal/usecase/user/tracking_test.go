@@ -20,6 +20,7 @@ type trackingTestDeps struct {
 
 func newTrackingTestDeps(t *testing.T) *trackingTestDeps {
 	t.Helper()
+
 	return &trackingTestDeps{trackingRepo: userMock.NewMockTrackingRepository(t)}
 }
 

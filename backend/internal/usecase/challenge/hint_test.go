@@ -26,6 +26,7 @@ func TestHintUseCase_Create_Success(t *testing.T) {
 		if !ok {
 			return
 		}
+
 		h.ID = uuid.New()
 	})
 
@@ -80,7 +81,7 @@ func TestHintUseCase_GetByID_Error(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrHintNotFound))
+	assert.ErrorIs(t, err, httperr.ErrHintNotFound)
 }
 
 func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
@@ -193,7 +194,7 @@ func TestHintUseCase_Update_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, httperr.ErrHintNotFound))
+	assert.ErrorIs(t, err, httperr.ErrHintNotFound)
 }
 
 func TestHintUseCase_Update_RepoError(t *testing.T) {
@@ -248,6 +249,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
 	uc, _ := d.createHintUseCase()
+	d.expectUnlockHintDB()
 
 	userID := uuid.New()
 	teamID := uuid.New()
@@ -338,7 +340,7 @@ func TestHintUseCase_UnlockHint_NotFound(t *testing.T) {
 	unlocked, err := uc.UnlockHint(context.Background(), uuid.New(), uuid.New(), challengeID, hintID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrHintNotFound))
+	assert.ErrorIs(t, err, httperr.ErrHintNotFound)
 	assert.Nil(t, unlocked)
 }
 
@@ -365,6 +367,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
 	uc, _ := d.createHintUseCase()
+	d.expectUnlockHintDB()
 
 	userID := uuid.New()
 	teamID := uuid.New()
@@ -396,7 +399,7 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrHintAlreadyUnlocked))
+	assert.ErrorIs(t, err, httperr.ErrHintAlreadyUnlocked)
 	assert.Nil(t, unlocked)
 }
 
@@ -404,6 +407,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
 	uc, _ := d.createHintUseCase()
+	d.expectUnlockHintDB()
 
 	userID := uuid.New()
 	teamID := uuid.New()
@@ -431,7 +435,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrInsufficientPoints))
+	assert.ErrorIs(t, err, httperr.ErrInsufficientPoints)
 	assert.Nil(t, unlocked)
 }
 
@@ -460,7 +464,7 @@ func TestHintUseCase_UnlockHint_BannedUser(t *testing.T) {
 	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserBanned))
+	assert.ErrorIs(t, err, httperr.ErrUserBanned)
 	assert.Nil(t, unlocked)
 	d.teamRepo.AssertNotCalled(t, "Lock", mock.Anything, mock.Anything)
 }
@@ -491,7 +495,7 @@ func TestHintUseCase_UnlockHint_UserNotInTeam(t *testing.T) {
 	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamMemberNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamMemberNotFound)
 	assert.Nil(t, unlocked)
 	d.teamRepo.AssertNotCalled(t, "Lock", mock.Anything, mock.Anything)
 }

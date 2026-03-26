@@ -107,7 +107,7 @@ func TestAPITokenRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	list, err := f.APITokenRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
-	assert.Len(t, list, 0)
+	assert.Empty(t, list)
 }
 
 func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {

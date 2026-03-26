@@ -30,6 +30,17 @@ func (q *Queries) BanTeam(ctx context.Context, arg BanTeamParams) (uuid.UUID, er
 	return id, err
 }
 
+const clearTeamAvatarURL = `-- name: ClearTeamAvatarURL :one
+UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL RETURNING avatar_url
+`
+
+func (q *Queries) ClearTeamAvatarURL(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, clearTeamAvatarURL, id)
+	var avatar_url *string
+	err := row.Scan(&avatar_url)
+	return avatar_url, err
+}
+
 const countActiveTeams = `-- name: CountActiveTeams :one
 SELECT COUNT(*)::int
 FROM teams
@@ -145,7 +156,7 @@ func (q *Queries) CreateTeamReturningID(ctx context.Context, arg CreateTeamRetur
 }
 
 const getAllTeams = `-- name: GetAllTeams :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
 ORDER BY created_at ASC
@@ -164,6 +175,7 @@ type GetAllTeamsRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -189,6 +201,7 @@ func (q *Queries) GetAllTeams(ctx context.Context) ([]GetAllTeamsRow, error) {
 			&i.BannedAt,
 			&i.BannedReason,
 			&i.IsHidden,
+			&i.AvatarUrl,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -246,7 +259,7 @@ func (q *Queries) GetSoloTeamByUserID(ctx context.Context, id uuid.UUID) (GetSol
 }
 
 const getTeamByID = `-- name: GetTeamByID :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -264,6 +277,7 @@ type GetTeamByIDRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -283,13 +297,14 @@ func (q *Queries) GetTeamByID(ctx context.Context, id uuid.UUID) (GetTeamByIDRow
 		&i.BannedAt,
 		&i.BannedReason,
 		&i.IsHidden,
+		&i.AvatarUrl,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getTeamByInviteToken = `-- name: GetTeamByInviteToken :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE invite_token = $1 AND deleted_at IS NULL
 `
@@ -307,6 +322,7 @@ type GetTeamByInviteTokenRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -326,13 +342,14 @@ func (q *Queries) GetTeamByInviteToken(ctx context.Context, inviteToken uuid.UUI
 		&i.BannedAt,
 		&i.BannedReason,
 		&i.IsHidden,
+		&i.AvatarUrl,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getTeamByName = `-- name: GetTeamByName :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE name = $1 AND deleted_at IS NULL
 `
@@ -350,6 +367,7 @@ type GetTeamByNameRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -369,6 +387,7 @@ func (q *Queries) GetTeamByName(ctx context.Context, name string) (GetTeamByName
 		&i.BannedAt,
 		&i.BannedReason,
 		&i.IsHidden,
+		&i.AvatarUrl,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -383,6 +402,30 @@ func (q *Queries) HardDeleteTeamsBefore(ctx context.Context, deletedAt pgtype.Ti
 	return err
 }
 
+const listAllTeamAvatarURLs = `-- name: ListAllTeamAvatarURLs :many
+SELECT avatar_url FROM teams WHERE avatar_url IS NOT NULL AND deleted_at IS NULL
+`
+
+func (q *Queries) ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error) {
+	rows, err := q.db.Query(ctx, listAllTeamAvatarURLs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*string
+	for rows.Next() {
+		var avatar_url *string
+		if err := rows.Scan(&avatar_url); err != nil {
+			return nil, err
+		}
+		items = append(items, avatar_url)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockTeam = `-- name: LockTeam :one
 SELECT id FROM teams WHERE id = $1 AND deleted_at IS NULL FOR UPDATE
 `
@@ -394,7 +437,7 @@ func (q *Queries) LockTeam(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 }
 
 const searchTeams = `-- name: SearchTeams :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
   AND is_hidden = false
@@ -423,6 +466,7 @@ type SearchTeamsRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -448,6 +492,7 @@ func (q *Queries) SearchTeams(ctx context.Context, arg SearchTeamsParams) ([]Sea
 			&i.BannedAt,
 			&i.BannedReason,
 			&i.IsHidden,
+			&i.AvatarUrl,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -461,7 +506,7 @@ func (q *Queries) SearchTeams(ctx context.Context, arg SearchTeamsParams) ([]Sea
 }
 
 const searchTeamsAdmin = `-- name: SearchTeamsAdmin :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
   AND ($3::text IS NULL OR name ILIKE '%' || $3 || '%')
@@ -488,6 +533,7 @@ type SearchTeamsAdminRow struct {
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
 	IsHidden             *bool              `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -513,6 +559,7 @@ func (q *Queries) SearchTeamsAdmin(ctx context.Context, arg SearchTeamsAdminPara
 			&i.BannedAt,
 			&i.BannedReason,
 			&i.IsHidden,
+			&i.AvatarUrl,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -629,6 +676,20 @@ func (q *Queries) UpdateTeamAdmin(ctx context.Context, arg UpdateTeamAdminParams
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updateTeamAvatarURL = `-- name: UpdateTeamAvatarURL :exec
+UPDATE teams SET avatar_url = $2 WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateTeamAvatarURLParams struct {
+	ID        uuid.UUID `json:"id"`
+	AvatarUrl *string   `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateTeamAvatarURL(ctx context.Context, arg UpdateTeamAvatarURLParams) error {
+	_, err := q.db.Exec(ctx, updateTeamAvatarURL, arg.ID, arg.AvatarUrl)
+	return err
 }
 
 const updateTeamCaptain = `-- name: UpdateTeamCaptain :one

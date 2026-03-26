@@ -27,10 +27,13 @@ func TestVaultFetch_Success(t *testing.T) {
 	applied := false
 	client := configMock.NewMockVaultSecretGetter(t)
 	client.EXPECT().GetSecret(mock.Anything, "test/path").Return(map[string]any{"key": "value"}, nil)
+
 	l, logErr := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, logErr)
+
 	fn := vaultFetch(context.Background(), client, l, "test/path", "test", "fallback", func(s map[string]any) {
 		applied = true
+
 		assert.Equal(t, "value", s["key"])
 	})
 	err := fn()
@@ -44,6 +47,7 @@ func TestVaultFetch_Error(t *testing.T) {
 	client.EXPECT().GetSecret(mock.Anything, mock.Anything).Return(nil, errors.New("vault error"))
 	l, logErr := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, logErr)
+
 	fn := vaultFetch(context.Background(), client, l, "test/path", "test", "fallback", func(map[string]any) {
 		applied = true
 	})

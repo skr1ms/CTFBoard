@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -10,23 +9,23 @@ import (
 
 func FromPage(p *domain.Page) openapi.PageResponse {
 	return openapi.PageResponse{
-		ID:         httputil.Ptr(p.ID.String()),
-		Title:      httputil.Ptr(p.Title),
-		Slug:       httputil.Ptr(p.Slug),
-		Content:    httputil.Ptr(p.Content),
-		IsDraft:    httputil.Ptr(p.IsDraft),
-		OrderIndex: httputil.Ptr(p.OrderIndex),
-		CreatedAt:  httputil.Ptr(p.CreatedAt),
-		UpdatedAt:  httputil.Ptr(p.UpdatedAt),
+		ID:         new(p.ID.String()),
+		Title:      new(p.Title),
+		Slug:       new(p.Slug),
+		Content:    new(p.Content),
+		IsDraft:    new(p.IsDraft),
+		OrderIndex: new(p.OrderIndex),
+		CreatedAt:  new(p.CreatedAt),
+		UpdatedAt:  new(p.UpdatedAt),
 	}
 }
 
 func FromPageListItem(item *domain.PageListItem) openapi.PageListItemResponse {
 	return openapi.PageListItemResponse{
-		ID:         httputil.Ptr(item.ID.String()),
-		Title:      httputil.Ptr(item.Title),
-		Slug:       httputil.Ptr(item.Slug),
-		OrderIndex: httputil.Ptr(item.OrderIndex),
+		ID:         new(item.ID.String()),
+		Title:      new(item.Title),
+		Slug:       new(item.Slug),
+		OrderIndex: new(item.OrderIndex),
 	}
 }
 

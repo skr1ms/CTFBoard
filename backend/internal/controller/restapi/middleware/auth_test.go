@@ -23,6 +23,7 @@ import (
 
 func newTestJWTService(t *testing.T) *jwtkit.JWTService {
 	t.Helper()
+
 	svc, err := jwtkit.NewJWTService(jwtkit.Config{
 		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("access-secret-min-32-chars-long!")}},
 		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("refresh-secret-min-32-chars-long")}},
@@ -31,6 +32,7 @@ func newTestJWTService(t *testing.T) *jwtkit.JWTService {
 		Issuer:      "test-issuer",
 	})
 	require.NoError(t, err)
+
 	return svc
 }
 
@@ -78,8 +80,9 @@ func TestAuth_InvalidFormat_Error(t *testing.T) {
 	r.Use(Auth(svc, nil, nil, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "InvalidScheme token")
+
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -88,6 +91,7 @@ func TestAuth_InvalidFormat_Error(t *testing.T) {
 
 func TestAdmin_Success(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +103,7 @@ func TestAdmin_Success(t *testing.T) {
 	r.Use(Admin)
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -108,6 +112,7 @@ func TestAdmin_Success(t *testing.T) {
 
 func TestAdmin_Error(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +124,7 @@ func TestAdmin_Error(t *testing.T) {
 	r.Use(Admin)
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -128,6 +133,7 @@ func TestAdmin_Error(t *testing.T) {
 
 func TestAuth_TokenSuccess(t *testing.T) {
 	t.Parallel()
+
 	userID := uuid.New()
 	tokenID := uuid.New()
 	apiToken := &domain.APIToken{ID: tokenID, UserID: userID}
@@ -149,8 +155,9 @@ func TestAuth_TokenSuccess(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "Token my-api-token")
+
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -168,8 +175,9 @@ func TestAuth_TokenError(t *testing.T) {
 	r.Use(Auth(nil, apiAuth, userGet, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "Token bad-token")
+
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

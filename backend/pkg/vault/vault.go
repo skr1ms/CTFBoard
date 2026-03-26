@@ -57,30 +57,30 @@ func NewFromEnv() (*Client, error) {
 		return nil, fmt.Errorf("VAULT_TOKEN environment variable is not set")
 	}
 
-	mountPath := os.Getenv("VAULT_MOUNT_PATH")
-	if mountPath == "" {
-		mountPath = "secret"
-	}
-
-	return NewWithMount(addr, token, mountPath)
+	return NewWithMount(addr, token, "secret")
 }
 
 func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]any, error) {
 	kv := c.client.KVv2(c.mountPath)
 
 	var data map[string]any
+
 	operation := func() error {
 		secret, err := kv.Get(ctx, secretPath)
 		if err != nil {
 			if isVaultPermanentError(err) {
 				return backoff.Permanent(fmt.Errorf("failed to read secret from vault: %w", err))
 			}
+
 			return fmt.Errorf("failed to read secret from vault: %w", err)
 		}
+
 		if secret == nil || secret.Data == nil {
 			return backoff.Permanent(fmt.Errorf("secret not found at path: %s/%s", c.mountPath, secretPath))
 		}
+
 		data = secret.Data
+
 		return nil
 	}
 
@@ -88,9 +88,11 @@ func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]a
 	bo.MaxElapsedTime = 30 * time.Second
 	bo.InitialInterval = 500 * time.Millisecond
 
-	if err := backoff.Retry(operation, backoff.WithContext(bo, ctx)); err != nil {
+	err := backoff.Retry(operation, backoff.WithContext(bo, ctx))
+	if err != nil {
 		return nil, err
 	}
+
 	return data, nil
 }
 
@@ -98,12 +100,15 @@ func isVaultPermanentError(err error) bool {
 	if err == nil {
 		return false
 	}
+
 	msg := err.Error()
+
 	for _, code := range []string{"403", "404", "400"} {
 		if strings.Contains(msg, "* "+code) || strings.Contains(msg, code+" ") {
 			return true
 		}
 	}
+
 	var re *vault.ResponseError
 	if asErr := asVaultResponseError(err, &re); asErr && re != nil {
 		return re.StatusCode == http.StatusForbidden ||
@@ -111,6 +116,7 @@ func isVaultPermanentError(err error) bool {
 			re.StatusCode == http.StatusNotFound ||
 			re.StatusCode == http.StatusBadRequest
 	}
+
 	return false
 }
 
@@ -118,8 +124,10 @@ func asVaultResponseError(err error, target **vault.ResponseError) bool {
 	var re *vault.ResponseError
 	if errors.As(err, &re) {
 		*target = re
+
 		return true
 	}
+
 	return false
 }
 

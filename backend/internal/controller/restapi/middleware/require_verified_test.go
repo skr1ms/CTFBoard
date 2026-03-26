@@ -16,11 +16,12 @@ import (
 
 func TestRequireVerified_Disabled_Success(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(RequireVerified(false))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -29,11 +30,12 @@ func TestRequireVerified_Disabled_Success(t *testing.T) {
 
 func TestRequireVerified_NoUser_Error(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -42,6 +44,7 @@ func TestRequireVerified_NoUser_Error(t *testing.T) {
 
 func TestRequireVerified_Admin_Success(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +56,7 @@ func TestRequireVerified_Admin_Success(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -62,6 +65,7 @@ func TestRequireVerified_Admin_Success(t *testing.T) {
 
 func TestRequireVerified_Unverified_Error(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +77,7 @@ func TestRequireVerified_Unverified_Error(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -82,6 +86,7 @@ func TestRequireVerified_Unverified_Error(t *testing.T) {
 
 func TestRequireVerified_Verified_Success(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +98,7 @@ func TestRequireVerified_Verified_Success(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

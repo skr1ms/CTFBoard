@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,12 +31,14 @@ import (
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	wsController "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
@@ -182,12 +185,13 @@ func ProvideVerificationTokenRepo(pool *pgxpool.Pool) *persistent.VerificationTo
 	return persistent.NewVerificationTokenRepo(pool)
 }
 
-func ProvideOAuthRepo(pool *pgxpool.Pool) *persistent.OAuthRepo {
-	return persistent.NewOAuthRepo(pool)
+func ProvideOAuthRepo(pool *pgxpool.Pool, cryptoService crypto.Service) *persistent.OAuthRepo {
+	return persistent.NewOAuthRepo(pool, cryptoService)
 }
 
 func ProvideOAuthProviders() map[string]webapi.OAuthProviderAPI {
 	oauthClient := &http.Client{Timeout: 30 * time.Second}
+
 	return map[string]webapi.OAuthProviderAPI{
 		"github": webapi.NewGitHubAPI(oauthClient),
 		"google": webapi.NewGoogleAPI(oauthClient),
@@ -220,6 +224,28 @@ func ProvideOAuthUseCase(
 	})
 }
 
+func ProvideAvatarUseCase(
+	userRepo repo.UserRepository,
+	teamRepo repo.TeamRepository,
+	storageProvider storage.Provider,
+	keyValueStore cachekit.KeyValueStore,
+	TM repo.TransactionManager,
+	auditLogRepo repo.AuditLogRepository,
+	cfg *config.Config,
+	l logkit.Logger,
+) *avatar.AvatarUseCase {
+	return avatar.NewAvatarUseCase(avatar.AvatarDeps{
+		UserRepo:     userRepo,
+		TeamRepo:     teamRepo,
+		Storage:      storageProvider,
+		Cache:        keyValueStore,
+		TM:           TM,
+		AuditLogRepo: auditLogRepo,
+		Config:       domain.GetDefaultAvatarConfig(),
+		Logger:       l,
+	})
+}
+
 func ProvideValidator() (validator.Validator, error) {
 	return validator.New()
 }
@@ -232,6 +258,7 @@ func ProvideCrypto(cfg *config.Config) (crypto.Service, error) {
 	if cfg.FlagEncryptionKey == "" {
 		return nil, nil
 	}
+
 	return crypto.NewCryptoService(cfg.FlagEncryptionKey)
 }
 
@@ -285,9 +312,11 @@ func (g *teamBracketIDGetter) GetTeamBracketID(ctx context.Context, teamID uuid.
 	if err != nil {
 		return nil, fmt.Errorf("wire - GetTeamBracketID - TeamRepo.GetByID: %w", err)
 	}
+
 	if team == nil {
 		return nil, fmt.Errorf("wire - GetTeamBracketID: team %s not found", teamID)
 	}
+
 	return team.BracketID, nil
 }
 
@@ -439,9 +468,11 @@ func ProvideCompetitionUseCase(
 	l logkit.Logger,
 ) *competition.CompetitionUseCase {
 	var statsInvalidator competition.StatisticsCacheInvalidator
+
 	if statsCache != nil {
 		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: statsCache}
 	}
+
 	return competition.NewCompetitionUseCase(competition.CompetitionDeps{
 		CompetitionRepo:       competitionRepo,
 		AuditLogRepo:          auditLogRepo,
@@ -563,11 +594,13 @@ func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo rep
 	})
 }
 
-func ProvideRatingUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, ratingRepo repo.RatingRepository, tm repo.TransactionManager) *challenge.RatingUseCase {
+func ProvideRatingUseCase(challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, ratingRepo repo.RatingRepository, userRepo repo.UserRepository, teamRepo repo.TeamRepository, tm repo.TransactionManager) *challenge.RatingUseCase {
 	return challenge.NewRatingUseCase(challenge.RatingDeps{
 		ChallengeRepo: challengeRepo,
 		SolveRepo:     solveRepo,
 		RatingRepo:    ratingRepo,
+		UserRepo:      userRepo,
+		TeamRepo:      teamRepo,
 		TM:            tm,
 	})
 }
@@ -605,7 +638,7 @@ func ProvideFileUseCase(
 		SolveRepo:      solveRepo,
 		Storage:        storageProvider,
 		Expiry:         cfg.PresignedExpiry,
-		DownloadSecret: cfg.AccessSecret,
+		DownloadSecret: cfg.DownloadSecret,
 		BaseURL:        cfg.BaseURL,
 	})
 }
@@ -659,12 +692,14 @@ func ProvideBackupUseCase(
 }
 
 func ProvideSettingsUseCase(
+	ctx context.Context,
 	SettingsRepo repo.SettingsRepository,
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
 	kv cachekit.KeyValueStore,
 	competitionRepo repo.CompetitionRepository,
 	competitionParamUC *competition.CompetitionParamUseCase,
+	pubsub cachekit.PubSubStore,
 ) *settings.SettingsUseCase {
 	return settings.NewSettingsUseCase(settings.SettingsDeps{
 		Repo:         SettingsRepo,
@@ -673,6 +708,8 @@ func ProvideSettingsUseCase(
 		Redis:        kv,
 		CompRepo:     competitionRepo,
 		ConfigUC:     competitionParamUC,
+		PubSub:       pubsub,
+		StopContext:  ctx,
 	})
 }
 
@@ -744,6 +781,7 @@ func ProvideServerDeps(
 	ratingUC *challenge.RatingUseCase,
 	trackingUC *user.TrackingUseCase,
 	oauthUC *user.OAuthUseCase,
+	avatarUC *avatar.AvatarUseCase,
 	jwtService *jwtkit.JWTService,
 	redisClient *redis.Client,
 	SettingsRepo repo.SettingsRepository,
@@ -756,16 +794,20 @@ func ProvideServerDeps(
 	if err != nil {
 		return nil, fmt.Errorf("wire - ProvideServerDeps - create forgot-password rate limiter: %w", err)
 	}
+
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyResend, resendVerificationRateLimit, perKeyRateLimitWindow)
 	if err != nil {
 		return nil, fmt.Errorf("wire - ProvideServerDeps - create resend-verification rate limiter: %w", err)
 	}
+
 	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyResetTok, resetPasswordTokenRateLimit, resetPasswordTokenRateWindow)
 	if err != nil {
 		return nil, fmt.Errorf("wire - ProvideServerDeps - create reset-password-token rate limiter: %w", err)
 	}
+
 	rateLimitCache := restapimiddleware.NewRateLimitConfigCache(rateLimitCacheTTL)
 	ratelimitAuditWG := &sync.WaitGroup{}
+
 	return &helper.ServerDeps{
 		Challenge: helper.ChallengeDeps{
 			ChallengeUC: challengeUC,
@@ -785,6 +827,7 @@ func ProvideServerDeps(
 			APITokenUC:    apiTokenUC,
 			TrackingUC:    trackingUC,
 			OAuthUC:       oauthUC,
+			AvatarUC:      avatarUC,
 			FrontendURL:   cfg.FrontendURL,
 			SecureCookies: cfg.SecureCookies,
 		},
@@ -827,54 +870,58 @@ func ProvideServerDeps(
 func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, deps *helper.ServerDeps) chi.Router {
 	router := chi.NewRouter()
 	router.Use(kitMiddleware.RequestID())
+
 	clientIP, err := kitMiddleware.ClientIP(cfg.TrustedProxyCIDRs)
 	if err != nil {
 		panic(err)
 	}
+
 	router.Use(clientIP)
+
 	if cfg.StructuredLogger {
 		router.Use(kitMiddleware.Logger(l, cfg.TrustedProxyCIDRs))
 	} else {
 		router.Use(middleware.Logger)
 	}
+
 	router.Use(kitMiddleware.Metrics(prometheus.DefaultRegisterer, httputil.ChiPathFromRequest))
 	router.Use(kitMiddleware.Recoverer(l))
+
 	timeoutMW := kitMiddleware.Timeout(requestTimeout)
+
 	router.Use(func(next http.Handler) http.Handler {
 		withTimeout := timeoutMW(next)
+
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/ws") {
 				next.ServeHTTP(w, r)
+
 				return
 			}
+
 			withTimeout.ServeHTTP(w, r)
 		})
 	})
-	router.Use(kitMiddleware.SecurityHeaders(true))
-	healthHandler := httputil.HealthHandler(map[string]httputil.Checker{
-		"db":      healthCheckerFunc(func(ctx context.Context) error { _, err := deps.Admin.SettingsRepo.Get(ctx); return err }),
-		"redis":   healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.RedisClient.Ping(ctx).Err() }),
-		"storage": healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.StorageProvider.Ping(ctx) }),
+
+	strictSecurity := kitMiddleware.SecurityHeaders(true)
+	swaggerDocCSP := "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'"
+	relaxedSecurity := kitMiddleware.SecurityHeaders(true, kitMiddleware.WithCSP(swaggerDocCSP))
+
+	router.Use(func(next http.Handler) http.Handler {
+		strictH := strictSecurity(next)
+		relaxedH := relaxedSecurity(next)
+
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isSwaggerOrOpenAPIDocPath(r.URL.Path) {
+				relaxedH.ServeHTTP(w, r)
+
+				return
+			}
+
+			strictH.ServeHTTP(w, r)
+		})
 	})
-	router.Get("/health", healthHandler)
-	metricsHandler := promhttp.HandlerFor(
-		prometheus.DefaultGatherer,
-		promhttp.HandlerOpts{EnableOpenMetrics: true},
-	)
-	if len(cfg.MetricsAllowedIPs) > 0 {
-		metricsHandler = metricsAllowlistMiddleware(cfg.MetricsAllowedIPs, metricsHandler)
-	}
-	router.Handle("/metrics", metricsHandler)
-	openapiJSONHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		swagger, err := openapi.GetSwagger()
-		if err != nil {
-			httputil.HandleError(w, r, err)
-			return
-		}
-		httputil.RenderOK(w, r, swagger)
-	})
-	router.Get("/openapi.json", openapiJSONHandler)
-	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
+
 	generalIPLimitMiddleware := restapimiddleware.DynamicRateLimit(
 		deps.Infra.RedisClient, rlKeyGeneral, time.Minute,
 		deps.Infra.RateLimitConfigCache, deps.Admin.SettingsUC,
@@ -893,7 +940,44 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
+
+	healthHandler := httputil.HealthHandler(map[string]httputil.Checker{
+		"db": healthCheckerFunc(func(ctx context.Context) error {
+			_, err := deps.Admin.SettingsRepo.Get(ctx)
+
+			return err
+		}),
+		"redis":   healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.RedisClient.Ping(ctx).Err() }),
+		"storage": healthCheckerFunc(func(ctx context.Context) error { return deps.Infra.StorageProvider.Ping(ctx) }),
+	})
+	router.Get("/health", healthHandler)
+
+	metricsHandler := promhttp.HandlerFor(
+		prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{EnableOpenMetrics: true},
+	)
+
+	if len(cfg.MetricsAllowedIPs) > 0 {
+		metricsHandler = metricsAllowlistMiddleware(cfg.MetricsAllowedIPs, metricsHandler)
+	}
+
+	router.Handle("/metrics", metricsHandler)
+
+	openapiJSONHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		swagger, err := openapi.GetSwagger()
+		if err != nil {
+			httputil.HandleError(w, r, err)
+
+			return
+		}
+
+		httputil.RenderOK(w, r, swagger)
+	})
+	router.Get("/openapi.json", openapiJSONHandler)
+	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
+
 	deps.Infra.ScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache()
+
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", healthHandler)
 		r.Handle("/metrics", metricsHandler)
@@ -901,11 +985,13 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/api/v1/openapi.json")))
 		v1.NewRouter(ctx, r, deps, cfg.VerifyEmails, deps.Infra.RateLimitConfigCache)
 	})
+
 	return router
 }
 
 func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Handler {
 	nets := make([]*net.IPNet, 0, len(allowedIPs))
+
 	ips := make([]net.IP, 0, len(allowedIPs))
 	for _, s := range allowedIPs {
 		if strings.Contains(s, "/") {
@@ -913,6 +999,7 @@ func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Han
 			if err != nil {
 				continue
 			}
+
 			nets = append(nets, n)
 		} else {
 			ip := net.ParseIP(s)
@@ -921,27 +1008,42 @@ func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Han
 			}
 		}
 	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+
 		ip := net.ParseIP(clientIP)
 		if ip == nil {
 			httputil.HandleError(w, r, httperr.ErrAccessDenied)
+
 			return
 		}
+
 		for _, n := range nets {
 			if n.Contains(ip) {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 		}
-		for _, allowed := range ips {
-			if ip.Equal(allowed) {
-				next.ServeHTTP(w, r)
-				return
-			}
+
+		if slices.ContainsFunc(ips, ip.Equal) {
+			next.ServeHTTP(w, r)
+
+			return
 		}
+
 		httputil.HandleError(w, r, httperr.ErrAccessDenied)
 	})
+}
+
+func isSwaggerOrOpenAPIDocPath(path string) bool {
+	switch path {
+	case "/openapi.json", "/api/v1/openapi.json", "/swagger", "/api/v1/swagger":
+		return true
+	default:
+		return strings.HasPrefix(path, "/swagger/") || strings.HasPrefix(path, "/api/v1/swagger/")
+	}
 }
 
 func ProvideServer(router chi.Router, cfg *config.Config) *http.Server {
@@ -954,12 +1056,13 @@ func ProvideServer(router chi.Router, cfg *config.Config) *http.Server {
 	}
 }
 
-func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher, solveUC *competition.SolveUseCase, serverDeps *helper.ServerDeps, broadcaster *websocket.Broadcaster) *App {
+func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher, solveUC *competition.SolveUseCase, avatarUC *avatar.AvatarUseCase, serverDeps *helper.ServerDeps, broadcaster *websocket.Broadcaster) *App {
 	return &App{
 		Server:            server,
 		UserRepo:          userRepo,
 		SubmissionBatcher: batcher,
 		SolveUseCase:      solveUC,
+		AvatarUC:          avatarUC,
 		RatelimitAuditWG:  serverDeps.Infra.RatelimitAuditWG,
 		Broadcaster:       broadcaster,
 	}

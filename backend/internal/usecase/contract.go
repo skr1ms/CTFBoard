@@ -117,6 +117,7 @@ type (
 type (
 	ChallengeWithTags struct {
 		*domain.ChallengeWithSolved
+
 		Tags []*domain.Tag
 	}
 
@@ -509,6 +510,25 @@ type (
 )
 
 // =============================================================================
+// Avatar
+// =============================================================================
+
+type AvatarUseCase interface {
+	UploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
+	DeleteUserAvatar(ctx context.Context, userID uuid.UUID) error
+	GetUserAvatarURL(ctx context.Context, userID uuid.UUID) (fullURL, thumbURL *string, err error)
+
+	UploadTeamAvatar(ctx context.Context, teamID, callerID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
+	DeleteTeamAvatar(ctx context.Context, teamID, callerID uuid.UUID) error
+	GetTeamAvatarURL(ctx context.Context, teamID uuid.UUID) (fullURL, thumbURL *string, err error)
+
+	AdminUploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
+	AdminDeleteUserAvatar(ctx context.Context, userID uuid.UUID) error
+	AdminUploadTeamAvatar(ctx context.Context, teamID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
+	AdminDeleteTeamAvatar(ctx context.Context, teamID uuid.UUID) error
+}
+
+// =============================================================================
 // Cleanup
 // =============================================================================
 
@@ -516,6 +536,8 @@ type (
 type Cleaner interface {
 	CleanupDeletedTeams(ctx context.Context, olderThan time.Duration) error
 	CleanupOrphanedStorageFiles(ctx context.Context, prefix string) (int, error)
+	CleanupOrphanedAvatars(ctx context.Context) (int, error)
+	CleanupOldTracking(ctx context.Context, olderThan time.Duration) error
 }
 
 // =============================================================================

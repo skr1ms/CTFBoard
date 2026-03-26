@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -28,6 +27,7 @@ func NewRatingRepo(pool *pgxpool.Pool) *RatingRepo {
 
 func (r *RatingRepo) Upsert(ctx context.Context, rating *domain.Rating) error {
 	now := time.Now()
+
 	row, err := r.Q(ctx).UpsertRating(ctx, sqlc.UpsertRatingParams{
 		ChallengeID: rating.ChallengeID,
 		UserID:      rating.UserID,
@@ -39,9 +39,11 @@ func (r *RatingRepo) Upsert(ctx context.Context, rating *domain.Rating) error {
 	if err != nil {
 		return fmt.Errorf("RatingRepo - Upsert: %w", err)
 	}
+
 	rating.ID = row.ID
 	rating.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
 	rating.UpdatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt))
+
 	return nil
 }
 
@@ -50,10 +52,12 @@ func (r *RatingRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("RatingRepo - GetByChallengeID: %w", err)
 	}
+
 	out := make([]*domain.Rating, len(rows))
 	for i := range rows {
 		out[i] = ratingRowToentity(rows[i])
 	}
+
 	return out, nil
 }
 
@@ -66,8 +70,10 @@ func (r *RatingRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challeng
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrRatingNotFound
 		}
+
 		return nil, fmt.Errorf("RatingRepo - GetByTeamAndChallenge: %w", err)
 	}
+
 	return ratingRowToentity(row), nil
 }
 
@@ -76,10 +82,12 @@ func (r *RatingRepo) GetAll(ctx context.Context) ([]*domain.Rating, error) {
 	if err != nil {
 		return nil, fmt.Errorf("RatingRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.Rating, len(rows))
 	for i := range rows {
 		out[i] = ratingRowToentity(rows[i])
 	}
+
 	return out, nil
 }
 

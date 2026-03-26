@@ -12,6 +12,7 @@ func TestNewCryptoService(t *testing.T) {
 	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
+
 		key := "1234567890123456789012345678901212345678901234567890123456789012"
 		svc, err := NewCryptoService(key)
 		require.NoError(t, err)
@@ -20,6 +21,7 @@ func TestNewCryptoService(t *testing.T) {
 
 	t.Run("Error_InvalidLength", func(t *testing.T) {
 		t.Parallel()
+
 		key := "short"
 		svc, err := NewCryptoService(key)
 		assert.Error(t, err)
@@ -30,6 +32,7 @@ func TestNewCryptoService(t *testing.T) {
 
 func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
 	t.Parallel()
+
 	key := "1234567890123456789012345678901212345678901234567890123456789012"
 	svc, err := NewCryptoService(key)
 	require.NoError(t, err)
@@ -48,18 +51,21 @@ func TestCryptoService_EncryptDecrypt_Success(t *testing.T) {
 
 func TestCryptoService_Decrypt_Error(t *testing.T) {
 	t.Parallel()
+
 	key := "1234567890123456789012345678901212345678901234567890123456789012"
 	svc, err := NewCryptoService(key)
 	require.NoError(t, err)
 
 	t.Run("InvalidBase64", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := svc.Decrypt("invalid_base64")
 		assert.Error(t, err)
 	})
 
 	t.Run("ShortCiphertext", func(t *testing.T) {
 		t.Parallel()
+
 		short := base64.StdEncoding.EncodeToString([]byte("123"))
 		_, err := svc.Decrypt(short)
 		assert.Error(t, err)
@@ -68,12 +74,14 @@ func TestCryptoService_Decrypt_Error(t *testing.T) {
 
 	t.Run("TamperedCiphertext", func(t *testing.T) {
 		t.Parallel()
+
 		plaintext := "secret"
 		encrypted, err := svc.Encrypt(plaintext)
 		require.NoError(t, err)
 
 		data, err := base64.StdEncoding.DecodeString(encrypted)
 		require.NoError(t, err)
+
 		data[len(data)-1] ^= 0xFF // flip bits
 		tampered := base64.StdEncoding.EncodeToString(data)
 

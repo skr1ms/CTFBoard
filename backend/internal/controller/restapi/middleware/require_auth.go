@@ -15,16 +15,23 @@ func RequireAuth(check func(*domain.User) error) func(http.Handler) http.Handler
 			user, ok := GetUser(r.Context())
 			if !ok || user == nil {
 				httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
+
 				return
 			}
+
 			if user.Role == domain.RoleAdmin {
 				next.ServeHTTP(w, r)
+
 				return
 			}
-			if err := check(user); err != nil {
+
+			err := check(user)
+			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

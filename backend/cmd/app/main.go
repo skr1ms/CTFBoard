@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Logger initialization failed: %v", err)
 	}
+
 	l.Info("Configuration loaded successfully")
 
 	app.Run(cfg, l)

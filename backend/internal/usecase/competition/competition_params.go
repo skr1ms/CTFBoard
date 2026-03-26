@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -48,9 +49,11 @@ func validateCategory(category string) error {
 	if category == "" {
 		return httperr.NewValidationErrorf("category is required")
 	}
+
 	if _, ok := allowedCategories[category]; !ok {
 		return httperr.NewValidationErrorf("invalid category %q: must be one of general, theme, visibility, scoring, email, social, legal, advanced", category)
 	}
+
 	return nil
 }
 
@@ -79,9 +82,11 @@ func NewCompetitionParamUseCase(ctx context.Context, deps CompetitionParamDeps) 
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
+
 	if deps.StopContext == nil {
 		deps.StopContext = ctx
 	}
+
 	uc := &CompetitionParamUseCase{
 		deps:          deps,
 		cache:         make(map[string]*domain.CompetitionParam),
@@ -92,8 +97,10 @@ func NewCompetitionParamUseCase(ctx context.Context, deps CompetitionParamDeps) 
 		if stopCtx == nil {
 			stopCtx = context.Background()
 		}
+
 		go uc.subscribeInvalidation(stopCtx)
 	}
+
 	return uc
 }
 
@@ -101,6 +108,7 @@ func NewCompetitionParamUseCase(ctx context.Context, deps CompetitionParamDeps) 
 func (uc *CompetitionParamUseCase) invalidateLocal() {
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
+
 	uc.lastLoad = time.Time{}
 	uc.negativeCache = make(map[string]time.Time)
 	uc.sf.Forget(loadAllKey)
@@ -109,13 +117,16 @@ func (uc *CompetitionParamUseCase) invalidateLocal() {
 // invalidate clears local cache, deletes Redis cache, and publishes invalidation message; concurrent Get/GetAll use stale local cache.
 func (uc *CompetitionParamUseCase) invalidate() {
 	uc.invalidateLocal()
+
 	ctx, cancel := context.WithTimeout(context.Background(), invalidateTimeout)
 	defer cancel()
+
 	if uc.deps.Cache != nil {
 		if err := uc.deps.Cache.Del(ctx, configsCacheKey); err != nil {
 			uc.deps.Logger.WithError(err).Warn("competition_params: cache invalidation failed", logkit.Fields{"key": configsCacheKey})
 		}
 	}
+
 	if uc.deps.PubSub != nil {
 		if err := uc.deps.PubSub.Publish(ctx, configsInvChannel, "1"); err != nil {
 			uc.deps.Logger.WithError(err).Warn("competition_params: pubsub invalidation broadcast failed", logkit.Fields{"channel": configsInvChannel})
@@ -132,22 +143,29 @@ func (uc *CompetitionParamUseCase) subscribeInvalidation(stopCtx context.Context
 		uc.deps.Logger.WithError(err).Warn("competition_params: subscribe to invalidation channel failed, retrying",
 			logkit.Fields{"backoff_sec": d.Seconds()})
 	}
+
 	for {
 		select {
 		case <-stopCtx.Done():
 			return
 		default:
 		}
+
 		var ch <-chan string
+
 		op := func() error {
 			var err error
+
 			ch, err = uc.deps.PubSub.Subscribe(stopCtx, configsInvChannel)
+
 			return err
 		}
 		if err := backoff.RetryNotify(op, backoff.WithContext(bo, stopCtx), notify); err != nil {
 			return
 		}
+
 		bo.Reset()
+
 	readLoop:
 		for {
 			select {
@@ -157,20 +175,26 @@ func (uc *CompetitionParamUseCase) subscribeInvalidation(stopCtx context.Context
 				if !ok {
 					break readLoop
 				}
+
 				_ = msg
+
 				uc.invalidateLocal()
 			}
 		}
+
 		next := bo.NextBackOff()
 		if next == backoff.Stop {
 			return
 		}
+
 		uc.deps.Logger.Warn("competition_params: configs invalidation subscriber stopped, reconnecting",
 			logkit.Fields{"backoff_sec": next.Seconds()})
+
 		t := time.NewTimer(next)
 		select {
 		case <-stopCtx.Done():
 			t.Stop()
+
 			return
 		case <-t.C:
 		}
@@ -181,21 +205,27 @@ func (uc *CompetitionParamUseCase) loadFromRedis(ctx context.Context) error {
 	if uc.deps.Cache == nil {
 		return fmt.Errorf("no cache")
 	}
+
 	raw, err := uc.deps.Cache.Get(ctx, configsCacheKey)
 	if err != nil {
 		return err
 	}
+
 	var params []*domain.CompetitionParam
 	if err := json.Unmarshal([]byte(raw), &params); err != nil {
 		return err
 	}
+
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
+
 	uc.cache = make(map[string]*domain.CompetitionParam, len(params))
 	for _, p := range params {
 		uc.cache[p.Key] = p
 	}
+
 	uc.lastLoad = time.Now()
+
 	return nil
 }
 
@@ -204,13 +234,17 @@ func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - loadAll - CompetitionParamRepo.GetAll: %w", err)
 	}
+
 	uc.mu.Lock()
+
 	uc.cache = make(map[string]*domain.CompetitionParam, len(params))
 	for _, p := range params {
 		uc.cache[p.Key] = p
 	}
+
 	uc.lastLoad = time.Now()
 	uc.mu.Unlock()
+
 	if uc.deps.Cache != nil {
 		if b, err := json.Marshal(params); err == nil {
 			if setErr := uc.deps.Cache.Set(ctx, configsCacheKey, b, redisTTL); setErr != nil {
@@ -218,6 +252,7 @@ func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -226,16 +261,20 @@ func (uc *CompetitionParamUseCase) ensureLoaded(ctx context.Context) error {
 		uc.mu.RLock()
 		cacheValid := time.Since(uc.lastLoad) < localTTL
 		uc.mu.RUnlock()
+
 		if cacheValid {
 			return nil, nil
 		}
+
 		if uc.deps.Cache != nil {
 			if err := uc.loadFromRedis(ctx); err == nil {
 				return nil, nil
 			}
 		}
+
 		return nil, uc.loadAll(ctx)
 	})
+
 	return err
 }
 
@@ -244,14 +283,18 @@ func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*domain
 	if err := validateCompetitionParamKey(key); err != nil {
 		return nil, err
 	}
+
 	uc.mu.RLock()
+
 	cacheValid := time.Since(uc.lastLoad) < localTTL
 	if cacheValid {
 		if p, ok := uc.cache[key]; ok {
 			uc.mu.RUnlock()
+
 			return p, nil
 		}
 	}
+
 	uc.mu.RUnlock()
 
 	if !cacheValid {
@@ -262,48 +305,61 @@ func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*domain
 	}
 
 	uc.mu.RLock()
+
 	p, ok := uc.cache[key]
 	if !ok {
 		if exp, ok := uc.negativeCache[key]; ok && time.Now().Before(exp) {
 			uc.mu.RUnlock()
+
 			return nil, httperr.ErrCompetitionParamNotFound
 		}
 	}
+
 	uc.mu.RUnlock()
+
 	if ok {
 		return p, nil
 	}
 
 	sfKey := "competition_params:key:" + key
+
 	v, err, _ := uc.sf.Do(sfKey, func() (any, error) {
 		c, err := uc.deps.Repo.GetByKey(context.WithoutCancel(ctx), key)
 		if err != nil {
 			if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
 				if def, ok := domain.GetConfigDef(key); ok {
 					p := paramFromDef(def)
+
 					uc.mu.Lock()
 					uc.cache[key] = p
 					uc.mu.Unlock()
+
 					return p, nil
 				}
+
 				uc.mu.Lock()
 				uc.negativeCache[key] = time.Now().Add(negativeCacheTTL)
 				uc.mu.Unlock()
 			}
+
 			return nil, fmt.Errorf("CompetitionParamUseCase - Get - CompetitionParamRepo.GetByKey: %w", err)
 		}
+
 		uc.mu.Lock()
 		uc.cache[key] = c
 		uc.mu.Unlock()
+
 		return c, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionParamUseCase - Get - singleflight: %w", err)
 	}
+
 	c, ok := v.(*domain.CompetitionParam)
 	if !ok {
 		return nil, fmt.Errorf("CompetitionParamUseCase - Get: unexpected cache type for key %q", key)
 	}
+
 	return c, nil
 }
 
@@ -318,27 +374,34 @@ func (uc *CompetitionParamUseCase) GetAll(ctx context.Context) ([]*domain.Compet
 	uc.mu.RLock()
 	cacheValid := time.Since(uc.lastLoad) < localTTL
 	uc.mu.RUnlock()
+
 	if !cacheValid {
 		loadCtx := context.WithoutCancel(ctx)
 		if err := uc.ensureLoaded(loadCtx); err != nil {
 			return nil, fmt.Errorf("CompetitionParamUseCase - GetAll - ensureLoaded: %w", err)
 		}
 	}
+
 	uc.mu.RLock()
 	defer uc.mu.RUnlock()
+
 	merged := make(map[string]*domain.CompetitionParam, domain.ConfigRegistryCount()+len(uc.cache))
+
 	domain.RangeConfigRegistry(func(k string, def domain.ConfigDef) bool {
 		merged[k] = paramFromDef(def)
+
 		return true
 	})
-	for k, p := range uc.cache {
-		merged[k] = p
-	}
+
+	maps.Copy(merged, uc.cache)
+
 	list := make([]*domain.CompetitionParam, 0, len(merged))
 	for _, p := range merged {
 		list = append(list, p)
 	}
+
 	slices.SortFunc(list, func(a, b *domain.CompetitionParam) int { return strings.Compare(a.Key, b.Key) })
+
 	return list, nil
 }
 
@@ -346,25 +409,33 @@ func (uc *CompetitionParamUseCase) GetByCategory(ctx context.Context, category s
 	if err := validateCategory(category); err != nil {
 		return nil, err
 	}
+
 	merged := make(map[string]*domain.CompetitionParam)
+
 	domain.RangeConfigRegistry(func(k string, def domain.ConfigDef) bool {
 		if def.Category == category {
 			merged[k] = paramFromDef(def)
 		}
+
 		return true
 	})
+
 	dbParams, err := uc.deps.Repo.GetByCategory(ctx, category)
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionParamUseCase - GetByCategory - Repo.GetByCategory: %w", err)
 	}
+
 	for _, p := range dbParams {
 		merged[p.Key] = p
 	}
+
 	out := make([]*domain.CompetitionParam, 0, len(merged))
 	for _, p := range merged {
 		out = append(out, p)
 	}
+
 	slices.SortFunc(out, func(a, b *domain.CompetitionParam) int { return strings.Compare(a.Key, b.Key) })
+
 	return out, nil
 }
 
@@ -372,10 +443,12 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 	if len(params) == 0 {
 		return nil
 	}
+
 	toUpsert := make([]*domain.CompetitionParam, len(params))
 	for i, p := range params {
 		key := strings.TrimSpace(p.Key)
 		cat := "general"
+
 		vt := p.ValueType
 		if def, ok := domain.GetConfigDef(key); ok {
 			cat = def.Category
@@ -383,29 +456,36 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 		} else if p.Category != "" {
 			cat = p.Category
 		}
+
 		toUpsert[i] = &domain.CompetitionParam{
 			Key: key, Value: p.Value, ValueType: vt, Category: cat, Description: p.Description,
 		}
 	}
+
 	keys := make([]string, 0, len(toUpsert))
 	for _, p := range toUpsert {
 		if err := validateCompetitionParamKey(p.Key); err != nil {
 			return err
 		}
+
 		if err := uc.validateValueType(p.ValueType, p.Value); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - SetBatch - validateValueType key %q: %w", p.Key, err)
 		}
+
 		if err := validateCategory(p.Category); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - SetBatch - key %q: %w", p.Key, err)
 		}
+
 		keys = append(keys, p.Key)
 	}
+
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		for _, p := range toUpsert {
 			if err := uc.deps.Repo.Upsert(ctx, p); err != nil {
 				return fmt.Errorf("CompetitionParamUseCase - SetBatch - CompetitionParamRepo.Upsert key %q: %w", p.Key, err)
 			}
 		}
+
 		auditLog := &domain.AuditLog{
 			UserID:     &actorID,
 			Action:     domain.AuditActionUpdate,
@@ -420,11 +500,14 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 		if err := uc.deps.AuditLogRepo.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - SetBatch - AuditLogRepo.Create: %w", err)
 		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - SetBatch - TM.Run: %w", err)
 	}
+
 	uc.invalidate()
+
 	return nil
 }
 
@@ -432,12 +515,15 @@ func validateCompetitionParamKey(key string) error {
 	if key == "" {
 		return httperr.ErrCompetitionParamKeyRequired
 	}
+
 	if len(key) > competitionParamKeyMaxLen {
 		return httperr.NewValidationErrorf("config key must be at most %d characters", competitionParamKeyMaxLen)
 	}
+
 	if !competitionParamKeyRe.MatchString(key) {
 		return httperr.NewValidationErrorf("config key must contain only letters, digits, dots, underscores and hyphens")
 	}
+
 	return nil
 }
 
@@ -446,8 +532,10 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 	if err := validateCompetitionParamKey(key); err != nil {
 		return err
 	}
+
 	cat := "general"
 	vt := valueType
+
 	if def, ok := domain.GetConfigDef(key); ok {
 		cat = def.Category
 		vt = def.ValueType
@@ -455,11 +543,14 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 		if err := validateCategory(category); err != nil {
 			return err
 		}
+
 		cat = category
 	}
+
 	if err := uc.validateValueType(vt, value); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - validateValueType: %w", err)
 	}
+
 	p := &domain.CompetitionParam{
 		Key:         key,
 		Value:       value,
@@ -467,10 +558,12 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 		Category:    cat,
 		Description: description,
 	}
+
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.Repo.Upsert(ctx, p); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Set - CompetitionParamRepo.Upsert: %w", err)
 		}
+
 		auditLog := &domain.AuditLog{
 			UserID:     &actorID,
 			Action:     domain.AuditActionUpdate,
@@ -485,11 +578,14 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 		if err := uc.deps.AuditLogRepo.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Set - AuditLogRepo.Create: %w", err)
 		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - TM.Run: %w", err)
 	}
+
 	uc.invalidate()
+
 	return nil
 }
 
@@ -498,13 +594,16 @@ func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actor
 	if err := validateCompetitionParamKey(key); err != nil {
 		return err
 	}
+
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if _, err := uc.deps.Repo.GetByKeyForUpdate(ctx, key); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Delete - CompetitionParamRepo.GetByKeyForUpdate: %w", err)
 		}
+
 		if err := uc.deps.Repo.Delete(ctx, key); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Delete - CompetitionParamRepo.Delete: %w", err)
 		}
+
 		details := map[string]any{
 			"message": "competition param deleted",
 			"key":     key,
@@ -512,6 +611,7 @@ func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actor
 		if _, inRegistry := domain.GetConfigDef(key); inRegistry {
 			details["reset_to_default_from_registry"] = true
 		}
+
 		auditLog := &domain.AuditLog{
 			UserID:     &actorID,
 			Action:     domain.AuditActionDelete,
@@ -523,11 +623,14 @@ func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actor
 		if err := uc.deps.AuditLogRepo.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - Delete - AuditLogRepo.Create: %w", err)
 		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Delete - TM.Run: %w", err)
 	}
+
 	uc.invalidate()
+
 	return nil
 }
 
@@ -549,6 +652,7 @@ func (uc *CompetitionParamUseCase) validateValueType(valueType domain.Competitio
 	default:
 		return httperr.ErrCompetitionParamInvalidValueType
 	}
+
 	return nil
 }
 
@@ -558,12 +662,16 @@ func (uc *CompetitionParamUseCase) GetString(ctx context.Context, key, defaultVa
 		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
+
 		uc.deps.Logger.WithError(err).Warn("competition_params: GetString failed, returning default", logkit.Fields{"key": key})
+
 		return defaultVal
 	}
+
 	if p == nil {
 		return defaultVal
 	}
+
 	return p.Value
 }
 
@@ -573,16 +681,21 @@ func (uc *CompetitionParamUseCase) GetInt(ctx context.Context, key string, defau
 		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
+
 		uc.deps.Logger.WithError(err).Warn("competition_params: GetInt failed, returning default", logkit.Fields{"key": key})
+
 		return defaultVal
 	}
+
 	if p == nil {
 		return defaultVal
 	}
+
 	val, err := strconv.Atoi(p.Value)
 	if err != nil {
 		return defaultVal
 	}
+
 	return val
 }
 
@@ -592,11 +705,15 @@ func (uc *CompetitionParamUseCase) GetBool(ctx context.Context, key string, defa
 		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
+
 		uc.deps.Logger.WithError(err).Warn("competition_params: GetBool failed, returning default", logkit.Fields{"key": key})
+
 		return defaultVal
 	}
+
 	if p == nil {
 		return defaultVal
 	}
+
 	return p.Value == "true"
 }

@@ -59,9 +59,11 @@ func TestStatic_Debug(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("debug_test")
 	resp, err := h.Client().GetDebugWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
+
 	if resp.StatusCode() == http.StatusNotFound {
 		t.Skip("debug endpoint not enabled (DEBUG_ENABLED != true)")
 	}
+
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "debug")
 }
 

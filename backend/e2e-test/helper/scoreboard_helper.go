@@ -15,11 +15,13 @@ func (h *E2EHelper) TeamScoreMatches(token, teamName string, expectedPoints int)
 	if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return false
 	}
+
 	for _, entry := range *resp.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == teamName && entry.Points != nil && *entry.Points == expectedPoints {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -27,6 +29,7 @@ func (h *E2EHelper) GetScoreboard(token string) *openapi.GetScoreboardResponse {
 	h.t.Helper()
 	resp, err := h.client.GetScoreboardWithResponse(context.Background(), &openapi.GetScoreboardParams{}, WithBearerToken(token))
 	require.NoError(h.t, err)
+
 	return resp
 }
 
@@ -35,13 +38,16 @@ func (h *E2EHelper) AssertTeamScore(token, teamName string, expectedPoints int) 
 	resp := h.GetScoreboard(token)
 	RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard")
 	require.NotNil(h.t, resp.JSON200)
+
 	for _, entry := range *resp.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == teamName {
 			require.NotNil(h.t, entry.Points, "team %s has nil points", teamName)
 			require.Equal(h.t, expectedPoints, *entry.Points, "team %s points", teamName)
+
 			return
 		}
 	}
+
 	h.t.Fatalf("Team %s not found in scoreboard", teamName)
 }
 
@@ -50,34 +56,44 @@ func (h *E2EHelper) AssertTeamScoreAtLeast(token, teamName string, minPoints int
 	resp := h.GetScoreboard(token)
 	RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard")
 	require.NotNil(h.t, resp.JSON200)
+
 	for _, entry := range *resp.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == teamName {
 			require.NotNil(h.t, entry.Points, "team %s has nil points", teamName)
 			require.GreaterOrEqual(h.t, *entry.Points, minPoints, "team %s points", teamName)
+
 			return
 		}
 	}
+
 	h.t.Fatalf("Team %s not found in scoreboard", teamName)
 }
 
 func (h *E2EHelper) GetScoreboardWithBracket(token, bracketID string) *openapi.GetScoreboardResponse {
 	h.t.Helper()
+
 	bid, err := uuid.Parse(bracketID)
 	require.NoError(h.t, err)
+
 	params := &openapi.GetScoreboardParams{Bracket: &bid}
 	resp, err := h.client.GetScoreboardWithResponse(context.Background(), params, WithBearerToken(token))
 	require.NoError(h.t, err)
+
 	return resp
 }
 
 func (h *E2EHelper) GetScoreboardGraph(token string, top int) *openapi.GetScoreboardGraphResponse {
 	h.t.Helper()
+
 	params := (*openapi.GetScoreboardGraphParams)(nil)
+
 	if top > 0 {
 		params = &openapi.GetScoreboardGraphParams{Top: &top}
 	}
+
 	resp, err := h.client.GetScoreboardGraphWithResponse(context.Background(), params, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard graph")
+
 	return resp
 }

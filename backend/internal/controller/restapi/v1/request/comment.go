@@ -11,6 +11,7 @@ type createCommentConstraints struct {
 
 func ValidateCreateCommentRequest(req *openapi.CreateCommentRequest, v validator.Validator) error {
 	c := createCommentConstraints{Content: req.Content}
+
 	return ValidateConstraints(v, &c)
 }
 

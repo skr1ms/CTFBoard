@@ -15,8 +15,10 @@ func fieldString(f reflect.Value) string {
 		if f.IsNil() {
 			return ""
 		}
+
 		f = f.Elem()
 	}
+
 	return f.String()
 }
 
@@ -57,7 +59,8 @@ func New() (*CustomValidator, error) {
 	}
 
 	for name, fn := range validations {
-		if err := v.RegisterValidation(name, fn); err != nil {
+		err := v.RegisterValidation(name, fn)
+		if err != nil {
 			return nil, fmt.Errorf("register validation %s: %w", name, err)
 		}
 	}
@@ -84,10 +87,13 @@ func ValidatePassword(password string) bool {
 	if len(password) < 6 || len(password) > 72 {
 		return false
 	}
+
 	if !passwordRegex.MatchString(password) {
 		return false
 	}
+
 	var hasLower, hasUpper, hasDigit bool
+
 	for _, c := range password {
 		switch {
 		case c >= 'a' && c <= 'z':
@@ -98,6 +104,7 @@ func ValidatePassword(password string) bool {
 			hasDigit = true
 		}
 	}
+
 	return hasLower && hasUpper && hasDigit
 }
 
@@ -118,6 +125,7 @@ func ValidateUsername(username string) bool {
 	if username == "" || len(username) > maxUsernameLen {
 		return false
 	}
+
 	return usernameRegex.MatchString(username)
 }
 
@@ -133,6 +141,7 @@ func ValidateEmail(email string) bool {
 	if email == "" || len(email) > maxEmailLen {
 		return false
 	}
+
 	return EmailRegex.MatchString(email)
 }
 
@@ -148,6 +157,7 @@ func ValidateTeamName(name string) bool {
 	if len(name) == 0 || len(name) > 50 {
 		return false
 	}
+
 	return teamNameRegex.MatchString(name)
 }
 
@@ -179,6 +189,7 @@ func ValidateChallengeCategory(category string) bool {
 	if len(category) == 0 || len(category) > 50 {
 		return false
 	}
+
 	return categoryRegex.MatchString(category)
 }
 
@@ -208,5 +219,42 @@ func validatePageSlug(fl validator.FieldLevel) bool {
 
 func validateHexColor(fl validator.FieldLevel) bool {
 	s := fieldString(fl.Field())
+
 	return s == "" || hexColorRe.MatchString(s)
+}
+
+const (
+	MaxCustomFieldKeyLen   = 50
+	MaxCustomFieldValueLen = 500
+)
+
+var AllowedCustomFields = map[string]bool{
+	"affiliation": true,
+	"country":     true,
+	"discord":     true,
+	"telegram":    true,
+	"twitter":     true,
+	"github":      true,
+}
+
+func ValidateCustomFields(fields map[string]string) error {
+	if fields == nil {
+		return nil
+	}
+
+	for k, v := range fields {
+		if !AllowedCustomFields[k] {
+			return fmt.Errorf("invalid custom field: %s", k)
+		}
+
+		if len(k) > MaxCustomFieldKeyLen {
+			return fmt.Errorf("custom field key too long: %s", k)
+		}
+
+		if len(v) > MaxCustomFieldValueLen {
+			return fmt.Errorf("custom field value too long for %s", k)
+		}
+	}
+
+	return nil
 }

@@ -41,15 +41,19 @@ func TestDynamicScoring_Flow(t *testing.T) {
 	scoreboard := h.GetScoreboard(user1)
 	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard dynamic")
 	require.NotNil(t, scoreboard.JSON200)
+
 	var user2Points int
+
 	for _, entry := range *scoreboard.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == "user_dyn_2" {
 			if entry.Points != nil {
 				user2Points = *entry.Points
 			}
+
 			break
 		}
 	}
+
 	require.Equal(t, 100, user2Points, "Dynamic scoring: user2 should get 100 points")
 }
 

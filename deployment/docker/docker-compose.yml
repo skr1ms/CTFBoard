@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: postgres
     command: ["postgres", "-c", "max_connections=400", "-c", "shared_buffers=256MB", "-c", "work_mem=4MB", "-c", "effective_cache_size=1GB"]
     environment:
@@ -27,7 +27,7 @@ services:
     expose:
       - "5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-board}"]
       interval: 10s
@@ -287,13 +287,12 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ../../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../../monitoring/grafana/dashboards/root:/var/lib/grafana/dashboards_root:ro
+      - ../../monitoring/grafana/dashboards/system:/var/lib/grafana/dashboards/system:ro
       - ../../monitoring/grafana/dashboards/backend:/var/lib/grafana/dashboards/backend:ro
       - ../../monitoring/grafana/dashboards/postgres:/var/lib/grafana/dashboards/postgres:ro
       - ../../monitoring/grafana/dashboards/redis:/var/lib/grafana/dashboards/redis:ro
       - ../../monitoring/grafana/dashboards/vault:/var/lib/grafana/dashboards/vault:ro
       - ../../monitoring/grafana/dashboards/seaweedfs:/var/lib/grafana/dashboards/seaweedfs:ro
-      - ../../monitoring/grafana/dashboards/ui:/var/lib/grafana/dashboards/ui:ro
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -356,6 +355,37 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - "9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - astroctfb_network
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginx-exporter
+    command:
+      - "-nginx.scrape-uri=http://host.docker.internal:8080/stub_status"
+    expose:
+      - "9113"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - astroctfb_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

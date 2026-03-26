@@ -23,6 +23,7 @@ type awardTestDeps struct {
 
 func newAwardTestDeps(t *testing.T) *awardTestDeps {
 	t.Helper()
+
 	return &awardTestDeps{
 		repo:    teamMock.NewMockAwardRepository(t),
 		tm:      teamMock.NewMockTransactionManager(t),
@@ -43,6 +44,7 @@ func newTestAward(teamID uuid.UUID, value int, createdAt time.Time) *domain.Awar
 
 func TestAwardUseCase_Create(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
@@ -88,6 +90,7 @@ func TestAwardUseCase_Create(t *testing.T) {
 
 func TestAwardUseCase_GetByTeamID(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
@@ -104,7 +107,7 @@ func TestAwardUseCase_GetByTeamID(t *testing.T) {
 		awards, err := d.createUseCase().GetByTeamID(ctx, teamID)
 
 		assert.NoError(t, err)
-		assert.Equal(t, len(expectedAwards), len(awards))
+		assert.Len(t, awards, len(expectedAwards))
 		assert.Equal(t, expectedAwards[0].ID, awards[0].ID)
 	})
 

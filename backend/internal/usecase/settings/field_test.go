@@ -19,6 +19,7 @@ type fieldTestDeps struct {
 
 func newFieldTestDeps(t *testing.T) *fieldTestDeps {
 	t.Helper()
+
 	return &fieldTestDeps{fieldRepo: settingsMock.NewMockFieldRepository(t)}
 }
 

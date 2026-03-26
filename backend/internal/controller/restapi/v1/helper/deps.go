@@ -35,6 +35,7 @@ type UserDeps struct {
 	APITokenUC    usecase.APITokenUseCase
 	TrackingUC    usecase.TrackingUseCase
 	OAuthUC       usecase.OAuthUseCase
+	AvatarUC      usecase.AvatarUseCase
 	FrontendURL   string
 	SecureCookies bool
 }

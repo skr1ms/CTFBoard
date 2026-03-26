@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +12,26 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
+
+var (
+	itestCryptoOnce sync.Once
+	itestCrypto     crypto.Service
+)
+
+func itestCryptoService() crypto.Service {
+	itestCryptoOnce.Do(func() {
+		svc, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
+		if err != nil {
+			panic(err)
+		}
+
+		itestCrypto = svc
+	})
+
+	return itestCrypto
+}
 
 type TestFixture struct {
 	Pool                  *pgxpool.Pool
@@ -44,6 +64,7 @@ type TestFixture struct {
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 	tm := persistent.NewTransactionManager(Pool)
+
 	return &TestFixture{
 		Pool:                  Pool,
 		UserRepo:              persistent.NewUserRepo(Pool),
@@ -70,7 +91,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		PageRepo:              persistent.NewPageRepo(Pool),
 		SubmissionRepo:        persistent.NewSubmissionRepo(Pool),
 		APITokenRepo:          persistent.NewAPITokenRepo(Pool),
-		OAuthRepo:             persistent.NewOAuthRepo(Pool),
+		OAuthRepo:             persistent.NewOAuthRepo(Pool, itestCryptoService()),
 	}
 }
 
@@ -81,6 +102,7 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *domain.User {
 	if len(unique) > 39 {
 		unique = unique[:39]
 	}
+
 	ctx := context.Background()
 	user := &domain.User{
 		Username:     "user_" + unique,
@@ -92,12 +114,15 @@ func (f *TestFixture) CreateUser(t *testing.T, suffix string) *domain.User {
 
 	gotUser, err := f.UserRepo.GetByEmail(ctx, user.Email)
 	require.NoError(t, err)
+
 	user.ID = gotUser.ID
+
 	return user
 }
 
 func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUID) *domain.Team {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	team := &domain.Team{
@@ -109,6 +134,7 @@ func (f *TestFixture) CreateTeam(t *testing.T, suffix string, captainID uuid.UUI
 		return f.TeamRepo.Create(ctx, team)
 	})
 	require.NoError(t, err)
+
 	return team
 }
 
@@ -118,12 +144,15 @@ func (f *TestFixture) CreateUserWithTeam(t *testing.T, suffix string) (*domain.U
 	team := f.CreateTeam(t, suffix, user.ID)
 	err := f.UserRepo.UpdateTeamID(context.Background(), user.ID, &team.ID)
 	require.NoError(t, err)
+
 	user.TeamID = &team.ID
+
 	return user, team
 }
 
 func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *domain.Challenge {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	challenge := &domain.Challenge{
@@ -142,11 +171,13 @@ func (f *TestFixture) CreateChallenge(t *testing.T, suffix string, points int) *
 		return f.ChallengeRepo.Create(ctx, challenge)
 	})
 	require.NoError(t, err)
+
 	return challenge
 }
 
 func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initial, minValue, decay int) *domain.Challenge {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	challenge := &domain.Challenge{
@@ -165,11 +196,13 @@ func (f *TestFixture) CreateDynamicChallenge(t *testing.T, suffix string, initia
 		return f.ChallengeRepo.Create(ctx, challenge)
 	})
 	require.NoError(t, err)
+
 	return challenge
 }
 
 func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, order int) *domain.Hint {
 	t.Helper()
+
 	ctx := context.Background()
 	hint := &domain.Hint{
 		ChallengeID: challengeID,
@@ -179,14 +212,17 @@ func (f *TestFixture) CreateHint(t *testing.T, challengeID uuid.UUID, cost, orde
 	}
 	err := f.HintRepo.Create(ctx, hint)
 	require.NoError(t, err)
+
 	return hint
 }
 
 func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid.UUID) *domain.Solve {
 	t.Helper()
+
 	ctx := context.Background()
 	challenge, err := f.ChallengeRepo.GetByID(ctx, challengeID)
 	require.NoError(t, err)
+
 	solve := &domain.Solve{
 		UserID:        userID,
 		TeamID:        teamID,
@@ -200,13 +236,16 @@ func (f *TestFixture) CreateSolve(t *testing.T, userID, teamID, challengeID uuid
 
 	gotSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, teamID, challengeID)
 	require.NoError(t, err)
+
 	solve.ID = gotSolve.ID
 	solve.SolvedAt = gotSolve.SolvedAt
+
 	return solve
 }
 
 func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uuid.UUID, value int, desc string) *domain.Award {
 	t.Helper()
+
 	award := &domain.Award{
 		TeamID:      teamID,
 		Value:       value,
@@ -214,12 +253,14 @@ func (f *TestFixture) CreateAwardTx(t *testing.T, ctx context.Context, teamID uu
 	}
 	err := f.AwardRepo.Create(ctx, award)
 	require.NoError(t, err)
+
 	return award
 }
 
 // CreateAward creates an award inside a transaction (production path). Use in tests.
 func (f *TestFixture) CreateAward(t *testing.T, teamID uuid.UUID, value int, desc string, createdBy *uuid.UUID) *domain.Award {
 	t.Helper()
+
 	ctx := context.Background()
 	award := &domain.Award{
 		TeamID:      teamID,
@@ -231,11 +272,13 @@ func (f *TestFixture) CreateAward(t *testing.T, teamID uuid.UUID, value int, des
 		return f.AwardRepo.Create(ctx, award)
 	})
 	require.NoError(t, err)
+
 	return award
 }
 
 func (f *TestFixture) AddUserToTeam(t *testing.T, userID, teamID uuid.UUID) {
 	t.Helper()
+
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", teamID, userID)
 	require.NoError(t, err)
@@ -243,6 +286,7 @@ func (f *TestFixture) AddUserToTeam(t *testing.T, userID, teamID uuid.UUID) {
 
 func (f *TestFixture) BackdateTeamDeletedAt(t *testing.T, teamID uuid.UUID, deletedAt time.Time) {
 	t.Helper()
+
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, "UPDATE teams SET deleted_at = $1 WHERE id = $2", deletedAt, teamID)
 	require.NoError(t, err)
@@ -250,8 +294,10 @@ func (f *TestFixture) BackdateTeamDeletedAt(t *testing.T, teamID uuid.UUID, dele
 
 func (f *TestFixture) NewMinimalBackupData(t *testing.T) *domain.BackupData {
 	t.Helper()
+
 	comp, err := f.CompetitionRepo.Get(context.Background())
 	require.NoError(t, err)
+
 	return &domain.BackupData{
 		Version:     domain.BackupVersion,
 		ExportedAt:  time.Now().UTC(),
@@ -267,14 +313,17 @@ func (f *TestFixture) NewMinimalBackupData(t *testing.T) *domain.BackupData {
 
 func (f *TestFixture) GetDefaultAppSettings(t *testing.T) *domain.Settings {
 	t.Helper()
+
 	ctx := context.Background()
 	settings, err := f.SettingsRepo.Get(ctx)
 	require.NoError(t, err)
+
 	return settings
 }
 
 func (f *TestFixture) CreateTag(t *testing.T, suffix string) *domain.Tag {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	tag := &domain.Tag{
@@ -285,12 +334,15 @@ func (f *TestFixture) CreateTag(t *testing.T, suffix string) *domain.Tag {
 	require.NoError(t, err)
 	gotTag, err := f.TagRepo.GetByName(ctx, tag.Name)
 	require.NoError(t, err)
+
 	tag.ID = gotTag.ID
+
 	return tag
 }
 
 func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID, content string) *domain.Comment {
 	t.Helper()
+
 	ctx := context.Background()
 	comment := &domain.Comment{
 		UserID:      userID,
@@ -299,11 +351,13 @@ func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID,
 	}
 	err := f.CommentRepo.Create(ctx, comment)
 	require.NoError(t, err)
+
 	return comment
 }
 
 func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *domain.Bracket {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	bracket := &domain.Bracket{
@@ -315,12 +369,15 @@ func (f *TestFixture) CreateBracket(t *testing.T, suffix string) *domain.Bracket
 	require.NoError(t, err)
 	got, err := f.BracketRepo.GetByName(ctx, bracket.Name)
 	require.NoError(t, err)
+
 	bracket.ID = got.ID
+
 	return bracket
 }
 
 func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *domain.Page {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	page := &domain.Page{
@@ -334,12 +391,15 @@ func (f *TestFixture) CreatePage(t *testing.T, suffix string, isDraft bool) *dom
 	require.NoError(t, err)
 	got, err := f.PageRepo.GetBySlug(ctx, page.Slug)
 	require.NoError(t, err)
+
 	page.ID = got.ID
+
 	return page
 }
 
 func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *domain.Notification {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	notif := &domain.Notification{
@@ -351,11 +411,13 @@ func (f *TestFixture) CreateNotification(t *testing.T, suffix string) *domain.No
 	}
 	err := f.NotificationRepo.Create(ctx, notif)
 	require.NoError(t, err)
+
 	return notif
 }
 
 func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, tokenType domain.TokenType) *domain.VerificationToken {
 	t.Helper()
+
 	ctx := context.Background()
 	tok := &domain.VerificationToken{
 		UserID:    userID,
@@ -365,11 +427,13 @@ func (f *TestFixture) CreateVerificationToken(t *testing.T, userID uuid.UUID, to
 	}
 	err := f.VerificationTokenRepo.Create(ctx, tok)
 	require.NoError(t, err)
+
 	return tok
 }
 
 func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType domain.EntityType) *domain.Field {
 	t.Helper()
+
 	unique := suffix + "_" + uuid.NewString()[:8]
 	ctx := context.Background()
 	field := &domain.Field{
@@ -381,11 +445,13 @@ func (f *TestFixture) CreateField(t *testing.T, suffix string, entityType domain
 	}
 	err := f.FieldRepo.Create(ctx, field)
 	require.NoError(t, err)
+
 	return field
 }
 
 func (f *TestFixture) ResetAppSettings(t *testing.T) {
 	t.Helper()
+
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, `
 		UPDATE app_settings SET 

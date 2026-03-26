@@ -1,21 +1,39 @@
 package request
 
-import "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
+)
 
 func BanUserRequestToParams(req *openapi.BanUserRequest) string {
 	return req.Reason
 }
 
-func AdminCreateUserRequestToParams(req *openapi.AdminCreateUserRequest) (username, email, password, role string) {
+func AdminCreateUserRequestToParams(req *openapi.AdminCreateUserRequest) (username, email, password, role string, err error) {
 	role = ""
+
 	if req.Role != nil {
-		role = *req.Role
+		r := *req.Role
+		if r != "user" && r != "admin" {
+			return "", "", "", "", httperr.NewValidationErrorf("role must be 'user' or 'admin'")
+		}
+
+		role = r
 	}
-	return req.Username, req.Email, req.Password, role
+
+	return req.Username, req.Email, req.Password, role, nil
 }
 
-func AdminUpdateUserRequestToParams(req *openapi.AdminUpdateUserRequest) (username, email, role, password *string, isVerified *bool) {
-	return req.Username, req.Email, req.Role, req.Password, req.IsVerified
+func AdminUpdateUserRequestToParams(req *openapi.AdminUpdateUserRequest) (username, email, role, password *string, isVerified *bool, err error) {
+	if req.Role != nil {
+		r := *req.Role
+		if r != "user" && r != "admin" {
+			return nil, nil, nil, nil, nil, httperr.NewValidationErrorf("role must be 'user' or 'admin'")
+		}
+	}
+
+	return req.Username, req.Email, req.Role, req.Password, req.IsVerified, nil
 }
 
 func UpdateProfileRequestToParams(req *openapi.UpdateProfileRequest) (username, email, currentPassword, newPassword *string) {
@@ -26,21 +44,30 @@ func LoginRequestToParams(req *openapi.LoginRequest) (email, password string) {
 	if req.Email != nil {
 		email = *req.Email
 	}
+
 	return email, req.Password
 }
 
-func RegisterRequestToParams(req *openapi.RegisterRequest) (username, email, password string, customFields map[string]string) {
+func RegisterRequestToParams(req *openapi.RegisterRequest) (username, email, password string, customFields map[string]string, err error) {
 	if req.Username != nil {
 		username = *req.Username
 	}
+
 	if req.Email != nil {
 		email = *req.Email
 	}
+
 	if req.Password != nil {
 		password = *req.Password
 	}
+
 	if req.CustomFields != nil {
+		if err := validator.ValidateCustomFields(*req.CustomFields); err != nil {
+			return "", "", "", nil, httperr.NewValidationErrorf("custom fields validation failed: %s", err.Error())
+		}
+
 		customFields = *req.CustomFields
 	}
-	return username, email, password, customFields
+
+	return username, email, password, customFields, nil
 }

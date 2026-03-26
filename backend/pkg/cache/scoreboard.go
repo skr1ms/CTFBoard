@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
 	"github.com/wahrwelt-kit/go-cachekit"
 )
 
@@ -34,6 +33,7 @@ func (s *UserCacheService) InvalidateUser(ctx context.Context, userID uuid.UUID)
 	if s == nil || s.cache == nil {
 		return
 	}
+
 	_ = s.cache.Del(ctx, KeyUser(userID.String())) //nolint:errcheck // best-effort invalidation
 }
 
@@ -68,9 +68,11 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 	if s == nil {
 		return
 	}
+
 	if s.localClear != nil {
 		s.localClear()
 	}
+
 	if s.cache != nil {
 		_ = s.cache.Del(ctx, KeyScoreboard, KeyScoreboardFrozen)    //nolint:errcheck // best-effort invalidation
 		_ = s.cache.DeleteByPrefix(ctx, KeyScoreboardFrozenPrefix)  //nolint:errcheck // best-effort invalidation
@@ -82,6 +84,7 @@ func (s *ScoreboardCacheService) InvalidateForTeam(ctx context.Context, _ uuid.U
 	if s == nil || s.cache == nil {
 		return
 	}
+
 	s.InvalidateAll(ctx)
 }
 
@@ -89,18 +92,23 @@ func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID 
 	if s == nil || s.cache == nil {
 		return
 	}
+
 	liveKeys := []string{KeyScoreboard}
+
 	if s.getter != nil {
 		if bracketID, err := s.getter.GetTeamBracketID(ctx, teamID); err == nil && bracketID != nil {
 			liveKeys = append(liveKeys, KeyScoreboardBracket(bracketID.String()))
 		}
 	}
+
 	if s.localClearLiveOnly != nil {
 		s.localClearLiveOnly(liveKeys)
 	} else if s.localClear != nil {
 		s.localClear()
 	}
-	if err := s.cache.Del(ctx, liveKeys...); err != nil {
+
+	err := s.cache.Del(ctx, liveKeys...)
+	if err != nil {
 		return
 	}
 }

@@ -115,6 +115,7 @@ func TestHint_Delete_Success(t *testing.T) {
 	resp, err := h.Client().GetChallengesChallengeIDHintsWithResponse(context.Background(), challengeID, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	require.NotNil(t, resp.JSON200)
+
 	for _, c := range *resp.JSON200 {
 		if c.ID != nil && *c.ID == hintID {
 			t.Fatal("hint should be gone after delete")

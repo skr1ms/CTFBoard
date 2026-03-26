@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -15,7 +14,7 @@ import (
 )
 
 // Create team
-// (POST /teams)
+// (POST /teams).
 func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -35,22 +34,28 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 		if h.OnError(w, r, err, "PostTeams", "ConfirmCreate") {
 			return
 		}
+
 		httputil.RenderCreated(w, r, response.FromTeam(team))
+
 		return
 	}
+
 	result, err := h.team.TeamUC.TryCreate(r.Context(), name, user.ID, false)
 	if h.OnError(w, r, err, "PostTeams", "TryCreate") {
 		return
 	}
+
 	if result.RequiresConfirm {
 		httputil.RenderOK(w, r, response.FromConfirmationRequired(string(result.ConfirmationReason), response.FromAffectedData(result.AffectedData)))
+
 		return
 	}
+
 	httputil.RenderCreated(w, r, response.FromTeam(result.Team))
 }
 
 // Join team
-// (POST /teams/join)
+// (POST /teams/join).
 func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -65,6 +70,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inviteToken, confirmReset := request.JoinTeamRequestToParams(&req)
+
 	inviteTokenID, ok := httputil.ParseUUID(w, r, inviteToken)
 	if !ok {
 		return
@@ -79,7 +85,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 }
 
 // Leave team
-// (POST /teams/leave)
+// (POST /teams/leave).
 func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -94,7 +100,7 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 }
 
 // Disband team
-// (DELETE /teams/me)
+// (DELETE /teams/me).
 func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -109,7 +115,7 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // Kick member
-// (DELETE /teams/members/{ID})
+// (DELETE /teams/members/{ID}).
 func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID string) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -129,7 +135,7 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 }
 
 // Get my team
-// (GET /teams/my)
+// (GET /teams/my).
 func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -140,15 +146,17 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetTeamsMy", "GetMyTeam") {
 		return
 	}
+
 	resp := response.FromTeamWithMembers(team, members, minTeamSize, meetsMinSize)
 	if team.IsBanned {
 		resp.InviteToken = nil
 	}
+
 	httputil.RenderOK(w, r, resp)
 }
 
 // Create solo team
-// (POST /teams/solo)
+// (POST /teams/solo).
 func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -163,6 +171,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	confirmReset := request.CreateSoloTeamRequestToParams(&req)
+
 	team, err := h.team.TeamUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
 	if h.OnError(w, r, err, "PostTeamsSolo", "CreateSoloTeam") {
 		return
@@ -172,7 +181,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 }
 
 // Transfer captainship
-// (POST /teams/transfer-captain)
+// (POST /teams/transfer-captain).
 func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -185,9 +194,11 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
+
 	if err := request.ValidateTransferCaptainRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostTeamsTransferCaptain", "Validate") {
 		return
 	}
+
 	newCaptainID, err := request.TransferCaptainRequestToParams(&req)
 	if h.OnError(w, r, err, "PostTeamsTransferCaptain", "RequestConversion") {
 		return
@@ -201,7 +212,7 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 }
 
 // Get team by ID
-// (GET /teams/{ID})
+// (GET /teams/{ID}).
 func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -220,6 +231,7 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 
 	if (team.IsBanned || team.IsHidden) && user.Role != domain.RoleAdmin {
 		h.OnError(w, r, httperr.ErrTeamNotFound, "GetTeamsID", "team banned or hidden")
+
 		return
 	}
 
@@ -227,7 +239,7 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 }
 
 // Ban team
-// (POST /admin/teams/{ID}/ban)
+// (POST /admin/teams/{ID}/ban).
 func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -255,7 +267,7 @@ func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID 
 }
 
 // Unban team
-// (DELETE /admin/teams/{ID}/ban)
+// (DELETE /admin/teams/{ID}/ban).
 func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -266,6 +278,7 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 	if !ok {
 		return
 	}
+
 	if h.OnError(w, r, h.team.TeamUC.UnbanTeam(r.Context(), teamIDParsed, user.ID), "DeleteAdminTeamsIDBan", "UnbanTeam") {
 		return
 	}
@@ -274,7 +287,7 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 }
 
 // Set team hidden status
-// (PATCH /admin/teams/{ID}/hidden)
+// (PATCH /admin/teams/{ID}/hidden).
 func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -292,6 +305,7 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 	if h.OnError(w, r, err, "PatchAdminTeamsIDHidden", "SetHiddenRequestToParams") {
 		return
 	}
+
 	if h.OnError(w, r, h.team.TeamUC.SetHidden(r.Context(), teamIDParsed, *hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
 		return
 	}
@@ -300,16 +314,19 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 }
 
 // List teams with search and pagination
-// (GET /teams)
+// (GET /teams).
 func (h *Server) GetTeams(w http.ResponseWriter, r *http.Request, params openapi.GetTeamsParams) {
 	q := ""
+
 	if params.Q != nil && *params.Q != "" {
 		var ok bool
+
 		q, ok = helper.ParseSearchQuery(w, r, params.Q, maxSearchQueryLen, h.OnError, "GetTeams", "Q")
 		if !ok {
 			return
 		}
 	}
+
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
 	result, err := h.team.TeamUC.ListTeams(r.Context(), &q, page, perPage)
@@ -321,14 +338,16 @@ func (h *Server) GetTeams(w http.ResponseWriter, r *http.Request, params openapi
 }
 
 // Get my team's solves
-// (GET /teams/me/solves)
+// (GET /teams/me/solves).
 func (h *Server) GetTeamsMeSolves(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
+
 	if user.TeamID == nil {
 		h.OnError(w, r, httperr.ErrUserNotInTeam, "GetTeamsMeSolves", "TeamIDNil")
+
 		return
 	}
 
@@ -341,7 +360,7 @@ func (h *Server) GetTeamsMeSolves(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get team's solves by team ID
-// (GET /teams/{ID}/solves)
+// (GET /teams/{ID}/solves).
 func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -352,9 +371,11 @@ func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID str
 	if !ok {
 		return
 	}
+
 	isOwnTeam := user.TeamID != nil && *user.TeamID == teamIDParsed
 	if !isOwnTeam && user.Role != domain.RoleAdmin {
 		h.OnError(w, r, httperr.ErrAccessDenied, "GetTeamsIDSolves", "AccessCheck")
+
 		return
 	}
 
@@ -367,14 +388,16 @@ func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID str
 }
 
 // Get my team's failed submissions
-// (GET /teams/me/fails)
+// (GET /teams/me/fails).
 func (h *Server) GetTeamsMeFails(w http.ResponseWriter, r *http.Request, params openapi.GetTeamsMeFailsParams) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
+
 	if user.TeamID == nil {
 		h.OnError(w, r, httperr.ErrUserNotInTeam, "GetTeamsMeFails", "TeamIDNil")
+
 		return
 	}
 
@@ -389,7 +412,7 @@ func (h *Server) GetTeamsMeFails(w http.ResponseWriter, r *http.Request, params 
 }
 
 // Get team's failed submissions by team ID
-// (GET /teams/{ID}/fails)
+// (GET /teams/{ID}/fails).
 func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetTeamsIDFailsParams) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -400,9 +423,11 @@ func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID stri
 	if !ok {
 		return
 	}
+
 	isOwnTeam := user.TeamID != nil && *user.TeamID == teamIDParsed
 	if !isOwnTeam && user.Role != domain.RoleAdmin {
 		h.OnError(w, r, httperr.ErrAccessDenied, "GetTeamsIDFails", "AccessCheck")
+
 		return
 	}
 
@@ -417,14 +442,16 @@ func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID stri
 }
 
 // Get my team's awards
-// (GET /teams/me/awards)
+// (GET /teams/me/awards).
 func (h *Server) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
+
 	if user.TeamID == nil {
 		h.OnError(w, r, httperr.ErrUserNotInTeam, "GetTeamsMeAwards", "TeamIDNil")
+
 		return
 	}
 
@@ -437,7 +464,7 @@ func (h *Server) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get team's awards by team ID
-// (GET /teams/{ID}/awards)
+// (GET /teams/{ID}/awards).
 func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -448,9 +475,11 @@ func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID str
 	if !ok {
 		return
 	}
+
 	isOwnTeam := user.TeamID != nil && *user.TeamID == teamIDParsed
 	if !isOwnTeam && user.Role != domain.RoleAdmin {
 		h.OnError(w, r, httperr.ErrAccessDenied, "GetTeamsIDAwards", "AccessCheck")
+
 		return
 	}
 
@@ -463,18 +492,21 @@ func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID str
 }
 
 // List teams (admin) with search and pagination
-// (GET /admin/teams)
+// (GET /admin/teams).
 func (h *Server) GetAdminTeams(w http.ResponseWriter, r *http.Request, params openapi.GetAdminTeamsParams) {
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
 	var searchQ *string
+
 	if params.Q != nil && *params.Q != "" {
 		s, ok := helper.ParseSearchQuery(w, r, params.Q, maxSearchQueryLen, h.OnError, "GetAdminTeams", "Q")
 		if !ok {
 			return
 		}
+
 		searchQ = &s
 	}
+
 	result, err := h.team.TeamUC.AdminListTeams(r.Context(), searchQ, page, perPage)
 	if h.OnError(w, r, err, "GetAdminTeams", "AdminListTeams") {
 		return
@@ -484,7 +516,7 @@ func (h *Server) GetAdminTeams(w http.ResponseWriter, r *http.Request, params op
 }
 
 // Update team (admin)
-// (PATCH /admin/teams/{ID})
+// (PATCH /admin/teams/{ID}).
 func (h *Server) PatchAdminTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -513,11 +545,11 @@ func (h *Server) PatchAdminTeamsID(w http.ResponseWriter, r *http.Request, ID st
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromAdminTeam(team, lo.ToPtr(len(members))))
+	httputil.RenderOK(w, r, response.FromAdminTeam(team, new(len(members))))
 }
 
 // Delete team (admin)
-// (DELETE /admin/teams/{ID})
+// (DELETE /admin/teams/{ID}).
 func (h *Server) DeleteAdminTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -532,7 +564,7 @@ func (h *Server) DeleteAdminTeamsID(w http.ResponseWriter, r *http.Request, ID s
 }
 
 // Get team members (admin)
-// (GET /admin/teams/{ID}/members)
+// (GET /admin/teams/{ID}/members).
 func (h *Server) GetAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -548,21 +580,23 @@ func (h *Server) GetAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request, 
 }
 
 // Get team missing challenges (admin)
-// (GET /admin/teams/{ID}/missing-challenges)
+// (GET /admin/teams/{ID}/missing-challenges).
 func (h *Server) GetAdminTeamsIDMissingChallenges(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
 		return
 	}
+
 	challenges, err := h.challenge.ChallengeUC.GetMissingChallengesByTeamID(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetAdminTeamsIDMissingChallenges", "GetMissingChallengesByTeamID") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromChallenges(challenges))
 }
 
 // Add team member (admin)
-// (POST /admin/teams/{ID}/members)
+// (POST /admin/teams/{ID}/members).
 func (h *Server) PostAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -589,7 +623,7 @@ func (h *Server) PostAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request,
 }
 
 // Remove team member (admin)
-// (DELETE /admin/teams/{ID}/members/{userID})
+// (DELETE /admin/teams/{ID}/members/{userID}).
 func (h *Server) DeleteAdminTeamsIDMembersUserID(w http.ResponseWriter, r *http.Request, ID, userID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
@@ -609,7 +643,7 @@ func (h *Server) DeleteAdminTeamsIDMembersUserID(w http.ResponseWriter, r *http.
 }
 
 // Update my team
-// (PATCH /teams/me)
+// (PATCH /teams/me).
 func (h *Server) PatchTeamsMe(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -632,7 +666,7 @@ func (h *Server) PatchTeamsMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get team invite token
-// (GET /teams/me/invite)
+// (GET /teams/me/invite).
 func (h *Server) GetTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -648,7 +682,7 @@ func (h *Server) GetTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 // Regenerate team invite token
-// (POST /teams/me/invite)
+// (POST /teams/me/invite).
 func (h *Server) PostTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {

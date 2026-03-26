@@ -36,15 +36,19 @@ const (
 func sanitizeUserAgent(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
+
 	for _, r := range s {
 		if b.Len() >= trackingUserAgentMax {
 			break
 		}
+
 		if r == unicode.ReplacementChar || r < 32 || r == 127 {
 			continue
 		}
+
 		b.WriteRune(r)
 	}
+
 	return b.String()
 }
 
@@ -56,17 +60,22 @@ type trackingDebouncer struct {
 func (d *trackingDebouncer) shouldTrack(userID uuid.UUID) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	if t, ok := d.lastSeen[userID]; ok && time.Since(t) < trackingDebounce {
 		return false
 	}
+
 	d.lastSeen[userID] = time.Now()
+
 	return true
 }
 
 func (d *trackingDebouncer) purgeStale() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	cutoff := time.Now().Add(-trackingDebounce)
+
 	for id, t := range d.lastSeen {
 		if t.Before(cutoff) {
 			delete(d.lastSeen, id)
@@ -83,7 +92,9 @@ type trackingJob struct {
 func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log logkit.Logger) {
 	tCtx, cancel := context.WithTimeout(context.Background(), trackingCtxTimeout)
 	defer cancel()
-	if err := trackingUC.Track(tCtx, job.userID, job.ip, job.userAgent); err != nil {
+
+	err := trackingUC.Track(tCtx, job.userID, job.ip, job.userAgent)
+	if err != nil {
 		log.WithError(err).Warn("middleware - IPTracking - Track: failed to track user")
 	}
 }
@@ -92,6 +103,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 	debouncer := &trackingDebouncer{lastSeen: make(map[uuid.UUID]time.Time)}
 	ch := make(chan trackingJob, trackingBufSize)
 	p := pool.New().WithMaxGoroutines(trackingWorkers)
+
 	var trackingStopped atomic.Bool
 
 	go func() {
@@ -100,6 +112,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 				runTrackingJob(trackingUC, job, log)
 			})
 		}
+
 		p.Wait()
 	}()
 
@@ -112,6 +125,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 	go func() {
 		ticker := time.NewTicker(trackingCleanupPeriod)
 		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ticker.C:
@@ -131,6 +145,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 					ip:        kitMiddleware.GetClientIPFromContext(r.Context()),
 					userAgent: sanitizeUserAgent(r.Header.Get("User-Agent")),
 				}
+
 				if !trackingStopped.Load() {
 					func() {
 						defer func() {
@@ -138,6 +153,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 								log.WithFields(logkit.Fields{"panic": v}).Warn("middleware - IPTracking: recovered panic when sending tracking job")
 							}
 						}()
+
 						select {
 						case ch <- job:
 						default:
@@ -146,6 +162,7 @@ func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log log
 					}()
 				}
 			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

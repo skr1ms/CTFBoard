@@ -21,10 +21,12 @@ func TestValidatePassword_Error(t *testing.T) {
 	assert.False(t, ValidatePassword("abc123"), "no uppercase")
 	assert.False(t, ValidatePassword("ABC123"), "no lowercase")
 	assert.False(t, ValidatePassword("Abcdef"), "no digit")
+
 	long := make([]byte, 130)
 	for i := range long {
 		long[i] = 'a'
 	}
+
 	assert.False(t, ValidatePassword(string(long)))
 }
 
@@ -128,6 +130,7 @@ func TestValidateNotEmpty_Error(t *testing.T) {
 
 func TestNew_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NotNil(t, v)
@@ -135,28 +138,35 @@ func TestNew_Success(t *testing.T) {
 
 func TestCustomValidator_Validate_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
+
 	type S struct {
 		Field string `validate:"not_empty"`
 	}
+
 	err = v.Validate(S{Field: "x"})
 	assert.NoError(t, err)
 }
 
 func TestCustomValidator_Validate_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
+
 	type S struct {
 		Field string `validate:"not_empty"`
 	}
+
 	err = v.Validate(S{Field: ""})
 	assert.Error(t, err)
 }
 
 func TestCustomValidator_ValidateVar_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	err = v.ValidateVar("user1", "custom_username")
@@ -165,18 +175,23 @@ func TestCustomValidator_ValidateVar_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateStruct_PointerFields(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
+
 	username := "scoreboard_ban_a1b2c3d4"
+
 	type S struct {
 		Username *string `validate:"required,custom_username"`
 	}
+
 	err = v.Validate(S{Username: &username})
 	assert.NoError(t, err)
 }
 
 func TestCustomValidator_ValidateVar_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	err = v.ValidateVar("", "custom_username")
@@ -185,6 +200,7 @@ func TestCustomValidator_ValidateVar_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_StrongPassword_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("ValidPass1", "strong_password"))
@@ -192,6 +208,7 @@ func TestCustomValidator_ValidateVar_StrongPassword_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_StrongPassword_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("short", "strong_password"))
@@ -199,6 +216,7 @@ func TestCustomValidator_ValidateVar_StrongPassword_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_CustomEmail_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("a@b.co", "custom_email"))
@@ -206,6 +224,7 @@ func TestCustomValidator_ValidateVar_CustomEmail_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_CustomEmail_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("invalid", "custom_email"))
@@ -213,6 +232,7 @@ func TestCustomValidator_ValidateVar_CustomEmail_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_TeamName_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("Team 1", "team_name"))
@@ -220,6 +240,7 @@ func TestCustomValidator_ValidateVar_TeamName_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_TeamName_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "team_name"))
@@ -227,6 +248,7 @@ func TestCustomValidator_ValidateVar_TeamName_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeTitle_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("Title", "challenge_title"))
@@ -234,6 +256,7 @@ func TestCustomValidator_ValidateVar_ChallengeTitle_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeTitle_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "challenge_title"))
@@ -241,6 +264,7 @@ func TestCustomValidator_ValidateVar_ChallengeTitle_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeDescription_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("desc", "challenge_description"))
@@ -248,6 +272,7 @@ func TestCustomValidator_ValidateVar_ChallengeDescription_Success(t *testing.T) 
 
 func TestCustomValidator_ValidateVar_ChallengeDescription_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "challenge_description"))
@@ -255,6 +280,7 @@ func TestCustomValidator_ValidateVar_ChallengeDescription_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeCategory_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("web", "challenge_category"))
@@ -262,6 +288,7 @@ func TestCustomValidator_ValidateVar_ChallengeCategory_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeCategory_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "challenge_category"))
@@ -269,6 +296,7 @@ func TestCustomValidator_ValidateVar_ChallengeCategory_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeFlag_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("flag{test}", "challenge_flag"))
@@ -276,6 +304,7 @@ func TestCustomValidator_ValidateVar_ChallengeFlag_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_ChallengeFlag_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "challenge_flag"))
@@ -283,6 +312,7 @@ func TestCustomValidator_ValidateVar_ChallengeFlag_Error(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_HintContent_Success(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.NoError(t, v.ValidateVar("hint", "hint_content"))
@@ -290,6 +320,7 @@ func TestCustomValidator_ValidateVar_HintContent_Success(t *testing.T) {
 
 func TestCustomValidator_ValidateVar_HintContent_Error(t *testing.T) {
 	t.Parallel()
+
 	v, err := New()
 	require.NoError(t, err)
 	assert.Error(t, v.ValidateVar("", "hint_content"))

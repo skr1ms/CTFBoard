@@ -1,4 +1,7 @@
 -- +goose Up
+INSERT INTO competition (id, name) VALUES (1, 'CTF Competition') ON CONFLICT (id) DO NOTHING;
+INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO configs (key, value, value_type, description, category) VALUES
 ('ctf_name', 'AstroCTFb', 'string', 'CTF competition name', 'general'),
 ('ctf_description', '', 'string', 'CTF competition description (Markdown)', 'general'),
@@ -32,7 +35,7 @@ INSERT INTO configs (key, value, value_type, description, category) VALUES
 ('csv_delimiter', ',', 'string', 'CSV export delimiter', 'advanced'),
 ('max_content_length', '10485760', 'int', 'Max content size in bytes (10MB)', 'advanced'),
 ('registration_code', '', 'string', 'Registration access code (empty = disabled)', 'advanced'),
-('entity_whitelist', '', 'string', 'Allowed email entitys (comma-separated, empty = all)', 'advanced'),
+('entity_whitelist', '', 'string', 'Allowed email domains (comma-separated, empty = all)', 'advanced'),
 ('password_min_length', '8', 'int', 'Minimum password length', 'advanced')
 ON CONFLICT (key) DO NOTHING;
 
@@ -47,3 +50,6 @@ DELETE FROM configs WHERE key IN (
 'tos_url','tos_text','privacy_url','privacy_text',
 'html_sanitization','csv_delimiter','max_content_length','registration_code','entity_whitelist','password_min_length'
 );
+
+DELETE FROM app_settings WHERE id = 1;
+DELETE FROM competition WHERE id = 1;

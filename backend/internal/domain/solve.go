@@ -19,6 +19,7 @@ type Solve struct {
 
 type SolveWithDetails struct {
 	Solve
+
 	Username          string `json:"username,omitempty"`
 	TeamName          string `json:"team_name,omitempty"`
 	ChallengeTitle    string `json:"challenge_title,omitempty"`

@@ -13,7 +13,7 @@ import (
 )
 
 // Verify email
-// (POST /auth/verify-email)
+// (POST /auth/verify-email).
 func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.VerifyEmailRequest](
 		w, r, h.infra.Validator,
@@ -21,6 +21,7 @@ func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	err := h.user.EmailUC.VerifyEmail(r.Context(), req.Token)
 	if h.OnError(w, r, err, "PostAuthVerifyEmail", "VerifyEmail") {
 		return
@@ -30,7 +31,7 @@ func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 // Request password reset
-// (POST /auth/forgot-password)
+// (POST /auth/forgot-password).
 func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.ForgotPasswordRequest](
 		w, r, h.infra.Validator,
@@ -46,10 +47,13 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 	if h.OnError(w, r, err, "PostAuthForgotPassword", "CheckRateLimit") {
 		return
 	}
+
 	if !allowed {
 		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthForgotPassword", "RateLimit")
+
 		return
 	}
+
 	if err := h.user.EmailUC.SendPasswordResetEmail(r.Context(), email); err != nil {
 		h.infra.Logger.WithError(err).Warn("restapi - v1 - PostAuthForgotPassword - SendPasswordResetEmail")
 		// Do not return error to client (avoid email enumeration)
@@ -59,7 +63,7 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 }
 
 // Reset password
-// (POST /auth/reset-password)
+// (POST /auth/reset-password).
 func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.ResetPasswordRequest](
 		w, r, h.infra.Validator,
@@ -70,12 +74,15 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	token, newPassword := request.ResetPasswordRequestToParams(&req)
 	tokenHash := crypto.SHA256Hex(token)
+
 	allowed, err := h.infra.ResetPasswordTokenRateLimiter.Check(r.Context(), tokenHash)
 	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPasswordTokenRateLimit") {
 		return
 	}
+
 	if !allowed {
 		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
+
 		return
 	}
 
@@ -88,7 +95,7 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // Resend verification email
-// (POST /auth/resend-verification)
+// (POST /auth/resend-verification).
 func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Request) {
 	userID, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
@@ -100,8 +107,10 @@ func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Reque
 	if h.OnError(w, r, err, "PostAuthResendVerification", "CheckRateLimit") {
 		return
 	}
+
 	if !allowed {
 		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResendVerification", "RateLimit")
+
 		return
 	}
 

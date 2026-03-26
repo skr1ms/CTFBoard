@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -83,8 +82,10 @@ func (r *SolveRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Solve, e
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
+
 		return nil, fmt.Errorf("SolveRepo - GetByID: %w", err)
 	}
+
 	return toDomainSolve(s), nil
 }
 
@@ -97,8 +98,10 @@ func (r *SolveRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challenge
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
+
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallenge: %w", err)
 	}
+
 	return toDomainSolve(s), nil
 }
 
@@ -106,6 +109,7 @@ func (r *SolveRepo) GetSolvedChallengeIDsByTeam(ctx context.Context, teamID uuid
 	if len(challengeIDs) == 0 {
 		return nil, nil
 	}
+
 	ids, err := r.Q(ctx).GetSolvedChallengeIDsByTeam(ctx, sqlc.GetSolvedChallengeIDsByTeamParams{
 		TeamID:  teamID,
 		Column2: challengeIDs,
@@ -113,6 +117,7 @@ func (r *SolveRepo) GetSolvedChallengeIDsByTeam(ctx context.Context, teamID uuid
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetSolvedChallengeIDsByTeam: %w", err)
 	}
+
 	return ids, nil
 }
 
@@ -121,10 +126,12 @@ func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domai
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByUserID: %w", err)
 	}
+
 	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, toDomainSolve(s))
 	}
+
 	return out, nil
 }
 
@@ -133,10 +140,12 @@ func (r *SolveRepo) GetScoreboard(ctx context.Context) ([]*repo.ScoreboardEntry,
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetScoreboard: %w", err)
 	}
+
 	out := make([]*repo.ScoreboardEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toScoreboardEntry(row))
 	}
+
 	return out, nil
 }
 
@@ -149,10 +158,12 @@ func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracket: %w", err)
 	}
+
 	out := make([]*repo.ScoreboardEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toScoreboardEntryByBracket(row))
 	}
+
 	return out, nil
 }
 
@@ -164,10 +175,12 @@ func (r *SolveRepo) GetScoreboardByBracketFrozen(ctx context.Context, freezeTime
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracketFrozen: %w", err)
 	}
+
 	out := make([]*repo.ScoreboardEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toScoreboardEntryByBracketFrozen(row))
 	}
+
 	return out, nil
 }
 
@@ -179,6 +192,7 @@ func (r *SolveRepo) GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, er
 	if err != nil {
 		return 0, fmt.Errorf("SolveRepo - GetTeamScore: %w", err)
 	}
+
 	return int(total), nil
 }
 
@@ -188,8 +202,10 @@ func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
+
 		return nil, fmt.Errorf("SolveRepo - GetFirstBlood: %w", err)
 	}
+
 	return toFirstBloodEntry(row), nil
 }
 
@@ -202,8 +218,10 @@ func (r *SolveRepo) GetFirstBloodFrozen(ctx context.Context, challengeID uuid.UU
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
+
 		return nil, fmt.Errorf("SolveRepo - GetFirstBloodFrozen: %w", err)
 	}
+
 	return &repo.FirstBloodEntry{
 		UserID:   row.UserID,
 		Username: row.Username,
@@ -218,10 +236,12 @@ func (r *SolveRepo) GetAll(ctx context.Context) ([]*domain.Solve, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, toDomainSolve(s))
 	}
+
 	return out, nil
 }
 
@@ -230,10 +250,12 @@ func (r *SolveRepo) GetAllForBackup(ctx context.Context) ([]*domain.Solve, error
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetAllForBackup: %w", err)
 	}
+
 	out := make([]*domain.Solve, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, toDomainSolve(s))
 	}
+
 	return out, nil
 }
 
@@ -242,6 +264,7 @@ func (r *SolveRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByChallengeID: %w", err)
 	}
+
 	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, &domain.SolveWithDetails{
@@ -256,6 +279,7 @@ func (r *SolveRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID)
 			TeamName: s.TeamName,
 		})
 	}
+
 	return out, nil
 }
 
@@ -267,6 +291,7 @@ func (r *SolveRepo) GetByChallengeIDFrozen(ctx context.Context, challengeID uuid
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByChallengeIDFrozen: %w", err)
 	}
+
 	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, &domain.SolveWithDetails{
@@ -281,6 +306,7 @@ func (r *SolveRepo) GetByChallengeIDFrozen(ctx context.Context, challengeID uuid
 			TeamName: s.TeamName,
 		})
 	}
+
 	return out, nil
 }
 
@@ -289,10 +315,12 @@ func (r *SolveRepo) GetSolveCountsFrozen(ctx context.Context, freezeTime time.Ti
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetSolveCountsFrozen: %w", err)
 	}
+
 	out := make(map[uuid.UUID]int, len(rows))
 	for _, row := range rows {
 		out[row.ChallengeID] = int(row.SolveCount)
 	}
+
 	return out, nil
 }
 
@@ -301,6 +329,7 @@ func (r *SolveRepo) GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByUserIDWithDetails: %w", err)
 	}
+
 	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, &domain.SolveWithDetails{
@@ -316,6 +345,7 @@ func (r *SolveRepo) GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID
 			ChallengePoints:   int(lo.FromPtr(s.ChallengePoints)),
 		})
 	}
+
 	return out, nil
 }
 
@@ -324,6 +354,7 @@ func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetByTeamIDWithDetails: %w", err)
 	}
+
 	out := make([]*domain.SolveWithDetails, 0, len(rows))
 	for _, s := range rows {
 		out = append(out, &domain.SolveWithDetails{
@@ -340,12 +371,14 @@ func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID
 			ChallengePoints:   int(lo.FromPtr(s.ChallengePoints)),
 		})
 	}
+
 	return out, nil
 }
 
 func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {
 	s.ID = uuid.New()
 	s.SolvedAt = time.Now()
+
 	err := r.Q(ctx).CreateSolve(ctx, sqlc.CreateSolveParams{
 		ID:            s.ID,
 		UserID:        s.UserID,
@@ -358,8 +391,10 @@ func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {
 		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrAlreadySolved
 		}
+
 		return fmt.Errorf("SolveRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -372,57 +407,71 @@ func (r *SolveRepo) GetByTeamAndChallengeForUpdate(ctx context.Context, teamID, 
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrSolveNotFound
 		}
+
 		return nil, fmt.Errorf("SolveRepo - GetByTeamAndChallengeForUpdate: %w", err)
 	}
+
 	return toDomainSolve(s), nil
 }
 
 // DeleteByTeamAndChallenge removes a solve by team and challenge. Idempotent: returns nil if the solve does not exist.
 func (r *SolveRepo) DeleteByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteSolveByTeamAndChallenge(ctx, sqlc.DeleteSolveByTeamAndChallengeParams{
+	err := r.Q(ctx).DeleteSolveByTeamAndChallenge(ctx, sqlc.DeleteSolveByTeamAndChallengeParams{
 		TeamID:      teamID,
 		ChallengeID: challengeID,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("SolveRepo - DeleteByTeamAndChallenge: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SolveRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteSolvesByTeamID(ctx, teamID); err != nil {
+	err := r.Q(ctx).DeleteSolvesByTeamID(ctx, teamID)
+	if err != nil {
 		return fmt.Errorf("SolveRepo - DeleteByTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SolveRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).SoftBanSolvesByTeamID(ctx, teamID); err != nil {
+	err := r.Q(ctx).SoftBanSolvesByTeamID(ctx, teamID)
+	if err != nil {
 		return fmt.Errorf("SolveRepo - SoftBanByTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SolveRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).RestoreSolvesByBannedTeamID(ctx, &teamID); err != nil {
+	err := r.Q(ctx).RestoreSolvesByBannedTeamID(ctx, &teamID)
+	if err != nil {
 		return fmt.Errorf("SolveRepo - RestoreByBannedTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SolveRepo) SoftBanByTeamIDAndUserID(ctx context.Context, teamID, userID uuid.UUID) error {
-	if err := r.Q(ctx).SoftBanSolvesByTeamIDAndUserID(ctx, sqlc.SoftBanSolvesByTeamIDAndUserIDParams{
+	err := r.Q(ctx).SoftBanSolvesByTeamIDAndUserID(ctx, sqlc.SoftBanSolvesByTeamIDAndUserIDParams{
 		TeamID: teamID,
 		UserID: userID,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("SolveRepo - SoftBanByTeamIDAndUserID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SolveRepo) RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error {
-	if err := r.Q(ctx).RestoreSolvesByBannedUserID(ctx, &userID); err != nil {
+	err := r.Q(ctx).RestoreSolvesByBannedUserID(ctx, &userID)
+	if err != nil {
 		return fmt.Errorf("SolveRepo - RestoreByBannedUserID: %w", err)
 	}
+
 	return nil
 }
 
@@ -430,10 +479,12 @@ func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs [
 	if len(challengeIDs) == 0 {
 		return nil, nil
 	}
+
 	rows, err := r.Q(ctx).GetSolvesForPointsRecalc(ctx, challengeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("SolveRepo - GetSolvesForPointsRecalc: %w", err)
 	}
+
 	out := make([]*repo.SolveForPointsRecalc, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.SolveForPointsRecalc{
@@ -445,6 +496,7 @@ func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs [
 			Decay:        int(row.Decay),
 		})
 	}
+
 	return out, nil
 }
 
@@ -452,18 +504,23 @@ func (r *SolveRepo) BatchUpdateSolvePoints(ctx context.Context, solveIDs []uuid.
 	if len(solveIDs) == 0 {
 		return nil
 	}
+
 	if len(solveIDs) != len(points) {
 		return fmt.Errorf("SolveRepo - BatchUpdateSolvePoints: ids and points length mismatch (%d != %d)", len(solveIDs), len(points))
 	}
+
 	pts := make([]int32, len(points))
 	for i, p := range points {
 		pts[i] = int32(p)
 	}
-	if err := r.Q(ctx).BatchUpdateSolvePoints(ctx, sqlc.BatchUpdateSolvePointsParams{
+
+	err := r.Q(ctx).BatchUpdateSolvePoints(ctx, sqlc.BatchUpdateSolvePointsParams{
 		Column1: solveIDs,
 		Column2: pts,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("SolveRepo - BatchUpdateSolvePoints: %w", err)
 	}
+
 	return nil
 }

@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -60,7 +59,7 @@ func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.CommentRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCommentNotFound))
+	assert.ErrorIs(t, err, httperr.ErrCommentNotFound)
 }
 
 func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
@@ -128,7 +127,7 @@ func TestCommentRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.CommentRepo.GetByID(ctx, comment.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCommentNotFound))
+	assert.ErrorIs(t, err, httperr.ErrCommentNotFound)
 }
 
 func TestCommentRepo_Delete_Error_NotFound(t *testing.T) {

@@ -6,11 +6,11 @@ package mock
 
 import (
 	"context"
-
-	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
+	"time"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockTrackingRepository creates a new instance of MockTrackingRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -282,6 +282,120 @@ func (_c *MockTrackingRepository_CreateChallengeOpen_Call) Return(err error) *Mo
 }
 
 func (_c *MockTrackingRepository_CreateChallengeOpen_Call) RunAndReturn(run func(ctx context.Context, entry *domain.ChallengeOpen) error) *MockTrackingRepository_CreateChallengeOpen_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteChallengeOpensOlderThan provides a mock function for the type MockTrackingRepository
+func (_mock *MockTrackingRepository) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error {
+	ret := _mock.Called(ctx, cutoffDate)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteChallengeOpensOlderThan")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) error); ok {
+		r0 = returnFunc(ctx, cutoffDate)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTrackingRepository_DeleteChallengeOpensOlderThan_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteChallengeOpensOlderThan'
+type MockTrackingRepository_DeleteChallengeOpensOlderThan_Call struct {
+	*mock.Call
+}
+
+// DeleteChallengeOpensOlderThan is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cutoffDate time.Time
+func (_e *MockTrackingRepository_Expecter) DeleteChallengeOpensOlderThan(ctx interface{}, cutoffDate interface{}) *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call {
+	return &MockTrackingRepository_DeleteChallengeOpensOlderThan_Call{Call: _e.mock.On("DeleteChallengeOpensOlderThan", ctx, cutoffDate)}
+}
+
+func (_c *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call) Run(run func(ctx context.Context, cutoffDate time.Time)) *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call) Return(err error) *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call) RunAndReturn(run func(ctx context.Context, cutoffDate time.Time) error) *MockTrackingRepository_DeleteChallengeOpensOlderThan_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteOlderThan provides a mock function for the type MockTrackingRepository
+func (_mock *MockTrackingRepository) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error {
+	ret := _mock.Called(ctx, cutoffDate)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteOlderThan")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) error); ok {
+		r0 = returnFunc(ctx, cutoffDate)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTrackingRepository_DeleteOlderThan_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOlderThan'
+type MockTrackingRepository_DeleteOlderThan_Call struct {
+	*mock.Call
+}
+
+// DeleteOlderThan is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cutoffDate time.Time
+func (_e *MockTrackingRepository_Expecter) DeleteOlderThan(ctx interface{}, cutoffDate interface{}) *MockTrackingRepository_DeleteOlderThan_Call {
+	return &MockTrackingRepository_DeleteOlderThan_Call{Call: _e.mock.On("DeleteOlderThan", ctx, cutoffDate)}
+}
+
+func (_c *MockTrackingRepository_DeleteOlderThan_Call) Run(run func(ctx context.Context, cutoffDate time.Time)) *MockTrackingRepository_DeleteOlderThan_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTrackingRepository_DeleteOlderThan_Call) Return(err error) *MockTrackingRepository_DeleteOlderThan_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTrackingRepository_DeleteOlderThan_Call) RunAndReturn(run func(ctx context.Context, cutoffDate time.Time) error) *MockTrackingRepository_DeleteOlderThan_Call {
 	_c.Call.Return(run)
 	return _c
 }

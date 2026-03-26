@@ -19,6 +19,7 @@ type notificationTestDeps struct {
 
 func newNotificationTestDeps(t *testing.T) *notificationTestDeps {
 	t.Helper()
+
 	return &notificationTestDeps{notifRepo: notifMock.NewMockNotificationRepository(t)}
 }
 

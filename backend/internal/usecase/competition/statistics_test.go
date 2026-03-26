@@ -228,6 +228,7 @@ func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 5}}
+
 	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
 	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:team_registration", `.*`, 5*time.Minute).SetVal("OK")
@@ -262,6 +263,7 @@ func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 10}}
+
 	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
 	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:user_registration", `.*`, 5*time.Minute).SetVal("OK")
@@ -297,6 +299,7 @@ func TestStatisticsUseCase_GetSolveMatrix_Success(t *testing.T) {
 	matrix := []*domain.SolveMatrixRow{
 		{TeamID: uuid.New(), TeamName: "T1", ChallengeID: uuid.New(), ChallengeTitle: "C1", Solved: true},
 	}
+
 	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
 	d.statsRepo.On("GetSolveMatrix", mock.Anything).Return(matrix, nil)
 	redisClient.Regexp().ExpectSet("stats:solve_matrix", `.*`, 30*time.Second).SetVal("OK")
@@ -331,6 +334,7 @@ func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Success(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 3}}
+
 	redisClient.ExpectGet("stats:submission_timeseries:true").SetErr(redis.Nil)
 	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, true).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:submission_timeseries:true", `.*`, 5*time.Minute).SetVal("OK")

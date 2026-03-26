@@ -16,9 +16,12 @@ func newGitHubAPIWithURL(client *http.Client, userURL, emailsURL string) *GitHub
 
 func TestGitHubAPI_FetchUserProfile_WithPublicEmail(t *testing.T) {
 	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer token123", r.Header.Get("Authorization"))
-		if err := json.NewEncoder(w).Encode(githubUser{ID: 42, Login: "octocat", Email: "octo@example.com"}); err != nil {
+
+		err := json.NewEncoder(w).Encode(githubUser{ID: 42, Login: "octocat", Email: "octo@example.com"})
+		if err != nil {
 			return
 		}
 	}))
@@ -34,20 +37,24 @@ func TestGitHubAPI_FetchUserProfile_WithPublicEmail(t *testing.T) {
 
 func TestGitHubAPI_FetchUserProfile_FetchesPrimaryEmailWhenMissing(t *testing.T) {
 	t.Parallel()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(githubUser{ID: 7, Login: "ghost", Email: ""}); err != nil {
+		err := json.NewEncoder(w).Encode(githubUser{ID: 7, Login: "ghost", Email: ""})
+		if err != nil {
 			return
 		}
 	})
 	mux.HandleFunc("/user/emails", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode([]githubEmail{
+		err := json.NewEncoder(w).Encode([]githubEmail{
 			{Email: "secondary@example.com", Primary: false, Verified: true},
 			{Email: "primary@example.com", Primary: true, Verified: true},
-		}); err != nil {
+		})
+		if err != nil {
 			return
 		}
 	})
+
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -59,19 +66,23 @@ func TestGitHubAPI_FetchUserProfile_FetchesPrimaryEmailWhenMissing(t *testing.T)
 
 func TestGitHubAPI_FetchUserProfile_NoVerifiedEmail_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""}); err != nil {
+		err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""})
+		if err != nil {
 			return
 		}
 	})
 	mux.HandleFunc("/user/emails", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode([]githubEmail{
+		err := json.NewEncoder(w).Encode([]githubEmail{
 			{Email: "unverified@example.com", Primary: true, Verified: false},
-		}); err != nil {
+		})
+		if err != nil {
 			return
 		}
 	})
+
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -83,8 +94,10 @@ func TestGitHubAPI_FetchUserProfile_NoVerifiedEmail_ReturnsError(t *testing.T) {
 
 func TestGitHubAPI_FetchUserProfile_NonOKStatus_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
+
 		if _, err := w.Write([]byte("Unauthorized")); err != nil {
 			return
 		}
@@ -99,6 +112,7 @@ func TestGitHubAPI_FetchUserProfile_NonOKStatus_ReturnsError(t *testing.T) {
 
 func TestGitHubAPI_FetchUserProfile_MalformedJSON_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if _, err := w.Write([]byte("not json")); err != nil {
 			return
@@ -113,18 +127,22 @@ func TestGitHubAPI_FetchUserProfile_MalformedJSON_ReturnsError(t *testing.T) {
 
 func TestGitHubAPI_FetchUserProfile_EmailsEndpointFails_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""}); err != nil {
+		err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""})
+		if err != nil {
 			return
 		}
 	})
 	mux.HandleFunc("/user/emails", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
+
 		if _, err := w.Write([]byte("error")); err != nil {
 			return
 		}
 	})
+
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -135,19 +153,23 @@ func TestGitHubAPI_FetchUserProfile_EmailsEndpointFails_ReturnsError(t *testing.
 
 func TestGitHubAPI_FetchUserProfile_FallsBackToNonPrimaryVerified(t *testing.T) {
 	t.Parallel()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""}); err != nil {
+		err := json.NewEncoder(w).Encode(githubUser{ID: 1, Login: "ghost", Email: ""})
+		if err != nil {
 			return
 		}
 	})
 	mux.HandleFunc("/user/emails", func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode([]githubEmail{
+		err := json.NewEncoder(w).Encode([]githubEmail{
 			{Email: "nonprimary@example.com", Primary: false, Verified: true},
-		}); err != nil {
+		})
+		if err != nil {
 			return
 		}
 	})
+
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

@@ -7,9 +7,8 @@ package mock
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockCompetitionParamRepo creates a new instance of MockCompetitionParamRepo. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

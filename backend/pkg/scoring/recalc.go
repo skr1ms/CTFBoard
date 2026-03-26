@@ -13,9 +13,11 @@ func RecalculatePoints(challengesMap map[uuid.UUID]*domain.Challenge) (ids []uui
 		if c == nil || c.InitialValue <= 0 || c.Decay <= 0 {
 			continue
 		}
+
 		ids = append(ids, id)
 		points = append(points, CalculateDynamicScore(c.InitialValue, c.MinValue, c.Decay, c.SolveCount))
 	}
+
 	return ids, points
 }
 
@@ -35,19 +37,26 @@ func RecalculatePointsAtSolveRows(rows []*SolveRowForPointsRecalc) (solveIDs []u
 	if len(rows) == 0 {
 		return nil, nil
 	}
+
 	solveIDs = make([]uuid.UUID, 0, len(rows))
 	points = make([]int, 0, len(rows))
+
 	var prevChallengeID uuid.UUID
+
 	rank := 0
+
 	for _, row := range rows {
 		if row.ChallengeID != prevChallengeID {
 			prevChallengeID = row.ChallengeID
 			rank = 0
 		}
+
 		rank++
+
 		solveIDs = append(solveIDs, row.ID)
 		pts := CalculateDynamicScore(row.InitialValue, row.MinValue, row.Decay, rank)
 		points = append(points, pts)
 	}
+
 	return solveIDs, points
 }

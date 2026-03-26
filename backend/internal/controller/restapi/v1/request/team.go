@@ -15,14 +15,17 @@ type transferCaptainConstraints struct {
 
 func ValidateTransferCaptainRequest(req *openapi.TransferCaptainRequest, v validator.Validator) error {
 	c := transferCaptainConstraints{NewCaptainID: req.NewCaptainID}
+
 	return ValidateConstraints(v, &c)
 }
 
 func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, confirmReset bool) {
 	confirmReset = false
+
 	if req.ConfirmReset != nil {
 		confirmReset = *req.ConfirmReset
 	}
+
 	return req.Name, confirmReset
 }
 
@@ -30,14 +33,17 @@ func CreateSoloTeamRequestToParams(req *openapi.CreateSoloTeamRequest) bool {
 	if req.ConfirmReset != nil {
 		return *req.ConfirmReset
 	}
+
 	return false
 }
 
 func JoinTeamRequestToParams(req *openapi.JoinTeamRequest) (inviteToken string, confirmReset bool) {
 	confirmReset = false
+
 	if req.ConfirmReset != nil {
 		confirmReset = *req.ConfirmReset
 	}
+
 	return req.InviteToken, confirmReset
 }
 
@@ -46,17 +52,20 @@ func TransferCaptainRequestToParams(req *openapi.TransferCaptainRequest) (uuid.U
 	if err != nil {
 		return uuid.Nil, httperr.NewValidationErrorf("invalid new_captain_id")
 	}
+
 	return parsed, nil
 }
 
 func BanTeamRequestToParams(req *openapi.BanTeamRequest) (reason string, banMembers bool) {
 	reason = req.Reason
 	banMembers = lo.FromPtrOr(req.BanMembers, false)
+
 	return reason, banMembers
 }
 
 func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) (*bool, error) {
 	v := req.Hidden
+
 	return &v, nil
 }
 
@@ -64,8 +73,10 @@ func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *
 	name = req.Name
 	if name != nil && *name == "" {
 		err = httperr.NewValidationErrorf("name cannot be empty")
+
 		return name, captainID, bracketID, isHidden, err
 	}
+
 	isHidden = req.IsHidden
 
 	if req.CaptainID != nil {

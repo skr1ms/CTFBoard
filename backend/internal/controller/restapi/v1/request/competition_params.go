@@ -26,6 +26,7 @@ func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.C
 	if v == nil {
 		return domain.CompetitionParamTypeString, nil
 	}
+
 	switch *v {
 	case openapi.SetConfigRequestValueTypeInt:
 		return domain.CompetitionParamTypeInt, nil
@@ -49,6 +50,7 @@ type SetConfigParams struct {
 
 func ValidateSetConfigRequest(req *openapi.SetConfigRequest, v validator.Validator) error {
 	c := setConfigConstraints{Value: req.Value, Description: lo.FromPtrOr(req.Description, "")}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -57,6 +59,7 @@ func SetConfigRequestToParams(req *openapi.SetConfigRequest) (SetConfigParams, e
 	if err != nil {
 		return SetConfigParams{}, err
 	}
+
 	return SetConfigParams{
 		Value:       req.Value,
 		Description: lo.FromPtrOr(req.Description, ""),
@@ -69,6 +72,7 @@ func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (domain
 	if v == nil {
 		return domain.CompetitionParamTypeString, nil
 	}
+
 	switch *v {
 	case openapi.BatchSetConfigItemValueTypeInt:
 		return domain.CompetitionParamTypeInt, nil
@@ -87,19 +91,25 @@ func ValidateBatchSetConfigRequest(req *openapi.BatchSetConfigRequest, v validat
 	if req == nil || len(req.Configs) == 0 {
 		return nil
 	}
+
 	if len(req.Configs) > maxBatchConfigItems {
 		return httperr.NewValidationErrorf("configs: at most %d items allowed", maxBatchConfigItems)
 	}
+
 	for i := range req.Configs {
 		item := &req.Configs[i]
+
 		c := batchSetConfigItemConstraints{
 			Key: item.Key, Value: item.Value,
 			Description: lo.FromPtrOr(item.Description, ""),
 		}
-		if err := ValidateConstraints(v, &c); err != nil {
+
+		err := ValidateConstraints(v, &c)
+		if err != nil {
 			return httperr.NewValidationErrorf("configs[%d]: %v", i, err)
 		}
 	}
+
 	return nil
 }
 
@@ -107,13 +117,16 @@ func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*domai
 	if req == nil {
 		return nil, nil
 	}
+
 	out := make([]*domain.CompetitionParam, 0, len(req.Configs))
 	for i := range req.Configs {
 		item := &req.Configs[i]
+
 		valueType, err := batchSetConfigItemValueType(item.ValueType)
 		if err != nil {
 			return nil, err
 		}
+
 		out = append(out, &domain.CompetitionParam{
 			Key:         item.Key,
 			Value:       item.Value,
@@ -122,5 +135,6 @@ func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*domai
 			Description: lo.FromPtrOr(item.Description, ""),
 		})
 	}
+
 	return out, nil
 }

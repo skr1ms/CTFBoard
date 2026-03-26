@@ -36,6 +36,7 @@ func FuzzFlagNormalise(f *testing.F) {
 		normalised := strings.TrimSpace(input)
 		normalised = strings.ToLower(normalised)
 		hash := sha256.Sum256([]byte(normalised))
+
 		result := hex.EncodeToString(hash[:])
 		if len(result) != 64 {
 			t.Errorf("sha256 hex must be 64 chars, got %d for input %q", len(result), input)

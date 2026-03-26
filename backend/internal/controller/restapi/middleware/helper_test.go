@@ -14,12 +14,16 @@ func okHandler() http.HandlerFunc {
 
 func ServeAndExpect(t *testing.T, handler http.Handler, method, path string, headers map[string]string, expectStatus int) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(method, path, nil)
+
+	req := httptest.NewRequest(method, path, http.NoBody)
+
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	require.Equal(t, expectStatus, rr.Code)
+
 	return rr
 }

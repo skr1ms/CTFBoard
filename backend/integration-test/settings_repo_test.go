@@ -14,6 +14,7 @@ func TestSettingsRepo_Get_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
+
 	ctx := context.Background()
 
 	settings, err := f.SettingsRepo.Get(ctx)
@@ -35,6 +36,7 @@ func TestSettingsRepo_Update_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
+
 	ctx := context.Background()
 
 	settings, err := f.SettingsRepo.Get(ctx)
@@ -71,6 +73,7 @@ func TestSettingsRepo_Update_ScoreboardVisibility(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
+
 	ctx := context.Background()
 
 	settings, err := f.SettingsRepo.Get(ctx)
@@ -89,6 +92,7 @@ func TestSettingsRepo_Update_InvalidScoreboardVisibility_Error(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
+
 	ctx := context.Background()
 
 	settings, err := f.SettingsRepo.Get(ctx)
@@ -104,6 +108,7 @@ func TestSettingsRepo_Get_Error_CancelledContext(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
 	f.ResetAppSettings(t)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

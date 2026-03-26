@@ -7,6 +7,7 @@ package mock
 import (
 	"context"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -35,6 +36,59 @@ type MockTransactionManager_Expecter struct {
 
 func (_m *MockTransactionManager) EXPECT() *MockTransactionManager_Expecter {
 	return &MockTransactionManager_Expecter{mock: &_m.Mock}
+}
+
+// DB provides a mock function for the type MockTransactionManager
+func (_mock *MockTransactionManager) DB(ctx context.Context) repo.PgxExecer {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DB")
+	}
+
+	var r0 repo.PgxExecer
+	if returnFunc, ok := ret.Get(0).(func(context.Context) repo.PgxExecer); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repo.PgxExecer)
+		}
+	}
+	return r0
+}
+
+// MockTransactionManager_DB_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DB'
+type MockTransactionManager_DB_Call struct {
+	*mock.Call
+}
+
+// DB is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockTransactionManager_Expecter) DB(ctx interface{}) *MockTransactionManager_DB_Call {
+	return &MockTransactionManager_DB_Call{Call: _e.mock.On("DB", ctx)}
+}
+
+func (_c *MockTransactionManager_DB_Call) Run(run func(ctx context.Context)) *MockTransactionManager_DB_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTransactionManager_DB_Call) Return(pgxExecer repo.PgxExecer) *MockTransactionManager_DB_Call {
+	_c.Call.Return(pgxExecer)
+	return _c
+}
+
+func (_c *MockTransactionManager_DB_Call) RunAndReturn(run func(ctx context.Context) repo.PgxExecer) *MockTransactionManager_DB_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // ReadOnly provides a mock function for the type MockTransactionManager

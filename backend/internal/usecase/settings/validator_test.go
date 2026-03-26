@@ -146,10 +146,12 @@ func TestFieldValidator_ValidateValues_TextTooLong(t *testing.T) {
 	entityType := domain.EntityTypeUser
 	f := newTestField("desc", domain.FieldTypeText, entityType, false, nil, 0)
 	fields := []*domain.Field{f}
+
 	long := make([]byte, 501)
 	for i := range long {
 		long[i] = 'x'
 	}
+
 	values := map[uuid.UUID]string{f.ID: string(long)}
 
 	setupValidatorGetByEntityType(d, entityType, fields)

@@ -1,0 +1,15 @@
+schemas:
+  AvatarUploadResponse:
+    type: object
+    required:
+      - full_url
+      - thumb_url
+    properties:
+      full_url:
+        type: string
+        format: uri
+        description: Presigned URL for full-size avatar (512x512 WebP)
+      thumb_url:
+        type: string
+        format: uri
+        description: Presigned URL for thumbnail avatar (128x128 WebP)

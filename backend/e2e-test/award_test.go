@@ -120,6 +120,7 @@ func TestAward_AdminListAll_Forbidden(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("admin_awards_list_f")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_list_f_" + suffix)
 
@@ -215,6 +216,7 @@ func TestAward_TeamMe_NoTeam(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("award_team_me_no")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_me_nt_" + suffix)
 
@@ -246,6 +248,7 @@ func TestAward_TeamByID_NotFound(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("award_team_id_404")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("award_id_404_" + suffix)
 

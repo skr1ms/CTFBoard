@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
@@ -23,12 +24,15 @@ type SolveForPointsRecalc struct {
 // =============================================================================
 
 type (
-	// TransactionManager wraps business logic in a database transaction.
-	// The transaction is embedded in the context passed to fn.
+	PgxExecer interface {
+		Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	}
+
 	TransactionManager interface {
 		Run(ctx context.Context, fn func(context.Context) error) error
 		RunSerializable(ctx context.Context, fn func(context.Context) error) error
 		ReadOnly(ctx context.Context, fn func(context.Context) error) error
+		DB(ctx context.Context) PgxExecer
 	}
 )
 
@@ -64,6 +68,9 @@ type (
 		Unban(ctx context.Context, userID uuid.UUID) error
 		SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error
 		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
+		UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error
+		ClearAvatarURL(ctx context.Context, userID uuid.UUID) (*string, error)
+		ListAllUserAvatarURLs(ctx context.Context) ([]*string, error)
 	}
 )
 
@@ -101,6 +108,9 @@ type (
 		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 		CreateAuditLog(ctx context.Context, log *domain.TeamAuditLog) error
 		GetLatestAuditLogByTeamIDAndAction(ctx context.Context, teamID uuid.UUID, action string) (*domain.TeamAuditLog, error)
+		UpdateAvatarURL(ctx context.Context, teamID uuid.UUID, avatarURL string) error
+		ClearAvatarURL(ctx context.Context, teamID uuid.UUID) (*string, error)
+		ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error)
 	}
 )
 
@@ -426,8 +436,10 @@ type (
 		Create(ctx context.Context, entry *domain.TrackingEntry) error
 		GetByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.TrackingEntry, error)
 		CountByUser(ctx context.Context, userID uuid.UUID) (int, error)
+		DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error
 		CreateChallengeOpen(ctx context.Context, entry *domain.ChallengeOpen) error
 		GetChallengeOpensByChallenge(ctx context.Context, challengeID uuid.UUID, limit, offset int) ([]*domain.ChallengeOpen, error)
+		DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error
 		CountChallengeOpensByChallenge(ctx context.Context, challengeID uuid.UUID) (int, error)
 	}
 )

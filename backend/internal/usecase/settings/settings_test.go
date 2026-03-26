@@ -13,12 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wahrwelt-kit/go-cachekit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
@@ -34,6 +32,7 @@ func newSettingsTestDeps(t *testing.T) *settingsTestDeps {
 	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Maybe()
+
 	return &settingsTestDeps{
 		SettingsRepo: compMock.NewMockSettingsRepository(t),
 		auditLogRepo: compMock.NewMockAuditLogRepository(t),
@@ -43,7 +42,9 @@ func newSettingsTestDeps(t *testing.T) *settingsTestDeps {
 
 func (d *settingsTestDeps) createSettingsUseCase(t *testing.T) (*SettingsUseCase, redismock.ClientMock) {
 	t.Helper()
+
 	client, redis := redismock.NewClientMock()
+
 	return NewSettingsUseCase(SettingsDeps{
 		Repo:         d.SettingsRepo,
 		AuditLogRepo: d.auditLogRepo,
@@ -95,6 +96,7 @@ func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetT
 	s.VerifyTTLHours = verifyTTL
 	s.ResetTTLHours = resetTTL
 	s.ScoreboardVisible = visibility
+
 	return s
 }
 
@@ -316,6 +318,7 @@ func TestSettingsUseCase_Validate_ScoreboardVisible_Invalid(t *testing.T) {
 
 func TestSettingsUseCase_Validate_ScoreboardVisible_AllValid(t *testing.T) {
 	t.Parallel()
+
 	validValues := []string{
 		domain.ScoreboardVisiblePublic,
 		domain.ScoreboardVisibleHidden,
@@ -363,6 +366,7 @@ func TestSettingsUseCase_Get_InvalidCachedJSON(t *testing.T) {
 
 func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name        string
 		submitLimit int
@@ -402,6 +406,7 @@ func TestSettingsUseCase_Validate_BoundaryValues(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+
 			assert.NoError(t, redisClient.ExpectationsWereMet())
 		})
 	}

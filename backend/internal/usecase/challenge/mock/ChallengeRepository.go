@@ -7,11 +7,10 @@ package mock
 import (
 	"context"
 
-	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockChallengeRepository creates a new instance of MockChallengeRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

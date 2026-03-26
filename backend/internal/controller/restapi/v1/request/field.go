@@ -23,11 +23,13 @@ type updateFieldConstraints struct {
 
 func ValidateCreateFieldRequest(req *openapi.CreateFieldRequest, v validator.Validator) error {
 	c := createFieldConstraints{Name: req.Name, FieldType: string(req.FieldType), EntityType: string(req.EntityType), Options: lo.FromPtrOr(req.Options, nil)}
+
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdateFieldRequest(req *openapi.UpdateFieldRequest, v validator.Validator) error {
 	c := updateFieldConstraints{Name: req.Name, FieldType: string(req.FieldType), Options: lo.FromPtrOr(req.Options, nil)}
+
 	return ValidateConstraints(v, &c)
 }
 

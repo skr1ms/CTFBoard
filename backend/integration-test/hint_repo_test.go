@@ -152,6 +152,7 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		award := &domain.Award{TeamID: team.ID, Value: -50, Description: "Hint penalty"}
+
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)
@@ -161,6 +162,7 @@ func TestAwardRepo_CreateTx_And_Total_InHintTest(t *testing.T) {
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
 		award := &domain.Award{TeamID: team.ID, Value: 100, Description: "Bonus"}
+
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)
@@ -181,9 +183,11 @@ func TestHintUnlockRepo_Rollback_UnlockNotPersistedOnError(t *testing.T) {
 	hint := f.CreateHint(t, challenge.ID, 20, 1)
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		if innerErr := f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID); innerErr != nil {
+		innerErr := f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
+		if innerErr != nil {
 			return innerErr
 		}
+
 		return errors.New("forced rollback")
 	})
 	require.Error(t, err)
@@ -205,12 +209,17 @@ func TestHintUnlockRepo_Rollback_AwardOrphan(t *testing.T) {
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		award := &domain.Award{TeamID: team.ID, Value: -30, Description: "hint cost"}
-		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
+
+		innerErr := f.AwardRepo.Create(txCtx, award)
+		if innerErr != nil {
 			return innerErr
 		}
-		if innerErr := f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID); innerErr != nil {
+
+		innerErr = f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
+		if innerErr != nil {
 			return innerErr
 		}
+
 		return errors.New("forced rollback after both writes")
 	})
 	require.Error(t, err)
@@ -236,9 +245,12 @@ func TestHintUnlockAndAwardTx_Commit(t *testing.T) {
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		award := &domain.Award{TeamID: team.ID, Value: -25, Description: "hint cost"}
-		if innerErr := f.AwardRepo.Create(txCtx, award); innerErr != nil {
+
+		innerErr := f.AwardRepo.Create(txCtx, award)
+		if innerErr != nil {
 			return innerErr
 		}
+
 		return f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
 	})
 	require.NoError(t, err)
@@ -273,6 +285,7 @@ func TestScoreboardWithAwards(t *testing.T) {
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
 		award := &domain.Award{TeamID: team.ID, Value: -20, Description: "Penalty"}
+
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	require.NoError(t, err)
@@ -283,13 +296,18 @@ func TestScoreboardWithAwards(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
+
 	found := false
+
 	for _, entry := range scoreboard {
 		if entry.TeamID == team.ID {
 			assert.Equal(t, 80, entry.Points)
+
 			found = true
+
 			break
 		}
 	}
+
 	assert.True(t, found)
 }

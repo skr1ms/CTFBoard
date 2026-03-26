@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -52,9 +51,11 @@ type challengeRow struct {
 
 func toDomainChallenge(r challengeRow) *domain.Challenge {
 	var pts int
+
 	if r.Points != nil {
 		pts = int(*r.Points)
 	}
+
 	return &domain.Challenge{
 		ID:                r.ID,
 		Title:             r.Title,
@@ -85,8 +86,10 @@ func (r *ChallengeRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Chal
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("ChallengeRepo - GetByID: %w", err)
 	}
+
 	return toDomainChallenge(challengeRow{
 		ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
@@ -100,10 +103,12 @@ func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid
 	if len(ids) == 0 {
 		return map[uuid.UUID]*domain.Challenge{}, nil
 	}
+
 	rows, err := r.Q(ctx).GetChallengesByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetByIDs: %w", err)
 	}
+
 	out := make(map[uuid.UUID]*domain.Challenge, len(rows))
 	for _, row := range rows {
 		out[row.ID] = toDomainChallenge(challengeRow{
@@ -114,6 +119,7 @@ func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid
 			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		})
 	}
+
 	return out, nil
 }
 
@@ -122,6 +128,7 @@ func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeamByTag: %w", err)
 	}
+
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
@@ -135,6 +142,7 @@ func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid
 			Solved: row.Solved == 1,
 		})
 	}
+
 	return out, nil
 }
 
@@ -143,6 +151,7 @@ func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listByTag: %w", err)
 	}
+
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
@@ -156,6 +165,7 @@ func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo
 			Solved: false,
 		})
 	}
+
 	return out, nil
 }
 
@@ -164,6 +174,7 @@ func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*r
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeam: %w", err)
 	}
+
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
@@ -177,6 +188,7 @@ func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*r
 			Solved: row.Solved == 1,
 		})
 	}
+
 	return out, nil
 }
 
@@ -185,6 +197,7 @@ func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.Challeng
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listAllChallenges: %w", err)
 	}
+
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
@@ -198,6 +211,7 @@ func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.Challeng
 			Solved: false,
 		})
 	}
+
 	return out, nil
 }
 
@@ -206,6 +220,7 @@ func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*repo
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listAllChallengesForBackup: %w", err)
 	}
+
 	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &repo.ChallengeWithSolved{
@@ -219,6 +234,7 @@ func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*repo
 			Solved: false,
 		})
 	}
+
 	return out, nil
 }
 
@@ -226,12 +242,15 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([
 	if tagID != nil && teamID != nil {
 		return r.listForTeamByTag(ctx, *teamID, *tagID)
 	}
+
 	if tagID != nil {
 		return r.listByTag(ctx, *tagID)
 	}
+
 	if teamID != nil {
 		return r.listForTeam(ctx, *teamID)
 	}
+
 	return r.listAllChallenges(ctx)
 }
 
@@ -244,6 +263,7 @@ func (r *ChallengeRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	if err != nil && !pgutil.IsNoRows(err) {
 		return fmt.Errorf("ChallengeRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
@@ -252,6 +272,7 @@ func (r *ChallengeRepo) IncrementSolveCount(ctx context.Context, ID uuid.UUID) (
 	if err != nil {
 		return 0, fmt.Errorf("ChallengeRepo - IncrementSolveCount: %w", err)
 	}
+
 	return int(n), nil
 }
 
@@ -260,13 +281,16 @@ func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points i
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
 	}
+
 	_, err = r.Q(ctx).UpdateChallengePoints(ctx, sqlc.UpdateChallengePointsParams{ID: ID, Points: &pts})
 	if err != nil {
 		if pgutil.IsNoRows(err) {
 			return httperr.ErrChallengeNotFound
 		}
+
 		return fmt.Errorf("ChallengeRepo - UpdatePoints: %w", err)
 	}
+
 	return nil
 }
 
@@ -276,8 +300,10 @@ func (r *ChallengeRepo) GetFlags(ctx context.Context, ID uuid.UUID) (*repo.Chall
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("ChallengeRepo - GetFlags: %w", err)
 	}
+
 	return &repo.ChallengeFlags{
 		FlagHash:          row.FlagHash,
 		IsRegex:           lo.FromPtr(row.IsRegex),
@@ -292,6 +318,7 @@ func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*r
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetRequirements: %w", err)
 	}
+
 	out := make([]*repo.ChallengeRequirement, len(rows))
 	for i, row := range rows {
 		out[i] = &repo.ChallengeRequirement{
@@ -300,6 +327,7 @@ func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*r
 			Category:       lo.EmptyableToPtr(row.Category),
 		}
 	}
+
 	return out, nil
 }
 
@@ -308,6 +336,7 @@ func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*domain.C
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetAllRequirementPairs: %w", err)
 	}
+
 	out := make([]*domain.ChallengeRequirementPair, len(rows))
 	for i, row := range rows {
 		out[i] = &domain.ChallengeRequirementPair{
@@ -315,6 +344,7 @@ func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*domain.C
 			RequiredChallengeID: row.RequiredChallengeID,
 		}
 	}
+
 	return out, nil
 }
 
@@ -322,22 +352,28 @@ func (r *ChallengeRepo) SetRequirements(ctx context.Context, challengeID uuid.UU
 	if err := r.Q(ctx).DeleteChallengeRequirements(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - Delete: %w", err)
 	}
+
 	if len(requirementIDs) == 0 {
 		return nil
 	}
+
 	qb := SB.Insert("challenge_requirements").
 		Columns("challenge_id", "required_challenge_id").
 		Suffix("ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING")
+
 	for _, reqID := range requirementIDs {
 		qb = qb.Values(challengeID, reqID)
 	}
+
 	query, args, err := qb.ToSql()
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - ToSql: %w", err)
 	}
+
 	if _, err := r.DB(ctx).Exec(ctx, query, args...); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetRequirements - Exec: %w", err)
 	}
+
 	return nil
 }
 
@@ -347,8 +383,10 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("ChallengeRepo - GetSolution: %w", err)
 	}
+
 	files, err := r.Q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
 		ChallengeID: ID,
 		Type:        string(domain.FileTypeWriteup),
@@ -356,6 +394,7 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetSolution - GetFiles: %w", err)
 	}
+
 	entityFiles := make([]*domain.File, 0, len(files))
 	for _, f := range files {
 		entityFiles = append(entityFiles, &domain.File{
@@ -369,6 +408,7 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(f.CreatedAt)),
 		})
 	}
+
 	return &repo.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
@@ -381,6 +421,7 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.Solution
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetAllSolutions: %w", err)
 	}
+
 	out := make([]*domain.SolutionBackup, len(rows))
 	for i, row := range rows {
 		out[i] = &domain.SolutionBackup{
@@ -389,6 +430,7 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.Solution
 			Content:     row.Content,
 		}
 	}
+
 	return out, nil
 }
 
@@ -397,6 +439,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - ListSolutions: %w", err)
 	}
+
 	if len(rows) == 0 {
 		return []*repo.ChallengeSolutionEntry{}, nil
 	}
@@ -431,6 +474,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 		if ef == nil {
 			ef = []*domain.File{}
 		}
+
 		out[i] = &repo.ChallengeSolutionEntry{
 			ChallengeID:       row.ChallengeID,
 			ChallengeTitle:    row.ChallengeTitle,
@@ -439,6 +483,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 			Files:             ef,
 		}
 	}
+
 	return out, nil
 }
 
@@ -450,6 +495,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - UpsertSolution: %w", err)
 	}
+
 	files, err := r.Q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
 		ChallengeID: challengeID,
 		Type:        string(domain.FileTypeWriteup),
@@ -457,6 +503,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - UpsertSolution - GetFiles: %w", err)
 	}
+
 	entityFiles := make([]*domain.File, 0, len(files))
 	for _, f := range files {
 		entityFiles = append(entityFiles, &domain.File{
@@ -470,6 +517,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(f.CreatedAt)),
 		})
 	}
+
 	return &repo.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
@@ -478,9 +526,11 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 }
 
 func (r *ChallengeRepo) DeleteSolution(ctx context.Context, challengeID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteSolution(ctx, challengeID); err != nil {
+	err := r.Q(ctx).DeleteSolution(ctx, challengeID)
+	if err != nil {
 		return fmt.Errorf("ChallengeRepo - DeleteSolution: %w", err)
 	}
+
 	return nil
 }
 
@@ -489,6 +539,7 @@ func (r *ChallengeRepo) GetMissingChallengesByTeamID(ctx context.Context, teamID
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetMissingChallengesByTeamID: %w", err)
 	}
+
 	out := make([]*domain.Challenge, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toDomainChallenge(challengeRow{
@@ -499,6 +550,7 @@ func (r *ChallengeRepo) GetMissingChallengesByTeamID(ctx context.Context, teamID
 			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		}))
 	}
+
 	return out, nil
 }
 
@@ -507,6 +559,7 @@ func (r *ChallengeRepo) GetMissingChallengesByUserID(ctx context.Context, userID
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetMissingChallengesByUserID: %w", err)
 	}
+
 	out := make([]*domain.Challenge, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toDomainChallenge(challengeRow{
@@ -517,6 +570,7 @@ func (r *ChallengeRepo) GetMissingChallengesByUserID(ctx context.Context, userID
 			CreatedAt: pgutil.TimestamptzToTimeZero(row.CreatedAt), UpdatedAt: pgutil.TimestamptzToTimeZero(row.UpdatedAt),
 		}))
 	}
+
 	return out, nil
 }
 
@@ -525,34 +579,42 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *domain.Challenge) error {
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - Points: %w", err)
 	}
+
 	initialValue, err := intToInt32Safe(c.InitialValue)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - InitialValue: %w", err)
 	}
+
 	minValue, err := intToInt32Safe(c.MinValue)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - MinValue: %w", err)
 	}
+
 	decay, err := intToInt32Safe(c.Decay)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - Decay: %w", err)
 	}
+
 	solveCount, err := intToInt32Safe(c.SolveCount)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - SolveCount: %w", err)
 	}
+
 	maxAttempts, err := intToInt32Safe(c.MaxAttempts)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - MaxAttempts: %w", err)
 	}
+
 	position, err := intToInt32Safe(c.Position)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Create - Position: %w", err)
 	}
+
 	state := c.State
 	if state == "" {
 		state = domain.ChallengeStateHidden
 	}
+
 	now := time.Now()
 	if err := r.Q(ctx).CreateChallenge(ctx, sqlc.CreateChallengeParams{
 		ID:                c.ID,
@@ -578,6 +640,7 @@ func (r *ChallengeRepo) Create(ctx context.Context, c *domain.Challenge) error {
 	}); err != nil {
 		return fmt.Errorf("ChallengeRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -586,30 +649,37 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *domain.Challenge) error {
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - Points: %w", err)
 	}
+
 	initialValue, err := intToInt32Safe(c.InitialValue)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - InitialValue: %w", err)
 	}
+
 	minValue, err := intToInt32Safe(c.MinValue)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - MinValue: %w", err)
 	}
+
 	decay, err := intToInt32Safe(c.Decay)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - Decay: %w", err)
 	}
+
 	maxAttempts, err := intToInt32Safe(c.MaxAttempts)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - MaxAttempts: %w", err)
 	}
+
 	position, err := intToInt32Safe(c.Position)
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - Update - Position: %w", err)
 	}
+
 	state := c.State
 	if state == "" {
 		state = domain.ChallengeStateHidden
 	}
+
 	c.UpdatedAt = time.Now()
 	if err := r.Q(ctx).UpdateChallenge(ctx, sqlc.UpdateChallengeParams{
 		ID:                c.ID,
@@ -633,6 +703,7 @@ func (r *ChallengeRepo) Update(ctx context.Context, c *domain.Challenge) error {
 	}); err != nil {
 		return fmt.Errorf("ChallengeRepo - Update: %w", err)
 	}
+
 	return nil
 }
 
@@ -642,8 +713,10 @@ func (r *ChallengeRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*do
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("ChallengeRepo - GetByIDForUpdate: %w", err)
 	}
+
 	return toDomainChallenge(challengeRow{
 		ID: row.ID, Title: row.Title, Description: row.Description, Category: lo.EmptyableToPtr(row.Category), Points: row.Points,
 		InitialValue: row.InitialValue, MinValue: row.MinValue, Decay: row.Decay, SolveCount: row.SolveCount,
@@ -659,8 +732,10 @@ func (r *ChallengeRepo) DecrementSolveCount(ctx context.Context, ID uuid.UUID) (
 		if pgutil.IsNoRows(err) {
 			return 0, httperr.ErrChallengeNotFound
 		}
+
 		return 0, fmt.Errorf("ChallengeRepo - DecrementSolveCount: %w", err)
 	}
+
 	return int(n), nil
 }
 
@@ -668,9 +743,12 @@ func (r *ChallengeRepo) BatchDecrementSolveCount(ctx context.Context, ids []uuid
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := r.Q(ctx).BatchDecrementChallengeSolveCount(ctx, ids); err != nil {
+
+	err := r.Q(ctx).BatchDecrementChallengeSolveCount(ctx, ids)
+	if err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchDecrementSolveCount: %w", err)
 	}
+
 	return nil
 }
 
@@ -678,9 +756,12 @@ func (r *ChallengeRepo) BatchIncrementSolveCount(ctx context.Context, ids []uuid
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := r.Q(ctx).BatchIncrementChallengeSolveCount(ctx, ids); err != nil {
+
+	err := r.Q(ctx).BatchIncrementChallengeSolveCount(ctx, ids)
+	if err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchIncrementSolveCount: %w", err)
 	}
+
 	return nil
 }
 
@@ -688,20 +769,26 @@ func (r *ChallengeRepo) BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, 
 	if len(ids) == 0 {
 		return nil
 	}
+
 	if len(ids) != len(points) {
 		return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: ids and points length mismatch (%d != %d)", len(ids), len(points))
 	}
+
 	pts := make([]int32, len(points))
 	for i, p := range points {
 		v, err := intToInt32Safe(p)
 		if err != nil {
 			return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: %w", err)
 		}
+
 		pts[i] = v
 	}
-	if err := r.Q(ctx).BatchUpdateChallengePoints(ctx, sqlc.BatchUpdateChallengePointsParams{Column1: ids, Column2: pts}); err != nil {
+
+	err := r.Q(ctx).BatchUpdateChallengePoints(ctx, sqlc.BatchUpdateChallengePointsParams{Column1: ids, Column2: pts})
+	if err != nil {
 		return fmt.Errorf("ChallengeRepo - BatchUpdatePoints: %w", err)
 	}
+
 	return nil
 }
 
@@ -709,21 +796,27 @@ func (r *ChallengeRepo) SetTags(ctx context.Context, challengeID uuid.UUID, tagI
 	if err := r.Q(ctx).DeleteChallengeTags(ctx, challengeID); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - Delete: %w", err)
 	}
+
 	if len(tagIDs) == 0 {
 		return nil
 	}
+
 	qb := SB.Insert("challenge_tags").
 		Columns("challenge_id", "tag_id").
 		Suffix("ON CONFLICT (challenge_id, tag_id) DO NOTHING")
+
 	for _, tagID := range tagIDs {
 		qb = qb.Values(challengeID, tagID)
 	}
+
 	query, args, err := qb.ToSql()
 	if err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - ToSql: %w", err)
 	}
+
 	if _, err := r.DB(ctx).Exec(ctx, query, args...); err != nil {
 		return fmt.Errorf("ChallengeRepo - SetTags - Exec: %w", err)
 	}
+
 	return nil
 }

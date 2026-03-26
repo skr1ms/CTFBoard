@@ -31,14 +31,18 @@ type multipartEnumStruct struct {
 
 func newMultipartRequest(t *testing.T, build func(w *multipart.Writer)) *http.Request {
 	t.Helper()
+
 	var buf bytes.Buffer
+
 	w := multipart.NewWriter(&buf)
 	build(w)
 	require.NoError(t, w.Close())
+
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/", &buf)
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	require.NoError(t, req.ParseMultipartForm(32<<20))
+
 	return req
 }
 
@@ -47,6 +51,7 @@ func TestDecodeMultipartForm_StringField(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("name", "hello"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "hello", dst.Name)
@@ -57,6 +62,7 @@ func TestDecodeMultipartForm_StringPtrField(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("name_ptr", "world"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.NamePtr)
@@ -68,6 +74,7 @@ func TestDecodeMultipartForm_BoolPtrField_True(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("active", "true"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.Active)
@@ -79,7 +86,9 @@ func TestDecodeMultipartForm_BoolPtrField_Invalid(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("active", "invalid"))
 	})
+
 	var dst multipartTestStruct
+
 	err := DecodeMultipartForm(req, &dst, nil)
 	require.Error(t, err)
 }
@@ -89,6 +98,7 @@ func TestDecodeMultipartForm_BoolPtrField_False(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("active", "false"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.Active)
@@ -100,6 +110,7 @@ func TestDecodeMultipartForm_SkipsJSONDashTag(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("-", "should-be-ignored"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Empty(t, dst.Ignored)
@@ -107,10 +118,12 @@ func TestDecodeMultipartForm_SkipsJSONDashTag(t *testing.T) {
 
 func TestDecodeMultipartForm_NoMultipartForm_IsNoOp(t *testing.T) {
 	t.Parallel()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/", http.NoBody)
 	require.NoError(t, err)
 
 	var dst multipartTestStruct
+
 	dst.Name = "original"
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "original", dst.Name)
@@ -127,6 +140,7 @@ func TestDecodeMultipartForm_FileField(t *testing.T) {
 		_, err = fw.Write([]byte("file contents"))
 		require.NoError(t, err)
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.NotEmpty(t, dst.File.Filename())
@@ -137,6 +151,7 @@ func TestDecodeMultipartForm_NamedStringType(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("mode", "ctf"))
 	})
+
 	var dst multipartEnumStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, namedStringType("ctf"), dst.Mode)
@@ -147,6 +162,7 @@ func TestDecodeMultipartForm_NamedStringPtrType(t *testing.T) {
 	req := newMultipartRequest(t, func(w *multipart.Writer) {
 		require.NoError(t, w.WriteField("mode_ptr", "jeopardy"))
 	})
+
 	var dst multipartEnumStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	require.NotNil(t, dst.ModePtr)
@@ -160,6 +176,7 @@ func TestDecodeMultipartForm_MultipleFields(t *testing.T) {
 		require.NoError(t, w.WriteField("active", "true"))
 		require.NoError(t, w.WriteField("name_ptr", "bob"))
 	})
+
 	var dst multipartTestStruct
 	require.NoError(t, DecodeMultipartForm(req, &dst, nil))
 	assert.Equal(t, "alice", dst.Name)

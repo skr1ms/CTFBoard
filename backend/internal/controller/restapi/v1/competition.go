@@ -14,27 +14,29 @@ import (
 )
 
 // Get competition status
-// (GET /competition/status)
+// (GET /competition/status).
 func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.comp.CompetitionUC.Get(r.Context())
 	if h.OnError(w, r, err, "GetCompetitionStatus", "Get") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 
 // Get competition
-// (GET /admin/competition)
+// (GET /admin/competition).
 func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.comp.CompetitionUC.Get(r.Context())
 	if h.OnError(w, r, err, "GetAdminCompetition", "Get") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromCompetition(comp))
 }
 
 // Update competition
-// (PUT /admin/competition)
+// (PUT /admin/competition).
 func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {

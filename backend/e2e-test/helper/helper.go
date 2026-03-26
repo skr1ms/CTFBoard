@@ -28,8 +28,10 @@ func (h *E2EHelper) Redis() *redis.Client {
 
 func NewE2EHelper(t *testing.T, _ any, pool *pgxpool.Pool, redisClient *redis.Client, baseURL string) *E2EHelper {
 	t.Helper()
+
 	client, err := openapi.NewClientWithResponses(baseURL + "/api/v1")
 	require.NoError(t, err)
+
 	return &E2EHelper{
 		t:       t,
 		client:  client,

@@ -36,10 +36,12 @@ type TestPool struct {
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
+
 	if os.Getenv("USE_EXTERNAL_DB") != "true" {
 		containerOnce.Do(func() {
 			_, globalConnStr, containerErr = startPostgresContainer(ctx)
 		})
+
 		if containerErr != nil {
 			fmt.Fprintf(os.Stderr, "failed to start container: %v\n", containerErr)
 			os.Exit(1)
@@ -50,46 +52,62 @@ func TestMain(m *testing.M) {
 
 	globalPoolOnce.Do(func() {
 		var err error
+
 		globalPool, err = pgxpool.New(ctx, globalConnStr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create pool: %v\n", err)
 			os.Exit(1)
 		}
 	})
-	if err := pingPool(ctx, globalPool); err != nil {
+
+	err := pingPool(ctx, globalPool)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to ping pool: %v\n", err)
 		os.Exit(1)
 	}
+
 	_, thisFile, _, _ := runtime.Caller(0)
 	backendDir := filepath.Dir(filepath.Dir(thisFile))
 	oldWd, _ := os.Getwd()
-	if err := os.Chdir(backendDir); err != nil {
+
+	err = os.Chdir(backendDir)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to chdir to backend: %v\n", err)
 		os.Exit(1)
 	}
+
 	defer func() { _ = os.Chdir(oldWd) }()
-	if err := goose.Run(context.Background(), globalConnStr, "migrations"); err != nil {
+
+	err = goose.Run(context.Background(), globalConnStr, "migrations")
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to run migrations: %v\n", err)
 		os.Exit(1)
 	}
-	if err := truncateTablesCtx(ctx, globalPool); err != nil {
+
+	err = truncateTablesCtx(ctx, globalPool)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to truncate: %v\n", err)
 		os.Exit(1)
 	}
-	if err := seedCompetition(ctx, globalPool); err != nil {
+
+	err = seedCompetition(ctx, globalPool)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to seed competition: %v\n", err)
 		os.Exit(1)
 	}
+
 	os.Exit(m.Run())
 }
 
 func SetupTestPool(t *testing.T) *TestPool {
 	t.Helper()
+
 	return &TestPool{Pool: globalPool}
 }
 
 func SetupTestFixture(t *testing.T) *TestFixture {
 	t.Helper()
+
 	return NewTestFixture(SetupTestPool(t).Pool)
 }
 
@@ -114,6 +132,7 @@ func pingPool(ctx context.Context, pool *pgxpool.Pool) error {
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = 200 * time.Millisecond
 	bo.MaxElapsedTime = 10 * time.Second
+
 	return backoff.Retry(func() error { return pool.Ping(ctx) }, backoff.WithContext(bo, ctx))
 }
 
@@ -151,11 +170,13 @@ func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("truncate %s: %w", table, err)
 		}
 	}
+
 	return nil
 }
 
 func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time, mode, allow_team_switch) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours', 'flexible', true) ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, mode = 'flexible', allow_team_switch = true, updated_at = NOW()`)
+
 	return err
 }
 
@@ -175,6 +196,7 @@ var (
 
 func SetupSeaweedFS(t *testing.T) (endpoint, accessKey, secretKey, bucket string) {
 	t.Helper()
+
 	ctx := context.Background()
 
 	seaweedOnce.Do(func() {
@@ -188,6 +210,7 @@ func SetupSeaweedFS(t *testing.T) (endpoint, accessKey, secretKey, bucket string
 				{HostFilePath: s3ConfigPath, ContainerFilePath: "/etc/seaweedfs/s3.json", FileMode: 0o644},
 			},
 		}
+
 		seaweedContainer, seaweedErr = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
@@ -195,27 +218,34 @@ func SetupSeaweedFS(t *testing.T) (endpoint, accessKey, secretKey, bucket string
 		if seaweedErr != nil {
 			return
 		}
+
 		host, err := seaweedContainer.Host(ctx)
 		if err != nil {
 			seaweedErr = err
+
 			return
 		}
+
 		port, err := seaweedContainer.MappedPort(ctx, seaweedS3Port)
 		if err != nil {
 			seaweedErr = err
+
 			return
 		}
+
 		seaweedEndpoint = host + ":" + port.Port()
 	})
 
 	if seaweedErr != nil {
 		t.Fatalf("seaweedfs container: %v", seaweedErr)
 	}
+
 	return seaweedEndpoint, seaweedAccessKey, seaweedSecretKey, seaweedBucket
 }
 
 func findS3ConfigPath(t *testing.T) string {
 	t.Helper()
+
 	candidates := []string{
 		filepath.Join("..", "deployment", "seaweedfs", "s3.json"),
 		filepath.Join("deployment", "seaweedfs", "s3.json"),
@@ -226,10 +256,13 @@ func findS3ConfigPath(t *testing.T) string {
 		if err != nil {
 			continue
 		}
+
 		if _, err := os.Stat(abs); err == nil {
 			return abs
 		}
 	}
+
 	t.Fatal("s3.json not found (run tests from backend or repo root)")
+
 	return ""
 }

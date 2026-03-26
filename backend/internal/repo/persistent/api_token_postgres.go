@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -29,25 +28,33 @@ func NewAPITokenRepo(pool *pgxpool.Pool) *APITokenRepo {
 
 func (r *APITokenRepo) Create(ctx context.Context, token *domain.APIToken) error {
 	EnsureID(&token.ID)
+
 	if token.CreatedAt.IsZero() {
 		token.CreatedAt = time.Now()
 	}
+
 	desc := lo.EmptyableToPtr(token.Description)
+
 	var expiresAt *time.Time
+
 	if token.ExpiresAt != nil && !token.ExpiresAt.IsZero() {
 		expiresAt = token.ExpiresAt
 	}
+
 	createdAt := &token.CreatedAt
-	if err := r.Q(ctx).CreateAPIToken(ctx, sqlc.CreateAPITokenParams{
+
+	err := r.Q(ctx).CreateAPIToken(ctx, sqlc.CreateAPITokenParams{
 		ID:          token.ID,
 		UserID:      token.UserID,
 		TokenHash:   token.TokenHash,
 		Description: desc,
 		ExpiresAt:   pgutil.TimeToTimestamptz(expiresAt),
 		CreatedAt:   pgutil.TimeToTimestamptz(createdAt),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("APITokenRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -56,6 +63,7 @@ func (r *APITokenRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*do
 	if err != nil {
 		return nil, fmt.Errorf("APITokenRepo - GetByUserID: %w", err)
 	}
+
 	out := make([]*domain.APIToken, len(rows))
 	for i, row := range rows {
 		out[i] = &domain.APIToken{
@@ -68,6 +76,7 @@ func (r *APITokenRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*do
 			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
+
 	return out, nil
 }
 
@@ -77,8 +86,10 @@ func (r *APITokenRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*d
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAPITokenNotFound
 		}
+
 		return nil, fmt.Errorf("APITokenRepo - GetByTokenHash: %w", err)
 	}
+
 	return &domain.APIToken{
 		ID:          row.ID,
 		UserID:      row.UserID,
@@ -91,18 +102,22 @@ func (r *APITokenRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*d
 }
 
 func (r *APITokenRepo) Delete(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteAPIToken(ctx, sqlc.DeleteAPITokenParams{ID: ID, UserID: userID}); err != nil {
+	err := r.Q(ctx).DeleteAPIToken(ctx, sqlc.DeleteAPITokenParams{ID: ID, UserID: userID})
+	if err != nil {
 		return fmt.Errorf("APITokenRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func (r *APITokenRepo) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID, at time.Time) error {
-	if err := r.Q(ctx).UpdateAPITokenLastUsed(ctx, sqlc.UpdateAPITokenLastUsedParams{
+	err := r.Q(ctx).UpdateAPITokenLastUsed(ctx, sqlc.UpdateAPITokenLastUsedParams{
 		ID:         ID,
 		LastUsedAt: pgutil.TimeToTimestamptz(&at),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("APITokenRepo - UpdateLastUsedAt: %w", err)
 	}
+
 	return nil
 }

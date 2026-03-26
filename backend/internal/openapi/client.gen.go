@@ -340,6 +340,12 @@ type ClientInterface interface {
 
 	PatchAdminTeamsID(ctx context.Context, id string, body PatchAdminTeamsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteAdminTeamsIDAvatar request
+	DeleteAdminTeamsIDAvatar(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminTeamsIDAvatarWithBody request with any body
+	PutAdminTeamsIDAvatarWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteAdminTeamsIDBan request
 	DeleteAdminTeamsIDBan(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -390,6 +396,12 @@ type ClientInterface interface {
 	PatchAdminUsersIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PatchAdminUsersID(ctx context.Context, id string, body PatchAdminUsersIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminUsersIDAvatar request
+	DeleteAdminUsersIDAvatar(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutAdminUsersIDAvatarWithBody request with any body
+	PutAdminUsersIDAvatarWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAdminUsersIDBan request
 	DeleteAdminUsersIDBan(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -635,6 +647,12 @@ type ClientInterface interface {
 
 	PatchTeamsMe(ctx context.Context, body PatchTeamsMeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteTeamsMeAvatar request
+	DeleteTeamsMeAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutTeamsMeAvatarWithBody request with any body
+	PutTeamsMeAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetTeamsMeAwards request
 	GetTeamsMeAwards(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -694,6 +712,12 @@ type ClientInterface interface {
 
 	// GetUsers request
 	GetUsers(ctx context.Context, params *GetUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteUsersMeAvatar request
+	DeleteUsersMeAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutUsersMeAvatarWithBody request with any body
+	PutUsersMeAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetUsersMeAwards request
 	GetUsersMeAwards(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1827,6 +1851,30 @@ func (c *Client) PatchAdminTeamsID(ctx context.Context, id string, body PatchAdm
 	return c.Client.Do(req)
 }
 
+func (c *Client) DeleteAdminTeamsIDAvatar(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminTeamsIDAvatarRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminTeamsIDAvatarWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminTeamsIDAvatarRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteAdminTeamsIDBan(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteAdminTeamsIDBanRequest(c.Server, id)
 	if err != nil {
@@ -2045,6 +2093,30 @@ func (c *Client) PatchAdminUsersIDWithBody(ctx context.Context, id string, conte
 
 func (c *Client) PatchAdminUsersID(ctx context.Context, id string, body PatchAdminUsersIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPatchAdminUsersIDRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminUsersIDAvatar(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminUsersIDAvatarRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutAdminUsersIDAvatarWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutAdminUsersIDAvatarRequestWithBody(c.Server, id, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3087,6 +3159,30 @@ func (c *Client) PatchTeamsMe(ctx context.Context, body PatchTeamsMeJSONRequestB
 	return c.Client.Do(req)
 }
 
+func (c *Client) DeleteTeamsMeAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTeamsMeAvatarRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutTeamsMeAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutTeamsMeAvatarRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetTeamsMeAwards(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetTeamsMeAwardsRequest(c.Server)
 	if err != nil {
@@ -3329,6 +3425,30 @@ func (c *Client) DeleteUserTokensID(ctx context.Context, id string, reqEditors .
 
 func (c *Client) GetUsers(ctx context.Context, params *GetUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetUsersRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteUsersMeAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteUsersMeAvatarRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutUsersMeAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutUsersMeAvatarRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6315,6 +6435,76 @@ func NewPatchAdminTeamsIDRequestWithBody(server string, id string, contentType s
 	return req, nil
 }
 
+// NewDeleteAdminTeamsIDAvatarRequest generates requests for DeleteAdminTeamsIDAvatar
+func NewDeleteAdminTeamsIDAvatarRequest(server string, id openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/%s/avatar", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminTeamsIDAvatarRequestWithBody generates requests for PutAdminTeamsIDAvatar with any type of body
+func NewPutAdminTeamsIDAvatarRequestWithBody(server string, id openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/%s/avatar", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeleteAdminTeamsIDBanRequest generates requests for DeleteAdminTeamsIDBan
 func NewDeleteAdminTeamsIDBanRequest(server string, id string) (*http.Request, error) {
 	var err error
@@ -6920,6 +7110,76 @@ func NewPatchAdminUsersIDRequestWithBody(server string, id string, contentType s
 	}
 
 	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminUsersIDAvatarRequest generates requests for DeleteAdminUsersIDAvatar
+func NewDeleteAdminUsersIDAvatarRequest(server string, id openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/users/%s/avatar", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutAdminUsersIDAvatarRequestWithBody generates requests for PutAdminUsersIDAvatar with any type of body
+func NewPutAdminUsersIDAvatarRequestWithBody(server string, id openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/users/%s/avatar", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -9866,6 +10126,62 @@ func NewPatchTeamsMeRequestWithBody(server string, contentType string, body io.R
 	return req, nil
 }
 
+// NewDeleteTeamsMeAvatarRequest generates requests for DeleteTeamsMeAvatar
+func NewDeleteTeamsMeAvatarRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/teams/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutTeamsMeAvatarRequestWithBody generates requests for PutTeamsMeAvatar with any type of body
+func NewPutTeamsMeAvatarRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/teams/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetTeamsMeAwardsRequest generates requests for GetTeamsMeAwards
 func NewGetTeamsMeAwardsRequest(server string) (*http.Request, error) {
 	var err error
@@ -10556,6 +10872,62 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 	return req, nil
 }
 
+// NewDeleteUsersMeAvatarRequest generates requests for DeleteUsersMeAvatar
+func NewDeleteUsersMeAvatarRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutUsersMeAvatarRequestWithBody generates requests for PutUsersMeAvatar with any type of body
+func NewPutUsersMeAvatarRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetUsersMeAwardsRequest generates requests for GetUsersMeAwards
 func NewGetUsersMeAwardsRequest(server string) (*http.Request, error) {
 	var err error
@@ -11234,6 +11606,12 @@ type ClientWithResponsesInterface interface {
 
 	PatchAdminTeamsIDWithResponse(ctx context.Context, id string, body PatchAdminTeamsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminTeamsIDResponse, error)
 
+	// DeleteAdminTeamsIDAvatarWithResponse request
+	DeleteAdminTeamsIDAvatarWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDAvatarResponse, error)
+
+	// PutAdminTeamsIDAvatarWithBodyWithResponse request with any body
+	PutAdminTeamsIDAvatarWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminTeamsIDAvatarResponse, error)
+
 	// DeleteAdminTeamsIDBanWithResponse request
 	DeleteAdminTeamsIDBanWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDBanResponse, error)
 
@@ -11284,6 +11662,12 @@ type ClientWithResponsesInterface interface {
 	PatchAdminUsersIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminUsersIDResponse, error)
 
 	PatchAdminUsersIDWithResponse(ctx context.Context, id string, body PatchAdminUsersIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminUsersIDResponse, error)
+
+	// DeleteAdminUsersIDAvatarWithResponse request
+	DeleteAdminUsersIDAvatarWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminUsersIDAvatarResponse, error)
+
+	// PutAdminUsersIDAvatarWithBodyWithResponse request with any body
+	PutAdminUsersIDAvatarWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminUsersIDAvatarResponse, error)
 
 	// DeleteAdminUsersIDBanWithResponse request
 	DeleteAdminUsersIDBanWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminUsersIDBanResponse, error)
@@ -11529,6 +11913,12 @@ type ClientWithResponsesInterface interface {
 
 	PatchTeamsMeWithResponse(ctx context.Context, body PatchTeamsMeJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchTeamsMeResponse, error)
 
+	// DeleteTeamsMeAvatarWithResponse request
+	DeleteTeamsMeAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteTeamsMeAvatarResponse, error)
+
+	// PutTeamsMeAvatarWithBodyWithResponse request with any body
+	PutTeamsMeAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTeamsMeAvatarResponse, error)
+
 	// GetTeamsMeAwardsWithResponse request
 	GetTeamsMeAwardsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTeamsMeAwardsResponse, error)
 
@@ -11588,6 +11978,12 @@ type ClientWithResponsesInterface interface {
 
 	// GetUsersWithResponse request
 	GetUsersWithResponse(ctx context.Context, params *GetUsersParams, reqEditors ...RequestEditorFn) (*GetUsersResponse, error)
+
+	// DeleteUsersMeAvatarWithResponse request
+	DeleteUsersMeAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteUsersMeAvatarResponse, error)
+
+	// PutUsersMeAvatarWithBodyWithResponse request with any body
+	PutUsersMeAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUsersMeAvatarResponse, error)
 
 	// GetUsersMeAwardsWithResponse request
 	GetUsersMeAwardsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetUsersMeAwardsResponse, error)
@@ -13257,6 +13653,57 @@ func (r PatchAdminTeamsIDResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteAdminTeamsIDAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON404      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminTeamsIDAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminTeamsIDAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminTeamsIDAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AvatarUploadResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON404      *V1ErrorResponse
+	JSON413      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminTeamsIDAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminTeamsIDAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteAdminTeamsIDBanResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13578,6 +14025,57 @@ func (r PatchAdminUsersIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PatchAdminUsersIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminUsersIDAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON404      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminUsersIDAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminUsersIDAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutAdminUsersIDAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AvatarUploadResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON404      *V1ErrorResponse
+	JSON413      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutAdminUsersIDAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutAdminUsersIDAvatarResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15306,6 +15804,55 @@ func (r PatchTeamsMeResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteTeamsMeAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTeamsMeAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTeamsMeAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutTeamsMeAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AvatarUploadResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON413      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutTeamsMeAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutTeamsMeAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetTeamsMeAwardsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15734,6 +16281,54 @@ func (r GetUsersResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetUsersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteUsersMeAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteUsersMeAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteUsersMeAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutUsersMeAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AvatarUploadResponse
+	JSON400      *V1ErrorResponse
+	JSON401      *V1ErrorResponse
+	JSON403      *V1ErrorResponse
+	JSON413      *V1ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutUsersMeAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutUsersMeAvatarResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -16756,6 +17351,24 @@ func (c *ClientWithResponses) PatchAdminTeamsIDWithResponse(ctx context.Context,
 	return ParsePatchAdminTeamsIDResponse(rsp)
 }
 
+// DeleteAdminTeamsIDAvatarWithResponse request returning *DeleteAdminTeamsIDAvatarResponse
+func (c *ClientWithResponses) DeleteAdminTeamsIDAvatarWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDAvatarResponse, error) {
+	rsp, err := c.DeleteAdminTeamsIDAvatar(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminTeamsIDAvatarResponse(rsp)
+}
+
+// PutAdminTeamsIDAvatarWithBodyWithResponse request with arbitrary body returning *PutAdminTeamsIDAvatarResponse
+func (c *ClientWithResponses) PutAdminTeamsIDAvatarWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminTeamsIDAvatarResponse, error) {
+	rsp, err := c.PutAdminTeamsIDAvatarWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminTeamsIDAvatarResponse(rsp)
+}
+
 // DeleteAdminTeamsIDBanWithResponse request returning *DeleteAdminTeamsIDBanResponse
 func (c *ClientWithResponses) DeleteAdminTeamsIDBanWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDBanResponse, error) {
 	rsp, err := c.DeleteAdminTeamsIDBan(ctx, id, reqEditors...)
@@ -16919,6 +17532,24 @@ func (c *ClientWithResponses) PatchAdminUsersIDWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParsePatchAdminUsersIDResponse(rsp)
+}
+
+// DeleteAdminUsersIDAvatarWithResponse request returning *DeleteAdminUsersIDAvatarResponse
+func (c *ClientWithResponses) DeleteAdminUsersIDAvatarWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminUsersIDAvatarResponse, error) {
+	rsp, err := c.DeleteAdminUsersIDAvatar(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminUsersIDAvatarResponse(rsp)
+}
+
+// PutAdminUsersIDAvatarWithBodyWithResponse request with arbitrary body returning *PutAdminUsersIDAvatarResponse
+func (c *ClientWithResponses) PutAdminUsersIDAvatarWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutAdminUsersIDAvatarResponse, error) {
+	rsp, err := c.PutAdminUsersIDAvatarWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutAdminUsersIDAvatarResponse(rsp)
 }
 
 // DeleteAdminUsersIDBanWithResponse request returning *DeleteAdminUsersIDBanResponse
@@ -17681,6 +18312,24 @@ func (c *ClientWithResponses) PatchTeamsMeWithResponse(ctx context.Context, body
 	return ParsePatchTeamsMeResponse(rsp)
 }
 
+// DeleteTeamsMeAvatarWithResponse request returning *DeleteTeamsMeAvatarResponse
+func (c *ClientWithResponses) DeleteTeamsMeAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteTeamsMeAvatarResponse, error) {
+	rsp, err := c.DeleteTeamsMeAvatar(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTeamsMeAvatarResponse(rsp)
+}
+
+// PutTeamsMeAvatarWithBodyWithResponse request with arbitrary body returning *PutTeamsMeAvatarResponse
+func (c *ClientWithResponses) PutTeamsMeAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTeamsMeAvatarResponse, error) {
+	rsp, err := c.PutTeamsMeAvatarWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutTeamsMeAvatarResponse(rsp)
+}
+
 // GetTeamsMeAwardsWithResponse request returning *GetTeamsMeAwardsResponse
 func (c *ClientWithResponses) GetTeamsMeAwardsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTeamsMeAwardsResponse, error) {
 	rsp, err := c.GetTeamsMeAwards(ctx, reqEditors...)
@@ -17865,6 +18514,24 @@ func (c *ClientWithResponses) GetUsersWithResponse(ctx context.Context, params *
 		return nil, err
 	}
 	return ParseGetUsersResponse(rsp)
+}
+
+// DeleteUsersMeAvatarWithResponse request returning *DeleteUsersMeAvatarResponse
+func (c *ClientWithResponses) DeleteUsersMeAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteUsersMeAvatarResponse, error) {
+	rsp, err := c.DeleteUsersMeAvatar(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteUsersMeAvatarResponse(rsp)
+}
+
+// PutUsersMeAvatarWithBodyWithResponse request with arbitrary body returning *PutUsersMeAvatarResponse
+func (c *ClientWithResponses) PutUsersMeAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUsersMeAvatarResponse, error) {
+	rsp, err := c.PutUsersMeAvatarWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutUsersMeAvatarResponse(rsp)
 }
 
 // GetUsersMeAwardsWithResponse request returning *GetUsersMeAwardsResponse
@@ -20980,6 +21647,107 @@ func ParsePatchAdminTeamsIDResponse(rsp *http.Response) (*PatchAdminTeamsIDRespo
 	return response, nil
 }
 
+// ParseDeleteAdminTeamsIDAvatarResponse parses an HTTP response from a DeleteAdminTeamsIDAvatarWithResponse call
+func ParseDeleteAdminTeamsIDAvatarResponse(rsp *http.Response) (*DeleteAdminTeamsIDAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminTeamsIDAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminTeamsIDAvatarResponse parses an HTTP response from a PutAdminTeamsIDAvatarWithResponse call
+func ParsePutAdminTeamsIDAvatarResponse(rsp *http.Response) (*PutAdminTeamsIDAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminTeamsIDAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AvatarUploadResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteAdminTeamsIDBanResponse parses an HTTP response from a DeleteAdminTeamsIDBanWithResponse call
 func ParseDeleteAdminTeamsIDBanResponse(rsp *http.Response) (*DeleteAdminTeamsIDBanResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -21599,6 +22367,107 @@ func ParsePatchAdminUsersIDResponse(rsp *http.Response) (*PatchAdminUsersIDRespo
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminUsersIDAvatarResponse parses an HTTP response from a DeleteAdminUsersIDAvatarWithResponse call
+func ParseDeleteAdminUsersIDAvatarResponse(rsp *http.Response) (*DeleteAdminUsersIDAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminUsersIDAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutAdminUsersIDAvatarResponse parses an HTTP response from a PutAdminUsersIDAvatarWithResponse call
+func ParsePutAdminUsersIDAvatarResponse(rsp *http.Response) (*PutAdminUsersIDAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutAdminUsersIDAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AvatarUploadResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
 
 	}
 
@@ -24428,6 +25297,93 @@ func ParsePatchTeamsMeResponse(rsp *http.Response) (*PatchTeamsMeResponse, error
 	return response, nil
 }
 
+// ParseDeleteTeamsMeAvatarResponse parses an HTTP response from a DeleteTeamsMeAvatarWithResponse call
+func ParseDeleteTeamsMeAvatarResponse(rsp *http.Response) (*DeleteTeamsMeAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTeamsMeAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutTeamsMeAvatarResponse parses an HTTP response from a PutTeamsMeAvatarWithResponse call
+func ParsePutTeamsMeAvatarResponse(rsp *http.Response) (*PutTeamsMeAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutTeamsMeAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AvatarUploadResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetTeamsMeAwardsResponse parses an HTTP response from a GetTeamsMeAwardsWithResponse call
 func ParseGetTeamsMeAwardsResponse(rsp *http.Response) (*GetTeamsMeAwardsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -25153,6 +26109,86 @@ func ParseGetUsersResponse(rsp *http.Response) (*GetUsersResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteUsersMeAvatarResponse parses an HTTP response from a DeleteUsersMeAvatarWithResponse call
+func ParseDeleteUsersMeAvatarResponse(rsp *http.Response) (*DeleteUsersMeAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteUsersMeAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutUsersMeAvatarResponse parses an HTTP response from a PutUsersMeAvatarWithResponse call
+func ParsePutUsersMeAvatarResponse(rsp *http.Response) (*PutUsersMeAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutUsersMeAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AvatarUploadResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest V1ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
 
 	}
 

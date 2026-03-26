@@ -2,7 +2,7 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Run cleanup every day at 02:00 AM
+# Run cleanup (deleted teams + orphaned task files + orphaned avatar files) every day at 02:00 AM
 0 2 * * * root /usr/bin/docker exec backend /usr/local/bin/astroctfb-cleanup >> /var/log/astroctfb-cleanup.log 2>&1
 
 # Run docker system prune every day at 03:00 AM

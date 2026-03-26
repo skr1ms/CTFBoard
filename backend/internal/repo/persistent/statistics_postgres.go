@@ -8,9 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
@@ -18,7 +17,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-const dateFormatISO = "2006-01-02"
+const dateFormatISO = time.DateOnly
 
 type StatisticsRepo struct {
 	BaseRepo
@@ -39,7 +38,9 @@ func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*domain.GeneralSt
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountUsers: %w", err)
 		}
+
 		users = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -47,7 +48,9 @@ func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*domain.GeneralSt
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountTeams: %w", err)
 		}
+
 		teams = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -55,7 +58,9 @@ func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*domain.GeneralSt
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountChallenges: %w", err)
 		}
+
 		challenges = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -63,13 +68,17 @@ func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*domain.GeneralSt
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountSolves: %w", err)
 		}
+
 		solves = v
+
 		return nil
 	})
 
-	if err := g.Wait(); err != nil {
+	err := g.Wait()
+	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetGeneralStats - Wait: %w", err)
 	}
+
 	return &domain.GeneralStats{
 		UserCount:      int(users),
 		TeamCount:      int(teams),
@@ -80,6 +89,7 @@ func (r *StatisticsRepo) GetGeneralStats(ctx context.Context) (*domain.GeneralSt
 
 func (r *StatisticsRepo) GetGeneralStatsFrozen(ctx context.Context, freezeTime time.Time) (*domain.GeneralStats, error) {
 	var users, teams, challenges, solves int32
+
 	ft := &freezeTime
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -88,7 +98,9 @@ func (r *StatisticsRepo) GetGeneralStatsFrozen(ctx context.Context, freezeTime t
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStatsFrozen - CountUsersFrozen: %w", err)
 		}
+
 		users = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -96,7 +108,9 @@ func (r *StatisticsRepo) GetGeneralStatsFrozen(ctx context.Context, freezeTime t
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStatsFrozen - CountTeamsFrozen: %w", err)
 		}
+
 		teams = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -104,7 +118,9 @@ func (r *StatisticsRepo) GetGeneralStatsFrozen(ctx context.Context, freezeTime t
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStatsFrozen - CountChallenges: %w", err)
 		}
+
 		challenges = v
+
 		return nil
 	})
 	g.Go(func() error {
@@ -112,13 +128,17 @@ func (r *StatisticsRepo) GetGeneralStatsFrozen(ctx context.Context, freezeTime t
 		if err != nil {
 			return fmt.Errorf("StatisticsRepo - GetGeneralStatsFrozen - CountSolvesFrozen: %w", err)
 		}
+
 		solves = v
+
 		return nil
 	})
 
-	if err := g.Wait(); err != nil {
+	err := g.Wait()
+	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetGeneralStatsFrozen - Wait: %w", err)
 	}
+
 	return &domain.GeneralStats{
 		UserCount:      int(users),
 		TeamCount:      int(teams),
@@ -132,6 +152,7 @@ func (r *StatisticsRepo) GetChallengeStats(ctx context.Context) ([]*domain.Chall
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeStats: %w", err)
 	}
+
 	out := make([]*domain.ChallengeStats, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ChallengeStats{
@@ -142,6 +163,7 @@ func (r *StatisticsRepo) GetChallengeStats(ctx context.Context) ([]*domain.Chall
 			SolveCount: int(row.SolveCount),
 		})
 	}
+
 	return out, nil
 }
 
@@ -150,6 +172,7 @@ func (r *StatisticsRepo) GetChallengeStatsFrozen(ctx context.Context, freezeTime
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeStatsFrozen: %w", err)
 	}
+
 	out := make([]*domain.ChallengeStats, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ChallengeStats{
@@ -160,6 +183,7 @@ func (r *StatisticsRepo) GetChallengeStatsFrozen(ctx context.Context, freezeTime
 			SolveCount: int(row.SolveCount),
 		})
 	}
+
 	return out, nil
 }
 
@@ -169,16 +193,21 @@ func (r *StatisticsRepo) GetChallengeDetailStats(ctx context.Context, challengeI
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStats - Challenge: %w", err)
 	}
+
 	percentageSolved := 0.0
+
 	if chRow.TotalTeams > 0 {
 		percentageSolved = float64(chRow.SolveCount) / float64(chRow.TotalTeams) * 100
 	}
+
 	solveRows, err := r.Q(ctx).GetChallengeDetailSolves(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStats - Solves: %w", err)
 	}
+
 	solves := make([]domain.ChallengeSolveEntry, 0, len(solveRows))
 	for _, row := range solveRows {
 		solves = append(solves, domain.ChallengeSolveEntry{
@@ -187,10 +216,13 @@ func (r *StatisticsRepo) GetChallengeDetailStats(ctx context.Context, challengeI
 			SolvedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),
 		})
 	}
+
 	var firstBlood *domain.ChallengeSolveEntry
+
 	if len(solves) > 0 {
 		firstBlood = &solves[0]
 	}
+
 	return &domain.ChallengeDetailStats{
 		ID:               chRow.ID,
 		Title:            chRow.Title,
@@ -213,12 +245,16 @@ func (r *StatisticsRepo) GetChallengeDetailStatsFrozen(ctx context.Context, chal
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrChallengeNotFound
 		}
+
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStatsFrozen - Challenge: %w", err)
 	}
+
 	percentageSolved := 0.0
+
 	if chRow.TotalTeams > 0 {
 		percentageSolved = float64(chRow.SolveCount) / float64(chRow.TotalTeams) * 100
 	}
+
 	solveRows, err := r.Q(ctx).GetChallengeDetailSolvesFrozen(ctx, sqlc.GetChallengeDetailSolvesFrozenParams{
 		ChallengeID: challengeID,
 		SolvedAt:    pgutil.TimeToTimestamptz(&freezeTime),
@@ -226,6 +262,7 @@ func (r *StatisticsRepo) GetChallengeDetailStatsFrozen(ctx context.Context, chal
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeDetailStatsFrozen - Solves: %w", err)
 	}
+
 	solves := make([]domain.ChallengeSolveEntry, 0, len(solveRows))
 	for _, row := range solveRows {
 		solves = append(solves, domain.ChallengeSolveEntry{
@@ -234,10 +271,13 @@ func (r *StatisticsRepo) GetChallengeDetailStatsFrozen(ctx context.Context, chal
 			SolvedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),
 		})
 	}
+
 	var firstBlood *domain.ChallengeSolveEntry
+
 	if len(solves) > 0 {
 		firstBlood = &solves[0]
 	}
+
 	return &domain.ChallengeDetailStats{
 		ID:               chRow.ID,
 		Title:            chRow.Title,
@@ -256,10 +296,12 @@ func (r *StatisticsRepo) GetScoreboardHistory(ctx context.Context, limit int) ([
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistory - limit: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetScoreboardHistory(ctx, limit32)
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistory: %w", err)
 	}
+
 	return mapScoreboardHistoryRows(rows), nil
 }
 
@@ -268,6 +310,7 @@ func (r *StatisticsRepo) GetScoreboardHistoryFrozen(ctx context.Context, freezeT
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistoryFrozen - limit: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetScoreboardHistoryFrozen(ctx, sqlc.GetScoreboardHistoryFrozenParams{
 		Limit:    limit32,
 		SolvedAt: pgutil.TimeToTimestamptz(&freezeTime),
@@ -275,6 +318,7 @@ func (r *StatisticsRepo) GetScoreboardHistoryFrozen(ctx context.Context, freezeT
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreboardHistoryFrozen: %w", err)
 	}
+
 	out := make([]*domain.ScoreboardHistoryEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ScoreboardHistoryEntry{
@@ -284,6 +328,7 @@ func (r *StatisticsRepo) GetScoreboardHistoryFrozen(ctx context.Context, freezeT
 			Timestamp: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.Timestamp)),
 		})
 	}
+
 	return out, nil
 }
 
@@ -297,6 +342,7 @@ func mapScoreboardHistoryRows(rows []sqlc.GetScoreboardHistoryRow) []*domain.Sco
 			Timestamp: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.Timestamp)),
 		})
 	}
+
 	return out
 }
 
@@ -305,6 +351,7 @@ func (r *StatisticsRepo) GetChallengeSolvePercentages(ctx context.Context) ([]*d
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeSolvePercentages: %w", err)
 	}
+
 	return mapChallengeSolvePercentageRows(rows), nil
 }
 
@@ -313,14 +360,17 @@ func (r *StatisticsRepo) GetChallengeSolvePercentagesFrozen(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetChallengeSolvePercentagesFrozen: %w", err)
 	}
+
 	out := make([]*domain.ChallengeSolvePercentage, 0, len(rows))
 	for _, row := range rows {
 		pct := 0.0
+
 		if row.Percentage != nil {
 			if v, ok := row.Percentage.(float64); ok {
 				pct = v
 			}
 		}
+
 		out = append(out, &domain.ChallengeSolvePercentage{
 			ID:         row.ID,
 			Title:      row.Title,
@@ -330,6 +380,7 @@ func (r *StatisticsRepo) GetChallengeSolvePercentagesFrozen(ctx context.Context,
 			Percentage: pct,
 		})
 	}
+
 	return out, nil
 }
 
@@ -337,11 +388,13 @@ func mapChallengeSolvePercentageRows(rows []sqlc.GetChallengeSolvePercentagesRow
 	out := make([]*domain.ChallengeSolvePercentage, 0, len(rows))
 	for _, row := range rows {
 		pct := 0.0
+
 		if row.Percentage != nil {
 			if v, ok := row.Percentage.(float64); ok {
 				pct = v
 			}
 		}
+
 		out = append(out, &domain.ChallengeSolvePercentage{
 			ID:         row.ID,
 			Title:      row.Title,
@@ -351,6 +404,7 @@ func mapChallengeSolvePercentageRows(rows []sqlc.GetChallengeSolvePercentagesRow
 			Percentage: pct,
 		})
 	}
+
 	return out
 }
 
@@ -359,6 +413,7 @@ func (r *StatisticsRepo) GetScoreDistribution(ctx context.Context) ([]*domain.Sc
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreDistribution: %w", err)
 	}
+
 	out := make([]*domain.ScoreDistributionBucket, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ScoreDistributionBucket{
@@ -366,6 +421,7 @@ func (r *StatisticsRepo) GetScoreDistribution(ctx context.Context) ([]*domain.Sc
 			Count:  int(row.Count),
 		})
 	}
+
 	return out, nil
 }
 
@@ -374,6 +430,7 @@ func (r *StatisticsRepo) GetScoreDistributionFrozen(ctx context.Context, freezeT
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetScoreDistributionFrozen: %w", err)
 	}
+
 	out := make([]*domain.ScoreDistributionBucket, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ScoreDistributionBucket{
@@ -381,6 +438,7 @@ func (r *StatisticsRepo) GetScoreDistributionFrozen(ctx context.Context, freezeT
 			Count:  int(row.Count),
 		})
 	}
+
 	return out, nil
 }
 
@@ -389,13 +447,17 @@ func (r *StatisticsRepo) GetSubmissionTimeSeries(ctx context.Context) (*domain.S
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeries: %w", err)
 	}
+
 	items := make([]*domain.SubmissionTimeSeries, 0, len(rows))
 	totalCorrect, totalIncorrect := 0, 0
+
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
 			dateStr = row.Date.Time.Format(dateFormatISO)
 		}
+
 		items = append(items, &domain.SubmissionTimeSeries{
 			Date:      dateStr,
 			Correct:   int(row.Correct),
@@ -404,6 +466,7 @@ func (r *StatisticsRepo) GetSubmissionTimeSeries(ctx context.Context) (*domain.S
 		totalCorrect += int(row.Correct)
 		totalIncorrect += int(row.Incorrect)
 	}
+
 	return &domain.SubmissionTimeSeriesStats{
 		Items:          items,
 		TotalCorrect:   totalCorrect,
@@ -416,13 +479,17 @@ func (r *StatisticsRepo) GetSubmissionTimeSeriesFrozen(ctx context.Context, free
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesFrozen: %w", err)
 	}
+
 	items := make([]*domain.SubmissionTimeSeries, 0, len(rows))
 	totalCorrect, totalIncorrect := 0, 0
+
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
 			dateStr = row.Date.Time.Format(dateFormatISO)
 		}
+
 		items = append(items, &domain.SubmissionTimeSeries{
 			Date:      dateStr,
 			Correct:   int(row.Correct),
@@ -431,6 +498,7 @@ func (r *StatisticsRepo) GetSubmissionTimeSeriesFrozen(ctx context.Context, free
 		totalCorrect += int(row.Correct)
 		totalIncorrect += int(row.Incorrect)
 	}
+
 	return &domain.SubmissionTimeSeriesStats{
 		Items:          items,
 		TotalCorrect:   totalCorrect,
@@ -443,6 +511,7 @@ func (r *StatisticsRepo) GetSubmissionTimeSeriesByType(ctx context.Context, isCo
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesByType: %w", err)
 	}
+
 	return mapRegistrationTimePointRows(rows), nil
 }
 
@@ -454,17 +523,21 @@ func (r *StatisticsRepo) GetSubmissionTimeSeriesByTypeFrozen(ctx context.Context
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSubmissionTimeSeriesByTypeFrozen: %w", err)
 	}
+
 	out := make([]*domain.RegistrationTimePoint, 0, len(rows))
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
-			dateStr = row.Date.Time.Format("2006-01-02")
+			dateStr = row.Date.Time.Format(time.DateOnly)
 		}
+
 		out = append(out, &domain.RegistrationTimePoint{
 			Date:  dateStr,
 			Count: int(row.Count),
 		})
 	}
+
 	return out, nil
 }
 
@@ -472,14 +545,17 @@ func mapRegistrationTimePointRows(rows []sqlc.GetSubmissionTimeSeriesByTypeRow) 
 	out := make([]*domain.RegistrationTimePoint, 0, len(rows))
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
-			dateStr = row.Date.Time.Format("2006-01-02")
+			dateStr = row.Date.Time.Format(time.DateOnly)
 		}
+
 		out = append(out, &domain.RegistrationTimePoint{
 			Date:  dateStr,
 			Count: int(row.Count),
 		})
 	}
+
 	return out
 }
 
@@ -488,17 +564,21 @@ func (r *StatisticsRepo) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetTeamRegistrationTimeSeries: %w", err)
 	}
+
 	out := make([]*domain.RegistrationTimePoint, 0, len(rows))
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
-			dateStr = row.Date.Time.Format("2006-01-02")
+			dateStr = row.Date.Time.Format(time.DateOnly)
 		}
+
 		out = append(out, &domain.RegistrationTimePoint{
 			Date:  dateStr,
 			Count: int(row.Count),
 		})
 	}
+
 	return out, nil
 }
 
@@ -507,17 +587,21 @@ func (r *StatisticsRepo) GetUserRegistrationTimeSeries(ctx context.Context) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetUserRegistrationTimeSeries: %w", err)
 	}
+
 	out := make([]*domain.RegistrationTimePoint, 0, len(rows))
 	for _, row := range rows {
 		dateStr := ""
+
 		if row.Date.Valid {
-			dateStr = row.Date.Time.Format("2006-01-02")
+			dateStr = row.Date.Time.Format(time.DateOnly)
 		}
+
 		out = append(out, &domain.RegistrationTimePoint{
 			Date:  dateStr,
 			Count: int(row.Count),
 		})
 	}
+
 	return out, nil
 }
 
@@ -526,6 +610,7 @@ func (r *StatisticsRepo) GetSolveMatrix(ctx context.Context) ([]*domain.SolveMat
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSolveMatrix: %w", err)
 	}
+
 	out := make([]*domain.SolveMatrixRow, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.SolveMatrixRow{
@@ -538,6 +623,7 @@ func (r *StatisticsRepo) GetSolveMatrix(ctx context.Context) ([]*domain.SolveMat
 			SolvedAt:          pgutil.TimestamptzToTime(row.SolvedAt),
 		})
 	}
+
 	return out, nil
 }
 
@@ -546,6 +632,7 @@ func (r *StatisticsRepo) GetSolveMatrixFrozen(ctx context.Context, freezeTime ti
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetSolveMatrixFrozen: %w", err)
 	}
+
 	out := make([]*domain.SolveMatrixRow, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.SolveMatrixRow{
@@ -558,5 +645,6 @@ func (r *StatisticsRepo) GetSolveMatrixFrozen(ctx context.Context, freezeTime ti
 			SolvedAt:          pgutil.TimestamptzToTime(row.SolvedAt),
 		})
 	}
+
 	return out, nil
 }

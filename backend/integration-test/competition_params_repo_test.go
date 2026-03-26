@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,7 +55,7 @@ func TestCompetitionParamRepo_GetByKey_Error_NotFound(t *testing.T) {
 
 	_, err := f.CompetitionParamRepo.GetByKey(ctx, "nonexistent_key_xyz")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCompetitionParamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrCompetitionParamNotFound)
 }
 
 func TestCompetitionParamRepo_Upsert_Success(t *testing.T) {
@@ -68,6 +67,7 @@ func TestCompetitionParamRepo_Upsert_Success(t *testing.T) {
 	p := &domain.CompetitionParam{Key: "upsert_key", Value: "v1", ValueType: domain.CompetitionParamTypeString}
 	err := f.CompetitionParamRepo.Upsert(ctx, p)
 	require.NoError(t, err)
+
 	p.Value = "v2"
 	err = f.CompetitionParamRepo.Upsert(ctx, p)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestCompetitionParamRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.CompetitionParamRepo.GetByKey(ctx, p.Key)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCompetitionParamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrCompetitionParamNotFound)
 }
 
 func TestCompetitionParamRepo_Delete_Error_NoRows(t *testing.T) {

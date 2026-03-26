@@ -8,16 +8,14 @@ package wire
 
 import (
 	"context"
-
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
-
-	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
 // Injectors from wire.go:
@@ -44,7 +42,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	emailUseCase := ProvideEmailUseCase(userRepo, verificationTokenRepo, transactionManager, mailer2, cfg, competitionParamUseCase, l)
 	tracker := ProvideFailedLoginTracker(redisClient)
 	competitionRepo := ProvideCompetitionRepo(pool)
-	settingsUseCase := ProvideSettingsUseCase(settingsRepo, auditLogRepo, transactionManager, keyValueStore, competitionRepo, competitionParamUseCase)
+	settingsUseCase := ProvideSettingsUseCase(ctx, settingsRepo, auditLogRepo, transactionManager, keyValueStore, competitionRepo, competitionParamUseCase, pubSubStore)
 	cache := ProvideCache(redisClient)
 	scoreboardCacheService := ProvideScoreboardCacheService(cache, teamRepo)
 	competitionUseCase := ProvideCompetitionUseCase(competitionRepo, auditLogRepo, transactionManager, keyValueStore, cache, scoreboardCacheService, l)
@@ -83,23 +81,24 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	ratingRepo := ProvideRatingRepo(pool)
 	backupUseCase := ProvideBackupUseCase(competitionRepo, challengeRepo, tagRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, submissionRepo, fileRepo, backupRepo, settingsRepo, auditLogRepo, bracketRepo, commentRepo, fieldRepo, fieldValueRepo, ratingRepo, storageProvider, transactionManager, l)
 	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo, userRepo, teamRepo, transactionManager)
-	ratingUseCase := ProvideRatingUseCase(challengeRepo, solveRepo, ratingRepo, transactionManager)
+	ratingUseCase := ProvideRatingUseCase(challengeRepo, solveRepo, ratingRepo, userRepo, teamRepo, transactionManager)
 	trackingRepo := ProvideTrackingRepo(pool)
 	trackingUseCase := ProvideTrackingUseCase(trackingRepo)
-	oAuthRepo := ProvideOAuthRepo(pool)
+	oAuthRepo := ProvideOAuthRepo(pool, service)
 	v := ProvideOAuthProviders()
 	oAuthUseCase := ProvideOAuthUseCase(userRepo, oAuthRepo, transactionManager, settingsRepo, jwtService, v, cfg, competitionRepo, teamUseCase, l)
+	avatarUseCase := ProvideAvatarUseCase(userRepo, teamRepo, storageProvider, keyValueStore, transactionManager, auditLogRepo, cfg, l)
 	controller := ProvideWsController(wsHub, l, cfg)
 	validator, err := ProvideValidator()
 	if err != nil {
 		return nil, err
 	}
-	serverDeps, err := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, submissionBatcher, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, jwtService, redisClient, settingsRepo, storageProvider, controller, validator, l)
+	serverDeps, err := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, submissionBatcher, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, avatarUseCase, jwtService, redisClient, settingsRepo, storageProvider, controller, validator, l)
 	if err != nil {
 		return nil, err
 	}
 	router := ProvideRouter(ctx, cfg, l, serverDeps)
 	server := ProvideServer(router, cfg)
-	app := ProvideApp(server, userRepo, submissionBatcher, solveUseCase, serverDeps, broadcaster)
+	app := ProvideApp(server, userRepo, submissionBatcher, solveUseCase, avatarUseCase, serverDeps, broadcaster)
 	return app, nil
 }

@@ -19,6 +19,7 @@ func TestCompetitionRepo_Get_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, comp.ID)
 	assert.NotEmpty(t, comp.Name, "competition has a name")
+
 	if comp.StartTime != nil && comp.EndTime != nil {
 		assert.True(t, comp.StartTime.Before(time.Now()), "competition should be started")
 		assert.True(t, comp.EndTime.After(time.Now()), "competition should not be ended")
@@ -100,6 +101,7 @@ func TestCompetitionRepo_Update_Error_CancelledContext(t *testing.T) {
 
 	comp, err := f.CompetitionRepo.Get(context.Background())
 	require.NoError(t, err)
+
 	comp.Name = "Should Fail"
 
 	ctx, cancel := context.WithCancel(context.Background())

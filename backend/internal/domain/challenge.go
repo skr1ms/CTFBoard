@@ -18,6 +18,7 @@ func ChallengeStateOrDefault(state string) string {
 	if state == ChallengeStateHidden || state == ChallengeStateLocked || state == ChallengeStateVisible {
 		return state
 	}
+
 	return ChallengeStateHidden
 }
 

@@ -19,6 +19,7 @@ func TestNewFromEnv_Error(t *testing.T) {
 		os.Unsetenv("VAULT_ADDR")
 		os.Unsetenv("VAULT_TOKEN")
 	})
+
 	_, err := NewFromEnv()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "VAULT_ADDR")
@@ -31,21 +32,21 @@ func TestNewFromEnv_ErrorNoToken(t *testing.T) {
 		os.Unsetenv("VAULT_ADDR")
 		os.Unsetenv("VAULT_TOKEN")
 	})
+
 	_, err := NewFromEnv()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "VAULT_TOKEN")
 }
 
-func TestNewFromEnv_WithCustomMountPath(t *testing.T) {
+func TestNewFromEnv_OK(t *testing.T) {
 	t.Parallel()
 	os.Setenv("VAULT_ADDR", "http://localhost:8200")
 	os.Setenv("VAULT_TOKEN", "token")
-	os.Setenv("VAULT_MOUNT_PATH", "custom-mount")
 	t.Cleanup(func() {
 		os.Unsetenv("VAULT_ADDR")
 		os.Unsetenv("VAULT_TOKEN")
-		os.Unsetenv("VAULT_MOUNT_PATH")
 	})
+
 	c, err := NewFromEnv()
 	require.NoError(t, err)
 	assert.NotNil(t, c)
@@ -53,6 +54,7 @@ func TestNewFromEnv_WithCustomMountPath(t *testing.T) {
 
 func TestNew_NewWithMount(t *testing.T) {
 	t.Parallel()
+
 	c, err := New("http://localhost:8200", "token")
 	require.NoError(t, err)
 	assert.NotNil(t, c)
@@ -60,6 +62,7 @@ func TestNew_NewWithMount(t *testing.T) {
 
 func TestClient_GetSecret_GetString_Success(t *testing.T) {
 	t.Parallel()
+
 	resp := map[string]any{
 		"data": map[string]any{
 			"data": map[string]any{
@@ -69,8 +72,10 @@ func TestClient_GetSecret_GetString_Success(t *testing.T) {
 			"metadata": map[string]any{"version": 1},
 		},
 	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			return
 		}
 	}))
@@ -92,9 +97,12 @@ func TestClient_GetSecret_GetString_Success(t *testing.T) {
 
 func TestClient_GetSecret_Error(t *testing.T) {
 	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		if err := json.NewEncoder(w).Encode(map[string]any{"errors": []string{"no such path"}}); err != nil {
+
+		err := json.NewEncoder(w).Encode(map[string]any{"errors": []string{"no such path"}})
+		if err != nil {
 			return
 		}
 	}))
@@ -110,14 +118,17 @@ func TestClient_GetSecret_Error(t *testing.T) {
 
 func TestClient_GetSecret_EmptyData(t *testing.T) {
 	t.Parallel()
+
 	resp := map[string]any{
 		"data": map[string]any{
 			"data":     nil,
 			"metadata": map[string]any{},
 		},
 	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			return
 		}
 	}))
@@ -133,14 +144,17 @@ func TestClient_GetSecret_EmptyData(t *testing.T) {
 
 func TestClient_GetString_KeyNotFound(t *testing.T) {
 	t.Parallel()
+
 	resp := map[string]any{
 		"data": map[string]any{
 			"data":     map[string]any{"other": "x"},
 			"metadata": map[string]any{},
 		},
 	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			return
 		}
 	}))

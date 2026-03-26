@@ -12,6 +12,7 @@ import (
 
 func SHA256Hex(data string) string {
 	h := sha256.Sum256([]byte(data))
+
 	return hex.EncodeToString(h[:])
 }
 
@@ -24,12 +25,14 @@ func SHA256Reader(r io.Reader) (string, error) {
 	if _, err := io.Copy(h, r); err != nil {
 		return "", fmt.Errorf("crypto.SHA256Reader: %w", err)
 	}
+
 	return HashHex(h), nil
 }
 
 func HMACSign(key, data []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write(data)
+
 	return mac.Sum(nil)
 }
 
@@ -42,5 +45,6 @@ func SecureRandomHex(n int) (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("crypto.SecureRandomHex: %w", err)
 	}
+
 	return hex.EncodeToString(b), nil
 }

@@ -44,11 +44,14 @@ func FuzzEncryptDecryptRoundtrip(f *testing.F) {
 		if err != nil {
 			return
 		}
+
 		got, err := svc.Decrypt(enc)
 		if err != nil {
 			t.Errorf("Decrypt(Encrypt(%q)) returned error: %v", plaintext, err)
+
 			return
 		}
+
 		if got != plaintext {
 			t.Errorf("round-trip mismatch: got %q, want %q", got, plaintext)
 		}

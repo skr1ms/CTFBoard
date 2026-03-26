@@ -16,11 +16,14 @@ import (
 // GET /files/{ID}/download: non-existent file returns 404.
 func TestFiles_DownloadPublic_NotFound(t *testing.T) {
 	t.Parallel()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/files/download/nonexistent-file-id", nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GetTestBaseURL()+"/api/v1/files/download/nonexistent-file-id", http.NoBody)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
+
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -89,6 +92,7 @@ func TestFile_Delete_Success(t *testing.T) {
 
 	filesList := h.GetChallengeFiles(tokenAdmin, challengeID)
 	require.NotNil(t, filesList.JSON200)
+
 	for _, f := range *filesList.JSON200 {
 		if f.ID != nil && *f.ID == fileID {
 			t.Fatal("file should be gone after delete")

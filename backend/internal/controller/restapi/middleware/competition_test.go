@@ -19,6 +19,7 @@ import (
 func newActiveCompetition() *domain.Competition {
 	past := time.Now().Add(-1 * time.Hour)
 	future := time.Now().Add(24 * time.Hour)
+
 	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
@@ -31,6 +32,7 @@ func newActiveCompetition() *domain.Competition {
 func newEndedCompetition() *domain.Competition {
 	past := time.Now().Add(-48 * time.Hour)
 	pastEnd := time.Now().Add(-1 * time.Hour)
+
 	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
@@ -42,6 +44,7 @@ func newEndedCompetition() *domain.Competition {
 
 func newNotStartedCompetition() *domain.Competition {
 	future := time.Now().Add(1 * time.Hour)
+
 	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
@@ -53,6 +56,7 @@ func newPausedButEndedCompetition() *domain.Competition {
 	startPast := time.Now().Add(-48 * time.Hour)
 	endPast := time.Now().Add(-1 * time.Hour)
 	pausedAt := time.Now().Add(-30 * time.Minute)
+
 	return &domain.Competition{
 		ID:        1,
 		Name:      "test",
@@ -74,7 +78,7 @@ func TestCompetitionActive_ActiveCompetition_Passes(t *testing.T) {
 	r.Use(CompetitionActive(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -92,7 +96,7 @@ func TestCompetitionActive_NotActive_Returns403(t *testing.T) {
 	r.Use(CompetitionActive(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -110,7 +114,7 @@ func TestCompetitionEnded_Ended_Passes(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -128,7 +132,7 @@ func TestCompetitionEnded_NotEnded_Returns403(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -146,7 +150,7 @@ func TestCompetitionEnded_PausedButEndTimePassed_Passes(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

@@ -213,6 +213,12 @@ type ServerInterface interface {
 	// Update team (admin)
 	// (PATCH /admin/teams/{ID})
 	PatchAdminTeamsID(w http.ResponseWriter, r *http.Request, id string)
+	// Delete team avatar (admin)
+	// (DELETE /admin/teams/{ID}/avatar)
+	DeleteAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// Upload team avatar (admin)
+	// (PUT /admin/teams/{ID}/avatar)
+	PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Unban team
 	// (DELETE /admin/teams/{ID}/ban)
 	DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string)
@@ -252,6 +258,12 @@ type ServerInterface interface {
 	// Update user (admin)
 	// (PATCH /admin/users/{ID})
 	PatchAdminUsersID(w http.ResponseWriter, r *http.Request, id string)
+	// Delete user avatar (admin)
+	// (DELETE /admin/users/{ID}/avatar)
+	DeleteAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// Upload user avatar (admin)
+	// (PUT /admin/users/{ID}/avatar)
+	PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Unban user
 	// (DELETE /admin/users/{ID}/ban)
 	DeleteAdminUsersIDBan(w http.ResponseWriter, r *http.Request, id string)
@@ -468,6 +480,12 @@ type ServerInterface interface {
 	// Update my team
 	// (PATCH /teams/me)
 	PatchTeamsMe(w http.ResponseWriter, r *http.Request)
+	// Delete team avatar (captain)
+	// (DELETE /teams/me/avatar)
+	DeleteTeamsMeAvatar(w http.ResponseWriter, r *http.Request)
+	// Upload team avatar (captain)
+	// (PUT /teams/me/avatar)
+	PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request)
 	// Get my team awards
 	// (GET /teams/me/awards)
 	GetTeamsMeAwards(w http.ResponseWriter, r *http.Request)
@@ -522,6 +540,12 @@ type ServerInterface interface {
 	// List users
 	// (GET /users)
 	GetUsers(w http.ResponseWriter, r *http.Request, params GetUsersParams)
+	// Delete user avatar
+	// (DELETE /users/me/avatar)
+	DeleteUsersMeAvatar(w http.ResponseWriter, r *http.Request)
+	// Upload user avatar
+	// (PUT /users/me/avatar)
+	PutUsersMeAvatar(w http.ResponseWriter, r *http.Request)
 	// Get my awards
 	// (GET /users/me/awards)
 	GetUsersMeAwards(w http.ResponseWriter, r *http.Request)
@@ -951,6 +975,18 @@ func (_ Unimplemented) PatchAdminTeamsID(w http.ResponseWriter, r *http.Request,
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Delete team avatar (admin)
+// (DELETE /admin/teams/{ID}/avatar)
+func (_ Unimplemented) DeleteAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload team avatar (admin)
+// (PUT /admin/teams/{ID}/avatar)
+func (_ Unimplemented) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Unban team
 // (DELETE /admin/teams/{ID}/ban)
 func (_ Unimplemented) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, id string) {
@@ -1026,6 +1062,18 @@ func (_ Unimplemented) DeleteAdminUsersID(w http.ResponseWriter, r *http.Request
 // Update user (admin)
 // (PATCH /admin/users/{ID})
 func (_ Unimplemented) PatchAdminUsersID(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete user avatar (admin)
+// (DELETE /admin/users/{ID}/avatar)
+func (_ Unimplemented) DeleteAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload user avatar (admin)
+// (PUT /admin/users/{ID}/avatar)
+func (_ Unimplemented) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1461,6 +1509,18 @@ func (_ Unimplemented) PatchTeamsMe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Delete team avatar (captain)
+// (DELETE /teams/me/avatar)
+func (_ Unimplemented) DeleteTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload team avatar (captain)
+// (PUT /teams/me/avatar)
+func (_ Unimplemented) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get my team awards
 // (GET /teams/me/awards)
 func (_ Unimplemented) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
@@ -1566,6 +1626,18 @@ func (_ Unimplemented) DeleteUserTokensID(w http.ResponseWriter, r *http.Request
 // List users
 // (GET /users)
 func (_ Unimplemented) GetUsers(w http.ResponseWriter, r *http.Request, params GetUsersParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete user avatar
+// (DELETE /users/me/avatar)
+func (_ Unimplemented) DeleteUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload user avatar
+// (PUT /users/me/avatar)
+func (_ Unimplemented) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -3778,6 +3850,72 @@ func (siw *ServerInterfaceWrapper) PatchAdminTeamsID(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteAdminTeamsIDAvatar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminTeamsIDAvatar(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminTeamsIDAvatar operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminTeamsIDAvatar(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteAdminTeamsIDBan operation middleware
 func (siw *ServerInterfaceWrapper) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request) {
 
@@ -4232,6 +4370,72 @@ func (siw *ServerInterfaceWrapper) PatchAdminUsersID(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchAdminUsersID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminUsersIDAvatar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminUsersIDAvatar(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminUsersIDAvatar operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminUsersIDAvatar(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6321,6 +6525,46 @@ func (siw *ServerInterfaceWrapper) PatchTeamsMe(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteTeamsMeAvatar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTeamsMeAvatar(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutTeamsMeAvatar operation middleware
+func (siw *ServerInterfaceWrapper) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutTeamsMeAvatar(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetTeamsMeAwards operation middleware
 func (siw *ServerInterfaceWrapper) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 
@@ -6826,6 +7070,46 @@ func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteUsersMeAvatar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteUsersMeAvatar(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutUsersMeAvatar operation middleware
+func (siw *ServerInterfaceWrapper) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutUsersMeAvatar(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7450,6 +7734,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Patch(options.BaseURL+"/admin/teams/{ID}", wrapper.PatchAdminTeamsID)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/teams/{ID}/avatar", wrapper.DeleteAdminTeamsIDAvatar)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/teams/{ID}/avatar", wrapper.PutAdminTeamsIDAvatar)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
 	})
 	r.Group(func(r chi.Router) {
@@ -7487,6 +7777,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Patch(options.BaseURL+"/admin/users/{ID}", wrapper.PatchAdminUsersID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/users/{ID}/avatar", wrapper.DeleteAdminUsersIDAvatar)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/users/{ID}/avatar", wrapper.PutAdminUsersIDAvatar)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/users/{ID}/ban", wrapper.DeleteAdminUsersIDBan)
@@ -7705,6 +8001,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Patch(options.BaseURL+"/teams/me", wrapper.PatchTeamsMe)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/teams/me/avatar", wrapper.DeleteTeamsMeAvatar)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/teams/me/avatar", wrapper.PutTeamsMeAvatar)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/teams/me/awards", wrapper.GetTeamsMeAwards)
 	})
 	r.Group(func(r chi.Router) {
@@ -7757,6 +8059,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users", wrapper.GetUsers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/users/me/avatar", wrapper.DeleteUsersMeAvatar)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/users/me/avatar", wrapper.PutUsersMeAvatar)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users/me/awards", wrapper.GetUsersMeAwards)

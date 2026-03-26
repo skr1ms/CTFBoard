@@ -16,6 +16,7 @@ const testEmail = "user@example.com"
 
 func TestNewTracker_ZeroMaxAttempts_UsesDefault(t *testing.T) {
 	t.Parallel()
+
 	db, _ := redismock.NewClientMock()
 	tracker := NewTracker(db, 0, 0)
 	assert.Equal(t, defaultMax, tracker.max)
@@ -24,6 +25,7 @@ func TestNewTracker_ZeroMaxAttempts_UsesDefault(t *testing.T) {
 
 func TestNewTracker_CustomValues(t *testing.T) {
 	t.Parallel()
+
 	db, _ := redismock.NewClientMock()
 	tracker := NewTracker(db, 10, 5*time.Minute)
 	assert.Equal(t, 10, tracker.max)
@@ -32,6 +34,7 @@ func TestNewTracker_CustomValues(t *testing.T) {
 
 func TestIsLocked_NoFailures_ReturnsFalse(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	mock.ExpectGet("failed_login:" + testEmail).SetErr(redis.Nil)
 
@@ -44,6 +47,7 @@ func TestIsLocked_NoFailures_ReturnsFalse(t *testing.T) {
 
 func TestIsLocked_BelowMax_ReturnsFalse(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	mock.ExpectGet("failed_login:" + testEmail).SetVal("3")
 
@@ -56,6 +60,7 @@ func TestIsLocked_BelowMax_ReturnsFalse(t *testing.T) {
 
 func TestIsLocked_AtMax_ReturnsTrue(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	mock.ExpectGet("failed_login:" + testEmail).SetVal("5")
 
@@ -68,6 +73,7 @@ func TestIsLocked_AtMax_ReturnsTrue(t *testing.T) {
 
 func TestIsLocked_AboveMax_ReturnsTrue(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	mock.ExpectGet("failed_login:" + testEmail).SetVal("10")
 
@@ -80,6 +86,7 @@ func TestIsLocked_AboveMax_ReturnsTrue(t *testing.T) {
 
 func TestIsLocked_RedisError_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	mock.ExpectGet("failed_login:" + testEmail).SetErr(errors.New("redis unavailable"))
 
@@ -92,6 +99,7 @@ func TestIsLocked_RedisError_ReturnsError(t *testing.T) {
 
 func TestRecordFailed_FirstFailure_IncrsAndSetsTTL(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	key := "failed_login:" + testEmail
 
@@ -108,6 +116,7 @@ func TestRecordFailed_FirstFailure_IncrsAndSetsTTL(t *testing.T) {
 
 func TestRecordFailed_SubsequentFailure_NoExpireCall(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	key := "failed_login:" + testEmail
 
@@ -123,6 +132,7 @@ func TestRecordFailed_SubsequentFailure_NoExpireCall(t *testing.T) {
 
 func TestRecordFailed_PipelineError_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	db, mock := redismock.NewClientMock()
 	key := "failed_login:" + testEmail
 

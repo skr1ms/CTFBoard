@@ -16,11 +16,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/wahrwelt-kit/go-cachekit"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
-
-	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-wskit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
@@ -40,7 +39,6 @@ import (
 	settingsUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	teamUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	userUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
@@ -57,6 +55,7 @@ func (g *teamBracketGetterImpl) GetTeamBracketID(ctx context.Context, teamID uui
 	if err != nil || t == nil {
 		return nil, err
 	}
+
 	return t.BracketID, nil
 }
 
@@ -132,11 +131,14 @@ func initLoadTestDeps(redisClient *redis.Client) (*loadTestDeps, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create logger: %w", err)
 	}
+
 	val, err := validator.New()
 	if err != nil {
 		return nil, fmt.Errorf("create validator: %w", err)
 	}
+
 	revoker := jwtkit.NewRedisRevocationStore(redisClient)
+
 	jwtSvc, err := jwtkit.NewJWTService(jwtkit.Config{
 		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-access-secret-min-32-bytes!")}},
 		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-refresh-secret-min32-bytes!")}},
@@ -148,15 +150,18 @@ func initLoadTestDeps(redisClient *redis.Client) (*loadTestDeps, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create jwt: %w", err)
 	}
+
 	cryptoSvc, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
 	if err != nil {
 		return nil, fmt.Errorf("create crypto: %w", err)
 	}
+
 	return &loadTestDeps{log: l, val: val, jwt: jwtSvc, crypto: cryptoSvc}, nil
 }
 
 func initLoadTestRepos(pool *pgxpool.Pool) *loadTestRepos {
 	tm := persistent.NewTransactionManager(pool)
+
 	return &loadTestRepos{
 		userRepo:         persistent.NewUserRepo(pool),
 		challengeRepo:    persistent.NewChallengeRepo(pool),
@@ -330,10 +335,13 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/ws") {
 				next.ServeHTTP(w, r)
+
 				return
 			}
+
 			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 			defer cancel()
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
@@ -347,10 +355,12 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 	if err != nil {
 		panic("load-test: failed to create forgot-password rate limiter: " + err.Error())
 	}
+
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, "lt:resend", 100000, 24*time.Hour)
 	if err != nil {
 		panic("load-test: failed to create resend-verification rate limiter: " + err.Error())
 	}
+
 	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, "lt:reset-token", 100000, time.Minute)
 	if err != nil {
 		panic("load-test: failed to create reset-password-token rate limiter: " + err.Error())
@@ -405,12 +415,16 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 	if err != nil {
 		return "", nil, fmt.Errorf("create storage dir: %w", err)
 	}
+
 	fileStorage, err := storage.NewFilesystemProvider(storageDir)
 	if err != nil {
 		_ = os.RemoveAll(storageDir)
+
 		return "", nil, fmt.Errorf("create storage: %w", err)
 	}
+
 	ctx := context.Background()
+
 	hub := wskit.NewHub(
 		wskit.WithRedis(redisClient, "lt:events"),
 		wskit.WithOnConnect(func(c *wskit.Client) {
@@ -427,11 +441,14 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 	r := buildLoadTestRouter(ctx, deps.log, uc, deps.val, deps.jwt, storageDir, redisClient)
 
 	ls := net.ListenConfig{}
+
 	listener, err := ls.Listen(ctx, "tcp", ":0")
 	if err != nil {
 		_ = os.RemoveAll(storageDir)
+
 		return "", nil, fmt.Errorf("listen: %w", err)
 	}
+
 	port := listener.Addr().(*net.TCPAddr).Port //nolint:errcheck
 
 	srv := &http.Server{
@@ -442,35 +459,43 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.Serve(listener)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("[load-test] server error: %v\n", err)
 		}
 	}()
 
 	baseURL = fmt.Sprintf("http://localhost:%d", port)
+
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", http.NoBody)
 		if err != nil {
 			time.Sleep(50 * time.Millisecond)
+
 			continue
 		}
-		resp, err := http.DefaultClient.Do(req) //nolint:gosec // G704: test uses localhost only
+
+		resp, err := http.DefaultClient.Do(req)
 		if err == nil && resp != nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				break
 			}
 		}
+
 		time.Sleep(50 * time.Millisecond)
 	}
 
 	return baseURL, func() {
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if serr := srv.Shutdown(shutCtx); serr != nil {
+
+		serr := srv.Shutdown(shutCtx)
+		if serr != nil {
 			fmt.Printf("[load-test] shutdown: %v\n", serr)
 		}
+
 		_ = os.RemoveAll(storageDir)
 	}, nil
 }

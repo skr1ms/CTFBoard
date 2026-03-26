@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -55,10 +54,12 @@ func (r *AwardRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domai
 	if err != nil {
 		return nil, fmt.Errorf("AwardRepo - GetByTeamID: %w", err)
 	}
+
 	out := make([]*domain.Award, 0, len(rows))
 	for _, a := range rows {
 		out = append(out, toDomainAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt))
 	}
+
 	return out, nil
 }
 
@@ -67,6 +68,7 @@ func (r *AwardRepo) GetTeamTotalAwards(ctx context.Context, teamID uuid.UUID) (i
 	if err != nil {
 		return 0, fmt.Errorf("AwardRepo - GetTeamTotalAwards: %w", err)
 	}
+
 	return int(total), nil
 }
 
@@ -75,10 +77,12 @@ func (r *AwardRepo) GetAll(ctx context.Context) ([]*domain.Award, error) {
 	if err != nil {
 		return nil, fmt.Errorf("AwardRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.Award, 0, len(rows))
 	for _, a := range rows {
 		out = append(out, toDomainAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt))
 	}
+
 	return out, nil
 }
 
@@ -87,10 +91,12 @@ func (r *AwardRepo) GetAllForBackup(ctx context.Context) ([]*domain.Award, error
 	if err != nil {
 		return nil, fmt.Errorf("AwardRepo - GetAllForBackup: %w", err)
 	}
+
 	out := make([]*domain.Award, 0, len(rows))
 	for _, a := range rows {
 		out = append(out, toDomainAwardFromBackup(a))
 	}
+
 	return out, nil
 }
 
@@ -100,46 +106,58 @@ func (r *AwardRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, e
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrAwardNotFound
 		}
+
 		return nil, fmt.Errorf("AwardRepo - GetByID: %w", err)
 	}
+
 	return toDomainAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt), nil
 }
 
 func (r *AwardRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteAward(ctx, ID); err != nil {
+	err := r.Q(ctx).DeleteAward(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("AwardRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func (r *AwardRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteAwardsByTeamID(ctx, teamID); err != nil {
+	err := r.Q(ctx).DeleteAwardsByTeamID(ctx, teamID)
+	if err != nil {
 		return fmt.Errorf("AwardRepo - DeleteByTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *AwardRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).SoftBanAwardsByTeamID(ctx, teamID); err != nil {
+	err := r.Q(ctx).SoftBanAwardsByTeamID(ctx, teamID)
+	if err != nil {
 		return fmt.Errorf("AwardRepo - SoftBanByTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *AwardRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
-	if err := r.Q(ctx).RestoreAwardsByBannedTeamID(ctx, &teamID); err != nil {
+	err := r.Q(ctx).RestoreAwardsByBannedTeamID(ctx, &teamID)
+	if err != nil {
 		return fmt.Errorf("AwardRepo - RestoreByBannedTeamID: %w", err)
 	}
+
 	return nil
 }
 
 func (r *AwardRepo) Create(ctx context.Context, a *domain.Award) error {
 	a.ID = uuid.New()
 	a.CreatedAt = time.Now()
+
 	value, err := intToInt32Safe(a.Value)
 	if err != nil {
 		return fmt.Errorf("AwardRepo - Create: %w", err)
 	}
+
 	err = r.Q(ctx).CreateAward(ctx, sqlc.CreateAwardParams{
 		ID:          a.ID,
 		TeamID:      a.TeamID,
@@ -151,5 +169,6 @@ func (r *AwardRepo) Create(ctx context.Context, a *domain.Award) error {
 	if err != nil {
 		return fmt.Errorf("AwardRepo - Create: %w", err)
 	}
+
 	return nil
 }

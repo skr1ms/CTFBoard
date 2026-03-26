@@ -25,6 +25,7 @@ func substitute(s string, m map[string]string) string {
 	for k, v := range m {
 		s = strings.ReplaceAll(s, k, v)
 	}
+
 	return s
 }
 
@@ -55,6 +56,7 @@ func NewEmailUseCase(deps EmailDeps) *EmailUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
+
 	return &EmailUseCase{deps: deps}
 }
 
@@ -91,18 +93,24 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.
 
 	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", uc.deps.FrontendURL, token)
 	ctfName := "AstroCTFb"
+
 	if uc.deps.ConfigUC != nil {
 		ctfName = uc.deps.ConfigUC.GetString(ctx, "ctf_name", ctfName)
 		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_subject", "Verify your email — {ctf_name}")
 		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_body", "Follow the link to verify: {url}")
 		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
 		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
+
 		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
-		if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
+
+		err := uc.deps.Mailer.Send(ctx, msg)
+		if err != nil {
 			return fmt.Errorf("EmailUseCase - SendVerificationEmail - Mailer.Send: %w", err)
 		}
+
 		return nil
 	}
+
 	body, err := mailer.RenderVerificationEmail(mailer.VerificationData{
 		Username:  user.Username,
 		ActionURL: verifyURL,
@@ -111,6 +119,7 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendVerificationEmail - RenderVerificationEmail: %w", err)
 	}
+
 	msg := mailer.Message{
 		To:      user.Email,
 		Subject: "Verify your email - AstroCTFb",
@@ -129,6 +138,7 @@ func (uc *EmailUseCase) VerifyEmail(ctx context.Context, tokenStr string) error 
 	if tokenStr == "" {
 		return httperr.ErrTokenRequired
 	}
+
 	hashedToken := hashToken(tokenStr)
 
 	return uc.deps.TM.RunSerializable(ctx, func(ctx context.Context) error {
@@ -137,6 +147,7 @@ func (uc *EmailUseCase) VerifyEmail(ctx context.Context, tokenStr string) error 
 			if errors.Is(err, httperr.ErrTokenNotFound) {
 				return httperr.ErrTokenNotFound
 			}
+
 			return fmt.Errorf("EmailUseCase - VerifyEmail - TokenRepo.GetByToken: %w", err)
 		}
 
@@ -155,9 +166,11 @@ func (uc *EmailUseCase) VerifyEmail(ctx context.Context, tokenStr string) error 
 		if err := uc.deps.UserRepo.SetVerified(ctx, token.UserID); err != nil {
 			return fmt.Errorf("EmailUseCase - VerifyEmail - UserRepo.SetVerified: %w", err)
 		}
+
 		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, domain.TokenTypeEmailVerification); err != nil {
 			return fmt.Errorf("EmailUseCase - VerifyEmail - TokenRepo.DeleteByUserAndType: %w", err)
 		}
+
 		return nil
 	})
 }
@@ -166,6 +179,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	if !uc.deps.Enabled {
 		return nil
 	}
+
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	user, err := uc.deps.UserRepo.GetByEmail(ctx, email)
@@ -173,6 +187,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		if errors.Is(err, httperr.ErrUserNotFound) {
 			return nil
 		}
+
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - UserRepo.GetByEmail: %w", err)
 	}
 
@@ -180,7 +195,9 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - generateToken: %w", err)
 	}
+
 	hashedToken := hashToken(token)
+
 	vt := &domain.VerificationToken{
 		UserID:    user.ID,
 		Token:     hashedToken,
@@ -188,12 +205,16 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		ExpiresAt: time.Now().Add(uc.deps.ResetTTL),
 	}
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, domain.TokenTypePasswordReset); err != nil {
+		err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, user.ID, domain.TokenTypePasswordReset)
+		if err != nil {
 			return fmt.Errorf("TokenRepo.DeleteByUserAndType: %w", err)
 		}
-		if err := uc.deps.TokenRepo.Create(ctx, vt); err != nil {
+
+		err = uc.deps.TokenRepo.Create(ctx, vt)
+		if err != nil {
 			return fmt.Errorf("TokenRepo.Create: %w", err)
 		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail: %w", err)
@@ -206,12 +227,17 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_body", "Follow the link to reset password: {url}")
 		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
 		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
+
 		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
-		if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
+
+		err := uc.deps.Mailer.Send(ctx, msg)
+		if err != nil {
 			return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - Mailer.Send: %w", err)
 		}
+
 		return nil
 	}
+
 	body, err := mailer.RenderPasswordResetEmail(mailer.PasswordResetData{
 		Username:  user.Username,
 		ActionURL: resetURL,
@@ -220,6 +246,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	if err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - RenderPasswordResetEmail: %w", err)
 	}
+
 	msg := mailer.Message{
 		To:      user.Email,
 		Subject: "Reset your password - AstroCTFb",
@@ -229,6 +256,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	if err := uc.deps.Mailer.Send(ctx, msg); err != nil {
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - Mailer.Send: %w", err)
 	}
+
 	return nil
 }
 
@@ -246,6 +274,7 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 			if errors.Is(err, httperr.ErrTokenNotFound) {
 				return httperr.ErrTokenNotFound
 			}
+
 			return fmt.Errorf("EmailUseCase - ResetPassword - TokenRepo.GetByToken: %w", err)
 		}
 
@@ -264,9 +293,11 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 		if err := uc.deps.UserRepo.UpdatePassword(ctx, token.UserID, string(passwordHash)); err != nil {
 			return fmt.Errorf("EmailUseCase - ResetPassword - UserRepo.UpdatePassword: %w", err)
 		}
+
 		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, domain.TokenTypePasswordReset); err != nil {
 			return fmt.Errorf("EmailUseCase - ResetPassword - TokenRepo.DeleteByUserAndType: %w", err)
 		}
+
 		return nil
 	})
 }
@@ -289,6 +320,7 @@ func generateToken(length int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("EmailUseCase - generateToken: %w", err)
 	}
+
 	return s, nil
 }
 

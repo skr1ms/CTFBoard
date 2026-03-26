@@ -175,6 +175,7 @@ func TestSolution_GetSolution_WriteupDisabled(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{disabled}", http.StatusOK)
 
 	_ = disableStatus
+
 	h.GetSolutionExpectOneOf(tokenUser, challengeID, []int{http.StatusOK, http.StatusForbidden})
 }
 
@@ -196,6 +197,7 @@ func TestSolution_GetSolution_NoSolutionSet(t *testing.T) {
 	require.Eventually(t, func() bool {
 		h.EnableWriteups(tokenAdmin)
 		resp, err := h.Client().GetChallengesChallengeIDSolutionWithResponse(context.Background(), challengeID, helper.WithBearerToken(tokenUser))
+
 		return err == nil && resp != nil && resp.StatusCode() == http.StatusNotFound
 	}, 5*time.Second, 200*time.Millisecond)
 }
@@ -315,6 +317,7 @@ func TestSolutions_List_WriteupDisabled(t *testing.T) {
 
 	// writeup_enabled is global state shared with parallel tests; accept either outcome.
 	_ = disableStatus
+
 	h.ListSolutionsExpectOneOf(tokenUser, []int{http.StatusOK, http.StatusForbidden})
 }
 
