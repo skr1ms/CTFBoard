@@ -14,6 +14,7 @@ func TestMixed_RealisticCTFTraffic(t *testing.T) {
 	require.NotEmpty(t, Fixture.ChallengeIDs)
 
 	emails := make([]string, len(Fixture.Users))
+
 	passwords := make([]string, len(Fixture.Users))
 	for i := range Fixture.Users {
 		emails[i] = fmt.Sprintf("lt_user_%04d@loadtest.local", i)
@@ -44,6 +45,7 @@ func TestMixed_PeakHour(t *testing.T) {
 	require.NotEmpty(t, Fixture.ChallengeIDs)
 
 	emails := make([]string, len(Fixture.Users))
+
 	passwords := make([]string, len(Fixture.Users))
 	for i := range Fixture.Users {
 		emails[i] = fmt.Sprintf("lt_user_%04d@loadtest.local", i)
@@ -79,10 +81,12 @@ func TestMixed_Soak(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping soak test in short mode")
 	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 
 	emails := make([]string, len(Fixture.Users))
+
 	passwords := make([]string, len(Fixture.Users))
 	for i := range Fixture.Users {
 		emails[i] = fmt.Sprintf("lt_user_%04d@loadtest.local", i)

@@ -20,13 +20,16 @@ func ApplySolveScore(
 	if initialValue <= 0 || decay <= 0 {
 		return currentPoints, nil
 	}
+
 	newPoints := CalculateDynamicScore(initialValue, minValue, decay, solveCount)
 	if newPoints == currentPoints {
 		return currentPoints, nil
 	}
+
 	if err := updateFn(ctx, newPoints); err != nil {
 		return 0, err
 	}
+
 	return newPoints, nil
 }
 
@@ -37,6 +40,7 @@ func CalculateDynamicScore(initial, minScore, decay, solves int) int {
 	if initial < minScore {
 		initial = minScore
 	}
+
 	if solves <= 0 {
 		return initial
 	}
@@ -65,5 +69,6 @@ func CalculateDynamicScore(initial, minScore, decay, solves int) int {
 	if score < minScore {
 		return minScore
 	}
+
 	return score
 }

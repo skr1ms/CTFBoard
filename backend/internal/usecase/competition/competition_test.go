@@ -11,11 +11,9 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wahrwelt-kit/go-cachekit"
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
@@ -25,7 +23,6 @@ import (
 	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
@@ -57,6 +54,7 @@ func newCompetitionTestDeps(t *testing.T) *competitionTestDeps {
 	l.On("Debug", mock.Anything, mock.Anything).Maybe()
 	l.On("WithError", mock.Anything).Return(l).Maybe()
 	l.On("WithFields", mock.Anything).Return(l).Maybe()
+
 	return &competitionTestDeps{
 		competitionRepo: compMock.NewMockCompetitionRepository(t),
 		auditLogRepo:    compMock.NewMockAuditLogRepository(t),
@@ -78,6 +76,7 @@ func newCompetitionTestDeps(t *testing.T) *competitionTestDeps {
 
 func (d *competitionTestDeps) createCompetitionUseCase() (*CompetitionUseCase, redismock.ClientMock) {
 	client, redis := redismock.NewClientMock()
+
 	return NewCompetitionUseCase(CompetitionDeps{
 		CompetitionRepo: d.competitionRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm,
 		Redis: &cachekit.RedisKeyValueStore{Client: client}, Logger: d.logger,
@@ -90,6 +89,7 @@ func (d *competitionTestDeps) createSubmissionUseCase() *SubmissionUseCase {
 
 func (d *competitionTestDeps) createSolveUseCase() (*SolveUseCase, redismock.ClientMock) {
 	client, redis := redismock.NewClientMock()
+
 	return NewSolveUseCase(SolveDeps{
 		SolveRepo: d.solveRepo, ChallengeRepo: d.challengeRepo, CompetitionRepo: d.competitionRepo,
 		UserRepo: d.userRepo, TeamRepo: d.teamRepo, TM: d.tm, Cache: cachekit.New(client),
@@ -103,6 +103,7 @@ func (d *competitionTestDeps) createBracketUseCase() *BracketUseCase {
 
 func (d *competitionTestDeps) createStatisticsUseCase() (*StatisticsUseCase, redismock.ClientMock) {
 	client, mock := redismock.NewClientMock()
+
 	return NewStatisticsUseCase(StatisticsDeps{StatsRepo: d.statsRepo, Cache: cachekit.New(client)}), mock
 }
 
@@ -114,6 +115,7 @@ func (d *competitionTestDeps) createCompetitionParamUseCaseWithCache(cache cache
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).
 		Maybe()
+
 	return NewCompetitionParamUseCase(context.Background(), CompetitionParamDeps{
 		Repo: d.configRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm, Logger: d.logger,
 		Cache: cache, PubSub: pubsub,
@@ -130,6 +132,7 @@ func newTestCompetitionWithTimes(name string, startTime, endTime *time.Time) *do
 	c := newTestCompetition(name, "flexible", true)
 	c.StartTime = startTime
 	c.EndTime = endTime
+
 	return c
 }
 
@@ -221,6 +224,7 @@ func TestCompetitionUseCase_Get_NotFound_Error(t *testing.T) {
 
 func Test_competitionCacheStale_StartTimeBoundary(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startTimeJustPassed := now.Add(-10 * time.Second)
 	comp := &domain.Competition{StartTime: &startTimeJustPassed}
@@ -240,7 +244,7 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 	comp.MinTeamSize = 1
 	comp.MaxTeamSize = 5
 
-	currentNotStarted := newTestCompetitionWithTimes("Current", lo.ToPtr(time.Now().Add(24*time.Hour)), nil)
+	currentNotStarted := newTestCompetitionWithTimes("Current", new(time.Now().Add(24*time.Hour)), nil)
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentNotStarted, nil).Once()
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
@@ -267,14 +271,15 @@ func TestCompetitionUseCase_Update_Success(t *testing.T) {
 
 func optionalsFromComp(c *domain.Competition) *usecase.CompetitionUpdateOptionals {
 	o := &usecase.CompetitionUpdateOptionals{
-		IsPaused:        lo.ToPtr(c.IsPaused),
-		IsPublic:        lo.ToPtr(c.IsPublic),
-		AllowTeamSwitch: lo.ToPtr(c.AllowTeamSwitch),
+		IsPaused:        new(c.IsPaused),
+		IsPublic:        new(c.IsPublic),
+		AllowTeamSwitch: new(c.AllowTeamSwitch),
 	}
 	if c.MinTeamSize != 0 || c.MaxTeamSize != 0 {
 		minT, maxT := c.MinTeamSize, c.MaxTeamSize
 		o.MinTeamSize, o.MaxTeamSize = &minT, &maxT
 	}
+
 	return o
 }
 
@@ -368,9 +373,11 @@ func TestCompetitionUseCase_Update_UnpauseShiftsEndTime(t *testing.T) {
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
+
 		shift := time.Since(pausedAt)
 		endShift := c.EndTime.Sub(endTime)
 		freezeShift := c.FreezeTime.Sub(freezeTime)
+
 		return endShift > shift-time.Second && endShift < shift+time.Second &&
 			c.FreezeTime != nil &&
 			freezeShift > shift-time.Second && freezeShift < shift+time.Second
@@ -439,9 +446,11 @@ func TestCompetitionUseCase_Update_UnpauseWhenPausedBeforeEndTimeShiftsTimes(t *
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
+
 		shift := time.Since(pausedAt)
 		endShift := c.EndTime.Sub(endTime)
 		freezeShift := c.FreezeTime.Sub(freezeTime)
+
 		return endShift > shift-time.Second && endShift < shift+time.Second &&
 			c.FreezeTime != nil &&
 			freezeShift > shift-time.Second && freezeShift < shift+time.Second
@@ -513,9 +522,11 @@ func TestCompetitionUseCase_Update_UnpauseAfterPreStartPause_ClampsToStartTime(t
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
+
 		effectiveShift := time.Since(startTime)
 		endShift := c.EndTime.Sub(endTime)
 		freezeShift := c.FreezeTime.Sub(freezeTime)
+
 		return endShift > effectiveShift-time.Second && endShift < effectiveShift+time.Second &&
 			c.FreezeTime != nil &&
 			freezeShift > effectiveShift-time.Second && freezeShift < effectiveShift+time.Second
@@ -585,8 +596,10 @@ func TestCompetitionUseCase_Update_UnpauseWithNilEndTime_ShiftsFreezeTime(t *tes
 		if c.IsPaused || c.PausedAt != nil || c.EndTime != nil {
 			return false
 		}
+
 		shift := time.Since(pausedAt)
 		freezeShift := c.FreezeTime.Sub(freezeTime)
+
 		return c.FreezeTime != nil &&
 			freezeShift > shift-time.Second && freezeShift < shift+time.Second
 	})).Return(nil).Once()
@@ -653,6 +666,7 @@ func TestCompetitionUseCase_Update_UnpauseWithChangedEndTime_StillShiftsFreezeTi
 	d.competitionRepo.EXPECT().GetForUpdate(mock.Anything).Return(currentPaused, nil).Once()
 
 	adminEndTime := now.Add(4 * time.Hour)
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -660,11 +674,14 @@ func TestCompetitionUseCase_Update_UnpauseWithChangedEndTime_StillShiftsFreezeTi
 		if c.IsPaused || c.PausedAt != nil {
 			return false
 		}
+
 		if c.EndTime == nil || !c.EndTime.Equal(adminEndTime) {
 			return false
 		}
+
 		shift := time.Since(pausedAt)
 		freezeShift := c.FreezeTime.Sub(freezeTime)
+
 		return c.FreezeTime != nil &&
 			freezeShift > shift-time.Second && freezeShift < shift+time.Second
 	})).Return(nil).Once()

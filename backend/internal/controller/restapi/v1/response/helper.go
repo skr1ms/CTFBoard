@@ -7,9 +7,10 @@ import (
 )
 
 func parseDate(s string) *openapi_types.Date {
-	t, err := time.Parse("2006-01-02", s)
+	t, err := time.Parse(time.DateOnly, s)
 	if err != nil {
 		return nil
 	}
+
 	return &openapi_types.Date{Time: t}
 }

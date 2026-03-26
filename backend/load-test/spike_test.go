@@ -24,6 +24,7 @@ func TestSpike_CompetitionStart(t *testing.T) {
 	var stepResults []stepResult
 
 	fmt.Println("\n[spike] Competition Start - challenge list + scoreboard ramp:")
+
 	for _, step := range SpikeProfile {
 		chalAttacker := NewAttacker(200)
 		chalR := RunAttack(chalAttacker, fmt.Sprintf("challenges@%drps", step.RPS), step.RPS/2, step.Duration, chalTargeter)
@@ -40,14 +41,18 @@ func TestSpike_CompetitionStart(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	var totalRequests uint64
-	var totalSuccesses float64
+	var (
+		totalRequests  uint64
+		totalSuccesses float64
+	)
+
 	for _, sr := range stepResults {
 		for _, r := range []*AttackResult{sr.chalResult, sr.sbResult} {
 			totalRequests += r.Metrics.Requests
 			totalSuccesses += float64(r.Metrics.Requests) * r.Metrics.Success
 		}
 	}
+
 	overallSuccess := totalSuccesses / float64(totalRequests)
 	require.GreaterOrEqual(t, overallSuccess, 0.99,
 		"overall success rate across spike steps must be ≥ 99%% (got %.2f%%)", overallSuccess*100)
@@ -69,22 +74,29 @@ func TestSpike_EndOfContest(t *testing.T) {
 	targeter := SubmitWrongFlagTargeter(Fixture)
 
 	fmt.Println("\n[spike] End-of-Contest - flag submission burst:")
+
 	var all []*AttackResult
+
 	for _, step := range SpikeProfile {
 		attacker := NewAttacker(300)
 		r := RunAttack(attacker, fmt.Sprintf("submit@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
 		PrintStepSummary(r)
 		all = append(all, r)
+
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	var reqs uint64
-	var succ float64
+	var (
+		reqs uint64
+		succ float64
+	)
+
 	for _, r := range all {
 		reqs += r.Metrics.Requests
 		succ += float64(r.Metrics.Requests) * r.Metrics.Success
 	}
+
 	overall := succ / float64(reqs)
 	require.GreaterOrEqual(t, overall, SuccessThreshold,
 		"submit spike overall success must be ≥ %.0f%% (got %.2f%%)", SuccessThreshold*100, overall*100)

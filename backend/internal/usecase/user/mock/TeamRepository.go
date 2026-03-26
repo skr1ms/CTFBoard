@@ -8,10 +8,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 // NewMockTeamRepository creates a new instance of MockTeamRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -157,6 +156,74 @@ func (_c *MockTeamRepository_Ban_Call) Return(err error) *MockTeamRepository_Ban
 }
 
 func (_c *MockTeamRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, reason string) error) *MockTeamRepository_Ban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ClearAvatarURL provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) ClearAvatarURL(ctx context.Context, teamID uuid.UUID) (*string, error) {
+	ret := _mock.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearAvatarURL")
+	}
+
+	var r0 *string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*string, error)); ok {
+		return returnFunc(ctx, teamID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *string); ok {
+		r0 = returnFunc(ctx, teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_ClearAvatarURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearAvatarURL'
+type MockTeamRepository_ClearAvatarURL_Call struct {
+	*mock.Call
+}
+
+// ClearAvatarURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *MockTeamRepository_Expecter) ClearAvatarURL(ctx interface{}, teamID interface{}) *MockTeamRepository_ClearAvatarURL_Call {
+	return &MockTeamRepository_ClearAvatarURL_Call{Call: _e.mock.On("ClearAvatarURL", ctx, teamID)}
+}
+
+func (_c *MockTeamRepository_ClearAvatarURL_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockTeamRepository_ClearAvatarURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_ClearAvatarURL_Call) Return(s *string, err error) *MockTeamRepository_ClearAvatarURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_ClearAvatarURL_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) (*string, error)) *MockTeamRepository_ClearAvatarURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1055,6 +1122,68 @@ func (_c *MockTeamRepository_HardDeleteTeams_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// ListAllTeamAvatarURLs provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllTeamAvatarURLs")
+	}
+
+	var r0 []*string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTeamRepository_ListAllTeamAvatarURLs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllTeamAvatarURLs'
+type MockTeamRepository_ListAllTeamAvatarURLs_Call struct {
+	*mock.Call
+}
+
+// ListAllTeamAvatarURLs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockTeamRepository_Expecter) ListAllTeamAvatarURLs(ctx interface{}) *MockTeamRepository_ListAllTeamAvatarURLs_Call {
+	return &MockTeamRepository_ListAllTeamAvatarURLs_Call{Call: _e.mock.On("ListAllTeamAvatarURLs", ctx)}
+}
+
+func (_c *MockTeamRepository_ListAllTeamAvatarURLs_Call) Run(run func(ctx context.Context)) *MockTeamRepository_ListAllTeamAvatarURLs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_ListAllTeamAvatarURLs_Call) Return(ss []*string, err error) *MockTeamRepository_ListAllTeamAvatarURLs_Call {
+	_c.Call.Return(ss, err)
+	return _c
+}
+
+func (_c *MockTeamRepository_ListAllTeamAvatarURLs_Call) RunAndReturn(run func(ctx context.Context) ([]*string, error)) *MockTeamRepository_ListAllTeamAvatarURLs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Lock provides a mock function for the type MockTeamRepository
 func (_mock *MockTeamRepository) Lock(ctx context.Context, teamID uuid.UUID) error {
 	ret := _mock.Called(ctx, teamID)
@@ -1532,6 +1661,69 @@ func (_c *MockTeamRepository_UpdateAdmin_Call) Return(err error) *MockTeamReposi
 }
 
 func (_c *MockTeamRepository_UpdateAdmin_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, name *string, captainID *uuid.UUID, bracketID *uuid.UUID, isHidden *bool) error) *MockTeamRepository_UpdateAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAvatarURL provides a mock function for the type MockTeamRepository
+func (_mock *MockTeamRepository) UpdateAvatarURL(ctx context.Context, teamID uuid.UUID, avatarURL string) error {
+	ret := _mock.Called(ctx, teamID, avatarURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAvatarURL")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, teamID, avatarURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTeamRepository_UpdateAvatarURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAvatarURL'
+type MockTeamRepository_UpdateAvatarURL_Call struct {
+	*mock.Call
+}
+
+// UpdateAvatarURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - avatarURL string
+func (_e *MockTeamRepository_Expecter) UpdateAvatarURL(ctx interface{}, teamID interface{}, avatarURL interface{}) *MockTeamRepository_UpdateAvatarURL_Call {
+	return &MockTeamRepository_UpdateAvatarURL_Call{Call: _e.mock.On("UpdateAvatarURL", ctx, teamID, avatarURL)}
+}
+
+func (_c *MockTeamRepository_UpdateAvatarURL_Call) Run(run func(ctx context.Context, teamID uuid.UUID, avatarURL string)) *MockTeamRepository_UpdateAvatarURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateAvatarURL_Call) Return(err error) *MockTeamRepository_UpdateAvatarURL_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTeamRepository_UpdateAvatarURL_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, avatarURL string) error) *MockTeamRepository_UpdateAvatarURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

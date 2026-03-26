@@ -116,7 +116,7 @@ func TestFileUseCase_Download(t *testing.T) {
 		rc, err := uc.Download(ctx, path)
 		assert.Error(t, err)
 		assert.Nil(t, rc)
-		assert.True(t, errors.Is(err, expectedErr), "err should wrap expectedErr")
+		assert.ErrorIs(t, err, expectedErr, "err should wrap expectedErr")
 
 		d.s3Provider.AssertExpectations(t)
 	})

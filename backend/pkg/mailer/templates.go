@@ -134,8 +134,10 @@ func RenderVerificationEmail(data VerificationData, html bool) (string, error) {
 		data.AppName = "AstroCTFb"
 	}
 
-	var buf bytes.Buffer
-	var err error
+	var (
+		buf bytes.Buffer
+		err error
+	)
 
 	if html {
 		err = verificationHTMLTmpl.Execute(&buf, data)
@@ -146,6 +148,7 @@ func RenderVerificationEmail(data VerificationData, html bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -156,8 +159,10 @@ func RenderPasswordResetEmail(data PasswordResetData, html bool) (string, error)
 		data.AppName = "AstroCTFb"
 	}
 
-	var buf bytes.Buffer
-	var err error
+	var (
+		buf bytes.Buffer
+		err error
+	)
 
 	if html {
 		err = resetHTMLTmpl.Execute(&buf, data)
@@ -168,5 +173,6 @@ func RenderPasswordResetEmail(data PasswordResetData, html bool) (string, error)
 	if err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }

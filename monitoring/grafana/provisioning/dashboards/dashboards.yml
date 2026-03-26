@@ -1,20 +1,20 @@
 apiVersion: 1
 
 providers:
-  - name: "System"
+  - name: System
     orgid: 1
-    folder: ""
+    folder: System
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards_root
+      path: /var/lib/grafana/dashboards/system
       foldersFromFilesStructure: false
 
-  - name: "Backend"
+  - name: Backend
     orgid: 1
-    folder: "Application"
+    folder: Backend
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
@@ -23,9 +23,9 @@ providers:
       path: /var/lib/grafana/dashboards/backend
       foldersFromFilesStructure: false
 
-  - name: "PostgreSQL"
+  - name: PostgreSQL
     orgid: 1
-    folder: "Infrastructure"
+    folder: PostgreSQL
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
@@ -34,9 +34,9 @@ providers:
       path: /var/lib/grafana/dashboards/postgres
       foldersFromFilesStructure: false
 
-  - name: "Redis"
+  - name: Redis
     orgid: 1
-    folder: "Infrastructure"
+    folder: Redis
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
@@ -45,9 +45,9 @@ providers:
       path: /var/lib/grafana/dashboards/redis
       foldersFromFilesStructure: false
 
-  - name: "Vault"
+  - name: Vault
     orgid: 1
-    folder: "Infrastructure"
+    folder: Vault
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
@@ -56,24 +56,13 @@ providers:
       path: /var/lib/grafana/dashboards/vault
       foldersFromFilesStructure: false
 
-  - name: "SeaweedFS"
+  - name: SeaweedFS
     orgid: 1
-    folder: "Infrastructure"
+    folder: SeaweedFS
     type: file
     disableDeletion: true
     updateIntervalSeconds: 10
     allowUiUpdates: false
     options:
       path: /var/lib/grafana/dashboards/seaweedfs
-      foldersFromFilesStructure: false
-
-  - name: "UI"
-    orgid: 1
-    folder: "UI"
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 10
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards/ui
       foldersFromFilesStructure: false

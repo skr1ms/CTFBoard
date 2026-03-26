@@ -33,26 +33,33 @@ func (uc *BracketUseCase) Create(ctx context.Context, name, description string, 
 	if name == "" {
 		return nil, httperr.ErrBracketNameRequired
 	}
+
 	bracket := &domain.Bracket{
 		ID:          uuid.New(),
 		Name:        name,
 		Description: description,
 		IsDefault:   isDefault,
 	}
+
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if isDefault {
-			if err := uc.deps.BracketRepo.ClearAllDefaults(ctx); err != nil {
+			err := uc.deps.BracketRepo.ClearAllDefaults(ctx)
+			if err != nil {
 				return fmt.Errorf("BracketUseCase - Create - BracketRepo.ClearAllDefaults: %w", err)
 			}
 		}
-		if err := uc.deps.BracketRepo.Create(ctx, bracket); err != nil {
+
+		err := uc.deps.BracketRepo.Create(ctx, bracket)
+		if err != nil {
 			return fmt.Errorf("BracketUseCase - Create - BracketRepo.Create: %w", err)
 		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - Create - TM.Run: %w", err)
 	}
+
 	return bracket, nil
 }
 
@@ -61,6 +68,7 @@ func (uc *BracketUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Br
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - GetByID - BracketRepo.GetByID: %w", err)
 	}
+
 	return bracket, nil
 }
 
@@ -69,6 +77,7 @@ func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*domain.Bracket, error)
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - GetAll - BracketRepo.GetAll: %w", err)
 	}
+
 	return list, nil
 }
 
@@ -77,35 +86,46 @@ func (uc *BracketUseCase) Update(ctx context.Context, ID uuid.UUID, name, descri
 	if name == "" {
 		return nil, httperr.ErrBracketNameRequired
 	}
+
 	var bracket *domain.Bracket
+
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err error
+
 		bracket, err = uc.deps.BracketRepo.GetByID(ctx, ID)
 		if err != nil {
 			return fmt.Errorf("BracketUseCase - Update - BracketRepo.GetByID: %w", err)
 		}
+
 		if isDefault {
-			if err := uc.deps.BracketRepo.ClearAllDefaults(ctx); err != nil {
+			err := uc.deps.BracketRepo.ClearAllDefaults(ctx)
+			if err != nil {
 				return fmt.Errorf("BracketUseCase - Update - BracketRepo.ClearAllDefaults: %w", err)
 			}
 		}
+
 		bracket.Name = name
 		bracket.Description = description
+
 		bracket.IsDefault = isDefault
 		if err := uc.deps.BracketRepo.Update(ctx, bracket); err != nil {
 			return fmt.Errorf("BracketUseCase - Update - BracketRepo.Update: %w", err)
 		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("BracketUseCase - Update - TM.Run: %w", err)
 	}
+
 	return bracket, nil
 }
 
 func (uc *BracketUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := uc.deps.BracketRepo.Delete(ctx, ID); err != nil {
+	err := uc.deps.BracketRepo.Delete(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("BracketUseCase - Delete - BracketRepo.Delete: %w", err)
 	}
+
 	return nil
 }

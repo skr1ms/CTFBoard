@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -12,12 +11,12 @@ import (
 
 func FromNotification(n *domain.Notification) openapi.NotificationResponse {
 	return openapi.NotificationResponse{
-		ID:        httputil.Ptr(n.ID.String()),
-		Title:     httputil.Ptr(n.Title),
-		Content:   httputil.Ptr(n.Content),
-		Type:      httputil.Ptr(string(n.Type)),
-		IsPinned:  httputil.Ptr(n.IsPinned),
-		CreatedAt: httputil.Ptr(n.CreatedAt.Format(time.RFC3339)),
+		ID:        new(n.ID.String()),
+		Title:     new(n.Title),
+		Content:   new(n.Content),
+		Type:      new(string(n.Type)),
+		IsPinned:  new(n.IsPinned),
+		CreatedAt: new(n.CreatedAt.Format(time.RFC3339)),
 	}
 }
 
@@ -27,12 +26,12 @@ func FromNotificationList(ns []*domain.Notification) []openapi.NotificationRespo
 
 func FromUserNotification(un *domain.UserNotification) openapi.UserNotificationResponse {
 	return openapi.UserNotificationResponse{
-		ID:        httputil.Ptr(un.ID.String()),
-		Title:     httputil.Ptr(un.Title),
-		Content:   httputil.Ptr(un.Content),
-		Type:      httputil.Ptr(string(un.Type)),
-		IsRead:    httputil.Ptr(un.IsRead),
-		CreatedAt: httputil.Ptr(un.CreatedAt.Format(time.RFC3339)),
+		ID:        new(un.ID.String()),
+		Title:     new(un.Title),
+		Content:   new(un.Content),
+		Type:      new(string(un.Type)),
+		IsRead:    new(un.IsRead),
+		CreatedAt: new(un.CreatedAt.Format(time.RFC3339)),
 	}
 }
 

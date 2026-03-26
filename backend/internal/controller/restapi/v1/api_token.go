@@ -11,7 +11,7 @@ import (
 )
 
 // List my API tokens
-// (GET /user/tokens)
+// (GET /user/tokens).
 func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
@@ -22,11 +22,12 @@ func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "GetUserTokens", "List") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromAPITokenList(tokens))
 }
 
 // Create API token
-// (POST /user/tokens)
+// (POST /user/tokens).
 func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {
@@ -44,6 +45,7 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostUserTokens", "CreateAPITokenRequestToParams") {
 		return
 	}
+
 	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), userIDParsed, description, expiresAt)
 	if h.OnError(w, r, err, "PostUserTokens", "Create") {
 		return
@@ -53,7 +55,7 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 }
 
 // Revoke API token
-// (DELETE /user/tokens/{ID})
+// (DELETE /user/tokens/{ID}).
 func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, ID string) {
 	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
 	if !ok {

@@ -205,6 +205,7 @@ LEFT JOIN (
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000
 `
 
 type GetScoreboardRow struct {
@@ -262,6 +263,7 @@ LEFT JOIN (
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
   AND ($1::uuid IS NULL OR t.bracket_id = $1)
 ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000
 `
 
 type GetScoreboardByBracketRow struct {
@@ -319,6 +321,7 @@ LEFT JOIN (
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
   AND ($2::uuid IS NULL OR t.bracket_id = $2)
 ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+LIMIT 10000
 `
 
 type GetScoreboardByBracketFrozenParams struct {

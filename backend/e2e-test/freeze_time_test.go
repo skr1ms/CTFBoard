@@ -37,10 +37,12 @@ func TestScoreboard_Freeze(t *testing.T) {
 	h.CreateSoloTeam(user1, http.StatusCreated)
 	require.Eventually(t, func() bool {
 		setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
+
 		resp, err := h.Client().PostChallengesChallengeIDSubmitWithResponse(
 			context.Background(), challID,
 			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{freeze}"},
 			helper.WithBearerToken(user1))
+
 		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond)
 
@@ -51,10 +53,12 @@ func TestScoreboard_Freeze(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
+
 		resp, err := h.Client().PostChallengesChallengeIDSubmitWithResponse(
 			context.Background(), challID,
 			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{freeze}"},
 			helper.WithBearerToken(user2))
+
 		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond)
 
@@ -63,13 +67,17 @@ func TestScoreboard_Freeze(t *testing.T) {
 	require.NotNil(t, scoreboard.JSON200)
 
 	foundUser2 := false
+
 	for _, entry := range *scoreboard.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == "user_freeze_2" {
 			foundUser2 = true
+
 			var points int
+
 			if entry.Points != nil {
 				points = *entry.Points
 			}
+
 			if points != 0 {
 				t.Errorf("Scoreboard not frozen! User 2 has %v points", points)
 			}
@@ -96,6 +104,7 @@ func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 	now := time.Now().UTC()
 	freezeTime := now.Add(1 * time.Hour)
 	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)
+
 	resp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "scoreboard freeze empty")
 	require.NotNil(t, resp.JSON200)
@@ -125,6 +134,7 @@ func TestScoreboard_Freeze_WhenPaused_StillShowsFrozenSnapshot(t *testing.T) {
 	h.CreateSoloTeam(tokenB, http.StatusCreated)
 
 	require.True(t, h.PollCompetitionStatus("frozen", 10*time.Second), "competition should become frozen")
+
 	freezeNow := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), &freezeNow)
 	invalidateScoreboardCache(context.Background())
@@ -139,15 +149,19 @@ func TestScoreboard_Freeze_WhenPaused_StillShowsFrozenSnapshot(t *testing.T) {
 	scoreboard := h.GetScoreboard(tokenA)
 	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard when paused+freeze")
 	require.NotNil(t, scoreboard.JSON200)
+
 	var pointsB int
+
 	for _, entry := range *scoreboard.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == "user_fp_b_"+suffix {
 			if entry.Points != nil {
 				pointsB = *entry.Points
 			}
+
 			break
 		}
 	}
+
 	require.Equal(t, 0, pointsB, "scoreboard must show frozen snapshot when paused during freeze; user B solved after freeze so must have 0 in public view")
 }
 
@@ -183,14 +197,18 @@ func TestAdminSubmissions_LiveParam_SeesAllDuringFreeze(t *testing.T) {
 	liveTrue := true
 	frozenResp := h.GetAdminSubmissionsWithLive(tokenAdmin, &liveFalse, 1, 50, http.StatusOK)
 	require.NotNil(t, frozenResp.JSON200)
+
 	frozenTotal := 0
+
 	if frozenResp.JSON200.Meta != nil && frozenResp.JSON200.Meta.Total != nil {
 		frozenTotal = *frozenResp.JSON200.Meta.Total
 	}
 
 	liveResp := h.GetAdminSubmissionsWithLive(tokenAdmin, &liveTrue, 1, 50, http.StatusOK)
 	require.NotNil(t, liveResp.JSON200)
+
 	liveTotal := 0
+
 	if liveResp.JSON200.Meta != nil && liveResp.JSON200.Meta.Total != nil {
 		liveTotal = *liveResp.JSON200.Meta.Total
 	}
@@ -231,14 +249,18 @@ func TestChallenges_Freeze_SolveCountShowsFrozenSnapshot(t *testing.T) {
 
 	resp := h.GetChallengesExpectStatus(user2, http.StatusOK)
 	require.NotNil(t, resp.JSON200)
+
 	var solveCount *int
+
 	for i := range *resp.JSON200 {
 		c := &(*resp.JSON200)[i]
 		if c.ID != nil && *c.ID == challID {
 			solveCount = c.SolveCount
+
 			break
 		}
 	}
+
 	require.NotNil(t, solveCount, "challenge should be in list")
 	require.Equal(t, 1, *solveCount, "GET /challenges during freeze must return frozen solve_count (1), not live (2)")
 }

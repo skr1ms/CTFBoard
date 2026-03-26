@@ -54,4 +54,6 @@ schemas:
         type: string
       team_name:
         type: string
+      team_avatar_thumbnail_url:
+        type: string
     type: object

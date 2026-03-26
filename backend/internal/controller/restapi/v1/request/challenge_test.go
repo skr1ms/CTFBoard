@@ -12,6 +12,7 @@ import (
 
 func TestCreateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	invalid := openapi.CreateChallengeRequestState("invalid")
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
@@ -28,6 +29,7 @@ func TestCreateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) 
 
 func TestCreateChallengeRequestToParams_ValidStateLocked_Success(t *testing.T) {
 	t.Parallel()
+
 	locked := openapi.CreateChallengeRequestStateLocked
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
@@ -44,6 +46,7 @@ func TestCreateChallengeRequestToParams_ValidStateLocked_Success(t *testing.T) {
 
 func TestUpdateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	invalid := openapi.UpdateChallengeRequestState("invalid")
 	req := &openapi.UpdateChallengeRequest{
 		Title:       "Test",
@@ -59,6 +62,7 @@ func TestUpdateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) 
 
 func TestCreateChallengeRequestToParams_StateNil_DefaultsToVisible(t *testing.T) {
 	t.Parallel()
+
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
@@ -74,6 +78,7 @@ func TestCreateChallengeRequestToParams_StateNil_DefaultsToVisible(t *testing.T)
 
 func TestCreateChallengeRequestToParams_InvalidNumericParams_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
@@ -89,6 +94,7 @@ func TestCreateChallengeRequestToParams_InvalidNumericParams_ReturnsError(t *tes
 
 func TestCreateChallengeRequestToParams_InitialValueLessThanMinValue_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	iv, mv := 50, 100
 	req := &openapi.CreateChallengeRequest{
 		Title:        "Test",
@@ -107,8 +113,10 @@ func TestCreateChallengeRequestToParams_InitialValueLessThanMinValue_ReturnsErro
 
 func TestSubmitFlagRequestToParams_FlagTooLong_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	v, err := validator.New()
 	require.NoError(t, err)
+
 	req := &openapi.SubmitFlagRequest{Flag: string(make([]byte, 201))}
 	err = ValidateSubmitFlagRequest(req, v)
 	assert.Error(t, err)
@@ -117,6 +125,7 @@ func TestSubmitFlagRequestToParams_FlagTooLong_ReturnsError(t *testing.T) {
 
 func TestSubmitFlagRequestToParams_ValidFlag_Success(t *testing.T) {
 	t.Parallel()
+
 	req := &openapi.SubmitFlagRequest{Flag: "CTF{ok}"}
 	flag, err := SubmitFlagRequestToParams(req)
 	assert.NoError(t, err)
@@ -125,6 +134,7 @@ func TestSubmitFlagRequestToParams_ValidFlag_Success(t *testing.T) {
 
 func TestCreateChallengeRequestToParams_InvalidTagID_ReturnsError(t *testing.T) {
 	t.Parallel()
+
 	badID := "not-a-uuid"
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
@@ -142,6 +152,7 @@ func TestCreateChallengeRequestToParams_InvalidTagID_ReturnsError(t *testing.T) 
 
 func TestCreateChallengeRequestToParams_ValidStateHidden_Success(t *testing.T) {
 	t.Parallel()
+
 	hidden := openapi.CreateChallengeRequestStateHidden
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
@@ -158,6 +169,7 @@ func TestCreateChallengeRequestToParams_ValidStateHidden_Success(t *testing.T) {
 
 func TestCreateChallengeRequestToParams_ConnectionInfoMaxAttemptsPositionDefaults(t *testing.T) {
 	t.Parallel()
+
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
@@ -168,13 +180,14 @@ func TestCreateChallengeRequestToParams_ConnectionInfoMaxAttemptsPositionDefault
 	}
 	params, err := CreateChallengeRequestToParams(req)
 	assert.NoError(t, err)
-	assert.Equal(t, "", params.ConnectionInfo)
+	assert.Empty(t, params.ConnectionInfo)
 	assert.Equal(t, 0, params.MaxAttempts)
 	assert.Equal(t, 0, params.Position)
 }
 
 func TestUpdateChallengeRequestToParams_ValidState_Success(t *testing.T) {
 	t.Parallel()
+
 	hidden := openapi.UpdateChallengeRequestStateHidden
 	req := &openapi.UpdateChallengeRequest{
 		Title:       "Test",
@@ -190,6 +203,7 @@ func TestUpdateChallengeRequestToParams_ValidState_Success(t *testing.T) {
 
 func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {
 	t.Parallel()
+
 	req := &openapi.UpdateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
@@ -199,7 +213,8 @@ func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {
 	}
 	params, err := UpdateChallengeRequestToParams(req)
 	assert.NoError(t, err)
-	assert.Equal(t, "", params.State)
+	assert.Empty(t, params.State)
 }
 
-func ptr[T any](v T) *T { return &v }
+//go:fix inline
+func ptr[T any](v T) *T { return new(v) }

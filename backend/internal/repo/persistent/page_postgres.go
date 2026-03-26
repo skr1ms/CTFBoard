@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -29,11 +28,14 @@ func NewPageRepo(pool *pgxpool.Pool) *PageRepo {
 func (r *PageRepo) Create(ctx context.Context, page *domain.Page) error {
 	EnsureID(&page.ID)
 	isDraft := &page.IsDraft
+
 	orderIndex, err := intToInt32Safe(page.OrderIndex)
 	if err != nil {
 		return fmt.Errorf("PageRepo - Create - OrderIndex: %w", err)
 	}
+
 	now := time.Now()
+
 	row, err := r.Q(ctx).CreatePage(ctx, sqlc.CreatePageParams{
 		ID:         page.ID,
 		Title:      page.Title,
@@ -48,10 +50,13 @@ func (r *PageRepo) Create(ctx context.Context, page *domain.Page) error {
 		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrPageSlugConflict
 		}
+
 		return fmt.Errorf("PageRepo - Create: %w", err)
 	}
+
 	page.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
 	page.UpdatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt))
+
 	return nil
 }
 
@@ -61,8 +66,10 @@ func (r *PageRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, err
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrPageNotFound
 		}
+
 		return nil, fmt.Errorf("PageRepo - GetByID: %w", err)
 	}
+
 	return toDomainPage(row), nil
 }
 
@@ -72,8 +79,10 @@ func (r *PageRepo) GetBySlug(ctx context.Context, slug string) (*domain.Page, er
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrPageNotFound
 		}
+
 		return nil, fmt.Errorf("PageRepo - GetBySlug: %w", err)
 	}
+
 	return toDomainPage(row), nil
 }
 
@@ -82,12 +91,15 @@ func (r *PageRepo) GetPublishedList(ctx context.Context) ([]*domain.PageListItem
 	if err != nil {
 		return nil, fmt.Errorf("PageRepo - GetPublishedList: %w", err)
 	}
+
 	out := make([]*domain.PageListItem, len(rows))
 	for i, row := range rows {
 		orderIndex := 0
+
 		if row.OrderIndex != nil {
 			orderIndex = int(*row.OrderIndex)
 		}
+
 		out[i] = &domain.PageListItem{
 			ID:         row.ID,
 			Title:      row.Title,
@@ -95,6 +107,7 @@ func (r *PageRepo) GetPublishedList(ctx context.Context) ([]*domain.PageListItem
 			OrderIndex: orderIndex,
 		}
 	}
+
 	return out, nil
 }
 
@@ -103,20 +116,25 @@ func (r *PageRepo) GetAllList(ctx context.Context) ([]*domain.Page, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PageRepo - GetAllList: %w", err)
 	}
+
 	out := make([]*domain.Page, len(rows))
 	for i, row := range rows {
 		out[i] = toDomainPage(row)
 	}
+
 	return out, nil
 }
 
 func (r *PageRepo) Update(ctx context.Context, page *domain.Page) error {
 	isDraft := &page.IsDraft
+
 	orderIndex, err := intToInt32Safe(page.OrderIndex)
 	if err != nil {
 		return fmt.Errorf("PageRepo - Update - OrderIndex: %w", err)
 	}
+
 	now := time.Now()
+
 	err = r.Q(ctx).UpdatePage(ctx, sqlc.UpdatePageParams{
 		ID:         page.ID,
 		Title:      page.Title,
@@ -130,27 +148,35 @@ func (r *PageRepo) Update(ctx context.Context, page *domain.Page) error {
 		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrPageSlugConflict
 		}
+
 		return fmt.Errorf("PageRepo - Update: %w", err)
 	}
+
 	return nil
 }
 
 func (r *PageRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := r.Q(ctx).DeletePage(ctx, ID); err != nil {
+	err := r.Q(ctx).DeletePage(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("PageRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func toDomainPage(row sqlc.Page) *domain.Page {
 	orderIndex := 0
+
 	if row.OrderIndex != nil {
 		orderIndex = int(*row.OrderIndex)
 	}
+
 	isDraft := false
+
 	if row.IsDraft != nil {
 		isDraft = *row.IsDraft
 	}
+
 	return &domain.Page{
 		ID:         row.ID,
 		Title:      row.Title,

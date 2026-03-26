@@ -57,7 +57,7 @@ func TestAPIToken_Delete_Success(t *testing.T) {
 	h.DeleteUserToken(tokenUser, *createResp.JSON201.ID, http.StatusNoContent)
 	listResp := h.GetUserTokens(tokenUser, http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
-	require.Len(t, *listResp.JSON200, 0)
+	require.Empty(t, *listResp.JSON200)
 }
 
 // DELETE /user/tokens/{id}: delete with wrong id returns 204 (idempotent).

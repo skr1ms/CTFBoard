@@ -51,6 +51,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
+
 		team, err := uc.Create(ctx, teamName, u1.ID, false, false)
 		if err != nil {
 			errCh <- err
@@ -61,6 +62,7 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
+
 		team, err := uc.Create(ctx, teamName, u2.ID, false, false)
 		if err != nil {
 			errCh <- err
@@ -74,17 +76,19 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 	close(teamCh)
 
 	var teams []*domain.Team
+
 	for tm := range teamCh {
 		teams = append(teams, tm)
 	}
 
 	var errors []error
+
 	for err := range errCh {
 		errors = append(errors, err)
 	}
 
-	assert.Equal(t, 1, len(teams), "Exactly one team should be created")
-	assert.Equal(t, 1, len(errors), "Exactly one creation should fail")
+	assert.Len(t, teams, 1, "Exactly one team should be created")
+	assert.Len(t, errors, 1, "Exactly one creation should fail")
 
 	if len(teams) > 0 {
 		assert.Equal(t, teamName, teams[0].Name)
@@ -131,6 +135,7 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 
 	opts := func(uID uuid.UUID, name string) {
 		defer wg.Done()
+
 		_, err := uc.Join(ctx, team.InviteToken, uID, false)
 		if err != nil {
 			errCh <- err
@@ -147,19 +152,21 @@ func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
 	close(successCh)
 
 	var succeeded []string
+
 	for s := range successCh {
 		succeeded = append(succeeded, s)
 	}
 
 	var failures []error
+
 	for err := range errCh {
 		failures = append(failures, err)
 	}
 
-	assert.Equal(t, 1, len(succeeded), "Only one user should be able to join")
-	assert.Equal(t, 1, len(failures), "One user should fail to join")
+	assert.Len(t, succeeded, 1, "Only one user should be able to join")
+	assert.Len(t, failures, 1, "One user should fail to join")
 
 	members, err := uc.GetTeamMembers(ctx, team.ID)
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(members), "Team should have exactly 2 members")
+	assert.Len(t, members, 2, "Team should have exactly 2 members")
 }

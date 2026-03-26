@@ -1,216 +1,263 @@
+# supported golangci-lint version = 2.11.4
 version: "2"
-
 linters:
-  default: none
-  enable:
-    - asciicheck
-    - bodyclose
-    - contextcheck
-    - copyloopvar
-    - dogsled
-    - durationcheck
-    - errcheck
-    - errorlint
-    - exhaustive
-    - funlen
-    - gochecknoinits
-    - gocognit
-    - gocyclo
-    - gomodguard
-    - goprintffuncname
-    - govet
-    - gosec
-    - ineffassign
-    - makezero
-    - misspell
-    - mnd
-    - nakedret
-    - nolintlint
-    - noctx
-    - predeclared
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - thelper
-    - tparallel
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
-    - wrapcheck
+  default: all
   disable:
-    # Disabled overly strict/cosmetic linters
-    - wsl
+    - containedctx
+    - contextcheck
+    - cyclop
+    - depguard
+    - dogsled
     - dupl
     - err113
+    - exhaustruct
+    - forcetypeassert
+    - forbidigo
+    - funcorder
+    - funlen
+    - gochecknoglobals
+    - gocognit
+    - gocheckcompilerdirectives
+    - goconst
+    - gocyclo
+    - godoclint
+    - gomoddirectives
+    - gosmopolitan
+    - errchkjson
+    - iface
+    - interfacebloat
+    - intrange
+    - ireturn
+    - lll
+    - mnd
+    - nestif
+    - nilnil
+    - noctx
+    - nilerr
+    - noinlineerr
+    - nonamedreturns
+    - nosprintfhostport
     - paralleltest
-    # Disabled stylistic linters - focus on real bugs and complexity
-    - gocritic # Too many style suggestions
-    - nlreturn # Blank line before return - cosmetic
-    - godot # Comment punctuation - cosmetic
-    - godox # TODO comments are fine
-    - nestif # Nested if complexity - covered by gocognit
-    - forbidigo # fmt.Print in config/tests is acceptable
-    - gochecknoglobals # Global vars in tests/metrics are fine
-    - goconst # Repeated strings in tests are acceptable
+    - perfsprint
+    - prealloc
+    - testpackage
+    - unconvert
+    - unparam
+    - usetesting
+    - maintidx
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - nolintlint
+
   settings:
-    errcheck:
-      check-type-assertions: true
-      check-blank: true
-    errorlint:
-      errorf: true
-    wrapcheck:
-      ignore-package-globs:
-        - os
-        - net
-        - encoding/*
-        - crypto/*
-        - io
-        - github.com/jackc/pgx/*
-        - github.com/testcontainers/*
-        - github.com/cenkalti/backoff/*
-        - github.com/TakuyaYagam1/AstroCTFb/internal/repo
-        - github.com/TakuyaYagam1/AstroCTFb/internal/storage
-        - github.com/TakuyaYagam1/AstroCTFb/pkg/*
-        - github.com/go-playground/*
-        - golang.org/x/crypto/*
-        - golang.org/x/sync/*
-        - github.com/Masterminds/*
-        - github.com/TakuyaYagam1/AstroCTFb/internal/usecase/*
-        - github.com/ulule/*
-    exhaustive:
-      default-signifies-exhaustive: false
-    funlen:
-      lines: 150
-      statements: 70
-    gocognit:
-      min-complexity: 25
-    gocyclo:
-      min-complexity: 18
-    misspell:
-      locale: US
-    nolintlint:
-      require-explanation: false
-      require-specific: true
+    cyclop:
+      max-complexity: 15
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - importShadow
+        - captLocal
+        - whyNoLint
+        - unnamedResult
+        - typeDefFirst
+        - ifElseChain
+        - typeAssertChain
+        - typeUnparen
+        - emptyStringTest
+        - tooManyResultsChecker
+        - deferInLoop
+        - exitAfterDefer
     gosec:
       excludes:
         - G101
+        - G104
+        - G115
         - G117
-    mnd:
-      checks:
-        - argument
-        - case
-        - condition
-        - operation
-        - return
-        - assign
-      ignored-numbers:
-        - "0"
-        - "1"
-        - "2"
-        - "10"
-        - "100"
-      ignored-files:
-        - ".*_test\\.go"
+        - G118
+        - G703
+        - G705
+    nestif:
+      min-complexity: 7
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+    reassign:
+      patterns:
+        - .*
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+    prealloc:
+      for-loops: true
+    nilnil:
+      detect-opposite: true
     revive:
+      enable-all-rules: true
       rules:
-        - name: exported
-          severity: warning
-        - name: var-naming
-          severity: warning
         - name: unexported-return
-          severity: warning
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: add-constant
+          disabled: true
+        - name: unhandled-error
+          arguments:
+            - "^fmt.Print.*"
+            - "strings.Builder.Write.*"
+            - "bytes.Buffer.Write.*"
+        - name: var-naming
+          disabled: true
+        - name: nested-structs
+          disabled: true
+        - name: max-public-structs
+          disabled: true
+        - name: function-length
+          disabled: true
+        - name: import-shadowing
+          disabled: true
+        - name: import-alias-naming
+          arguments:
+            - allow-regex: "^([a-z][a-z0-9]*(_[a-z0-9]+)*)|([A-Z][A-Z0-9]*)$"
+        - name: empty-block
+          disabled: true
+        - name: confusing-naming
+          disabled: true
+        - name: confusing-results
+          disabled: true
+        - name: unexported-naming
+          disabled: true
         - name: unused-parameter
-          severity: warning
+          disabled: true
+        - name: use-errors-new
+          disabled: true
+        - name: unnecessary-format
+          disabled: true
+        - name: redundant-test-main-exit
+          disabled: true
+        - name: redundant-import-alias
+          disabled: true
+        - name: function-result-limit
+          disabled: true
+        - name: flag-parameter
+          disabled: true
+        - name: context-as-argument
+          disabled: true
+        - name: blank-imports
+          disabled: true
+        - name: use-waitgroup-go
+          disabled: true
+        - name: enforce-switch-style
+          disabled: true
+        - name: identical-switch-branches
+          disabled: true
+        - name: defer
+          disabled: true
+        - name: superfluous-else
+          disabled: true
+        - name: unnecessary-stmt
+          disabled: true
+        - name: bool-literal-in-expr
+          disabled: true
+        - name: deep-exit
+          disabled: true
+        - name: unchecked-type-assertion
+          disabled: true
+        - name: max-control-nesting
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: unused-receiver
+          disabled: true
+        - name: indent-error-flow
+          disabled: true
+        - name: early-return
+          disabled: true
+        - name: argument-limit
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: get-return
+          disabled: true
+        - name: struct-tag
+          disabled: true
+        - name: package-naming
+          arguments:
+            - convention-name-check-regex: "^([a-z][a-z0-9]*(_[a-z0-9]+)*)|([A-Z][A-Z0-9]*)$"
+    testifylint:
+      enable-all: true
+    usestdlibvars:
+      time-date-month: true
+      time-month: true
+      time-layout: true
+      crypto-hash: true
+      default-rpc-path: true
+      sql-isolation-level: true
+      tls-signature-scheme: true
+      constant-kind: true
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - io.Close
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net/http.ResponseWriter).Write
+        - (*archive/zip.Writer).Close
+        - (*io.PipeWriter).Close
+        - (github.com/jackc/pgx/v5.BatchResults).Close
+    staticcheck:
+      checks:
+        - all
+        - -S1008
+        - -SA9003
+        - -ST1003
+    tagliatelle:
+      case:
+        rules:
+          avro: snake
+          bson: snake
+          env: upperSnake
+          envconfig: upperSnake
+          json: snake
+          mapstructure: snake
+          toml: snake
+          whatever: snake
+          xml: snake
+          yaml: snake
+    wsl_v5:
+      allow-first-in-block: false
+
   exclusions:
-    generated: lax
     presets:
       - comments
       - common-false-positives
-      - legacy
-      - std-error-handling
     rules:
       - linters: [gosec]
         path: e2e-test/
-        text: "G704"
-      - linters: [wrapcheck]
-        path: e2e-test/
-      - linters: [wrapcheck]
+      - linters: [gosec]
         path: integration-test/
-      - linters: [wrapcheck]
-        path: internal/repo/
-      - linters: [wrapcheck]
-        path: internal/wire/
-      - linters: [wrapcheck]
-        path: internal/app/
-      - linters: [wrapcheck]
-        path: internal/storage/
-      - linters: [wrapcheck]
-        path: pkg/
-      - linters: [wrapcheck]
-        path: config/
-      - linters: [wrapcheck]
-        path: internal/controller/
-      - linters: [mnd]
-        path: e2e-test/
-      - linters: [mnd]
-        path: integration-test/
-      - linters: [revive]
-        path: e2e-test/
-      - linters: [revive]
-        path: integration-test/
-      - linters: [unconvert]
-        path: e2e-test/
-      - linters: [contextcheck]
-        path: integration-test/
-      - linters: [contextcheck]
+      - linters: [gosec]
         path: load-test/
-      - linters: [contextcheck]
-        path: internal/app/
-      - linters: [contextcheck]
-        path: internal/controller/
-      - linters: [contextcheck]
-        path: internal/usecase/
-      - linters: [funlen]
-        path: config/
-      - linters: [gocognit]
-        path: config/
-      - linters: [gocognit]
-        path: internal/
-      - linters: [gocyclo]
-        path: config/
-      - linters: [gocyclo]
-        path: internal/
-      - linters: [gocyclo]
-        path: pkg/
-      - linters: [mnd]
-        path: config/
-      - linters: [mnd]
-        path: internal/
-      - linters: [mnd]
-        path: pkg/
-      - linters: [mnd]
-        path: cmd/
-      - linters: [revive]
-        path: internal/domain/
-      - linters: [revive]
-        path: internal/usecase/
-      - linters: [revive]
-        path: pkg/crypto/
-      - linters: [unparam]
-        path: internal/usecase/
-    paths:
-      - bin/
-      - third_party$
-      - builtin$
-      - examples$
+      - linters: [errcheck, goconst, errname, unparam, testifylint]
+        path: _test\.go
+      - linters: [errcheck, goconst, errname]
+        path: e2e-test/
+      - linters: [errcheck, goconst, errname]
+        path: integration-test/
+      - linters: [errcheck, goconst, errname]
+        path: load-test/
 
 formatters:
   enable:
-    - gci
     - gofmt
-    - gofumpt
     - goimports
   settings:
     gofumpt:
@@ -221,7 +268,12 @@ formatters:
   exclusions:
     generated: lax
     paths:
-      - bin/
       - third_party$
       - builtin$
       - examples$
+
+issues:
+  max-same-issues: 0
+
+run:
+  relative-path-mode: gomod

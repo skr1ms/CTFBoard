@@ -28,9 +28,11 @@ func RunAttack(attacker *vegeta.Attacker, name string, rps int, duration time.Du
 	results := attacker.Attack(targeter, rate, duration, name)
 
 	m := &vegeta.Metrics{}
+
 	for res := range results {
 		m.Add(res)
 	}
+
 	m.Close()
 
 	r := &AttackResult{Name: name, RPS: rps, Metrics: m}
@@ -49,6 +51,7 @@ func FlushReports() {
 	if dir == "" {
 		return
 	}
+
 	reportCollector.mu.Lock()
 	results := reportCollector.results
 	reportCollector.mu.Unlock()
@@ -58,11 +61,16 @@ func FlushReports() {
 	}
 
 	fname := fmt.Sprintf("report_%s.json", time.Now().UTC().Format("20060102_150405"))
+
 	path := filepath.Join(dir, fname)
-	if err := WriteJSONReport(path, results); err != nil {
+
+	err := WriteJSONReport(path, results)
+	if err != nil {
 		fmt.Printf("[load-test] warn: write report to %s: %v\n", path, err)
+
 		return
 	}
+
 	fmt.Printf("[load-test] report written: %s\n", path)
 }
 
@@ -77,10 +85,13 @@ func PrintMetrics(r *AttackResult) {
 	fmt.Printf("  Latency P95: %s\n", m.Latencies.P95.Round(time.Millisecond))
 	fmt.Printf("  Latency P99: %s\n", m.Latencies.P99.Round(time.Millisecond))
 	fmt.Printf("  Latency Max: %s\n", m.Latencies.Max.Round(time.Millisecond))
+
 	if len(m.Errors) > 0 {
 		fmt.Printf("  Errors:      %v\n", m.Errors)
 	}
+
 	fmt.Printf("  Status codes:\n")
+
 	for code, count := range m.StatusCodes {
 		fmt.Printf("    %s: %d\n", code, count)
 	}
@@ -97,7 +108,8 @@ func PrintStepSummary(r *AttackResult) {
 }
 
 func WriteJSONReport(path string, results []*AttackResult) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // path is constructed from test config, not user input
+	err := os.MkdirAll(filepath.Dir(path), 0o755)
+	if err != nil { //nolint:gosec // path is constructed from test config, not user input
 		return err
 	}
 
@@ -130,11 +142,15 @@ func WriteJSONReport(path string, results []*AttackResult) error {
 	}
 
 	var buf bytes.Buffer
+
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(entries); err != nil {
+
+	err = enc.Encode(entries)
+	if err != nil {
 		return err
 	}
+
 	return os.WriteFile(path, buf.Bytes(), 0o600) //nolint:gosec // path is constructed from test config, not user input
 }
 

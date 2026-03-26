@@ -28,6 +28,7 @@ type emailTestDeps struct {
 
 func newEmailTestDeps(t *testing.T) *emailTestDeps {
 	t.Helper()
+
 	return &emailTestDeps{
 		userRepo:  emailMock.NewMockUserRepository(t),
 		tokenRepo: emailMock.NewMockVerificationTokenRepository(t),
@@ -62,6 +63,7 @@ func (d *emailTestDeps) setupTxRun() {
 
 func hashTestToken(rawToken string) string {
 	hash := sha256.Sum256([]byte(rawToken))
+
 	return hex.EncodeToString(hash[:])
 }
 
@@ -93,14 +95,18 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
 
 	var storedToken string
+
 	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *domain.VerificationToken) bool {
 		storedToken = vt.Token
+
 		return vt.UserID == user.ID && vt.Type == domain.TokenTypeEmailVerification
 	})).Return(nil)
 
 	var sentBody string
+
 	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg mailer.Message) bool {
 		sentBody = msg.Body
+
 		return msg.To == user.Email
 	})).Return(nil)
 
@@ -143,14 +149,18 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypePasswordReset).Return(nil)
 
 	var storedToken string
+
 	d.tokenRepo.On("Create", mock.Anything, mock.MatchedBy(func(vt *domain.VerificationToken) bool {
 		storedToken = vt.Token
+
 		return vt.UserID == user.ID && vt.Type == domain.TokenTypePasswordReset
 	})).Return(nil)
 
 	var sentBody string
+
 	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg mailer.Message) bool {
 		sentBody = msg.Body
+
 		return msg.To == user.Email && strings.Contains(msg.Body, "reset-password?token=")
 	})).Return(nil)
 

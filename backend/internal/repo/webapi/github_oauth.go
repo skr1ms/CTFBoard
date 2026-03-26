@@ -26,6 +26,7 @@ func NewGitHubAPI(client *http.Client) *GitHubAPI {
 	if client == nil {
 		client = defaultOAuthClient
 	}
+
 	return &GitHubAPI{client: client, userURL: githubUserURL, emailsURL: githubEmailsURL}
 }
 
@@ -64,14 +65,17 @@ func (g *GitHubAPI) FetchUserProfile(ctx context.Context, accessToken string) (*
 
 func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubUser, error) {
 	mkReq := func() (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userURL, http.NoBody)
 		if err != nil {
 			return nil, err
 		}
+
 		req.Header.Set("Authorization", "Bearer "+accessToken)
 		req.Header.Set("Accept", "application/vnd.github+json")
+
 		return req, nil
 	}
+
 	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return nil, fmt.Errorf("GitHubAPI - fetchUser - Do: %w", err)
@@ -83,6 +87,7 @@ func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubU
 		if readErr != nil {
 			return nil, fmt.Errorf("GitHubAPI - fetchUser: API returned %d (read body: %w)", resp.StatusCode, readErr)
 		}
+
 		return nil, fmt.Errorf("GitHubAPI - fetchUser: API returned %d: %s", resp.StatusCode, body)
 	}
 
@@ -90,19 +95,23 @@ func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubU
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("GitHubAPI - fetchUser - Decode: %w", err)
 	}
+
 	return &user, nil
 }
 
 func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
 	mkReq := func() (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.emailsURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.emailsURL, http.NoBody)
 		if err != nil {
 			return nil, err
 		}
+
 		req.Header.Set("Authorization", "Bearer "+accessToken)
 		req.Header.Set("Accept", "application/vnd.github+json")
+
 		return req, nil
 	}
+
 	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail - Do: %w", err)
@@ -114,6 +123,7 @@ func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (
 		if readErr != nil {
 			return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail: API returned %d (read body: %w)", resp.StatusCode, readErr)
 		}
+
 		return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail: API returned %d: %s", resp.StatusCode, body)
 	}
 
@@ -127,6 +137,7 @@ func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (
 			return e.Email, nil
 		}
 	}
+
 	for _, e := range emails {
 		if e.Verified {
 			return e.Email, nil

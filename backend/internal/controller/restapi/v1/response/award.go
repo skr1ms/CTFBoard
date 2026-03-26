@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -10,15 +9,16 @@ import (
 
 func FromAward(a *domain.Award) openapi.AwardResponse {
 	res := openapi.AwardResponse{
-		ID:          httputil.Ptr(a.ID.String()),
-		TeamID:      httputil.Ptr(a.TeamID.String()),
-		Value:       httputil.Ptr(a.Value),
-		Description: httputil.Ptr(a.Description),
-		CreatedAt:   httputil.Ptr(a.CreatedAt),
+		ID:          new(a.ID.String()),
+		TeamID:      new(a.TeamID.String()),
+		Value:       new(a.Value),
+		Description: new(a.Description),
+		CreatedAt:   new(a.CreatedAt),
 	}
 	if a.CreatedBy != nil {
-		res.CreatedBy = httputil.Ptr(a.CreatedBy.String())
+		res.CreatedBy = new(a.CreatedBy.String())
 	}
+
 	return res
 }
 

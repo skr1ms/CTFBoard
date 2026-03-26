@@ -41,6 +41,7 @@ func (g *Guard) Get(ctx context.Context) (*domain.Competition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - Get - src.Get: %w", err)
 	}
+
 	return comp, nil
 }
 
@@ -53,16 +54,20 @@ func (g *Guard) RequireTeamSwitch(ctx context.Context) (*domain.Competition, err
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitch - src.Get: %w", err)
 	}
+
 	status := comp.GetStatus()
 	if status == domain.CompetitionStatusEnded {
 		return nil, httperr.ErrCompetitionEnded
 	}
+
 	if status == domain.CompetitionStatusPaused {
 		return nil, httperr.ErrCompetitionPaused
 	}
+
 	if !comp.AllowTeamSwitch {
 		return nil, httperr.ErrRosterFrozen
 	}
+
 	return comp, nil
 }
 
@@ -71,9 +76,11 @@ func (g *Guard) RequireTeamSwitchAndTeamsMode(ctx context.Context) (*domain.Comp
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitchAndTeamsMode - RequireTeamSwitch: %w", err)
 	}
+
 	if !comp.Mode.AllowsTeams() {
 		return nil, httperr.ErrTeamsNotAllowed
 	}
+
 	return comp, nil
 }
 
@@ -82,8 +89,10 @@ func (g *Guard) RequireTeamSwitchAndSoloMode(ctx context.Context) (*domain.Compe
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionGuard - RequireTeamSwitchAndSoloMode - RequireTeamSwitch: %w", err)
 	}
+
 	if !comp.Mode.AllowsSolo() {
 		return nil, httperr.ErrSoloModeNotAllowed
 	}
+
 	return comp, nil
 }

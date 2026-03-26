@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -28,15 +27,19 @@ func NewBracketRepo(pool *pgxpool.Pool) *BracketRepo {
 
 func (r *BracketRepo) Create(ctx context.Context, bracket *domain.Bracket) error {
 	EnsureID(&bracket.ID)
+
 	if bracket.CreatedAt.IsZero() {
 		bracket.CreatedAt = time.Now()
 	}
+
 	desc := &bracket.Description
 	if bracket.Description == "" {
 		desc = nil
 	}
+
 	isDefault := &bracket.IsDefault
 	createdAt := &bracket.CreatedAt
+
 	_, err := r.Q(ctx).CreateBracket(ctx, sqlc.CreateBracketParams{
 		ID:          bracket.ID,
 		Name:        bracket.Name,
@@ -48,8 +51,10 @@ func (r *BracketRepo) Create(ctx context.Context, bracket *domain.Bracket) error
 		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrBracketNameConflict
 		}
+
 		return fmt.Errorf("BracketRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -59,8 +64,10 @@ func (r *BracketRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Bracke
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrBracketNotFound
 		}
+
 		return nil, fmt.Errorf("BracketRepo - GetByID: %w", err)
 	}
+
 	return toDomainBracket(row), nil
 }
 
@@ -70,8 +77,10 @@ func (r *BracketRepo) GetByName(ctx context.Context, name string) (*domain.Brack
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrBracketNotFound
 		}
+
 		return nil, fmt.Errorf("BracketRepo - GetByName: %w", err)
 	}
+
 	return toDomainBracket(row), nil
 }
 
@@ -80,10 +89,12 @@ func (r *BracketRepo) GetAll(ctx context.Context) ([]*domain.Bracket, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BracketRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.Bracket, len(rows))
 	for i := range rows {
 		out[i] = toDomainBracket(rows[i])
 	}
+
 	return out, nil
 }
 
@@ -92,7 +103,9 @@ func (r *BracketRepo) Update(ctx context.Context, bracket *domain.Bracket) error
 	if bracket.Description == "" {
 		desc = nil
 	}
+
 	isDefault := &bracket.IsDefault
+
 	err := r.Q(ctx).UpdateBracket(ctx, sqlc.UpdateBracketParams{
 		ID:          bracket.ID,
 		Name:        bracket.Name,
@@ -103,34 +116,44 @@ func (r *BracketRepo) Update(ctx context.Context, bracket *domain.Bracket) error
 		if pgutil.IsPgUniqueViolation(err) {
 			return httperr.ErrBracketNameConflict
 		}
+
 		return fmt.Errorf("BracketRepo - Update: %w", err)
 	}
+
 	return nil
 }
 
 func (r *BracketRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteBracket(ctx, ID); err != nil {
+	err := r.Q(ctx).DeleteBracket(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("BracketRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func (r *BracketRepo) ClearAllDefaults(ctx context.Context) error {
-	if err := r.Q(ctx).ClearAllDefaultBrackets(ctx); err != nil {
+	err := r.Q(ctx).ClearAllDefaultBrackets(ctx)
+	if err != nil {
 		return fmt.Errorf("BracketRepo - ClearAllDefaults: %w", err)
 	}
+
 	return nil
 }
 
 func toDomainBracket(row sqlc.Bracket) *domain.Bracket {
 	desc := ""
+
 	if row.Description != nil {
 		desc = *row.Description
 	}
+
 	isDefault := false
+
 	if row.IsDefault != nil {
 		isDefault = *row.IsDefault
 	}
+
 	return &domain.Bracket{
 		ID:          row.ID,
 		Name:        row.Name,

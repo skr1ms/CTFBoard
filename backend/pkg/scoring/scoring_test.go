@@ -8,6 +8,7 @@ import (
 
 func TestCalculateDynamicScore(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		initial  int
@@ -28,6 +29,7 @@ func TestCalculateDynamicScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := CalculateDynamicScore(tt.initial, tt.min, tt.decay, tt.solves)
 			assert.Equal(t, tt.expected, got)
 		})

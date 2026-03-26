@@ -8,15 +8,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
+	"github.com/wahrwelt-kit/go-cachekit"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 	"github.com/wahrwelt-kit/go-logkit"
-
-	"github.com/wahrwelt-kit/go-cachekit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -49,6 +47,9 @@ const (
 	rlKeyChallengeReadIP   = "challenge:read:ip"
 	rlKeyFileDownloadIP    = "file:download:ip"
 	rlKeyWebSocketIP       = "websocket:ip"
+	rlKeyAvatarUploadUser  = "avatar:upload:user"
+	avatarUploadLimit      = 5
+	avatarUploadWindow     = time.Minute
 	teamOpRateLimit        = 5
 	teamOpRateLimitWindow  = time.Minute
 	adminExportZipLimit    = 3
@@ -72,6 +73,7 @@ func userIDKeyFunc(r *http.Request) (string, error) {
 	if !ok {
 		return "", errors.New("user not authenticated")
 	}
+
 	return user.ID.String(), nil
 }
 
@@ -80,6 +82,7 @@ func scoreboardVisibilityMiddleware(deps *helper.ServerDeps) func(http.Handler) 
 	if deps.Infra.ScoreboardVisibilityCache != nil {
 		return deps.Infra.ScoreboardVisibilityCache.Middleware(getter)
 	}
+
 	return restapimiddleware.ScoreboardVisibility(getter)
 }
 
@@ -97,18 +100,24 @@ func NewRouter(
 			var requiredHeader *openapi.RequiredHeaderError
 			if errors.As(err, &requiredHeader) {
 				server.OnError(w, r, httperr.New(err, http.StatusUnauthorized, "UNAUTHORIZED"), "OpenAPI", "RequiredHeader")
+
 				return
 			}
+
 			var requiredParam *openapi.RequiredParamError
 			if errors.As(err, &requiredParam) {
 				server.OnError(w, r, httperr.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "RequiredParam")
+
 				return
 			}
+
 			var invalidParam *openapi.InvalidParamFormatError
 			if errors.As(err, &invalidParam) {
 				server.OnError(w, r, httperr.New(err, http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "InvalidParamFormat")
+
 				return
 			}
+
 			server.OnError(w, r, httperr.New(errors.New("invalid request parameter"), http.StatusBadRequest, "BAD_REQUEST"), "OpenAPI", "BadRequest")
 		},
 	}
@@ -278,6 +287,13 @@ func setupBasicAuthRoutes(
 			tokens.With(apiTokenLimit).Delete("/user/tokens/{ID}", wrapper.DeleteUserTokensID)
 		})
 
+		avatarUploadLimitMw := restapimiddleware.RateLimit(deps.Infra.RedisClient, rlKeyAvatarUploadUser, avatarUploadLimit, avatarUploadWindow, userIDKeyFunc, deps.Infra.Logger)
+		verified := r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned)
+		verified.With(avatarUploadLimitMw).Put("/users/me/avatar", wrapper.PutUsersMeAvatar)
+		verified.Delete("/users/me/avatar", wrapper.DeleteUsersMeAvatar)
+		verified.With(avatarUploadLimitMw).Put("/teams/me/avatar", wrapper.PutTeamsMeAvatar)
+		verified.Delete("/teams/me/avatar", wrapper.DeleteTeamsMeAvatar)
+
 		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned, scoreboardVis)
 		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, verifyEmails, sharedCache, notBanned)
 
@@ -339,6 +355,7 @@ func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper op
 		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
 		ipKeyFunc(), deps.Infra.Logger,
 	)
+
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
 		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
@@ -361,6 +378,7 @@ func setupWebSocketRoute(router chi.Router, deps *helper.ServerDeps, wrapper ope
 		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
 		ipKeyFunc(), deps.Infra.Logger,
 	)
+
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
 		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
@@ -381,6 +399,7 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
 		ipKeyFunc(), deps.Infra.Logger,
 	)
+
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
 		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
@@ -394,6 +413,17 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 			path := chi.URLParam(req, "*")
 			server.GetFilesDownloadPath(w, req, path, openapi.GetFilesDownloadPathParams{Token: req.URL.Query().Get("token")})
 		})
+	})
+
+	avatarLimit := restapimiddleware.DynamicRateLimit(
+		deps.Infra.RedisClient, rlKeyPublicReadIP, time.Minute,
+		rateLimitCache, deps.Admin.SettingsUC,
+		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
+		ipKeyFunc(), deps.Infra.Logger,
+	)
+	router.With(avatarLimit).Get("/avatars/*", func(w http.ResponseWriter, req *http.Request) {
+		path := chi.URLParam(req, "*")
+		server.GetAvatarByPath(w, req, path)
 	})
 }
 
@@ -477,6 +507,7 @@ func setupChallengeRoutes(
 		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) },
 		userIDKeyFunc, log,
 	)
+
 	r.Group(func(comments chi.Router) {
 		comments.Use(restapimiddleware.CompetitionEnded(competitionUC))
 		comments.Use(restapimiddleware.RequireVerified(verifyEmails))
@@ -534,6 +565,7 @@ func setupChallengeRoutes(
 
 func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, log logkit.Logger) {
 	adminGeneralLimitMw := restapimiddleware.RateLimit(redisClient, rlKeyAdminGeneral, adminGeneralLimit, adminGeneralWindow, userIDKeyFunc, log)
+
 	r.Group(func(adm chi.Router) {
 		adm.Use(restapimiddleware.Admin)
 		adm.Use(adminGeneralLimitMw)
@@ -596,6 +628,8 @@ func setupAdminUserRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper
 	adm.Get("/admin/users/{ID}/missing-challenges", wrapper.GetAdminUsersIDMissingChallenges)
 	adm.Post("/admin/users/{ID}/ban", wrapper.PostAdminUsersIDBan)
 	adm.Delete("/admin/users/{ID}/ban", wrapper.DeleteAdminUsersIDBan)
+	adm.Put("/admin/users/{ID}/avatar", wrapper.PutAdminUsersIDAvatar)
+	adm.Delete("/admin/users/{ID}/avatar", wrapper.DeleteAdminUsersIDAvatar)
 }
 
 func setupAdminTeamRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
@@ -610,6 +644,8 @@ func setupAdminTeamRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper
 	adm.Delete("/admin/teams/{ID}/ban", wrapper.DeleteAdminTeamsIDBan)
 	adm.Patch("/admin/teams/{ID}/hidden", wrapper.PatchAdminTeamsIDHidden)
 	adm.Patch("/admin/teams/{ID}/bracket", wrapper.PatchAdminTeamsIDBracket)
+	adm.Put("/admin/teams/{ID}/avatar", wrapper.PutAdminTeamsIDAvatar)
+	adm.Delete("/admin/teams/{ID}/avatar", wrapper.DeleteAdminTeamsIDAvatar)
 }
 
 func setupAdminBracketRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
@@ -664,11 +700,13 @@ func setupAdminUtilityRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrap
 	adm.Delete("/admin/files/{ID}", wrapper.DeleteAdminFilesID)
 	adm.Get("/admin/unlocks", wrapper.GetAdminUnlocks)
 	adm.Get("/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
+
 	destructiveLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminDestructive, adminDestructiveLimit, adminDestructiveWindow, userIDKeyFunc, log)
 	adm.With(destructiveLimit).Post("/admin/reset", wrapper.PostAdminReset)
 	adm.With(destructiveLimit).Post("/admin/import", wrapper.PostAdminImport)
 	adm.With(destructiveLimit).Post("/admin/import/csv", wrapper.PostAdminImportCsv)
 	adm.Get("/admin/export", wrapper.GetAdminExport)
+
 	exportZipLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminExportZip, adminExportZipLimit, adminExportZipWindow, userIDKeyFunc, log)
 	adm.With(exportZipLimit).Get("/admin/export/zip", wrapper.GetAdminExportZip)
 	adm.Get("/admin/export/csv", wrapper.GetAdminExportCsv)

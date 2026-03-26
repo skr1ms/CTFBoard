@@ -31,22 +31,28 @@ func (uc *TrackingUseCase) Track(ctx context.Context, userID uuid.UUID, ip, user
 		IP:        ip,
 		UserAgent: userAgent,
 	}
-	if err := uc.deps.TrackingRepo.Create(ctx, entry); err != nil {
+
+	err := uc.deps.TrackingRepo.Create(ctx, entry)
+	if err != nil {
 		return fmt.Errorf("TrackingUseCase - Track - TrackingRepo.Create: %w", err)
 	}
+
 	return nil
 }
 
 func (uc *TrackingUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.TrackingEntry], error) {
 	offset := (page - 1) * perPage
+
 	entries, err := uc.deps.TrackingRepo.GetByUser(ctx, userID, perPage, offset)
 	if err != nil {
 		return nil, fmt.Errorf("TrackingUseCase - GetByUser - TrackingRepo.GetByUser: %w", err)
 	}
+
 	total, err := uc.deps.TrackingRepo.CountByUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("TrackingUseCase - GetByUser - TrackingRepo.CountByUser: %w", err)
 	}
+
 	return usecase.NewPaginated(entries, int64(total), page, perPage), nil
 }
 
@@ -56,8 +62,11 @@ func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID, chall
 		ChallengeID: challengeID,
 		IP:          ip,
 	}
-	if err := uc.deps.TrackingRepo.CreateChallengeOpen(ctx, entry); err != nil {
+
+	err := uc.deps.TrackingRepo.CreateChallengeOpen(ctx, entry)
+	if err != nil {
 		return fmt.Errorf("TrackingUseCase - TrackChallengeOpen - TrackingRepo.CreateChallengeOpen: %w", err)
 	}
+
 	return nil
 }

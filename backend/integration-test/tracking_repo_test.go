@@ -52,7 +52,7 @@ func TestTrackingRepo_GetByUser_Success(t *testing.T) {
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		entry := &domain.TrackingEntry{UserID: user.ID, IP: "10.0.0.1", UserAgent: "agent"}
 		require.NoError(t, trackingRepo.Create(ctx, entry))
 	}
@@ -60,6 +60,7 @@ func TestTrackingRepo_GetByUser_Success(t *testing.T) {
 	entries, err := trackingRepo.GetByUser(ctx, user.ID, 10, 0)
 	require.NoError(t, err)
 	assert.Len(t, entries, 3)
+
 	for _, e := range entries {
 		assert.Equal(t, user.ID, e.UserID)
 	}
@@ -85,7 +86,7 @@ func TestTrackingRepo_CountByUser_Success(t *testing.T) {
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		entry := &domain.TrackingEntry{UserID: user.ID, IP: "172.16.0.1"}
 		require.NoError(t, trackingRepo.Create(ctx, entry))
 	}
@@ -123,7 +124,7 @@ func TestTrackingRepo_GetChallengeOpensByChallenge_Success(t *testing.T) {
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		open := &domain.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "1.1.1.1"}
 		require.NoError(t, trackingRepo.CreateChallengeOpen(ctx, open))
 	}
@@ -131,6 +132,7 @@ func TestTrackingRepo_GetChallengeOpensByChallenge_Success(t *testing.T) {
 	opens, err := trackingRepo.GetChallengeOpensByChallenge(ctx, challenge.ID, 10, 0)
 	require.NoError(t, err)
 	assert.Len(t, opens, 2)
+
 	for _, o := range opens {
 		assert.Equal(t, challenge.ID, o.ChallengeID)
 	}
@@ -157,7 +159,7 @@ func TestTrackingRepo_CountChallengeOpensByChallenge_Success(t *testing.T) {
 	trackingRepo := persistent.NewTrackingRepo(testPool.Pool)
 	ctx := context.Background()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		open := &domain.ChallengeOpen{UserID: user.ID, ChallengeID: challenge.ID, IP: "2.2.2.2"}
 		require.NoError(t, trackingRepo.CreateChallengeOpen(ctx, open))
 	}

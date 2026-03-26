@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -66,7 +65,7 @@ func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.ChallengeRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
@@ -94,12 +93,16 @@ func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
 
 	challenges, err := f.ChallengeRepo.GetAll(ctx, nil, nil)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, c := range challenges {
 		ids[c.Challenge.ID] = true
 	}
+
 	assert.True(t, ids[ch1.ID], "ch1 should be in result")
 	assert.True(t, ids[ch2.ID], "ch2 should be in result")
+
 	for _, ch := range challenges {
 		assert.Equal(t, domain.ChallengeStateVisible, ch.Challenge.State)
 		assert.False(t, ch.Solved)
@@ -137,21 +140,28 @@ func TestChallengeRepo_GetAll_WithTeam(t *testing.T) {
 
 	challenges, err := f.ChallengeRepo.GetAll(ctx, &team.ID, nil)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, c := range challenges {
 		ids[c.Challenge.ID] = true
 	}
+
 	assert.True(t, ids[ch1.ID], "ch1 should be in result")
 	assert.True(t, ids[ch2.ID], "ch2 should be in result")
+
 	solved := false
+
 	for _, ch := range challenges {
 		if ch.Challenge.ID == ch1.ID {
 			assert.True(t, ch.Solved)
+
 			solved = true
 		} else {
 			assert.False(t, ch.Solved)
 		}
 	}
+
 	assert.True(t, solved)
 }
 
@@ -174,9 +184,11 @@ func TestChallengeRepo_Update(t *testing.T) {
 	challenge.Decay = 15
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		if err := f.ChallengeRepo.Update(txCtx, challenge); err != nil {
+		err := f.ChallengeRepo.Update(txCtx, challenge)
+		if err != nil {
 			return err
 		}
+
 		return f.ChallengeRepo.SetTags(txCtx, challenge.ID, nil)
 	})
 	require.NoError(t, err)
@@ -207,7 +219,7 @@ func TestChallengeRepo_Delete(t *testing.T) {
 
 	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_GetByIDTx(t *testing.T) {
@@ -219,6 +231,7 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 	challenge := f.CreateDynamicChallenge(t, "tx_get", 200, 100, 20)
 	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 5 WHERE ID = $1", challenge.ID)
 	require.NoError(t, err)
+
 	challenge.SolveCount = 5
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
@@ -226,7 +239,9 @@ func TestChallengeRepo_GetByIDTx(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
 		_ = gotChallenge
+
 		return nil
 	})
 	require.NoError(t, err)
@@ -247,10 +262,11 @@ func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		_, err := f.ChallengeRepo.GetByIDForUpdate(txCtx, nonExistentID)
+
 		return err
 	})
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
@@ -263,6 +279,7 @@ func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		_, err := f.ChallengeRepo.IncrementSolveCount(txCtx, challenge.ID)
+
 		return err
 	})
 	require.NoError(t, err)
@@ -308,15 +325,16 @@ func TestChallengeRepo_AtomicDynamicScoring(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
 		solveCount := gotChallenge.SolveCount + 1
-		newPoints := int(float64(gotChallenge.MinValue) + (float64(gotChallenge.InitialValue-gotChallenge.MinValue) / (1 + float64(solveCount-1)/float64(gotChallenge.Decay))))
-		if newPoints < gotChallenge.MinValue {
-			newPoints = gotChallenge.MinValue
-		}
+
+		newPoints := max(int(float64(gotChallenge.MinValue)+(float64(gotChallenge.InitialValue-gotChallenge.MinValue)/(1+float64(solveCount-1)/float64(gotChallenge.Decay)))), gotChallenge.MinValue)
+
 		_, err = f.ChallengeRepo.IncrementSolveCount(txCtx, challenge.ID)
 		if err != nil {
 			return err
 		}
+
 		return f.ChallengeRepo.UpdatePoints(txCtx, challenge.ID, newPoints)
 	})
 	require.NoError(t, err)

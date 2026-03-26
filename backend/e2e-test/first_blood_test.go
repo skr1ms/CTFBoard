@@ -16,6 +16,7 @@ func TestFirstBlood_Display(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	resetCompetitionToActive()
+
 	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("adminfb_" + suffix)
 

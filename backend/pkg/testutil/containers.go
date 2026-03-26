@@ -56,9 +56,11 @@ func StartPostgres(ctx context.Context, opts ...PostgresOption) (*postgres.Postg
 		password: defaultPostgresPassword,
 		timeout:  defaultPostgresStartupTimeout,
 	}
+
 	for _, f := range opts {
 		f(o)
 	}
+
 	runOpts := []testcontainers.ContainerCustomizer{
 		postgres.WithDatabase(o.database),
 		postgres.WithUsername(o.user),
@@ -72,14 +74,17 @@ func StartPostgres(ctx context.Context, opts ...PostgresOption) (*postgres.Postg
 	if len(o.cmd) > 0 {
 		runOpts = append(runOpts, testcontainers.WithCmd(o.cmd...))
 	}
-	container, err := postgres.Run(ctx, "postgres:17-alpine", runOpts...)
+
+	container, err := postgres.Run(ctx, "postgres:18-alpine", runOpts...)
 	if err != nil {
 		return nil, "", fmt.Errorf("postgres.Run: %w", err)
 	}
+
 	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		return nil, "", fmt.Errorf("postgres.ConnectionString: %w", err)
 	}
+
 	return container, connStr, nil
 }
 
@@ -88,18 +93,24 @@ func StartRedis(ctx context.Context) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("redis.Run: %w", err)
 	}
+
 	redisURI, err := redisC.ConnectionString(ctx)
 	if err != nil {
-		if termErr := redisC.Terminate(ctx); termErr != nil {
+		termErr := redisC.Terminate(ctx)
+		if termErr != nil {
 			fmt.Printf("redis terminate: %v\n", termErr)
 		}
+
 		return "", nil, fmt.Errorf("redis.ConnectionString: %w", err)
 	}
+
 	cleanup := func() {
-		if err := redisC.Terminate(ctx); err != nil {
+		err := redisC.Terminate(ctx)
+		if err != nil {
 			fmt.Printf("redis terminate: %v\n", err)
 		}
 	}
+
 	return redisURI, cleanup, nil
 }
 
@@ -108,20 +119,28 @@ func StartRedisClient(ctx context.Context) (*redis.Client, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	opts, err := redis.ParseURL(redisURI)
 	if err != nil {
 		cleanup()
+
 		return nil, nil, fmt.Errorf("redis.ParseURL: %w", err)
 	}
+
 	client := redis.NewClient(opts)
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()
+
 		cleanup()
+
 		return nil, nil, fmt.Errorf("redis.Ping: %w", err)
 	}
+
 	fullCleanup := func() {
 		_ = client.Close()
+
 		cleanup()
 	}
+
 	return client, fullCleanup, nil
 }

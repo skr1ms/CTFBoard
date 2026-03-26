@@ -57,6 +57,7 @@ func TestScoreboard_Display(t *testing.T) {
 	h.SubmitFlag(tokenUser2, challengeID1, "FLAG{chall1}", http.StatusOK)
 
 	require.Eventually(t, func() bool { return h.TeamScoreMatches(tokenUser1, nameUser2, 100) }, 1*time.Second, 50*time.Millisecond)
+
 	_ = TestRedis.Del(context.Background(), "scoreboard", "scoreboard:frozen")
 
 	h.AssertTeamScore(tokenUser1, nameUser1, 300)

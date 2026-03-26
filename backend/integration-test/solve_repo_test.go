@@ -82,7 +82,7 @@ func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.SolveRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSolveNotFound))
+	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
@@ -113,7 +113,7 @@ func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 
 	_, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSolveNotFound))
+	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_EmptyChallengeIDs(t *testing.T) {
@@ -224,6 +224,7 @@ func TestSolveRepo_GetByUserID(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
+
 		return err == nil && len(solves) == 2 && solves[0].ChallengeID == ch2.ID && solves[1].ChallengeID == ch1.ID
 	}, 2*time.Second, 50*time.Millisecond)
 
@@ -244,7 +245,7 @@ func TestSolveRepo_GetByUserID_Success_Empty(t *testing.T) {
 
 	solves, err := f.SolveRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
-	assert.Len(t, solves, 0)
+	assert.Empty(t, solves)
 }
 
 func TestSolveRepo_GetByUserID_Error_CancelledContext(t *testing.T) {
@@ -314,21 +315,27 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 		if err != nil {
 			return false
 		}
+
 		var t1Found, t2Found bool
+
 		for _, e := range sb {
 			if e.TeamID == t1.ID {
 				if e.Points != 300 {
 					return false
 				}
+
 				t1Found = true
 			}
+
 			if e.TeamID == t2.ID {
 				if e.Points != 100 {
 					return false
 				}
+
 				t2Found = true
 			}
 		}
+
 		return t1Found && t2Found
 	}, 2*time.Second, 20*time.Millisecond)
 
@@ -336,11 +343,11 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	idx1 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
-	require.True(t, idx1 >= 0, "t1 should be in scoreboard with 300 points")
+	require.GreaterOrEqual(t, idx1, 0, "t1 should be in scoreboard with 300 points")
 	assert.Equal(t, t1.Name, scoreboard[idx1].TeamName)
 	assert.Equal(t, 300, scoreboard[idx1].Points)
 	idx2 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID })
-	require.True(t, idx2 >= 0, "t2 should be in scoreboard with 100 points")
+	require.GreaterOrEqual(t, idx2, 0, "t2 should be in scoreboard with 100 points")
 	assert.Equal(t, t2.Name, scoreboard[idx2].TeamName)
 	assert.Equal(t, 100, scoreboard[idx2].Points)
 }
@@ -367,8 +374,9 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
 	require.NoError(t, err)
+
 	idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
-	require.True(t, idx >= 0, "our team should appear in scoreboard with 0 points")
+	require.GreaterOrEqual(t, idx, 0, "our team should appear in scoreboard with 0 points")
 	assert.Equal(t, team.Name, scoreboard[idx].TeamName)
 	assert.Equal(t, 0, scoreboard[idx].Points)
 }
@@ -432,6 +440,7 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		fb, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
+
 		return err == nil && fb != nil && fb.UserID == u1.ID
 	}, 2*time.Second, 50*time.Millisecond)
 
@@ -453,7 +462,7 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 
 	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSolveNotFound))
+	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
@@ -480,12 +489,15 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 	require.NoError(t, err)
 
 	found := false
+
 	for _, entry := range scoreboard {
 		if entry.TeamID == t1.ID {
 			assert.Equal(t, 100, entry.Points)
+
 			found = true
 		}
 	}
+
 	assert.True(t, found)
 }
 
@@ -530,16 +542,18 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 	}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		if err := f.SolveRepo.Create(txCtx, solve); err != nil {
+		err := f.SolveRepo.Create(txCtx, solve)
+		if err != nil {
 			return err
 		}
+
 		return errors.New("rollback")
 	})
 	assert.Error(t, err)
 
 	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSolveNotFound))
+	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
@@ -553,9 +567,12 @@ func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
 	f.CreateSolve(t, u.ID, tTeam.ID, ch.ID)
 
 	var gotSolve *domain.Solve
+
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		var err error
+
 		gotSolve, err = f.SolveRepo.GetByTeamAndChallengeForUpdate(txCtx, tTeam.ID, ch.ID)
+
 		return err
 	})
 	require.NoError(t, err)
@@ -574,10 +591,11 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		_, err := f.SolveRepo.GetByTeamAndChallengeForUpdate(txCtx, tTeam.ID, ch.ID)
+
 		return err
 	})
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSolveNotFound))
+	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
@@ -594,9 +612,12 @@ func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
 	f.CreateSolve(t, u.ID, tTeam.ID, ch2.ID)
 
 	var score int
+
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		var err error
+
 		score, err = f.SolveRepo.GetTeamScore(txCtx, tTeam.ID)
+
 		return err
 	})
 	require.NoError(t, err)
@@ -618,26 +639,30 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 		if err == nil {
 			return errors.New("expected not found")
 		}
+
 		if !errors.Is(err, httperr.ErrSolveNotFound) {
 			return err
 		}
+
 		gotChallenge, err := f.ChallengeRepo.GetByIDForUpdate(txCtx, ch.ID)
 		if err != nil {
 			return err
 		}
+
 		solve := &domain.Solve{UserID: u.ID, TeamID: tTeam.ID, ChallengeID: ch.ID}
 		if err := f.SolveRepo.Create(txCtx, solve); err != nil {
 			return err
 		}
+
 		solveCount := gotChallenge.SolveCount + 1
-		newPoints := int(float64(gotChallenge.MinValue) + (float64(gotChallenge.InitialValue-gotChallenge.MinValue) / (1 + float64(solveCount-1)/float64(gotChallenge.Decay))))
-		if newPoints < gotChallenge.MinValue {
-			newPoints = gotChallenge.MinValue
-		}
+
+		newPoints := max(int(float64(gotChallenge.MinValue)+(float64(gotChallenge.InitialValue-gotChallenge.MinValue)/(1+float64(solveCount-1)/float64(gotChallenge.Decay)))), gotChallenge.MinValue)
+
 		_, err = f.ChallengeRepo.IncrementSolveCount(txCtx, ch.ID)
 		if err != nil {
 			return err
 		}
+
 		return f.ChallengeRepo.UpdatePoints(txCtx, ch.ID, newPoints)
 	})
 	require.NoError(t, err)

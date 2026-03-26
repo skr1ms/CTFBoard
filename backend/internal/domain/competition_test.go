@@ -44,6 +44,7 @@ func TestCompetitionMode_AllowsTeams_Error(t *testing.T) {
 
 func TestCompetition_GetStatus_Success(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -59,6 +60,7 @@ func TestCompetition_GetStatus_Success(t *testing.T) {
 
 func TestCompetition_GetStatus_NotStarted(t *testing.T) {
 	t.Parallel()
+
 	future := time.Now().Add(time.Hour)
 	c := &Competition{StartTime: &future}
 	assert.Equal(t, CompetitionStatusNotStarted, c.GetStatus())
@@ -66,6 +68,7 @@ func TestCompetition_GetStatus_NotStarted(t *testing.T) {
 
 func TestCompetition_GetStatus_Ended(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	startPast := now.Add(-2 * time.Hour)
@@ -79,6 +82,7 @@ func TestCompetition_GetStatus_Ended(t *testing.T) {
 
 func TestCompetition_GetStatus_Paused(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -93,6 +97,7 @@ func TestCompetition_GetStatus_Paused(t *testing.T) {
 
 func TestCompetition_GetStatus_Frozen(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -109,6 +114,7 @@ func TestCompetition_GetStatus_Frozen(t *testing.T) {
 
 func TestCompetition_GetStatus_PausedBlocksEnded(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	endPast := now.Add(-1 * time.Hour)
@@ -125,6 +131,7 @@ func TestCompetition_GetStatus_PausedBlocksEnded(t *testing.T) {
 
 func TestCompetition_GetStatus_PausedBlocksFrozen(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -141,6 +148,7 @@ func TestCompetition_GetStatus_PausedBlocksFrozen(t *testing.T) {
 
 func TestCompetition_GetStatus_AfterUnpauseFreezeInFuture_Active(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	freezeFuture := now.Add(30 * time.Minute)
@@ -158,6 +166,7 @@ func TestCompetition_GetStatus_AfterUnpauseFreezeInFuture_Active(t *testing.T) {
 
 func TestCompetition_IsSubmissionAllowed_Success(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -173,6 +182,7 @@ func TestCompetition_IsSubmissionAllowed_Success(t *testing.T) {
 
 func TestCompetition_IsSubmissionAllowed_Frozen_Allowed(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -190,6 +200,7 @@ func TestCompetition_IsSubmissionAllowed_Frozen_Allowed(t *testing.T) {
 
 func TestCompetition_IsSubmissionAllowed_Error(t *testing.T) {
 	t.Parallel()
+
 	future := time.Now().Add(time.Hour)
 	c := &Competition{StartTime: &future}
 	assert.False(t, c.IsSubmissionAllowed())
@@ -207,6 +218,7 @@ func TestCompetition_IsSubmissionAllowed_Error(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_NotStarted(t *testing.T) {
 	t.Parallel()
+
 	future := time.Now().Add(time.Hour)
 	c := &Competition{StartTime: &future, FreezeTime: &future}
 	assert.False(t, c.IsFreezeActive())
@@ -214,6 +226,7 @@ func TestCompetition_IsFreezeActive_NotStarted(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_NoFreezeTime(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -223,6 +236,7 @@ func TestCompetition_IsFreezeActive_NoFreezeTime(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_BeforeFreeze(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -233,6 +247,7 @@ func TestCompetition_IsFreezeActive_BeforeFreeze(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_AfterFreeze(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -243,6 +258,7 @@ func TestCompetition_IsFreezeActive_AfterFreeze(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_PausedButPastFreeze(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -259,6 +275,7 @@ func TestCompetition_IsFreezeActive_PausedButPastFreeze(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_AfterEnd_Inactive(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	endPast := now.Add(-time.Hour)
@@ -275,6 +292,7 @@ func TestCompetition_IsFreezeActive_AfterEnd_Inactive(t *testing.T) {
 
 func TestCompetition_IsFreezeActive_PausedAndEnded_StillActive(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	endPast := now.Add(-time.Hour)
@@ -293,6 +311,7 @@ func TestCompetition_IsFreezeActive_PausedAndEnded_StillActive(t *testing.T) {
 
 func TestCompetition_GetStatusAt_MatchesGetStatus(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -302,6 +321,7 @@ func TestCompetition_GetStatusAt_MatchesGetStatus(t *testing.T) {
 
 func TestCompetition_IsSubmissionAllowedAt_MatchesIsSubmissionAllowed(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
@@ -311,6 +331,7 @@ func TestCompetition_IsSubmissionAllowedAt_MatchesIsSubmissionAllowed(t *testing
 
 func TestCompetition_IsEffectivelyEnded_Ended(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	endPast := now.Add(-time.Hour)
@@ -320,6 +341,7 @@ func TestCompetition_IsEffectivelyEnded_Ended(t *testing.T) {
 
 func TestCompetition_IsEffectivelyEnded_PausedButEndTimePassed(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	startPast := now.Add(-2 * time.Hour)
 	endPast := now.Add(-time.Hour)
@@ -329,6 +351,7 @@ func TestCompetition_IsEffectivelyEnded_PausedButEndTimePassed(t *testing.T) {
 
 func TestCompetition_IsEffectivelyEnded_Active(t *testing.T) {
 	t.Parallel()
+
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)

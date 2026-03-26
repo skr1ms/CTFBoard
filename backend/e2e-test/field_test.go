@@ -25,13 +25,17 @@ func TestField_GetFields_Success(t *testing.T) {
 
 	listResp := h.GetFields("user", http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, f := range *listResp.JSON200 {
 		if f.Name != nil && *f.Name == name {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "created field must be in /fields list")
 }
 
@@ -60,13 +64,17 @@ func TestField_Update_Success(t *testing.T) {
 	h.UpdateField(tokenAdmin, *createResp.JSON201.ID, "field_updated_"+suffix, "text", true, http.StatusOK)
 	listResp := h.GetFields("user", http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, f := range *listResp.JSON200 {
 		if f.Name != nil && *f.Name == "field_updated_"+suffix {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found)
 }
 

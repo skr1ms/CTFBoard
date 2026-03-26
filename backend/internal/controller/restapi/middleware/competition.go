@@ -17,11 +17,14 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
+
 			now := time.Now()
 			if !comp.IsSubmissionAllowedAt(now) {
 				var httpErr *httperr.HTTPError
+
 				switch comp.GetStatusAt(now) { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
 				case domain.CompetitionStatusNotStarted:
 					httpErr = httperr.ErrCompetitionNotStarted
@@ -32,7 +35,9 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 				default:
 					httpErr = httperr.ErrSubmissionNotAllowed
 				}
+
 				httputil.HandleError(w, r, httpErr)
+
 				return
 			}
 
@@ -47,13 +52,17 @@ func CompetitionEnded(competitionUC usecase.CompetitionUseCase) func(http.Handle
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
+
 			now := time.Now()
 			if !comp.IsEffectivelyEnded(now) {
 				httputil.HandleError(w, r, httperr.ErrCommentsAvailableAfterEnd)
+
 				return
 			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

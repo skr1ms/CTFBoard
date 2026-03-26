@@ -7,7 +7,6 @@ import (
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wahrwelt-kit/go-cachekit"
 
 	cacheMock "github.com/TakuyaYagam1/AstroCTFb/pkg/cache/mock"
@@ -15,6 +14,7 @@ import (
 
 func TestNewScoreboardCacheService(t *testing.T) {
 	t.Parallel()
+
 	client, _ := redismock.NewClientMock()
 	c := cachekit.New(client)
 	getter := cacheMock.NewMockTeamBracketIDGetter(t)
@@ -24,6 +24,7 @@ func TestNewScoreboardCacheService(t *testing.T) {
 
 func TestScoreboardCacheService_InvalidateAll_Success(t *testing.T) {
 	t.Parallel()
+
 	client, redisMock := redismock.NewClientMock()
 	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
@@ -38,6 +39,7 @@ func TestScoreboardCacheService_InvalidateAll_Success(t *testing.T) {
 
 func TestScoreboardCacheService_InvalidateAll_NilCache(t *testing.T) {
 	t.Parallel()
+
 	svc := NewScoreboardCacheService(nil, nil)
 	ctx := context.Background()
 	svc.InvalidateAll(ctx)
@@ -45,6 +47,7 @@ func TestScoreboardCacheService_InvalidateAll_NilCache(t *testing.T) {
 
 func TestScoreboardCacheService_InvalidateForTeam_Success(t *testing.T) {
 	t.Parallel()
+
 	client, redisMock := redismock.NewClientMock()
 	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
@@ -59,6 +62,7 @@ func TestScoreboardCacheService_InvalidateForTeam_Success(t *testing.T) {
 
 func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 	t.Parallel()
+
 	client, redisMock := redismock.NewClientMock()
 	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, nil)
@@ -73,6 +77,7 @@ func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 
 func TestScoreboardCacheService_InvalidateForTeam_WithGetter(t *testing.T) {
 	t.Parallel()
+
 	client, redisMock := redismock.NewClientMock()
 	c := cachekit.New(client)
 	svc := NewScoreboardCacheService(c, cacheMock.NewMockTeamBracketIDGetter(t))

@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -42,10 +41,12 @@ func (r *CompetitionParamRepo) GetAll(ctx context.Context) ([]*domain.Competitio
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionParamRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.CompetitionParam, len(rows))
 	for i := range rows {
 		out[i] = toDomainCompetitionParam(rows[i])
 	}
+
 	return out, nil
 }
 
@@ -54,10 +55,12 @@ func (r *CompetitionParamRepo) GetByCategory(ctx context.Context, category strin
 	if err != nil {
 		return nil, fmt.Errorf("CompetitionParamRepo - GetByCategory: %w", err)
 	}
+
 	out := make([]*domain.CompetitionParam, len(rows))
 	for i := range rows {
 		out[i] = toDomainCompetitionParam(rows[i])
 	}
+
 	return out, nil
 }
 
@@ -67,8 +70,10 @@ func (r *CompetitionParamRepo) GetByKey(ctx context.Context, key string) (*domai
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrCompetitionParamNotFound
 		}
+
 		return nil, fmt.Errorf("CompetitionParamRepo - GetByKey: %w", err)
 	}
+
 	return toDomainCompetitionParam(row), nil
 }
 
@@ -78,14 +83,17 @@ func (r *CompetitionParamRepo) GetByKeyForUpdate(ctx context.Context, key string
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrCompetitionParamNotFound
 		}
+
 		return nil, fmt.Errorf("CompetitionParamRepo - GetByKeyForUpdate: %w", err)
 	}
+
 	return toDomainCompetitionParam(row), nil
 }
 
 func (r *CompetitionParamRepo) Upsert(ctx context.Context, p *domain.CompetitionParam) error {
 	desc := lo.EmptyableToPtr(p.Description)
 	now := time.Now()
+
 	err := r.Q(ctx).UpsertConfig(ctx, sqlc.UpsertConfigParams{
 		Key:         p.Key,
 		Value:       p.Value,
@@ -97,12 +105,15 @@ func (r *CompetitionParamRepo) Upsert(ctx context.Context, p *domain.Competition
 	if err != nil {
 		return fmt.Errorf("CompetitionParamRepo - Upsert: %w", err)
 	}
+
 	return nil
 }
 
 func (r *CompetitionParamRepo) Delete(ctx context.Context, key string) error {
-	if err := r.Q(ctx).DeleteConfig(ctx, key); err != nil {
+	err := r.Q(ctx).DeleteConfig(ctx, key)
+	if err != nil {
 		return fmt.Errorf("CompetitionParamRepo - Delete: %w", err)
 	}
+
 	return nil
 }

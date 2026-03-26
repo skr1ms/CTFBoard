@@ -15,11 +15,12 @@ import (
 
 func TestRequireTeam_NoUser_Error(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -28,6 +29,7 @@ func TestRequireTeam_NoUser_Error(t *testing.T) {
 
 func TestRequireTeam_Admin_Success(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +41,7 @@ func TestRequireTeam_Admin_Success(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -48,6 +50,7 @@ func TestRequireTeam_Admin_Success(t *testing.T) {
 
 func TestRequireTeam_NoTeam_Error(t *testing.T) {
 	t.Parallel()
+
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +62,7 @@ func TestRequireTeam_NoTeam_Error(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -68,6 +71,7 @@ func TestRequireTeam_NoTeam_Error(t *testing.T) {
 
 func TestRequireTeam_HasTeam_Success(t *testing.T) {
 	t.Parallel()
+
 	teamID := uuid.New()
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
@@ -80,7 +84,7 @@ func TestRequireTeam_HasTeam_Success(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

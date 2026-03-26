@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -55,14 +54,18 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	found := false
+
 	for _, s := range stats {
 		if s.ID == chall.ID {
 			require.Equal(t, 1, s.SolveCount)
 			require.Equal(t, chall.Title, s.Title)
+
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "challenge statistic not found")
 }
 
@@ -84,12 +87,15 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	found := false
+
 	for _, h := range history {
 		if h.TeamID == team1.ID {
 			require.Equal(t, 100, h.Points)
+
 			found = true
 		}
 	}
+
 	require.True(t, found, "history for team1 not found")
 }
 
@@ -154,7 +160,7 @@ func TestStatisticsRepo_GetChallengeDetailStats_NotFound(t *testing.T) {
 
 	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New())
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrChallengeNotFound))
+	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
 	assert.Nil(t, stats)
 }
 
@@ -233,14 +239,19 @@ func TestStatisticsRepo_GetSolveMatrix_Success(t *testing.T) {
 	matrix, err := f.StatisticsRepo.GetSolveMatrix(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, matrix)
+
 	found := false
+
 	for _, row := range matrix {
 		if row.TeamID == team.ID && row.ChallengeID == chall.ID {
 			assert.True(t, row.Solved)
+
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "solve matrix should contain row for team/challenge")
 }
 

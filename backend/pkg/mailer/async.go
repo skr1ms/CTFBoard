@@ -59,6 +59,7 @@ func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
 	if m.stopped.Load() {
 		return ErrMailerStopped
 	}
+
 	select {
 	case m.msgChan <- msg:
 		return nil
@@ -69,19 +70,23 @@ func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
 
 func (m *AsyncMailer) reader() {
 	defer close(m.readerDone)
+
 	for {
 		select {
 		case msg := <-m.msgChan:
 			mmsg := msg
+
 			m.workPool.Go(func() { m.send(mmsg) })
 		case <-m.quit:
 			for {
 				select {
 				case msg := <-m.msgChan:
 					mmsg := msg
+
 					m.workPool.Go(func() { m.send(mmsg) })
 				default:
 					m.workPool.Wait()
+
 					return
 				}
 			}
@@ -92,7 +97,9 @@ func (m *AsyncMailer) reader() {
 func (m *AsyncMailer) send(msg Message) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := m.delegate.Send(ctx, msg); err != nil {
+
+	err := m.delegate.Send(ctx, msg)
+	if err != nil {
 		m.l.WithError(err).WithFields(logkit.Fields{"to": msg.To}).Error("AsyncMailer: failed to send email")
 	}
 }

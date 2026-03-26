@@ -62,6 +62,7 @@ func (s *CryptoService) Encrypt(plaintext string) (string, error) {
 	withVersion := make([]byte, 0, 1+len(payload))
 	withVersion = append(withVersion, keyVersionByte)
 	withVersion = append(withVersion, payload...)
+
 	return base64.StdEncoding.EncodeToString(withVersion), nil
 }
 
@@ -78,6 +79,7 @@ func (s *CryptoService) Decrypt(ciphertext64 string) (string, error) {
 	if data[0] != keyVersionByte {
 		return "", ErrUnknownKeyVersion
 	}
+
 	data = data[1:]
 
 	block, err := aes.NewCipher(s.key)
@@ -96,6 +98,7 @@ func (s *CryptoService) Decrypt(ciphertext64 string) (string, error) {
 	}
 
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return "", err

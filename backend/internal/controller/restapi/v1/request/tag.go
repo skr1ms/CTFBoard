@@ -19,11 +19,13 @@ type updateTagConstraints struct {
 
 func ValidateCreateTagRequest(req *openapi.CreateTagRequest, v validator.Validator) error {
 	c := createTagConstraints{Name: req.Name, Color: lo.FromPtrOr(req.Color, "")}
+
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdateTagRequest(req *openapi.UpdateTagRequest, v validator.Validator) error {
 	c := updateTagConstraints{Name: req.Name, Color: lo.FromPtrOr(req.Color, "")}
+
 	return ValidateConstraints(v, &c)
 }
 

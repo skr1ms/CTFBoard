@@ -21,11 +21,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/wahrwelt-kit/go-cachekit"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
-
-	"github.com/wahrwelt-kit/go-cachekit"
+	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
 	"github.com/wahrwelt-kit/go-wskit"
 
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
@@ -46,9 +46,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-
-	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
@@ -67,6 +64,7 @@ func (g *teamBracketGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UU
 	if err != nil || team == nil {
 		return nil, err
 	}
+
 	return team.BracketID, nil
 }
 
@@ -78,7 +76,7 @@ var (
 	testRateLimitCache *restapimiddleware.RateLimitConfigCache
 )
 
-// Mocks
+// Mocks.
 type noOpMailer struct{}
 
 // Send is a no-op for e2e tests (no real email sent).
@@ -89,6 +87,7 @@ func (m *noOpMailer) Send(context.Context, mailer.Message) error {
 // TestMain: entry point for e2e test suite.
 func TestMain(m *testing.M) {
 	fmt.Println("E2E TestMain: starting...")
+
 	ctx := context.Background()
 
 	fmt.Println("E2E TestMain: setting up infrastructure (containers, DB, Redis)...")
@@ -103,15 +102,19 @@ func TestMain(m *testing.M) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	backendDir := filepath.Dir(filepath.Dir(thisFile))
 	oldWd, _ := os.Getwd()
+
 	if err := os.Chdir(backendDir); err != nil {
 		fmt.Printf("chdir to backend: %v\n", err)
 		os.Exit(1)
 	}
+
 	defer func() { _ = os.Chdir(oldWd) }()
+
 	if err := goose.Run(context.Background(), e2eConnStr, "migrations"); err != nil {
 		fmt.Printf("Migrations failed: %v\n", err)
 		os.Exit(1)
 	}
+
 	if _, err := TestPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
 		fmt.Printf("Update competition start_time: %v\n", err)
 		os.Exit(1)
@@ -148,10 +151,12 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 	if t != nil {
 		t.Helper()
 	}
+
 	truncateAndSeed := func() error {
 		if TestPool == nil {
 			return fmt.Errorf("TestPool is not initialized")
 		}
+
 		_, err := TestPool.Exec(ctx, `TRUNCATE TABLE
 			configs, comments, api_tokens,
 			field_values, fields, brackets, pages, user_notifications, notifications,
@@ -162,12 +167,14 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 		if err != nil {
 			return err
 		}
+
 		_, err = TestPool.Exec(ctx, `INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
 			VALUES (1, 'CTF Competition', FALSE, TRUE, 'flexible', TRUE, 1, 10, NULL, NULL)
 			ON CONFLICT (id) DO UPDATE set name = EXCLUDED.name, is_paused = EXCLUDED.is_paused, is_public = EXCLUDED.is_public, mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch, min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`)
 		if err != nil {
 			return err
 		}
+
 		_, err = TestPool.Exec(ctx, `INSERT INTO app_settings (
 				id, app_name, verify_emails, frontend_url, cors_origins,
 				resend_enabled, resend_from_email, resend_from_name,
@@ -207,18 +214,23 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 		if err != nil {
 			return err
 		}
+
 		if TestRedis != nil {
 			_ = TestRedis.Del(ctx, cache.KeyAppSettings)
+
 			for _, pattern := range []string{"limiter:*", "e2e:*"} {
 				var cursor uint64
+
 				for {
 					keys, next, scanErr := TestRedis.Scan(ctx, cursor, pattern, 100).Result()
 					if scanErr != nil {
 						break
 					}
+
 					if len(keys) > 0 {
 						_ = TestRedis.Del(ctx, keys...)
 					}
+
 					cursor = next
 					if cursor == 0 {
 						break
@@ -226,11 +238,13 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				}
 			}
 		}
+
 		return nil
 	}
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = 50 * time.Millisecond
 	bo.MaxElapsedTime = 10 * time.Second
+
 	err := backoff.Retry(func() error {
 		err := truncateAndSeed()
 		if err != nil {
@@ -238,21 +252,26 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 			if errors.As(err, &pgErr) && pgErr.Code == "40P01" {
 				return err // retry on deadlock
 			}
+
 			return backoff.Permanent(err)
 		}
+
 		return nil
 	}, backoff.WithContext(bo, ctx))
 	if err != nil {
 		if t != nil {
 			t.Fatalf("truncate db: %v", err)
 		}
+
 		return err
 	}
+
 	return nil
 }
 
 func resetAppSettings() {
 	ctx := context.Background()
+
 	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET
 		submit_limit_per_user = 500000, submit_limit_duration_min = 1,
 		rate_limit_login_per_minute = 10000, rate_limit_register_per_minute = 10000,
@@ -264,9 +283,11 @@ func resetAppSettings() {
 	if err != nil {
 		panic("resetAppSettings: " + err.Error())
 	}
+
 	if TestRedis != nil {
 		_ = TestRedis.Del(ctx, "app_settings")
 	}
+
 	if testRateLimitCache != nil {
 		testRateLimitCache.Invalidate()
 	}
@@ -277,11 +298,13 @@ func resetAppSettings() {
 func resetCompetitionToActive() {
 	ctx := context.Background()
 	now := time.Now().UTC()
+
 	_, err := TestPool.Exec(ctx, `UPDATE competition SET is_paused = FALSE, start_time = $1, end_time = $2, freeze_time = NULL, updated_at = now() WHERE id = 1`,
 		now.Add(-1*time.Hour), now.Add(24*time.Hour))
 	if err != nil {
 		panic("resetCompetitionToActive: " + err.Error())
 	}
+
 	_ = TestRedis.Del(ctx, "competition")
 }
 
@@ -290,11 +313,13 @@ func resetCompetitionToActive() {
 // and the API PUT call. Pass nil for freezeTime to clear it.
 func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
 	ctx := context.Background()
+
 	_, err := TestPool.Exec(ctx, `UPDATE competition SET start_time = $1, end_time = $2, freeze_time = $3, is_paused = FALSE, updated_at = now() WHERE id = 1`,
 		startTime, endTime, freezeTime)
 	if err != nil {
 		panic("setCompetitionTimes: " + err.Error())
 	}
+
 	_ = TestRedis.Del(ctx, "competition")
 }
 
@@ -307,15 +332,19 @@ func WithCompetitionTimes(t *testing.T, start, end time.Time, freeze *time.Time)
 // setCompetitionPaused sets competition id=1 is_paused in DB and clears competition cache.
 func setCompetitionPaused(paused bool) {
 	ctx := context.Background()
+
 	var err error
+
 	if paused {
 		_, err = TestPool.Exec(ctx, `UPDATE competition SET is_paused = TRUE, paused_at = NOW(), updated_at = now() WHERE id = 1`)
 	} else {
 		_, err = TestPool.Exec(ctx, `UPDATE competition SET is_paused = FALSE, paused_at = NULL, updated_at = now() WHERE id = 1`)
 	}
+
 	if err != nil {
 		panic("setCompetitionPaused: " + err.Error())
 	}
+
 	_ = TestRedis.Del(ctx, "competition")
 }
 
@@ -324,14 +353,21 @@ func invalidateScoreboardCache(ctx context.Context) {
 	if TestRedis == nil {
 		return
 	}
+
 	c := cachekit.New(TestRedis)
-	if err := c.Del(ctx, cache.KeyScoreboard); err != nil {
+
+	err := c.Del(ctx, cache.KeyScoreboard)
+	if err != nil {
 		return
 	}
-	if err := c.DeleteByPrefix(ctx, cache.KeyScoreboardFrozenPrefix); err != nil {
+
+	err = c.DeleteByPrefix(ctx, cache.KeyScoreboardFrozenPrefix)
+	if err != nil {
 		return
 	}
-	if err := c.DeleteByPrefix(ctx, cache.KeyScoreboardBracketPrefix); err != nil {
+
+	err = c.DeleteByPrefix(ctx, cache.KeyScoreboardBracketPrefix)
+	if err != nil {
 		return
 	}
 }
@@ -342,9 +378,12 @@ func invalidateScoreboardCache(ctx context.Context) {
 func setupInfrastructure(ctx context.Context) (func(), error) {
 	if os.Getenv("USE_EXTERNAL_DB") == "true" {
 		fmt.Println("Using EXTERNAL infrastructure (CI mode)...")
+
 		return setupExternalInfra(ctx)
 	}
+
 	fmt.Println("Using TESTCONTAINERS infrastructure...")
+
 	return setupTestContainers(ctx)
 }
 
@@ -357,27 +396,34 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
+
 	e2eConnStr = connStr
 
 	poolCfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse pool config: %w", err)
 	}
+
 	poolCfg.MaxConns = 20
+
 	TestPool, err = pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
+
 	if err := TestPool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping db: %w", err)
 	}
 
 	var redisCleanup func()
+
 	TestRedis, redisCleanup, err = testutil.StartRedisClient(ctx)
 	if err != nil {
-		if termErr := postgresC.Terminate(ctx); termErr != nil {
+		termErr := postgresC.Terminate(ctx)
+		if termErr != nil {
 			fmt.Printf("postgres terminate on cleanup: %v\n", termErr)
 		}
+
 		return nil, fmt.Errorf("failed to start redis: %w", err)
 	}
 
@@ -385,10 +431,13 @@ func setupTestContainers(ctx context.Context) (func(), error) {
 		fmt.Println("Cleaning up containers...")
 		TestPool.Close()
 		redisCleanup()
-		if err := postgresC.Terminate(ctx); err != nil {
+
+		err := postgresC.Terminate(ctx)
+		if err != nil {
 			fmt.Printf("postgres terminate: %v\n", err)
 		}
 	}
+
 	return cleanup, nil
 }
 
@@ -402,17 +451,21 @@ func setupExternalInfra(ctx context.Context) (func(), error) {
 	dbName := testutil.GetEnv("POSTGRES_DB", "test_board")
 
 	e2eConnStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
+
 	poolCfg, err := pgxpool.ParseConfig(e2eConnStr)
 	if err != nil {
 		return nil, err
 	}
+
 	poolCfg.MaxConns = 20
+
 	TestPool, err = pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	bo := backoff.NewExponentialBackOff()
+
 	bo.MaxElapsedTime = 15 * time.Second
 	if err := backoff.Retry(func() error { return TestPool.Ping(ctx) }, backoff.WithContext(bo, ctx)); err != nil {
 		return nil, fmt.Errorf("external db ping failed: %w", err)
@@ -523,10 +576,12 @@ func startTestServer() (func(), error) {
 	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
 
 	ls := net.ListenConfig{}
+
 	listener, err := ls.Listen(ctx, "tcp", ":0")
 	if err != nil {
 		return nil, err
 	}
+
 	testPort = fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port) //nolint:errcheck // type asserted
 
 	srv := &http.Server{
@@ -537,19 +592,23 @@ func startTestServer() (func(), error) {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.Serve(listener)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("Server error: %v\n", err)
 		}
 	}()
 
 	baseURL := "http://localhost:" + testPort
+
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", http.NoBody)
 		if err != nil {
 			time.Sleep(50 * time.Millisecond)
+
 			continue
 		}
+
 		resp, err := http.DefaultClient.Do(req)
 		if err == nil && resp != nil {
 			_ = resp.Body.Close()
@@ -557,30 +616,37 @@ func startTestServer() (func(), error) {
 				break
 			}
 		}
+
 		time.Sleep(50 * time.Millisecond)
 	}
 
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
+
+		err := srv.Shutdown(ctx)
+		if err != nil {
 			fmt.Printf("server shutdown: %v\n", err)
 		}
+
 		_ = os.RemoveAll(tempStorageDir)
 	}, nil
 }
 
-// Deps (logger, validator, jwt, crypto)
+// Deps (logger, validator, jwt, crypto).
 func initTestDeps() (*testDeps, error) {
 	l, err := logkit.New(logkit.WithLevel(logkit.ErrorLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	if err != nil {
 		return nil, fmt.Errorf("create logger: %w", err)
 	}
+
 	validatorService, err := validator.New()
 	if err != nil {
 		panic("e2e: failed to create validator: " + err.Error())
 	}
+
 	jwtRevoker := jwtkit.NewRedisRevocationStore(TestRedis)
+
 	jwtService, err := jwtkit.NewJWTService(jwtkit.Config{
 		AccessKeys:  []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-access-secret-min-32-bytes!")}},
 		RefreshKeys: []jwtkit.KeyEntry{{Kid: "0", Secret: []byte("test-refresh-secret-min32-bytes!")}},
@@ -592,6 +658,7 @@ func initTestDeps() (*testDeps, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init JWT service: %w", err)
 	}
+
 	dummyCrypto, err := crypto.NewCryptoService("1234567890123456789012345678901212345678901234567890123456789012")
 	if err != nil {
 		return nil, fmt.Errorf("failed to init crypto service: %w", err)
@@ -608,6 +675,7 @@ func initTestDeps() (*testDeps, error) {
 // initTestRepos creates all persistent repos and transaction manager from TestPool.
 func initTestRepos() *testRepos {
 	tm := persistent.NewTransactionManager(TestPool)
+
 	return &testRepos{
 		userRepo:         persistent.NewUserRepo(TestPool),
 		challengeRepo:    persistent.NewChallengeRepo(TestPool),
@@ -643,11 +711,14 @@ func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("failed to create temp storage dir: %w", err)
 	}
+
 	fileStorage, err := storage.NewFilesystemProvider(tempStorageDir)
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("failed to create storage provider: %w", err)
 	}
+
 	ctx := context.Background()
+
 	hub := wskit.NewHub(
 		wskit.WithRedis(TestRedis, "astroctfb:events"),
 		wskit.WithOnConnect(func(c *wskit.Client) {
@@ -659,6 +730,7 @@ func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 	)
 	go hub.Run(ctx)
 	go hub.SubscribeToRedis(ctx)
+
 	return tempStorageDir, fileStorage, hub, nil
 }
 
@@ -796,6 +868,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		DownloadSecret: "test-download-secret",
 		BaseURL:        "http://localhost:3000",
 	})
+
 	return &testUseCases{
 		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
@@ -809,26 +882,33 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 // initTestUseCases initializes repos, storage, hub, and builds all use cases; returns temp dir path.
 func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
 	repos := initTestRepos()
+
 	tempStorageDir, fileStorage, hub, err := initTestStorageAndHub()
 	if err != nil {
 		return nil, "", err
 	}
+
 	uc := buildTestUseCases(deps, repos, fileStorage, hub)
+
 	return uc, tempStorageDir, nil
 }
 
-// Router (chi, middleware, api v1 routes)
+// Router (chi, middleware, api v1 routes).
 func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string) *chi.Mux {
 	r := chi.NewRouter()
 	timeoutMW := kitMiddleware.Timeout(60 * time.Second)
+
 	r.Use(kitMiddleware.RequestID(), middleware.RealIP, kitMiddleware.Recoverer(l))
 	r.Use(func(next http.Handler) http.Handler {
 		withTimeout := timeoutMW(next)
+
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if strings.HasSuffix(req.URL.Path, "/ws") {
 				next.ServeHTTP(w, req)
+
 				return
 			}
+
 			withTimeout.ServeHTTP(w, req)
 		})
 	})
@@ -843,10 +923,12 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 	if err != nil {
 		panic("e2e: failed to create forgot-password rate limiter: " + err.Error())
 	}
+
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:resend", 10, 24*time.Hour)
 	if err != nil {
 		panic("e2e: failed to create resend-verification rate limiter: " + err.Error())
 	}
+
 	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:reset-token", 20, time.Minute)
 	if err != nil {
 		panic("e2e: failed to create reset-password-token rate limiter: " + err.Error())
@@ -876,6 +958,7 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 	}
 	testRateLimitCache = restapimiddleware.NewRateLimitConfigCache(1 * time.Second)
 	deps.Infra.RateLimitConfigCache = testRateLimitCache
+
 	r.Route("/api/v1", func(apiRouter chi.Router) {
 		v1.NewRouter(ctx, apiRouter, deps, false, testRateLimitCache)
 	})

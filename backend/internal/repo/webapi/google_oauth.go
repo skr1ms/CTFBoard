@@ -21,6 +21,7 @@ func NewGoogleAPI(client *http.Client) *GoogleAPI {
 	if client == nil {
 		client = defaultOAuthClient
 	}
+
 	return &GoogleAPI{client: client, userInfoURL: googleUserInfoURL}
 }
 
@@ -33,13 +34,16 @@ type googleUserInfo struct {
 
 func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*OAuthUserProfile, error) {
 	mkReq := func() (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userInfoURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userInfoURL, http.NoBody)
 		if err != nil {
 			return nil, err
 		}
+
 		req.Header.Set("Authorization", "Bearer "+accessToken)
+
 		return req, nil
 	}
+
 	resp, err := doWithRetry(ctx, g.client, mkReq)
 	if err != nil {
 		return nil, fmt.Errorf("GoogleAPI - FetchUserProfile - Do: %w", err)
@@ -51,6 +55,7 @@ func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*
 		if readErr != nil {
 			return nil, fmt.Errorf("GoogleAPI - FetchUserProfile: API returned %d (read body: %w)", resp.StatusCode, readErr)
 		}
+
 		return nil, fmt.Errorf("GoogleAPI - FetchUserProfile: API returned %d: %s", resp.StatusCode, body)
 	}
 

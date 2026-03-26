@@ -239,9 +239,11 @@ func TestBackupRepo_ImportUsersTx_Error_InvalidTeamID(t *testing.T) {
 	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		if err := f.BackupRepo.ImportUsers(txCtx, data, opts); err != nil {
+		err := f.BackupRepo.ImportUsers(txCtx, data, opts)
+		if err != nil {
 			return err
 		}
+
 		return f.BackupRepo.UpdateUserTeamIDs(txCtx, data)
 	})
 	assert.Error(t, err)
@@ -380,6 +382,7 @@ func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 	data := f.NewMinimalBackupData(t)
 	comp, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
+
 	data.Competition = comp
 	data.Challenges = []domain.ChallengeExport{
 		{Challenge: *challenge, Hints: []domain.Hint{}},
@@ -393,24 +396,36 @@ func TestBackupRepo_TM_Run_FullImport_Success(t *testing.T) {
 	opts := domain.ImportOptions{ConflictMode: domain.ConflictModeOverwrite}
 
 	err = f.TM.Run(ctx, func(txCtx context.Context) error {
-		if err := f.BackupRepo.ImportCompetition(txCtx, data.Competition); err != nil {
+		err := f.BackupRepo.ImportCompetition(txCtx, data.Competition)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportChallenges(txCtx, data); err != nil {
+
+		err = f.BackupRepo.ImportChallenges(txCtx, data)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportTeams(txCtx, data, opts); err != nil {
+
+		err = f.BackupRepo.ImportTeams(txCtx, data, opts)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportUsers(txCtx, data, opts); err != nil {
+
+		err = f.BackupRepo.ImportUsers(txCtx, data, opts)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportAwards(txCtx, data); err != nil {
+
+		err = f.BackupRepo.ImportAwards(txCtx, data)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportSolves(txCtx, data); err != nil {
+
+		err = f.BackupRepo.ImportSolves(txCtx, data)
+		if err != nil {
 			return err
 		}
+
 		return f.BackupRepo.ImportFileMetadata(txCtx, data)
 	})
 
@@ -436,12 +451,16 @@ func TestBackupRepo_TM_Run_EraseAndImportChallenges_Success(t *testing.T) {
 	}
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
-		if err := f.BackupRepo.EraseAllTables(txCtx); err != nil {
+		err := f.BackupRepo.EraseAllTables(txCtx)
+		if err != nil {
 			return err
 		}
-		if err := f.BackupRepo.ImportCompetition(txCtx, data.Competition); err != nil {
+
+		err = f.BackupRepo.ImportCompetition(txCtx, data.Competition)
+		if err != nil {
 			return err
 		}
+
 		return f.BackupRepo.ImportChallenges(txCtx, data)
 	})
 

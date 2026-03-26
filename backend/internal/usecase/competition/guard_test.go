@@ -20,6 +20,7 @@ type guardTestDeps struct {
 
 func newGuardTestDeps(t *testing.T) *guardTestDeps {
 	t.Helper()
+
 	return &guardTestDeps{repo: compMock.NewMockCompetitionRepository(t)}
 }
 
@@ -79,7 +80,7 @@ func TestGuard_RequireTeamSwitch_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrRosterFrozen))
+	assert.ErrorIs(t, err, httperr.ErrRosterFrozen)
 	assert.Nil(t, got)
 }
 
@@ -97,7 +98,7 @@ func TestGuard_RequireTeamSwitch_Paused_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCompetitionPaused))
+	assert.ErrorIs(t, err, httperr.ErrCompetitionPaused)
 	assert.Nil(t, got)
 }
 
@@ -122,7 +123,7 @@ func TestGuard_RequireTeamSwitchAndTeamsMode_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitchAndTeamsMode(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamsNotAllowed))
+	assert.ErrorIs(t, err, httperr.ErrTeamsNotAllowed)
 	assert.Nil(t, got)
 }
 
@@ -147,6 +148,6 @@ func TestGuard_RequireTeamSwitchAndSoloMode_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitchAndSoloMode(context.Background())
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrSoloModeNotAllowed))
+	assert.ErrorIs(t, err, httperr.ErrSoloModeNotAllowed)
 	assert.Nil(t, got)
 }

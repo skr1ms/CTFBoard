@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -10,10 +9,13 @@ import (
 
 func FromField(f *domain.Field) openapi.FieldResponse {
 	var opts *[]string
+
 	if len(f.Options) > 0 {
 		opts = &f.Options
 	}
+
 	var fieldType openapi.FieldResponseFieldType
+
 	switch f.FieldType {
 	case domain.FieldTypeText:
 		fieldType = openapi.FieldResponseFieldTypeText
@@ -26,7 +28,9 @@ func FromField(f *domain.Field) openapi.FieldResponse {
 	default:
 		fieldType = openapi.FieldResponseFieldTypeText
 	}
+
 	var entityType openapi.FieldResponseEntityType
+
 	switch f.EntityType {
 	case domain.EntityTypeUser:
 		entityType = openapi.FieldResponseEntityTypeUser
@@ -35,15 +39,16 @@ func FromField(f *domain.Field) openapi.FieldResponse {
 	default:
 		entityType = openapi.FieldResponseEntityTypeUser
 	}
+
 	return openapi.FieldResponse{
-		ID:         httputil.Ptr(f.ID.String()),
-		Name:       httputil.Ptr(f.Name),
-		FieldType:  httputil.Ptr(fieldType),
-		EntityType: httputil.Ptr(entityType),
-		Required:   httputil.Ptr(f.Required),
+		ID:         new(f.ID.String()),
+		Name:       new(f.Name),
+		FieldType:  new(fieldType),
+		EntityType: new(entityType),
+		Required:   new(f.Required),
 		Options:    opts,
-		OrderIndex: httputil.Ptr(f.OrderIndex),
-		CreatedAt:  httputil.Ptr(f.CreatedAt),
+		OrderIndex: new(f.OrderIndex),
+		CreatedAt:  new(f.CreatedAt),
 	}
 }
 

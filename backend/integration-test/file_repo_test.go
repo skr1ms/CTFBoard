@@ -103,15 +103,19 @@ func TestFileRepo_GetAll_Success(t *testing.T) {
 
 	f1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
 	f2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
+
 	require.NoError(t, f.FileRepo.Create(ctx, f1))
 	require.NoError(t, f.FileRepo.Create(ctx, f2))
 
 	files, err := f.FileRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, fl := range files {
 		ids[fl.ID] = true
 	}
+
 	assert.True(t, ids[f1.ID], "file 1 should be in GetAll result")
 	assert.True(t, ids[f2.ID], "file 2 should be in GetAll result")
 }

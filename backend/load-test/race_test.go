@@ -32,20 +32,26 @@ func TestRace_FlagSubmission(t *testing.T) {
 	}
 
 	results := make([]result, raceConcurrency)
+
 	var wg sync.WaitGroup
+
 	start := make(chan struct{})
 
 	for i := range raceConcurrency {
 		wg.Add(1)
+
 		go func(idx int) {
 			defer wg.Done()
+
 			<-start
 
 			body, err := json.Marshal(map[string]string{"flag": correctFlag})
 			if err != nil {
 				results[idx] = result{status: 0, body: err.Error()}
+
 				return
 			}
+
 			req, err := http.NewRequestWithContext(context.Background(),
 				http.MethodPost,
 				Fixture.BaseURL+"/api/v1/challenges/"+chalID+"/submit",
@@ -53,14 +59,17 @@ func TestRace_FlagSubmission(t *testing.T) {
 			)
 			if err != nil {
 				results[idx] = result{status: 0, body: err.Error()}
+
 				return
 			}
+
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", token)
 
-			resp, err := http.DefaultClient.Do(req) //nolint:gosec // load-test uses fixture base URL (localhost)
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				results[idx] = result{status: 0, body: err.Error()}
+
 				return
 			}
 			defer resp.Body.Close()
@@ -68,8 +77,10 @@ func TestRace_FlagSubmission(t *testing.T) {
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				results[idx] = result{status: 0, body: err.Error()}
+
 				return
 			}
+
 			results[idx] = result{status: resp.StatusCode, body: string(respBody)}
 		}(i)
 	}
@@ -78,9 +89,11 @@ func TestRace_FlagSubmission(t *testing.T) {
 	wg.Wait()
 
 	statusCounts := make(map[int]int)
+
 	for _, r := range results {
 		statusCounts[r.status]++
 	}
+
 	fmt.Printf("\n[race] Flag submission results: %v\n", statusCounts)
 
 	validResponses := statusCounts[http.StatusOK] + statusCounts[http.StatusConflict]
@@ -91,6 +104,7 @@ func TestRace_FlagSubmission(t *testing.T) {
 		"exactly 1 submit should succeed with 200 (got %d)", statusCounts[http.StatusOK])
 
 	var solveCount int
+
 	err := testDBPool.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM solves
 		 WHERE challenge_id = (SELECT id FROM challenges WHERE id::text = $1)`,
@@ -106,6 +120,7 @@ func TestRace_FlagSubmission(t *testing.T) {
 
 func TestRace_HintUnlock(t *testing.T) {
 	require.NotNil(t, Fixture)
+
 	if Fixture.RaceHintID == "" {
 		t.Skip("no hint entries seeded, skipping hint race test")
 	}
@@ -119,13 +134,17 @@ func TestRace_HintUnlock(t *testing.T) {
 	}
 
 	results := make([]result, raceConcurrency)
+
 	var wg sync.WaitGroup
+
 	start := make(chan struct{})
 
 	for i := range raceConcurrency {
 		wg.Add(1)
+
 		go func(idx int) {
 			defer wg.Done()
+
 			<-start
 
 			req, err := http.NewRequestWithContext(context.Background(),
@@ -135,16 +154,20 @@ func TestRace_HintUnlock(t *testing.T) {
 			)
 			if err != nil {
 				results[idx] = result{status: 0}
+
 				return
 			}
+
 			req.Header.Set("Authorization", token)
 
-			resp, err := http.DefaultClient.Do(req) //nolint:gosec // load-test uses fixture base URL (localhost)
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				results[idx] = result{status: 0}
+
 				return
 			}
 			defer resp.Body.Close()
+
 			results[idx] = result{status: resp.StatusCode}
 		}(i)
 	}
@@ -153,15 +176,18 @@ func TestRace_HintUnlock(t *testing.T) {
 	wg.Wait()
 
 	statusCounts := make(map[int]int)
+
 	for _, r := range results {
 		statusCounts[r.status]++
 	}
+
 	fmt.Printf("\n[race] Hint unlock results: %v\n", statusCounts)
 
-	require.Greater(t, statusCounts[http.StatusOK]+statusCounts[http.StatusNoContent], 0,
+	require.Positive(t, statusCounts[http.StatusOK]+statusCounts[http.StatusNoContent],
 		"at least one hint unlock must succeed")
 
 	var unlockCount int
+
 	err := testDBPool.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM hint_unlocks
 		 WHERE hint_id = (SELECT id FROM hints WHERE id::text = $1)`,
@@ -196,9 +222,11 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 	)
 	require.NoError(t, err)
 	regReq.Header.Set("Content-Type", "application/json")
-	regResp, err := http.DefaultClient.Do(regReq) //nolint:gosec // load-test uses fixture base URL (localhost)
+	regResp, err := http.DefaultClient.Do(regReq)
 	require.NoError(t, err)
+
 	defer regResp.Body.Close()
+
 	require.Equal(t, http.StatusCreated, regResp.StatusCode)
 
 	loginBody, err := json.Marshal(map[string]string{"email": email, "password": password})
@@ -209,9 +237,11 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 	)
 	require.NoError(t, err)
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, err := http.DefaultClient.Do(loginReq) //nolint:gosec // load-test fixture URL (localhost)
+	loginResp, err := http.DefaultClient.Do(loginReq)
 	require.NoError(t, err)
+
 	defer loginResp.Body.Close()
+
 	require.Equal(t, http.StatusOK, loginResp.StatusCode)
 
 	var loginData struct {
@@ -223,14 +253,16 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 
 	concurrency := 20
 	statusCounts := make(map[int]int)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+
+	var (
+		mu sync.Mutex
+		wg sync.WaitGroup
+	)
+
 	start := make(chan struct{})
 
 	for range concurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 
 			body, err := json.Marshal(openapi.CreateSoloTeamRequest{})
@@ -238,8 +270,10 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 				mu.Lock()
 				statusCounts[0]++
 				mu.Unlock()
+
 				return
 			}
+
 			req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 				Fixture.BaseURL+"/api/v1/teams/solo",
 				strings.NewReader(string(body)),
@@ -248,23 +282,27 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 				mu.Lock()
 				statusCounts[0]++
 				mu.Unlock()
+
 				return
 			}
+
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", token)
 
-			resp, err := http.DefaultClient.Do(req) //nolint:gosec // load-test fixture URL (localhost)
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				mu.Lock()
 				statusCounts[0]++
 				mu.Unlock()
+
 				return
 			}
 			defer resp.Body.Close()
+
 			mu.Lock()
 			statusCounts[resp.StatusCode]++
 			mu.Unlock()
-		}()
+		})
 	}
 
 	close(start)

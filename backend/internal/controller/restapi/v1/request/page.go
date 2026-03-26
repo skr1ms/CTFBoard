@@ -21,11 +21,13 @@ type updatePageConstraints struct {
 
 func ValidateCreatePageRequest(req *openapi.CreatePageRequest, v validator.Validator) error {
 	c := createPageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
+
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdatePageRequest(req *openapi.UpdatePageRequest, v validator.Validator) error {
 	c := updatePageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
+
 	return ValidateConstraints(v, &c)
 }
 

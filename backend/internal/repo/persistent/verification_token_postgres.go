@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -40,6 +39,7 @@ func toDomainVerificationToken(t sqlc.VerificationToken) *domain.VerificationTok
 
 func (r *VerificationTokenRepo) Create(ctx context.Context, token *domain.VerificationToken) error {
 	EnsureID(&token.ID)
+
 	err := r.Q(ctx).CreateVerificationToken(ctx, sqlc.CreateVerificationTokenParams{
 		ID:        token.ID,
 		UserID:    token.UserID,
@@ -50,6 +50,7 @@ func (r *VerificationTokenRepo) Create(ctx context.Context, token *domain.Verifi
 	if err != nil {
 		return fmt.Errorf("VerificationTokenRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -59,36 +60,46 @@ func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrTokenNotFound
 		}
+
 		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken: %w", err)
 	}
+
 	return toDomainVerificationToken(t), nil
 }
 
 func (r *VerificationTokenRepo) MarkUsed(ctx context.Context, ID uuid.UUID) error {
 	now := time.Now()
-	if err := r.Q(ctx).MarkVerificationTokenUsed(ctx, sqlc.MarkVerificationTokenUsedParams{
+
+	err := r.Q(ctx).MarkVerificationTokenUsed(ctx, sqlc.MarkVerificationTokenUsedParams{
 		ID:     ID,
 		UsedAt: pgutil.TimeToTimestamptz(&now),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("VerificationTokenRepo - MarkUsed: %w", err)
 	}
+
 	return nil
 }
 
 func (r *VerificationTokenRepo) DeleteExpired(ctx context.Context) error {
 	expiresAt := time.Now()
-	if err := r.Q(ctx).DeleteExpiredVerificationTokens(ctx, pgutil.TimeToTimestamptz(&expiresAt)); err != nil {
+
+	err := r.Q(ctx).DeleteExpiredVerificationTokens(ctx, pgutil.TimeToTimestamptz(&expiresAt))
+	if err != nil {
 		return fmt.Errorf("VerificationTokenRepo - DeleteExpired: %w", err)
 	}
+
 	return nil
 }
 
 func (r *VerificationTokenRepo) DeleteByUserAndType(ctx context.Context, userID uuid.UUID, tokenType domain.TokenType) error {
-	if err := r.Q(ctx).DeleteVerificationTokensByUserAndType(ctx, sqlc.DeleteVerificationTokensByUserAndTypeParams{
+	err := r.Q(ctx).DeleteVerificationTokensByUserAndType(ctx, sqlc.DeleteVerificationTokensByUserAndTypeParams{
 		UserID: userID,
 		Type:   string(tokenType),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("VerificationTokenRepo - DeleteByUserAndType: %w", err)
 	}
+
 	return nil
 }

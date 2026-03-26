@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -47,7 +46,7 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 
 	_, err := repo.GetByToken(ctx, "non_existent_token")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTokenNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
 }
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
@@ -72,7 +71,7 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 
 	_, err = repo.GetByToken(ctx, token.Token)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTokenNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
 }
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {

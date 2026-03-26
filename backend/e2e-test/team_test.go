@@ -181,7 +181,9 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 
 	scoreboard := h.GetScoreboard(tokenCap)
 	require.NotNil(t, scoreboard.JSON200)
+
 	teamPoints := -1
+
 	for _, entry := range *scoreboard.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == targetCapName {
 			if entry.Points != nil {
@@ -189,6 +191,7 @@ func TestTeam_Join_PointsCheck(t *testing.T) {
 			} else {
 				teamPoints = 0
 			}
+
 			break
 		}
 	}
@@ -329,14 +332,18 @@ func TestTeam_TransferCaptain(t *testing.T) {
 
 	teamAfterJoin := h.GetMyTeam(tokenCap, http.StatusOK)
 	require.NotNil(t, teamAfterJoin.JSON200)
+
 	var memberID string
+
 	for _, m := range *teamAfterJoin.JSON200.Members {
 		if m.Username != nil && *m.Username == memberName {
 			require.NotNil(t, m.ID)
 			memberID = *m.ID
+
 			break
 		}
 	}
+
 	require.NotEmpty(t, memberID, "member not found in team")
 
 	h.TransferCaptain(tokenCap, memberID, http.StatusOK)
@@ -367,14 +374,18 @@ func TestTeam_KickMember(t *testing.T) {
 
 	teamWithMember := h.GetMyTeam(tokenCap, http.StatusOK)
 	require.NotNil(t, teamWithMember.JSON200)
+
 	var memberID string
+
 	for _, m := range *teamWithMember.JSON200.Members {
 		if m.Username != nil && *m.Username == memberName {
 			require.NotNil(t, m.ID)
 			memberID = *m.ID
+
 			break
 		}
 	}
+
 	require.NotEmpty(t, memberID, "member not found")
 
 	h.KickMember(tokenCap, memberID, http.StatusNoContent)
@@ -513,14 +524,18 @@ func TestTeam_TransferCaptain_Forbidden(t *testing.T) {
 	h.JoinTeam(tokenMem, inviteToken, false, http.StatusOK)
 	teamAfter := h.GetMyTeam(tokenCap, http.StatusOK)
 	require.NotNil(t, teamAfter.JSON200)
+
 	var capID string
+
 	for _, m := range *teamAfter.JSON200.Members {
 		if m.Username != nil && *m.Username == capName {
 			require.NotNil(t, m.ID)
 			capID = *m.ID
+
 			break
 		}
 	}
+
 	require.NotEmpty(t, capID)
 	h.TransferCaptain(tokenMem, capID, http.StatusForbidden)
 }
@@ -720,6 +735,7 @@ func TestTeam_MySolves_NoTeam(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_my_solves_noTeam")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("my_solves_nt_" + suffix)
 
@@ -755,6 +771,7 @@ func TestTeam_GetSolves_NotFound(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_id_solves_404")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_404_" + suffix)
 
@@ -820,6 +837,7 @@ func TestTeam_GetFails_InvalidID(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_id_fails_400")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_fails_400_" + suffix)
 
@@ -927,6 +945,7 @@ func TestTeam_GetMyAwards_NoTeam(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	h.SetupCompetition("team_awards_not")
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("awards_noteam_" + suffix)
 

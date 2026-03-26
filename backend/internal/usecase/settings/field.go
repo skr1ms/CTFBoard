@@ -32,6 +32,7 @@ func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType domain.E
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetByEntityType - FieldRepo.GetByEntityType: %w", err)
 	}
+
 	return list, nil
 }
 
@@ -40,6 +41,7 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domai
 	if name == "" {
 		return nil, httperr.NewValidationErrorf("name is required")
 	}
+
 	field := &domain.Field{
 		ID:         uuid.New(),
 		Name:       name,
@@ -49,9 +51,12 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domai
 		Options:    options,
 		OrderIndex: orderIndex,
 	}
-	if err := uc.deps.FieldRepo.Create(ctx, field); err != nil {
+
+	err := uc.deps.FieldRepo.Create(ctx, field)
+	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Create - FieldRepo.Create: %w", err)
 	}
+
 	return field, nil
 }
 
@@ -60,6 +65,7 @@ func (uc *FieldUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Fiel
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetByID - FieldRepo.GetByID: %w", err)
 	}
+
 	return field, nil
 }
 
@@ -68,6 +74,7 @@ func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*domain.Field, error) {
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - GetAll - FieldRepo.GetAll: %w", err)
 	}
+
 	return list, nil
 }
 
@@ -76,24 +83,30 @@ func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, f
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.GetByID: %w", err)
 	}
+
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, httperr.NewValidationErrorf("name is required")
 	}
+
 	field.Name = name
 	field.FieldType = fieldType
 	field.Required = required
 	field.Options = options
+
 	field.OrderIndex = orderIndex
 	if err := uc.deps.FieldRepo.Update(ctx, field); err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.Update: %w", err)
 	}
+
 	return field, nil
 }
 
 func (uc *FieldUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := uc.deps.FieldRepo.Delete(ctx, ID); err != nil {
+	err := uc.deps.FieldRepo.Delete(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("FieldUseCase - Delete - FieldRepo.Delete: %w", err)
 	}
+
 	return nil
 }

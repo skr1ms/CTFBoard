@@ -16,6 +16,7 @@ type adminCreateSubmissionConstraints struct {
 
 func ValidateAdminCreateSubmissionRequest(req *openapi.AdminCreateSubmissionRequest, v validator.Validator) error {
 	c := adminCreateSubmissionConstraints{SubmittedFlag: req.SubmittedFlag}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -31,17 +32,21 @@ type AdminCreateSubmissionParams struct {
 func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequest) (*AdminCreateSubmissionParams, error) {
 	userID := req.UserID
 	challengeID := req.ChallengeID
+
 	var teamID *uuid.UUID
+
 	if req.TeamID != nil {
 		t := *req.TeamID
 		teamID = &t
 	}
 
 	ip := ""
+
 	if req.IP != nil {
 		if net.ParseIP(*req.IP) == nil {
 			return nil, httperr.NewValidationErrorf("invalid ip address format")
 		}
+
 		ip = *req.IP
 	}
 
@@ -59,5 +64,6 @@ func AdminUpdateSubmissionRequestToParams(req *openapi.AdminUpdateSubmissionRequ
 	if req == nil {
 		return nil, httperr.NewValidationErrorf("is_correct is required")
 	}
+
 	return &req.IsCorrect, nil
 }

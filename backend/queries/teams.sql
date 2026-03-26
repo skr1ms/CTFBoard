@@ -8,17 +8,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetTeamByID :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: GetTeamByInviteToken :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE invite_token = $1 AND deleted_at IS NULL;
 
 -- name: GetTeamByName :one
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE name = $1 AND deleted_at IS NULL;
 
@@ -54,7 +54,7 @@ UPDATE teams SET is_hidden = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING i
 UPDATE teams SET captain_id = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: GetAllTeams :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
 ORDER BY created_at ASC;
@@ -80,7 +80,7 @@ UPDATE teams SET name = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 UPDATE teams SET invite_token = $2, invite_token_expires_at = $3 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: SearchTeams :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
   AND is_hidden = false
@@ -90,7 +90,7 @@ ORDER BY created_at ASC
 LIMIT $1 OFFSET $2;
 
 -- name: SearchTeamsAdmin :many
-SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, created_at
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
 WHERE deleted_at IS NULL
   AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%')
@@ -112,3 +112,13 @@ WHERE deleted_at IS NULL
   AND is_hidden = false
   AND is_banned = false
   AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%');
+
+-- name: UpdateTeamAvatarURL :exec
+UPDATE teams SET avatar_url = $2 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: ClearTeamAvatarURL :one
+UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL RETURNING avatar_url;
+
+-- name: ListAllTeamAvatarURLs :many
+SELECT avatar_url FROM teams WHERE avatar_url IS NOT NULL AND deleted_at IS NULL;
+

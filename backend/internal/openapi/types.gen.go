@@ -371,6 +371,15 @@ type AppSettingsResponse struct {
 	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
 }
 
+// AvatarUploadResponse defines model for AvatarUploadResponse.
+type AvatarUploadResponse struct {
+	// FullURL Presigned URL for full-size avatar (512x512 WebP)
+	FullURL string `json:"full_url"`
+
+	// ThumbURL Presigned URL for thumbnail avatar (128x128 WebP)
+	ThumbURL string `json:"thumb_url"`
+}
+
 // Award defines model for Award.
 type Award struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
@@ -1082,10 +1091,11 @@ type ScorePoint struct {
 
 // ScoreboardEntryResponse defines model for ScoreboardEntryResponse.
 type ScoreboardEntryResponse struct {
-	LastSolved *string `json:"last_solved,omitempty"`
-	Points     *int    `json:"points,omitempty"`
-	TeamID     *string `json:"team_id,omitempty"`
-	TeamName   *string `json:"team_name,omitempty"`
+	LastSolved             *string `json:"last_solved,omitempty"`
+	Points                 *int    `json:"points,omitempty"`
+	TeamAvatarThumbnailURL *string `json:"team_avatar_thumbnail_url,omitempty"`
+	TeamID                 *string `json:"team_id,omitempty"`
+	TeamName               *string `json:"team_name,omitempty"`
 }
 
 // ScoreboardGraph defines model for ScoreboardGraph.
@@ -1556,6 +1566,12 @@ type VerifyEmailRequest struct {
 	Token string `json:"token" validate:"required"`
 }
 
+// V1ErrorResponse defines model for v1.ErrorResponse.
+type V1ErrorResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 // GetAdminAwardsParams defines parameters for GetAdminAwards.
 type GetAdminAwardsParams struct {
 	// TeamID Filter by team ID
@@ -1686,6 +1702,12 @@ type GetAdminTeamsParams struct {
 	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
+// PutAdminTeamsIDAvatarMultipartBody defines parameters for PutAdminTeamsIDAvatar.
+type PutAdminTeamsIDAvatarMultipartBody struct {
+	// File Avatar image file (JPEG, PNG, WebP, GIF; max 5MB; min 100x100, max 5000x5000)
+	File openapi_types.File `json:"file"`
+}
+
 // GetAdminUnlocksParams defines parameters for GetAdminUnlocks.
 type GetAdminUnlocksParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
@@ -1705,6 +1727,12 @@ type GetAdminUsersParams struct {
 
 // GetAdminUsersParamsField defines parameters for GetAdminUsers.
 type GetAdminUsersParamsField string
+
+// PutAdminUsersIDAvatarMultipartBody defines parameters for PutAdminUsersIDAvatar.
+type PutAdminUsersIDAvatarMultipartBody struct {
+	// File Avatar image file (JPEG, PNG, WebP, GIF; max 5MB; min 100x100, max 5000x5000)
+	File openapi_types.File `json:"file"`
+}
 
 // GetAdminUsersIDTrackingParams defines parameters for GetAdminUsersIDTracking.
 type GetAdminUsersIDTrackingParams struct {
@@ -1859,6 +1887,12 @@ type GetTeamsIDFailsParams struct {
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
+// PutTeamsMeAvatarMultipartBody defines parameters for PutTeamsMeAvatar.
+type PutTeamsMeAvatarMultipartBody struct {
+	// File Avatar image file (JPEG, PNG, WebP, GIF; max 5MB; min 100x100, max 5000x5000)
+	File openapi_types.File `json:"file"`
+}
+
 // GetTeamsMeFailsParams defines parameters for GetTeamsMeFails.
 type GetTeamsMeFailsParams struct {
 	Page    *int `form:"page,omitempty" json:"page,omitempty"`
@@ -1877,6 +1911,12 @@ type GetUsersParams struct {
 	Q       *string `form:"q,omitempty" json:"q,omitempty"`
 	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
 	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// PutUsersMeAvatarMultipartBody defines parameters for PutUsersMeAvatar.
+type PutUsersMeAvatarMultipartBody struct {
+	// File Avatar image file (JPEG, PNG, WebP, GIF; max 5MB; min 100x100, max 5000x5000)
+	File openapi_types.File `json:"file"`
 }
 
 // GetUsersMeFailsParams defines parameters for GetUsersMeFails.
@@ -1984,6 +2024,9 @@ type PutAdminTagsIDJSONRequestBody = UpdateTagRequest
 // PatchAdminTeamsIDJSONRequestBody defines body for PatchAdminTeamsID for application/json ContentType.
 type PatchAdminTeamsIDJSONRequestBody = AdminUpdateTeamRequest
 
+// PutAdminTeamsIDAvatarMultipartRequestBody defines body for PutAdminTeamsIDAvatar for multipart/form-data ContentType.
+type PutAdminTeamsIDAvatarMultipartRequestBody PutAdminTeamsIDAvatarMultipartBody
+
 // PostAdminTeamsIDBanJSONRequestBody defines body for PostAdminTeamsIDBan for application/json ContentType.
 type PostAdminTeamsIDBanJSONRequestBody = BanTeamRequest
 
@@ -2001,6 +2044,9 @@ type PostAdminUsersJSONRequestBody = AdminCreateUserRequest
 
 // PatchAdminUsersIDJSONRequestBody defines body for PatchAdminUsersID for application/json ContentType.
 type PatchAdminUsersIDJSONRequestBody = AdminUpdateUserRequest
+
+// PutAdminUsersIDAvatarMultipartRequestBody defines body for PutAdminUsersIDAvatar for multipart/form-data ContentType.
+type PutAdminUsersIDAvatarMultipartRequestBody PutAdminUsersIDAvatarMultipartBody
 
 // PostAdminUsersIDBanJSONRequestBody defines body for PostAdminUsersIDBan for application/json ContentType.
 type PostAdminUsersIDBanJSONRequestBody = BanUserRequest
@@ -2044,6 +2090,9 @@ type PostTeamsJoinJSONRequestBody = JoinTeamRequest
 // PatchTeamsMeJSONRequestBody defines body for PatchTeamsMe for application/json ContentType.
 type PatchTeamsMeJSONRequestBody = UpdateTeamRequest
 
+// PutTeamsMeAvatarMultipartRequestBody defines body for PutTeamsMeAvatar for multipart/form-data ContentType.
+type PutTeamsMeAvatarMultipartRequestBody PutTeamsMeAvatarMultipartBody
+
 // PostTeamsSoloJSONRequestBody defines body for PostTeamsSolo for application/json ContentType.
 type PostTeamsSoloJSONRequestBody = CreateSoloTeamRequest
 
@@ -2052,3 +2101,6 @@ type PostTeamsTransferCaptainJSONRequestBody = TransferCaptainRequest
 
 // PostUserTokensJSONRequestBody defines body for PostUserTokens for application/json ContentType.
 type PostUserTokensJSONRequestBody = CreateAPITokenRequest
+
+// PutUsersMeAvatarMultipartRequestBody defines body for PutUsersMeAvatar for multipart/form-data ContentType.
+type PutUsersMeAvatarMultipartRequestBody PutUsersMeAvatarMultipartBody

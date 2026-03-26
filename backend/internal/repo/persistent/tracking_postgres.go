@@ -3,11 +3,11 @@ package persistent
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -27,18 +27,22 @@ func NewTrackingRepo(pool *pgxpool.Pool) *TrackingRepo {
 
 func (r *TrackingRepo) Create(ctx context.Context, entry *domain.TrackingEntry) error {
 	EnsureID(&entry.ID)
+
 	ua := &entry.UserAgent
 	if entry.UserAgent == "" {
 		ua = nil
 	}
-	if err := r.Q(ctx).CreateTracking(ctx, sqlc.CreateTrackingParams{
+
+	err := r.Q(ctx).CreateTracking(ctx, sqlc.CreateTrackingParams{
 		ID:        entry.ID,
 		UserID:    entry.UserID,
 		IP:        entry.IP,
 		UserAgent: ua,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("TrackingRepo - Create: %w", err)
 	}
+
 	return nil
 }
 
@@ -47,6 +51,7 @@ func (r *TrackingRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit, o
 	if err != nil {
 		return nil, fmt.Errorf("TrackingRepo - GetByUser: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetTrackingByUser(ctx, sqlc.GetTrackingByUserParams{
 		UserID: userID,
 		Limit:  limit32,
@@ -55,6 +60,7 @@ func (r *TrackingRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit, o
 	if err != nil {
 		return nil, fmt.Errorf("TrackingRepo - GetByUser: %w", err)
 	}
+
 	out := make([]*domain.TrackingEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.TrackingEntry{
@@ -65,6 +71,7 @@ func (r *TrackingRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit, o
 			TrackedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.TrackedAt)),
 		})
 	}
+
 	return out, nil
 }
 
@@ -73,23 +80,29 @@ func (r *TrackingRepo) CountByUser(ctx context.Context, userID uuid.UUID) (int, 
 	if err != nil {
 		return 0, fmt.Errorf("TrackingRepo - CountByUser: %w", err)
 	}
+
 	return int(n), nil
 }
 
 func (r *TrackingRepo) CreateChallengeOpen(ctx context.Context, entry *domain.ChallengeOpen) error {
 	EnsureID(&entry.ID)
+
 	var ip *string
+
 	if entry.IP != "" {
 		ip = &entry.IP
 	}
-	if err := r.Q(ctx).CreateChallengeOpen(ctx, sqlc.CreateChallengeOpenParams{
+
+	err := r.Q(ctx).CreateChallengeOpen(ctx, sqlc.CreateChallengeOpenParams{
 		ID:          entry.ID,
 		UserID:      entry.UserID,
 		ChallengeID: entry.ChallengeID,
 		IP:          ip,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("TrackingRepo - CreateChallengeOpen: %w", err)
 	}
+
 	return nil
 }
 
@@ -98,6 +111,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 	if err != nil {
 		return nil, fmt.Errorf("TrackingRepo - GetChallengeOpensByChallenge: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetChallengeOpensByChallenge(ctx, sqlc.GetChallengeOpensByChallengeParams{
 		ChallengeID: challengeID,
 		Limit:       limit32,
@@ -106,6 +120,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 	if err != nil {
 		return nil, fmt.Errorf("TrackingRepo - GetChallengeOpensByChallenge: %w", err)
 	}
+
 	out := make([]*domain.ChallengeOpen, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, &domain.ChallengeOpen{
@@ -116,6 +131,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 			OpenedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.OpenedAt)),
 		})
 	}
+
 	return out, nil
 }
 
@@ -124,5 +140,28 @@ func (r *TrackingRepo) CountChallengeOpensByChallenge(ctx context.Context, chall
 	if err != nil {
 		return 0, fmt.Errorf("TrackingRepo - CountChallengeOpensByChallenge: %w", err)
 	}
+
 	return int(n), nil
+}
+
+func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error {
+	db := ExtractDB(ctx, r.pool)
+
+	_, err := db.Exec(ctx, "DELETE FROM tracking WHERE tracked_at < $1", pgutil.TimeToTimestamptz(&cutoffDate))
+	if err != nil {
+		return fmt.Errorf("TrackingRepo - DeleteOlderThan: %w", err)
+	}
+
+	return nil
+}
+
+func (r *TrackingRepo) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error {
+	db := ExtractDB(ctx, r.pool)
+
+	_, err := db.Exec(ctx, "DELETE FROM challenge_opens WHERE opened_at < $1", pgutil.TimeToTimestamptz(&cutoffDate))
+	if err != nil {
+		return fmt.Errorf("TrackingRepo - DeleteChallengeOpensOlderThan: %w", err)
+	}
+
+	return nil
 }

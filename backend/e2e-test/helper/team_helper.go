@@ -13,6 +13,7 @@ func (h *E2EHelper) GetMyTeam(token string, expectStatus int) *openapi.GetTeamsM
 	resp, err := h.client.GetTeamsMyWithResponse(context.Background(), WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get my team")
+
 	return resp
 }
 
@@ -52,6 +53,7 @@ func (h *E2EHelper) GetTeamByID(token, teamID string, expectStatus int) *openapi
 	resp, err := h.client.GetTeamsIDWithResponse(context.Background(), teamID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get team by id")
+
 	return resp
 }
 
@@ -87,6 +89,7 @@ func (h *E2EHelper) CreateAward(token, teamID string, value int, description str
 	}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "create award")
+
 	return resp
 }
 
@@ -95,6 +98,7 @@ func (h *E2EHelper) GetAwardsByTeam(token, teamID string, expectStatus int) *ope
 	resp, err := h.client.GetAdminAwardsTeamTeamIDWithResponse(context.Background(), teamID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get awards by team")
+
 	return resp
 }
 

@@ -2,7 +2,11 @@ FROM golang:alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git make
+RUN apk add --no-cache \
+    git \
+    make \
+    build-base \
+    libwebp-dev
 
 COPY go.mod go.sum ./
 
@@ -12,6 +16,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 
 ENV GOCACHE=/root/.cache/go-build
+ENV CGO_ENABLED=1
+
 RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target="/go/pkg/mod" \
     go build -o bin/backend cmd/app/main.go && \

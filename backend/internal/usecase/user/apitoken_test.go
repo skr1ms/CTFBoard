@@ -19,6 +19,7 @@ type apiTokenTestDeps struct {
 
 func newAPITokenTestDeps(t *testing.T) *apiTokenTestDeps {
 	t.Helper()
+
 	return &apiTokenTestDeps{apiTokenRepo: userMock.NewMockAPITokenRepository(t)}
 }
 
@@ -71,6 +72,7 @@ func TestAPITokenUseCase_Create_Success(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
 	desc := "token"
+
 	var exp *time.Time
 
 	d.apiTokenRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, token *domain.APIToken) {

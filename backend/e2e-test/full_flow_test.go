@@ -210,11 +210,14 @@ func TestFullCTFFlow(t *testing.T) {
 
 	alphaTeamWithNew := h.GetMyTeam(tokenAlphaCap, http.StatusOK)
 	require.NotNil(t, alphaTeamWithNew.JSON200)
+
 	var newMemberID string
+
 	for _, m := range *alphaTeamWithNew.JSON200.Members {
 		if m.Username != nil && *m.Username == newMember {
 			require.NotNil(t, m.ID)
 			newMemberID = *m.ID
+
 			break
 		}
 	}
@@ -223,12 +226,15 @@ func TestFullCTFFlow(t *testing.T) {
 	h.GetMyTeam(tokenNewMember, http.StatusNotFound)
 
 	var alphaMemID string
+
 	alphaTeamForTransfer := h.GetMyTeam(tokenAlphaCap, http.StatusOK)
 	require.NotNil(t, alphaTeamForTransfer.JSON200)
+
 	for _, m := range *alphaTeamForTransfer.JSON200.Members {
 		if m.Username != nil && *m.Username == alphaMember {
 			require.NotNil(t, m.ID)
 			alphaMemID = *m.ID
+
 			break
 		}
 	}
@@ -247,24 +253,30 @@ func TestFullCTFFlow(t *testing.T) {
 		if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 			return false
 		}
+
 		for _, e := range *resp.JSON200 {
 			if e.TeamName != nil && *e.TeamName == "Team Alpha "+suffix {
 				return false
 			}
 		}
+
 		return true
 	}, 2*time.Second, 50*time.Millisecond)
 
 	scoreboardAfterHide := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardAfterHide.StatusCode(), scoreboardAfterHide.Body, "scoreboard after hide")
 	require.NotNil(t, scoreboardAfterHide.JSON200)
+
 	teamAlphaFound := false
+
 	for _, entry := range *scoreboardAfterHide.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == "Team Alpha "+suffix {
 			teamAlphaFound = true
+
 			break
 		}
 	}
+
 	assert.False(t, teamAlphaFound, "Hidden team should not appear in scoreboard")
 
 	h.SetTeamHidden(tokenAdmin, alphaTeamID, false, http.StatusOK)
@@ -420,6 +432,7 @@ func TestBannedTeamBehavior(t *testing.T) {
 			context.Background(), challengeID,
 			openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: "flag{ban_test}"},
 			helper.WithBearerToken(tokenUser))
+
 		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
 	}, 5*time.Second, 100*time.Millisecond)
 	h.AssertTeamScore(tokenUser, userName, 100)
@@ -461,24 +474,30 @@ func TestBannedTeamNotInScoreboard(t *testing.T) {
 		if err != nil || resp == nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 			return false
 		}
+
 		for _, e := range *resp.JSON200 {
 			if e.TeamName != nil && *e.TeamName == userName {
 				return false
 			}
 		}
+
 		return true
 	}, 2*time.Second, 50*time.Millisecond)
 
 	scoreboardResp := h.GetScoreboard(tokenAdmin)
 	helper.RequireStatus(t, http.StatusOK, scoreboardResp.StatusCode(), scoreboardResp.Body, "scoreboard after ban")
 	require.NotNil(t, scoreboardResp.JSON200)
+
 	bannedTeamFound := false
+
 	for _, entry := range *scoreboardResp.JSON200 {
 		if entry.TeamName != nil && *entry.TeamName == userName {
 			bannedTeamFound = true
+
 			break
 		}
 	}
+
 	assert.False(t, bannedTeamFound, "Banned team should not appear in scoreboard")
 
 	h.UnbanTeam(tokenAdmin, teamID, http.StatusNoContent)

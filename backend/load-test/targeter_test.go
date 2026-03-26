@@ -18,11 +18,13 @@ func (r *roundRobinIndex) next(n int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	return int(r.n.Add(1)-1) % n //nolint:gosec // load-test index, n is small
 }
 
 func ChallengeListTargeter(f *TestFixture) vegeta.Targeter {
 	rr := &roundRobinIndex{}
+
 	return func(t *vegeta.Target) error {
 		u := f.Users[rr.next(len(f.Users))]
 		t.Method = http.MethodGet
@@ -30,12 +32,14 @@ func ChallengeListTargeter(f *TestFixture) vegeta.Targeter {
 		t.Header = http.Header{
 			"Authorization": {u.Token},
 		}
+
 		return nil
 	}
 }
 
 func ScoreboardTargeter(f *TestFixture) vegeta.Targeter {
 	rr := &roundRobinIndex{}
+
 	return func(t *vegeta.Target) error {
 		u := f.Users[rr.next(len(f.Users))]
 		t.Method = http.MethodGet
@@ -43,6 +47,7 @@ func ScoreboardTargeter(f *TestFixture) vegeta.Targeter {
 		t.Header = http.Header{
 			"Authorization": {u.Token},
 		}
+
 		return nil
 	}
 }
@@ -53,6 +58,7 @@ type submitBody struct {
 
 func SubmitWrongFlagTargeter(f *TestFixture) vegeta.Targeter {
 	rr := &roundRobinIndex{}
+
 	return func(t *vegeta.Target) error {
 		u := f.Users[rr.next(len(f.Users))]
 		chalIdx := rand.IntN(len(f.ChallengeIDs)) //nolint:gosec // load-test distribution, not crypto
@@ -62,6 +68,7 @@ func SubmitWrongFlagTargeter(f *TestFixture) vegeta.Targeter {
 		if err != nil {
 			return err
 		}
+
 		t.Method = http.MethodPost
 		t.URL = f.BaseURL + "/api/v1/challenges/" + chalID + "/submit"
 		t.Header = http.Header{
@@ -69,14 +76,17 @@ func SubmitWrongFlagTargeter(f *TestFixture) vegeta.Targeter {
 			"Authorization": {u.Token},
 		}
 		t.Body = body
+
 		return nil
 	}
 }
 
 func LoginTargeter(f *TestFixture, emails, passwords []string) vegeta.Targeter {
 	rr := &roundRobinIndex{}
+
 	return func(t *vegeta.Target) error {
 		idx := rr.next(len(emails))
+
 		body, err := json.Marshal(map[string]string{
 			"email":    emails[idx],
 			"password": passwords[idx],
@@ -84,18 +94,21 @@ func LoginTargeter(f *TestFixture, emails, passwords []string) vegeta.Targeter {
 		if err != nil {
 			return err
 		}
+
 		t.Method = http.MethodPost
 		t.URL = f.BaseURL + "/api/v1/auth/login"
 		t.Header = http.Header{
 			"Content-Type": {"application/json"},
 		}
 		t.Body = body
+
 		return nil
 	}
 }
 
 func MeTargeter(f *TestFixture) vegeta.Targeter {
 	rr := &roundRobinIndex{}
+
 	return func(t *vegeta.Target) error {
 		u := f.Users[rr.next(len(f.Users))]
 		t.Method = http.MethodGet
@@ -103,6 +116,7 @@ func MeTargeter(f *TestFixture) vegeta.Targeter {
 		t.Header = http.Header{
 			"Authorization": {u.Token},
 		}
+
 		return nil
 	}
 }
@@ -114,18 +128,22 @@ type weightedEntry struct {
 
 func WeightedTargeter(entries []weightedEntry) vegeta.Targeter {
 	total := 0
+
 	for _, e := range entries {
 		total += e.weight
 	}
+
 	return func(t *vegeta.Target) error {
 		pick := rand.IntN(total) //nolint:gosec // load-test target distribution
 		cumulative := 0
+
 		for _, e := range entries {
 			cumulative += e.weight
 			if pick < cumulative {
 				return e.fn(t)
 			}
 		}
+
 		return entries[len(entries)-1].fn(t)
 	}
 }
@@ -133,13 +151,17 @@ func WeightedTargeter(entries []weightedEntry) vegeta.Targeter {
 func BruteForceTargeter(f *TestFixture, userIdx, chalIdx int) vegeta.Targeter {
 	token := f.Users[userIdx%len(f.Users)].Token
 	chalID := f.ChallengeIDs[chalIdx%len(f.ChallengeIDs)]
+
 	var seq atomic.Uint64
+
 	return func(t *vegeta.Target) error {
 		n := seq.Add(1)
+
 		body, err := json.Marshal(submitBody{Flag: fmt.Sprintf("BRUTE{attempt_%d}", n)})
 		if err != nil {
 			return err
 		}
+
 		t.Method = http.MethodPost
 		t.URL = f.BaseURL + "/api/v1/challenges/" + chalID + "/submit"
 		t.Header = http.Header{
@@ -147,6 +169,7 @@ func BruteForceTargeter(f *TestFixture, userIdx, chalIdx int) vegeta.Targeter {
 			"Authorization": {token},
 		}
 		t.Body = body
+
 		return nil
 	}
 }

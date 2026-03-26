@@ -16,18 +16,21 @@ func ChallengeVisibility(competitionUC usecase.CompetitionUseCase) func(http.Han
 			user, ok := GetUser(r.Context())
 			if ok && user != nil && user.Role == domain.RoleAdmin {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
 
 			status := comp.GetStatus()
 			if status == domain.CompetitionStatusNotStarted {
 				httputil.HandleError(w, r, httperr.ErrCompetitionNotStarted)
+
 				return
 			}
 

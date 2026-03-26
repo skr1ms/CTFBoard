@@ -16,6 +16,7 @@ func SubmissionTypeFromCorrect(isCorrect bool) string {
 	if isCorrect {
 		return SubmissionTypeCorrect
 	}
+
 	return SubmissionTypeIncorrect
 }
 
@@ -35,6 +36,7 @@ type Submission struct {
 
 type SubmissionWithDetails struct {
 	Submission
+
 	Username          string `json:"username,omitempty"`
 	TeamName          string `json:"team_name,omitempty"`
 	ChallengeTitle    string `json:"challenge_title,omitempty"`

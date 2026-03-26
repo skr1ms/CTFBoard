@@ -13,6 +13,7 @@ func (h *E2EHelper) GetChallengeComments(token, challengeID string, expectStatus
 	resp, err := h.client.GetChallengesChallengeIDCommentsWithResponse(context.Background(), challengeID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get comments")
+
 	return resp
 }
 
@@ -23,6 +24,7 @@ func (h *E2EHelper) CreateComment(token, challengeID, content string, expectStat
 	}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "create comment")
+
 	return resp
 }
 
@@ -31,5 +33,6 @@ func (h *E2EHelper) DeleteComment(token, id string, expectStatus int) *openapi.D
 	resp, err := h.client.DeleteCommentsIDWithResponse(context.Background(), id, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "delete comment")
+
 	return resp
 }

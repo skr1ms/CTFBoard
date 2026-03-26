@@ -23,8 +23,8 @@ func TestBackup_ExportJSON(t *testing.T) {
 
 	resp := h.AdminExport(tokenAdmin, false, true)
 	require.NotNil(t, resp.HTTPResponse)
-	require.True(t, strings.Contains(resp.HTTPResponse.Header.Get("Content-Type"), "application/json"))
-	require.True(t, strings.Contains(resp.HTTPResponse.Header.Get("Content-Disposition"), "attachment"))
+	require.Contains(t, resp.HTTPResponse.Header.Get("Content-Type"), "application/json")
+	require.Contains(t, resp.HTTPResponse.Header.Get("Content-Disposition"), "attachment")
 	require.GreaterOrEqual(t, len(resp.Body), 10, "expected non-empty JSON body")
 }
 
@@ -38,8 +38,8 @@ func TestBackup_ExportZip(t *testing.T) {
 
 	resp := h.AdminExportZip(tokenAdmin)
 	require.NotNil(t, resp.HTTPResponse)
-	require.True(t, strings.Contains(resp.HTTPResponse.Header.Get("Content-Type"), "application/zip"))
-	require.True(t, strings.Contains(resp.HTTPResponse.Header.Get("Content-Disposition"), "attachment"))
+	require.Contains(t, resp.HTTPResponse.Header.Get("Content-Type"), "application/zip")
+	require.Contains(t, resp.HTTPResponse.Header.Get("Content-Disposition"), "attachment")
 	require.GreaterOrEqual(t, len(resp.Body), 4, "expected non-empty ZIP body")
 	require.True(t, len(resp.Body) < 2 || (resp.Body[0] == 'P' && resp.Body[1] == 'K'), "expected ZIP magic (PK)")
 }

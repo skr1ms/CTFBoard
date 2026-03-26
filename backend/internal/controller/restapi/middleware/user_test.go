@@ -21,6 +21,7 @@ import (
 
 func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 	t.Parallel()
+
 	userID := uuid.New()
 	expectedUser := &domain.User{ID: userID, Role: domain.RoleUser}
 
@@ -44,7 +45,7 @@ func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -53,6 +54,7 @@ func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 
 func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 	t.Parallel()
+
 	userID := uuid.New()
 
 	userRepo := userMock.NewMockUserRepository(t)
@@ -70,7 +72,7 @@ func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 	r.Use(InjectUser(userUC, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

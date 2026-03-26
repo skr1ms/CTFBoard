@@ -36,6 +36,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 	if teamID == uuid.Nil {
 		return nil, httperr.ErrAwardTeamIDRequired
 	}
+
 	if value == 0 {
 		return nil, httperr.ErrAwardValueCannotBeZero
 	}
@@ -53,13 +54,16 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 			if err != nil {
 				return fmt.Errorf("AwardUseCase - Create - TeamRepo.GetByID: %w", err)
 			}
+
 			if team.IsBanned {
 				return httperr.ErrTeamBanned
 			}
 		}
+
 		if err := uc.deps.AwardRepo.Create(ctx, award); err != nil {
 			return fmt.Errorf("AwardUseCase - Create - AwardRepo.Create: %w", err)
 		}
+
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("AwardUseCase - Create - TM.Run: %w", err)
@@ -70,11 +74,14 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 			comp, err := uc.deps.CompRepo.Get(ctx)
 			if err == nil && comp != nil && comp.IsFreezeActive() {
 				uc.deps.ScoreboardCache.InvalidateLiveOnly(ctx, teamID)
+
 				return award, nil
 			}
 		}
+
 		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
 	}
+
 	return award, nil
 }
 
@@ -83,6 +90,7 @@ func (uc *AwardUseCase) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*d
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetByTeamID - AwardRepo.GetByTeamID: %w", err)
 	}
+
 	return awards, nil
 }
 
@@ -91,6 +99,7 @@ func (uc *AwardUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Awar
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetByID - AwardRepo.GetByID: %w", err)
 	}
+
 	return award, nil
 }
 
@@ -99,6 +108,7 @@ func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*domain.Award, error) {
 	if err != nil {
 		return nil, fmt.Errorf("AwardUseCase - GetAll - AwardRepo.GetAll: %w", err)
 	}
+
 	return awards, nil
 }
 
@@ -108,13 +118,17 @@ func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 		if errors.Is(err, httperr.ErrAwardNotFound) {
 			return nil
 		}
+
 		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.GetByID: %w", err)
 	}
+
 	if err := uc.deps.AwardRepo.Delete(ctx, ID); err != nil {
 		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.Delete: %w", err)
 	}
+
 	if uc.deps.ScoreboardCache != nil {
 		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, award.TeamID)
 	}
+
 	return nil
 }

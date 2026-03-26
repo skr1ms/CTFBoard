@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -96,7 +95,7 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.UserRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
+	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetByEmail(t *testing.T) {
@@ -122,7 +121,7 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByEmail(ctx, "nonexistent@example.com")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
+	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetByUsername(t *testing.T) {
@@ -147,7 +146,7 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByUsername(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
+	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetAll_Success(t *testing.T) {
@@ -161,10 +160,13 @@ func TestUserRepo_GetAll_Success(t *testing.T) {
 
 	users, err := f.UserRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, u := range users {
 		ids[u.ID] = true
 	}
+
 	assert.True(t, ids[u1.ID])
 	assert.True(t, ids[u2.ID])
 }
@@ -214,7 +216,7 @@ func TestUserRepo_GetByTeamID_Empty(t *testing.T) {
 
 	members, err := f.UserRepo.GetByTeamID(ctx, team.ID)
 	require.NoError(t, err)
-	assert.Len(t, members, 0)
+	assert.Empty(t, members)
 }
 
 func TestUserRepo_UpdateTeamID(t *testing.T) {

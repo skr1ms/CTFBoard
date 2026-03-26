@@ -12,7 +12,6 @@ import (
 	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -42,6 +41,7 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.GetUser(r.Context())
 	if !ok || user == nil {
 		httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
+
 		return
 	}
 
@@ -52,17 +52,21 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 	if len(c.allowedOrigins) == 0 {
 		c.logger.Error("ws - HandleWS - ALLOWED_ORIGINS is not configured, rejecting connection")
 		httputil.HandleError(w, r, httperr.ErrWebsocketOriginNotConfigured)
+
 		return
 	}
+
 	if slices.Contains(c.allowedOrigins, "*") {
 		c.logger.Error("ws - HandleWS - ALLOWED_ORIGINS=* is not allowed for security")
 		httputil.HandleError(w, r, httperr.ErrWebsocketWildcardOriginNotAllowed)
+
 		return
 	}
 
 	client, err := wskit.Accept(context.WithoutCancel(r.Context()), w, r, c.hub, opts)
 	if err != nil {
 		c.logger.WithError(err).Error("ws - HandleWS - Accept")
+
 		return
 	}
 

@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -30,30 +31,38 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType domain.E
 	if err != nil {
 		return fmt.Errorf("FieldValidator - ValidateValues - FieldRepo.GetByEntityType: %w", err)
 	}
+
 	fieldMap := make(map[uuid.UUID]*domain.Field)
+
 	for _, f := range fields {
 		fieldMap[f.ID] = f
 	}
+
 	for fieldID, value := range values {
 		field, ok := fieldMap[fieldID]
 		if !ok {
 			return httperr.NewValidationErrorf("unknown field")
 		}
-		if err := v.validateValue(field, value); err != nil {
+
+		err := v.validateValue(field, value)
+		if err != nil {
 			return fmt.Errorf("FieldValidator - ValidateValues - validateValue: %w", err)
 		}
 	}
+
 	for _, field := range fields {
 		if field.Required {
 			val, ok := values[field.ID]
 			if !ok {
 				return httperr.NewValidationErrorf("required field missing")
 			}
+
 			if field.FieldType == domain.FieldTypeText && val == "" {
 				return httperr.NewValidationErrorf("required field cannot be empty")
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -76,6 +85,7 @@ func (v *FieldValidator) validateNumber(value string) error {
 	if _, err := strconv.Atoi(value); err != nil {
 		return httperr.ErrFieldInvalidNumber
 	}
+
 	return nil
 }
 
@@ -83,6 +93,7 @@ func (v *FieldValidator) validateBoolean(value string) error {
 	if value != "true" && value != "false" {
 		return httperr.ErrFieldInvalidBoolean
 	}
+
 	return nil
 }
 
@@ -90,12 +101,13 @@ func (v *FieldValidator) validateSelect(value string, options []string) error {
 	if len(options) == 0 {
 		return httperr.NewValidationErrorf("select field has no options configured")
 	}
+
 	value = strings.TrimSpace(value)
-	for _, opt := range options {
-		if opt == value {
-			return nil
-		}
+
+	if slices.Contains(options, value) {
+		return nil
 	}
+
 	return httperr.NewValidationErrorf("invalid option")
 }
 
@@ -103,5 +115,6 @@ func (v *FieldValidator) validateText(value string) error {
 	if len(value) > maxFieldTextLen {
 		return httperr.ErrFieldTextTooLong
 	}
+
 	return nil
 }

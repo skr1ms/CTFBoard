@@ -17,11 +17,13 @@ func (h *E2EHelper) CreateChallenge(token string, data map[string]any) string {
 	h.t.Helper()
 	id := h.CreateChallengeExpectStatus(token, data, http.StatusCreated)
 	require.NotEmpty(h.t, id, "create challenge returned empty id")
+
 	return id
 }
 
 func (h *E2EHelper) CreateChallengeExpectStatus(token string, data map[string]any, expectStatus int) string {
 	h.t.Helper()
+
 	req := openapi.PostAdminChallengesJSONRequestBody{
 		Category:    getStr(data, "category", "misc"),
 		Description: getStr(data, "description", ""),
@@ -33,31 +35,39 @@ func (h *E2EHelper) CreateChallengeExpectStatus(token string, data map[string]an
 		s := openapi.CreateChallengeRequestState(v)
 		req.State = &s
 	}
+
 	if v := getStr(data, "connection_info", ""); v != "" {
 		req.ConnectionInfo = &v
 	}
+
 	req.MaxAttempts = getIntPtr(data, "max_attempts")
+
 	req.Position = getIntPtr(data, "position")
 	if v, ok := data["is_regex"].(bool); ok {
 		req.IsRegex = &v
 	}
+
 	if v, ok := data["is_case_insensitive"].(bool); ok {
 		req.IsCaseInsensitive = &v
 	}
+
 	req.InitialValue = getIntPtr(data, "initial_value")
 	req.MinValue = getIntPtr(data, "min_value")
 	req.Decay = getIntPtr(data, "decay")
 	resp, err := h.client.PostAdminChallengesWithResponse(context.Background(), req, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "create challenge")
+
 	if resp.JSON201 != nil && resp.JSON201.ID != nil {
 		return *resp.JSON201.ID
 	}
+
 	return ""
 }
 
 func (h *E2EHelper) CreateBasicChallenge(token, title, flag string, points int) string {
 	h.t.Helper()
+
 	return h.CreateChallenge(token, map[string]any{
 		"title":         title,
 		"description":   "Standard basic challenge",
@@ -78,6 +88,7 @@ func (h *E2EHelper) UpdateChallenge(token, challengeID string, data map[string]a
 
 func (h *E2EHelper) UpdateChallengeExpectStatus(token, challengeID string, data map[string]any, expectStatus int) {
 	h.t.Helper()
+
 	req := openapi.PutAdminChallengesIDJSONRequestBody{
 		Category:    getStr(data, "category", "misc"),
 		Description: getStr(data, "description", ""),
@@ -87,18 +98,23 @@ func (h *E2EHelper) UpdateChallengeExpectStatus(token, challengeID string, data 
 	if v, ok := data["flag"].(string); ok {
 		req.Flag = &v
 	}
+
 	if v, ok := data["state"].(string); ok {
 		s := openapi.UpdateChallengeRequestState(v)
 		req.State = &s
 	}
+
 	if v := getStr(data, "connection_info", ""); v != "" {
 		req.ConnectionInfo = &v
 	}
+
 	req.MaxAttempts = getIntPtr(data, "max_attempts")
+
 	req.Position = getIntPtr(data, "position")
 	if tagIDs := getStrSlice(data, "tag_ids"); len(tagIDs) > 0 {
 		req.TagIds = &tagIDs
 	}
+
 	resp, err := h.client.PutAdminChallengesIDWithResponse(context.Background(), challengeID, req, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "update challenge")
@@ -121,6 +137,7 @@ func (h *E2EHelper) SubmitFlag(token, challengeID, flag string, expectStatus int
 	resp, err := h.client.PostChallengesChallengeIDSubmitWithResponse(context.Background(), challengeID, openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: flag}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "submit flag")
+
 	return resp
 }
 
@@ -129,6 +146,7 @@ func (h *E2EHelper) SubmitFlagExpectStatus(token, challengeID, flag string, allo
 	resp, err := h.client.PostChallengesChallengeIDSubmitWithResponse(context.Background(), challengeID, openapi.PostChallengesChallengeIDSubmitJSONRequestBody{Flag: flag}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	require.Contains(h.t, allowedStatuses, resp.StatusCode(), "submit flag: status %d not in %v body=%s", resp.StatusCode(), allowedStatuses, string(resp.Body))
+
 	return resp
 }
 
@@ -137,6 +155,7 @@ func (h *E2EHelper) GetChallengesExpectStatus(token string, expectStatus int) *o
 	resp, err := h.client.GetChallengesWithResponse(context.Background(), nil, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get challenges")
+
 	return resp
 }
 
@@ -144,13 +163,16 @@ func (h *E2EHelper) FindChallengeInList(token, challengeID string) *openapi.Chal
 	h.t.Helper()
 	resp := h.GetChallengesExpectStatus(token, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
+
 	idx := slices.IndexFunc(*resp.JSON200, func(c openapi.ChallengeResponse) bool {
 		return c.ID != nil && *c.ID == challengeID
 	})
 	if idx < 0 {
 		h.t.Fatalf("Challenge %s not found in list", challengeID)
+
 		return nil
 	}
+
 	return &(*resp.JSON200)[idx]
 }
 
@@ -158,6 +180,7 @@ func (h *E2EHelper) AssertChallengeMissing(token, challengeID string) {
 	h.t.Helper()
 	resp := h.GetChallengesExpectStatus(token, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
+
 	idx := slices.IndexFunc(*resp.JSON200, func(c openapi.ChallengeResponse) bool {
 		return c.ID != nil && *c.ID == challengeID
 	})
@@ -171,6 +194,7 @@ func (h *E2EHelper) GetChallengeDetailExpectStatus(token, challengeID string, ex
 	resp, err := h.client.GetChallengesChallengeIDWithResponse(context.Background(), challengeID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get challenge detail")
+
 	return resp
 }
 
@@ -181,10 +205,13 @@ func (h *E2EHelper) SetChallengeRequirements(token, challengeID string, requirem
 
 func (h *E2EHelper) SetChallengeRequirementsExpectStatus(token, challengeID string, requirementIDs []string, expectStatus int) {
 	h.t.Helper()
+
 	req := openapi.PutAdminChallengesChallengeIDRequirementsJSONRequestBody{}
+
 	if len(requirementIDs) > 0 {
 		req.RequirementIds = &requirementIDs
 	}
+
 	resp, err := h.client.PutAdminChallengesChallengeIDRequirementsWithResponse(context.Background(), challengeID, req, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "set challenge requirements")
@@ -192,6 +219,7 @@ func (h *E2EHelper) SetChallengeRequirementsExpectStatus(token, challengeID stri
 
 func (h *E2EHelper) FirstBloodAvailable(token, challengeID string) bool {
 	resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
+
 	return err == nil && resp != nil && resp.StatusCode() == http.StatusOK
 }
 
@@ -200,12 +228,15 @@ func (h *E2EHelper) GetFirstBlood(token, challengeID string, expectStatus int) *
 	resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "first-blood")
+
 	return resp
 }
 
 func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries int, sleep time.Duration) *openapi.GetChallengesChallengeIDFirstBloodResponse {
 	h.t.Helper()
+
 	var last *openapi.GetChallengesChallengeIDFirstBloodResponse
+
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = sleep
 	bo.MaxInterval = sleep * 4
@@ -213,25 +244,30 @@ func (h *E2EHelper) GetFirstBloodWithRetry(token, challengeID string, maxTries i
 	op := func() error {
 		resp, err := h.client.GetChallengesChallengeIDFirstBloodWithResponse(context.Background(), challengeID, nil, WithBearerToken(token))
 		require.NoError(h.t, err)
+
 		last = resp
 		if resp.StatusCode() == http.StatusOK {
 			return nil
 		}
+
 		if resp.StatusCode() != http.StatusNotFound {
 			return backoff.Permanent(errors.New("unexpected status"))
 		}
+
 		return errors.New("not found")
 	}
-	maxRetries := maxTries - 1
-	if maxRetries < 0 {
-		maxRetries = 0
-	}
-	if err := backoff.Retry(op, backoff.WithMaxRetries(bo, uint64(maxRetries))); err != nil {
+
+	maxRetries := max(maxTries-1, 0)
+
+	err := backoff.Retry(op, backoff.WithMaxRetries(bo, uint64(maxRetries)))
+	if err != nil {
 		h.t.Logf("GetFirstBloodWithRetry: %v", err)
 	}
+
 	if last != nil && last.StatusCode() != http.StatusOK {
 		RequireStatus(h.t, http.StatusOK, last.StatusCode(), last.Body, "first-blood")
 	}
+
 	return last
 }
 

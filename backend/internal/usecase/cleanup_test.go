@@ -18,6 +18,7 @@ type cleanupTestDeps struct {
 
 func newCleanupTestDeps(t *testing.T) *cleanupTestDeps {
 	t.Helper()
+
 	return &cleanupTestDeps{teamRepo: teamMock.NewMockTeamRepository(t)}
 }
 

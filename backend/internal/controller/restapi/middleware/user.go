@@ -6,16 +6,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/wahrwelt-kit/go-cachekit"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -37,22 +34,27 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 				if log != nil {
 					log.Warn("InjectUser - userID is empty (check middleware order: Auth before InjectUser)")
 				}
+
 				httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
+
 				return
 			}
 
 			if _, already := r.Context().Value(userContextKey).(*domain.User); already {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
 			userUUID, err := uuid.Parse(userID)
 			if err != nil {
 				httputil.HandleError(w, r, httperr.NewValidationErrorf("invalid user ID"))
+
 				return
 			}
 
 			var user *domain.User
+
 			if c != nil {
 				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(context.Context) (*domain.User, error) {
 					return userUC.GetByID(r.Context(), userUUID)
@@ -60,14 +62,19 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 			} else {
 				user, err = userUC.GetByID(r.Context(), userUUID)
 			}
+
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
+
 			if user == nil {
 				httputil.HandleError(w, r, httperr.ErrUserNotFound)
+
 				return
 			}
+
 			ctx := context.WithValue(r.Context(), userContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -76,5 +83,6 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 
 func GetUser(ctx context.Context) (*domain.User, bool) {
 	user, ok := ctx.Value(userContextKey).(*domain.User)
+
 	return user, ok
 }

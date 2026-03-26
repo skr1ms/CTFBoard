@@ -28,6 +28,7 @@ type userTestDeps struct {
 
 func newUserTestDeps(t *testing.T) *userTestDeps {
 	t.Helper()
+
 	return &userTestDeps{
 		userRepo:   userMock.NewMockUserRepository(t),
 		teamRepo:   userMock.NewMockTeamRepository(t),
@@ -46,12 +47,15 @@ func (d *userTestDeps) createUseCase() *UserUseCase {
 
 func (d *userTestDeps) setupLoginMocks(t *testing.T, email, password string) {
 	t.Helper()
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	require.NoError(t, err)
+
 	user := &domain.User{
 		ID: uuid.New(), Username: "testuser", Email: email, PasswordHash: string(hashedPassword),
 	}
 	d.userRepo.EXPECT().GetByEmail(mock.Anything, email).Return(user, nil)
+
 	tokenPair := &jwtkit.TokenPair{
 		AccessToken: "access_token", RefreshToken: "refresh_token",
 		AccessExpiresAt: time.Now().Unix(), RefreshExpiresAt: time.Now().Unix(),
@@ -64,6 +68,7 @@ func userTestHashPassword(password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(hash), nil
 }
 
@@ -160,6 +165,7 @@ func runRegisterTest(t *testing.T, tt registerTestCase) {
 	d := newUserTestDeps(t)
 	tt.setupMocks(d.userRepo, d.tm)
 	uc := d.createUseCase()
+
 	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password, nil)
 	if tt.expectedError {
 		assert.Error(t, err)
@@ -174,6 +180,7 @@ func runRegisterTest(t *testing.T, tt registerTestCase) {
 
 func TestUserUseCase_Register(t *testing.T) {
 	t.Parallel()
+
 	for _, tt := range registerTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -186,6 +193,7 @@ func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 	t.Parallel()
 	d := newUserTestDeps(t)
 	settingsRepo := userMock.NewMockSettingsRepository(t)
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -227,8 +235,10 @@ func loginTestCases() []loginTestCase {
 			name: "invalid password", email: "test@example.com", password: "wrongpassword",
 			setupMocks: func(t *testing.T, userRepo *userMock.MockUserRepository, _ *jwtMock.MockService) {
 				t.Helper()
+
 				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
+
 				user := &domain.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
 			},
@@ -245,8 +255,10 @@ func loginTestCases() []loginTestCase {
 			name: "user with valid uuid", email: "test@example.com", password: "password123",
 			setupMocks: func(t *testing.T, userRepo *userMock.MockUserRepository, jwtService *jwtMock.MockService) {
 				t.Helper()
+
 				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
+
 				user := &domain.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
 				jwtService.EXPECT().GenerateTokenPair(mock.Anything, mock.Anything, mock.Anything).Return(&jwtkit.TokenPair{AccessToken: "token", RefreshToken: "refresh"}, nil)
@@ -257,8 +269,10 @@ func loginTestCases() []loginTestCase {
 			name: "GenerateTokenPair returns error", email: "test@example.com", password: "password123",
 			setupMocks: func(t *testing.T, userRepo *userMock.MockUserRepository, jwtService *jwtMock.MockService) {
 				t.Helper()
+
 				hashedPassword, err := userTestHashPassword("password123")
 				require.NoError(t, err)
+
 				user := &domain.User{ID: uuid.New(), Username: "testuser", Email: "test@example.com", PasswordHash: hashedPassword}
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
 				jwtService.EXPECT().GenerateTokenPair(mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -273,9 +287,11 @@ func runLoginTest(t *testing.T, tt loginTestCase) {
 	d := newUserTestDeps(t)
 	tt.setupMocks(t, d.userRepo, d.jwtService)
 	uc := d.createUseCase()
+
 	if tt.name == "successful login" {
 		d.setupLoginMocks(t, tt.email, tt.password)
 	}
+
 	tokenPair, err := uc.Login(context.Background(), tt.email, tt.password)
 	if tt.expectedError {
 		assert.Error(t, err)
@@ -289,6 +305,7 @@ func runLoginTest(t *testing.T, tt loginTestCase) {
 
 func TestUserUseCase_Login(t *testing.T) {
 	t.Parallel()
+
 	for _, tt := range loginTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -360,7 +377,7 @@ func TestUserUseCase_GetProfile_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, profile)
 	assert.Equal(t, user.Username, profile.User.Username)
-	assert.Equal(t, "", profile.User.PasswordHash)
+	assert.Empty(t, profile.User.PasswordHash)
 	assert.Len(t, profile.Solves, 1)
 }
 
@@ -490,7 +507,7 @@ func TestSanitizeCustomFieldValue(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "abc", sanitizeCustomFieldValue("abc"))
 	assert.Equal(t, "a  b", sanitizeCustomFieldValue("a \x00\x1b b"))
-	assert.Equal(t, "", sanitizeCustomFieldValue("\x00\x1f\x7f"))
+	assert.Empty(t, sanitizeCustomFieldValue("\x00\x1f\x7f"))
 	assert.Equal(t, "x", sanitizeCustomFieldValue("  x  "))
 }
 

@@ -5,12 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/wahrwelt-kit/go-cachekit"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
@@ -45,19 +43,23 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 		if err != nil {
 			return "", err
 		}
+
 		return settings.ScoreboardVisible, nil
 	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := GetUser(r.Context())
 			if ok && user != nil && user.Role == domain.RoleAdmin {
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
 			visibility, err := s.cv.Get(r.Context(), load)
 			if err != nil {
 				httputil.HandleError(w, r, err)
+
 				return
 			}
 
@@ -66,12 +68,15 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 				next.ServeHTTP(w, r)
 			case domain.ScoreboardVisibleHidden:
 				httputil.HandleError(w, r, httperr.ErrScoreboardHidden)
+
 				return
 			case domain.ScoreboardVisibleAdminsOnly:
 				httputil.HandleError(w, r, httperr.ErrScoreboardAdminsOnly)
+
 				return
 			default:
 				httputil.HandleError(w, r, httperr.ErrScoreboardAccessDenied)
+
 				return
 			}
 		})
@@ -80,5 +85,6 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 
 func ScoreboardVisibility(settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
 	c := NewScoreboardVisibilityCache()
+
 	return c.Middleware(settingsGetter)
 }

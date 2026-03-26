@@ -92,10 +92,12 @@ CREATE TABLE users (
     banned_at TIMESTAMPTZ NULL,
     banned_reason TEXT NULL,
     was_in_banned_team BOOLEAN NOT NULL DEFAULT false,
+    avatar_url TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_users_team ON users (team_id);
+CREATE INDEX idx_users_avatar_url ON users(avatar_url) WHERE avatar_url IS NOT NULL;
 CREATE INDEX idx_users_username_trgm ON users USING gin (username gin_trgm_ops);
 
 -- Teams (captain_id and bracket_id are inline; users.team_id added below)
@@ -111,12 +113,14 @@ CREATE TABLE teams (
     banned_at TIMESTAMPTZ,
     banned_reason TEXT,
     is_hidden BOOLEAN DEFAULT FALSE,
+    avatar_url TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     invite_token_expires_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE UNIQUE INDEX teams_name_active_key ON teams (name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_teams_avatar_url ON teams(avatar_url) WHERE avatar_url IS NOT NULL;
 CREATE UNIQUE INDEX teams_invite_token_active_key ON teams (invite_token) WHERE deleted_at IS NULL;
 CREATE INDEX idx_teams_bracket_id ON teams (bracket_id);
 
@@ -304,7 +308,8 @@ CREATE TABLE submissions (
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
     banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT chk_submission_type CHECK (submission_type IN ('correct', 'incorrect', 'ratelimited')),
-    CONSTRAINT chk_submission_type_correct CHECK ((submission_type = 'correct') = is_correct)
+    CONSTRAINT chk_submission_type_correct CHECK ((submission_type = 'correct') = is_correct),
+    CONSTRAINT chk_submitted_flag_length CHECK (length(submitted_flag) <= 500)
 );
 
 CREATE INDEX idx_submissions_created_at ON submissions (created_at DESC);
@@ -507,13 +512,6 @@ CREATE TABLE challenge_opens (
 CREATE INDEX idx_challenge_opens_user_id ON challenge_opens (user_id);
 CREATE INDEX idx_challenge_opens_challenge_id ON challenge_opens (challenge_id);
 CREATE INDEX idx_challenge_opens_opened_at ON challenge_opens (opened_at DESC);
-
--- =============================================================================
--- Seed data
--- =============================================================================
-
-INSERT INTO competition (id, name) VALUES (1, 'CTF Competition');
-INSERT INTO app_settings (id) VALUES (1);
 
 -- +goose Down
 DROP SCHEMA public CASCADE;

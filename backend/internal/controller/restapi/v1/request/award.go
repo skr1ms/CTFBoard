@@ -12,8 +12,10 @@ func CreateAwardRequestToParams(req *openapi.CreateAwardRequest) (teamID uuid.UU
 	if parseErr != nil {
 		return uuid.Nil, 0, "", httperr.NewValidationErrorf("invalid team_id")
 	}
+
 	if req.Value < 0 {
 		return uuid.Nil, 0, "", httperr.NewValidationErrorf("value must be >= 0")
 	}
+
 	return teamID, req.Value, req.Description, nil
 }

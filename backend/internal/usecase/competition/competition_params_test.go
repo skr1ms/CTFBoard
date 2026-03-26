@@ -26,28 +26,35 @@ type fakeKeyValueStore struct {
 func (f *fakeKeyValueStore) Get(ctx context.Context, key string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	if v, ok := f.store[key]; ok {
 		return v, nil
 	}
+
 	return nil, errors.New("key not found")
 }
 
 func (f *fakeKeyValueStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	if f.store == nil {
 		f.store = make(map[string][]byte)
 	}
+
 	f.store[key] = value
+
 	return nil
 }
 
 func (f *fakeKeyValueStore) Del(ctx context.Context, keys ...string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	for _, k := range keys {
 		delete(f.store, k)
 	}
+
 	return nil
 }
 
@@ -63,9 +70,11 @@ func (f *fakePubSubStore) Subscribe(_ context.Context, _ string) (<-chan string,
 	if f.subscribeErr != nil {
 		return nil, f.subscribeErr
 	}
+
 	if f.subscribeCh != nil {
 		return f.subscribeCh, nil
 	}
+
 	return make(chan string), nil
 }
 
@@ -73,6 +82,7 @@ func (f *fakePubSubStore) Publish(_ context.Context, channel, message string) er
 	f.mu.Lock()
 	f.publishCalls = append(f.publishCalls, struct{ Channel, Message string }{channel, message})
 	f.mu.Unlock()
+
 	return f.publishErr
 }
 
@@ -123,13 +133,17 @@ func TestCompetitionParamUseCase_GetAll_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(got), domain.ConfigRegistryCount())
+
 	var k1 *domain.CompetitionParam
+
 	for _, p := range got {
 		if p.Key == "k1" {
 			k1 = p
+
 			break
 		}
 	}
+
 	require.NotNil(t, k1)
 	assert.Equal(t, "v1", k1.Value)
 }
@@ -308,7 +322,7 @@ func TestCompetitionParamUseCase_GetBool_Error(t *testing.T) {
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetBool(ctx, key, true)
 
-	assert.Equal(t, true, got)
+	assert.True(t, got)
 }
 
 func TestCompetitionParamUseCase_GetByCategory_ReturnsOnlyCategoryTheme(t *testing.T) {
@@ -327,6 +341,7 @@ func TestCompetitionParamUseCase_GetByCategory_ReturnsOnlyCategoryTheme(t *testi
 
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(got), 2)
+
 	for _, p := range got {
 		assert.Equal(t, "theme", p.Category)
 	}
@@ -342,6 +357,7 @@ func TestCompetitionParamUseCase_GetByCategory_InvalidCategory_ReturnsError(t *t
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
+
 	var he *httperr.HTTPError
 	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
 }
@@ -359,6 +375,7 @@ func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testin
 	err := uc.SetBatch(ctx, params, actorID, "")
 
 	assert.Error(t, err)
+
 	var he *httperr.HTTPError
 	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
 }
@@ -396,12 +413,16 @@ func TestCompetitionParamUseCase_GetAll_IncludesDefaults(t *testing.T) {
 	got, err := uc.GetAll(ctx)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(got), domain.ConfigRegistryCount())
+
 	seen := make(map[string]struct{})
+
 	for _, p := range got {
 		seen[p.Key] = struct{}{}
 	}
+
 	domain.RangeConfigRegistry(func(k string, _ domain.ConfigDef) bool {
 		assert.Contains(t, seen, k, "GetAll should include registry key %q", k)
+
 		return true
 	})
 }
@@ -434,9 +455,12 @@ func TestCompetitionParamUseCase_Get_WhenCacheHit_ReturnsFromRedis(t *testing.T)
 	}
 	payload, err := json.Marshal(cached)
 	require.NoError(t, err)
+
 	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: payload}}
+
 	ch := make(chan string, 1)
 	ch <- "1"
+
 	close(ch)
 	pubsub := &fakePubSubStore{subscribeCh: ch}
 
@@ -459,6 +483,7 @@ func TestCompetitionParamUseCase_Set_CallsCacheDelAndPubSubPublish(t *testing.T)
 
 	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+
 	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: []byte("stale")}}
 	pubsub := &fakePubSubStore{}
 
@@ -466,6 +491,7 @@ func TestCompetitionParamUseCase_Set_CallsCacheDelAndPubSubPublish(t *testing.T)
 	err := uc.Set(ctx, key, value, "", domain.CompetitionParamTypeString, "", actorID, "")
 
 	assert.NoError(t, err)
+
 	_, ok := kv.store[configsCacheKey]
 	assert.False(t, ok, "invalidate should have deleted configs cache key")
 	require.Len(t, pubsub.publishCalls, 1)

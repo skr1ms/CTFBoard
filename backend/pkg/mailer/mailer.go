@@ -65,8 +65,10 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 			if isResendPermanentError(err) {
 				return backoff.Permanent(fmt.Errorf("failed to send email via Resend: %w", err))
 			}
+
 			return fmt.Errorf("failed to send email via Resend: %w", err)
 		}
+
 		return nil
 	}
 
@@ -75,9 +77,11 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 	bo.InitialInterval = 2 * time.Second
 	bo.Multiplier = 2
 
-	if err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx)); err != nil {
+	err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx))
+	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -85,11 +89,14 @@ func isResendPermanentError(err error) bool {
 	if err == nil {
 		return false
 	}
+
 	msg := err.Error()
+
 	for _, code := range []string{"400", "401", "403", "404", "422"} {
 		if strings.Contains(msg, code) {
 			return true
 		}
 	}
+
 	return false
 }

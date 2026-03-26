@@ -25,13 +25,17 @@ func TestBracket_GetBrackets_Success(t *testing.T) {
 
 	listResp := h.GetBrackets(http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, b := range *listResp.JSON200 {
 		if b.Name != nil && *b.Name == name {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "created bracket must be in /brackets list")
 }
 
@@ -59,13 +63,17 @@ func TestBracket_Update_Success(t *testing.T) {
 	h.UpdateBracket(tokenAdmin, *createResp.JSON201.ID, "bracket_updated_"+suffix, "new desc", true, http.StatusOK)
 	listResp := h.GetBrackets(http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, b := range *listResp.JSON200 {
 		if b.Name != nil && *b.Name == "bracket_updated_"+suffix {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found)
 }
 
@@ -92,6 +100,7 @@ func TestBracket_SetTeamBracket_Success(t *testing.T) {
 	bracketResp := h.CreateBracket(tokenAdmin, "br_set_"+suffix, "desc", false, http.StatusCreated)
 	require.NotNil(t, bracketResp.JSON201)
 	require.NotNil(t, bracketResp.JSON201.ID)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("bracket_team_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	team := h.GetMyTeam(tokenUser, http.StatusOK)
@@ -109,6 +118,7 @@ func TestBracket_SetTeamBracket_Forbidden(t *testing.T) {
 	suffix := helper.UID()
 	bracketResp := h.CreateBracket(tokenAdmin, "br_"+suffix, "d", false, http.StatusCreated)
 	require.NotNil(t, bracketResp.JSON201)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("bracket_team_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 	team := h.GetMyTeam(tokenUser, http.StatusOK)

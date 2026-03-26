@@ -21,11 +21,13 @@ type updateBracketConstraints struct {
 
 func ValidateCreateBracketRequest(req *openapi.CreateBracketRequest, v validator.Validator) error {
 	c := createBracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
+
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdateBracketRequest(req *openapi.UpdateBracketRequest, v validator.Validator) error {
 	c := updateBracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -41,9 +43,11 @@ func SetTeamBracketRequestToParams(req *openapi.SetTeamBracketRequest) (*uuid.UU
 	if req.BracketID == nil {
 		return nil, nil
 	}
+
 	id := *req.BracketID
 	if id == uuid.Nil {
 		return nil, httperr.NewValidationErrorf("invalid bracket_id")
 	}
+
 	return &id, nil
 }

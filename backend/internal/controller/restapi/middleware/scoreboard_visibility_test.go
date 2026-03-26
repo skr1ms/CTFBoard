@@ -22,7 +22,7 @@ func TestScoreboardVisibility_Public(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/scoreboard", nil)
+	req := httptest.NewRequest(http.MethodGet, "/scoreboard", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -39,7 +39,7 @@ func TestScoreboardVisibility_Hidden(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/scoreboard", nil)
+	req := httptest.NewRequest(http.MethodGet, "/scoreboard", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -56,7 +56,7 @@ func TestScoreboardVisibility_AdminsOnly_Forbidden(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/scoreboard", nil)
+	req := httptest.NewRequest(http.MethodGet, "/scoreboard", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -71,7 +71,7 @@ func TestScoreboardVisibility_AdminsOnly_Allowed(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/scoreboard", nil)
+	req := httptest.NewRequest(http.MethodGet, "/scoreboard", http.NoBody)
 	ctx := context.WithValue(req.Context(), userContextKey, &domain.User{Role: domain.RoleAdmin})
 	req = req.WithContext(ctx)
 

@@ -26,13 +26,17 @@ func TestTag_GetTags_Success(t *testing.T) {
 
 	listResp := h.GetTags(http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, t := range *listResp.JSON200 {
 		if t.Name != nil && *t.Name == name {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "created tag must be in /tags list")
 }
 
@@ -61,13 +65,17 @@ func TestTag_Update_Success(t *testing.T) {
 	h.UpdateTag(tokenAdmin, *createResp.JSON201.ID, "tag_updated_"+suffix, "#ff0000", http.StatusOK)
 	listResp := h.GetTags(http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, tg := range *listResp.JSON200 {
 		if tg.Name != nil && *tg.Name == "tag_updated_"+suffix {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found)
 }
 
@@ -80,6 +88,7 @@ func TestTag_Update_Forbidden(t *testing.T) {
 	suffix := helper.UID()
 	createResp := h.CreateTag(tokenAdmin, "tag_"+suffix, "#000000", http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("tag_upd_user_" + suffix)
 
 	h.UpdateTag(tokenUser, *createResp.JSON201.ID, "x", "#ffffff", http.StatusForbidden)
@@ -107,6 +116,7 @@ func TestTag_Delete_Forbidden(t *testing.T) {
 	suffix := helper.UID()
 	createResp := h.CreateTag(tokenAdmin, "tag_"+suffix, "#000000", http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("tag_del_user_" + suffix)
 
 	h.DeleteTag(tokenUser, *createResp.JSON201.ID, http.StatusForbidden)

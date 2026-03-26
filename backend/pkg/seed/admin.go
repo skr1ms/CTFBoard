@@ -18,11 +18,14 @@ import (
 
 func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, username, email, password string, log logkit.Logger) error {
 	email = strings.ToLower(strings.TrimSpace(email))
+
 	_, err := userRepo.GetByEmail(ctx, email)
 	if err == nil {
 		log.Info("Seed: default admin already exists, skipping")
+
 		return nil
 	}
+
 	if !errors.Is(err, httperr.ErrUserNotFound) {
 		return fmt.Errorf("seed admin GetByEmail: %w", err)
 	}
@@ -50,5 +53,6 @@ func CreateDefaultAdmin(ctx context.Context, userRepo repo.UserRepository, usern
 	}
 
 	log.Info("Seed: default admin created successfully", map[string]any{"username": username, "email": email})
+
 	return nil
 }

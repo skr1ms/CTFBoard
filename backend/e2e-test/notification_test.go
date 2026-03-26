@@ -27,12 +27,15 @@ func TestNotification_List_Success(t *testing.T) {
 	require.NotNil(t, listResp.JSON200)
 
 	found := false
+
 	for _, n := range *listResp.JSON200 {
 		if n.Title != nil && *n.Title == title {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "created global notification must be in /notifications list")
 
 	email, _, tokenUser := h.RegisterUserAndLogin("notif_user_" + suffix)
@@ -60,13 +63,17 @@ func TestNotification_CreateUserNotification_Success(t *testing.T) {
 
 	userList := h.GetUserNotifications(tokenUser, 1, 50, http.StatusOK)
 	require.NotNil(t, userList.JSON200)
+
 	found := false
+
 	for _, n := range *userList.JSON200 {
 		if n.Title != nil && *n.Title == "Personal "+suffix {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "user must see personal notification in GET /user/notifications")
 }
 
@@ -106,6 +113,7 @@ func TestNotification_Update_Forbidden(t *testing.T) {
 	suffix := helper.UID()
 	createResp := h.CreateNotification(tokenAdmin, "N "+suffix, "content", "info", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("notif_upd_user_" + suffix)
 
 	h.UpdateNotification(tokenUser, *createResp.JSON201.ID, "X", "X", "info", false, http.StatusForbidden)
@@ -120,6 +128,7 @@ func TestNotification_Delete_Forbidden(t *testing.T) {
 	suffix := helper.UID()
 	createResp := h.CreateNotification(tokenAdmin, "N "+suffix, "content", "info", false, http.StatusCreated)
 	require.NotNil(t, createResp.JSON201)
+
 	_, _, tokenUser := h.RegisterUserAndLogin("notif_del_user_" + suffix)
 
 	h.DeleteNotification(tokenUser, *createResp.JSON201.ID, http.StatusForbidden)

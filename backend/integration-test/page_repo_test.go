@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -41,7 +40,7 @@ func TestPageRepo_Create_Error_DuplicateSlug(t *testing.T) {
 	page2 := &domain.Page{Title: "Other", Slug: p1.Slug, Content: "x", IsDraft: false, OrderIndex: 0}
 	err := f.PageRepo.Create(ctx, page2)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrPageSlugConflict))
+	assert.ErrorIs(t, err, httperr.ErrPageSlugConflict)
 }
 
 func TestPageRepo_GetByID_Success(t *testing.T) {
@@ -65,7 +64,7 @@ func TestPageRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.PageRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrPageNotFound))
+	assert.ErrorIs(t, err, httperr.ErrPageNotFound)
 }
 
 func TestPageRepo_GetBySlug_Success(t *testing.T) {
@@ -88,7 +87,7 @@ func TestPageRepo_GetBySlug_Error_NotFound(t *testing.T) {
 
 	_, err := f.PageRepo.GetBySlug(ctx, "nonexistent-slug-xyz")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrPageNotFound))
+	assert.ErrorIs(t, err, httperr.ErrPageNotFound)
 }
 
 func TestPageRepo_GetPublishedList_Success(t *testing.T) {
@@ -163,7 +162,7 @@ func TestPageRepo_Update_Error_DuplicateSlug(t *testing.T) {
 	p2.Slug = p1.Slug
 	err := f.PageRepo.Update(ctx, p2)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrPageSlugConflict))
+	assert.ErrorIs(t, err, httperr.ErrPageSlugConflict)
 }
 
 func TestPageRepo_Delete_Success(t *testing.T) {
@@ -177,7 +176,7 @@ func TestPageRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.PageRepo.GetByID(ctx, page.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrPageNotFound))
+	assert.ErrorIs(t, err, httperr.ErrPageNotFound)
 }
 
 func TestPageRepo_Delete_Error_NotFound(t *testing.T) {

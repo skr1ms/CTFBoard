@@ -63,13 +63,17 @@ func NewSubmissionBatcher(submissionRepo repo.SubmissionRepository, opts ...Batc
 		done:             make(chan struct{}),
 		shutdownFlushCtx: make(chan context.Context, 1),
 	}
+
 	for _, opt := range opts {
 		opt(b)
 	}
+
 	if b.logger == nil {
 		b.logger = logkit.Noop()
 	}
+
 	b.wg.Go(b.run)
+
 	return b
 }
 
@@ -79,18 +83,24 @@ func (b *SubmissionBatcher) Enqueue(sub *domain.Submission) {
 	if b.stopped.Load() {
 		BatcherDroppedTotal.Inc()
 		b.logger.Warn("SubmissionBatcher: batcher stopped, dropping submission")
+
 		return
 	}
+
 	select {
 	case b.ch <- sub:
 	default:
 		ctx, cancel := context.WithTimeout(context.Background(), enqueueSyncTimeout)
 		defer cancel()
-		if err := b.repo.Create(ctx, sub); err != nil {
+
+		err := b.repo.Create(ctx, sub)
+		if err != nil {
 			BatcherDroppedTotal.Inc()
 			b.logger.WithError(err).Warn("SubmissionBatcher: channel full and sync write failed, dropping submission")
+
 			return
 		}
+
 		BatcherFlushedTotal.Inc()
 	}
 }
@@ -99,8 +109,10 @@ func (b *SubmissionBatcher) Enqueue(sub *domain.Submission) {
 // After Stop returns, Enqueue is a no-op (submissions are dropped).
 func (b *SubmissionBatcher) Stop() {
 	b.stopped.Store(true)
+
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownFlushTimeout)
 	b.shutdownFlushCtx <- ctx
+
 	close(b.done)
 	b.wg.Wait()
 	cancel()
@@ -111,6 +123,7 @@ func (b *SubmissionBatcher) run() {
 	defer ticker.Stop()
 
 	buf := make([]*domain.Submission, 0, defaultBatchSize)
+
 	for {
 		select {
 		case sub := <-b.ch:
@@ -119,6 +132,7 @@ func (b *SubmissionBatcher) run() {
 				flushCtx, cancel := context.WithTimeout(context.Background(), flushTimeout)
 				b.flush(flushCtx, buf)
 				cancel()
+
 				buf = buf[:0]
 			}
 		case <-ticker.C:
@@ -126,6 +140,7 @@ func (b *SubmissionBatcher) run() {
 				flushCtx, cancel := context.WithTimeout(context.Background(), flushTimeout)
 				b.flush(flushCtx, buf)
 				cancel()
+
 				buf = buf[:0]
 			}
 		case <-b.done:
@@ -139,10 +154,13 @@ func (b *SubmissionBatcher) run() {
 					case flushCtx = <-b.shutdownFlushCtx:
 					default:
 						var cancel context.CancelFunc
+
 						flushCtx, cancel = context.WithTimeout(context.Background(), flushTimeout)
 						defer cancel()
 					}
+
 					b.flush(flushCtx, buf)
+
 					return
 				}
 			}
@@ -156,18 +174,21 @@ func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *domain.Submiss
 	bo.MaxInterval = retryCreateMaxDelay
 	bo.MaxElapsedTime = 0
 	op := func() error {
-		if err := ctx.Err(); err != nil {
+		err := ctx.Err()
+		if err != nil {
 			return backoff.Permanent(fmt.Errorf("SubmissionBatcher - retryCreate: %w", err))
 		}
-		if err := b.repo.Create(ctx, sub); err != nil {
+
+		err = b.repo.Create(ctx, sub)
+		if err != nil {
 			return err
 		}
+
 		return nil
 	}
-	maxRetries := attempts - 1
-	if maxRetries < 0 {
-		maxRetries = 0
-	}
+
+	maxRetries := max(attempts-1, 0)
+
 	return backoff.Retry(op, backoff.WithContext(backoff.WithMaxRetries(bo, uint64(maxRetries)), ctx))
 }
 
@@ -175,18 +196,24 @@ func (b *SubmissionBatcher) flush(ctx context.Context, subs []*domain.Submission
 	if len(subs) == 0 {
 		return
 	}
-	if err := b.repo.CreateBatch(ctx, subs); err != nil {
+
+	err := b.repo.CreateBatch(ctx, subs)
+	if err != nil {
 		BatcherFlushErrorsTotal.Add(float64(len(subs)))
 		b.logger.WithError(err).Error("SubmissionBatcher: batch flush failed, falling back to individual inserts")
+
 		for _, sub := range subs {
-			if err := b.retryCreate(ctx, sub, retryCreateAttempts); err != nil {
+			err := b.retryCreate(ctx, sub, retryCreateAttempts)
+			if err != nil {
 				BatcherDroppedTotal.Inc()
 				b.logger.WithError(err).Error("SubmissionBatcher: all retries failed, submission lost")
 			} else {
 				BatcherFlushedTotal.Inc()
 			}
 		}
+
 		return
 	}
+
 	BatcherFlushedTotal.Add(float64(len(subs)))
 }

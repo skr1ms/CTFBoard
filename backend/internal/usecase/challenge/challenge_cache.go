@@ -22,13 +22,19 @@ func (uc *ChallengeUseCase) InvalidateChallengeListCache(ctx context.Context) {
 	if uc.deps.ListCache == nil {
 		return
 	}
-	if err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeListCachePrefix); err != nil && uc.deps.Logger != nil {
+
+	err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeListCachePrefix)
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCache - DeleteByPrefix list")
 	}
-	if err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeBaseCachePrefix); err != nil && uc.deps.Logger != nil {
+
+	err = uc.deps.ListCache.DeleteByPrefix(ctx, challengeBaseCachePrefix)
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCache - DeleteByPrefix base")
 	}
-	if err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeSolvedCachePrefix); err != nil && uc.deps.Logger != nil {
+
+	err = uc.deps.ListCache.DeleteByPrefix(ctx, challengeSolvedCachePrefix)
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCache - DeleteByPrefix solved")
 	}
 }
@@ -37,17 +43,24 @@ func (uc *ChallengeUseCase) InvalidateChallengeListCacheForTeam(ctx context.Cont
 	if uc.deps.ListCache == nil {
 		return
 	}
-	if err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeListCachePrefix+teamID.String()+":"); err != nil && uc.deps.Logger != nil {
+
+	err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeListCachePrefix+teamID.String()+":")
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCacheForTeam - DeleteByPrefix list")
 	}
-	if err := uc.deps.ListCache.Del(ctx, challengeSolvedCachePrefix+teamID.String()); err != nil && uc.deps.Logger != nil {
+
+	err = uc.deps.ListCache.Del(ctx, challengeSolvedCachePrefix+teamID.String())
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCacheForTeam - Del solved")
 	}
+
 	comp := uc.getCompetitionForGetAll(ctx)
 	if comp != nil && comp.IsFreezeActive() {
 		return
 	}
-	if err := uc.deps.ListCache.DeleteByPrefix(ctx, challengeBaseCachePrefix); err != nil && uc.deps.Logger != nil {
+
+	err = uc.deps.ListCache.DeleteByPrefix(ctx, challengeBaseCachePrefix)
+	if err != nil && uc.deps.Logger != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - InvalidateChallengeListCacheForTeam - DeleteByPrefix base")
 	}
 }

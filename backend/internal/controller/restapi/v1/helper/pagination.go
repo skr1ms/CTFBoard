@@ -18,6 +18,7 @@ func ResolvePageParams(ctx context.Context, getter SettingsGetter, page, perPage
 	if defPP <= 0 {
 		defPP = usecase.DefaultPerPage
 	}
+
 	maxPP := settings.MaxPerPage
 	if maxPP <= 0 {
 		maxPP = usecase.DefaultMaxPerPage

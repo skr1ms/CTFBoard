@@ -32,6 +32,7 @@ type oauthTestDeps struct {
 
 func newOAuthTestDeps(t *testing.T) *oauthTestDeps {
 	t.Helper()
+
 	return &oauthTestDeps{
 		UserRepo:     userMock.NewMockUserRepository(t),
 		OAuthRepo:    userMock.NewMockOAuthAccountRepository(t),

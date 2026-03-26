@@ -31,6 +31,7 @@ func NewPageUseCase(deps PageDeps) *PageUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
+
 	return &PageUseCase{deps: deps}
 }
 
@@ -39,6 +40,7 @@ func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*domain.PageList
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetPublishedList - PageRepo.GetPublishedList: %w", err)
 	}
+
 	return list, nil
 }
 
@@ -46,16 +48,20 @@ func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*domain.Page
 	if strings.TrimSpace(slug) == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
+
 	page, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetBySlug - PageRepo.GetBySlug: %w", err)
 	}
+
 	if page == nil {
 		return nil, httperr.ErrPageNotFound
 	}
+
 	if page.IsDraft {
 		return nil, httperr.ErrPageNotFound
 	}
+
 	return page, nil
 }
 
@@ -64,6 +70,7 @@ func (uc *PageUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page,
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetByID - PageRepo.GetByID: %w", err)
 	}
+
 	return page, nil
 }
 
@@ -72,21 +79,26 @@ func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*domain.Page, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - GetAllList - PageRepo.GetAllList: %w", err)
 	}
+
 	return list, nil
 }
 
 func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error) {
 	title = strings.TrimSpace(title)
 	slug = strings.TrimSpace(slug)
+
 	if title == "" {
 		return nil, httperr.ErrPageTitleRequired
 	}
+
 	if slug == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
+
 	if !slugpkg.MatchPageSlug(slug) {
 		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
 	}
+
 	page := &domain.Page{
 		ID:         uuid.New(),
 		Title:      title,
@@ -95,9 +107,12 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 		IsDraft:    isDraft,
 		OrderIndex: orderIndex,
 	}
-	if err := uc.deps.PageRepo.Create(ctx, page); err != nil {
+
+	err := uc.deps.PageRepo.Create(ctx, page)
+	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - Create - PageRepo.Create: %w", err)
 	}
+
 	return page, nil
 }
 
@@ -106,38 +121,49 @@ func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, co
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetByID: %w", err)
 	}
+
 	title = strings.TrimSpace(title)
 	slug = strings.TrimSpace(slug)
+
 	if title == "" {
 		return nil, httperr.ErrPageTitleRequired
 	}
+
 	if slug == "" {
 		return nil, httperr.ErrPageSlugRequired
 	}
+
 	if !slugpkg.MatchPageSlug(slug) {
 		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
 	}
+
 	existing, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
 	if err != nil && !errors.Is(err, httperr.ErrPageNotFound) {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetBySlug: %w", err)
 	}
+
 	if existing != nil && existing.ID != ID {
 		return nil, httperr.ErrPageSlugConflict
 	}
+
 	page.Title = title
 	page.Slug = slug
 	page.Content = content
 	page.IsDraft = isDraft
+
 	page.OrderIndex = orderIndex
 	if err := uc.deps.PageRepo.Update(ctx, page); err != nil {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.Update: %w", err)
 	}
+
 	return page, nil
 }
 
 func (uc *PageUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := uc.deps.PageRepo.Delete(ctx, ID); err != nil {
+	err := uc.deps.PageRepo.Delete(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("PageUseCase - Delete - PageRepo.Delete: %w", err)
 	}
+
 	return nil
 }

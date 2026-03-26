@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -35,7 +34,7 @@ func TestBracketRepo_Create_Error_DuplicateName(t *testing.T) {
 	bracket2 := &domain.Bracket{Name: b1.Name, Description: "x", IsDefault: false}
 	err := f.BracketRepo.Create(ctx, bracket2)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrBracketNameConflict))
+	assert.ErrorIs(t, err, httperr.ErrBracketNameConflict)
 }
 
 func TestBracketRepo_GetByID_Success(t *testing.T) {
@@ -59,7 +58,7 @@ func TestBracketRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.BracketRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrBracketNotFound))
+	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_GetByName_Success(t *testing.T) {
@@ -82,7 +81,7 @@ func TestBracketRepo_GetByName_Error_NotFound(t *testing.T) {
 
 	_, err := f.BracketRepo.GetByName(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrBracketNotFound))
+	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_GetAll_Success(t *testing.T) {
@@ -95,10 +94,13 @@ func TestBracketRepo_GetAll_Success(t *testing.T) {
 	b2 := f.CreateBracket(t, "b")
 	list, err := f.BracketRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, b := range list {
 		ids[b.ID] = true
 	}
+
 	assert.True(t, ids[b1.ID], "bracket 1 should be in GetAll result")
 	assert.True(t, ids[b2.ID], "bracket 2 should be in GetAll result")
 }
@@ -140,7 +142,7 @@ func TestBracketRepo_Update_Error_DuplicateName(t *testing.T) {
 	b2.Name = b1.Name
 	err := f.BracketRepo.Update(ctx, b2)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrBracketNameConflict))
+	assert.ErrorIs(t, err, httperr.ErrBracketNameConflict)
 }
 
 func TestBracketRepo_Delete_Success(t *testing.T) {
@@ -154,7 +156,7 @@ func TestBracketRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.BracketRepo.GetByID(ctx, bracket.ID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrBracketNotFound))
+	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_Delete_Error_NotFound(t *testing.T) {

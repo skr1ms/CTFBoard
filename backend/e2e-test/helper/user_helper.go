@@ -14,34 +14,41 @@ func (h *E2EHelper) RegisterLoginAndGetMe(ctx context.Context, username, email, 
 	regResp := h.RegisterWithClient(ctx, h.client, username, email, password)
 	RequireStatus(h.t, http.StatusCreated, regResp.StatusCode(), regResp.Body, "register")
 	token := RequireLoginOK(h.t, h.LoginWithClient(ctx, h.client, email, password))
+
 	return RequireMeOK(h.t, h.MeWithClient(ctx, h.client, token))
 }
 
 func (h *E2EHelper) RegisterWithClient(ctx context.Context, client *openapi.ClientWithResponses, username, email, password string) *openapi.PostAuthRegisterResponse {
 	h.t.Helper()
+
 	resp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
 		Username: &username,
 		Email:    &email,
 		Password: &password,
 	})
 	require.NoError(h.t, err)
+
 	return resp
 }
 
 func (h *E2EHelper) LoginWithClient(ctx context.Context, client *openapi.ClientWithResponses, email, password string) *openapi.PostAuthLoginResponse {
 	h.t.Helper()
+
 	resp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
 		Email:    &email,
 		Password: password,
 	})
 	require.NoError(h.t, err)
+
 	return resp
 }
 
 func (h *E2EHelper) MeWithClient(ctx context.Context, client *openapi.ClientWithResponses, token string) *openapi.GetAuthMeResponse {
 	h.t.Helper()
+
 	resp, err := client.GetAuthMeWithResponse(ctx, WithBearerToken(token))
 	require.NoError(h.t, err)
+
 	return resp
 }
 
@@ -60,6 +67,7 @@ func (h *E2EHelper) RegisterExpectStatus(username, email, password string, expec
 	})
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "register")
+
 	return resp
 }
 
@@ -67,6 +75,7 @@ func (h *E2EHelper) Login(email, password string, expectStatus int) *openapi.Pos
 	h.t.Helper()
 	resp := h.LoginWithClient(context.Background(), h.client, email, password)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "login")
+
 	return resp
 }
 
@@ -115,10 +124,12 @@ func (h *E2EHelper) ResendVerification(token string, expectStatus int) {
 
 func (h *E2EHelper) Refresh(refreshToken string, expectStatus int) *openapi.PostAuthRefreshResponse {
 	h.t.Helper()
+
 	params := &openapi.PostAuthRefreshParams{Authorization: refreshToken}
 	resp, err := h.client.PostAuthRefreshWithResponse(context.Background(), params)
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "refresh")
+
 	return resp
 }
 
@@ -127,6 +138,7 @@ func (h *E2EHelper) GetPublicProfile(userID string, expectStatus int) *openapi.G
 	resp, err := h.client.GetUsersIDWithResponse(context.Background(), userID)
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get user profile")
+
 	return resp
 }
 
@@ -135,6 +147,7 @@ func (h *E2EHelper) GetProfileWithAuth(token, userID string, expectStatus int) *
 	resp, err := h.client.GetUsersIDWithResponse(context.Background(), userID, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get user profile")
+
 	return resp
 }
 
@@ -143,17 +156,20 @@ func (h *E2EHelper) GetUserTokens(token string, expectStatus int) *openapi.GetUs
 	resp, err := h.client.GetUserTokensWithResponse(context.Background(), WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get user tokens")
+
 	return resp
 }
 
 func (h *E2EHelper) CreateUserToken(token, description string, expectStatus int) *openapi.PostUserTokensResponse {
 	h.t.Helper()
+
 	desc := description
 	resp, err := h.client.PostUserTokensWithResponse(context.Background(), openapi.PostUserTokensJSONRequestBody{
 		Description: &desc,
 	}, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "create user token")
+
 	return resp
 }
 
@@ -162,23 +178,28 @@ func (h *E2EHelper) DeleteUserToken(token, id string, expectStatus int) *openapi
 	resp, err := h.client.DeleteUserTokensIDWithResponse(context.Background(), id, WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "delete user token")
+
 	return resp
 }
 
 func (h *E2EHelper) RegisterUserAndLogin(username string) (email, password, token string) {
 	h.t.Helper()
+
 	email = username + "@example.com"
 	password = "ValidPass1"
 	h.Register(username, email, password)
 	token = RequireLoginOK(h.t, h.Login(email, password, http.StatusOK))
+
 	return email, password, "Bearer " + token
 }
 
 func (h *E2EHelper) RegisterUser(username string) (email, password string) {
 	h.t.Helper()
+
 	email = username + "@example.com"
 	password = "ValidPass1"
 	h.Register(username, email, password)
+
 	return email, password
 }
 
@@ -192,33 +213,41 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 	userID := *meResp.JSON200.ID
 	_, err := h.pool.Exec(context.Background(), "UPDATE users SET role = 'admin' WHERE ID = $1", userID)
 	require.NoError(h.t, err)
+
 	if h.redis != nil {
 		// Invalidate user cache so InjectUser loads fresh role from DB. Del by prefix in case key format differs.
 		var cursor uint64
+
 		for {
 			keys, next, err := h.redis.Scan(context.Background(), cursor, "user:*", 100).Result()
 			require.NoError(h.t, err)
+
 			if len(keys) > 0 {
 				require.NoError(h.t, h.redis.Del(context.Background(), keys...).Err())
 			}
+
 			cursor = next
 			if cursor == 0 {
 				break
 			}
 		}
 	}
+
 	resp := h.Login(email, password, http.StatusOK)
 	require.NotNil(h.t, resp.JSON200)
 	token = "Bearer " + *resp.JSON200.AccessToken
+
 	return email, password, token
 }
 
 func (h *E2EHelper) SetupCompetition(adminNamePrefix string) (string, string) {
 	h.t.Helper()
+
 	suffix := UID()
 	username := adminNamePrefix + "_" + suffix
 	_, _, token := h.RegisterAdmin(username)
 	h.StartCompetition(token)
+
 	return username, token
 }
 
@@ -227,6 +256,7 @@ func (h *E2EHelper) GetMe(token string, expectStatus int) *openapi.GetAuthMeResp
 	resp, err := h.client.GetAuthMeWithResponse(context.Background(), WithBearerToken(token))
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "get auth me")
+
 	return resp
 }
 
@@ -246,6 +276,7 @@ func (h *E2EHelper) UnbanUser(tokenAdmin, userID string, expectStatus int) {
 
 func (h *E2EHelper) InvalidateUserCache(userID string) {
 	h.t.Helper()
+
 	if h.redis != nil {
 		_ = h.redis.Del(context.Background(), "user:"+userID)
 	}

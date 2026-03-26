@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wahrwelt-kit/go-cachekit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -25,6 +24,7 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
+
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
 		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
@@ -44,11 +44,13 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 
 	submit := func(uID uuid.UUID) {
 		defer wg.Done()
+
 		solve := &domain.Solve{
 			UserID:      uID,
 			TeamID:      team.ID,
 			ChallengeID: challenge.ID,
 		}
+
 		err := uc.Create(ctx, solve)
 		if err != nil {
 			errCh <- err
@@ -62,13 +64,15 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	close(errCh)
 
 	var errors []error
+
 	for err := range errCh {
 		errors = append(errors, err)
 	}
 
-	assert.Equal(t, 1, len(errors), "Exactly one submission should fail")
+	assert.Len(t, errors, 1, "Exactly one submission should fail")
 
 	var count int
+
 	err := f.Pool.QueryRow(ctx, "SELECT count(*) FROM solves WHERE team_id = $1 AND challenge_id = $2", team.ID, challenge.ID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count, "Should be exactly 1 solve record")
@@ -82,6 +86,7 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 
 	db, redisClient := redismock.NewClientMock()
 	redisClient.ExpectDel("solve:lock:12345678-1234-5678-1234-567812345678").SetVal(0)
+
 	uc := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: f.SolveRepo, ChallengeRepo: f.ChallengeRepo, CompetitionRepo: f.CompetitionRepo,
 		UserRepo: f.UserRepo, TeamRepo: f.TeamRepo, TM: f.TM,
@@ -91,14 +96,16 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	challenge := f.CreateDynamicChallenge(t, "DecayRace", 1000, 100, 10)
 
 	concurrency := 5
+
 	var wg sync.WaitGroup
 	wg.Add(concurrency)
 
 	errCh := make(chan error, concurrency)
 
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(IDx int) {
 			defer wg.Done()
+
 			suffix := fmt.Sprintf("decay_%d", IDx)
 			u, tm := f.CreateUserWithTeam(t, suffix)
 
@@ -107,7 +114,9 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 				TeamID:      tm.ID,
 				ChallengeID: challenge.ID,
 			}
-			if err := uc.Create(ctx, solve); err != nil {
+
+			err := uc.Create(ctx, solve)
+			if err != nil {
 				errCh <- err
 			}
 		}(i)

@@ -55,6 +55,7 @@ func seedLoadTestData(ctx context.Context, baseURL string, pool *pgxpool.Pool) (
 	if err != nil {
 		return nil, fmt.Errorf("seed admin: %w", err)
 	}
+
 	if err := seedStartCompetition(ctx, client, adminToken); err != nil {
 		return nil, fmt.Errorf("start competition: %w", err)
 	}
@@ -110,6 +111,7 @@ func seedAdmin(ctx context.Context, client *openapi.ClientWithResponses, pool *p
 	if err != nil {
 		return "", fmt.Errorf("register: %w", err)
 	}
+
 	if regResp.StatusCode() != 201 {
 		return "", fmt.Errorf("register returned %d: %s", regResp.StatusCode(), string(regResp.Body))
 	}
@@ -126,22 +128,27 @@ func seedAdmin(ctx context.Context, client *openapi.ClientWithResponses, pool *p
 	if err != nil {
 		return "", fmt.Errorf("login: %w", err)
 	}
+
 	if loginResp.StatusCode() != 200 || loginResp.JSON200 == nil || loginResp.JSON200.AccessToken == nil {
 		return "", fmt.Errorf("login returned %d: %s", loginResp.StatusCode(), string(loginResp.Body))
 	}
+
 	bearer := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(bearer)
 
 	desc := "load-test admin"
+
 	tokenResp, err := client.PostUserTokensWithResponse(ctx, openapi.PostUserTokensJSONRequestBody{
 		Description: &desc,
 	}, authFn)
 	if err != nil {
 		return "", fmt.Errorf("create api token: %w", err)
 	}
+
 	if tokenResp.StatusCode() != 201 || tokenResp.JSON201 == nil || tokenResp.JSON201.Token == "" {
 		return "", fmt.Errorf("create api token returned %d: %s", tokenResp.StatusCode(), string(tokenResp.Body))
 	}
+
 	return "Token " + tokenResp.JSON201.Token, nil
 }
 
@@ -165,9 +172,11 @@ func seedStartCompetition(ctx context.Context, client *openapi.ClientWithRespons
 	if err != nil {
 		return fmt.Errorf("put competition: %w", err)
 	}
+
 	if resp.StatusCode() != 200 {
 		return fmt.Errorf("put competition returned %d: %s", resp.StatusCode(), string(resp.Body))
 	}
+
 	return nil
 }
 
@@ -188,9 +197,11 @@ func seedChallenges(ctx context.Context, client *openapi.ClientWithResponses, ad
 		isHidden := false
 
 		state := openapi.CreateChallengeRequestStateVisible
+
 		if isHidden {
 			state = openapi.CreateChallengeRequestStateHidden
 		}
+
 		resp, err := client.PostAdminChallengesWithResponse(ctx, openapi.PostAdminChallengesJSONRequestBody{
 			Title:        title,
 			Flag:         flag,
@@ -205,12 +216,15 @@ func seedChallenges(ctx context.Context, client *openapi.ClientWithResponses, ad
 		if err != nil {
 			return nil, nil, fmt.Errorf("create challenge %d: %w", i, err)
 		}
+
 		if resp.StatusCode() != 201 || resp.JSON201 == nil || resp.JSON201.ID == nil {
 			return nil, nil, fmt.Errorf("create challenge %d returned %d: %s", i, resp.StatusCode(), string(resp.Body))
 		}
+
 		ids = append(ids, *resp.JSON201.ID)
 		flags = append(flags, flag)
 	}
+
 	return ids, flags, nil
 }
 
@@ -232,11 +246,14 @@ func seedHints(ctx context.Context, client *openapi.ClientWithResponses, adminTo
 		if err != nil {
 			return nil, fmt.Errorf("create hint for challenge %s: %w", chalID, err)
 		}
+
 		if resp.StatusCode() != 201 || resp.JSON201 == nil || resp.JSON201.ID == nil {
 			return nil, fmt.Errorf("create hint returned %d: %s", resp.StatusCode(), string(resp.Body))
 		}
+
 		entries = append(entries, HintEntry{ChallengeID: chalID, HintID: *resp.JSON201.ID})
 	}
+
 	return entries, nil
 }
 
@@ -248,26 +265,34 @@ type seedResult struct {
 func seedUsers(ctx context.Context, client *openapi.ClientWithResponses, _ *pgxpool.Pool, n int) ([]UserToken, error) {
 	sem := make(chan struct{}, seedConcurrency)
 	results := make([]seedResult, n)
+
 	var wg sync.WaitGroup
 
 	for i := range n {
 		wg.Add(1)
+
 		sem <- struct{}{}
+
 		go func(idx int) {
 			defer wg.Done()
 			defer func() { <-sem }()
+
 			results[idx] = seedSingleUser(ctx, client, idx)
 		}(i)
 	}
+
 	wg.Wait()
 
 	tokens := make([]UserToken, 0, n)
+
 	for _, r := range results {
 		if r.err != nil {
 			return nil, r.err
 		}
+
 		tokens = append(tokens, r.ut)
 	}
+
 	return tokens, nil
 }
 
@@ -284,6 +309,7 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	if err != nil {
 		return seedResult{err: fmt.Errorf("register user %d: %w", idx, err)}
 	}
+
 	if regResp.StatusCode() != 201 {
 		return seedResult{err: fmt.Errorf("register user %d returned %d: %s", idx, regResp.StatusCode(), string(regResp.Body))}
 	}
@@ -295,9 +321,11 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	if err != nil {
 		return seedResult{err: fmt.Errorf("login user %d: %w", idx, err)}
 	}
+
 	if loginResp.StatusCode() != 200 || loginResp.JSON200 == nil || loginResp.JSON200.AccessToken == nil {
 		return seedResult{err: fmt.Errorf("login user %d returned %d: %s", idx, loginResp.StatusCode(), string(loginResp.Body))}
 	}
+
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
@@ -305,6 +333,7 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	if err != nil {
 		return seedResult{err: fmt.Errorf("create team user %d: %w", idx, err)}
 	}
+
 	if teamResp.StatusCode() != 201 {
 		return seedResult{err: fmt.Errorf("create team user %d returned %d: %s", idx, teamResp.StatusCode(), string(teamResp.Body))}
 	}
@@ -313,7 +342,9 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	if err != nil {
 		return seedResult{err: fmt.Errorf("get team user %d: %w", idx, err)}
 	}
+
 	teamID := ""
+
 	if myTeamResp.StatusCode() == 200 && myTeamResp.JSON200 != nil && myTeamResp.JSON200.ID != nil {
 		teamID = *myTeamResp.JSON200.ID
 	}
@@ -322,7 +353,9 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	if err != nil {
 		return seedResult{err: fmt.Errorf("get me user %d: %w", idx, err)}
 	}
+
 	userID := ""
+
 	if meResp.StatusCode() == 200 && meResp.JSON200 != nil && meResp.JSON200.ID != nil {
 		userID = *meResp.JSON200.ID
 	}
@@ -350,9 +383,11 @@ func seedRaceUser(
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("register race user: %w", err)
 	}
+
 	if regResp.StatusCode() != 201 {
 		return "", "", "", "", fmt.Errorf("register race user returned %d: %s", regResp.StatusCode(), string(regResp.Body))
 	}
+
 	_ = pool
 
 	loginResp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
@@ -362,9 +397,11 @@ func seedRaceUser(
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("login race user: %w", err)
 	}
+
 	if loginResp.StatusCode() != 200 || loginResp.JSON200 == nil || loginResp.JSON200.AccessToken == nil {
 		return "", "", "", "", fmt.Errorf("login race user returned %d: %s", loginResp.StatusCode(), string(loginResp.Body))
 	}
+
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
@@ -372,6 +409,7 @@ func seedRaceUser(
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("create race team: %w", err)
 	}
+
 	if teamResp.StatusCode() != 201 {
 		return "", "", "", "", fmt.Errorf("create race team returned %d: %s", teamResp.StatusCode(), string(teamResp.Body))
 	}
@@ -380,6 +418,7 @@ func seedRaceUser(
 
 	raceHintID := ""
 	raceHintChalID := ""
+
 	if len(hintEntries) > 0 {
 		raceHintID = hintEntries[0].HintID
 		raceHintChalID = hintEntries[0].ChallengeID
@@ -394,7 +433,9 @@ func bearerEditor(token string) openapi.RequestEditorFn {
 		if t != "" && !strings.Contains(t, " ") {
 			t = "Bearer " + t
 		}
+
 		req.Header.Set("Authorization", t)
+
 		return nil
 	}
 }
@@ -404,6 +445,8 @@ func rehashUsersWithMinCost(ctx context.Context, pool *pgxpool.Pool, password st
 	if err != nil {
 		return fmt.Errorf("generate min-cost hash: %w", err)
 	}
+
 	_, err = pool.Exec(ctx, "UPDATE users SET password_hash = $1", string(hash))
+
 	return err
 }

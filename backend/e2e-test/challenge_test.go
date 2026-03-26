@@ -34,6 +34,7 @@ func TestChallenge_Lifecycle(t *testing.T) {
 
 	challenge := h.FindChallengeInList(tokenUser, challengeID)
 	require.Equal(t, "Test Challenge", *challenge.Title)
+
 	solvedFalse := false
 	solveCount0 := 0
 	helper.RequireChallengeFields(t, challenge, "", &solvedFalse, &solveCount0, nil)
@@ -138,6 +139,7 @@ func TestChallenge_Update(t *testing.T) {
 	challenge := h.FindChallengeInList(tokenAdmin, challengeID)
 	require.Equal(t, "Updated Title", *challenge.Title)
 	require.Equal(t, "Updated Description", *challenge.Description)
+
 	points150 := 150
 	helper.RequireChallengeFields(t, challenge, "", nil, nil, &points150)
 }
@@ -331,6 +333,7 @@ func TestChallenge_GetSolution_AfterCompetitionEnd(t *testing.T) {
 
 	_, tokenAdmin := h.SetupCompetition("sol_end_admin")
 	h.EnableWriteups(tokenAdmin)
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_end_usr_" + suffix)
 	h.CreateTeam(tokenUser, "sol_end_team_"+suffix, http.StatusCreated)
@@ -340,9 +343,11 @@ func TestChallenge_GetSolution_AfterCompetitionEnd(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "flag{solution}", http.StatusOK)
 
 	t.Cleanup(resetCompetitionToActive)
+
 	ctx := context.Background()
 	_, err := TestPool.Exec(ctx, `UPDATE competition SET end_time = NOW() - INTERVAL '1 minute' WHERE id = 1`)
 	require.NoError(t, err)
+
 	_ = TestRedis.Del(ctx, "competition")
 
 	resp := h.GetSolution(tokenUser, challengeID, http.StatusOK)
@@ -357,6 +362,7 @@ func TestChallenge_GetSolution_NotFound(t *testing.T) {
 
 	_, tokenAdmin := h.SetupCompetition("sol_notfound_adm")
 	h.EnableWriteups(tokenAdmin)
+
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_nf_usr_" + suffix)
 
@@ -364,6 +370,7 @@ func TestChallenge_GetSolution_NotFound(t *testing.T) {
 	require.NoError(t, err)
 	// 404 when challenge missing; 403 when writeups disabled (parallel test may have disabled it).
 	require.Contains(t, []int{http.StatusNotFound, http.StatusForbidden}, resp.StatusCode(), "solution not found: status %d body=%s", resp.StatusCode(), string(resp.Body))
+
 	if resp.StatusCode() == http.StatusNotFound {
 		require.NotNil(t, resp.JSON404)
 	}
@@ -422,7 +429,9 @@ func TestChallenge_GetFiles_NotFound(t *testing.T) {
 	params := &openapi.GetChallengesChallengeIDFilesParams{}
 	resp, err := h.Client().GetChallengesChallengeIDFilesWithResponse(context.Background(), "00000000-0000-0000-0000-000000000000", params, helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
+
 	_ = tokenAdmin
+
 	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "files for unknown challenge")
 }
 
@@ -594,6 +603,7 @@ func TestChallenge_Create_WithoutDynamicParams_StaysStatic(t *testing.T) {
 
 	c1 := h.FindChallengeInList(token1, challID)
 	c2 := h.FindChallengeInList(token2, challID)
+
 	require.NotNil(t, c1.Points)
 	require.NotNil(t, c2.Points)
 	require.Equal(t, *c1.Points, *c2.Points, "static challenge: both solvers must get same points")

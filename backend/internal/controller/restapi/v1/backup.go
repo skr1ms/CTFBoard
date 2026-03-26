@@ -26,13 +26,13 @@ const (
 var allowedExportTables = []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
 
 // Health check
-// (GET /healthcheck)
+// (GET /healthcheck).
 func (h *Server) GetHealthcheck(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromHealthcheck("ok", "ok"))
 }
 
 // Get robots.txt
-// (GET /robots.txt)
+// (GET /robots.txt).
 func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	robotsTxt := `User-agent: *
 Disallow: /api/
@@ -42,7 +42,7 @@ Allow: /
 }
 
 // Get Terms of Service
-// (GET /tos)
+// (GET /tos).
 func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
 	tosContent := `<!DOCTYPE html>
 <html>
@@ -60,7 +60,7 @@ func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get Privacy Policy
-// (GET /privacy)
+// (GET /privacy).
 func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
 	privacyContent := `<!DOCTYPE html>
 <html>
@@ -78,10 +78,11 @@ func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get debug information
-// (GET /debug)
+// (GET /debug).
 func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 	if !h.infra.DebugEnabled {
 		h.OnError(w, r, httperr.ErrDebugNotEnabled, "GetDebug", "DebugCheck")
+
 		return
 	}
 
@@ -94,7 +95,7 @@ func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 }
 
 // Export competition backup as JSON
-// (GET /admin/export)
+// (GET /admin/export).
 func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportParams) {
 	opts := domain.ExportOptions{
 		IncludeUsers:       params.IncludeUsers != nil && *params.IncludeUsers,
@@ -116,7 +117,7 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 }
 
 // Export competition backup as ZIP archive
-// (GET /admin/export/zip)
+// (GET /admin/export/zip).
 func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportZipParams) {
 	includeFiles := params.IncludeFiles == nil || *params.IncludeFiles
 
@@ -142,7 +143,7 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 }
 
 // Reset competition data
-// (POST /admin/reset)
+// (POST /admin/reset).
 func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.AdminResetRequest](
 		w, r, h.infra.Validator,
@@ -162,12 +163,13 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 }
 
 // Import competition backup from ZIP file
-// (POST /admin/import)
+// (POST /admin/import).
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
+
 	if !helper.ParseMultipartFormLimit(w, r, maxBackupZIPSize, maxBackupZIPSize) {
 		return
 	}
@@ -175,17 +177,23 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	var body openapi.PostAdminImportMultipartBody
 	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
 		h.OnError(w, r, err, "PostAdminImport", "DecodeMultipartForm")
+
 		return
 	}
+
 	if !helper.RequireMultipartFile(w, r, h.OnError, "PostAdminImport", "FileRequired", body.File.FileSize()) {
 		return
 	}
 
 	var cm domain.ConflictMode
+
 	if body.ConflictMode != nil {
 		cm = domain.ConflictMode(*body.ConflictMode)
-		if err := helper.ValidateMultipartEnum("conflict_mode", string(cm), []string{"merge", "overwrite", "skip"}); err != nil {
+
+		err := helper.ValidateMultipartEnum("conflict_mode", string(cm), []string{"merge", "overwrite", "skip"})
+		if err != nil {
 			h.OnError(w, r, err, "PostAdminImport", "ConflictMode")
+
 			return
 		}
 	} else {
@@ -196,8 +204,10 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminImport", "ReadFile") {
 		return
 	}
+
 	if len(data) < 2 || data[0] != 0x50 || data[1] != 0x4B {
 		h.OnError(w, r, httperr.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
+
 		return
 	}
 
@@ -211,6 +221,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reader := bytes.NewReader(data)
+
 	result, err := h.admin.BackupUC.ImportZIP(r.Context(), reader, body.File.FileSize(), opts)
 	if h.OnError(w, r, err, "PostAdminImport", "ImportZIP") {
 		return
@@ -220,28 +231,32 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 }
 
 // Export table as CSV
-// (GET /admin/export/csv)
+// (GET /admin/export/csv).
 func (h *Server) GetAdminExportCsv(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportCsvParams) {
 	table, ok := httputil.ParseEnumQuery(r, "table", allowedExportTables)
 	if !ok {
 		h.OnError(w, r, httperr.NewValidationErrorf("invalid table: allowed values are users, teams, challenges, submissions, solves, awards"), "GetAdminExportCsv", "TableValidate")
+
 		return
 	}
+
 	csvData, err := h.admin.BackupUC.ExportCSV(r.Context(), string(table))
 	if h.OnError(w, r, err, "GetAdminExportCsv", "ExportCSV") {
 		return
 	}
+
 	filename := filepath.Base(string(table) + ".csv")
 	if filename == "." || filename == "" {
 		filename = "export.csv"
 	}
+
 	if err := httputil.RenderBytes(w, "text/csv; charset=utf-8", filename, csvData); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - GetAdminExportCsv - write")
 	}
 }
 
 // Import CSV data
-// (POST /admin/import/csv)
+// (POST /admin/import/csv).
 func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	if !helper.ParseMultipartFormLimit(w, r, maxBackupCSVSize, maxBackupCSVSize) {
 		return
@@ -250,17 +265,23 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	var body openapi.PostAdminImportCsvMultipartBody
 	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
 		h.OnError(w, r, err, "PostAdminImportCsv", "DecodeMultipartForm")
+
 		return
 	}
+
 	if !helper.RequireMultipartFile(w, r, h.OnError, "PostAdminImportCsv", "FileRequired", body.File.FileSize()) {
 		return
 	}
+
 	if body.Table == "" {
 		h.OnError(w, r, httperr.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
+
 		return
 	}
+
 	if err := helper.ValidateMultipartEnum("table", string(body.Table), allowedExportTables); err != nil {
 		h.OnError(w, r, err, "PostAdminImportCsv", "TableValidate")
+
 		return
 	}
 
@@ -273,5 +294,6 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	if h.OnError(w, r, err, "PostAdminImportCsv", "ImportCSV") {
 		return
 	}
+
 	httputil.RenderOK(w, r, response.FromCSVImportResult(result))
 }

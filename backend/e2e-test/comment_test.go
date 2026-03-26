@@ -17,7 +17,9 @@ func TestComment_CreateAndList_Success(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_ok_" + helper.UID())
+
 	t.Cleanup(resetCompetitionToActive)
+
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
 	time.Sleep(5 * time.Second)
@@ -34,13 +36,17 @@ func TestComment_CreateAndList_Success(t *testing.T) {
 
 	listResp := h.GetChallengeComments(tokenUser, challengeID, http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
+
 	found := false
+
 	for _, c := range *listResp.JSON200 {
 		if c.Content != nil && *c.Content == content {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "created comment must be in list")
 }
 
@@ -64,9 +70,12 @@ func TestComment_Delete_Success(t *testing.T) {
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_del_" + helper.UID())
+
 	t.Cleanup(resetCompetitionToActive)
+
 	now := time.Now().UTC()
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(-1*time.Second), nil)
+
 	challengeID := h.CreateBasicChallenge(tokenAdmin, "Comment Del Ch", "FLAG{del}", 100)
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("comment_del_user_" + suffix)

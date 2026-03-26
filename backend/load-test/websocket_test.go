@@ -36,6 +36,7 @@ func TestWebSocket_Endurance(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping WebSocket endurance test in short mode")
 	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 	require.NotEmpty(t, Fixture.ChallengeIDs)
@@ -56,10 +57,8 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 	t.Helper()
 
 	wsURL := strings.Replace(Fixture.BaseURL, "http://", "ws://", 1) + "/api/v1/ws"
-	numConns := wsEnduranceConns
-	if numConns > len(Fixture.Users) {
-		numConns = len(Fixture.Users)
-	}
+
+	numConns := min(wsEnduranceConns, len(Fixture.Users))
 
 	var (
 		mu           sync.Mutex
@@ -72,16 +71,21 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 	defer cancel()
 
 	var connectWg sync.WaitGroup
+
 	for i := range numConns {
 		connectWg.Add(1)
+
 		go func(idx int) {
 			defer connectWg.Done()
+
 			state := &wsConnState{startedAt: time.Now()}
+
 			mu.Lock()
 			states[idx] = state
 			mu.Unlock()
 
 			token := Fixture.Users[idx].Token
+
 			dialCtx, dialCancel := context.WithTimeout(ctx, wsConnectTimeout)
 			defer dialCancel()
 
@@ -91,9 +95,12 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
 			}
+
 			if err != nil {
 				state.lastErr = err
+
 				disconnected.Add(1)
+
 				return
 			}
 
@@ -101,20 +108,23 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 			go runWSClientLoop(ctx, conn, state, &totalMsgsRx, &disconnected, duration)
 		}(i)
 	}
+
 	connectWg.Wait()
 
 	aliveAfterConnect := numConns - int(disconnected.Load())
 	fmt.Printf("\n[ws-endurance] connected %d/%d clients\n", aliveAfterConnect, numConns)
-	require.Greater(t, aliveAfterConnect, 0, "no WebSocket connections established")
+	require.Positive(t, aliveAfterConnect, "no WebSocket connections established")
 
 	eventCtx, eventCancel := context.WithCancel(ctx)
 	defer eventCancel()
+
 	go generateWSEvents(eventCtx, Fixture, wsEventInterval)
 
 	select {
 	case <-time.After(duration):
 	case <-ctx.Done():
 	}
+
 	eventCancel()
 
 	aliveAtEnd := aliveAfterConnect - int(disconnected.Load())
@@ -141,6 +151,7 @@ func runWSClientLoop(
 	duration time.Duration,
 ) {
 	endAt := time.Now().Add(duration)
+
 	defer conn.Close(websocket.StatusNormalClosure, "")
 
 	for {
@@ -150,17 +161,22 @@ func runWSClientLoop(
 
 		readCtx, readCancel := context.WithDeadline(ctx, endAt)
 		_, data, err := conn.Read(readCtx)
+
 		readCancel()
+
 		if err != nil {
 			if !isWSEnduranceDone(ctx, endAt) {
 				state.lastErr = err
 				state.connected = false
+
 				disconnected.Add(1)
 			}
+
 			return
 		}
 
 		state.messagesRx++
+
 		totalMsgsRx.Add(1)
 
 		var msg map[string]any
@@ -178,6 +194,7 @@ func isWSEnduranceDone(ctx context.Context, endAt time.Time) bool {
 		return true
 	default:
 	}
+
 	return time.Now().After(endAt)
 }
 
@@ -185,6 +202,7 @@ func generateWSEvents(ctx context.Context, fixture *TestFixture, interval time.D
 	if len(fixture.ChallengeIDs) == 0 || len(fixture.Users) == 0 {
 		return
 	}
+
 	chalID := fixture.ChallengeIDs[0]
 	client := &http.Client{Timeout: 5 * time.Second}
 
@@ -192,6 +210,7 @@ func generateWSEvents(ctx context.Context, fixture *TestFixture, interval time.D
 	defer tick.Stop()
 
 	var i int
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -199,6 +218,7 @@ func generateWSEvents(ctx context.Context, fixture *TestFixture, interval time.D
 		case <-tick.C:
 			token := fixture.Users[i%len(fixture.Users)].Token
 			sendWrongFlag(ctx, client, fixture.BaseURL, token, chalID)
+
 			i++
 		}
 	}
@@ -207,16 +227,20 @@ func generateWSEvents(ctx context.Context, fixture *TestFixture, interval time.D
 func sendWrongFlag(ctx context.Context, client *http.Client, baseURL, token, challengeID string) {
 	url := fmt.Sprintf("%s/api/v1/challenges/%s/submit", baseURL, challengeID)
 	body := `{"flag":"ws_endurance_wrong_flag_` + fmt.Sprintf("%d", time.Now().UnixNano()) + `"}`
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
 		return
 	}
+
 	req.Header.Set("Authorization", token)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req) //nolint:gosec // test-only: URL is constructed from test config
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return
 	}
+
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
@@ -224,10 +248,12 @@ func sendWrongFlag(ctx context.Context, client *http.Client, baseURL, token, cha
 
 func countReconnects(states []*wsConnState) int {
 	total := 0
+
 	for _, s := range states {
 		if s != nil {
 			total += s.reconnects
 		}
 	}
+
 	return total
 }

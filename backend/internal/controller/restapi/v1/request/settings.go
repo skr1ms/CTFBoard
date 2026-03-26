@@ -64,6 +64,7 @@ func ValidateUpdateAppSettingsRequest(req *openapi.UpdateAppSettingsRequest, v v
 		SubmitLimitPerUser:               req.SubmitLimitPerUser,
 		VerifyTTLHours:                   req.VerifyTTLHours,
 	}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -72,10 +73,12 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 	if req.ScoreboardVisible != nil {
 		scoreboardVisible = string(*req.ScoreboardVisible)
 	}
+
 	registrationOpen := current.RegistrationOpen
 	if req.RegistrationOpen != nil {
 		registrationOpen = *req.RegistrationOpen
 	}
+
 	return &domain.Settings{
 		ID:                               id,
 		UpdatedAt:                        current.UpdatedAt,

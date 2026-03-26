@@ -12,6 +12,7 @@ func RequireTeam() func(http.Handler) http.Handler {
 		if user.TeamID == nil {
 			return httperr.ErrUserNotInTeam
 		}
+
 		return nil
 	})
 }

@@ -103,6 +103,7 @@ var UseCaseSet = wire.NewSet(
 	ProvideEmailUseCase,
 	ProvideTrackingUseCase,
 	ProvideOAuthUseCase,
+	ProvideAvatarUseCase,
 	ProvideOAuthProviders,
 	wire.Bind(new(usecase.BackupUseCase), new(*backup.BackupUseCase)),
 	wire.Bind(new(usecase.CompetitionUseCase), new(*competition.CompetitionUseCase)),

@@ -48,7 +48,9 @@ func TestSubmissionUseCase_GetByChallenge_Success(t *testing.T) {
 	ctx := context.Background()
 	challengeID := uuid.New()
 	page, perPage := 1, 20
+
 	var list []*domain.SubmissionWithDetails
+
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(list, nil)
@@ -85,7 +87,9 @@ func TestSubmissionUseCase_GetByUser_Success(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
 	page, perPage := 1, 20
+
 	var list []*domain.SubmissionWithDetails
+
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(list, nil)
@@ -122,7 +126,9 @@ func TestSubmissionUseCase_GetByTeam_Success(t *testing.T) {
 	ctx := context.Background()
 	teamID := uuid.New()
 	page, perPage := 1, 20
+
 	var list []*domain.SubmissionWithDetails
+
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(list, nil)
@@ -158,7 +164,9 @@ func TestSubmissionUseCase_GetAll_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	page, perPage := 1, 20
+
 	var list []*domain.SubmissionWithDetails
+
 	total := int64(0)
 
 	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(list, nil)

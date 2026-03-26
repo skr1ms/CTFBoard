@@ -17,6 +17,7 @@ import (
 var multipartFormDecoder = func() *form.Decoder {
 	d := form.NewDecoder()
 	d.SetTagName("json")
+
 	return d
 }()
 
@@ -25,8 +26,10 @@ type multipartErrorReporter func(w http.ResponseWriter, r *http.Request, err err
 func RequireMultipartFile(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op, step string, fileSize int64) bool {
 	if fileSize == 0 {
 		onError(w, r, httperr.NewValidationErrorf("file is required"), op, step)
+
 		return false
 	}
+
 	return true
 }
 
@@ -34,6 +37,7 @@ func ValidateMultipartEnum(fieldName, value string, allowed []string) error {
 	if lo.Contains(allowed, value) {
 		return nil
 	}
+
 	return httperr.NewValidationErrorf("invalid %s: allowed values are %s", fieldName, strings.Join(allowed, ", "))
 }
 
@@ -51,6 +55,7 @@ func checkMultipartValueLengths(vals map[string][]string) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -58,18 +63,22 @@ func setMultipartFileFields(r *http.Request, dst reflect.Value) {
 	t := dst.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		if field.Type != reflect.TypeOf(openapi_types.File{}) {
+		if field.Type != reflect.TypeFor[openapi_types.File]() {
 			continue
 		}
+
 		tag := field.Tag.Get("json")
 		if tag == "" || tag == "-" {
 			continue
 		}
+
 		name := strings.Split(tag, ",")[0]
+
 		headers, ok := r.MultipartForm.File[name]
 		if !ok || len(headers) == 0 {
 			continue
 		}
+
 		var file openapi_types.File
 		file.InitFromMultipart(headers[0])
 		dst.Field(i).Set(reflect.ValueOf(file))
@@ -83,17 +92,25 @@ func DecodeMultipartForm[T any](r *http.Request, dst *T, v validator.Validator) 
 	if r.MultipartForm == nil {
 		return nil
 	}
+
 	vals := r.MultipartForm.Value
-	if err := checkMultipartValueLengths(vals); err != nil {
+
+	err := checkMultipartValueLengths(vals)
+	if err != nil {
 		return err
 	}
-	if err := multipartFormDecoder.Decode(dst, vals); err != nil {
+
+	err = multipartFormDecoder.Decode(dst, vals)
+	if err != nil {
 		return httperr.NewValidationErrorf("%v", err)
 	}
+
 	rv := reflect.ValueOf(dst).Elem()
 	setMultipartFileFields(r, rv)
+
 	if v != nil {
 		return v.Validate(dst)
 	}
+
 	return nil
 }

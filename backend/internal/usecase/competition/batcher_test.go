@@ -25,9 +25,11 @@ func TestSubmissionBatcher_Enqueue_FlushOnTicker(t *testing.T) {
 	repo := compMock.NewMockSubmissionRepository(t)
 
 	flushed := make(chan []*domain.Submission, 1)
+
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			flushed <- subs
+
 			return nil
 		})
 
@@ -48,13 +50,17 @@ func TestSubmissionBatcher_Enqueue_BatchSizeTriggersFlush(t *testing.T) {
 	t.Parallel()
 	repo := compMock.NewMockSubmissionRepository(t)
 
-	var mu sync.Mutex
-	var received []*domain.Submission
+	var (
+		mu       sync.Mutex
+		received []*domain.Submission
+	)
+
 	done := make(chan struct{})
 
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			mu.Lock()
+
 			received = append(received, subs...)
 			if len(received) >= defaultBatchSize {
 				select {
@@ -63,6 +69,7 @@ func TestSubmissionBatcher_Enqueue_BatchSizeTriggersFlush(t *testing.T) {
 				}
 			}
 			mu.Unlock()
+
 			return nil
 		}).Maybe()
 
@@ -101,14 +108,17 @@ func TestSubmissionBatcher_GracefulShutdown_DrainsRemaining(t *testing.T) {
 	t.Parallel()
 	repo := compMock.NewMockSubmissionRepository(t)
 
-	var mu sync.Mutex
-	var totalFlushed int
+	var (
+		mu           sync.Mutex
+		totalFlushed int
+	)
 
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, subs []*domain.Submission) error {
 			mu.Lock()
 			totalFlushed += len(subs)
 			mu.Unlock()
+
 			return nil
 		}).Maybe()
 
@@ -140,6 +150,7 @@ func TestSubmissionBatcher_CreateBatch_ErrorFallsBackToIndividual(t *testing.T) 
 			case individualDone <- struct{}{}:
 			default:
 			}
+
 			return nil
 		}).Once()
 
@@ -165,18 +176,20 @@ func TestSubmissionBatcher_ConcurrentEnqueue_NoRace(t *testing.T) {
 	b := NewSubmissionBatcher(repo)
 
 	var wg sync.WaitGroup
-	const goroutines = 50
-	const perGoroutine = 20
+
+	const (
+		goroutines   = 50
+		perGoroutine = 20
+	)
 
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range perGoroutine {
 				b.Enqueue(newSub())
 			}
-		}()
+		})
 	}
+
 	wg.Wait()
 	b.Stop()
 }
@@ -186,11 +199,14 @@ func TestSubmissionBatcher_ChannelFull_SyncWrite(t *testing.T) {
 	repo := compMock.NewMockSubmissionRepository(t)
 
 	blocked := make(chan struct{})
+
 	repo.EXPECT().CreateBatch(mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ []*domain.Submission) error {
 			<-blocked
+
 			return nil
 		}).Maybe()
+
 	for range 100 {
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
 	}

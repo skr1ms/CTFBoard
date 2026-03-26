@@ -19,7 +19,9 @@ func TestAsyncMailer(t *testing.T) {
 	mockMailer := mailerMock.NewMockMailer(t)
 	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, err)
+
 	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
@@ -49,13 +51,16 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 	mockMailer := mailerMock.NewMockMailer(t)
 	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, err)
+
 	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
 
 	msg := mailer.Message{To: "drain@example.com", Subject: "Drain", Body: "Body"}
 
 	sendCalled := make(chan struct{})
+
 	mockMailer.On("Send", mock.Anything, mock.MatchedBy(func(m mailer.Message) bool {
 		return m.To == "drain@example.com"
 	})).Return(nil).Once().Run(func(mock.Arguments) { close(sendCalled) })
@@ -64,6 +69,7 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 	assert.NoError(t, err)
 
 	done := make(chan struct{})
+
 	go func() {
 		asyncMailer.Stop()
 		close(done)
@@ -74,5 +80,6 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for mailer to drain message")
 	}
+
 	<-done
 }

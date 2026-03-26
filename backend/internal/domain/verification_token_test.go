@@ -9,18 +9,21 @@ import (
 
 func TestVerificationToken_IsExpired_Success(t *testing.T) {
 	t.Parallel()
+
 	tok := &VerificationToken{ExpiresAt: time.Now().Add(-time.Hour)}
 	assert.True(t, tok.IsExpired())
 }
 
 func TestVerificationToken_IsExpired_Error(t *testing.T) {
 	t.Parallel()
+
 	tok := &VerificationToken{ExpiresAt: time.Now().Add(time.Hour)}
 	assert.False(t, tok.IsExpired())
 }
 
 func TestVerificationToken_IsUsed_Success(t *testing.T) {
 	t.Parallel()
+
 	used := time.Now()
 	tok := &VerificationToken{UsedAt: &used}
 	assert.True(t, tok.IsUsed())
@@ -28,6 +31,7 @@ func TestVerificationToken_IsUsed_Success(t *testing.T) {
 
 func TestVerificationToken_IsUsed_Error(t *testing.T) {
 	t.Parallel()
+
 	tok := &VerificationToken{UsedAt: nil}
 	assert.False(t, tok.IsUsed())
 }

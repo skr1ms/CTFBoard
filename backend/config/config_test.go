@@ -15,9 +15,11 @@ const flagKey64Hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789
 
 func setupEnv(t *testing.T, env map[string]string) {
 	t.Helper()
+
 	for k, v := range env {
 		os.Setenv(k, v)
 	}
+
 	t.Cleanup(func() {
 		for k := range env {
 			os.Unsetenv(k)
@@ -159,6 +161,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 		"RESEND_ENABLED":        "false",
 		"HTTP_SHUTDOWN_TIMEOUT": "30",
 	})
+
 	cfg, err := New()
 	require.NoError(t, err)
 	assert.Equal(t, 30*time.Second, cfg.ShutdownTimeout)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -30,6 +29,7 @@ func (r *AuditLogRepo) Create(ctx context.Context, l *domain.AuditLog) error {
 	if err != nil {
 		return fmt.Errorf("AuditLogRepo - Create - Marshal: %w", err)
 	}
+
 	row, err := r.Q(ctx).CreateAuditLog(ctx, sqlc.CreateAuditLogParams{
 		UserID:     l.UserID,
 		Action:     string(l.Action),
@@ -41,7 +41,9 @@ func (r *AuditLogRepo) Create(ctx context.Context, l *domain.AuditLog) error {
 	if err != nil {
 		return fmt.Errorf("AuditLogRepo - Create: %w", err)
 	}
+
 	l.ID = row.ID
 	l.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
+
 	return nil
 }

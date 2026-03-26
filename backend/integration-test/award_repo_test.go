@@ -27,10 +27,13 @@ func TestAwardRepo_GetAll_Success(t *testing.T) {
 
 	awards, err := f.AwardRepo.GetAll(ctx)
 	require.NoError(t, err)
+
 	ids := make(map[uuid.UUID]bool)
+
 	for _, a := range awards {
 		ids[a.ID] = true
 	}
+
 	assert.True(t, ids[award1.ID], "award1 should be in GetAll result")
 	assert.True(t, ids[award2.ID], "award2 should be in GetAll result")
 }
@@ -78,6 +81,7 @@ func TestAwardRepo_Create_Error_CancelledContext(t *testing.T) {
 			Description: "Fail",
 			CreatedBy:   &admin.ID,
 		}
+
 		return f.AwardRepo.Create(txCtx, award)
 	})
 	assert.Error(t, err)
@@ -97,6 +101,7 @@ func TestAwardRepo_GetByTeamID_Success(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		awards, err := f.AwardRepo.GetByTeamID(ctx, team.ID)
+
 		return err == nil && len(awards) == 2 && awards[0].ID == award2.ID && awards[1].ID == award1.ID
 	}, 2*time.Second, 10*time.Millisecond)
 

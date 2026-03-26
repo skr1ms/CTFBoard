@@ -32,6 +32,7 @@ type teamTestDeps struct {
 
 func newTeamTestDeps(t *testing.T) *teamTestDeps {
 	t.Helper()
+
 	return &teamTestDeps{
 		teamRepo:       teamMock.NewMockTeamRepository(t),
 		userRepo:       teamMock.NewMockUserRepository(t),
@@ -202,7 +203,7 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 	team, err := uc.Create(context.Background(), "TestTeam", captainID, false, false)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserAlreadyInTeam))
+	assert.ErrorIs(t, err, httperr.ErrUserAlreadyInTeam)
 	assert.Nil(t, team)
 }
 
@@ -264,7 +265,8 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 	}
 
 	existingMembers := make([]*domain.User, 10)
-	for i := 0; i < 10; i++ {
+
+	for i := range 10 {
 		existingMembers[i] = &domain.User{ID: uuid.New()}
 	}
 
@@ -281,7 +283,7 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 	result, err := uc.Join(context.Background(), inviteToken, userID, false)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamFull))
+	assert.ErrorIs(t, err, httperr.ErrTeamFull)
 	assert.Nil(t, result)
 }
 
@@ -415,7 +417,7 @@ func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 	err := uc.Leave(context.Background(), captainID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCaptainCannotLeave))
+	assert.ErrorIs(t, err, httperr.ErrCaptainCannotLeave)
 }
 
 func TestTeamUseCase_Leave_TeamBelowMinSize_Error(t *testing.T) {
@@ -446,7 +448,7 @@ func TestTeamUseCase_Leave_TeamBelowMinSize_Error(t *testing.T) {
 	err := uc.Leave(context.Background(), userID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamBelowMinSize))
+	assert.ErrorIs(t, err, httperr.ErrTeamBelowMinSize)
 }
 
 func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
@@ -528,7 +530,7 @@ func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 	err := uc.TransferCaptain(context.Background(), userID, newCaptainID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrNotCaptain))
+	assert.ErrorIs(t, err, httperr.ErrNotCaptain)
 }
 
 func TestTeamUseCase_GetByID_Success(t *testing.T) {
@@ -590,7 +592,7 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 	assert.Equal(t, teamID, result.ID)
 	assert.Equal(t, "MyTeam", result.Name)
 	assert.NotNil(t, gotMembers)
-	assert.Equal(t, 1, len(gotMembers))
+	assert.Len(t, gotMembers, 1)
 	assert.Equal(t, 0, minSize)
 	assert.True(t, meetsMin)
 }
@@ -682,7 +684,7 @@ func TestTeamUseCase_CreateSoloTeam_WasInBannedTeam_ReturnsError(t *testing.T) {
 	team, err := uc.CreateSoloTeam(context.Background(), userID, false)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserWasInBannedTeam))
+	assert.ErrorIs(t, err, httperr.ErrUserWasInBannedTeam)
 	assert.Nil(t, team)
 }
 
@@ -709,12 +711,13 @@ func TestTeamUseCase_CreateSoloTeam_Error_AlreadyInTeam(t *testing.T) {
 	team, err := uc.CreateSoloTeam(context.Background(), userID, false)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserAlreadyInTeam))
+	assert.ErrorIs(t, err, httperr.ErrUserAlreadyInTeam)
 	assert.Nil(t, team)
 }
 
 func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name   string
 		setup  func(deps *teamTestDeps)
@@ -727,14 +730,17 @@ func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
 			deps.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
 		}, func(uc *TeamUseCase) error {
 			_, err := uc.Create(context.Background(), "test_team", uuid.New(), false, false)
+
 			return err
 		}},
 		{"Join", nil, func(uc *TeamUseCase) error {
 			_, err := uc.Join(context.Background(), uuid.New(), uuid.New(), false)
+
 			return err
 		}},
 		{"CreateSoloTeam", nil, func(uc *TeamUseCase) error {
 			_, err := uc.CreateSoloTeam(context.Background(), uuid.New(), false)
+
 			return err
 		}},
 		{"Leave", nil, func(uc *TeamUseCase) error { return uc.Leave(context.Background(), uuid.New()) }},
@@ -748,15 +754,17 @@ func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			d := newTeamTestDeps(t)
+
 			if tc.setup != nil {
 				tc.setup(d)
 			} else {
 				d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
 			}
+
 			uc := d.createUseCase()
 			err := tc.action(uc)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, httperr.ErrRosterFrozen))
+			assert.ErrorIs(t, err, httperr.ErrRosterFrozen)
 		})
 	}
 }
@@ -811,6 +819,7 @@ func TestTeamUseCase_DisbandTeam_WithSolves_UsesGetByIDs(t *testing.T) {
 		{Solve: domain.Solve{ChallengeID: ch1ID}, ChallengePoints: 100, ChallengeTitle: "Ch1"},
 		{Solve: domain.Solve{ChallengeID: ch2ID}, ChallengePoints: 200, ChallengeTitle: "Ch2"},
 	}
+
 	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeFlexible, AllowTeamSwitch: true}, nil).Times(2)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
@@ -824,6 +833,7 @@ func TestTeamUseCase_DisbandTeam_WithSolves_UsesGetByIDs(t *testing.T) {
 	d.challengeRepo.EXPECT().BatchDecrementSolveCount(mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 		return len(ids) == 2 && (ids[0] == ch1ID && ids[1] == ch2ID || ids[0] == ch2ID && ids[1] == ch1ID)
 	})).Return(nil).Once()
+
 	ch1After := &domain.Challenge{ID: ch1ID, InitialValue: 100, MinValue: 50, Decay: 10, SolveCount: 0}
 	ch2After := &domain.Challenge{ID: ch2ID, InitialValue: 200, MinValue: 100, Decay: 20, SolveCount: 0}
 	d.challengeRepo.EXPECT().GetByIDs(mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
@@ -876,7 +886,7 @@ func TestTeamUseCase_DisbandTeam_BannedCaptain_ReturnsErrUserBanned(t *testing.T
 	err := uc.DisbandTeam(context.Background(), captainID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrUserBanned))
+	assert.ErrorIs(t, err, httperr.ErrUserBanned)
 }
 
 func TestTeamUseCase_KickMember_Success(t *testing.T) {
@@ -903,6 +913,7 @@ func TestTeamUseCase_KickMember_Success(t *testing.T) {
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		targetIDStr := targetID.String()
 		detailsTargetID, ok := l.Details["target_user_id"].(string)
+
 		return l.Action == domain.TeamActionMemberKicked &&
 			l.TeamID == teamID &&
 			l.UserID != nil && *l.UserID == captainID &&
@@ -928,7 +939,7 @@ func TestTeamUseCase_GetByID_Error(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, team)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamUseCase_GetMyTeam_Error(t *testing.T) {
@@ -945,7 +956,7 @@ func TestTeamUseCase_GetMyTeam_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, team)
 	assert.Nil(t, members)
-	assert.True(t, errors.Is(err, httperr.ErrUserNotFound))
+	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
 }
 
 func TestTeamUseCase_GetTeamMembers_Error(t *testing.T) {
@@ -969,6 +980,7 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 
 	teamID := uuid.New()
 	team := &domain.Team{ID: teamID, Name: "Team"}
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -980,7 +992,9 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	d.solveRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
+
 	actorID := uuid.New()
+
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.UserID != nil && *l.UserID == actorID && l.Action == domain.TeamActionBanned && l.Details["reason"] == "reason"
 	})).Return(nil).Once()
@@ -999,6 +1013,7 @@ func TestTeamUseCase_BanTeam_Error(t *testing.T) {
 	teamID := uuid.New()
 	userID := uuid.New()
 	members := []*domain.User{{ID: userID}}
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1012,7 +1027,7 @@ func TestTeamUseCase_BanTeam_Error(t *testing.T) {
 	err := uc.BanTeam(context.Background(), teamID, "reason", false, uuid.Nil)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
@@ -1021,6 +1036,7 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 
 	teamID := uuid.New()
 	team := &domain.Team{ID: teamID, Name: "Team", IsBanned: true}
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1032,7 +1048,9 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	d.teamRepo.EXPECT().Unban(mock.Anything, teamID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return([]*domain.User{}, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+
 	actorID := uuid.New()
+
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.UserID != nil && *l.UserID == actorID && l.Action == domain.TeamActionUnbanned
 	})).Return(nil).Once()
@@ -1049,6 +1067,7 @@ func TestTeamUseCase_UnbanTeam_Error(t *testing.T) {
 	d := newTeamTestDeps(t)
 
 	teamID := uuid.New()
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1084,6 +1103,7 @@ func TestTeamUseCase_UnbanTeam_DoesNotUnbanIndependentlyBannedMember(t *testing.
 	d.userRepo.EXPECT().Lock(mock.Anything, userB).Return(nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userA).Return(userAModel, nil).Once()
 	d.userRepo.EXPECT().Unban(mock.Anything, userA).Return(nil).Once()
+
 	memberIDsMatcher := mock.MatchedBy(func(ids []uuid.UUID) bool {
 		return len(ids) == 2 && ((ids[0] == userA && ids[1] == userB) || (ids[0] == userB && ids[1] == userA))
 	})
@@ -1100,7 +1120,9 @@ func TestTeamUseCase_UnbanTeam_DoesNotUnbanIndependentlyBannedMember(t *testing.
 	d.userRepo.EXPECT().FilterIDsByTeamIDNullAndNotBanned(mock.Anything, memberIDsMatcher).Return([]uuid.UUID{userA}, nil).Once()
 	d.userRepo.EXPECT().UpdateTeamIDBatch(mock.Anything, []uuid.UUID{userA}, &teamID).Return(nil).Once()
 	d.userRepo.EXPECT().SetWasInBannedTeamByIDs(mock.Anything, memberIDsMatcher, false).Return(nil).Once()
+
 	actorID := uuid.New()
+
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.Action == domain.TeamActionUnbanned
 	})).Return(nil).Once()
@@ -1118,6 +1140,7 @@ func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 
 	teamID := uuid.New()
 	team := &domain.Team{ID: teamID, Name: "Team"}
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1137,6 +1160,7 @@ func TestTeamUseCase_SetHidden_Error(t *testing.T) {
 	d := newTeamTestDeps(t)
 
 	teamID := uuid.New()
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1148,7 +1172,7 @@ func TestTeamUseCase_SetHidden_Error(t *testing.T) {
 	err := uc.SetHidden(context.Background(), teamID, true)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamUseCase_SetBracket_Success(t *testing.T) {
@@ -1178,6 +1202,7 @@ func TestTeamUseCase_SetBracket_Error(t *testing.T) {
 	d := newTeamTestDeps(t)
 
 	teamID := uuid.New()
+
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -1189,7 +1214,7 @@ func TestTeamUseCase_SetBracket_Error(t *testing.T) {
 	err := uc.SetBracket(context.Background(), teamID, nil)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 }
 
 func TestTeamUseCase_TryCreate_Success(t *testing.T) {
@@ -1299,6 +1324,7 @@ func TestTeamUseCase_ListTeams_Success(t *testing.T) {
 	d.tm.EXPECT().ReadOnly(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
+
 	teams := []*domain.Team{{ID: uuid.New(), Name: "Team1"}}
 	d.teamRepo.EXPECT().Search(mock.Anything, (*string)(nil), 10, 0).Return(teams, nil).Once()
 	d.teamRepo.EXPECT().CountSearch(mock.Anything, (*string)(nil)).Return(int64(1), nil).Once()
@@ -1338,6 +1364,7 @@ func TestTeamUseCase_AdminListTeams_Success(t *testing.T) {
 	d.tm.EXPECT().ReadOnly(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
+
 	teams := []*domain.Team{{ID: uuid.New(), Name: "AdminTeam1"}}
 	d.teamRepo.EXPECT().SearchAdmin(mock.Anything, (*string)(nil), 10, 0).Return(teams, nil).Once()
 	d.teamRepo.EXPECT().CountSearchAdmin(mock.Anything, (*string)(nil)).Return(int64(1), nil).Once()
@@ -1468,6 +1495,7 @@ func TestTeamUseCase_AdminAddMember_Success(t *testing.T) {
 	}).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+
 	nonSoloTeam := &domain.Team{ID: teamID, IsSolo: false}
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nonSoloTeam, nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
@@ -1499,6 +1527,7 @@ func TestTeamUseCase_AdminAddMember_Error_UserAlreadyInTeam(t *testing.T) {
 	}).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+
 	nonSoloTeam := &domain.Team{ID: teamID, IsSolo: false}
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nonSoloTeam, nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
@@ -1579,6 +1608,7 @@ func TestTeamUseCase_GetTeamSolves_Success(t *testing.T) {
 
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID}, nil).Once()
 	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return(solves, nil).Once()
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
 
 	uc := d.createUseCase()
 
@@ -1601,7 +1631,7 @@ func TestTeamUseCase_GetTeamSolves_Error_TeamNotFound(t *testing.T) {
 	result, err := uc.GetTeamSolves(context.Background(), teamID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 	assert.Nil(t, result)
 }
 
@@ -1610,6 +1640,7 @@ func TestTeamUseCase_GetTeamFails_Success(t *testing.T) {
 	d := newTeamTestDeps(t)
 
 	teamID := uuid.New()
+
 	var fails []*domain.SubmissionWithDetails
 
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID}, nil).Once()
@@ -1622,7 +1653,7 @@ func TestTeamUseCase_GetTeamFails_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Len(t, result.Data, 0)
+	assert.Empty(t, result.Data)
 	assert.Equal(t, int64(0), result.Total)
 }
 
@@ -1638,7 +1669,7 @@ func TestTeamUseCase_GetTeamFails_Error_TeamNotFound(t *testing.T) {
 	result, err := uc.GetTeamFails(context.Background(), teamID, 1, 10)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 	assert.Nil(t, result)
 }
 
@@ -1673,7 +1704,7 @@ func TestTeamUseCase_GetTeamAwards_Error_TeamNotFound(t *testing.T) {
 	result, err := uc.GetTeamAwards(context.Background(), teamID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrTeamNotFound))
+	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
 	assert.Nil(t, result)
 }
 
@@ -1719,7 +1750,7 @@ func TestTeamUseCase_GetInviteToken_Error_NotCaptain(t *testing.T) {
 	result, err := uc.GetInviteToken(context.Background(), captainID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrNotCaptain))
+	assert.ErrorIs(t, err, httperr.ErrNotCaptain)
 	assert.Nil(t, result)
 }
 
@@ -1776,7 +1807,7 @@ func TestTeamUseCase_UpdateMyTeam_Error_NotCaptain(t *testing.T) {
 	result, err := uc.UpdateMyTeam(context.Background(), captainID, "NewName")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrNotCaptain))
+	assert.ErrorIs(t, err, httperr.ErrNotCaptain)
 	assert.Nil(t, result)
 }
 
@@ -1833,6 +1864,6 @@ func TestTeamUseCase_Create_MaxTeamsReached_Error(t *testing.T) {
 	team, err := uc.Create(context.Background(), "TestTeam", captainID, false, false)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrMaxTeamsReached))
+	assert.ErrorIs(t, err, httperr.ErrMaxTeamsReached)
 	assert.Nil(t, team)
 }

@@ -49,33 +49,43 @@ func NewBackupUseCase(deps BackupDeps) *BackupUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
+
 	return &BackupUseCase{deps: deps}
 }
 
 func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOptions) error {
 	tables := make([]string, 0)
+
 	if opts.Submissions {
 		tables = append(tables, "solves", "submissions")
 	}
+
 	if opts.Challenges {
 		tables = append(tables, "hint_unlocks", "files", "hints", "challenges")
 	}
+
 	if opts.Accounts {
 		tables = append(tables, "awards", "users", "teams")
 	}
+
 	if opts.Notifications {
 		tables = append(tables, "notifications")
 	}
+
 	if opts.Pages {
 		tables = append(tables, "pages")
 	}
+
 	if len(tables) == 0 {
 		return nil
 	}
+
 	return uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.BackupRepo.EraseTables(ctx, tables); err != nil {
+		err := uc.deps.BackupRepo.EraseTables(ctx, tables)
+		if err != nil {
 			return fmt.Errorf("BackupUseCase - Reset - BackupRepo.EraseTables: %w", err)
 		}
+
 		return nil
 	})
 }
@@ -107,6 +117,7 @@ func (uc *BackupUseCase) exportCSVUsers(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - UserRepo.GetAll: %w", err)
 	}
+
 	return csvExportUsers(users)
 }
 
@@ -115,6 +126,7 @@ func (uc *BackupUseCase) exportCSVTeams(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - TeamRepo.GetAll: %w", err)
 	}
+
 	return csvExportTeams(teams)
 }
 
@@ -123,10 +135,12 @@ func (uc *BackupUseCase) exportCSVChallenges(ctx context.Context) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - ChallengeRepo.GetAllForBackup: %w", err)
 	}
+
 	challenges := make([]*domain.Challenge, len(cws))
 	for i, cw := range cws {
 		challenges[i] = cw.Challenge
 	}
+
 	return csvExportChallenges(challenges)
 }
 
@@ -135,14 +149,17 @@ func (uc *BackupUseCase) exportCSVSubmissions(ctx context.Context) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - SettingsRepo.Get: %w", err)
 	}
+
 	maxRows := settings.CSVExportMaxRows
 	if maxRows <= 0 {
 		maxRows = defaultCSVExportMaxRows
 	}
+
 	subs, err := uc.deps.SubmissionRepo.GetAll(ctx, maxRows, 0)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - SubmissionRepo.GetAll: %w", err)
 	}
+
 	return csvExportSubmissions(subs)
 }
 
@@ -151,6 +168,7 @@ func (uc *BackupUseCase) exportCSVSolves(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - SolveRepo.GetAllForBackup: %w", err)
 	}
+
 	return csvExportSolves(solves)
 }
 
@@ -159,6 +177,7 @@ func (uc *BackupUseCase) exportCSVAwards(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - AwardRepo.GetAllForBackup: %w", err)
 	}
+
 	return csvExportAwards(awards)
 }
 
@@ -171,6 +190,7 @@ func (uc *BackupUseCase) ImportCSV(ctx context.Context, tableName string, data [
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportCSV - parseCSV: %w", err)
 	}
+
 	if len(rows) == 0 {
 		return &usecase.CSVImportResult{Success: true}, nil
 	}
@@ -179,12 +199,16 @@ func (uc *BackupUseCase) ImportCSV(ctx context.Context, tableName string, data [
 		rows = csvNormalizeUserRoles(header, rows)
 	}
 
-	var imported int
-	var csvErrors []string
+	var (
+		imported  int
+		csvErrors []string
+	)
 
 	txErr := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var txErr error
+
 		imported, csvErrors, txErr = uc.deps.BackupRepo.ImportCSV(ctx, tableName, header, rows)
+
 		return txErr
 	})
 	if txErr != nil {

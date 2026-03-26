@@ -15,18 +15,21 @@ import (
 
 func setCompetitionMode(mode string) {
 	ctx := context.Background()
+
 	_, err := TestPool.Exec(ctx,
 		`UPDATE competition SET mode = $1, allow_team_switch = true, updated_at = NOW() WHERE id = 1`,
 		mode)
 	if err != nil {
 		panic("setCompetitionMode: " + err.Error())
 	}
+
 	_ = TestRedis.Del(ctx, "competition")
 }
 
 func resetCompetitionModeToFlexible() {
 	ctx := context.Background()
 	now := time.Now().UTC()
+
 	_, err := TestPool.Exec(ctx,
 		`UPDATE competition SET mode = 'flexible', is_paused = false,
 		 start_time = $1, end_time = $2, freeze_time = NULL,
@@ -35,6 +38,7 @@ func resetCompetitionModeToFlexible() {
 	if err != nil {
 		panic("resetCompetitionModeToFlexible: " + err.Error())
 	}
+
 	_ = TestRedis.Del(ctx, "competition")
 }
 

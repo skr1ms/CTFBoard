@@ -9,11 +9,12 @@ import (
 
 func PaginationMeta(page, perPage int, total int64) *openapi.PaginationMeta {
 	m := httputil.NewPaginationMeta(page, perPage, total)
+
 	return &openapi.PaginationMeta{
-		Page:       httputil.Ptr(m.Page),
-		PerPage:    httputil.Ptr(m.PerPage),
-		Total:      httputil.Ptr(m.Total),
-		TotalPages: httputil.Ptr(m.TotalPages),
+		Page:       new(m.Page),
+		PerPage:    new(m.PerPage),
+		Total:      new(m.Total),
+		TotalPages: new(m.TotalPages),
 	}
 }
 

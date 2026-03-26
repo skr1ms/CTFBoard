@@ -19,6 +19,7 @@ type Team struct {
 	BannedAt             *time.Time `json:"banned_at,omitempty"`
 	BannedReason         *string    `json:"banned_reason,omitempty"`
 	IsHidden             bool       `json:"is_hidden"`
+	AvatarURL            *string    `json:"avatar_url,omitempty"`
 	CreatedAt            time.Time  `json:"created_at"`
 	DeletedAt            *time.Time `json:"-"`
 }

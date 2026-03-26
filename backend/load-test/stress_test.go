@@ -25,24 +25,30 @@ func TestStress_FlagSubmit(t *testing.T) {
 	fmt.Println("\n[stress] Flag Submission - ramp to ceiling:")
 	fmt.Printf("  %-6s  %-12s  %-10s  %-10s  %s\n", "RPS", "success%", "p95", "p99", "status")
 
-	var breakingRPS int
-	var results []*AttackResult
+	var (
+		breakingRPS int
+		results     []*AttackResult
+	)
 
 	for _, step := range StressProfile {
 		attacker := NewAttacker(500)
 		r := RunAttack(attacker, fmt.Sprintf("submit_stress@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
+
 		results = append(results, r)
 
 		m := r.Metrics
 		broken := m.Success < SuccessThreshold || m.Latencies.P99 > P99Threshold
 		status := "OK"
+
 		if broken {
 			status = "DEGRADED"
+
 			if breakingRPS == 0 {
 				breakingRPS = step.RPS
 			}
 		}
+
 		fmt.Printf("  %-6d  %-12.1f  %-10s  %-10s  %s\n",
 			step.RPS,
 			m.Success*100,
@@ -53,8 +59,10 @@ func TestStress_FlagSubmit(t *testing.T) {
 
 		if m.Success < 0.50 {
 			fmt.Printf("  [stress] early exit: success rate %.1f%% below 50%% at %d RPS\n", m.Success*100, step.RPS)
+
 			break
 		}
+
 		time.Sleep(1 * time.Second)
 	}
 
@@ -96,6 +104,7 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 		m := r.Metrics
 		serverErr := m.StatusCodes["500"]
 		status := "OK"
+
 		if serverErr > 0 {
 			status = fmt.Sprintf("WARN: %d 500s", serverErr)
 		}
@@ -110,6 +119,7 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 
 		require.Zero(t, serverErr,
 			"brute-force at %d RPS must not produce 500 errors", step.RPS)
+
 		if step.RPS <= 1500 {
 			require.LessOrEqual(t, m.Latencies.P99, P99Threshold,
 				"brute-force P99 must be ≤ %s at %d RPS (got %s)",
@@ -131,6 +141,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 	)
 
 	ctx := context.Background()
+
 	keys, _ := testRedisClient.Keys(ctx, "limiter:brute_rl_test:*").Result() //nolint:errcheck // test cleanup: best-effort
 	if len(keys) > 0 {
 		testRedisClient.Del(ctx, keys...)
@@ -154,7 +165,9 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", ":0")
 	require.NoError(t, err)
+
 	srv := &http.Server{Handler: limited, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second}
+
 	go srv.Serve(listener)  //nolint:errcheck // test server
 	defer srv.Shutdown(ctx) //nolint:errcheck // best-effort cleanup
 
@@ -166,6 +179,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 		tgt.URL = url
 		tgt.Header = http.Header{"Content-Type": {"application/json"}}
 		tgt.Body = []byte(`{"flag":"BRUTE{test}"}`)
+
 		return nil
 	}
 
@@ -187,7 +201,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 	require.Zero(t, serverErr, "rate-limited brute-force must not produce 500 errors")
 	require.LessOrEqual(t, count200, submitLimit+2,
 		"expected at most %d successful requests (limit=%d), got %d", submitLimit+2, submitLimit, count200)
-	require.Greater(t, count429, 0,
+	require.Positive(t, count429,
 		"expected 429 responses from rate limiter, got none")
 	require.InDelta(t, float64(m.Requests), float64(count200+count429), 5,
 		"all responses should be either 200 or 429")
@@ -211,10 +225,12 @@ func TestStress_ChallengeList(t *testing.T) {
 	fmt.Printf("  %-6s  %-12s  %-10s  %-10s\n", "RPS", "success%", "p95", "p99")
 
 	var results []*AttackResult
+
 	for _, step := range readProfile {
 		attacker := NewAttacker(500)
 		r := RunAttack(attacker, fmt.Sprintf("challenges_stress@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
+
 		results = append(results, r)
 		m := r.Metrics
 		fmt.Printf("  %-6d  %-12.1f  %-10s  %-10s\n",
@@ -223,9 +239,11 @@ func TestStress_ChallengeList(t *testing.T) {
 			m.Latencies.P95.Round(time.Millisecond),
 			m.Latencies.P99.Round(time.Millisecond),
 		)
+
 		if m.Success < 0.50 {
 			break
 		}
+
 		time.Sleep(500 * time.Millisecond)
 	}
 

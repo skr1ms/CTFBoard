@@ -1,6 +1,6 @@
 # Monitoring
 
-<!-- markdownlint-disable MD060 -->
+<!-- markdownlint-disable MD060 ->
 
 This document specifies the monitoring stack for the AstroCTFb platform. The stack is used for metrics collection, log aggregation, and visualisation.
 
@@ -36,7 +36,7 @@ The monitoring stack SHALL comprise the following components:
 - **Base URL:** `http://localhost:3000` (or the configured host)
 - **Provisioning:**
   - **Datasources:** Prometheus and Loki SHALL be provisioned via `monitoring/grafana/provisioning/datasources/`.
-  - **Dashboards:** Dashboards SHALL be loaded from `monitoring/grafana/dashboards/`. Subdirectories SHALL be used by component: `backend/`, `postgres/`, `redis/`, `root/`, `seaweedfs/`, `ui/`, `vault/`.
+  - **Dashboards:** Dashboards SHALL be loaded from `monitoring/grafana/dashboards/`. Each subdirectory maps to its own Grafana folder: `system/` (containers, node exporter, nginx), `backend/`, `postgres/`, `redis/`, `vault/`, `seaweedfs/` (cluster + UI), see `monitoring/grafana/provisioning/dashboards/dashboards.yml`.
 
 ### 2.3 Loki
 

@@ -17,6 +17,7 @@ import (
 func TestFreezeTime_ScoreboardShowsFrozenSnapshot(t *testing.T) {
 	t.Cleanup(resetCompetitionToActive)
 	resetCompetitionToActive()
+
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	suffix := helper.UID()
@@ -25,6 +26,7 @@ func TestFreezeTime_ScoreboardShowsFrozenSnapshot(t *testing.T) {
 	setCompetitionTimes(now.Add(-2*time.Hour), now.Add(24*time.Hour), nil)
 	require.Eventually(t, func() bool {
 		resp := h.GetCompetitionStatus()
+
 		return resp.JSON200 != nil && resp.JSON200.Status != nil && *resp.JSON200.Status == "active"
 	}, 6*time.Second, 50*time.Millisecond)
 
@@ -54,6 +56,7 @@ func TestFreezeTime_ScoreboardShowsFrozenSnapshot(t *testing.T) {
 	require.True(t, okA, "team A should be in frozen scoreboard")
 	require.NotNil(t, entryA.Points)
 	require.Equal(t, 100, *entryA.Points, "frozen snapshot: team A should have 100 points")
+
 	entryB, okB := lo.Find(*resp.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userB })
 	require.True(t, okB, "team B may appear with 0 points")
 	require.NotNil(t, entryB.Points)
@@ -113,6 +116,7 @@ func TestBracket_ScoreboardFilteredByBracket(t *testing.T) {
 	require.True(t, okA, "team A should be in bracket A scoreboard")
 	require.NotNil(t, entryA.Points)
 	require.Equal(t, 100, *entryA.Points)
+
 	_, hasB := lo.Find(*respBrA.JSON200, func(e openapi.ScoreboardEntryResponse) bool { return e.TeamName != nil && *e.TeamName == userB })
 	require.False(t, hasB, "team B should not appear in bracket A scoreboard")
 

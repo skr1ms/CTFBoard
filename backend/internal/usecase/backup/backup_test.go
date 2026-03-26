@@ -124,6 +124,7 @@ func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 	ctx := context.Background()
 	rc, err := uc.ExportZIP(ctx, domain.ExportOptions{})
 	require.NoError(t, err)
+
 	defer rc.Close()
 
 	data, err := io.ReadAll(rc)
@@ -156,6 +157,7 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	ctx := context.Background()
 	rc, err := uc.ExportZIP(ctx, domain.ExportOptions{})
 	require.NoError(t, err)
+
 	defer rc.Close()
 
 	_, err = io.ReadAll(rc)

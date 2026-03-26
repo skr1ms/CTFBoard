@@ -33,6 +33,7 @@ func TestSubmission_RateLimitExceeded_StoresRatelimitedSubmission(t *testing.T) 
 	t.Cleanup(resetAppSettings)
 	require.Eventually(t, func() bool {
 		resp, err := h.Client().GetAdminSettingsWithResponse(context.Background(), helper.WithBearerToken(tokenAdmin))
+
 		return err == nil && resp != nil && resp.StatusCode() == http.StatusOK &&
 			resp.JSON200 != nil && resp.JSON200.SubmitLimitPerUser != nil && *resp.JSON200.SubmitLimitPerUser == 1
 	}, 2*time.Second, 50*time.Millisecond)
@@ -44,6 +45,7 @@ func TestSubmission_RateLimitExceeded_StoresRatelimitedSubmission(t *testing.T) 
 
 	require.Eventually(t, func() bool {
 		resp := h.SubmitFlagExpectStatus(tokenUser, challengeID, "FLAG{wrong}", http.StatusOK, http.StatusTooManyRequests)
+
 		return resp != nil && resp.StatusCode() == http.StatusTooManyRequests
 	}, 10*time.Second, 200*time.Millisecond)
 
@@ -52,10 +54,12 @@ func TestSubmission_RateLimitExceeded_StoresRatelimitedSubmission(t *testing.T) 
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		var n int
+
 		err := TestPool.QueryRow(ctx,
 			"SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND submission_type = $2",
 			cID, domain.SubmissionTypeRatelimited,
 		).Scan(&n)
+
 		return err == nil && n >= 1
 	}, 5*time.Second, 25*time.Millisecond, "ratelimited audit row should appear after async LogSubmission")
 }

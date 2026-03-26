@@ -34,7 +34,9 @@ func ValidateCreateNotificationRequest(req *openapi.CreateNotificationRequest, v
 	if t == "" {
 		t = "info"
 	}
+
 	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -43,7 +45,9 @@ func ValidateCreateUserNotificationRequest(req *openapi.CreateUserNotificationRe
 	if t == "" {
 		t = "info"
 	}
+
 	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+
 	return ValidateConstraints(v, &c)
 }
 
@@ -52,36 +56,44 @@ func ValidateUpdateNotificationRequest(req *openapi.UpdateNotificationRequest, v
 	if t == "" {
 		t = "info"
 	}
+
 	c := updateNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+
 	return ValidateConstraints(v, &c)
 }
 
 func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
 	notifType = domain.NotificationInfo
+
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
 			notifType = t
 		}
 	}
+
 	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
 }
 
 func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRequest) (title, content string, notifType domain.NotificationType, err error) {
 	notifType = domain.NotificationInfo
+
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
 			notifType = t
 		}
 	}
+
 	return req.Title, req.Content, notifType, nil
 }
 
 func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
 	notifType = domain.NotificationInfo
+
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
 			notifType = t
 		}
 	}
+
 	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
 }

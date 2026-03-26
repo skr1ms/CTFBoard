@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
-
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -29,10 +28,13 @@ func NewNotificationRepo(pool *pgxpool.Pool) *NotificationRepo {
 
 func (r *NotificationRepo) Create(ctx context.Context, notif *domain.Notification) error {
 	EnsureID(&notif.ID)
+
 	if notif.CreatedAt.IsZero() {
 		notif.CreatedAt = time.Now()
 	}
+
 	typeStr := string(notif.Type)
+
 	row, err := r.Q(ctx).CreateNotification(ctx, sqlc.CreateNotificationParams{
 		ID:        notif.ID,
 		Title:     notif.Title,
@@ -45,7 +47,9 @@ func (r *NotificationRepo) Create(ctx context.Context, notif *domain.Notificatio
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - Create: %w", err)
 	}
+
 	notif.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
+
 	return nil
 }
 
@@ -55,8 +59,10 @@ func (r *NotificationRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.N
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrNotificationNotFound
 		}
+
 		return nil, fmt.Errorf("NotificationRepo - GetByID: %w", err)
 	}
+
 	return &domain.Notification{
 		ID:        row.ID,
 		Title:     row.Title,
@@ -73,6 +79,7 @@ func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*do
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetAll: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetAllNotifications(ctx, sqlc.GetAllNotificationsParams{
 		Limit:  limit32,
 		Offset: offset32,
@@ -80,6 +87,7 @@ func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*do
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetAll: %w", err)
 	}
+
 	out := make([]*domain.Notification, len(rows))
 	for i, row := range rows {
 		out[i] = &domain.Notification{
@@ -92,40 +100,50 @@ func (r *NotificationRepo) GetAll(ctx context.Context, limit, offset int) ([]*do
 			CreatedAt: pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
+
 	return out, nil
 }
 
 func (r *NotificationRepo) Update(ctx context.Context, notif *domain.Notification) error {
 	typeStr := string(notif.Type)
-	if err := r.Q(ctx).UpdateNotification(ctx, sqlc.UpdateNotificationParams{
+
+	err := r.Q(ctx).UpdateNotification(ctx, sqlc.UpdateNotificationParams{
 		ID:       notif.ID,
 		Title:    notif.Title,
 		Content:  notif.Content,
 		Type:     &typeStr,
 		IsPinned: &notif.IsPinned,
-	}); err != nil {
+	})
+	if err != nil {
 		if pgutil.IsNoRows(err) {
 			return httperr.ErrNotificationNotFound
 		}
+
 		return fmt.Errorf("NotificationRepo - Update: %w", err)
 	}
+
 	return nil
 }
 
 func (r *NotificationRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteNotification(ctx, ID); err != nil {
+	err := r.Q(ctx).DeleteNotification(ctx, ID)
+	if err != nil {
 		return fmt.Errorf("NotificationRepo - Delete: %w", err)
 	}
+
 	return nil
 }
 
 func (r *NotificationRepo) CreateUserNotification(ctx context.Context, userNotif *domain.UserNotification) error {
 	EnsureID(&userNotif.ID)
+
 	if userNotif.CreatedAt.IsZero() {
 		userNotif.CreatedAt = time.Now()
 	}
+
 	typeStr := string(userNotif.Type)
 	isRead := userNotif.IsRead
+
 	row, err := r.Q(ctx).CreateUserNotification(ctx, sqlc.CreateUserNotificationParams{
 		ID:             userNotif.ID,
 		UserID:         userNotif.UserID,
@@ -139,7 +157,9 @@ func (r *NotificationRepo) CreateUserNotification(ctx context.Context, userNotif
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - CreateUserNotification: %w", err)
 	}
+
 	userNotif.CreatedAt = pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt))
+
 	return nil
 }
 
@@ -148,6 +168,7 @@ func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications: %w", err)
 	}
+
 	rows, err := r.Q(ctx).GetUserNotifications(ctx, sqlc.GetUserNotificationsParams{
 		UserID: userID,
 		Limit:  limit32,
@@ -156,6 +177,7 @@ func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 	if err != nil {
 		return nil, fmt.Errorf("NotificationRepo - GetUserNotifications: %w", err)
 	}
+
 	out := make([]*domain.UserNotification, len(rows))
 	for i, row := range rows {
 		out[i] = &domain.UserNotification{
@@ -169,6 +191,7 @@ func (r *NotificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 			CreatedAt:      pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
+
 	return out, nil
 }
 
@@ -181,8 +204,10 @@ func (r *NotificationRepo) GetUserNotificationByID(ctx context.Context, ID, user
 		if pgutil.IsNoRows(err) {
 			return nil, httperr.ErrNotificationNotFound
 		}
+
 		return nil, fmt.Errorf("NotificationRepo - GetUserNotificationByID: %w", err)
 	}
+
 	return &domain.UserNotification{
 		ID:             row.ID,
 		UserID:         row.UserID,
@@ -196,12 +221,14 @@ func (r *NotificationRepo) GetUserNotificationByID(ctx context.Context, ID, user
 }
 
 func (r *NotificationRepo) MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := r.Q(ctx).MarkUserNotificationAsRead(ctx, sqlc.MarkUserNotificationAsReadParams{
+	err := r.Q(ctx).MarkUserNotificationAsRead(ctx, sqlc.MarkUserNotificationAsReadParams{
 		ID:     ID,
 		UserID: userID,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("NotificationRepo - MarkAsRead: %w", err)
 	}
+
 	return nil
 }
 
@@ -210,15 +237,18 @@ func (r *NotificationRepo) CountUnread(ctx context.Context, userID uuid.UUID) (i
 	if err != nil {
 		return 0, fmt.Errorf("NotificationRepo - CountUnread: %w", err)
 	}
+
 	return int(count), nil
 }
 
 func (r *NotificationRepo) DeleteUserNotification(ctx context.Context, ID, userID uuid.UUID) error {
-	if err := r.Q(ctx).DeleteUserNotification(ctx, sqlc.DeleteUserNotificationParams{
+	err := r.Q(ctx).DeleteUserNotification(ctx, sqlc.DeleteUserNotificationParams{
 		ID:     ID,
 		UserID: userID,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("NotificationRepo - DeleteUserNotification: %w", err)
 	}
+
 	return nil
 }

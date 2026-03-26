@@ -29,4 +29,5 @@ type User struct {
 	BannedAt        *time.Time `json:"banned_at,omitempty"`
 	BannedReason    *string    `json:"banned_reason,omitempty"`
 	WasInBannedTeam bool       `json:"was_in_banned_team"`
+	AvatarURL       *string    `json:"avatar_url,omitempty"`
 }

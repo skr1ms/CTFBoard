@@ -49,6 +49,7 @@ type BackupData struct {
 
 type ChallengeExport struct {
 	Challenge
+
 	State          string      `json:"state"`
 	FlagHash       string      `json:"flag_hash"`
 	FlagRegex      string      `json:"flag_regex"`
@@ -61,6 +62,7 @@ type ChallengeExport struct {
 
 type TeamExport struct {
 	Team
+
 	InviteToken          uuid.UUID   `json:"invite_token"`
 	InviteTokenExpiresAt *time.Time  `json:"invite_token_expires_at,omitempty"`
 	MemberIDs            []uuid.UUID `json:"member_ids,omitempty"`

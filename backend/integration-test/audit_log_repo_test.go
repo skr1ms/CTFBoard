@@ -30,6 +30,7 @@ func TestAuditLogRepo_Create_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	var count int
+
 	err = f.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM audit_logs WHERE user_id=$1", user.ID).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
