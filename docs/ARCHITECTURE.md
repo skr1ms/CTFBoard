@@ -49,6 +49,9 @@ backend/
 │   ├── seed/                   # Database seeding (default admin user)
 │   ├── storage/                # File storage interface (S3, filesystem)
 │   ├── usecase/                # Application layer (per-domain packages)
+│   │   ├── cacheutil/          # Shared cache invalidation helpers
+│   │   ├── computil/           # Cached/Fresh competition resolver
+│   │   ├── guard/              # Submission eligibility, challenge visibility checks
 │   │   ├── avatar/             # Avatar upload, processing, deletion
 │   │   ├── backup/             # Export/import
 │   │   ├── challenge/          # Challenges, hints, files, tags, comments, ratings
@@ -64,7 +67,6 @@ backend/
 ├── pkg/                        # Shared cross-cutting packages
 │   ├── crypto/                 # AES encryption, hashing
 │   ├── httperr/                # HTTP error aliases (re-exports from go-httpkit)
-│   ├── i18n/                   # Internationalization
 │   ├── mailer/                 # Transactional email (Resend)
 │   ├── slug/                   # URL-safe slug generation
 │   ├── sse/                    # Server-Sent Events
@@ -82,6 +84,8 @@ backend/
 
 ```text
 deployment/
+├── cron-jobs/                   # Cron job definitions (cleanup)
+│   └── cleanup-cron
 ├── docker/
 │   ├── docker-compose.yml       # Production compose
 │   ├── docker-compose.local.yml # Local development compose
@@ -89,6 +93,8 @@ deployment/
 ├── nginx/
 │   ├── nginx.conf               # Development config / generated production config
 │   └── nginx.conf.example       # Production template (REPLACE_* placeholders)
+├── scripts/                     # Deployment helper scripts
+│   └── deploy_cron.sh
 ├── vault/config/
 │   └── vault.hcl                # Vault server configuration
 └── seaweedfs/
@@ -153,6 +159,9 @@ monitoring/
 | `usecase/settings`     | Dynamic app settings, custom fields, validation                                    |
 | `usecase/notification` | Notifications CRUD                                                                 |
 | `usecase/page`         | Static pages CRUD                                                                  |
+| `usecase/cacheutil`    | Shared cache invalidation (user, scoreboard, team, challenge list)                 |
+| `usecase/computil`     | Cached/Fresh competition resolution (replaces per-package getCompetition)          |
+| `usecase/guard`        | Pure validation: submission eligibility, challenge visibility, team switch state    |
 
 Cleanup logic resides in `internal/usecase/cleanup.go`.
 
@@ -199,7 +208,6 @@ flowchart LR
 | --------------- | ---------------------------------------------------- |
 | `pkg/crypto`    | AES encryption (flag encryption), hashing            |
 | `pkg/httperr`   | HTTP error type aliases (re-exports from go-httpkit) |
-| `pkg/i18n`      | Internationalization support                         |
 | `pkg/mailer`    | Transactional email via Resend (async, templates)    |
 | `pkg/slug`      | URL-safe slug generation                             |
 | `pkg/sse`       | Server-Sent Events                                   |
