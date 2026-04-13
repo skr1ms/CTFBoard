@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
@@ -58,7 +58,7 @@ func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 	userID := uuid.New()
 
 	userRepo := userMock.NewMockUserRepository(t)
-	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, httperr.ErrUserNotFound)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperr.ErrUserNotFound)
 
 	userUC := user.NewUserUseCase(user.UserDeps{UserRepo: userRepo})
 

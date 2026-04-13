@@ -6,6 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Award is a bonus point grant given to a team by an admin. BannedTeamID is set when
+// the award is preserved for scoring history after the team is soft-banned.
 type Award struct {
 	ID           uuid.UUID  `json:"id"`
 	TeamID       uuid.UUID  `json:"team_id"`

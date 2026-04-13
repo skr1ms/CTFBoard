@@ -4,8 +4,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -50,7 +50,7 @@ func JoinTeamRequestToParams(req *openapi.JoinTeamRequest) (inviteToken string, 
 func TransferCaptainRequestToParams(req *openapi.TransferCaptainRequest) (uuid.UUID, error) {
 	parsed, err := uuid.Parse(req.NewCaptainID)
 	if err != nil {
-		return uuid.Nil, httperr.NewValidationErrorf("invalid new_captain_id")
+		return uuid.Nil, apperr.NewValidationErrorf("invalid new_captain_id")
 	}
 
 	return parsed, nil
@@ -72,7 +72,7 @@ func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) (*bool, error) {
 func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *string, captainID, bracketID *uuid.UUID, isHidden *bool, err error) {
 	name = req.Name
 	if name != nil && *name == "" {
-		err = httperr.NewValidationErrorf("name cannot be empty")
+		err = apperr.NewValidationErrorf("name cannot be empty")
 
 		return name, captainID, bracketID, isHidden, err
 	}

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestFileRepo_Create(t *testing.T) {
@@ -23,7 +23,7 @@ func TestFileRepo_Create(t *testing.T) {
 
 	file := &domain.File{
 		Type:        domain.FileTypeChallenge,
-		ChallengeID: challenge.ID,
+		ChallengeID: &challenge.ID,
 		Location:    "/tmp/test_file.txt",
 		Filename:    "test_file.txt",
 		Size:        1024,
@@ -43,12 +43,16 @@ func TestFileRepo_Create_InvalidChallengeID(t *testing.T) {
 	ctx := context.Background()
 
 	file := &domain.File{
-		Type:        domain.FileTypeChallenge,
-		ChallengeID: uuid.New(),
-		Location:    "/tmp/fail.txt",
-		Filename:    "fail.txt",
-		Size:        123,
-		SHA256:      "hash",
+		Type: domain.FileTypeChallenge,
+		ChallengeID: func() *uuid.UUID {
+			id := uuid.New()
+
+			return &id
+		}(),
+		Location: "/tmp/fail.txt",
+		Filename: "fail.txt",
+		Size:     123,
+		SHA256:   "hash",
 	}
 
 	err := f.FileRepo.Create(ctx, file)
@@ -65,7 +69,7 @@ func TestFileRepo_GetByID(t *testing.T) {
 
 	file := &domain.File{
 		Type:        domain.FileTypeChallenge,
-		ChallengeID: challenge.ID,
+		ChallengeID: &challenge.ID,
 		Location:    "loc",
 		Filename:    "name",
 		Size:        100,
@@ -88,7 +92,7 @@ func TestFileRepo_GetByID_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	got, err := f.FileRepo.GetByID(ctx, uuid.New())
-	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
 	assert.Nil(t, got)
 }
 
@@ -101,8 +105,8 @@ func TestFileRepo_GetAll_Success(t *testing.T) {
 	ch1 := f.CreateChallenge(t, "getall_1", 100)
 	ch2 := f.CreateChallenge(t, "getall_2", 200)
 
-	f1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
-	f2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
+	f1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: &ch1.ID, Location: "l1", Filename: "f1", Size: 1, SHA256: "h1"}
+	f2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: &ch2.ID, Location: "l2", Filename: "f2", Size: 2, SHA256: "h2"}
 
 	require.NoError(t, f.FileRepo.Create(ctx, f1))
 	require.NoError(t, f.FileRepo.Create(ctx, f2))
@@ -141,8 +145,8 @@ func TestFileRepo_GetByChallengeID(t *testing.T) {
 
 	challenge := f.CreateChallenge(t, "list_files", 100)
 
-	file1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "1", Filename: "1", Size: 1, SHA256: "1"}
-	file2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "2", Filename: "2", Size: 2, SHA256: "2"}
+	file1 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: &challenge.ID, Location: "1", Filename: "1", Size: 1, SHA256: "1"}
+	file2 := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: &challenge.ID, Location: "2", Filename: "2", Size: 2, SHA256: "2"}
 
 	require.NoError(t, f.FileRepo.Create(ctx, file1))
 	require.NoError(t, f.FileRepo.Create(ctx, file2))
@@ -172,14 +176,14 @@ func TestFileRepo_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	challenge := f.CreateChallenge(t, "del_file", 100)
-	file := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "d", Filename: "d", Size: 1, SHA256: "d"}
+	file := &domain.File{Type: domain.FileTypeChallenge, ChallengeID: &challenge.ID, Location: "d", Filename: "d", Size: 1, SHA256: "d"}
 	require.NoError(t, f.FileRepo.Create(ctx, file))
 
 	err := f.FileRepo.Delete(ctx, file.ID)
 	assert.NoError(t, err)
 
 	_, err = f.FileRepo.GetByID(ctx, file.ID)
-	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
 }
 
 func TestFileRepo_Delete_NotFound(t *testing.T) {
@@ -189,5 +193,5 @@ func TestFileRepo_Delete_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := f.FileRepo.Delete(ctx, uuid.New())
-	assert.ErrorIs(t, err, httperr.ErrFileNotFound)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
 }

@@ -10,10 +10,11 @@ import (
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type userContextKeyType = contextKey
@@ -23,9 +24,11 @@ const (
 	userCacheTTL                      = 1 * time.Second
 )
 
-// InjectUser loads the user via cache (userCacheTTL) or usecase. After BanUser the
-// usecase invalidates the user cache; a brief window until invalidation propagates is accepted.
-
+// InjectUser is a middleware that loads the authenticated user by ID and stores it in the
+// request context under userContextKey. The user record is fetched via a short-lived
+// in-memory cache (userCacheTTL) backed by the usecase. After BanUser the usecase
+// invalidates the user cache; a brief window until invalidation propagates is accepted.
+// Must run after the Auth middleware which sets the user ID in the context.
 func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +38,7 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 					log.Warn("InjectUser - userID is empty (check middleware order: Auth before InjectUser)")
 				}
 
-				httputil.HandleError(w, r, httperr.ErrNotAuthenticated())
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrNotAuthenticated))
 
 				return
 			}
@@ -48,7 +51,7 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 
 			userUUID, err := uuid.Parse(userID)
 			if err != nil {
-				httputil.HandleError(w, r, httperr.NewValidationErrorf("invalid user ID"))
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.NewValidationErrorf("invalid user ID")))
 
 				return
 			}
@@ -64,13 +67,13 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 			}
 
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
 
 			if user == nil {
-				httputil.HandleError(w, r, httperr.ErrUserNotFound)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrUserNotFound))
 
 				return
 			}
@@ -81,8 +84,17 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 	}
 }
 
+// GetUser retrieves the authenticated *domain.User stored in ctx by InjectUser or
+// authAPIToken. Returns (nil, false) when no user is present (unauthenticated request
+// or middleware not in the chain).
 func GetUser(ctx context.Context) (*domain.User, bool) {
 	user, ok := ctx.Value(userContextKey).(*domain.User)
 
 	return user, ok
+}
+
+func isAdmin(ctx context.Context) bool {
+	user, ok := GetUser(ctx)
+
+	return ok && user != nil && user.Role == domain.RoleAdmin
 }

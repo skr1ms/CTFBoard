@@ -1,21 +1,4 @@
 schemas:
-  Award:
-    properties:
-      id:
-        type: string
-      team_id:
-        type: string
-      value:
-        type: integer
-      description:
-        type: string
-      created_at:
-        type: string
-        format: date-time
-      created_by:
-        type: string
-        nullable: true
-    type: object
   response.AwardResponse:
     properties:
       id:

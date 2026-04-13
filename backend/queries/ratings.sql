@@ -23,3 +23,6 @@ WHERE team_id = $1 AND challenge_id = $2;
 SELECT id, challenge_id, user_id, team_id, value, review, created_at, updated_at
 FROM ratings
 ORDER BY created_at ASC;
+
+-- name: DeleteRatingsByTeamID :exec
+DELETE FROM ratings WHERE team_id = $1;

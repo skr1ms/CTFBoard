@@ -3,16 +3,23 @@ global:
 
 route:
   group_by: ["alertname"]
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
   receiver: "telegram-notifications"
+
+inhibit_rules:
+  - source_matchers:
+      - alertname = "InstanceDown"
+    target_matchers:
+      - severity = "critical"
+    equal: ["instance"]
 
 receivers:
   - name: "telegram-notifications"
     telegram_configs:
       - bot_token: ${TELEGRAM_BOT_TOKEN}
-        chat_id: 47238947298 # your real chat id
+        chat_id: ${TELEGRAM_CHAT_ID}
         parse_mode: "HTML"
         message: |
           <b>{{ .Status | toUpper }}</b>: {{ .GroupLabels.alertname }}

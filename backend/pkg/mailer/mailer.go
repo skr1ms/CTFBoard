@@ -10,6 +10,7 @@ import (
 	"github.com/resend/resend-go/v3"
 )
 
+// Message holds the fields required to send a single email.
 type Message struct {
 	To      string
 	Subject string
@@ -17,21 +18,27 @@ type Message struct {
 	IsHTML  bool
 }
 
+// Mailer is the interface satisfied by both ResendMailer and AsyncMailer.
 type Mailer interface {
 	Send(ctx context.Context, msg Message) error
 }
 
+// Config holds credentials and sender identity for the Resend email provider.
 type Config struct {
 	APIKey    string
 	FromEmail string
 	FromName  string
 }
 
+const mailerRetryInitialInterval = 2 * time.Second
+
+// ResendMailer sends transactional email via the Resend API with exponential-backoff retry.
 type ResendMailer struct {
 	client *resend.Client
 	cfg    Config
 }
 
+// New creates a ResendMailer using the provided configuration.
 func New(cfg Config) *ResendMailer {
 	client := resend.NewClient(cfg.APIKey)
 
@@ -41,6 +48,7 @@ func New(cfg Config) *ResendMailer {
 	}
 }
 
+// Send delivers msg through the Resend API, retrying up to 3 times on transient errors.
 func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 	from := m.cfg.FromEmail
 	if m.cfg.FromName != "" {
@@ -63,10 +71,10 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 		_, err := m.client.Emails.SendWithContext(ctx, params)
 		if err != nil {
 			if isResendPermanentError(err) {
-				return backoff.Permanent(fmt.Errorf("failed to send email via Resend: %w", err))
+				return backoff.Permanent(fmt.Errorf("mailer.Send: %w", err))
 			}
 
-			return fmt.Errorf("failed to send email via Resend: %w", err)
+			return fmt.Errorf("mailer.Send: %w", err)
 		}
 
 		return nil
@@ -74,17 +82,14 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
-	bo.InitialInterval = 2 * time.Second
+	bo.InitialInterval = mailerRetryInitialInterval
 	bo.Multiplier = 2
 
-	err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx))
 }
 
+// isResendPermanentError returns true for HTTP 4xx status codes that should not be retried
+// (400 bad request, 401 unauthorized, 403 forbidden, 404 not found, 422 unprocessable entity).
 func isResendPermanentError(err error) bool {
 	if err == nil {
 		return false

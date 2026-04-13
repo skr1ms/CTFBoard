@@ -19,6 +19,13 @@ import (
 
 const exportTimeout = 5 * time.Minute
 
+// Export assembles a BackupData snapshot by fetching all selected data categories
+// in parallel using an errgroup bounded by a 5-minute context timeout. Each
+// category (competition settings, challenges with hints and tags, brackets,
+// requirements, solutions, comments, ratings, custom fields, and optionally
+// teams, users, awards, solves, hint unlocks, and files) is fetched in its own
+// goroutine; results are written to the BackupData struct under a shared mutex
+// The function returns an error if any goroutine fails or the timeout expires.
 func (uc *BackupUseCase) Export(ctx context.Context, opts domain.ExportOptions) (*domain.BackupData, error) {
 	ctx, cancel := context.WithTimeout(ctx, exportTimeout)
 	defer cancel()
@@ -403,6 +410,10 @@ func (uc *BackupUseCase) exportOptionalFiles(ctx context.Context, backup *domain
 	})
 }
 
+// fetchChallengesWithHints loads all challenges for backup, resolves their hint lists
+// with a single batch query, and annotates each challenge with its tag IDs. Tags are
+// deduplicated into a flat list and stored on the returned slice for the caller to
+// attach to BackupData.Tags.
 func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]domain.ChallengeExport, error) {
 	challengesWithSolved, err := uc.deps.ChallengeRepo.GetAllForBackup(ctx)
 	if err != nil {
@@ -459,6 +470,8 @@ func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]domain
 	return result, nil
 }
 
+// fetchTeamsWithMembers loads all teams and resolves member lists with a single
+// batch query (GetByTeamIDs) to avoid N+1 database round-trips.
 func (uc *BackupUseCase) fetchTeamsWithMembers(ctx context.Context) ([]domain.TeamExport, error) {
 	teams, err := uc.deps.TeamRepo.GetAll(ctx)
 	if err != nil {
@@ -563,6 +576,12 @@ func (uc *BackupUseCase) fetchFiles(ctx context.Context) ([]domain.File, error) 
 	return result, nil
 }
 
+// ExportZIP returns a streaming ReadCloser that delivers the backup as a ZIP
+// archive. It creates an io.Pipe and launches exportZIPWorker in a background
+// goroutine that writes into the pipe's write end; the caller reads from the
+// read end. Errors produced by the worker are propagated through the pipe so
+// that the reader receives them as read errors. The caller must close the
+// returned ReadCloser to release resources.
 func (uc *BackupUseCase) ExportZIP(ctx context.Context, opts domain.ExportOptions) (io.ReadCloser, error) {
 	pr, pw := io.Pipe()
 	go uc.exportZIPWorker(ctx, pw, opts)
@@ -570,6 +589,13 @@ func (uc *BackupUseCase) ExportZIP(ctx context.Context, opts domain.ExportOption
 	return pr, nil
 }
 
+// exportZIPWorker is the background goroutine that drives ZIP archive creation
+// It calls Export to fetch all data, writes backup.json and README.md into the
+// archive, and then streams challenge files via streamFilesToZip when
+// IncludeFiles is set. Any error at any step is forwarded to the pipe writer via
+// CloseWithError so that the reader on the other end of the io.Pipe receives it
+// as an I/O error. The pipe is always closed (with or without an error) before
+// the goroutine returns.
 func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter, opts domain.ExportOptions) {
 	defer pw.Close()
 
@@ -648,6 +674,12 @@ func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *domain.BackupData
 	return nil
 }
 
+// streamFilesToZip downloads each file from object storage and writes it into
+// the ZIP archive under the path "files/challenge-<uuid>/<basename>". Files are
+// processed sequentially; when a download or copy fails the file is skipped, a
+// warning is logged, and the skip counter is incremented. Context cancellation
+// stops the loop early. The total number of skipped files is returned so the
+// caller can surface it in the completion log entry.
 func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, files []domain.File) int {
 	var skipped int
 

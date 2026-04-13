@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TrackingEntry records a user's IP and user-agent at a specific point in time for session analytics.
 type TrackingEntry struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -14,6 +15,7 @@ type TrackingEntry struct {
 	TrackedAt time.Time `json:"tracked_at"`
 }
 
+// ChallengeOpen records that a user opened a challenge detail page, used for engagement analytics.
 type ChallengeOpen struct {
 	ID          uuid.UUID `json:"id"`
 	UserID      uuid.UUID `json:"user_id"`

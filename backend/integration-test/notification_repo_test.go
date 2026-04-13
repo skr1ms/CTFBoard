@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestNotificationRepo_Create_Success(t *testing.T) {
@@ -63,7 +63,7 @@ func TestNotificationRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.NotificationRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrNotificationNotFound)
+	assert.ErrorIs(t, err, apperr.ErrNotificationNotFound)
 }
 
 func TestNotificationRepo_GetAll_Success(t *testing.T) {
@@ -134,7 +134,7 @@ func TestNotificationRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.NotificationRepo.GetByID(ctx, notif.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrNotificationNotFound)
+	assert.ErrorIs(t, err, apperr.ErrNotificationNotFound)
 }
 
 func TestNotificationRepo_Delete_Error_NotFound(t *testing.T) {
@@ -145,4 +145,133 @@ func TestNotificationRepo_Delete_Error_NotFound(t *testing.T) {
 
 	err := f.NotificationRepo.Delete(ctx, uuid.New())
 	assert.NoError(t, err)
+}
+
+func TestNotificationRepo_CreateUserNotification(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "unnotif")
+
+	userNotif := &domain.UserNotification{
+		UserID:  user.ID,
+		Title:   "personal title",
+		Content: "personal content",
+		Type:    domain.NotificationInfo,
+		IsRead:  false,
+	}
+	err := f.NotificationRepo.CreateUserNotification(ctx, userNotif)
+	require.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, userNotif.ID)
+}
+
+func TestNotificationRepo_GetUserNotifications(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "ung")
+
+	for range 3 {
+		un := &domain.UserNotification{
+			UserID:  user.ID,
+			Title:   "t",
+			Content: "c",
+			Type:    domain.NotificationInfo,
+		}
+		require.NoError(t, f.NotificationRepo.CreateUserNotification(ctx, un))
+	}
+
+	list, err := f.NotificationRepo.GetUserNotifications(ctx, user.ID, 10, 0)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(list), 3)
+
+	for _, n := range list {
+		assert.Equal(t, user.ID, n.UserID)
+	}
+}
+
+func TestNotificationRepo_MarkAsRead(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "unread")
+
+	un := &domain.UserNotification{
+		UserID:  user.ID,
+		Title:   "unread",
+		Content: "content",
+		Type:    domain.NotificationInfo,
+	}
+	require.NoError(t, f.NotificationRepo.CreateUserNotification(ctx, un))
+
+	got, err := f.NotificationRepo.GetUserNotificationByID(ctx, un.ID, user.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsRead)
+
+	require.NoError(t, f.NotificationRepo.MarkAsRead(ctx, un.ID, user.ID))
+
+	got2, err := f.NotificationRepo.GetUserNotificationByID(ctx, un.ID, user.ID)
+	require.NoError(t, err)
+	assert.True(t, got2.IsRead)
+}
+
+func TestNotificationRepo_CountUnread(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "uncnt")
+
+	for range 3 {
+		un := &domain.UserNotification{
+			UserID:  user.ID,
+			Title:   "t",
+			Content: "c",
+			Type:    domain.NotificationInfo,
+		}
+		require.NoError(t, f.NotificationRepo.CreateUserNotification(ctx, un))
+	}
+
+	count, err := f.NotificationRepo.CountUnread(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// read one
+	list, err := f.NotificationRepo.GetUserNotifications(ctx, user.ID, 10, 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, list)
+	require.NoError(t, f.NotificationRepo.MarkAsRead(ctx, list[0].ID, user.ID))
+
+	count2, err := f.NotificationRepo.CountUnread(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count2)
+}
+
+func TestNotificationRepo_DeleteUserNotification(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "undel")
+
+	un := &domain.UserNotification{
+		UserID:  user.ID,
+		Title:   "delete me",
+		Content: "content",
+		Type:    domain.NotificationInfo,
+	}
+	require.NoError(t, f.NotificationRepo.CreateUserNotification(ctx, un))
+
+	require.NoError(t, f.NotificationRepo.DeleteUserNotification(ctx, un.ID, user.ID))
+
+	_, err := f.NotificationRepo.GetUserNotificationByID(ctx, un.ID, user.ID)
+	assert.Error(t, err)
 }

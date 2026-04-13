@@ -28,6 +28,7 @@ import (
 	"github.com/wahrwelt-kit/go-pgkit/migrator/goose"
 	"github.com/wahrwelt-kit/go-wskit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -37,6 +38,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
@@ -46,12 +48,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/testutil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 // teamBracketGetter adapts TeamRepository for scoreboard cache (bracket by team).
@@ -69,11 +70,13 @@ func (g *teamBracketGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UU
 }
 
 var (
-	TestPool           *pgxpool.Pool
-	TestRedis          *redis.Client
-	testPort           string
-	e2eConnStr         string
-	testRateLimitCache *restapimiddleware.RateLimitConfigCache
+	TestPool                      *pgxpool.Pool
+	TestRedis                     *redis.Client
+	testPort                      string
+	e2eConnStr                    string
+	testRateLimitCache            *restapimiddleware.RateLimitConfigCache
+	testScoreboardVisibilityCache *restapimiddleware.ScoreboardVisibilityCache
+	testCompetitionUC             *competition.CompetitionUseCase
 )
 
 // Mocks.
@@ -120,7 +123,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// One-time clean slate for parallel tests (no per-test truncation).
+	// One-time clean slate for parallel tests (no per-test truncation)
 	if err := truncateE2EDB(ctx, nil); err != nil {
 		fmt.Printf("Initial truncate failed: %v\n", err)
 		os.Exit(1)
@@ -141,7 +144,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// GetTestBaseURL returns the base URL of the test server (e.g. http://localhost:PORT).
+// GetTestBaseURL returns the base URL of the test server (e.g. http://localhost:PORT)
 func GetTestBaseURL() string {
 	return fmt.Sprintf("http://localhost:%s", testPort)
 }
@@ -293,7 +296,122 @@ func resetAppSettings() {
 	}
 }
 
-// resetCompetitionToActive sets competition id=1 to active (start in past, end in future, not paused, no freeze).
+// resetAppSettingsFull resets all app_settings fields that tests may mutate, including
+// registration_open, scoreboard_visible, and max_teams. Use in t.Cleanup after tests that
+// change these global settings.
+func resetAppSettingsFull() {
+	ctx := context.Background()
+
+	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET
+		registration_open = TRUE, scoreboard_visible = 'public', max_teams = 0,
+		submit_limit_per_user = 500000, submit_limit_duration_min = 1,
+		rate_limit_login_per_minute = 10000, rate_limit_register_per_minute = 10000,
+		rate_limit_forgot_password_per_minute = 100000, rate_limit_reset_password_per_minute = 10000,
+		rate_limit_logout_per_minute = 10000, rate_limit_refresh_per_minute = 10000,
+		rate_limit_scoreboard_per_minute = 10000, rate_limit_general_ip_per_minute = 10000,
+		rate_limit_verify_email_per_minute = 10000, rate_limit_oauth_callback_per_minute = 10000,
+		updated_at = NOW() WHERE id = 1`)
+	if err != nil {
+		panic("resetAppSettingsFull: " + err.Error())
+	}
+
+	if TestRedis != nil {
+		_ = TestRedis.Del(ctx, "app_settings")
+	}
+
+	if testScoreboardVisibilityCache != nil {
+		testScoreboardVisibilityCache.Invalidate()
+	}
+
+	if testRateLimitCache != nil {
+		testRateLimitCache.Invalidate()
+	}
+}
+
+// setAppSettingsRegistrationOpen sets registration_open directly in DB, bypassing the
+// API restriction that prevents changing it while the competition is active.
+func setAppSettingsRegistrationOpen(open bool) {
+	ctx := context.Background()
+
+	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET registration_open = $1, updated_at = NOW() WHERE id = 1`, open)
+	if err != nil {
+		panic("setAppSettingsRegistrationOpen: " + err.Error())
+	}
+
+	if TestRedis != nil {
+		_ = TestRedis.Del(ctx, "app_settings")
+	}
+
+	if testRateLimitCache != nil {
+		testRateLimitCache.Invalidate()
+	}
+}
+
+// setAppSettingsScoreboardVisible sets scoreboard_visible directly in DB, bypassing the
+// API restriction that prevents changing it while the competition is active.
+func setAppSettingsScoreboardVisible(v string) {
+	ctx := context.Background()
+
+	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET scoreboard_visible = $1, updated_at = NOW() WHERE id = 1`, v)
+	if err != nil {
+		panic("setAppSettingsScoreboardVisible: " + err.Error())
+	}
+
+	if TestRedis != nil {
+		_ = TestRedis.Del(ctx, "app_settings")
+	}
+
+	if testScoreboardVisibilityCache != nil {
+		testScoreboardVisibilityCache.Invalidate()
+	}
+
+	if testRateLimitCache != nil {
+		testRateLimitCache.Invalidate()
+	}
+}
+
+// setAppSettingsMaxTeams sets max_teams directly in DB.
+func setAppSettingsMaxTeams(n int) {
+	ctx := context.Background()
+
+	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET max_teams = $1, updated_at = NOW() WHERE id = 1`, n)
+	if err != nil {
+		panic("setAppSettingsMaxTeams: " + err.Error())
+	}
+
+	if TestRedis != nil {
+		_ = TestRedis.Del(ctx, "app_settings")
+	}
+
+	if testRateLimitCache != nil {
+		testRateLimitCache.Invalidate()
+	}
+}
+
+// setCompetitionAllowTeamSwitch sets allow_team_switch directly in DB, bypassing the API
+// restriction that prevents changing it while the competition is active.
+func setCompetitionAllowTeamSwitch(allow bool) {
+	ctx := context.Background()
+
+	_, err := TestPool.Exec(ctx, `UPDATE competition SET allow_team_switch = $1, updated_at = now() WHERE id = 1`, allow)
+	if err != nil {
+		panic("setCompetitionAllowTeamSwitch: " + err.Error())
+	}
+
+	_ = TestRedis.Del(ctx, "competition")
+
+	if testCompetitionUC != nil {
+		testCompetitionUC.InvalidateLocalCache()
+	}
+}
+
+// resetCompetitionAllowTeamSwitch restores allow_team_switch=true on competition id=1.
+// Use in t.Cleanup after tests that set allow_team_switch=false.
+func resetCompetitionAllowTeamSwitch() {
+	setCompetitionAllowTeamSwitch(true)
+}
+
+// resetCompetitionToActive sets competition id=1 to active (start in past, end in future, not paused, no freeze)
 // Use in t.Cleanup for tests that mutate global competition state.
 func resetCompetitionToActive() {
 	ctx := context.Background()
@@ -306,9 +424,13 @@ func resetCompetitionToActive() {
 	}
 
 	_ = TestRedis.Del(ctx, "competition")
+
+	if testCompetitionUC != nil {
+		testCompetitionUC.InvalidateLocalCache()
+	}
 }
 
-// setCompetitionTimes sets competition id=1 times directly in DB, bypassing API restrictions.
+// setCompetitionTimes sets competition id=1 times directly in DB, bypassing API restrictions
 // Use when parallel tests may have activated the competition between resetCompetitionToNotStarted
 // and the API PUT call. Pass nil for freezeTime to clear it.
 func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
@@ -321,6 +443,10 @@ func setCompetitionTimes(startTime, endTime time.Time, freezeTime *time.Time) {
 	}
 
 	_ = TestRedis.Del(ctx, "competition")
+
+	if testCompetitionUC != nil {
+		testCompetitionUC.InvalidateLocalCache()
+	}
 }
 
 func WithCompetitionTimes(t *testing.T, start, end time.Time, freeze *time.Time) {
@@ -551,6 +677,7 @@ type testUseCases struct {
 	fieldUC            *settings.FieldUseCase
 	pageUC             *page.PageUseCase
 	ratingUC           *challenge.RatingUseCase
+	avatarUC           *avatar.AvatarUseCase
 	bracketUC          *competition.BracketUseCase
 	notifUC            usecase.NotificationUseCase
 	apiTokenUC         usecase.APITokenUseCase
@@ -567,13 +694,13 @@ func startTestServer() (func(), error) {
 		return nil, err
 	}
 
-	useCases, tempStorageDir, err := initTestUseCases(deps)
+	useCases, tempStorageDir, fileStorage, err := initTestUseCases(deps)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
+	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir, fileStorage)
 
 	ls := net.ListenConfig{}
 
@@ -721,7 +848,12 @@ func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 
 	hub := wskit.NewHub(
 		wskit.WithRedis(TestRedis, "astroctfb:events"),
-		wskit.WithOnConnect(func(c *wskit.Client) {
+		wskit.WithOnConnect(func(sub wskit.Subscriber) {
+			c, ok := sub.(*wskit.Client)
+			if !ok {
+				return
+			}
+
 			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
 			if err == nil {
 				c.Send(data)
@@ -755,6 +887,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		ScoreboardCache:    scoreboardCache,
 		UserCache:          userCacheSvc,
 		HintRepo:           repos.hintRepo,
+		TeamCache:          testCache,
 		DefaultMaxTeamSize: 10,
 	})
 	emailUC := email.NewEmailUseCase(email.EmailDeps{
@@ -790,6 +923,18 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		ScoreboardCache: scoreboardCache,
 		Logger:          deps.logger,
 	})
+	competitionParamUC := competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
+		Repo:         repos.paramRepo,
+		AuditLogRepo: repos.auditLogRepo,
+		TM:           repos.tm,
+		Logger:       deps.logger,
+	})
+	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
+		HintRepo: repos.hintRepo, AwardRepo: repos.awardRepo,
+		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo, CompUC: compUC,
+		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo,
+		ChallengeRepo: repos.challengeRepo, ScoreboardCache: scoreboardCache,
+	})
 	challengeUC := challenge.NewChallengeUseCase(challenge.ChallengeDeps{
 		ChallengeRepo:   repos.challengeRepo,
 		TagRepo:         repos.tagRepo,
@@ -797,12 +942,19 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		SubmissionRepo:  repos.submissionRepo,
 		TM:              repos.tm,
 		CompRepo:        repos.compRepo,
+		CompParamUC:     competitionParamUC,
 		TeamRepo:        repos.teamRepo,
 		UserRepo:        repos.userRepo,
 		ScoreboardCache: scoreboardCache,
+		ListCache:       testCache,
 		Broadcaster:     broadcaster,
 		AuditLogRepo:    repos.auditLogRepo,
 		Crypto:          deps.crypto,
+		FileRepo:        repos.fileRepo,
+		Storage:         fileStorage,
+		HintUC:          hintUC,
+		SolveRecord:     competition.RecordSolveInTx,
+		Logger:          deps.logger,
 	})
 	ratingUC := challenge.NewRatingUseCase(challenge.RatingDeps{
 		ChallengeRepo: repos.challengeRepo,
@@ -810,17 +962,19 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		RatingRepo:    repos.ratingRepo,
 		TM:            repos.tm,
 	})
+	avatarUC := avatar.NewAvatarUseCase(avatar.AvatarDeps{
+		UserRepo: repos.userRepo,
+		TeamRepo: repos.teamRepo,
+		Storage:  fileStorage,
+		Cache:    &cachekit.RedisKeyValueStore{Client: TestRedis},
+		Config:   domain.GetDefaultAvatarConfig(),
+		Logger:   deps.logger,
+	})
 	solveUC := competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo, CompetitionRepo: repos.compRepo,
 		CompetitionUC: compUC,
 		UserRepo:      repos.userRepo, TeamRepo: repos.teamRepo, TM: repos.tm,
 		Cache: testCache, ScoreboardCache: scoreboardCache, Broadcaster: broadcaster,
-	})
-	hintUC := challenge.NewHintUseCase(challenge.HintDeps{
-		HintRepo: repos.hintRepo, AwardRepo: repos.awardRepo,
-		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo, CompGetter: compUC,
-		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo,
-		ChallengeRepo: repos.challengeRepo, ScoreboardCache: scoreboardCache,
 	})
 	awardUC := team.NewAwardUseCase(team.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache, CompRepo: repos.compRepo})
 	statsUC := competition.NewStatisticsUseCase(competition.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: testCache})
@@ -850,12 +1004,6 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		CompRepo:     repos.compRepo,
 		Logger:       deps.logger,
 	})
-	competitionParamUC := competition.NewCompetitionParamUseCase(context.Background(), competition.CompetitionParamDeps{
-		Repo:         repos.paramRepo,
-		AuditLogRepo: repos.auditLogRepo,
-		TM:           repos.tm,
-		Logger:       deps.logger,
-	})
 	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
 	trackingUC := user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: repos.trackingRepo})
 	ws := wsV1.NewController(hub, deps.logger, []string{"localhost:*"})
@@ -873,28 +1021,28 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
-		pageUC: pageUC, ratingUC: ratingUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
+		pageUC: pageUC, ratingUC: ratingUC, avatarUC: avatarUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
 		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC,
 		SettingsRepo: repos.SettingsRepo,
 	}
 }
 
-// initTestUseCases initializes repos, storage, hub, and builds all use cases; returns temp dir path.
-func initTestUseCases(deps *testDeps) (*testUseCases, string, error) {
+// initTestUseCases initializes repos, storage, hub, and builds all use cases; returns temp dir path and storage provider.
+func initTestUseCases(deps *testDeps) (*testUseCases, string, storage.Provider, error) {
 	repos := initTestRepos()
 
 	tempStorageDir, fileStorage, hub, err := initTestStorageAndHub()
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	uc := buildTestUseCases(deps, repos, fileStorage, hub)
 
-	return uc, tempStorageDir, nil
+	return uc, tempStorageDir, fileStorage, nil
 }
 
 // Router (chi, middleware, api v1 routes).
-func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string) *chi.Mux {
+func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string, fileStorage storage.Provider) *chi.Mux {
 	r := chi.NewRouter()
 	timeoutMW := kitMiddleware.Timeout(60 * time.Second)
 
@@ -939,13 +1087,14 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC, RatingUC: uc.ratingUC,
 		},
 		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
-		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
+		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC, AvatarUC: uc.avatarUC},
 		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC},
-		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC, SettingsRepo: uc.SettingsRepo},
+		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
 		Infra: helper.InfraDeps{
 			JWTService:                    jwtService,
 			RedisClient:                   TestRedis,
 			WSController:                  uc.ws,
+			StorageProvider:               fileStorage,
 			Validator:                     validatorService,
 			Logger:                        l,
 			TrustedProxyCIDRs:             nil,
@@ -959,6 +1108,11 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 	testRateLimitCache = restapimiddleware.NewRateLimitConfigCache(1 * time.Second)
 	deps.Infra.RateLimitConfigCache = testRateLimitCache
 
+	testScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache()
+	deps.Infra.ScoreboardVisibilityCache = testScoreboardVisibilityCache
+
+	testCompetitionUC = uc.competition
+
 	r.Route("/api/v1", func(apiRouter chi.Router) {
 		v1.NewRouter(ctx, apiRouter, deps, false, testRateLimitCache)
 	})
@@ -968,4 +1122,4 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 
 // Utils
 
-// getEnv returns os.LookupEnv(key) or fallback.
+// getEnv returns os.LookupEnv(key) or fallback

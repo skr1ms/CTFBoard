@@ -8,28 +8,35 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Competition (singleton row, id = 1)
 CREATE TABLE competition (
-    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_competition_singleton CHECK (id = 1),
     name VARCHAR(100) NOT NULL DEFAULT 'CTF Competition',
     start_time TIMESTAMPTZ NULL,
     end_time TIMESTAMPTZ NULL,
     freeze_time TIMESTAMPTZ NULL,
-    is_paused BOOLEAN DEFAULT FALSE,
+    is_paused BOOLEAN NOT NULL DEFAULT FALSE,
     paused_at TIMESTAMPTZ NULL,
-    is_public BOOLEAN DEFAULT TRUE,
+    is_public BOOLEAN NOT NULL DEFAULT TRUE,
     flag_regex TEXT,
-    mode VARCHAR(20) DEFAULT 'flexible' CHECK (mode IN ('solo_only', 'teams_only', 'flexible')),
-    allow_team_switch BOOLEAN DEFAULT TRUE,
-    min_team_size INT DEFAULT 1 CHECK (min_team_size >= 1),
-    max_team_size INT DEFAULT 10 CHECK (max_team_size >= 1),
+    mode VARCHAR(20) NOT NULL DEFAULT 'flexible' CONSTRAINT chk_competition_mode CHECK (mode IN ('solo_only', 'teams_only', 'flexible')),
+    allow_team_switch BOOLEAN NOT NULL DEFAULT TRUE,
+    min_team_size INT NOT NULL DEFAULT 1 CONSTRAINT chk_competition_min_team_size CHECK (min_team_size >= 1),
+    max_team_size INT NOT NULL DEFAULT 10 CONSTRAINT chk_competition_max_team_size CHECK (max_team_size >= 1),
     CONSTRAINT chk_max_team_size_gte_min CHECK (max_team_size >= min_team_size),
     keep_scoreboard_frozen_after_end BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_competition_time_order
+        CHECK (start_time IS NULL OR end_time IS NULL OR start_time < end_time),
+    CONSTRAINT chk_competition_freeze_in_range
+        CHECK (freeze_time IS NULL OR (
+            (start_time IS NULL OR freeze_time >= start_time) AND
+            (end_time IS NULL OR freeze_time <= end_time)
+        ))
 );
 
 -- App settings (singleton, id = 1)
 CREATE TABLE app_settings (
-    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_app_settings_singleton CHECK (id = 1),
     app_name VARCHAR(100) NOT NULL DEFAULT 'AstroCTFb',
     verify_emails BOOLEAN NOT NULL DEFAULT TRUE,
     frontend_url VARCHAR(512) NOT NULL DEFAULT 'http://localhost:3000',
@@ -41,7 +48,7 @@ CREATE TABLE app_settings (
     reset_ttl_hours INT NOT NULL DEFAULT 1,
     submit_limit_per_user INT NOT NULL DEFAULT 10,
     submit_limit_duration_min INT NOT NULL DEFAULT 1,
-    scoreboard_visible VARCHAR(20) NOT NULL DEFAULT 'public' CHECK (scoreboard_visible IN ('public', 'hidden', 'admins_only')),
+    scoreboard_visible VARCHAR(20) NOT NULL DEFAULT 'public' CONSTRAINT chk_app_settings_scoreboard_visible CHECK (scoreboard_visible IN ('public', 'hidden', 'admins_only')),
     registration_open BOOLEAN NOT NULL DEFAULT TRUE,
     default_per_page INT NOT NULL DEFAULT 50,
     max_per_page INT NOT NULL DEFAULT 100,
@@ -74,8 +81,8 @@ CREATE TABLE brackets (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Users (team_id FK deferred - see ALTER TABLE below)
@@ -85,15 +92,15 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(254) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    is_verified BOOLEAN DEFAULT FALSE,
+    role VARCHAR(20) NOT NULL DEFAULT 'user' CONSTRAINT chk_users_role CHECK (role IN ('user', 'admin')),
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     verified_at TIMESTAMPTZ NULL,
     is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     banned_at TIMESTAMPTZ NULL,
     banned_reason TEXT NULL,
     was_in_banned_team BOOLEAN NOT NULL DEFAULT false,
     avatar_url TEXT DEFAULT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_users_team ON users (team_id);
@@ -105,20 +112,21 @@ CREATE TABLE teams (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL,
     invite_token uuid DEFAULT uuid_generate_v4() NOT NULL,
-    captain_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    captain_id uuid NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
     bracket_id uuid REFERENCES brackets (id) ON DELETE SET NULL,
-    is_solo BOOLEAN DEFAULT FALSE,
-    is_auto_created BOOLEAN DEFAULT FALSE,
-    is_banned BOOLEAN DEFAULT FALSE,
+    is_solo BOOLEAN NOT NULL DEFAULT FALSE,
+    is_auto_created BOOLEAN NOT NULL DEFAULT FALSE,
+    is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     banned_at TIMESTAMPTZ,
     banned_reason TEXT,
-    is_hidden BOOLEAN DEFAULT FALSE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     avatar_url TEXT DEFAULT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     invite_token_expires_at TIMESTAMPTZ DEFAULT NULL
 );
 
+CREATE UNIQUE INDEX idx_brackets_single_default ON brackets (is_default) WHERE is_default = true;
 CREATE UNIQUE INDEX teams_name_active_key ON teams (name) WHERE deleted_at IS NULL;
 CREATE INDEX idx_teams_avatar_url ON teams(avatar_url) WHERE avatar_url IS NOT NULL;
 CREATE UNIQUE INDEX teams_invite_token_active_key ON teams (invite_token) WHERE deleted_at IS NULL;
@@ -131,12 +139,12 @@ ALTER TABLE users ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES 
 CREATE TABLE oauth_accounts (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    provider VARCHAR(20) NOT NULL CHECK (provider IN ('github', 'google')),
+    provider VARCHAR(20) NOT NULL CONSTRAINT chk_oauth_accounts_provider CHECK (provider IN ('github', 'google')),
     provider_user_id VARCHAR(255) NOT NULL,
     access_token TEXT,
     refresh_token TEXT,
     expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (provider, provider_user_id)
 );
 
@@ -147,10 +155,10 @@ CREATE TABLE verification_tokens (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token VARCHAR(64) NOT NULL UNIQUE,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('email_verification', 'password_reset')),
+    type VARCHAR(20) NOT NULL CONSTRAINT chk_verification_tokens_type CHECK (type IN ('email_verification', 'password_reset')),
     expires_at TIMESTAMPTZ NOT NULL,
     used_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_verification_user_type ON verification_tokens (user_id, type);
@@ -164,7 +172,7 @@ CREATE TABLE api_tokens (
     description VARCHAR(255),
     expires_at TIMESTAMPTZ,
     last_used_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_api_tokens_user_id ON api_tokens (user_id);
@@ -179,22 +187,26 @@ CREATE TABLE challenges (
     title VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(50) NOT NULL DEFAULT '',
-    points INT DEFAULT 0,
+    points INT NOT NULL DEFAULT 0,
     flag_hash VARCHAR(255) NOT NULL,
     connection_info TEXT NOT NULL DEFAULT '',
     max_attempts INT NOT NULL DEFAULT 0,
+    max_attempts_window BIGINT NOT NULL DEFAULT 0,
     position INT NOT NULL DEFAULT 0,
-    state VARCHAR(20) NOT NULL DEFAULT 'visible' CHECK (state IN ('visible', 'hidden', 'locked')),
+    state VARCHAR(20) NOT NULL DEFAULT 'visible' CONSTRAINT chk_challenges_state CHECK (state IN ('visible', 'hidden', 'locked')),
     initial_value INT NOT NULL DEFAULT 500,
     min_value INT NOT NULL DEFAULT 100,
     decay INT NOT NULL DEFAULT 20,
     solve_count INT NOT NULL DEFAULT 0,
-    is_regex BOOLEAN DEFAULT FALSE,
-    is_case_insensitive BOOLEAN DEFAULT FALSE,
+    is_regex BOOLEAN NOT NULL DEFAULT FALSE,
+    is_case_insensitive BOOLEAN NOT NULL DEFAULT FALSE,
     flag_regex TEXT,
     flag_format_regex TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_challenges_points_non_negative CHECK (points >= 0),
+    CONSTRAINT chk_challenges_decay_non_negative CHECK (decay >= 0),
+    CONSTRAINT chk_challenges_min_lte_initial CHECK (min_value <= initial_value)
 );
 
 -- Tags (for challenge categorization)
@@ -231,7 +243,8 @@ CREATE TABLE hints (
     title TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL,
     cost INT NOT NULL DEFAULT 0,
-    order_index INT NOT NULL DEFAULT 0
+    order_index INT NOT NULL DEFAULT 0,
+    CONSTRAINT chk_hints_cost_non_negative CHECK (cost >= 0)
 );
 
 CREATE INDEX idx_hints_challenge ON hints (challenge_id);
@@ -241,7 +254,7 @@ CREATE TABLE hint_unlocks (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     hint_id uuid NOT NULL REFERENCES hints (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-    unlocked_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    unlocked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
     CONSTRAINT unique_team_hint UNIQUE (team_id, hint_id)
 );
@@ -252,17 +265,19 @@ CREATE INDEX idx_hint_unlocks_banned_team_id ON hint_unlocks (banned_team_id) WH
 -- Files (challenge attachments, writeups; stored externally)
 CREATE TABLE files (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type VARCHAR(20) NOT NULL CHECK (type IN ('challenge', 'writeup')),
-    challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL CONSTRAINT chk_files_type CHECK (type IN ('challenge', 'writeup', 'page')),
+    challenge_id uuid REFERENCES challenges (id) ON DELETE CASCADE,
+    page_id uuid,
     location VARCHAR(512) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     size BIGINT NOT NULL,
     sha256 VARCHAR(64) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_files_owner CHECK (num_nonnulls(challenge_id, page_id) = 1)
 );
 
 CREATE INDEX idx_files_challenge_id ON files (challenge_id);
-CREATE INDEX idx_files_type ON files (type);
+CREATE UNIQUE INDEX idx_files_location ON files (location);
 
 -- Solutions (one per challenge, stores markdown writeup content)
 CREATE TABLE solutions (
@@ -282,7 +297,7 @@ CREATE TABLE solves (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
-    solved_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    solved_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     points_at_solve INT NOT NULL DEFAULT 0,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
     banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
@@ -304,10 +319,10 @@ CREATE TABLE submissions (
     is_correct BOOLEAN NOT NULL DEFAULT FALSE,
     submission_type VARCHAR(20) NOT NULL DEFAULT 'incorrect',
     ip VARCHAR(45) NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
     banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
-    CONSTRAINT chk_submission_type CHECK (submission_type IN ('correct', 'incorrect', 'ratelimited')),
+    CONSTRAINT chk_submission_type CHECK (submission_type IN ('correct', 'incorrect', 'ratelimited', 'discard')),
     CONSTRAINT chk_submission_type_correct CHECK ((submission_type = 'correct') = is_correct),
     CONSTRAINT chk_submitted_flag_length CHECK (length(submitted_flag) <= 500)
 );
@@ -323,7 +338,7 @@ CREATE TABLE ratings (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-    value INT NOT NULL CHECK (value >= 1 AND value <= 5),
+    value INT NOT NULL CONSTRAINT chk_ratings_value CHECK (value >= 1 AND value <= 5),
     review TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -339,8 +354,8 @@ CREATE TABLE comments (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_comments_challenge_id ON comments (challenge_id);
@@ -358,7 +373,7 @@ CREATE TABLE awards (
     value INT NOT NULL,
     description VARCHAR(255) NOT NULL,
     created_by uuid REFERENCES users (id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL
 );
 
@@ -371,7 +386,7 @@ CREATE TABLE team_audit_log (
     user_id uuid REFERENCES users (id) ON DELETE SET NULL,
     action VARCHAR(50) NOT NULL,
     details JSONB,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_team_audit_log_user_id ON team_audit_log (user_id);
@@ -387,7 +402,7 @@ CREATE TABLE audit_logs (
     entity_id VARCHAR(50),
     ip VARCHAR(45),
     details JSONB,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
@@ -403,10 +418,10 @@ CREATE TABLE notifications (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
-    type VARCHAR(20) DEFAULT 'info' CHECK (type IN ('info', 'warning', 'success', 'error')),
-    is_pinned BOOLEAN DEFAULT FALSE,
-    is_global BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_notifications_type CHECK (type IN ('info', 'warning', 'success', 'error')),
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_global BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_notifications_created_at ON notifications (created_at DESC);
@@ -418,9 +433,9 @@ CREATE TABLE user_notifications (
     notification_id uuid REFERENCES notifications (id) ON DELETE CASCADE,
     title VARCHAR(200),
     content TEXT,
-    type VARCHAR(20) DEFAULT 'info' CHECK (type IN ('info', 'warning', 'success', 'error')),
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_user_notifications_type CHECK (type IN ('info', 'warning', 'success', 'error')),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_notification CHECK (notification_id IS NOT NULL OR (title IS NOT NULL AND content IS NOT NULL))
 );
 
@@ -432,13 +447,16 @@ CREATE TABLE pages (
     title VARCHAR(200) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
     content TEXT NOT NULL,
-    is_draft BOOLEAN DEFAULT TRUE,
-    order_index INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    is_draft BOOLEAN NOT NULL DEFAULT TRUE,
+    order_index INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_pages_order ON pages (order_index);
+
+ALTER TABLE files ADD CONSTRAINT fk_files_page_id FOREIGN KEY (page_id) REFERENCES pages (id) ON DELETE CASCADE;
+CREATE INDEX idx_files_page_id ON files (page_id);
 
 -- =============================================================================
 -- Custom fields
@@ -448,12 +466,12 @@ CREATE INDEX idx_pages_order ON pages (order_index);
 CREATE TABLE fields (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
-    field_type VARCHAR(20) NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'boolean')),
-    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('user', 'team')),
-    required BOOLEAN DEFAULT FALSE,
+    field_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_field_type CHECK (field_type IN ('text', 'number', 'select', 'boolean')),
+    entity_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_entity_type CHECK (entity_type IN ('user', 'team')),
+    required BOOLEAN NOT NULL DEFAULT FALSE,
     options JSONB,
-    order_index INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    order_index INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_fields_entity_type ON fields (entity_type);
@@ -464,7 +482,7 @@ CREATE TABLE field_values (
     field_id uuid NOT NULL REFERENCES fields (id) ON DELETE CASCADE,
     entity_id uuid NOT NULL,
     value TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (field_id, entity_id)
 );
 
@@ -478,13 +496,12 @@ CREATE INDEX idx_field_values_entity ON field_values (entity_id);
 CREATE TABLE configs (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
-    value_type VARCHAR(20) NOT NULL DEFAULT 'string' CHECK (value_type IN ('string', 'int', 'bool', 'json')),
+    value_type VARCHAR(20) NOT NULL DEFAULT 'string' CONSTRAINT chk_configs_value_type CHECK (value_type IN ('string', 'int', 'bool', 'json')),
     description TEXT,
     category VARCHAR(50) NOT NULL DEFAULT 'general',
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_configs_updated_at ON configs (updated_at);
 CREATE INDEX idx_configs_category_key ON configs (category, key);
 
 -- IP/user-agent tracking per user
@@ -493,7 +510,7 @@ CREATE TABLE tracking (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     ip VARCHAR(45) NOT NULL,
     user_agent TEXT,
-    tracked_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    tracked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_tracking_user_id ON tracking (user_id);
@@ -506,7 +523,7 @@ CREATE TABLE challenge_opens (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     ip VARCHAR(45),
-    opened_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    opened_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_challenge_opens_user_id ON challenge_opens (user_id);

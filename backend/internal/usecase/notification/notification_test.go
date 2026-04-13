@@ -2,315 +2,284 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	notifMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification/mock"
 )
 
-type notificationTestDeps struct {
-	notifRepo *notifMock.MockNotificationRepository
+// mockBroadcaster is a simple test double for NotificationBroadcaster.
+type mockBroadcaster struct {
+	calls []struct{ message, level string }
 }
 
-func newNotificationTestDeps(t *testing.T) *notificationTestDeps {
+func (m *mockBroadcaster) NotifyNotification(message, level string) {
+	m.calls = append(m.calls, struct{ message, level string }{message, level})
+}
+
+func newUC(t *testing.T) (*NotificationUseCase, *notifMock.MockNotificationRepository, *mockBroadcaster) {
 	t.Helper()
 
-	return &notificationTestDeps{notifRepo: notifMock.NewMockNotificationRepository(t)}
-}
-
-func (d *notificationTestDeps) createUseCase() *NotificationUseCase {
-	return NewNotificationUseCase(NotificationDeps{NotifRepo: d.notifRepo})
-}
-
-func newTestNotification(title, content string, notifType domain.NotificationType, isPinned, isGlobal bool) *domain.Notification {
-	return &domain.Notification{
-		ID:        uuid.New(),
-		Title:     title,
-		Content:   content,
-		Type:      notifType,
-		IsPinned:  isPinned,
-		IsGlobal:  isGlobal,
-		CreatedAt: time.Now(),
-	}
-}
-
-func newTestUserNotification(userID uuid.UUID, title, content string, notifType domain.NotificationType) *domain.UserNotification {
-	return &domain.UserNotification{
-		ID:        uuid.New(),
-		UserID:    userID,
-		Title:     title,
-		Content:   content,
-		Type:      notifType,
-		IsRead:    false,
-		CreatedAt: time.Now(),
-	}
-}
-
-func TestNotificationUseCase_CreateGlobal_Success(t *testing.T) {
-	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	title, content := "Title", "Content"
-	notifType := domain.NotificationInfo
-
-	d.notifRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.Notification) {
-		assert.Equal(t, title, n.Title)
-		assert.Equal(t, content, n.Content)
-		assert.Equal(t, notifType, n.Type)
-		assert.True(t, n.IsPinned)
-		assert.True(t, n.IsGlobal)
+	repo := notifMock.NewMockNotificationRepository(t)
+	broadcaster := &mockBroadcaster{}
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo:   repo,
+		Broadcaster: broadcaster,
 	})
 
-	uc := d.createUseCase()
-	got, err := uc.CreateGlobal(ctx, title, content, notifType, true)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, got)
-	assert.Equal(t, title, got.Title)
+	return uc, repo, broadcaster
 }
 
-func TestNotificationUseCase_CreateGlobal_Error(t *testing.T) {
+func TestCreateGlobal_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
 
-	d.notifRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
+	uc, repo, broadcaster := newUC(t)
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(n *domain.Notification) bool {
+		return n.Title == "title" && n.Content == "content" && n.Type == domain.NotificationInfo && n.IsGlobal
+	})).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.CreateGlobal(ctx, "T", "C", domain.NotificationInfo, false)
+	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
+	require.NotNil(t, notif)
+	assert.Equal(t, "title", notif.Title)
+	assert.True(t, notif.IsGlobal)
+	assert.Len(t, broadcaster.calls, 1)
+	assert.Equal(t, "title", broadcaster.calls[0].message)
+	assert.Equal(t, "info", broadcaster.calls[0].level)
 }
 
-func TestNotificationUseCase_CreatePersonal_Success(t *testing.T) {
+func TestCreateGlobal_EmptyTitle_Error(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	userID := uuid.New()
-	title, content := "Title", "Content"
-	notifType := domain.NotificationWarning
 
-	d.notifRepo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.UserNotification) {
-		assert.Equal(t, userID, n.UserID)
-		assert.Equal(t, title, n.Title)
-		assert.Equal(t, content, n.Content)
-		assert.Equal(t, notifType, n.Type)
-	})
+	uc, _, _ := newUC(t)
 
-	uc := d.createUseCase()
-	got, err := uc.CreatePersonal(ctx, userID, title, content, notifType)
+	_, err := uc.CreateGlobal(context.Background(), "", "content", domain.NotificationInfo, false)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, got)
-	assert.Equal(t, userID, got.UserID)
+	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
 
-func TestNotificationUseCase_CreatePersonal_Error(t *testing.T) {
+func TestCreateGlobal_EmptyContent_Error(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	userID := uuid.New()
 
-	d.notifRepo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(assert.AnError)
+	uc, _, _ := newUC(t)
 
-	uc := d.createUseCase()
-	got, err := uc.CreatePersonal(ctx, userID, "T", "C", domain.NotificationInfo)
+	_, err := uc.CreateGlobal(context.Background(), "title", "", domain.NotificationInfo, false)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
 
-func TestNotificationUseCase_GetGlobal_Success(t *testing.T) {
+func TestCreateGlobal_InvalidType_Error(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	list := []*domain.Notification{newTestNotification("T", "C", domain.NotificationInfo, false, true)}
 
-	d.notifRepo.EXPECT().GetAll(mock.Anything, 20, 0).Return(list, nil)
+	uc, _, _ := newUC(t)
 
-	uc := d.createUseCase()
-	got, err := uc.GetGlobal(ctx, 1, 20)
+	_, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationType("invalid"), false)
 
-	assert.NoError(t, err)
-	assert.Len(t, got, 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid notification type")
 }
 
-func TestNotificationUseCase_GetGlobal_Error(t *testing.T) {
+func TestCreateGlobal_NilBroadcaster_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
 
-	d.notifRepo.EXPECT().GetAll(mock.Anything, 20, 0).Return(nil, assert.AnError)
+	repo := notifMock.NewMockNotificationRepository(t)
+	uc := NewNotificationUseCase(NotificationDeps{NotifRepo: repo})
+	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.GetGlobal(ctx, 1, 20)
+	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
+	require.NotNil(t, notif)
 }
 
-func TestNotificationUseCase_GetUserNotifications_Success(t *testing.T) {
+func TestCreateGlobal_RepoError(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	userID := uuid.New()
-	list := []*domain.UserNotification{newTestUserNotification(userID, "T", "C", domain.NotificationInfo)}
 
-	d.notifRepo.EXPECT().GetUserNotifications(mock.Anything, userID, 20, 0).Return(list, nil)
+	uc, repo, _ := newUC(t)
+	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-	uc := d.createUseCase()
-	got, err := uc.GetUserNotifications(ctx, userID, 1, 20)
+	_, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
 
-	assert.NoError(t, err)
-	assert.Len(t, got, 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
 }
 
-func TestNotificationUseCase_GetUserNotifications_Error(t *testing.T) {
+func TestCreatePersonal_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo, _ := newUC(t)
 	userID := uuid.New()
 
-	d.notifRepo.EXPECT().GetUserNotifications(mock.Anything, userID, 20, 0).Return(nil, assert.AnError)
+	repo.EXPECT().CreateUserNotification(mock.Anything, mock.MatchedBy(func(n *domain.UserNotification) bool {
+		return n.UserID == userID && n.Title == "personal" && n.Content == "body" && !n.IsRead
+	})).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.GetUserNotifications(ctx, userID, 1, 20)
+	notif, err := uc.CreatePersonal(context.Background(), userID, "personal", "body", domain.NotificationWarning)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
+	require.NotNil(t, notif)
+	assert.Equal(t, userID, notif.UserID)
+	assert.False(t, notif.IsRead)
 }
 
-func TestNotificationUseCase_MarkAsRead_Success(t *testing.T) {
+func TestCreatePersonal_EmptyContent_Error(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	id, userID := uuid.New(), uuid.New()
 
-	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&domain.UserNotification{ID: id, UserID: userID}, nil)
-	d.notifRepo.EXPECT().MarkAsRead(mock.Anything, id, userID).Return(nil)
+	uc, _, _ := newUC(t)
 
-	uc := d.createUseCase()
-	err := uc.MarkAsRead(ctx, id, userID)
+	_, err := uc.CreatePersonal(context.Background(), uuid.New(), "title", "", domain.NotificationInfo)
 
-	assert.NoError(t, err)
+	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
 
-func TestNotificationUseCase_MarkAsRead_Error(t *testing.T) {
+func TestGetGlobal_PaginationOffset(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	id, userID := uuid.New(), uuid.New()
 
-	d.notifRepo.EXPECT().GetUserNotificationByID(mock.Anything, id, userID).Return(&domain.UserNotification{ID: id, UserID: userID}, nil)
-	d.notifRepo.EXPECT().MarkAsRead(mock.Anything, id, userID).Return(assert.AnError)
+	uc, repo, _ := newUC(t)
+	want := []*domain.Notification{{ID: uuid.New(), Title: "n1"}}
+	// page=3, perPage=10 => offset=20
+	repo.EXPECT().GetAll(mock.Anything, 10, 20).Return(want, nil)
 
-	uc := d.createUseCase()
-	err := uc.MarkAsRead(ctx, id, userID)
+	got, err := uc.GetGlobal(context.Background(), 3, 10)
 
-	assert.Error(t, err)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
-func TestNotificationUseCase_CountUnread_Success(t *testing.T) {
+func TestGetUserNotifications_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo, _ := newUC(t)
 	userID := uuid.New()
-	count := 5
+	want := []*domain.UserNotification{{ID: uuid.New(), UserID: userID}}
+	// page=2, perPage=5 => offset=5
+	repo.EXPECT().GetUserNotifications(mock.Anything, userID, 5, 5).Return(want, nil)
 
-	d.notifRepo.EXPECT().CountUnread(mock.Anything, userID).Return(count, nil)
+	got, err := uc.GetUserNotifications(context.Background(), userID, 2, 5)
 
-	uc := d.createUseCase()
-	got, err := uc.CountUnread(ctx, userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, count, got)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
-func TestNotificationUseCase_CountUnread_Error(t *testing.T) {
+func TestMarkAsRead_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo, _ := newUC(t)
+	notifID := uuid.New()
+	userID := uuid.New()
+	userNotif := &domain.UserNotification{ID: notifID, UserID: userID}
+
+	repo.EXPECT().GetUserNotificationByID(mock.Anything, notifID, userID).Return(userNotif, nil)
+	repo.EXPECT().MarkAsRead(mock.Anything, notifID, userID).Return(nil)
+
+	err := uc.MarkAsRead(context.Background(), notifID, userID)
+
+	require.NoError(t, err)
+}
+
+func TestMarkAsRead_NotFound_Error(t *testing.T) {
+	t.Parallel()
+
+	uc, repo, _ := newUC(t)
+	notifID := uuid.New()
 	userID := uuid.New()
 
-	d.notifRepo.EXPECT().CountUnread(mock.Anything, userID).Return(0, assert.AnError)
+	repo.EXPECT().GetUserNotificationByID(mock.Anything, notifID, userID).Return(nil, apperr.ErrNotificationNotFound)
 
-	uc := d.createUseCase()
-	got, err := uc.CountUnread(ctx, userID)
+	err := uc.MarkAsRead(context.Background(), notifID, userID)
 
-	assert.Error(t, err)
-	assert.Equal(t, 0, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GetUserNotificationByID")
 }
 
-func TestNotificationUseCase_Update_Success(t *testing.T) {
+func TestCountUnread_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo, _ := newUC(t)
+	userID := uuid.New()
+	repo.EXPECT().CountUnread(mock.Anything, userID).Return(7, nil)
+
+	count, err := uc.CountUnread(context.Background(), userID)
+
+	require.NoError(t, err)
+	assert.Equal(t, 7, count)
+}
+
+func TestUpdate_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo, _ := newUC(t)
 	id := uuid.New()
-	notif := newTestNotification("Old", "OldC", domain.NotificationInfo, false, true)
-	notif.ID = id
-	title, content := "New", "NewC"
-	notifType := domain.NotificationWarning
+	existing := &domain.Notification{ID: id, Title: "old", Content: "old content", Type: domain.NotificationInfo}
 
-	d.notifRepo.EXPECT().GetByID(mock.Anything, id).Return(notif, nil)
-	d.notifRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, n *domain.Notification) {
-		assert.Equal(t, title, n.Title)
-		assert.Equal(t, content, n.Content)
-		assert.Equal(t, notifType, n.Type)
-		assert.True(t, n.IsPinned)
-	})
+	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
+	repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(n *domain.Notification) bool {
+		return n.Title == "new title" && n.Content == "new content" && n.Type == domain.NotificationSuccess
+	})).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, title, content, notifType, true)
+	result, err := uc.Update(context.Background(), id, "new title", "new content", domain.NotificationSuccess, true)
 
-	assert.NoError(t, err)
-	assert.Equal(t, title, got.Title)
+	require.NoError(t, err)
+	assert.Equal(t, "new title", result.Title)
+	assert.Equal(t, domain.NotificationSuccess, result.Type)
 }
 
-func TestNotificationUseCase_Update_Error(t *testing.T) {
+func TestUpdate_InvalidType_Error(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	id := uuid.New()
 
-	d.notifRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
+	uc, _, _ := newUC(t)
 
-	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, "T", "C", domain.NotificationInfo, false)
+	_, err := uc.Update(context.Background(), uuid.New(), "t", "c", domain.NotificationType("bad"), false)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid notification type")
 }
 
-func TestNotificationUseCase_Delete_Success(t *testing.T) {
+func TestDelete_Success(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo, _ := newUC(t)
 	id := uuid.New()
+	repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
-	d.notifRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
+	err := uc.Delete(context.Background(), id)
 
-	uc := d.createUseCase()
-	err := uc.Delete(ctx, id)
-
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
-func TestNotificationUseCase_Delete_Error(t *testing.T) {
+func TestCreateGlobal_IsPinned(t *testing.T) {
 	t.Parallel()
-	d := newNotificationTestDeps(t)
-	ctx := context.Background()
-	id := uuid.New()
 
-	d.notifRepo.EXPECT().Delete(mock.Anything, id).Return(assert.AnError)
+	uc, repo, _ := newUC(t)
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(n *domain.Notification) bool {
+		return n.IsPinned
+	})).Return(nil)
 
-	uc := d.createUseCase()
-	err := uc.Delete(ctx, id)
+	notif, err := uc.CreateGlobal(context.Background(), "pinned", "content", domain.NotificationInfo, true)
 
-	assert.Error(t, err)
+	require.NoError(t, err)
+	assert.True(t, notif.IsPinned)
+}
+
+func TestCreateGlobal_HasTimestamp(t *testing.T) {
+	t.Parallel()
+
+	uc, repo, _ := newUC(t)
+	before := time.Now().Add(-time.Second)
+
+	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+
+	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
+
+	require.NoError(t, err)
+	assert.True(t, notif.CreatedAt.After(before))
 }

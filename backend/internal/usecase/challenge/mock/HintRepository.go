@@ -39,6 +39,63 @@ func (_m *MockHintRepository) EXPECT() *MockHintRepository_Expecter {
 	return &MockHintRepository_Expecter{mock: &_m.Mock}
 }
 
+// AcquireAdvisoryLock provides a mock function for the type MockHintRepository
+func (_mock *MockHintRepository) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
+	ret := _mock.Called(ctx, lockKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcquireAdvisoryLock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, lockKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockHintRepository_AcquireAdvisoryLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireAdvisoryLock'
+type MockHintRepository_AcquireAdvisoryLock_Call struct {
+	*mock.Call
+}
+
+// AcquireAdvisoryLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - lockKey int64
+func (_e *MockHintRepository_Expecter) AcquireAdvisoryLock(ctx interface{}, lockKey interface{}) *MockHintRepository_AcquireAdvisoryLock_Call {
+	return &MockHintRepository_AcquireAdvisoryLock_Call{Call: _e.mock.On("AcquireAdvisoryLock", ctx, lockKey)}
+}
+
+func (_c *MockHintRepository_AcquireAdvisoryLock_Call) Run(run func(ctx context.Context, lockKey int64)) *MockHintRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHintRepository_AcquireAdvisoryLock_Call) Return(err error) *MockHintRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockHintRepository_AcquireAdvisoryLock_Call) RunAndReturn(run func(ctx context.Context, lockKey int64) error) *MockHintRepository_AcquireAdvisoryLock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountAll provides a mock function for the type MockHintRepository
 func (_mock *MockHintRepository) CountAll(ctx context.Context) (int, error) {
 	ret := _mock.Called(ctx)

@@ -12,6 +12,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteRatingsByTeamID = `-- name: DeleteRatingsByTeamID :exec
+DELETE FROM ratings WHERE team_id = $1
+`
+
+func (q *Queries) DeleteRatingsByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRatingsByTeamID, teamID)
+	return err
+}
+
 const getAllRatings = `-- name: GetAllRatings :many
 SELECT id, challenge_id, user_id, team_id, value, review, created_at, updated_at
 FROM ratings

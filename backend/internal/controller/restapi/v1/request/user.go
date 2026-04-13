@@ -1,8 +1,8 @@
 package request
 
 import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -16,7 +16,7 @@ func AdminCreateUserRequestToParams(req *openapi.AdminCreateUserRequest) (userna
 	if req.Role != nil {
 		r := *req.Role
 		if r != "user" && r != "admin" {
-			return "", "", "", "", httperr.NewValidationErrorf("role must be 'user' or 'admin'")
+			return "", "", "", "", apperr.NewValidationErrorf("role must be 'user' or 'admin'")
 		}
 
 		role = r
@@ -29,7 +29,7 @@ func AdminUpdateUserRequestToParams(req *openapi.AdminUpdateUserRequest) (userna
 	if req.Role != nil {
 		r := *req.Role
 		if r != "user" && r != "admin" {
-			return nil, nil, nil, nil, nil, httperr.NewValidationErrorf("role must be 'user' or 'admin'")
+			return nil, nil, nil, nil, nil, apperr.NewValidationErrorf("role must be 'user' or 'admin'")
 		}
 	}
 
@@ -41,29 +41,17 @@ func UpdateProfileRequestToParams(req *openapi.UpdateProfileRequest) (username, 
 }
 
 func LoginRequestToParams(req *openapi.LoginRequest) (email, password string) {
-	if req.Email != nil {
-		email = *req.Email
-	}
-
-	return email, req.Password
+	return req.Email, req.Password
 }
 
 func RegisterRequestToParams(req *openapi.RegisterRequest) (username, email, password string, customFields map[string]string, err error) {
-	if req.Username != nil {
-		username = *req.Username
-	}
-
-	if req.Email != nil {
-		email = *req.Email
-	}
-
-	if req.Password != nil {
-		password = *req.Password
-	}
+	username = req.Username
+	email = req.Email
+	password = req.Password
 
 	if req.CustomFields != nil {
 		if err := validator.ValidateCustomFields(*req.CustomFields); err != nil {
-			return "", "", "", nil, httperr.NewValidationErrorf("custom fields validation failed: %s", err.Error())
+			return "", "", "", nil, apperr.NewValidationErrorf("custom fields validation failed: %s", err.Error())
 		}
 
 		customFields = *req.CustomFields

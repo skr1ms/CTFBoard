@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,7 +29,7 @@ var _ Provider = (*S3Provider)(nil)
 
 func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket, region string, useSSL bool) (*S3Provider, error) {
 	if accessKey == "" || secretKey == "" {
-		return nil, fmt.Errorf("S3Provider - NewS3Provider: S3 credentials (accessKey, secretKey) are required")
+		return nil, errors.New("S3Provider - NewS3Provider: S3 credentials (accessKey, secretKey) are required")
 	}
 
 	client, err := minio.New(endpoint, &minio.Options{
@@ -51,43 +52,31 @@ func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket, regio
 func (p *S3Provider) EnsureBucket(ctx context.Context) error {
 	exists, err := p.client.BucketExists(ctx, p.bucket)
 	if err != nil {
-		return fmt.Errorf("S3Provider - EnsureBucket: %w", err)
+		return fmt.Errorf("S3Provider - EnsureBucket - BucketExists: %w", err)
 	}
 
 	if !exists {
 		err := p.client.MakeBucket(ctx, p.bucket, minio.MakeBucketOptions{})
 		if err != nil {
-			return fmt.Errorf("S3Provider - EnsureBucket: %w", err)
+			return fmt.Errorf("S3Provider - EnsureBucket - MakeBucket: %w", err)
 		}
 	}
 
 	return nil
 }
 
+// Upload writes the reader content to S3 at the given path. No retry is
+// performed: io.Reader is not seekable, so a failed attempt would leave the
+// reader in a partially-consumed state, causing a subsequent retry to upload
+// truncated data silently. Callers that need retry semantics should pass an
+// io.ReadSeeker and seek to the start before each attempt.
 func (p *S3Provider) Upload(ctx context.Context, path string, reader io.Reader, size int64, contentType string) error {
-	operation := func() error {
-		_, err := p.client.PutObject(ctx, p.bucket, path, reader, size, minio.PutObjectOptions{
-			ContentType: contentType,
-			UserMetadata: map[string]string{
-				"uploaded-by": "astroctfb",
-			},
-		})
-		if err != nil {
-			if isS3PermanentError(err) {
-				return backoff.Permanent(fmt.Errorf("S3Provider - Upload: %w", err))
-			}
-
-			return fmt.Errorf("S3Provider - Upload: %w", err)
-		}
-
-		return nil
-	}
-
-	bo := backoff.NewExponentialBackOff()
-
-	bo.InitialInterval = s3BackoffInitialInterval
-
-	err := backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, s3BackoffMaxRetries), ctx))
+	_, err := p.client.PutObject(ctx, p.bucket, path, reader, size, minio.PutObjectOptions{
+		ContentType: contentType,
+		UserMetadata: map[string]string{
+			"uploaded-by": "astroctfb",
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("S3Provider - Upload: %w", err)
 	}
@@ -98,11 +87,13 @@ func (p *S3Provider) Upload(ctx context.Context, path string, reader io.Reader, 
 func (p *S3Provider) Download(ctx context.Context, path string) (io.ReadCloser, error) {
 	obj, err := p.client.GetObject(ctx, p.bucket, path, minio.GetObjectOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("S3Provider - Download: %w", err)
+		return nil, fmt.Errorf("S3Provider - Download - GetObject: %w", err)
 	}
 
 	if _, err := obj.Stat(); err != nil {
-		return nil, fmt.Errorf("S3Provider - Download: %w", err)
+		_ = obj.Close()
+
+		return nil, fmt.Errorf("S3Provider - Download - Stat: %w", err)
 	}
 
 	return obj, nil
@@ -142,6 +133,10 @@ func (p *S3Provider) Ping(ctx context.Context) error {
 	return nil
 }
 
+// GetPresignedURL generates a short-lived presigned GET URL for the object at
+// path with the same retry strategy as Upload. When publicEndpoint is set, the
+// scheme and host of the presigned URL are rewritten to match it so that
+// clients use the public-facing address rather than the internal MinIO endpoint.
 func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error) {
 	var result string
 
@@ -182,6 +177,9 @@ func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry ti
 	return result, nil
 }
 
+// isS3PermanentError classifies a MinIO error as non-retryable by inspecting the HTTP status
+// via minio.ToErrorResponse. 4xx responses (except 429) indicate client errors that will not
+// succeed on retry, so they are wrapped as backoff.Permanent in Upload and GetPresignedURL.
 func isS3PermanentError(err error) bool {
 	if err == nil {
 		return false

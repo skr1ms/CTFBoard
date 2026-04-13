@@ -1,4 +1,4 @@
-FROM golang:alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -25,13 +25,19 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
 
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates libwebp
+
+RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
 
 COPY --from=builder /app/bin/backend .
 COPY --from=builder /app/bin/cleanup /usr/local/bin/astroctfb-cleanup
 COPY --from=builder /app/migrations ./migrations
+
+RUN chown -R app:app /app
+
+USER app
 
 EXPOSE 8080
 

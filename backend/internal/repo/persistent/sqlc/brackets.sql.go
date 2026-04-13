@@ -31,7 +31,7 @@ type CreateBracketParams struct {
 	ID          uuid.UUID          `json:"id"`
 	Name        string             `json:"name"`
 	Description *string            `json:"description"`
-	IsDefault   *bool              `json:"is_default"`
+	IsDefault   bool               `json:"is_default"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -139,7 +139,7 @@ type UpdateBracketParams struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
-	IsDefault   *bool     `json:"is_default"`
+	IsDefault   bool      `json:"is_default"`
 }
 
 func (q *Queries) UpdateBracket(ctx context.Context, arg UpdateBracketParams) error {

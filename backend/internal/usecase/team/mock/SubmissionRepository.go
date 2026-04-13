@@ -104,8 +104,8 @@ func (_c *MockSubmissionRepository_AcquireAdvisoryLockForSubmit_Call) RunAndRetu
 }
 
 // CountAll provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountAll(ctx context.Context) (int64, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockSubmissionRepository) CountAll(ctx context.Context, freezeTime *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountAll")
@@ -113,16 +113,16 @@ func (_mock *MockSubmissionRepository) CountAll(ctx context.Context) (int64, err
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) int64); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, freezeTime)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -136,18 +136,24 @@ type MockSubmissionRepository_CountAll_Call struct {
 
 // CountAll is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSubmissionRepository_Expecter) CountAll(ctx interface{}) *MockSubmissionRepository_CountAll_Call {
-	return &MockSubmissionRepository_CountAll_Call{Call: _e.mock.On("CountAll", ctx)}
+//   - freezeTime *time.Time
+func (_e *MockSubmissionRepository_Expecter) CountAll(ctx interface{}, freezeTime interface{}) *MockSubmissionRepository_CountAll_Call {
+	return &MockSubmissionRepository_CountAll_Call{Call: _e.mock.On("CountAll", ctx, freezeTime)}
 }
 
-func (_c *MockSubmissionRepository_CountAll_Call) Run(run func(ctx context.Context)) *MockSubmissionRepository_CountAll_Call {
+func (_c *MockSubmissionRepository_CountAll_Call) Run(run func(ctx context.Context, freezeTime *time.Time)) *MockSubmissionRepository_CountAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 *time.Time
+		if args[1] != nil {
+			arg1 = args[1].(*time.Time)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -158,80 +164,14 @@ func (_c *MockSubmissionRepository_CountAll_Call) Return(n int64, err error) *Mo
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountAll_Call) RunAndReturn(run func(ctx context.Context) (int64, error)) *MockSubmissionRepository_CountAll_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CountAllFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountAllFrozen(ctx context.Context, freezeTime time.Time) (int64, error) {
-	ret := _mock.Called(ctx, freezeTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountAllFrozen")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) (int64, error)); ok {
-		return returnFunc(ctx, freezeTime)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) int64); ok {
-		r0 = returnFunc(ctx, freezeTime)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = returnFunc(ctx, freezeTime)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_CountAllFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountAllFrozen'
-type MockSubmissionRepository_CountAllFrozen_Call struct {
-	*mock.Call
-}
-
-// CountAllFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - freezeTime time.Time
-func (_e *MockSubmissionRepository_Expecter) CountAllFrozen(ctx interface{}, freezeTime interface{}) *MockSubmissionRepository_CountAllFrozen_Call {
-	return &MockSubmissionRepository_CountAllFrozen_Call{Call: _e.mock.On("CountAllFrozen", ctx, freezeTime)}
-}
-
-func (_c *MockSubmissionRepository_CountAllFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time)) *MockSubmissionRepository_CountAllFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 time.Time
-		if args[1] != nil {
-			arg1 = args[1].(time.Time)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountAllFrozen_Call) Return(n int64, err error) *MockSubmissionRepository_CountAllFrozen_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountAllFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time) (int64, error)) *MockSubmissionRepository_CountAllFrozen_Call {
+func (_c *MockSubmissionRepository_CountAll_Call) RunAndReturn(run func(ctx context.Context, freezeTime *time.Time) (int64, error)) *MockSubmissionRepository_CountAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountByChallenge provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByChallenge(ctx context.Context, challengeID uuid.UUID) (int64, error) {
-	ret := _mock.Called(ctx, challengeID)
+func (_mock *MockSubmissionRepository) CountByChallenge(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, challengeID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountByChallenge")
@@ -239,16 +179,16 @@ func (_mock *MockSubmissionRepository) CountByChallenge(ctx context.Context, cha
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int64, error)); ok {
-		return returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, challengeID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
-		r0 = returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, challengeID, freezeTime)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time) error); ok {
+		r1 = returnFunc(ctx, challengeID, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -263,11 +203,12 @@ type MockSubmissionRepository_CountByChallenge_Call struct {
 // CountByChallenge is a helper method to define mock.On call
 //   - ctx context.Context
 //   - challengeID uuid.UUID
-func (_e *MockSubmissionRepository_Expecter) CountByChallenge(ctx interface{}, challengeID interface{}) *MockSubmissionRepository_CountByChallenge_Call {
-	return &MockSubmissionRepository_CountByChallenge_Call{Call: _e.mock.On("CountByChallenge", ctx, challengeID)}
+//   - freezeTime *time.Time
+func (_e *MockSubmissionRepository_Expecter) CountByChallenge(ctx interface{}, challengeID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByChallenge_Call {
+	return &MockSubmissionRepository_CountByChallenge_Call{Call: _e.mock.On("CountByChallenge", ctx, challengeID, freezeTime)}
 }
 
-func (_c *MockSubmissionRepository_CountByChallenge_Call) Run(run func(ctx context.Context, challengeID uuid.UUID)) *MockSubmissionRepository_CountByChallenge_Call {
+func (_c *MockSubmissionRepository_CountByChallenge_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time)) *MockSubmissionRepository_CountByChallenge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -277,76 +218,9 @@ func (_c *MockSubmissionRepository_CountByChallenge_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByChallenge_Call) Return(n int64, err error) *MockSubmissionRepository_CountByChallenge_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByChallenge_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) (int64, error)) *MockSubmissionRepository_CountByChallenge_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CountByChallengeFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (int64, error) {
-	ret := _mock.Called(ctx, challengeID, freezeTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountByChallengeFrozen")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (int64, error)); ok {
-		return returnFunc(ctx, challengeID, freezeTime)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) int64); ok {
-		r0 = returnFunc(ctx, challengeID, freezeTime)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r1 = returnFunc(ctx, challengeID, freezeTime)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_CountByChallengeFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountByChallengeFrozen'
-type MockSubmissionRepository_CountByChallengeFrozen_Call struct {
-	*mock.Call
-}
-
-// CountByChallengeFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - challengeID uuid.UUID
-//   - freezeTime time.Time
-func (_e *MockSubmissionRepository_Expecter) CountByChallengeFrozen(ctx interface{}, challengeID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByChallengeFrozen_Call {
-	return &MockSubmissionRepository_CountByChallengeFrozen_Call{Call: _e.mock.On("CountByChallengeFrozen", ctx, challengeID, freezeTime)}
-}
-
-func (_c *MockSubmissionRepository_CountByChallengeFrozen_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time)) *MockSubmissionRepository_CountByChallengeFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		run(
 			arg0,
@@ -357,19 +231,19 @@ func (_c *MockSubmissionRepository_CountByChallengeFrozen_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByChallengeFrozen_Call) Return(n int64, err error) *MockSubmissionRepository_CountByChallengeFrozen_Call {
+func (_c *MockSubmissionRepository_CountByChallenge_Call) Return(n int64, err error) *MockSubmissionRepository_CountByChallenge_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByChallengeFrozen_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (int64, error)) *MockSubmissionRepository_CountByChallengeFrozen_Call {
+func (_c *MockSubmissionRepository_CountByChallenge_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (int64, error)) *MockSubmissionRepository_CountByChallenge_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountByTeam provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByTeam(ctx context.Context, teamID uuid.UUID) (int64, error) {
-	ret := _mock.Called(ctx, teamID)
+func (_mock *MockSubmissionRepository) CountByTeam(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, teamID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountByTeam")
@@ -377,16 +251,16 @@ func (_mock *MockSubmissionRepository) CountByTeam(ctx context.Context, teamID u
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int64, error)); ok {
-		return returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, teamID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
-		r0 = returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, teamID, freezeTime)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time) error); ok {
+		r1 = returnFunc(ctx, teamID, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -401,11 +275,12 @@ type MockSubmissionRepository_CountByTeam_Call struct {
 // CountByTeam is a helper method to define mock.On call
 //   - ctx context.Context
 //   - teamID uuid.UUID
-func (_e *MockSubmissionRepository_Expecter) CountByTeam(ctx interface{}, teamID interface{}) *MockSubmissionRepository_CountByTeam_Call {
-	return &MockSubmissionRepository_CountByTeam_Call{Call: _e.mock.On("CountByTeam", ctx, teamID)}
+//   - freezeTime *time.Time
+func (_e *MockSubmissionRepository_Expecter) CountByTeam(ctx interface{}, teamID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByTeam_Call {
+	return &MockSubmissionRepository_CountByTeam_Call{Call: _e.mock.On("CountByTeam", ctx, teamID, freezeTime)}
 }
 
-func (_c *MockSubmissionRepository_CountByTeam_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockSubmissionRepository_CountByTeam_Call {
+func (_c *MockSubmissionRepository_CountByTeam_Call) Run(run func(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time)) *MockSubmissionRepository_CountByTeam_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -415,76 +290,9 @@ func (_c *MockSubmissionRepository_CountByTeam_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByTeam_Call) Return(n int64, err error) *MockSubmissionRepository_CountByTeam_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByTeam_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) (int64, error)) *MockSubmissionRepository_CountByTeam_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CountByTeamFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time) (int64, error) {
-	ret := _mock.Called(ctx, teamID, freezeTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountByTeamFrozen")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (int64, error)); ok {
-		return returnFunc(ctx, teamID, freezeTime)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) int64); ok {
-		r0 = returnFunc(ctx, teamID, freezeTime)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r1 = returnFunc(ctx, teamID, freezeTime)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_CountByTeamFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountByTeamFrozen'
-type MockSubmissionRepository_CountByTeamFrozen_Call struct {
-	*mock.Call
-}
-
-// CountByTeamFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - teamID uuid.UUID
-//   - freezeTime time.Time
-func (_e *MockSubmissionRepository_Expecter) CountByTeamFrozen(ctx interface{}, teamID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByTeamFrozen_Call {
-	return &MockSubmissionRepository_CountByTeamFrozen_Call{Call: _e.mock.On("CountByTeamFrozen", ctx, teamID, freezeTime)}
-}
-
-func (_c *MockSubmissionRepository_CountByTeamFrozen_Call) Run(run func(ctx context.Context, teamID uuid.UUID, freezeTime time.Time)) *MockSubmissionRepository_CountByTeamFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		run(
 			arg0,
@@ -495,19 +303,19 @@ func (_c *MockSubmissionRepository_CountByTeamFrozen_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByTeamFrozen_Call) Return(n int64, err error) *MockSubmissionRepository_CountByTeamFrozen_Call {
+func (_c *MockSubmissionRepository_CountByTeam_Call) Return(n int64, err error) *MockSubmissionRepository_CountByTeam_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByTeamFrozen_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, freezeTime time.Time) (int64, error)) *MockSubmissionRepository_CountByTeamFrozen_Call {
+func (_c *MockSubmissionRepository_CountByTeam_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time) (int64, error)) *MockSubmissionRepository_CountByTeam_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountByUser provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockSubmissionRepository) CountByUser(ctx context.Context, userID uuid.UUID, freezeTime *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, userID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountByUser")
@@ -515,16 +323,16 @@ func (_mock *MockSubmissionRepository) CountByUser(ctx context.Context, userID u
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int64, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, userID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, userID, freezeTime)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time) error); ok {
+		r1 = returnFunc(ctx, userID, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -539,11 +347,12 @@ type MockSubmissionRepository_CountByUser_Call struct {
 // CountByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockSubmissionRepository_Expecter) CountByUser(ctx interface{}, userID interface{}) *MockSubmissionRepository_CountByUser_Call {
-	return &MockSubmissionRepository_CountByUser_Call{Call: _e.mock.On("CountByUser", ctx, userID)}
+//   - freezeTime *time.Time
+func (_e *MockSubmissionRepository_Expecter) CountByUser(ctx interface{}, userID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByUser_Call {
+	return &MockSubmissionRepository_CountByUser_Call{Call: _e.mock.On("CountByUser", ctx, userID, freezeTime)}
 }
 
-func (_c *MockSubmissionRepository_CountByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockSubmissionRepository_CountByUser_Call {
+func (_c *MockSubmissionRepository_CountByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, freezeTime *time.Time)) *MockSubmissionRepository_CountByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -553,76 +362,9 @@ func (_c *MockSubmissionRepository_CountByUser_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByUser_Call) Return(n int64, err error) *MockSubmissionRepository_CountByUser_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_CountByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int64, error)) *MockSubmissionRepository_CountByUser_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CountByUserFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) CountByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time) (int64, error) {
-	ret := _mock.Called(ctx, userID, freezeTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountByUserFrozen")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (int64, error)); ok {
-		return returnFunc(ctx, userID, freezeTime)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) int64); ok {
-		r0 = returnFunc(ctx, userID, freezeTime)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r1 = returnFunc(ctx, userID, freezeTime)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_CountByUserFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountByUserFrozen'
-type MockSubmissionRepository_CountByUserFrozen_Call struct {
-	*mock.Call
-}
-
-// CountByUserFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - freezeTime time.Time
-func (_e *MockSubmissionRepository_Expecter) CountByUserFrozen(ctx interface{}, userID interface{}, freezeTime interface{}) *MockSubmissionRepository_CountByUserFrozen_Call {
-	return &MockSubmissionRepository_CountByUserFrozen_Call{Call: _e.mock.On("CountByUserFrozen", ctx, userID, freezeTime)}
-}
-
-func (_c *MockSubmissionRepository_CountByUserFrozen_Call) Run(run func(ctx context.Context, userID uuid.UUID, freezeTime time.Time)) *MockSubmissionRepository_CountByUserFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		run(
 			arg0,
@@ -633,12 +375,12 @@ func (_c *MockSubmissionRepository_CountByUserFrozen_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByUserFrozen_Call) Return(n int64, err error) *MockSubmissionRepository_CountByUserFrozen_Call {
+func (_c *MockSubmissionRepository_CountByUser_Call) Return(n int64, err error) *MockSubmissionRepository_CountByUser_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_CountByUserFrozen_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, freezeTime time.Time) (int64, error)) *MockSubmissionRepository_CountByUserFrozen_Call {
+func (_c *MockSubmissionRepository_CountByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, freezeTime *time.Time) (int64, error)) *MockSubmissionRepository_CountByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -919,6 +661,84 @@ func (_c *MockSubmissionRepository_CountSubmissionsByTeamAndChallenge_Call) RunA
 	return _c
 }
 
+// CountSubmissionsByTeamAndChallengeInWindow provides a mock function for the type MockSubmissionRepository
+func (_mock *MockSubmissionRepository) CountSubmissionsByTeamAndChallengeInWindow(ctx context.Context, teamID uuid.UUID, challengeID uuid.UUID, windowStart time.Time) (int64, error) {
+	ret := _mock.Called(ctx, teamID, challengeID, windowStart)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSubmissionsByTeamAndChallengeInWindow")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, teamID, challengeID, windowStart)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, time.Time) int64); ok {
+		r0 = returnFunc(ctx, teamID, challengeID, windowStart)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, time.Time) error); ok {
+		r1 = returnFunc(ctx, teamID, challengeID, windowStart)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSubmissionsByTeamAndChallengeInWindow'
+type MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call struct {
+	*mock.Call
+}
+
+// CountSubmissionsByTeamAndChallengeInWindow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+//   - challengeID uuid.UUID
+//   - windowStart time.Time
+func (_e *MockSubmissionRepository_Expecter) CountSubmissionsByTeamAndChallengeInWindow(ctx interface{}, teamID interface{}, challengeID interface{}, windowStart interface{}) *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call {
+	return &MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call{Call: _e.mock.On("CountSubmissionsByTeamAndChallengeInWindow", ctx, teamID, challengeID, windowStart)}
+}
+
+func (_c *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call) Run(run func(ctx context.Context, teamID uuid.UUID, challengeID uuid.UUID, windowStart time.Time)) *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call) Return(n int64, err error) *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, challengeID uuid.UUID, windowStart time.Time) (int64, error)) *MockSubmissionRepository_CountSubmissionsByTeamAndChallengeInWindow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type MockSubmissionRepository
 func (_mock *MockSubmissionRepository) Create(ctx context.Context, sub *domain.Submission) error {
 	ret := _mock.Called(ctx, sub)
@@ -1147,9 +967,66 @@ func (_c *MockSubmissionRepository_DeleteByTeamID_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// Discard provides a mock function for the type MockSubmissionRepository
+func (_mock *MockSubmissionRepository) Discard(ctx context.Context, ID uuid.UUID) error {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Discard")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSubmissionRepository_Discard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Discard'
+type MockSubmissionRepository_Discard_Call struct {
+	*mock.Call
+}
+
+// Discard is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockSubmissionRepository_Expecter) Discard(ctx interface{}, ID interface{}) *MockSubmissionRepository_Discard_Call {
+	return &MockSubmissionRepository_Discard_Call{Call: _e.mock.On("Discard", ctx, ID)}
+}
+
+func (_c *MockSubmissionRepository_Discard_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockSubmissionRepository_Discard_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSubmissionRepository_Discard_Call) Return(err error) *MockSubmissionRepository_Discard_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSubmissionRepository_Discard_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) error) *MockSubmissionRepository_Discard_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAll provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetAll(ctx context.Context, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, limit, offset)
+func (_mock *MockSubmissionRepository) GetAll(ctx context.Context, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
+	ret := _mock.Called(ctx, freezeTime, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAll")
@@ -1157,18 +1034,18 @@ func (_mock *MockSubmissionRepository) GetAll(ctx context.Context, limit int, of
 
 	var r0 []*domain.SubmissionWithDetails
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
+		return returnFunc(ctx, freezeTime, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time, int, int) []*domain.SubmissionWithDetails); ok {
+		r0 = returnFunc(ctx, freezeTime, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
-		r1 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *time.Time, int, int) error); ok {
+		r1 = returnFunc(ctx, freezeTime, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1182,96 +1059,22 @@ type MockSubmissionRepository_GetAll_Call struct {
 
 // GetAll is a helper method to define mock.On call
 //   - ctx context.Context
+//   - freezeTime *time.Time
 //   - limit int
 //   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetAll(ctx interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetAll_Call {
-	return &MockSubmissionRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx, limit, offset)}
+func (_e *MockSubmissionRepository_Expecter) GetAll(ctx interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetAll_Call {
+	return &MockSubmissionRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx, freezeTime, limit, offset)}
 }
 
-func (_c *MockSubmissionRepository_GetAll_Call) Run(run func(ctx context.Context, limit int, offset int)) *MockSubmissionRepository_GetAll_Call {
+func (_c *MockSubmissionRepository_GetAll_Call) Run(run func(ctx context.Context, freezeTime *time.Time, limit int, offset int)) *MockSubmissionRepository_GetAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 *time.Time
 		if args[1] != nil {
-			arg1 = args[1].(int)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetAll_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetAll_Call {
-	_c.Call.Return(submissionWithDetailss, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetAll_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAllFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetAllFrozen(ctx context.Context, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, freezeTime, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAllFrozen")
-	}
-
-	var r0 []*domain.SubmissionWithDetails
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, freezeTime, limit, offset)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, freezeTime, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, int, int) error); ok {
-		r1 = returnFunc(ctx, freezeTime, limit, offset)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_GetAllFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllFrozen'
-type MockSubmissionRepository_GetAllFrozen_Call struct {
-	*mock.Call
-}
-
-// GetAllFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - freezeTime time.Time
-//   - limit int
-//   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetAllFrozen(ctx interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetAllFrozen_Call {
-	return &MockSubmissionRepository_GetAllFrozen_Call{Call: _e.mock.On("GetAllFrozen", ctx, freezeTime, limit, offset)}
-}
-
-func (_c *MockSubmissionRepository_GetAllFrozen_Call) Run(run func(ctx context.Context, freezeTime time.Time, limit int, offset int)) *MockSubmissionRepository_GetAllFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 time.Time
-		if args[1] != nil {
-			arg1 = args[1].(time.Time)
+			arg1 = args[1].(*time.Time)
 		}
 		var arg2 int
 		if args[2] != nil {
@@ -1291,19 +1094,19 @@ func (_c *MockSubmissionRepository_GetAllFrozen_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetAllFrozen_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetAllFrozen_Call {
+func (_c *MockSubmissionRepository_GetAll_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetAll_Call {
 	_c.Call.Return(submissionWithDetailss, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetAllFrozen_Call) RunAndReturn(run func(ctx context.Context, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetAllFrozen_Call {
+func (_c *MockSubmissionRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByChallenge provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByChallenge(ctx context.Context, challengeID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, challengeID, limit, offset)
+func (_mock *MockSubmissionRepository) GetByChallenge(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
+	ret := _mock.Called(ctx, challengeID, freezeTime, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByChallenge")
@@ -1311,18 +1114,18 @@ func (_mock *MockSubmissionRepository) GetByChallenge(ctx context.Context, chall
 
 	var r0 []*domain.SubmissionWithDetails
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, challengeID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
+		return returnFunc(ctx, challengeID, freezeTime, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, challengeID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) []*domain.SubmissionWithDetails); ok {
+		r0 = returnFunc(ctx, challengeID, freezeTime, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, challengeID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time, int, int) error); ok {
+		r1 = returnFunc(ctx, challengeID, freezeTime, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1337,13 +1140,14 @@ type MockSubmissionRepository_GetByChallenge_Call struct {
 // GetByChallenge is a helper method to define mock.On call
 //   - ctx context.Context
 //   - challengeID uuid.UUID
+//   - freezeTime *time.Time
 //   - limit int
 //   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByChallenge(ctx interface{}, challengeID interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByChallenge_Call {
-	return &MockSubmissionRepository_GetByChallenge_Call{Call: _e.mock.On("GetByChallenge", ctx, challengeID, limit, offset)}
+func (_e *MockSubmissionRepository_Expecter) GetByChallenge(ctx interface{}, challengeID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByChallenge_Call {
+	return &MockSubmissionRepository_GetByChallenge_Call{Call: _e.mock.On("GetByChallenge", ctx, challengeID, freezeTime, limit, offset)}
 }
 
-func (_c *MockSubmissionRepository_GetByChallenge_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, limit int, offset int)) *MockSubmissionRepository_GetByChallenge_Call {
+func (_c *MockSubmissionRepository_GetByChallenge_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time, limit int, offset int)) *MockSubmissionRepository_GetByChallenge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1353,90 +1157,9 @@ func (_c *MockSubmissionRepository_GetByChallenge_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByChallenge_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByChallenge_Call {
-	_c.Call.Return(submissionWithDetailss, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByChallenge_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByChallenge_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetByChallengeFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, challengeID, freezeTime, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByChallengeFrozen")
-	}
-
-	var r0 []*domain.SubmissionWithDetails
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, challengeID, freezeTime, limit, offset)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, challengeID, freezeTime, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time, int, int) error); ok {
-		r1 = returnFunc(ctx, challengeID, freezeTime, limit, offset)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_GetByChallengeFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByChallengeFrozen'
-type MockSubmissionRepository_GetByChallengeFrozen_Call struct {
-	*mock.Call
-}
-
-// GetByChallengeFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - challengeID uuid.UUID
-//   - freezeTime time.Time
-//   - limit int
-//   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByChallengeFrozen(ctx interface{}, challengeID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByChallengeFrozen_Call {
-	return &MockSubmissionRepository_GetByChallengeFrozen_Call{Call: _e.mock.On("GetByChallengeFrozen", ctx, challengeID, freezeTime, limit, offset)}
-}
-
-func (_c *MockSubmissionRepository_GetByChallengeFrozen_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit int, offset int)) *MockSubmissionRepository_GetByChallengeFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
-		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		var arg3 int
 		if args[3] != nil {
@@ -1457,12 +1180,12 @@ func (_c *MockSubmissionRepository_GetByChallengeFrozen_Call) Run(run func(ctx c
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByChallengeFrozen_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByChallengeFrozen_Call {
+func (_c *MockSubmissionRepository_GetByChallenge_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByChallenge_Call {
 	_c.Call.Return(submissionWithDetailss, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByChallengeFrozen_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByChallengeFrozen_Call {
+func (_c *MockSubmissionRepository_GetByChallenge_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByChallenge_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1604,8 +1327,8 @@ func (_c *MockSubmissionRepository_GetByIDForUpdate_Call) RunAndReturn(run func(
 }
 
 // GetByTeam provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByTeam(ctx context.Context, teamID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, teamID, limit, offset)
+func (_mock *MockSubmissionRepository) GetByTeam(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
+	ret := _mock.Called(ctx, teamID, freezeTime, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByTeam")
@@ -1613,18 +1336,18 @@ func (_mock *MockSubmissionRepository) GetByTeam(ctx context.Context, teamID uui
 
 	var r0 []*domain.SubmissionWithDetails
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, teamID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
+		return returnFunc(ctx, teamID, freezeTime, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, teamID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) []*domain.SubmissionWithDetails); ok {
+		r0 = returnFunc(ctx, teamID, freezeTime, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, teamID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time, int, int) error); ok {
+		r1 = returnFunc(ctx, teamID, freezeTime, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1639,13 +1362,14 @@ type MockSubmissionRepository_GetByTeam_Call struct {
 // GetByTeam is a helper method to define mock.On call
 //   - ctx context.Context
 //   - teamID uuid.UUID
+//   - freezeTime *time.Time
 //   - limit int
 //   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByTeam(ctx interface{}, teamID interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByTeam_Call {
-	return &MockSubmissionRepository_GetByTeam_Call{Call: _e.mock.On("GetByTeam", ctx, teamID, limit, offset)}
+func (_e *MockSubmissionRepository_Expecter) GetByTeam(ctx interface{}, teamID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByTeam_Call {
+	return &MockSubmissionRepository_GetByTeam_Call{Call: _e.mock.On("GetByTeam", ctx, teamID, freezeTime, limit, offset)}
 }
 
-func (_c *MockSubmissionRepository_GetByTeam_Call) Run(run func(ctx context.Context, teamID uuid.UUID, limit int, offset int)) *MockSubmissionRepository_GetByTeam_Call {
+func (_c *MockSubmissionRepository_GetByTeam_Call) Run(run func(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time, limit int, offset int)) *MockSubmissionRepository_GetByTeam_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1655,90 +1379,9 @@ func (_c *MockSubmissionRepository_GetByTeam_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByTeam_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByTeam_Call {
-	_c.Call.Return(submissionWithDetailss, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByTeam_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByTeam_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetByTeamFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, teamID, freezeTime, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByTeamFrozen")
-	}
-
-	var r0 []*domain.SubmissionWithDetails
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, teamID, freezeTime, limit, offset)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, teamID, freezeTime, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time, int, int) error); ok {
-		r1 = returnFunc(ctx, teamID, freezeTime, limit, offset)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_GetByTeamFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTeamFrozen'
-type MockSubmissionRepository_GetByTeamFrozen_Call struct {
-	*mock.Call
-}
-
-// GetByTeamFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - teamID uuid.UUID
-//   - freezeTime time.Time
-//   - limit int
-//   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByTeamFrozen(ctx interface{}, teamID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByTeamFrozen_Call {
-	return &MockSubmissionRepository_GetByTeamFrozen_Call{Call: _e.mock.On("GetByTeamFrozen", ctx, teamID, freezeTime, limit, offset)}
-}
-
-func (_c *MockSubmissionRepository_GetByTeamFrozen_Call) Run(run func(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit int, offset int)) *MockSubmissionRepository_GetByTeamFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
-		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		var arg3 int
 		if args[3] != nil {
@@ -1759,19 +1402,19 @@ func (_c *MockSubmissionRepository_GetByTeamFrozen_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByTeamFrozen_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByTeamFrozen_Call {
+func (_c *MockSubmissionRepository_GetByTeam_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByTeam_Call {
 	_c.Call.Return(submissionWithDetailss, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByTeamFrozen_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByTeamFrozen_Call {
+func (_c *MockSubmissionRepository_GetByTeam_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByTeam_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByUser provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByUser(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockSubmissionRepository) GetByUser(ctx context.Context, userID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
+	ret := _mock.Called(ctx, userID, freezeTime, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByUser")
@@ -1779,18 +1422,18 @@ func (_mock *MockSubmissionRepository) GetByUser(ctx context.Context, userID uui
 
 	var r0 []*domain.SubmissionWithDetails
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
+		return returnFunc(ctx, userID, freezeTime, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time, int, int) []*domain.SubmissionWithDetails); ok {
+		r0 = returnFunc(ctx, userID, freezeTime, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time, int, int) error); ok {
+		r1 = returnFunc(ctx, userID, freezeTime, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1805,13 +1448,14 @@ type MockSubmissionRepository_GetByUser_Call struct {
 // GetByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
+//   - freezeTime *time.Time
 //   - limit int
 //   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByUser(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByUser_Call {
-	return &MockSubmissionRepository_GetByUser_Call{Call: _e.mock.On("GetByUser", ctx, userID, limit, offset)}
+func (_e *MockSubmissionRepository_Expecter) GetByUser(ctx interface{}, userID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByUser_Call {
+	return &MockSubmissionRepository_GetByUser_Call{Call: _e.mock.On("GetByUser", ctx, userID, freezeTime, limit, offset)}
 }
 
-func (_c *MockSubmissionRepository_GetByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockSubmissionRepository_GetByUser_Call {
+func (_c *MockSubmissionRepository_GetByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, freezeTime *time.Time, limit int, offset int)) *MockSubmissionRepository_GetByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1821,90 +1465,9 @@ func (_c *MockSubmissionRepository_GetByUser_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByUser_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByUser_Call {
-	_c.Call.Return(submissionWithDetailss, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByUser_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetByUserFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error) {
-	ret := _mock.Called(ctx, userID, freezeTime, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByUserFrozen")
-	}
-
-	var r0 []*domain.SubmissionWithDetails
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) ([]*domain.SubmissionWithDetails, error)); ok {
-		return returnFunc(ctx, userID, freezeTime, limit, offset)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, int, int) []*domain.SubmissionWithDetails); ok {
-		r0 = returnFunc(ctx, userID, freezeTime, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.SubmissionWithDetails)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, freezeTime, limit, offset)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_GetByUserFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByUserFrozen'
-type MockSubmissionRepository_GetByUserFrozen_Call struct {
-	*mock.Call
-}
-
-// GetByUserFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - freezeTime time.Time
-//   - limit int
-//   - offset int
-func (_e *MockSubmissionRepository_Expecter) GetByUserFrozen(ctx interface{}, userID interface{}, freezeTime interface{}, limit interface{}, offset interface{}) *MockSubmissionRepository_GetByUserFrozen_Call {
-	return &MockSubmissionRepository_GetByUserFrozen_Call{Call: _e.mock.On("GetByUserFrozen", ctx, userID, freezeTime, limit, offset)}
-}
-
-func (_c *MockSubmissionRepository_GetByUserFrozen_Call) Run(run func(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit int, offset int)) *MockSubmissionRepository_GetByUserFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
-		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		var arg3 int
 		if args[3] != nil {
@@ -1925,12 +1488,12 @@ func (_c *MockSubmissionRepository_GetByUserFrozen_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByUserFrozen_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByUserFrozen_Call {
+func (_c *MockSubmissionRepository_GetByUser_Call) Return(submissionWithDetailss []*domain.SubmissionWithDetails, err error) *MockSubmissionRepository_GetByUser_Call {
 	_c.Call.Return(submissionWithDetailss, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetByUserFrozen_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByUserFrozen_Call {
+func (_c *MockSubmissionRepository_GetByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, freezeTime *time.Time, limit int, offset int) ([]*domain.SubmissionWithDetails, error)) *MockSubmissionRepository_GetByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2096,8 +1659,8 @@ func (_c *MockSubmissionRepository_GetFailsByUser_Call) RunAndReturn(run func(ct
 }
 
 // GetStats provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetStats(ctx context.Context, challengeID uuid.UUID) (*domain.SubmissionStats, error) {
-	ret := _mock.Called(ctx, challengeID)
+func (_mock *MockSubmissionRepository) GetStats(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.SubmissionStats, error) {
+	ret := _mock.Called(ctx, challengeID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStats")
@@ -2105,18 +1668,18 @@ func (_mock *MockSubmissionRepository) GetStats(ctx context.Context, challengeID
 
 	var r0 *domain.SubmissionStats
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*domain.SubmissionStats, error)); ok {
-		return returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (*domain.SubmissionStats, error)); ok {
+		return returnFunc(ctx, challengeID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *domain.SubmissionStats); ok {
-		r0 = returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) *domain.SubmissionStats); ok {
+		r0 = returnFunc(ctx, challengeID, freezeTime)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.SubmissionStats)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, challengeID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time) error); ok {
+		r1 = returnFunc(ctx, challengeID, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2131,11 +1694,12 @@ type MockSubmissionRepository_GetStats_Call struct {
 // GetStats is a helper method to define mock.On call
 //   - ctx context.Context
 //   - challengeID uuid.UUID
-func (_e *MockSubmissionRepository_Expecter) GetStats(ctx interface{}, challengeID interface{}) *MockSubmissionRepository_GetStats_Call {
-	return &MockSubmissionRepository_GetStats_Call{Call: _e.mock.On("GetStats", ctx, challengeID)}
+//   - freezeTime *time.Time
+func (_e *MockSubmissionRepository_Expecter) GetStats(ctx interface{}, challengeID interface{}, freezeTime interface{}) *MockSubmissionRepository_GetStats_Call {
+	return &MockSubmissionRepository_GetStats_Call{Call: _e.mock.On("GetStats", ctx, challengeID, freezeTime)}
 }
 
-func (_c *MockSubmissionRepository_GetStats_Call) Run(run func(ctx context.Context, challengeID uuid.UUID)) *MockSubmissionRepository_GetStats_Call {
+func (_c *MockSubmissionRepository_GetStats_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time)) *MockSubmissionRepository_GetStats_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2145,78 +1709,9 @@ func (_c *MockSubmissionRepository_GetStats_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetStats_Call) Return(submissionStats *domain.SubmissionStats, err error) *MockSubmissionRepository_GetStats_Call {
-	_c.Call.Return(submissionStats, err)
-	return _c
-}
-
-func (_c *MockSubmissionRepository_GetStats_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID) (*domain.SubmissionStats, error)) *MockSubmissionRepository_GetStats_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetStatsFrozen provides a mock function for the type MockSubmissionRepository
-func (_mock *MockSubmissionRepository) GetStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*domain.SubmissionStats, error) {
-	ret := _mock.Called(ctx, challengeID, freezeTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetStatsFrozen")
-	}
-
-	var r0 *domain.SubmissionStats
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (*domain.SubmissionStats, error)); ok {
-		return returnFunc(ctx, challengeID, freezeTime)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) *domain.SubmissionStats); ok {
-		r0 = returnFunc(ctx, challengeID, freezeTime)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.SubmissionStats)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r1 = returnFunc(ctx, challengeID, freezeTime)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSubmissionRepository_GetStatsFrozen_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetStatsFrozen'
-type MockSubmissionRepository_GetStatsFrozen_Call struct {
-	*mock.Call
-}
-
-// GetStatsFrozen is a helper method to define mock.On call
-//   - ctx context.Context
-//   - challengeID uuid.UUID
-//   - freezeTime time.Time
-func (_e *MockSubmissionRepository_Expecter) GetStatsFrozen(ctx interface{}, challengeID interface{}, freezeTime interface{}) *MockSubmissionRepository_GetStatsFrozen_Call {
-	return &MockSubmissionRepository_GetStatsFrozen_Call{Call: _e.mock.On("GetStatsFrozen", ctx, challengeID, freezeTime)}
-}
-
-func (_c *MockSubmissionRepository_GetStatsFrozen_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time)) *MockSubmissionRepository_GetStatsFrozen_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 time.Time
+		var arg2 *time.Time
 		if args[2] != nil {
-			arg2 = args[2].(time.Time)
+			arg2 = args[2].(*time.Time)
 		}
 		run(
 			arg0,
@@ -2227,12 +1722,12 @@ func (_c *MockSubmissionRepository_GetStatsFrozen_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetStatsFrozen_Call) Return(submissionStats *domain.SubmissionStats, err error) *MockSubmissionRepository_GetStatsFrozen_Call {
+func (_c *MockSubmissionRepository_GetStats_Call) Return(submissionStats *domain.SubmissionStats, err error) *MockSubmissionRepository_GetStats_Call {
 	_c.Call.Return(submissionStats, err)
 	return _c
 }
 
-func (_c *MockSubmissionRepository_GetStatsFrozen_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*domain.SubmissionStats, error)) *MockSubmissionRepository_GetStatsFrozen_Call {
+func (_c *MockSubmissionRepository_GetStats_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.SubmissionStats, error)) *MockSubmissionRepository_GetStats_Call {
 	_c.Call.Return(run)
 	return _c
 }

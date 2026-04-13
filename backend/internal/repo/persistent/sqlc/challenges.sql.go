@@ -47,8 +47,8 @@ func (q *Queries) BatchUpdateChallengePoints(ctx context.Context, arg BatchUpdat
 }
 
 const createChallenge = `-- name: CreateChallenge :exec
-INSERT INTO challenges (id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+INSERT INTO challenges (id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, max_attempts_window, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 `
 
 type CreateChallengeParams struct {
@@ -56,7 +56,7 @@ type CreateChallengeParams struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -64,10 +64,11 @@ type CreateChallengeParams struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -88,6 +89,7 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 		arg.FlagHash,
 		arg.ConnectionInfo,
 		arg.MaxAttempts,
+		arg.MaxAttemptsWindow,
 		arg.Position,
 		arg.State,
 		arg.IsRegex,
@@ -155,7 +157,7 @@ func (q *Queries) GetAllChallengeRequirements(ctx context.Context) ([]ChallengeR
 }
 
 const getChallengeByID = `-- name: GetChallengeByID :one
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, max_attempts_window, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = $1
 `
@@ -165,7 +167,7 @@ type GetChallengeByIDRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -173,10 +175,11 @@ type GetChallengeByIDRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -199,6 +202,7 @@ func (q *Queries) GetChallengeByID(ctx context.Context, id uuid.UUID) (GetChalle
 		&i.FlagHash,
 		&i.ConnectionInfo,
 		&i.MaxAttempts,
+		&i.MaxAttemptsWindow,
 		&i.Position,
 		&i.State,
 		&i.IsRegex,
@@ -212,7 +216,7 @@ func (q *Queries) GetChallengeByID(ctx context.Context, id uuid.UUID) (GetChalle
 }
 
 const getChallengeByIDForUpdate = `-- name: GetChallengeByIDForUpdate :one
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, max_attempts_window, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = $1
 FOR UPDATE
@@ -223,7 +227,7 @@ type GetChallengeByIDForUpdateRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -231,10 +235,11 @@ type GetChallengeByIDForUpdateRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -257,6 +262,7 @@ func (q *Queries) GetChallengeByIDForUpdate(ctx context.Context, id uuid.UUID) (
 		&i.FlagHash,
 		&i.ConnectionInfo,
 		&i.MaxAttempts,
+		&i.MaxAttemptsWindow,
 		&i.Position,
 		&i.State,
 		&i.IsRegex,
@@ -277,8 +283,8 @@ WHERE id = $1
 
 type GetChallengeFlagsRow struct {
 	FlagHash          string  `json:"flag_hash"`
-	IsRegex           *bool   `json:"is_regex"`
-	IsCaseInsensitive *bool   `json:"is_case_insensitive"`
+	IsRegex           bool    `json:"is_regex"`
+	IsCaseInsensitive bool    `json:"is_case_insensitive"`
 	FlagRegex         *string `json:"flag_regex"`
 	FlagFormatRegex   *string `json:"flag_format_regex"`
 }
@@ -332,7 +338,7 @@ func (q *Queries) GetChallengeRequirements(ctx context.Context, challengeID uuid
 }
 
 const getChallenges = `-- name: GetChallenges :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c
 WHERE c.state IN ('visible', 'locked')
 ORDER BY c.position ASC, c.id ASC
@@ -343,7 +349,7 @@ type GetChallengesRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -351,10 +357,11 @@ type GetChallengesRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -384,6 +391,7 @@ func (q *Queries) GetChallenges(ctx context.Context) ([]GetChallengesRow, error)
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -405,7 +413,7 @@ func (q *Queries) GetChallenges(ctx context.Context) ([]GetChallengesRow, error)
 }
 
 const getChallengesAll = `-- name: GetChallengesAll :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c
 ORDER BY c.position ASC, c.id ASC
 `
@@ -415,7 +423,7 @@ type GetChallengesAllRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -423,10 +431,11 @@ type GetChallengesAllRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -456,6 +465,7 @@ func (q *Queries) GetChallengesAll(ctx context.Context) ([]GetChallengesAllRow, 
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -477,7 +487,7 @@ func (q *Queries) GetChallengesAll(ctx context.Context) ([]GetChallengesAllRow, 
 }
 
 const getChallengesByIDs = `-- name: GetChallengesByIDs :many
-SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
+SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, max_attempts_window, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges
 WHERE id = ANY($1::uuid[])
 `
@@ -487,7 +497,7 @@ type GetChallengesByIDsRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -495,10 +505,11 @@ type GetChallengesByIDsRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -527,6 +538,7 @@ func (q *Queries) GetChallengesByIDs(ctx context.Context, dollar_1 []uuid.UUID) 
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -547,7 +559,7 @@ func (q *Queries) GetChallengesByIDs(ctx context.Context, dollar_1 []uuid.UUID) 
 }
 
 const getChallengesByTag = `-- name: GetChallengesByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
 WHERE c.state IN ('visible', 'locked')
@@ -559,7 +571,7 @@ type GetChallengesByTagRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -567,10 +579,11 @@ type GetChallengesByTagRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -600,6 +613,7 @@ func (q *Queries) GetChallengesByTag(ctx context.Context, tagID uuid.UUID) ([]Ge
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -621,7 +635,7 @@ func (q *Queries) GetChallengesByTag(ctx context.Context, tagID uuid.UUID) ([]Ge
 }
 
 const getChallengesForTeam = `-- name: GetChallengesForTeam :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
@@ -634,7 +648,7 @@ type GetChallengesForTeamRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -642,10 +656,11 @@ type GetChallengesForTeamRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -675,6 +690,7 @@ func (q *Queries) GetChallengesForTeam(ctx context.Context, teamID uuid.UUID) ([
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -696,7 +712,7 @@ func (q *Queries) GetChallengesForTeam(ctx context.Context, teamID uuid.UUID) ([
 }
 
 const getChallengesForTeamByTag = `-- name: GetChallengesForTeamByTag :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at,
     (CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END)::int AS solved
 FROM challenges c
 JOIN challenge_tags ct ON ct.challenge_id = c.id AND ct.tag_id = $1
@@ -715,7 +731,7 @@ type GetChallengesForTeamByTagRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -723,10 +739,11 @@ type GetChallengesForTeamByTagRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -756,6 +773,7 @@ func (q *Queries) GetChallengesForTeamByTag(ctx context.Context, arg GetChalleng
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -777,7 +795,7 @@ func (q *Queries) GetChallengesForTeamByTag(ctx context.Context, arg GetChalleng
 }
 
 const getMissingChallengesByTeamID = `-- name: GetMissingChallengesByTeamID :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
 FROM challenges c
 WHERE c.state IN ('visible', 'locked')
   AND NOT EXISTS (
@@ -792,7 +810,7 @@ type GetMissingChallengesByTeamIDRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -800,10 +818,11 @@ type GetMissingChallengesByTeamIDRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -832,6 +851,7 @@ func (q *Queries) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -852,7 +872,7 @@ func (q *Queries) GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.
 }
 
 const getMissingChallengesByUserID = `-- name: GetMissingChallengesByUserID :many
-SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
+SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at
 FROM challenges c
 WHERE c.state IN ('visible', 'locked')
   AND NOT EXISTS (
@@ -868,7 +888,7 @@ type GetMissingChallengesByUserIDRow struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
@@ -876,10 +896,11 @@ type GetMissingChallengesByUserIDRow struct {
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -908,6 +929,7 @@ func (q *Queries) GetMissingChallengesByUserID(ctx context.Context, id uuid.UUID
 			&i.FlagHash,
 			&i.ConnectionInfo,
 			&i.MaxAttempts,
+			&i.MaxAttemptsWindow,
 			&i.Position,
 			&i.State,
 			&i.IsRegex,
@@ -938,10 +960,30 @@ func (q *Queries) IncrementChallengeSolveCount(ctx context.Context, id uuid.UUID
 	return solve_count, err
 }
 
+const recalculateChallengeSolveCounts = `-- name: RecalculateChallengeSolveCounts :exec
+UPDATE challenges AS c
+SET solve_count = COALESCE(v.cnt, 0)
+FROM (
+    SELECT s.challenge_id, COUNT(*)::int AS cnt
+    FROM solves s
+    JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+    WHERE s.challenge_id = ANY($1::uuid[])
+      AND s.banned_team_id IS NULL
+      AND s.banned_user_id IS NULL
+    GROUP BY s.challenge_id
+) v
+WHERE c.id = v.challenge_id
+`
+
+func (q *Queries) RecalculateChallengeSolveCounts(ctx context.Context, dollar_1 []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, recalculateChallengeSolveCounts, dollar_1)
+	return err
+}
+
 const updateChallenge = `-- name: UpdateChallenge :exec
 UPDATE challenges SET
     title = $2, description = $3, category = $4, points = $5, initial_value = $6, min_value = $7,
-    decay = $8, flag_hash = $9, connection_info = $10, max_attempts = $11, position = $12, state = $13, is_regex = $14, is_case_insensitive = $15, flag_regex = $16, flag_format_regex = $17, updated_at = $18
+    decay = $8, flag_hash = $9, connection_info = $10, max_attempts = $11, max_attempts_window = $12, position = $13, state = $14, is_regex = $15, is_case_insensitive = $16, flag_regex = $17, flag_format_regex = $18, updated_at = $19
 WHERE id = $1
 `
 
@@ -950,17 +992,18 @@ type UpdateChallengeParams struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
@@ -979,6 +1022,7 @@ func (q *Queries) UpdateChallenge(ctx context.Context, arg UpdateChallengeParams
 		arg.FlagHash,
 		arg.ConnectionInfo,
 		arg.MaxAttempts,
+		arg.MaxAttemptsWindow,
 		arg.Position,
 		arg.State,
 		arg.IsRegex,
@@ -996,7 +1040,7 @@ UPDATE challenges SET points = $2 WHERE id = $1 RETURNING id
 
 type UpdateChallengePointsParams struct {
 	ID     uuid.UUID `json:"id"`
-	Points *int32    `json:"points"`
+	Points int32     `json:"points"`
 }
 
 func (q *Queries) UpdateChallengePoints(ctx context.Context, arg UpdateChallengePointsParams) (uuid.UUID, error) {
@@ -1004,4 +1048,21 @@ func (q *Queries) UpdateChallengePoints(ctx context.Context, arg UpdateChallenge
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const zeroChallengeSolveCountsIfNoSolves = `-- name: ZeroChallengeSolveCountsIfNoSolves :exec
+UPDATE challenges SET solve_count = 0
+WHERE id = ANY($1::uuid[])
+  AND id NOT IN (
+    SELECT DISTINCT s.challenge_id FROM solves s
+    JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+    WHERE s.challenge_id = ANY($1::uuid[])
+      AND s.banned_team_id IS NULL
+      AND s.banned_user_id IS NULL
+  )
+`
+
+func (q *Queries) ZeroChallengeSolveCountsIfNoSolves(ctx context.Context, dollar_1 []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, zeroChallengeSolveCountsIfNoSolves, dollar_1)
+	return err
 }

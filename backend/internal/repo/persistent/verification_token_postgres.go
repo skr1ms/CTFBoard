@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type VerificationTokenRepo struct {
@@ -55,13 +55,10 @@ func (r *VerificationTokenRepo) Create(ctx context.Context, token *domain.Verifi
 }
 
 func (r *VerificationTokenRepo) GetByToken(ctx context.Context, token string) (*domain.VerificationToken, error) {
-	t, err := r.Q(ctx).GetVerificationTokenByToken(ctx, token)
+	t, err := GetOrNotFound(func() (sqlc.VerificationToken, error) { return r.Q(ctx).GetVerificationTokenByToken(ctx, token) },
+		apperr.ErrTokenNotFound, "VerificationTokenRepo - GetByToken")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrTokenNotFound
-		}
-
-		return nil, fmt.Errorf("VerificationTokenRepo - GetByToken: %w", err)
+		return nil, err
 	}
 
 	return toDomainVerificationToken(t), nil

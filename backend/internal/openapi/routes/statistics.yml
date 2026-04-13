@@ -20,6 +20,16 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -102,6 +112,16 @@
               $ref: '../components/schemas.yml#/GeneralStats'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -145,6 +165,16 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -180,6 +210,16 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -215,6 +255,16 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -248,6 +298,16 @@
               $ref: '../components/schemas.yml#/SubmissionTimeSeriesResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:
@@ -403,6 +463,12 @@
               items:
                 $ref: '../components/schemas.yml#/SolveMatrixRow'
               type: array
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden
         content:

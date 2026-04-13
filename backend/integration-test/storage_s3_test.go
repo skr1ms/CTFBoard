@@ -13,7 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 )
 
-//nolint:tparallel // subtests are sequential S3 operations (upload → verify → delete)
+//nolint:tparallel // subtests are sequential S3 operations (upload -> verify -> delete)
 func TestStorageS3_Workflow(t *testing.T) {
 	t.Parallel()
 	endpoint, accessKey, secretKey, bucket := SetupSeaweedFS(t)

@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
@@ -72,7 +70,7 @@ func FromScoreboardHistoryList(stats []*domain.ScoreboardHistoryEntry) []openapi
 			TeamID:    new(s.TeamID.String()),
 			TeamName:  new(s.TeamName),
 			Points:    new(s.Points),
-			Timestamp: new(s.Timestamp.Format(time.RFC3339)),
+			Timestamp: timePtr(&s.Timestamp),
 		}
 	}
 
@@ -142,7 +140,7 @@ func FromScoreboardGraph(g *domain.ScoreboardGraph) openapi.ScoreboardGraph {
 		timeline := make([]openapi.ScorePoint, len(t.Timeline))
 		for j, p := range t.Timeline {
 			timeline[j] = openapi.ScorePoint{
-				Timestamp: new(p.Timestamp.Format(time.RFC3339)),
+				Timestamp: timePtr(&p.Timestamp),
 				Score:     new(p.Score),
 			}
 		}
@@ -156,8 +154,8 @@ func FromScoreboardGraph(g *domain.ScoreboardGraph) openapi.ScoreboardGraph {
 
 	return openapi.ScoreboardGraph{
 		Range: new(openapi.TimeRange{
-			Start: new(g.Range.Start.Format(time.RFC3339)),
-			End:   new(g.Range.End.Format(time.RFC3339)),
+			Start: timePtr(&g.Range.Start),
+			End:   timePtr(&g.Range.End),
 		}),
 		Teams: &teams,
 	}

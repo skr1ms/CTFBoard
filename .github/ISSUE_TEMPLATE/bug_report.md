@@ -3,7 +3,7 @@ name: Bug Report
 about: Report a bug in AstroCTFb
 title: "[Bug]: "
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 ## Describe the Bug

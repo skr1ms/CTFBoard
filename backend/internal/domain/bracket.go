@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Bracket is a competitive division that teams can be assigned to for separate scoring tracks.
 type Bracket struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`

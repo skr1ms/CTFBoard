@@ -8,11 +8,9 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// Get comments for challenge
 // (GET /challenges/{challengeID}/comments).
 func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -28,7 +26,6 @@ func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http
 	httputil.RenderOK(w, r, response.FromCommentList(list))
 }
 
-// Create comment
 // (POST /challenges/{challengeID}/comments).
 func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -65,7 +62,6 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 	httputil.RenderCreated(w, r, response.FromComment(comment))
 }
 
-// Delete comment
 // (DELETE /comments/{ID}).
 func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, ID string) {
 	commentIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -78,7 +74,7 @@ func (h *Server) DeleteCommentsID(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	if h.OnError(w, r, h.challenge.CommentUC.Delete(r.Context(), commentIDParsed, user.ID, user.Role == domain.RoleAdmin), "DeleteCommentsID", "Delete") {
+	if h.OnError(w, r, h.challenge.CommentUC.Delete(r.Context(), commentIDParsed, user.ID, helper.IsAdmin(user)), "DeleteCommentsID", "Delete") {
 		return
 	}
 

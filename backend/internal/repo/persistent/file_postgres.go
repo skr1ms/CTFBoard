@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type FileRepo struct {
@@ -30,6 +30,7 @@ func toDomainFile(f sqlc.File) *domain.File {
 		ID:          f.ID,
 		Type:        domain.FileType(f.Type),
 		ChallengeID: f.ChallengeID,
+		PageID:      f.PageID,
 		Location:    f.Location,
 		Filename:    f.Filename,
 		Size:        f.Size,
@@ -49,6 +50,7 @@ func (r *FileRepo) Create(ctx context.Context, file *domain.File) error {
 		ID:          file.ID,
 		Type:        string(file.Type),
 		ChallengeID: file.ChallengeID,
+		PageID:      file.PageID,
 		Location:    file.Location,
 		Filename:    file.Filename,
 		Size:        file.Size,
@@ -56,6 +58,10 @@ func (r *FileRepo) Create(ctx context.Context, file *domain.File) error {
 		CreatedAt:   pgutil.TimeToTimestamptz(&file.CreatedAt),
 	})
 	if err != nil {
+		if pgutil.IsPgUniqueViolation(err) {
+			return apperr.ErrFileLocationConflict
+		}
+
 		return fmt.Errorf("FileRepo - Create: %w", err)
 	}
 
@@ -63,26 +69,20 @@ func (r *FileRepo) Create(ctx context.Context, file *domain.File) error {
 }
 
 func (r *FileRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.File, error) {
-	f, err := r.Q(ctx).GetFileByID(ctx, ID)
+	f, err := GetOrNotFound(func() (sqlc.File, error) { return r.Q(ctx).GetFileByID(ctx, ID) },
+		apperr.ErrFileNotFound, "FileRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrFileNotFound
-		}
-
-		return nil, fmt.Errorf("FileRepo - GetByID: %w", err)
+		return nil, err
 	}
 
 	return toDomainFile(f), nil
 }
 
 func (r *FileRepo) GetByLocation(ctx context.Context, location string) (*domain.File, error) {
-	f, err := r.Q(ctx).GetFileByLocation(ctx, location)
+	f, err := GetOrNotFound(func() (sqlc.File, error) { return r.Q(ctx).GetFileByLocation(ctx, location) },
+		apperr.ErrFileNotFound, "FileRepo - GetByLocation")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrFileNotFound
-		}
-
-		return nil, fmt.Errorf("FileRepo - GetByLocation: %w", err)
+		return nil, err
 	}
 
 	return toDomainFile(f), nil
@@ -90,7 +90,7 @@ func (r *FileRepo) GetByLocation(ctx context.Context, location string) (*domain.
 
 func (r *FileRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error) {
 	rows, err := r.Q(ctx).GetFilesByChallengeIDAndType(ctx, sqlc.GetFilesByChallengeIDAndTypeParams{
-		ChallengeID: challengeID,
+		ChallengeID: &challengeID,
 		Type:        string(fileType),
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *FileRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, 
 }
 
 func (r *FileRepo) GetAllByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.File, error) {
-	rows, err := r.Q(ctx).GetFilesByChallengeID(ctx, challengeID)
+	rows, err := r.Q(ctx).GetFilesByChallengeID(ctx, &challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("FileRepo - GetAllByChallengeID: %w", err)
 	}
@@ -133,7 +133,23 @@ func (r *FileRepo) GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UU
 
 	for _, f := range rows {
 		ef := toDomainFile(f)
-		out[f.ChallengeID] = append(out[f.ChallengeID], ef)
+		if f.ChallengeID != nil {
+			out[*f.ChallengeID] = append(out[*f.ChallengeID], ef)
+		}
+	}
+
+	return out, nil
+}
+
+func (r *FileRepo) GetByPageID(ctx context.Context, pageID uuid.UUID) ([]*domain.File, error) {
+	rows, err := r.Q(ctx).GetFilesByPageID(ctx, &pageID)
+	if err != nil {
+		return nil, fmt.Errorf("FileRepo - GetByPageID: %w", err)
+	}
+
+	out := make([]*domain.File, 0, len(rows))
+	for _, f := range rows {
+		out = append(out, toDomainFile(f))
 	}
 
 	return out, nil
@@ -171,14 +187,8 @@ func (r *FileRepo) ListLocations(ctx context.Context, limit, offset int) ([]stri
 }
 
 func (r *FileRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	_, err := r.Q(ctx).DeleteFile(ctx, ID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrFileNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) { return r.Q(ctx).DeleteFile(ctx, ID) },
+		apperr.ErrFileNotFound, "FileRepo - Delete")
 
-		return fmt.Errorf("FileRepo - Delete: %w", err)
-	}
-
-	return nil
+	return err
 }

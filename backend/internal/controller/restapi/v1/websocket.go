@@ -4,7 +4,6 @@ import (
 	"net/http"
 )
 
-// WebSocket connection
 // (GET /ws).
 func (h *Server) GetWs(w http.ResponseWriter, r *http.Request) {
 	h.infra.WSController.HandleWS(w, r)

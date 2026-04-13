@@ -312,6 +312,9 @@ type ServerInterface interface {
 	// Verify email
 	// (POST /auth/verify-email)
 	PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request)
+	// Get avatar by path
+	// (GET /avatars/{path})
+	GetAvatarByPath(w http.ResponseWriter, r *http.Request, path string)
 	// Get brackets list
 	// (GET /brackets)
 	GetBrackets(w http.ResponseWriter, r *http.Request)
@@ -420,6 +423,9 @@ type ServerInterface interface {
 	// Get scoreboard graph
 	// (GET /scoreboard/graph)
 	GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams)
+	// SSE connection
+	// (GET /sse)
+	GetSse(w http.ResponseWriter, r *http.Request)
 	// Get challenge statistics
 	// (GET /statistics/challenges)
 	GetStatisticsChallenges(w http.ResponseWriter, r *http.Request, params GetStatisticsChallengesParams)
@@ -1173,6 +1179,12 @@ func (_ Unimplemented) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get avatar by path
+// (GET /avatars/{path})
+func (_ Unimplemented) GetAvatarByPath(w http.ResponseWriter, r *http.Request, path string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get brackets list
 // (GET /brackets)
 func (_ Unimplemented) GetBrackets(w http.ResponseWriter, r *http.Request) {
@@ -1386,6 +1398,12 @@ func (_ Unimplemented) GetScoreboard(w http.ResponseWriter, r *http.Request, par
 // Get scoreboard graph
 // (GET /scoreboard/graph)
 func (_ Unimplemented) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SSE connection
+// (GET /sse)
+func (_ Unimplemented) GetSse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -4885,6 +4903,31 @@ func (siw *ServerInterfaceWrapper) PostAuthVerifyEmail(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// GetAvatarByPath operation middleware
+func (siw *ServerInterfaceWrapper) GetAvatarByPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", chi.URLParam(r, "path"), &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAvatarByPath(w, r, path)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetBrackets operation middleware
 func (siw *ServerInterfaceWrapper) GetBrackets(w http.ResponseWriter, r *http.Request) {
 
@@ -5901,6 +5944,28 @@ func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// GetSse operation middleware
+func (siw *ServerInterfaceWrapper) GetSse(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSse(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetStatisticsChallenges operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request) {
 
@@ -6532,6 +6597,8 @@ func (siw *ServerInterfaceWrapper) DeleteTeamsMeAvatar(w http.ResponseWriter, r 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6551,6 +6618,8 @@ func (siw *ServerInterfaceWrapper) PutTeamsMeAvatar(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -7086,6 +7155,8 @@ func (siw *ServerInterfaceWrapper) DeleteUsersMeAvatar(w http.ResponseWriter, r 
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -7105,6 +7176,8 @@ func (siw *ServerInterfaceWrapper) PutUsersMeAvatar(w http.ResponseWriter, r *ht
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -7833,6 +7906,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/verify-email", wrapper.PostAuthVerifyEmail)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/avatars/{path}", wrapper.GetAvatarByPath)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/brackets", wrapper.GetBrackets)
 	})
 	r.Group(func(r chi.Router) {
@@ -7939,6 +8015,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/scoreboard/graph", wrapper.GetScoreboardGraph)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/sse", wrapper.GetSse)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/statistics/challenges", wrapper.GetStatisticsChallenges)

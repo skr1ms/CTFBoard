@@ -1,7 +1,3 @@
--- name: CreateTeam :exec
-INSERT INTO teams (id, name, invite_token, captain_id, is_solo, is_auto_created, created_at, invite_token_expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
-
 -- name: CreateTeamReturningID :one
 INSERT INTO teams (name, invite_token, captain_id, is_solo, is_auto_created, created_at, invite_token_expires_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -26,7 +22,7 @@ WHERE name = $1 AND deleted_at IS NULL;
 UPDATE teams SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id;
 
 -- name: GetSoloTeamByUserID :one
-SELECT t.id, t.name, t.invite_token, t.invite_token_expires_at, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
+SELECT t.id, t.name, t.invite_token, t.invite_token_expires_at, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.avatar_url, t.created_at
 FROM teams t
 JOIN users u ON u.team_id = t.id
 WHERE u.id = $1 AND t.is_solo = true AND t.deleted_at IS NULL;
@@ -98,7 +94,7 @@ ORDER BY created_at ASC
 LIMIT $1 OFFSET $2;
 
 -- name: CountSearchTeamsAdmin :one
-SELECT COUNT(*) FROM teams
+SELECT COUNT(*)::bigint FROM teams
 WHERE deleted_at IS NULL
   AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%');
 
@@ -106,7 +102,7 @@ WHERE deleted_at IS NULL
 SELECT id FROM teams WHERE id = $1 AND deleted_at IS NULL FOR UPDATE;
 
 -- name: CountSearchTeams :one
-SELECT COUNT(*)
+SELECT COUNT(*)::bigint
 FROM teams
 WHERE deleted_at IS NULL
   AND is_hidden = false
@@ -116,8 +112,8 @@ WHERE deleted_at IS NULL
 -- name: UpdateTeamAvatarURL :exec
 UPDATE teams SET avatar_url = $2 WHERE id = $1 AND deleted_at IS NULL;
 
--- name: ClearTeamAvatarURL :one
-UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL RETURNING avatar_url;
+-- name: ClearTeamAvatarURL :exec
+UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListAllTeamAvatarURLs :many
 SELECT avatar_url FROM teams WHERE avatar_url IS NOT NULL AND deleted_at IS NULL;

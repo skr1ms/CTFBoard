@@ -9,10 +9,10 @@ import (
 	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type CompetitionParamRepo struct {
@@ -65,26 +65,20 @@ func (r *CompetitionParamRepo) GetByCategory(ctx context.Context, category strin
 }
 
 func (r *CompetitionParamRepo) GetByKey(ctx context.Context, key string) (*domain.CompetitionParam, error) {
-	row, err := r.Q(ctx).GetConfigByKey(ctx, key)
+	row, err := GetOrNotFound(func() (sqlc.CompetitionParam, error) { return r.Q(ctx).GetConfigByKey(ctx, key) },
+		apperr.ErrCompetitionParamNotFound, "CompetitionParamRepo - GetByKey")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrCompetitionParamNotFound
-		}
-
-		return nil, fmt.Errorf("CompetitionParamRepo - GetByKey: %w", err)
+		return nil, err
 	}
 
 	return toDomainCompetitionParam(row), nil
 }
 
 func (r *CompetitionParamRepo) GetByKeyForUpdate(ctx context.Context, key string) (*domain.CompetitionParam, error) {
-	row, err := r.Q(ctx).GetConfigByKeyForUpdate(ctx, key)
+	row, err := GetOrNotFound(func() (sqlc.CompetitionParam, error) { return r.Q(ctx).GetConfigByKeyForUpdate(ctx, key) },
+		apperr.ErrCompetitionParamNotFound, "CompetitionParamRepo - GetByKeyForUpdate")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrCompetitionParamNotFound
-		}
-
-		return nil, fmt.Errorf("CompetitionParamRepo - GetByKeyForUpdate: %w", err)
+		return nil, err
 	}
 
 	return toDomainCompetitionParam(row), nil

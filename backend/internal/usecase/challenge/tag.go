@@ -6,10 +6,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 const defaultTagColor = "#6b7280"
@@ -31,7 +32,7 @@ func NewTagUseCase(deps TagDeps) *TagUseCase {
 
 func (uc *TagUseCase) Create(ctx context.Context, name, color string) (*domain.Tag, error) {
 	if name == "" {
-		return nil, httperr.ErrTagNameRequired
+		return nil, apperr.ErrTagNameRequired
 	}
 
 	tag := &domain.Tag{
@@ -71,7 +72,7 @@ func (uc *TagUseCase) GetAll(ctx context.Context) ([]*domain.Tag, error) {
 
 func (uc *TagUseCase) Update(ctx context.Context, ID uuid.UUID, name, color string) (*domain.Tag, error) {
 	if name == "" {
-		return nil, httperr.ErrTagNameRequired
+		return nil, apperr.ErrTagNameRequired
 	}
 
 	tag, err := uc.deps.TagRepo.GetByID(ctx, ID)
@@ -109,8 +110,8 @@ func (uc *TagUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUI
 		return nil, fmt.Errorf("TagUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
 
-	if challenge.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
 	}
 
 	tags, err := uc.deps.TagRepo.GetByChallengeID(ctx, challengeID)

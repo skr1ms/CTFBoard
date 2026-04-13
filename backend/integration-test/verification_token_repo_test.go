@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestVerificationTokenRepo_CreateAndGet(t *testing.T) {
@@ -46,7 +46,7 @@ func TestVerificationTokenRepo_GetByToken_NotFound(t *testing.T) {
 
 	_, err := repo.GetByToken(ctx, "non_existent_token")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTokenNotFound)
 }
 
 func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
@@ -71,7 +71,7 @@ func TestVerificationTokenRepo_DeleteByUserAndType(t *testing.T) {
 
 	_, err = repo.GetByToken(ctx, token.Token)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTokenNotFound)
 }
 
 func TestVerificationTokenRepo_MarkUsed(t *testing.T) {

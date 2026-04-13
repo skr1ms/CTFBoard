@@ -13,14 +13,15 @@ import (
 )
 
 const createFile = `-- name: CreateFile :exec
-INSERT INTO files (id, type, challenge_id, location, filename, size, sha256, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO files (id, type, challenge_id, page_id, location, filename, size, sha256, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateFileParams struct {
 	ID          uuid.UUID          `json:"id"`
 	Type        string             `json:"type"`
-	ChallengeID uuid.UUID          `json:"challenge_id"`
+	ChallengeID *uuid.UUID         `json:"challenge_id"`
+	PageID      *uuid.UUID         `json:"page_id"`
 	Location    string             `json:"location"`
 	Filename    string             `json:"filename"`
 	Size        int64              `json:"size"`
@@ -33,6 +34,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) error {
 		arg.ID,
 		arg.Type,
 		arg.ChallengeID,
+		arg.PageID,
 		arg.Location,
 		arg.Filename,
 		arg.Size,
@@ -53,7 +55,7 @@ func (q *Queries) DeleteFile(ctx context.Context, id uuid.UUID) (uuid.UUID, erro
 }
 
 const getAllFiles = `-- name: GetAllFiles :many
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 ORDER BY created_at DESC
 `
@@ -71,6 +73,7 @@ func (q *Queries) GetAllFiles(ctx context.Context) ([]File, error) {
 			&i.ID,
 			&i.Type,
 			&i.ChallengeID,
+			&i.PageID,
 			&i.Location,
 			&i.Filename,
 			&i.Size,
@@ -88,7 +91,7 @@ func (q *Queries) GetAllFiles(ctx context.Context) ([]File, error) {
 }
 
 const getFileByID = `-- name: GetFileByID :one
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 WHERE id = $1
 `
@@ -100,6 +103,7 @@ func (q *Queries) GetFileByID(ctx context.Context, id uuid.UUID) (File, error) {
 		&i.ID,
 		&i.Type,
 		&i.ChallengeID,
+		&i.PageID,
 		&i.Location,
 		&i.Filename,
 		&i.Size,
@@ -110,7 +114,7 @@ func (q *Queries) GetFileByID(ctx context.Context, id uuid.UUID) (File, error) {
 }
 
 const getFileByLocation = `-- name: GetFileByLocation :one
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 WHERE location = $1
 `
@@ -122,6 +126,7 @@ func (q *Queries) GetFileByLocation(ctx context.Context, location string) (File,
 		&i.ID,
 		&i.Type,
 		&i.ChallengeID,
+		&i.PageID,
 		&i.Location,
 		&i.Filename,
 		&i.Size,
@@ -132,13 +137,13 @@ func (q *Queries) GetFileByLocation(ctx context.Context, location string) (File,
 }
 
 const getFilesByChallengeID = `-- name: GetFilesByChallengeID :many
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 WHERE challenge_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetFilesByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]File, error) {
+func (q *Queries) GetFilesByChallengeID(ctx context.Context, challengeID *uuid.UUID) ([]File, error) {
 	rows, err := q.db.Query(ctx, getFilesByChallengeID, challengeID)
 	if err != nil {
 		return nil, err
@@ -151,6 +156,7 @@ func (q *Queries) GetFilesByChallengeID(ctx context.Context, challengeID uuid.UU
 			&i.ID,
 			&i.Type,
 			&i.ChallengeID,
+			&i.PageID,
 			&i.Location,
 			&i.Filename,
 			&i.Size,
@@ -168,15 +174,15 @@ func (q *Queries) GetFilesByChallengeID(ctx context.Context, challengeID uuid.UU
 }
 
 const getFilesByChallengeIDAndType = `-- name: GetFilesByChallengeIDAndType :many
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 WHERE challenge_id = $1 AND type = $2
 ORDER BY created_at DESC
 `
 
 type GetFilesByChallengeIDAndTypeParams struct {
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	Type        string    `json:"type"`
+	ChallengeID *uuid.UUID `json:"challenge_id"`
+	Type        string     `json:"type"`
 }
 
 func (q *Queries) GetFilesByChallengeIDAndType(ctx context.Context, arg GetFilesByChallengeIDAndTypeParams) ([]File, error) {
@@ -192,6 +198,7 @@ func (q *Queries) GetFilesByChallengeIDAndType(ctx context.Context, arg GetFiles
 			&i.ID,
 			&i.Type,
 			&i.ChallengeID,
+			&i.PageID,
 			&i.Location,
 			&i.Filename,
 			&i.Size,
@@ -209,7 +216,7 @@ func (q *Queries) GetFilesByChallengeIDAndType(ctx context.Context, arg GetFiles
 }
 
 const getFilesByChallengeIDs = `-- name: GetFilesByChallengeIDs :many
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
 FROM files
 WHERE challenge_id = ANY($1::uuid[])
 ORDER BY challenge_id, created_at DESC
@@ -228,6 +235,81 @@ func (q *Queries) GetFilesByChallengeIDs(ctx context.Context, dollar_1 []uuid.UU
 			&i.ID,
 			&i.Type,
 			&i.ChallengeID,
+			&i.PageID,
+			&i.Location,
+			&i.Filename,
+			&i.Size,
+			&i.SHA256,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFilesByPageID = `-- name: GetFilesByPageID :many
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at
+FROM files
+WHERE page_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetFilesByPageID(ctx context.Context, pageID *uuid.UUID) ([]File, error) {
+	rows, err := q.db.Query(ctx, getFilesByPageID, pageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.ChallengeID,
+			&i.PageID,
+			&i.Location,
+			&i.Filename,
+			&i.Size,
+			&i.SHA256,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getWriteupFilesByIDs = `-- name: GetWriteupFilesByIDs :many
+SELECT id, type, challenge_id, page_id, location, filename, size, sha256, created_at FROM files
+WHERE type = 'writeup'
+  AND challenge_id = ANY($1::uuid[])
+ORDER BY challenge_id, created_at
+`
+
+func (q *Queries) GetWriteupFilesByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]File, error) {
+	rows, err := q.db.Query(ctx, getWriteupFilesByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.ChallengeID,
+			&i.PageID,
 			&i.Location,
 			&i.Filename,
 			&i.Size,

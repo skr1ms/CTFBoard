@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	emailMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
@@ -92,6 +92,7 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	user := newTestUser(userID, "testuser", "test@example.com")
 
+	d.setupTxRun()
 	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
 
 	var storedToken string
@@ -177,7 +178,7 @@ func TestEmailUseCase_SendPasswordResetEmail_UserNotFound(t *testing.T) {
 	t.Parallel()
 	d := newEmailTestDeps(t)
 
-	d.userRepo.On("GetByEmail", mock.Anything, "unknown@example.com").Return(nil, httperr.ErrUserNotFound)
+	d.userRepo.On("GetByEmail", mock.Anything, "unknown@example.com").Return(nil, apperr.ErrUserNotFound)
 
 	err := d.createUseCase().SendPasswordResetEmail(context.Background(), "unknown@example.com")
 	assert.NoError(t, err, "Should not return error even if user is not found (security)")
@@ -207,10 +208,10 @@ func TestEmailUseCase_ResetPassword_TokenInvalid(t *testing.T) {
 	d := newEmailTestDeps(t)
 
 	d.setupTxRun()
-	d.tokenRepo.On("GetByToken", mock.Anything, mock.Anything).Return(nil, httperr.ErrTokenNotFound)
+	d.tokenRepo.On("GetByToken", mock.Anything, mock.Anything).Return(nil, apperr.ErrTokenNotFound)
 
 	err := d.createUseCase().ResetPassword(context.Background(), "invalid-token", "new-password")
-	assert.ErrorIs(t, err, httperr.ErrTokenNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTokenNotFound)
 }
 
 func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
@@ -220,6 +221,7 @@ func TestEmailUseCase_ResendVerification_Success(t *testing.T) {
 	user := newTestUser(uuid.New(), "testuser", "test@example.com")
 	user.IsVerified = false
 
+	d.setupTxRun()
 	d.userRepo.On("GetByID", mock.Anything, user.ID).Return(user, nil)
 	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
 	d.tokenRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
@@ -263,8 +265,8 @@ func TestEmailUseCase_ResendVerification_UserNotFound(t *testing.T) {
 	t.Parallel()
 	d := newEmailTestDeps(t)
 
-	d.userRepo.On("GetByID", mock.Anything, uuid.Nil).Return(nil, httperr.ErrUserNotFound)
+	d.userRepo.On("GetByID", mock.Anything, uuid.Nil).Return(nil, apperr.ErrUserNotFound)
 
 	err := d.createUseCase().ResendVerification(context.Background(), uuid.Nil)
-	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
+	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }

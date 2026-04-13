@@ -10,10 +10,8 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-// Get competition status
 // (GET /competition/status).
 func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.comp.CompetitionUC.Get(r.Context())
@@ -24,7 +22,6 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 
-// Get competition
 // (GET /admin/competition).
 func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.comp.CompetitionUC.Get(r.Context())
@@ -35,7 +32,6 @@ func (h *Server) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromCompetition(comp))
 }
 
-// Update competition
 // (PUT /admin/competition).
 func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -55,16 +51,7 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	comp := request.UpdateCompetitionRequestToEntity(&req)
-	optionals := &usecase.CompetitionUpdateOptionals{
-		IsPaused:                     req.IsPaused,
-		IsPublic:                     req.IsPublic,
-		AllowTeamSwitch:              req.AllowTeamSwitch,
-		MinTeamSize:                  req.MinTeamSize,
-		MaxTeamSize:                  req.MaxTeamSize,
-		ClearFreezeTime:              req.ClearFreezeTime,
-		ClearEndTime:                 req.ClearEndTime,
-		KeepScoreboardFrozenAfterEnd: req.KeepScoreboardFrozenAfterEnd,
-	}
+	optionals := request.UpdateCompetitionOptionalsFromRequest(&req)
 	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
 
 	err := h.comp.CompetitionUC.Update(r.Context(), comp, optionals, user.ID, clientIP)

@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-jwtkit"
@@ -21,7 +19,7 @@ func FromUserForRegister(u *domain.User) openapi.RegisterResponse {
 		ID:        new(u.ID.String()),
 		Username:  new(u.Username),
 		Email:     new(u.Email),
-		CreatedAt: new(u.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&u.CreatedAt),
 	}
 }
 
@@ -42,7 +40,8 @@ func FromUserForMe(u *domain.User) openapi.MeResponse {
 		Email:     new(u.Email),
 		Role:      new(string(u.Role)),
 		TeamID:    teamIDStr,
-		CreatedAt: new(u.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&u.CreatedAt),
+		AvatarURL: u.AvatarURL,
 	}
 }
 
@@ -66,8 +65,9 @@ func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
 		ID:        new(up.User.ID.String()),
 		Username:  new(up.User.Username),
 		TeamID:    teamIDStr,
-		CreatedAt: new(up.User.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&up.User.CreatedAt),
 		Solves:    &solves,
+		AvatarURL: up.User.AvatarURL,
 	}
 }
 
@@ -83,10 +83,11 @@ func FromUser(u *domain.User) openapi.UserResponse {
 	}
 
 	return openapi.UserResponse{
-		ID:       new(u.ID.String()),
-		Username: new(u.Username),
-		TeamID:   teamIDStr,
-		Role:     new(string(u.Role)),
+		ID:        new(u.ID.String()),
+		Username:  new(u.Username),
+		TeamID:    teamIDStr,
+		Role:      new(string(u.Role)),
+		AvatarURL: u.AvatarURL,
 	}
 }
 
@@ -135,6 +136,7 @@ func FromAdminUser(u *domain.User) openapi.AdminUserResponse {
 		IsBanned:     new(u.IsBanned),
 		BannedAt:     u.BannedAt,
 		BannedReason: u.BannedReason,
+		AvatarURL:    u.AvatarURL,
 	}
 }
 

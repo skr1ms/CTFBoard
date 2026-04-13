@@ -16,7 +16,7 @@ func requirementsMet(ctx context.Context, challengeID, teamID uuid.UUID, challen
 
 	requirements, err := challengeRepo.GetRequirements(ctx, challengeID)
 	if err != nil {
-		return false, fmt.Errorf("requirementsMet - GetRequirements: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - requirementsMet - GetRequirements: %w", err)
 	}
 
 	if len(requirements) == 0 {
@@ -30,7 +30,7 @@ func requirementsMet(ctx context.Context, challengeID, teamID uuid.UUID, challen
 
 	solvedIDs, err := solveRepo.GetSolvedChallengeIDsByTeam(ctx, teamID, requirementIDs)
 	if err != nil {
-		return false, fmt.Errorf("requirementsMet - GetSolvedChallengeIDsByTeam: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - requirementsMet - GetSolvedChallengeIDsByTeam: %w", err)
 	}
 
 	solvedSet := make(map[uuid.UUID]struct{}, len(solvedIDs))

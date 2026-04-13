@@ -3,7 +3,6 @@ package mailer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,8 +11,10 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 )
 
+// ErrMailerStopped is returned by Send when the AsyncMailer has been stopped.
 var ErrMailerStopped = errors.New("mailer stopped")
 
+// AsyncMailer wraps a Mailer and delivers messages asynchronously via a buffered channel and worker pool.
 type AsyncMailer struct {
 	delegate   Mailer
 	msgChan    chan Message
@@ -26,6 +27,7 @@ type AsyncMailer struct {
 	workPool   *pool.Pool
 }
 
+// NewAsyncMailer creates an AsyncMailer with the given send-queue buffer size and worker count.
 func NewAsyncMailer(
 	delegate Mailer,
 	bufferSize int,
@@ -42,11 +44,13 @@ func NewAsyncMailer(
 	}
 }
 
+// Start launches the background reader goroutine and worker pool. Must be called before Send.
 func (m *AsyncMailer) Start() {
 	m.workPool = pool.New().WithMaxGoroutines(m.workers)
 	go m.reader()
 }
 
+// Stop signals the mailer to shut down, drains any queued messages, and waits for all workers to finish.
 func (m *AsyncMailer) Stop() {
 	m.stopOnce.Do(func() {
 		m.stopped.Store(true)
@@ -55,6 +59,8 @@ func (m *AsyncMailer) Stop() {
 	})
 }
 
+// Send enqueues msg for asynchronous delivery. Returns ErrMailerStopped if Stop has been called,
+// or an error if the internal queue is full.
 func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
 	if m.stopped.Load() {
 		return ErrMailerStopped
@@ -64,10 +70,13 @@ func (m *AsyncMailer) Send(_ context.Context, msg Message) error {
 	case m.msgChan <- msg:
 		return nil
 	default:
-		return fmt.Errorf("mailer queue is full")
+		return errors.New("mailer.Send: queue is full")
 	}
 }
 
+// reader is the core dispatch goroutine. It forwards messages from msgChan to the worker pool.
+// On receiving a quit signal, it drains the remaining buffered messages before waiting for all
+// workers to complete and closing readerDone to unblock Stop.
 func (m *AsyncMailer) reader() {
 	defer close(m.readerDone)
 
@@ -94,8 +103,10 @@ func (m *AsyncMailer) reader() {
 	}
 }
 
+const sendTimeout = 30 * time.Second
+
 func (m *AsyncMailer) send(msg Message) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), sendTimeout)
 	defer cancel()
 
 	err := m.delegate.Send(ctx, msg)

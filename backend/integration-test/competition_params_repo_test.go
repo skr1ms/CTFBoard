@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestCompetitionParamRepo_GetAll_Success(t *testing.T) {
@@ -55,7 +55,7 @@ func TestCompetitionParamRepo_GetByKey_Error_NotFound(t *testing.T) {
 
 	_, err := f.CompetitionParamRepo.GetByKey(ctx, "nonexistent_key_xyz")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionParamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionParamNotFound)
 }
 
 func TestCompetitionParamRepo_Upsert_Success(t *testing.T) {
@@ -101,7 +101,7 @@ func TestCompetitionParamRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.CompetitionParamRepo.GetByKey(ctx, p.Key)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionParamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionParamNotFound)
 }
 
 func TestCompetitionParamRepo_Delete_Error_NoRows(t *testing.T) {

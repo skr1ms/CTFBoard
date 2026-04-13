@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestSolutionRepo_Upsert_Create(t *testing.T) {
@@ -69,7 +69,7 @@ func TestSolutionRepo_GetSolution_NotFound(t *testing.T) {
 	sol, err := f.ChallengeRepo.GetSolution(ctx, challenge.ID)
 	assert.Error(t, err)
 	assert.Nil(t, sol)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
@@ -84,7 +84,7 @@ func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 
 	writeupFile := &domain.File{
 		Type:        domain.FileTypeWriteup,
-		ChallengeID: challenge.ID,
+		ChallengeID: &challenge.ID,
 		Location:    "uploads/test-writeup.pdf",
 		Filename:    "writeup.pdf",
 		Size:        1024,
@@ -95,7 +95,7 @@ func TestSolutionRepo_GetSolution_WithWriteupFiles(t *testing.T) {
 
 	challengeFile := &domain.File{
 		Type:        domain.FileTypeChallenge,
-		ChallengeID: challenge.ID,
+		ChallengeID: &challenge.ID,
 		Location:    "uploads/challenge.zip",
 		Filename:    "challenge.zip",
 		Size:        2048,
@@ -127,7 +127,7 @@ func TestSolutionRepo_DeleteSolution_Success(t *testing.T) {
 	sol, err := f.ChallengeRepo.GetSolution(ctx, challenge.ID)
 	assert.Error(t, err)
 	assert.Nil(t, sol)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestSolutionRepo_DeleteSolution_Idempotent(t *testing.T) {
@@ -219,7 +219,7 @@ func TestSolutionRepo_ListSolutions_IncludesWriteupFiles(t *testing.T) {
 
 	wFile := &domain.File{
 		Type:        domain.FileTypeWriteup,
-		ChallengeID: challenge.ID,
+		ChallengeID: &challenge.ID,
 		Location:    "uploads/sol.pdf",
 		Filename:    "sol.pdf",
 		Size:        512,

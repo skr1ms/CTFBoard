@@ -12,34 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createOAuthAccount = `-- name: CreateOAuthAccount :exec
-INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-`
-
-type CreateOAuthAccountParams struct {
-	ID             uuid.UUID          `json:"id"`
-	UserID         uuid.UUID          `json:"user_id"`
-	Provider       string             `json:"provider"`
-	ProviderUserID string             `json:"provider_user_id"`
-	AccessToken    *string            `json:"access_token"`
-	RefreshToken   *string            `json:"refresh_token"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-}
-
-func (q *Queries) CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) error {
-	_, err := q.db.Exec(ctx, createOAuthAccount,
-		arg.ID,
-		arg.UserID,
-		arg.Provider,
-		arg.ProviderUserID,
-		arg.AccessToken,
-		arg.RefreshToken,
-		arg.ExpiresAt,
-	)
-	return err
-}
-
 const getOAuthAccount = `-- name: GetOAuthAccount :one
 SELECT id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at FROM oauth_accounts
 WHERE provider = $1 AND provider_user_id = $2

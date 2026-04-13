@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -12,7 +10,7 @@ import (
 func FromAPIToken(t *domain.APIToken) openapi.APITokenResponse {
 	res := openapi.APITokenResponse{
 		ID:        new(t.ID.String()),
-		CreatedAt: new(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&t.CreatedAt),
 	}
 	if t.Description != "" {
 		res.Description = new(t.Description)
@@ -37,7 +35,7 @@ func FromAPITokenCreated(plaintext string, t *domain.APIToken) openapi.APITokenC
 	res := openapi.APITokenCreatedResponse{
 		ID:        new(t.ID.String()),
 		Token:     plaintext,
-		CreatedAt: new(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&t.CreatedAt),
 	}
 	if t.Description != "" {
 		res.Description = new(t.Description)

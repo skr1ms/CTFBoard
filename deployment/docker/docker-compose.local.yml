@@ -189,7 +189,7 @@ services:
       STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-./uploads}
       STORAGE_S3_ENDPOINT: seaweedfs:8333
       STORAGE_S3_PUBLIC_ENDPOINT: ${STORAGE_S3_PUBLIC_ENDPOINT:-http://localhost:8333}
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-tasks}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-ctf}
       STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
       STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-false}
       STORAGE_PRESIGNED_EXPIRY_MINUTES: ${STORAGE_PRESIGNED_EXPIRY_MINUTES:-60}
@@ -211,6 +211,12 @@ services:
       OAUTH_GOOGLE_REDIRECT_URL: ${OAUTH_GOOGLE_REDIRECT_URL:-http://localhost:8090/api/v1/auth/oauth/google/callback}
     ports:
       - "${BACKEND_PORT:-8090}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       postgres:
         condition: service_healthy
@@ -290,6 +296,7 @@ services:
       - ../../monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_data:/data
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -419,6 +426,7 @@ volumes:
   vault_data:
   prometheus_data:
   loki_data:
+  promtail_data:
   grafana_data:
   seaweed_data:
 

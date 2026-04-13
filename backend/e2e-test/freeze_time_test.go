@@ -100,7 +100,7 @@ func TestScoreboard_Freeze_NoSolves_Empty(t *testing.T) {
 		"points": 100, "category": "misc", "state": "visible",
 	})
 	// Set competition times directly in DB to avoid COMPETITION_ACTIVE_CANNOT_UPDATE
-	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT.
+	// race: parallel tests may activate competition between resetCompetitionToNotStarted and the API PUT
 	now := time.Now().UTC()
 	freezeTime := now.Add(1 * time.Hour)
 	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), &freezeTime)

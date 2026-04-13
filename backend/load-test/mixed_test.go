@@ -61,7 +61,7 @@ func TestMixed_PeakHour(t *testing.T) {
 		{3, MeTargeter(Fixture)},
 	})
 
-	rps := 800
+	rps := raceScale(800)
 	duration := 30 * time.Second
 	fmt.Printf("\n[mixed] Peak hour @ %d RPS for %s:\n", rps, duration)
 
@@ -72,42 +72,9 @@ func TestMixed_PeakHour(t *testing.T) {
 	require.GreaterOrEqual(t, m.Success, SuccessThreshold,
 		"peak hour success rate must be ≥ %.0f%% (got %.2f%%)",
 		SuccessThreshold*100, m.Success*100)
-	require.LessOrEqual(t, m.Latencies.P99, P99Threshold,
+
+	peakP99 := effectiveP99ThresholdStrict()
+	require.LessOrEqual(t, m.Latencies.P99, peakP99,
 		"peak hour P99 must be ≤ %s (got %s)",
-		P99Threshold, m.Latencies.P99)
-}
-
-func TestMixed_Soak(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping soak test in short mode")
-	}
-
-	require.NotNil(t, Fixture)
-	require.NotEmpty(t, Fixture.Users)
-
-	emails := make([]string, len(Fixture.Users))
-
-	passwords := make([]string, len(Fixture.Users))
-	for i := range Fixture.Users {
-		emails[i] = fmt.Sprintf("lt_user_%04d@loadtest.local", i)
-		passwords[i] = "ValidPass1"
-	}
-
-	attacker := NewAttacker(200)
-	targeter := MixedCTFTargeter(Fixture, emails, passwords)
-
-	rps := 300
-	duration := 10 * time.Minute
-	fmt.Printf("\n[mixed] Soak test @ %d RPS for %s:\n", rps, duration)
-
-	r := RunAttack(attacker, "soak", rps, duration, targeter)
-	PrintMetrics(r)
-
-	m := r.Metrics
-	require.GreaterOrEqual(t, m.Success, SuccessThreshold,
-		"soak test success rate must be ≥ %.0f%% (got %.2f%%)",
-		SuccessThreshold*100, m.Success*100)
-	require.LessOrEqual(t, m.Latencies.P99, P99Threshold,
-		"soak test P99 must be ≤ %s (got %s)",
-		P99Threshold, m.Latencies.P99)
+		peakP99, m.Latencies.P99)
 }

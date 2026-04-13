@@ -1,14 +1,10 @@
--- name: CreateOAuthAccount :exec
-INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
-
 -- name: GetOAuthAccount :one
-SELECT * FROM oauth_accounts
+SELECT id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at FROM oauth_accounts
 WHERE provider = $1 AND provider_user_id = $2
 LIMIT 1;
 
 -- name: GetOAuthAccountsByUserID :many
-SELECT * FROM oauth_accounts WHERE user_id = $1;
+SELECT id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at FROM oauth_accounts WHERE user_id = $1;
 
 -- name: UpsertOAuthAccount :exec
 INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at)

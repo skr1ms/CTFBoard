@@ -3,19 +3,23 @@ package e2e_test
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
-// POST /challenges/{ID}/submit (dynamic scoring): first solver gets initial_value; second solver gets decayed score; GET /scoreboard reflects correct points.
+// POST /challenges/{ID}/submit (dynamic scoring): first solver gets initial_value; second solver gets
+// decayed score; GET /scoreboard reflects updated points after cache propagation.
 func TestDynamicScoring_Flow(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, tokenAdmin := h.SetupCompetition("admin_dynamic")
 
+	// decay=1: with the quadratic formula, solves > decay -> score drops to min_value immediately.
+	// So the 2nd solver (solves=2 > decay=1) gets exactly min_value=100.
 	challID := h.CreateChallenge(tokenAdmin, map[string]any{
 		"title":         "Dynamic Chall",
 		"description":   "Points drop fast",
@@ -38,23 +42,12 @@ func TestDynamicScoring_Flow(t *testing.T) {
 
 	h.SubmitFlag(user2, challID, "flag{dyn}", http.StatusOK)
 
-	scoreboard := h.GetScoreboard(user1)
-	helper.RequireStatus(t, http.StatusOK, scoreboard.StatusCode(), scoreboard.Body, "scoreboard dynamic")
-	require.NotNil(t, scoreboard.JSON200)
-
-	var user2Points int
-
-	for _, entry := range *scoreboard.JSON200 {
-		if entry.TeamName != nil && *entry.TeamName == "user_dyn_2" {
-			if entry.Points != nil {
-				user2Points = *entry.Points
-			}
-
-			break
-		}
-	}
-
-	require.Equal(t, 100, user2Points, "Dynamic scoring: user2 should get 100 points")
+	// Scoreboard cache is invalidated asynchronously after commit; poll until consistent.
+	require.Eventually(t,
+		func() bool { return h.TeamScoreMatches(user2, "user_dyn_2", 100) },
+		2*time.Second, 100*time.Millisecond,
+		"Dynamic scoring: user2 should get 100 points",
+	)
 }
 
 // POST /challenges/{ID}/submit: wrong flag returns 200 with correct=false.

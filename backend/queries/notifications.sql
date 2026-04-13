@@ -14,7 +14,10 @@ WHERE is_global = TRUE
 ORDER BY is_pinned DESC, created_at DESC
 LIMIT $1 OFFSET $2;
 
--- name: UpdateNotification :exec
+-- name: CountAllNotifications :one
+SELECT COUNT(*)::int FROM notifications WHERE is_global = TRUE;
+
+-- name: UpdateNotification :execrows
 UPDATE notifications
 SET title = $2, content = $3, type = $4, is_pinned = $5
 WHERE id = $1;
@@ -45,7 +48,7 @@ SET is_read = TRUE
 WHERE id = $1 AND user_id = $2;
 
 -- name: CountUnreadUserNotifications :one
-SELECT COUNT(*) FROM user_notifications WHERE user_id = $1 AND is_read = FALSE;
+SELECT COUNT(*)::int FROM user_notifications WHERE user_id = $1 AND is_read = FALSE;
 
 -- name: DeleteUserNotification :exec
 DELETE FROM user_notifications WHERE id = $1 AND user_id = $2;

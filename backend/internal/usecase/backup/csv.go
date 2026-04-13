@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 var allowedCSVTables = map[string]bool{
@@ -121,7 +121,7 @@ func csvExportTeams(teams []*domain.Team) ([]byte, error) {
 }
 
 func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
-	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "position", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
+	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "max_attempts_window", "position", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
 
 	rows := make([][]string, 0, len(challenges))
 	for _, c := range challenges {
@@ -151,6 +151,7 @@ func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
 			c.State,
 			c.ConnectionInfo,
 			strconv.Itoa(c.MaxAttempts),
+			strconv.FormatInt(int64(c.MaxAttemptsWindow), 10),
 			strconv.Itoa(c.Position),
 			strconv.FormatBool(c.IsRegex),
 			strconv.FormatBool(c.IsCaseInsensitive),
@@ -298,6 +299,10 @@ func writeCSV(header []string, rows [][]string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// csvNormalizeUserRoles downgrades every value in the "role" column to
+// RoleUser. This prevents a crafted CSV import from injecting admin accounts
+// when the caller has not explicitly opted into preserving admin roles.
+// Returns rows unchanged when no "role" column is present in the header.
 func csvNormalizeUserRoles(header []string, rows [][]string) [][]string {
 	roleIdx := -1
 
@@ -337,7 +342,7 @@ func parseCSV(data []byte) ([]string, [][]string, error) {
 	}
 
 	if len(records) < 1 {
-		return nil, nil, httperr.ErrBackupCSVEmpty
+		return nil, nil, apperr.ErrBackupCSVEmpty
 	}
 
 	return records[0], records[1:], nil

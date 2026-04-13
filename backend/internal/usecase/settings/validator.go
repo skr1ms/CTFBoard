@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const maxFieldTextLen = 500
@@ -41,7 +41,7 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType domain.E
 	for fieldID, value := range values {
 		field, ok := fieldMap[fieldID]
 		if !ok {
-			return httperr.NewValidationErrorf("unknown field")
+			return apperr.NewValidationErrorf("unknown field")
 		}
 
 		err := v.validateValue(field, value)
@@ -54,11 +54,11 @@ func (v *FieldValidator) ValidateValues(ctx context.Context, entityType domain.E
 		if field.Required {
 			val, ok := values[field.ID]
 			if !ok {
-				return httperr.NewValidationErrorf("required field missing")
+				return apperr.NewValidationErrorf("required field missing")
 			}
 
 			if field.FieldType == domain.FieldTypeText && val == "" {
-				return httperr.NewValidationErrorf("required field cannot be empty")
+				return apperr.NewValidationErrorf("required field cannot be empty")
 			}
 		}
 	}
@@ -77,13 +77,13 @@ func (v *FieldValidator) validateValue(field *domain.Field, value string) error 
 	case domain.FieldTypeText:
 		return v.validateText(value)
 	default:
-		return httperr.NewValidationErrorf("unsupported field type")
+		return apperr.NewValidationErrorf("unsupported field type")
 	}
 }
 
 func (v *FieldValidator) validateNumber(value string) error {
 	if _, err := strconv.Atoi(value); err != nil {
-		return httperr.ErrFieldInvalidNumber
+		return apperr.ErrFieldInvalidNumber
 	}
 
 	return nil
@@ -91,7 +91,7 @@ func (v *FieldValidator) validateNumber(value string) error {
 
 func (v *FieldValidator) validateBoolean(value string) error {
 	if value != "true" && value != "false" {
-		return httperr.ErrFieldInvalidBoolean
+		return apperr.ErrFieldInvalidBoolean
 	}
 
 	return nil
@@ -99,7 +99,7 @@ func (v *FieldValidator) validateBoolean(value string) error {
 
 func (v *FieldValidator) validateSelect(value string, options []string) error {
 	if len(options) == 0 {
-		return httperr.NewValidationErrorf("select field has no options configured")
+		return apperr.NewValidationErrorf("select field has no options configured")
 	}
 
 	value = strings.TrimSpace(value)
@@ -108,12 +108,12 @@ func (v *FieldValidator) validateSelect(value string, options []string) error {
 		return nil
 	}
 
-	return httperr.NewValidationErrorf("invalid option")
+	return apperr.NewValidationErrorf("invalid option")
 }
 
 func (v *FieldValidator) validateText(value string) error {
 	if len(value) > maxFieldTextLen {
-		return httperr.ErrFieldTextTooLong
+		return apperr.ErrFieldTextTooLong
 	}
 
 	return nil

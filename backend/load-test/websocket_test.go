@@ -21,7 +21,8 @@ const (
 	wsEnduranceDurationShort = 60 * time.Second
 	wsConnectTimeout         = 10 * time.Second
 	wsAliveThreshold         = 0.90
-	wsEventInterval          = 3 * time.Second
+	wsEventInterval          = 1 * time.Second
+	wsMinMsgDeliveryRatio    = 0.90
 )
 
 type wsConnState struct {
@@ -118,7 +119,9 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 	eventCtx, eventCancel := context.WithCancel(ctx)
 	defer eventCancel()
 
-	go generateWSEvents(eventCtx, Fixture, wsEventInterval)
+	var notifsSent atomic.Int64
+
+	go broadcastNotifications(eventCtx, Fixture, wsEventInterval, &notifsSent)
 
 	select {
 	case <-time.After(duration):
@@ -128,11 +131,15 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 	eventCancel()
 
 	aliveAtEnd := aliveAfterConnect - int(disconnected.Load())
-	fmt.Printf("[ws-endurance] duration=%s  alive=%d/%d  msgs_rx=%d  reconnects=%d\n",
+	totalMsgs := totalMsgsRx.Load()
+	totalNotifs := notifsSent.Load()
+
+	fmt.Printf("[ws-endurance] duration=%s  alive=%d/%d  msgs_rx=%d  notifs_sent=%d  reconnects=%d\n",
 		duration,
 		aliveAtEnd,
 		aliveAfterConnect,
-		totalMsgsRx.Load(),
+		totalMsgs,
+		totalNotifs,
 		countReconnects(states),
 	)
 
@@ -140,6 +147,14 @@ func runWSEndurance(t *testing.T, duration time.Duration) {
 	require.GreaterOrEqual(t, ratio, wsAliveThreshold,
 		"WebSocket endurance: alive ratio %.2f%% < threshold %.0f%%",
 		ratio*100, wsAliveThreshold*100)
+
+	if totalNotifs > 0 && aliveAfterConnect > 0 {
+		expectedMsgs := int64(aliveAfterConnect) * totalNotifs
+		minExpected := int64(float64(expectedMsgs) * wsMinMsgDeliveryRatio)
+		require.GreaterOrEqual(t, totalMsgs, minExpected,
+			"WebSocket message delivery: got %d msgs, expected ≥%d (%.0f%% of %d conns × %d notifs)",
+			totalMsgs, minExpected, wsMinMsgDeliveryRatio*100, aliveAfterConnect, totalNotifs)
+	}
 }
 
 func runWSClientLoop(
@@ -198,51 +213,48 @@ func isWSEnduranceDone(ctx context.Context, endAt time.Time) bool {
 	return time.Now().After(endAt)
 }
 
-func generateWSEvents(ctx context.Context, fixture *TestFixture, interval time.Duration) {
-	if len(fixture.ChallengeIDs) == 0 || len(fixture.Users) == 0 {
+// broadcastNotifications sends global notifications via the admin API, which triggers
+// EventTypeNotification broadcasts to all connected WebSocket clients.
+func broadcastNotifications(ctx context.Context, fixture *TestFixture, interval time.Duration, sent *atomic.Int64) {
+	if fixture.AdminToken == "" {
 		return
 	}
 
-	chalID := fixture.ChallengeIDs[0]
 	client := &http.Client{Timeout: 5 * time.Second}
+	url := fixture.BaseURL + "/api/v1/admin/notifications"
 
 	tick := time.NewTicker(interval)
 	defer tick.Stop()
 
-	var i int
+	var seq int
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
-			token := fixture.Users[i%len(fixture.Users)].Token
-			sendWrongFlag(ctx, client, fixture.BaseURL, token, chalID)
+			seq++
+			body := fmt.Sprintf(`{"title":"ws-endurance-%d","content":"broadcast event %d","type":"info"}`, seq, seq)
 
-			i++
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
+			if err != nil {
+				continue
+			}
+
+			req.Header.Set("Authorization", fixture.AdminToken)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := client.Do(req)
+			if err != nil {
+				continue
+			}
+
+			resp.Body.Close()
+
+			if resp.StatusCode == http.StatusCreated {
+				sent.Add(1)
+			}
 		}
-	}
-}
-
-func sendWrongFlag(ctx context.Context, client *http.Client, baseURL, token, challengeID string) {
-	url := fmt.Sprintf("%s/api/v1/challenges/%s/submit", baseURL, challengeID)
-	body := `{"flag":"ws_endurance_wrong_flag_` + fmt.Sprintf("%d", time.Now().UnixNano()) + `"}`
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
-	if err != nil {
-		return
-	}
-
-	req.Header.Set("Authorization", token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-
-	if resp != nil && resp.Body != nil {
-		defer resp.Body.Close()
 	}
 }
 

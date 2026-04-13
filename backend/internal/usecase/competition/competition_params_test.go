@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type fakeKeyValueStore struct {
@@ -256,7 +256,7 @@ func TestCompetitionParamUseCase_GetString_Error(t *testing.T) {
 	defaultVal := "def"
 
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
-	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
+	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, apperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetString(ctx, key, defaultVal)
@@ -287,7 +287,7 @@ func TestCompetitionParamUseCase_GetInt_Error(t *testing.T) {
 	defaultVal := 10
 
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
-	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
+	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, apperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetInt(ctx, key, defaultVal)
@@ -317,7 +317,7 @@ func TestCompetitionParamUseCase_GetBool_Error(t *testing.T) {
 	key := "missing"
 
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{}, nil)
-	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, httperr.ErrCompetitionParamNotFound)
+	d.configRepo.EXPECT().GetByKey(mock.Anything, key).Return(nil, apperr.ErrCompetitionParamNotFound)
 
 	uc := d.createCompetitionParamUseCase()
 	got := uc.GetBool(ctx, key, true)
@@ -358,8 +358,8 @@ func TestCompetitionParamUseCase_GetByCategory_InvalidCategory_ReturnsError(t *t
 	assert.Error(t, err)
 	assert.Nil(t, got)
 
-	var he *httperr.HTTPError
-	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
+	var ve *apperr.ValidationError
+	assert.ErrorAs(t, err, &ve)
 }
 
 func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testing.T) {
@@ -376,8 +376,8 @@ func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testin
 
 	assert.Error(t, err)
 
-	var he *httperr.HTTPError
-	assert.True(t, assert.ErrorAs(t, err, &he) && he.GetCode() == "VALIDATION_ERROR")
+	var ve2 *apperr.ValidationError
+	assert.ErrorAs(t, err, &ve2)
 }
 
 func TestCompetitionParamUseCase_GetAfterSet_ReturnsValue(t *testing.T) {
@@ -532,7 +532,7 @@ func TestCompetitionParamUseCase_Set_JSONValueType_InvalidReturnsError(t *testin
 	err := uc.Set(ctx, key, "not valid json", "", domain.CompetitionParamTypeJSON, "", actorID, "")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, httperr.ErrCompetitionParamInvalidValueType) ||
+	assert.True(t, errors.Is(err, apperr.ErrCompetitionParamInvalidValueType) ||
 		strings.Contains(err.Error(), "validateValueType"))
 }
 

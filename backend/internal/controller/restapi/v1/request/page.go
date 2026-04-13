@@ -7,26 +7,20 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-type createPageConstraints struct {
-	Title   string `validate:"required,max=200"`
-	Slug    string `validate:"required,max=100,page_slug"`
-	Content string `validate:"max=50000"`
-}
-
-type updatePageConstraints struct {
+type pageConstraints struct {
 	Title   string `validate:"required,max=200"`
 	Slug    string `validate:"required,max=100,page_slug"`
 	Content string `validate:"max=50000"`
 }
 
 func ValidateCreatePageRequest(req *openapi.CreatePageRequest, v validator.Validator) error {
-	c := createPageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
+	c := pageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
 
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdatePageRequest(req *openapi.UpdatePageRequest, v validator.Validator) error {
-	c := updatePageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
+	c := pageConstraints{Title: req.Title, Slug: req.Slug, Content: lo.FromPtrOr(req.Content, "")}
 
 	return ValidateConstraints(v, &c)
 }

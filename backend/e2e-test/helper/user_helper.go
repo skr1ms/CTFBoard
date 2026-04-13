@@ -22,9 +22,9 @@ func (h *E2EHelper) RegisterWithClient(ctx context.Context, client *openapi.Clie
 	h.t.Helper()
 
 	resp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
-		Username: &username,
-		Email:    &email,
-		Password: &password,
+		Username: username,
+		Email:    email,
+		Password: password,
 	})
 	require.NoError(h.t, err)
 
@@ -35,7 +35,7 @@ func (h *E2EHelper) LoginWithClient(ctx context.Context, client *openapi.ClientW
 	h.t.Helper()
 
 	resp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
-		Email:    &email,
+		Email:    email,
 		Password: password,
 	})
 	require.NoError(h.t, err)
@@ -61,9 +61,9 @@ func (h *E2EHelper) Register(username, email, password string) {
 func (h *E2EHelper) RegisterExpectStatus(username, email, password string, expectStatus int) *openapi.PostAuthRegisterResponse {
 	h.t.Helper()
 	resp, err := h.client.PostAuthRegisterWithResponse(context.Background(), openapi.PostAuthRegisterJSONRequestBody{
-		Username: &username,
-		Email:    &email,
-		Password: &password,
+		Username: username,
+		Email:    email,
+		Password: password,
 	})
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "register")
@@ -215,7 +215,7 @@ func (h *E2EHelper) RegisterAdmin(username string) (email, password, token strin
 	require.NoError(h.t, err)
 
 	if h.redis != nil {
-		// Invalidate user cache so InjectUser loads fresh role from DB. Del by prefix in case key format differs.
+		// Invalidate user cache so InjectUser loads fresh role from DB. Del by prefix in case key format differs
 		var cursor uint64
 
 		for {

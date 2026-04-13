@@ -236,6 +236,7 @@ linters:
       allow-first-in-block: false
 
   exclusions:
+    generated: lax
     presets:
       - comments
       - common-false-positives

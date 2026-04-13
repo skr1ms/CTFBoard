@@ -7,10 +7,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 type CommentUseCase struct {
@@ -37,8 +38,8 @@ func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid
 		return nil, fmt.Errorf("CommentUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
 
-	if challenge.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
 	}
 
 	list, err := uc.deps.CommentRepo.GetByChallengeID(ctx, challengeID)
@@ -52,7 +53,7 @@ func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid
 func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*domain.Comment, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
-		return nil, httperr.ErrCommentContentRequired
+		return nil, apperr.ErrCommentContentRequired
 	}
 
 	if uc.deps.UserRepo != nil {
@@ -62,7 +63,7 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 		}
 
 		if user.IsBanned {
-			return nil, httperr.ErrUserBanned
+			return nil, apperr.ErrUserBanned
 		}
 
 		if uc.deps.TeamRepo != nil && user.TeamID != nil {
@@ -72,7 +73,7 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 			}
 
 			if team.IsBanned {
-				return nil, httperr.ErrTeamBanned
+				return nil, apperr.ErrTeamBanned
 			}
 		}
 	}
@@ -82,8 +83,8 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 		return nil, fmt.Errorf("CommentUseCase - Create - ChallengeRepo.GetByID: %w", err)
 	}
 
-	if challenge.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
 	}
 
 	comment := &domain.Comment{
@@ -106,7 +107,7 @@ func (uc *CommentUseCase) Delete(ctx context.Context, ID, userID uuid.UUID, isAd
 		}
 
 		if !isAdmin && c.UserID != userID {
-			return httperr.ErrCommentForbidden
+			return apperr.ErrCommentForbidden
 		}
 
 		if err := uc.deps.CommentRepo.Delete(ctx, ID); err != nil {

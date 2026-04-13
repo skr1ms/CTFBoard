@@ -17,11 +17,21 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
+// ImportZIP imports a backup archive. It opens the ZIP, sums uncompressed sizes
+// and rejects the archive when the ratio against the on-disk size or the
+// absolute ceiling is exceeded (zip bomb protection). It then reads and decodes
+// backup.json, validates the format version, and runs the database import inside
+// a transaction (optionally erasing existing data first). After the transaction
+// commits, challenge files are uploaded to object storage concurrently; storage
+// uploads are intentionally outside the transaction because they are not
+// transactional - failures are collected as warnings in ImportResult.Errors
+// rather than rolling back the database import.
 func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int64, opts domain.ImportOptions) (*domain.ImportResult, error) {
 	zr, err := zip.NewReader(r, size)
 	if err != nil {
@@ -58,14 +68,14 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 	if err := uc.importZIPRunTx(ctx, backupData, opts); err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - importZIPRunTx: %w", err)
 	}
-	// File upload to storage happens after the DB transaction commits intentionally:
+	// File upload to storage happens after the DB transaction commits intentionally
 	// storage uploads are not transactional. If uploads fail, the DB records are kept
-	// and the caller receives a partial result with SkippedCount > 0 so the issue is visible.
+	// and the caller receives a partial result with SkippedCount > 0 so the issue is visible
 	// A full rollback would require compensating deletes in DB, which adds complexity with
-	// no meaningful safety gain since files can be re-uploaded manually.
+	// no meaningful safety gain since files can be re-uploaded manually
 	if len(backupData.Files) > 0 {
 		fileErrors, err := uc.importFilesToStorage(ctx, zr, backupData.Files, opts)
-		if err != nil && uc.deps.Logger != nil {
+		if err != nil {
 			uc.deps.Logger.WithError(err).Warn("BackupUseCase - ImportZIP - importFilesToStorage")
 		}
 
@@ -86,6 +96,10 @@ func (uc *BackupUseCase) ImportZIP(ctx context.Context, r io.ReaderAt, size int6
 	return result, nil
 }
 
+// importZIPReadBackup scans the ZIP entries for "backup.json", opens it, and
+// decodes the JSON into BackupData. Reading is limited to maxBackupJSONSize to
+// prevent excessive memory use from a malformed archive. Returns
+// ErrBackupJSONNotFound when no matching entry exists.
 func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*domain.BackupData, error) {
 	for _, f := range zr.File {
 		if f.Name != "backup.json" {
@@ -111,17 +125,24 @@ func (uc *BackupUseCase) importZIPReadBackup(zr *zip.Reader) (*domain.BackupData
 		return backupData, nil
 	}
 
-	return nil, httperr.ErrBackupJSONNotFound
+	return nil, apperr.ErrBackupJSONNotFound
 }
 
+// importZIPValidateVersion checks that the backup's Version field matches
+// domain.BackupVersion. Mismatches return ErrBackupVersionUnsupported so the
+// caller can surface a clear error rather than attempting a broken import.
 func (uc *BackupUseCase) importZIPValidateVersion(backupData *domain.BackupData) error {
 	if backupData.Version != domain.BackupVersion {
-		return httperr.ErrBackupVersionUnsupported
+		return apperr.ErrBackupVersionUnsupported
 	}
 
 	return nil
 }
 
+// importZIPRunTx runs the database import inside a single transaction. When
+// EraseExisting is set it first writes an audit log entry and calls
+// EraseAllTables to wipe all existing data before importing. The actual
+// multi-table import is delegated to importZIPRunTxImports.
 func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
 	return uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if opts.EraseExisting {
@@ -151,6 +172,11 @@ func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *domain.
 	})
 }
 
+// importZIPRunTxImports inserts all backup entities in dependency order inside
+// the caller's transaction: competition settings -> tags -> challenges -> brackets ->
+// users -> teams -> memberships -> awards -> solves -> hint unlocks -> files -> requirements
+// -> solutions -> ratings -> comments -> fields -> field values. Each step calls a repo
+// method that uses ON CONFLICT DO NOTHING so re-imports are idempotent.
 func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
 	err := uc.deps.BackupRepo.ImportCompetition(ctx, backupData.Competition)
 	if err != nil {
@@ -247,7 +273,7 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 	return nil
 }
 
-// importNormalizeUserRoles ensures every imported user has a valid role.
+// importNormalizeUserRoles ensures every imported user has a valid role
 // Unless PreserveAdminRoles is explicitly set, all admin roles are downgraded
 // to RoleUser, preventing a crafted backup from injecting admin accounts.
 func (uc *BackupUseCase) importNormalizeUserRoles(backupData *domain.BackupData, opts domain.ImportOptions) {
@@ -271,6 +297,14 @@ const (
 	maxBackupJSONSize        = 100 * 1024 * 1024
 )
 
+// importFilesToStorage concurrently uploads challenge files from the ZIP archive
+// to object storage. It builds a lookup map from the expected ZIP path to the
+// corresponding File record, then spawns up to maxConcurrentFileUploads workers
+// via an errgroup. Each worker uploads one file and sanitizes the storage
+// location path before writing. Individual upload failures are collected as
+// warning strings and returned; the overall function always returns nil for the
+// error so that the caller can treat file upload failures as partial results
+// rather than fatal errors.
 func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reader, files []domain.File, opts domain.ImportOptions) ([]string, error) {
 	fileMap := uc.importFilesBuildFileMap(files)
 	tasks := uc.importFilesBuildTasks(zr, fileMap)
@@ -324,6 +358,10 @@ type importFileTask struct {
 	file domain.File
 }
 
+// importFilesBuildTasks matches ZIP entries against fileMap (keyed by the
+// canonical "files/challenge-<id>/<filename>" path). Symlinks are skipped to
+// prevent path-traversal attacks via crafted ZIP archives. Returns only the
+// entries that have a corresponding DB file record.
 func (uc *BackupUseCase) importFilesBuildTasks(zr *zip.Reader, fileMap map[string]domain.File) []importFileTask {
 	var tasks []importFileTask
 
@@ -368,6 +406,12 @@ func (uc *BackupUseCase) importFileUploadOne(ctx context.Context, zf *zip.File, 
 	return ""
 }
 
+// importFileUploadWithHash uploads a single file to object storage while
+// simultaneously computing its SHA-256 digest via a TeeReader. Once the upload
+// completes, the computed hash is compared against the expected value stored in
+// the File record. If the hashes differ the uploaded object is deleted to avoid
+// leaving corrupt data in storage, and a warning string describing the mismatch
+// is returned. An empty string is returned on success.
 func (uc *BackupUseCase) importFileUploadWithHash(ctx context.Context, name string, rc io.Reader, size int64, file domain.File) string {
 	hash := sha256.New()
 
@@ -399,14 +443,19 @@ func zipSizeToInt64(u uint64) int64 {
 	return int64(u)
 }
 
-// sanitizeFileLocation prevents path traversal by cleaning the location and
-// ensuring it always lives under the "files/" prefix.
+// sanitizeFileLocation strips path traversal sequences and normalizes a storage
+// location path. It prepends a synthetic leading slash so that filepath.Clean
+// resolves all ".." components, then converts backslashes to forward slashes and
+// removes the synthetic prefix. If the resulting path does not start with
+// "files/" (e.g. an absolute or escape path was supplied) the basename is
+// placed directly under "files/" to prevent directory traversal attacks when
+// writing to object storage.
 func sanitizeFileLocation(location string) string {
 	cleaned := filepath.ToSlash(filepath.Clean("/" + location))
 
 	cleaned = strings.TrimPrefix(cleaned, "/")
-	if !strings.HasPrefix(cleaned, "files/") {
-		cleaned = "files/" + filepath.Base(cleaned)
+	if !strings.HasPrefix(cleaned, storage.PrefixFiles) {
+		cleaned = storage.PrefixFiles + filepath.Base(cleaned)
 	}
 
 	return cleaned

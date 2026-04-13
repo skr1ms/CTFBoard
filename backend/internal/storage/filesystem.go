@@ -15,8 +15,12 @@ import (
 )
 
 const (
-	defaultDirMode = 0o750
-	hashPrefixLen  = 16
+	defaultDirMode  = 0o750
+	filePathHashLen = 16
+
+	PrefixUsers = "users/"
+	PrefixTeams = "teams/"
+	PrefixFiles = "files/"
 )
 
 var _ Provider = (*FilesystemProvider)(nil)
@@ -47,19 +51,26 @@ func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Re
 	if dir != "." && dir != "/" {
 		err := p.root.MkdirAll(dir, defaultDirMode)
 		if err != nil {
-			return fmt.Errorf("FilesystemProvider - Upload: %w", err)
+			return fmt.Errorf("FilesystemProvider - Upload - MkdirAll: %w", err)
 		}
 	}
 
 	file, err := p.root.Create(path)
 	if err != nil {
-		return fmt.Errorf("FilesystemProvider - Upload: %w", err)
+		return fmt.Errorf("FilesystemProvider - Upload - Create: %w", err)
 	}
 
-	defer func() { _ = file.Close() }()
-
 	if _, err := io.Copy(file, reader); err != nil {
-		return fmt.Errorf("FilesystemProvider - Upload: %w", err)
+		_ = file.Close()
+		_ = p.root.Remove(path)
+
+		return fmt.Errorf("FilesystemProvider - Upload - Copy: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		_ = p.root.Remove(path)
+
+		return fmt.Errorf("FilesystemProvider - Upload - Close: %w", err)
 	}
 
 	return nil
@@ -101,6 +112,10 @@ func (p *FilesystemProvider) Ping(_ context.Context) error {
 	return nil
 }
 
+// List returns all file paths under prefix relative to the storage root.
+// Rejects path traversal attempts (prefixes containing ".." or absolute paths)
+// before walking. Context cancellation is checked per-entry during the walk so
+// long listings are interruptible.
 func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string, error) {
 	cleanPrefix := filepath.Clean(prefix)
 	if strings.HasPrefix(cleanPrefix, "..") || filepath.IsAbs(cleanPrefix) {
@@ -111,7 +126,7 @@ func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string,
 
 	relCheck, err := filepath.Rel(p.basePath, fullPath)
 	if err != nil || strings.HasPrefix(relCheck, "..") {
-		return nil, fmt.Errorf("FilesystemProvider - List: path traversal attempt blocked")
+		return nil, errors.New("FilesystemProvider - List: path traversal attempt blocked")
 	}
 
 	var paths []string
@@ -152,7 +167,7 @@ func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string,
 }
 
 func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ time.Duration) (string, error) {
-	if strings.HasPrefix(path, "users/") || strings.HasPrefix(path, "teams/") {
+	if strings.HasPrefix(path, PrefixUsers) || strings.HasPrefix(path, PrefixTeams) {
 		return fmt.Sprintf("/api/v1/avatars/%s", path), nil
 	}
 
@@ -161,13 +176,17 @@ func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ t
 
 var ErrInvalidStorageFilename = errors.New("invalid storage filename")
 
+// GenerateStoragePath builds a collision-resistant storage path for filename.
+// filepath.Base strips any directory components to prevent path injection.
+// A cryptographically random 8-byte prefix (16 hex chars) is prepended as a
+// subdirectory so files from different uploads never collide on the same path.
 func GenerateStoragePath(filename string) (string, error) {
 	safeName := filepath.Base(filename)
 	if safeName == "" || strings.Contains(safeName, "..") {
 		return "", ErrInvalidStorageFilename
 	}
 
-	var buf [hashPrefixLen / 2]byte
+	var buf [filePathHashLen / 2]byte
 	if _, err := rand.Read(buf[:]); err != nil {
 		return "", fmt.Errorf("GenerateStoragePath - crypto/rand: %w", err)
 	}

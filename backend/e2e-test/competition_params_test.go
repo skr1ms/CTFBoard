@@ -146,7 +146,7 @@ func TestConfig_GetByCategory_ThemeOnly(t *testing.T) {
 	}
 }
 
-// GET /configs/public: no auth; returns only whitelisted keys (ctf_name, theme_*, social_*, etc.).
+// GET /configs/public: no auth; returns only whitelisted keys (ctf_name, theme_*, social_*, etc.)
 func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())

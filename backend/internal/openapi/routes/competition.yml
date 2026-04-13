@@ -12,6 +12,10 @@
               $ref: '../components/schemas.yml#/CompetitionStatusResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get competition status
     tags:
       - Competition

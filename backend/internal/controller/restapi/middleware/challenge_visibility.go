@@ -5,16 +5,18 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
+// ChallengeVisibility returns a middleware that blocks access to challenges before the competition starts.
+// Admin users bypass the check and always have access.
 func ChallengeVisibility(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := GetUser(r.Context())
-			if ok && user != nil && user.Role == domain.RoleAdmin {
+			if isAdmin(r.Context()) {
 				next.ServeHTTP(w, r)
 
 				return
@@ -22,14 +24,14 @@ func ChallengeVisibility(competitionUC usecase.CompetitionUseCase) func(http.Han
 
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
 
 			status := comp.GetStatus()
 			if status == domain.CompetitionStatusNotStarted {
-				httputil.HandleError(w, r, httperr.ErrCompetitionNotStarted)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrCompetitionNotStarted))
 
 				return
 			}

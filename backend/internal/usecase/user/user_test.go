@@ -13,9 +13,9 @@ import (
 	jwtMock "github.com/wahrwelt-kit/go-jwtkit/mock"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type userTestDeps struct {
@@ -96,8 +96,8 @@ func registerTestCases() []registerTestCase {
 					return fn(ctx)
 				}).Once()
 				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
-				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, apperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, apperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *domain.User) {
 					u.ID = uuid.New()
 				}).Once()
@@ -122,7 +122,7 @@ func registerTestCases() []registerTestCase {
 					return fn(ctx)
 				}).Once()
 				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Maybe()
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, apperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "existing@example.com").Return(&domain.User{}, nil).Once()
 			},
 			expectedError: true,
@@ -145,7 +145,7 @@ func registerTestCases() []registerTestCase {
 					return fn(ctx)
 				}).Once()
 				userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
-				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, httperr.ErrUserNotFound).Once()
+				userRepo.EXPECT().GetByUsername(mock.Anything, "testuser").Return(nil, apperr.ErrUserNotFound).Once()
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(nil, assert.AnError).Once()
 			},
 			expectedError: true,
@@ -206,7 +206,7 @@ func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 	user, err := uc.Register(context.Background(), "testuser", "test@example.com", "password123", nil)
 	assert.Error(t, err)
 	assert.Nil(t, user)
-	assert.ErrorIs(t, err, httperr.ErrRegistrationClosed)
+	assert.ErrorIs(t, err, apperr.ErrRegistrationClosed)
 }
 
 type loginTestCase struct {
@@ -227,7 +227,7 @@ func loginTestCases() []loginTestCase {
 		{
 			name: "user not found", email: "notfound@example.com", password: "password123",
 			setupMocks: func(_ *testing.T, userRepo *userMock.MockUserRepository, _ *jwtMock.MockService) {
-				userRepo.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(nil, httperr.ErrUserNotFound)
+				userRepo.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(nil, apperr.ErrUserNotFound)
 			},
 			expectedError: true,
 		},

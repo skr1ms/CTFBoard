@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestTeamRepo_Create(t *testing.T) {
@@ -77,7 +77,7 @@ func TestTeamRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.TeamRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_GetByInviteToken(t *testing.T) {
@@ -102,7 +102,7 @@ func TestTeamRepo_GetByInviteToken_NotFound(t *testing.T) {
 
 	_, err := f.TeamRepo.GetByInviteToken(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_GetByName(t *testing.T) {
@@ -127,7 +127,7 @@ func TestTeamRepo_GetByName_NotFound(t *testing.T) {
 
 	_, err := f.TeamRepo.GetByName(ctx, "nonexistent_team")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_Create_Solo(t *testing.T) {
@@ -267,7 +267,7 @@ func TestTeamRepo_HardDeleteTeams_Success(t *testing.T) {
 
 	_, err = f.TeamRepo.GetByID(ctx, team.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }
 
 func TestTeamRepo_HardDeleteTeams_Error_CancelledContext(t *testing.T) {
@@ -447,5 +447,5 @@ func TestTeamRepo_GetSoloTeamByUserID_NotFound(t *testing.T) {
 	user := f.CreateUser(t, "solo_notfound")
 	_, err := f.TeamRepo.GetSoloTeamByUserID(ctx, user.ID)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }

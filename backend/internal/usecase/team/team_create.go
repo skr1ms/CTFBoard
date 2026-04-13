@@ -7,23 +7,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
+// Create creates a new team with captainID as captain. The actual work runs in a
+// transaction via createTx; cache entries for the captain and the scoreboard are
+// invalidated after a successful commit.
 func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
 	var team *domain.Team
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		var err2 error
+		var errCreate error
 
-		team, err2 = uc.createTx(ctx, name, captainID, isSolo, confirmReset)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - Create - createTx: %w", err2)
+		team, errCreate = uc.createTx(ctx, name, captainID, isSolo, confirmReset)
+		if errCreate != nil {
+			return fmt.Errorf("TeamUseCase - Create - createTx: %w", errCreate)
 		}
 
 		return nil
@@ -32,12 +36,14 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.U
 		return nil, fmt.Errorf("TeamUseCase - Create - TM.Run: %w", err)
 	}
 
-	uc.invalidateUserCache(ctx, captainID)
-	uc.invalidateScoreboardCache(ctx)
+	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, captainID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
 
 	return team, nil
 }
 
+// checkMaxTeams enforces the max-teams setting atomically using a PostgreSQL advisory lock
+// so that concurrent team creations cannot both pass the count check simultaneously.
 func (uc *TeamUseCase) checkMaxTeams(ctx context.Context) error {
 	appSettings, err := uc.deps.SettingsGetter.Get(ctx)
 	if err != nil {
@@ -59,24 +65,36 @@ func (uc *TeamUseCase) checkMaxTeams(ctx context.Context) error {
 	}
 
 	if currentCount >= appSettings.MaxTeams {
-		return httperr.ErrMaxTeamsReached
+		return apperr.ErrMaxTeamsReached
 	}
 
 	return nil
 }
 
+// createTx runs the full team-creation sequence inside an existing transaction
+// It checks that the competition is in a state that allows team operations and that
+// the requested mode (teams/solo) is permitted, then acquires an advisory lock before
+// counting active teams to enforce the MaxTeams limit without TOCTOU races. After
+// locking the captain's user row it validates name uniqueness. If the captain is
+// already a member of a solo or auto-created team, handleSoloTeamCleanup is called
+// to wipe that team's data (requires confirmReset=true). Finally it persists the new
+// team, assigns the captain, and writes an audit log entry.
 func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - createTx - CompetitionRepo.Get: %w", err)
 	}
 
-	if err := uc.requireTeamSwitchAndTeamsMode(comp); err != nil {
+	if err := guard.ValidateTeamSwitchState(comp); err != nil {
 		return nil, err
 	}
 
+	if !comp.Mode.AllowsTeams() {
+		return nil, apperr.ErrTeamsNotAllowed
+	}
+
 	if isSolo && !comp.Mode.AllowsSolo() {
-		return nil, httperr.ErrSoloModeNotAllowed
+		return nil, apperr.ErrSoloModeNotAllowed
 	}
 
 	if err := uc.checkMaxTeams(ctx); err != nil {
@@ -96,11 +114,11 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 	}
 
 	if user.IsBanned {
-		return nil, httperr.ErrUserBanned
+		return nil, apperr.ErrUserBanned
 	}
 
 	if user.WasInBannedTeam {
-		return nil, httperr.ErrUserWasInBannedTeam
+		return nil, apperr.ErrUserWasInBannedTeam
 	}
 
 	if user.TeamID != nil {
@@ -135,48 +153,25 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 	return team, nil
 }
 
-func (uc *TeamUseCase) requireTeamSwitch(comp *domain.Competition) error {
-	switch comp.GetStatus() {
-	case domain.CompetitionStatusNotStarted, domain.CompetitionStatusActive, domain.CompetitionStatusFrozen:
-	case domain.CompetitionStatusEnded:
-		return httperr.ErrCompetitionEnded
-	case domain.CompetitionStatusPaused:
-		return httperr.ErrCompetitionPaused
-	}
-
-	if !comp.AllowTeamSwitch {
-		return httperr.ErrRosterFrozen
-	}
-
-	return nil
-}
-
-func (uc *TeamUseCase) requireTeamSwitchAndTeamsMode(comp *domain.Competition) error {
-	err := uc.requireTeamSwitch(comp)
-	if err != nil {
-		return err
-	}
-
-	if !comp.Mode.AllowsTeams() {
-		return httperr.ErrTeamsNotAllowed
-	}
-
-	return nil
-}
-
 func (uc *TeamUseCase) validateTeamNameAvailable(ctx context.Context, name string) error {
 	_, err := uc.deps.TeamRepo.GetByName(ctx, name)
 	if err == nil {
-		return httperr.ErrTeamAlreadyExists
+		return apperr.ErrTeamAlreadyExists
 	}
 
-	if !errors.Is(err, httperr.ErrTeamNotFound) {
+	if !errors.Is(err, apperr.ErrTeamNotFound) {
 		return fmt.Errorf("TeamUseCase - validateTeamNameAvailable - TeamRepo.GetByName: %w", err)
 	}
 
 	return nil
 }
 
+// TryCreate attempts to create a team for captainID. If the user is not yet in any
+// team the creation proceeds immediately and the result contains the new team. If the
+// user already belongs to a solo or auto-created team, the function returns a result
+// with RequiresConfirm=true and a summary of the data that would be lost, giving the
+// caller the opportunity to present a confirmation step before calling ConfirmCreate
+// Hard errors (banned user, competition state, etc.) are still returned as errors.
 func (uc *TeamUseCase) TryCreate(ctx context.Context, name string, captainID uuid.UUID, isSolo bool) (*usecase.TeamCreateResult, error) {
 	comp, err := uc.deps.Guard.RequireTeamSwitchAndTeamsMode(ctx)
 	if err != nil {
@@ -184,7 +179,7 @@ func (uc *TeamUseCase) TryCreate(ctx context.Context, name string, captainID uui
 	}
 
 	if isSolo && !comp.Mode.AllowsSolo() {
-		return nil, httperr.ErrSoloModeNotAllowed
+		return nil, apperr.ErrSoloModeNotAllowed
 	}
 
 	user, err := uc.deps.UserRepo.GetByID(ctx, captainID)
@@ -209,6 +204,15 @@ func (uc *TeamUseCase) TryCreate(ctx context.Context, name string, captainID uui
 	return opResult, nil
 }
 
+// tryCreateWhenInTeam handles the case where the user is already a member of a
+// team when TryCreate is called. It locks the user row inside a transaction,
+// re-fetches the membership state to close TOCTOU races, then inspects the old
+// team. If the old team is a multi-member or regular (non-solo, non-auto) team
+// the function returns ErrUserAlreadyInTeam immediately. For an eligible
+// solo/auto-created single-member team it collects the affected data summary
+// (points, solve count, awards, hint unlocks) and returns RequiresConfirm=true
+// so the caller can present a confirmation step before proceeding to ConfirmCreate.
+// No data is deleted here - actual cleanup happens in createTx -> handleSoloTeamCleanup.
 func (uc *TeamUseCase) tryCreateWhenInTeam(ctx context.Context, captainID uuid.UUID) (*usecase.TeamCreateResult, error) {
 	var result *usecase.TeamCreateResult
 
@@ -227,11 +231,11 @@ func (uc *TeamUseCase) tryCreateWhenInTeam(ctx context.Context, captainID uuid.U
 		}
 
 		if freshUser.IsBanned {
-			return httperr.ErrUserBanned
+			return apperr.ErrUserBanned
 		}
 
 		if freshUser.TeamID == nil {
-			return httperr.ErrTeamNotFound
+			return apperr.ErrTeamNotFound
 		}
 
 		oldTeam, err := uc.deps.TeamRepo.GetByID(ctx, *freshUser.TeamID)
@@ -245,7 +249,7 @@ func (uc *TeamUseCase) tryCreateWhenInTeam(ctx context.Context, captainID uuid.U
 		}
 
 		if !uc.shouldCleanupSoloTeam(freshUser, members, oldTeam) {
-			return httperr.ErrUserAlreadyInTeam
+			return apperr.ErrUserAlreadyInTeam
 		}
 
 		points, err := uc.deps.SolveRepo.GetTeamScore(ctx, *freshUser.TeamID)
@@ -296,20 +300,17 @@ func (uc *TeamUseCase) ConfirmCreate(ctx context.Context, name string, captainID
 	return uc.Create(ctx, name, captainID, isSolo, true)
 }
 
+// CreateSoloTeam creates a solo wrapper team for userID. Delegates to createSoloTeamTx
+// inside a transaction; invalidates the user cache on success.
 func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*domain.Team, error) {
-	_, err := uc.deps.Guard.RequireTeamSwitchAndSoloMode(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeam - Guard: %w", err)
-	}
-
 	var team *domain.Team
 
-	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		var err2 error
+	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		var errCreate error
 
-		team, err2 = uc.createSoloTeamTx(ctx, userID, confirmReset, false, false)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - CreateSoloTeam - createSoloTeamTx: %w", err2)
+		team, errCreate = uc.createSoloTeamTx(ctx, userID, confirmReset, false, false)
+		if errCreate != nil {
+			return fmt.Errorf("TeamUseCase - CreateSoloTeam - createSoloTeamTx: %w", errCreate)
 		}
 
 		return nil
@@ -318,7 +319,7 @@ func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, con
 		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeam - TM.Run: %w", err)
 	}
 
-	uc.invalidateUserCache(ctx, userID)
+	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 
 	return team, nil
 }
@@ -330,12 +331,15 @@ func (uc *TeamUseCase) requireSoloModeOnly(ctx context.Context) error {
 	}
 
 	if !comp.Mode.AllowsSolo() {
-		return httperr.ErrSoloModeNotAllowed
+		return apperr.ErrSoloModeNotAllowed
 	}
 
 	return nil
 }
 
+// CreateSoloTeamForNewUser creates a solo team for a freshly registered user.
+// Unlike CreateSoloTeam it skips the team-switch guard (the user has no team yet)
+// and passes skipTeamSwitchCheck=true to createSoloTeamTx.
 func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*domain.Team, error) {
 	if err := uc.requireSoloModeOnly(ctx); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeamForNewUser - requireSoloModeOnly: %w", err)
@@ -344,11 +348,11 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 	var team *domain.Team
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		var err2 error
+		var errCreate error
 
-		team, err2 = uc.createSoloTeamTx(ctx, userID, false, true, true)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - CreateSoloTeamForNewUser - createSoloTeamTx: %w", err2)
+		team, errCreate = uc.createSoloTeamTx(ctx, userID, false, true, true)
+		if errCreate != nil {
+			return fmt.Errorf("TeamUseCase - CreateSoloTeamForNewUser - createSoloTeamTx: %w", errCreate)
 		}
 
 		return nil
@@ -357,11 +361,19 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 		return nil, fmt.Errorf("TeamUseCase - CreateSoloTeamForNewUser - TM.Run: %w", err)
 	}
 
-	uc.invalidateUserCache(ctx, userID)
+	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 
 	return team, nil
 }
 
+// createSoloTeamTx creates a solo wrapper team for userID inside an existing transaction
+// Name resolution prefers the username, falls back to "<username> (Solo)", then to a
+// UUID-suffixed variant. If the final insert still hits a unique-violation it retries up
+// to maxSoloNameRetries times - each iteration generates a fresh placeholder token for
+// the suffix. Any existing solo or auto-created team is cleaned up via
+// handleSoloTeamCleanup before the new team is created. After a successful insert the
+// invite token is replaced with the team's own ID (making it a stable, never-expiring
+// token), and the user is assigned to the team.
 func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, confirmReset, isAutoCreated, skipTeamSwitchCheck bool) (*domain.Team, error) {
 	if skipTeamSwitchCheck {
 		err := uc.requireSoloModeOnly(ctx)
@@ -392,11 +404,11 @@ func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, c
 	}
 
 	if user.IsBanned {
-		return nil, httperr.ErrUserBanned
+		return nil, apperr.ErrUserBanned
 	}
 
 	if user.WasInBannedTeam {
-		return nil, httperr.ErrUserWasInBannedTeam
+		return nil, apperr.ErrUserWasInBannedTeam
 	}
 
 	if user.TeamID != nil {
@@ -436,8 +448,7 @@ func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, c
 			break
 		}
 
-		var pgErr *pgconn.PgError
-		if (!errors.As(err, &pgErr) || pgErr.Code != "23505") || attempt == maxSoloNameRetries-1 {
+		if !errors.Is(err, apperr.ErrTeamAlreadyExists) || attempt == maxSoloNameRetries-1 {
 			return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - TeamRepo.Create: %w", err)
 		}
 	}
@@ -464,6 +475,8 @@ func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, c
 	return team, nil
 }
 
+// getChallengeIDsForTeam returns the deduplicated set of challenge IDs the team has
+// solved, preserving first-seen order. Returns nil when SolveRepo is not wired.
 func (uc *TeamUseCase) getChallengeIDsForTeam(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
 	if uc.deps.SolveRepo == nil {
 		return nil, nil
@@ -474,97 +487,53 @@ func (uc *TeamUseCase) getChallengeIDsForTeam(ctx context.Context, teamID uuid.U
 		return nil, fmt.Errorf("TeamUseCase - getChallengeIDsForTeam - SolveRepo.GetByTeamIDWithDetails: %w", err)
 	}
 
-	seen := make(map[uuid.UUID]struct{})
-
-	var challengeIDs []uuid.UUID
+	rawIDs := make([]uuid.UUID, 0, len(solves))
 
 	for _, s := range solves {
-		if _, ok := seen[s.ChallengeID]; ok {
-			continue
-		}
-
-		seen[s.ChallengeID] = struct{}{}
-		challengeIDs = append(challengeIDs, s.ChallengeID)
+		rawIDs = append(rawIDs, s.ChallengeID)
 	}
 
-	return challengeIDs, nil
+	return domain.UniqueUUIDs(rawIDs), nil
 }
 
-func (uc *TeamUseCase) adjustSolveCountsForChallenges(ctx context.Context, challengeIDs []uuid.UUID, decrement bool) error {
+func (uc *TeamUseCase) adjustSolveCountsForChallenges(ctx context.Context, challengeIDs []uuid.UUID) error {
 	if uc.deps.ChallengeRepo == nil || len(challengeIDs) == 0 {
 		return nil
 	}
 
-	if decrement {
-		err := uc.deps.ChallengeRepo.BatchDecrementSolveCount(ctx, challengeIDs)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - BatchDecrementSolveCount: %w", err)
-		}
-	} else {
-		err := uc.deps.ChallengeRepo.BatchIncrementSolveCount(ctx, challengeIDs)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - BatchIncrementSolveCount: %w", err)
-		}
-	}
-
-	challengesMap, err := uc.deps.ChallengeRepo.GetByIDs(ctx, challengeIDs)
-	if err != nil {
-		return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - ChallengeRepo.GetByIDs: %w", err)
-	}
-
-	ids, points := scoring.RecalculatePoints(challengesMap)
-	if len(ids) > 0 {
-		err := uc.deps.ChallengeRepo.BatchUpdatePoints(ctx, ids, points)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - BatchUpdatePoints: %w", err)
-		}
-	}
+	var (
+		getSolves   func(context.Context, []uuid.UUID) ([]*scoring.SolveRowForPointsRecalc, error)
+		batchUpdate func(context.Context, []uuid.UUID, []int) error
+	)
 
 	if uc.deps.SolveRepo != nil {
-		var dynamicIDs []uuid.UUID
-
-		for _, id := range challengeIDs {
-			if c := challengesMap[id]; c != nil && c.InitialValue > 0 && c.Decay > 0 {
-				dynamicIDs = append(dynamicIDs, id)
-			}
-		}
-
-		if len(dynamicIDs) > 0 {
-			rows, err := uc.deps.SolveRepo.GetSolvesForPointsRecalc(ctx, dynamicIDs)
-			if err != nil {
-				return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - GetSolvesForPointsRecalc: %w", err)
-			}
-
-			recalcRows := make([]*scoring.SolveRowForPointsRecalc, 0, len(rows))
-			for _, r := range rows {
-				recalcRows = append(recalcRows, &scoring.SolveRowForPointsRecalc{
-					ID: r.ID, ChallengeID: r.ChallengeID,
-					InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay,
-				})
-			}
-
-			solveIDs, newPoints := scoring.RecalculatePointsAtSolveRows(recalcRows)
-			if len(solveIDs) > 0 {
-				err := uc.deps.SolveRepo.BatchUpdateSolvePoints(ctx, solveIDs, newPoints)
-				if err != nil {
-					return fmt.Errorf("TeamUseCase - adjustSolveCountsForChallenges - BatchUpdateSolvePoints: %w", err)
-				}
-			}
-		}
+		getSolves = scoring.MapSolvesForRecalcFn(
+			uc.deps.SolveRepo.GetSolvesForPointsRecalc,
+			scoring.DefaultSolveMapper,
+			"TeamUseCase - adjustSolveCountsForChallenges",
+		)
+		batchUpdate = uc.deps.SolveRepo.BatchUpdateSolvePoints
 	}
 
-	return nil
+	return scoring.AdjustDynamicScores(
+		ctx, challengeIDs, uc.deps.ChallengeRepo,
+		getSolves, batchUpdate,
+		scoring.GetDecayFn(ctx, uc.deps.CompParamUC),
+	)
 }
 
-func (uc *TeamUseCase) adjustSolveCountsForTeam(ctx context.Context, teamID uuid.UUID, decrement bool) error {
+func (uc *TeamUseCase) adjustSolveCountsForTeam(ctx context.Context, teamID uuid.UUID) error {
 	challengeIDs, err := uc.getChallengeIDsForTeam(ctx, teamID)
 	if err != nil {
 		return err
 	}
 
-	return uc.adjustSolveCountsForChallenges(ctx, challengeIDs, decrement)
+	return uc.adjustSolveCountsForChallenges(ctx, challengeIDs)
 }
 
+// orderTeamLockIDs returns the two team IDs in lexicographic string order so that
+// callers always acquire advisory/row locks in a consistent sequence and avoid
+// deadlocks. When newTeamID is nil the second return value is uuid.Nil.
 func orderTeamLockIDs(oldTeamID uuid.UUID, newTeamID *uuid.UUID) (first, second uuid.UUID) {
 	if newTeamID == nil {
 		return oldTeamID, uuid.Nil
@@ -577,6 +546,15 @@ func orderTeamLockIDs(oldTeamID uuid.UUID, newTeamID *uuid.UUID) (first, second 
 	return *newTeamID, oldTeamID
 }
 
+// handleSoloTeamCleanup removes the user's current solo or auto-created team inside
+// the transaction. To prevent deadlocks when two operations touch both the old and new
+// team rows, advisory locks are acquired in a deterministic order derived from the
+// lexicographic comparison of both team UUIDs (orderTeamLockIDs). Once locked, the
+// function verifies the team is still eligible for cleanup (single-member solo/auto
+// team). If confirmReset is false it returns ErrConfirmationRequired without making any
+// changes. Otherwise it deletes all solves, submissions, awards, and hint unlocks for
+// the old team, calls adjustSolveCountsForChallenges to keep scoring consistent, detaches
+// the user, writes an audit log, and hard-deletes the old team record.
 func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *domain.User, actorID uuid.UUID, confirmReset bool, newTeamID *uuid.UUID) error {
 	if user.TeamID == nil {
 		return nil
@@ -605,18 +583,18 @@ func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *domain.U
 
 	if !uc.shouldCleanupSoloTeam(user, members, oldTeam) {
 		if oldTeam.IsBanned {
-			return httperr.ErrTeamBanned
+			return apperr.ErrTeamBanned
 		}
 
-		return httperr.ErrUserAlreadyInTeam
+		return apperr.ErrUserAlreadyInTeam
 	}
 
 	if oldTeam.IsBanned {
-		return httperr.ErrTeamBanned
+		return apperr.ErrTeamBanned
 	}
 
 	if !confirmReset {
-		return httperr.ErrConfirmationRequired
+		return apperr.ErrConfirmationRequired
 	}
 
 	oldTeamID := *user.TeamID
@@ -626,26 +604,11 @@ func (uc *TeamUseCase) handleSoloTeamCleanup(ctx context.Context, user *domain.U
 		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - getChallengeIDsForTeam: %w", err)
 	}
 
-	if err := uc.deps.SolveRepo.DeleteByTeamID(ctx, oldTeamID); err != nil {
-		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - SolveRepo.DeleteByTeamID: %w", err)
+	if err := uc.cascadeDelete(ctx, oldTeamID); err != nil {
+		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - cascadeDelete: %w", err)
 	}
 
-	if err := uc.deps.SubmissionRepo.DeleteByTeamID(ctx, oldTeamID); err != nil {
-		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - SubmissionRepo.DeleteByTeamID: %w", err)
-	}
-
-	if err := uc.deps.AwardRepo.DeleteByTeamID(ctx, oldTeamID); err != nil {
-		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - AwardRepo.DeleteByTeamID: %w", err)
-	}
-
-	if uc.deps.HintRepo != nil {
-		err := uc.deps.HintRepo.DeleteUnlocksByTeamID(ctx, oldTeamID)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - HintRepo.DeleteUnlocksByTeamID: %w", err)
-		}
-	}
-
-	if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs, true); err != nil {
+	if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs); err != nil {
 		return fmt.Errorf("TeamUseCase - handleSoloTeamCleanup - adjustSolveCountsForChallenges: %w", err)
 	}
 

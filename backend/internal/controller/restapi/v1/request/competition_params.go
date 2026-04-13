@@ -3,9 +3,9 @@ package request
 import (
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -37,7 +37,7 @@ func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.C
 	case openapi.SetConfigRequestValueTypeString:
 		return domain.CompetitionParamTypeString, nil
 	default:
-		return domain.CompetitionParamTypeString, httperr.NewValidationErrorf("invalid value_type")
+		return domain.CompetitionParamTypeString, apperr.NewValidationErrorf("invalid value_type")
 	}
 }
 
@@ -83,7 +83,7 @@ func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (domain
 	case openapi.BatchSetConfigItemValueTypeString:
 		return domain.CompetitionParamTypeString, nil
 	default:
-		return domain.CompetitionParamTypeString, httperr.NewValidationErrorf("invalid value_type")
+		return domain.CompetitionParamTypeString, apperr.NewValidationErrorf("invalid value_type")
 	}
 }
 
@@ -93,7 +93,7 @@ func ValidateBatchSetConfigRequest(req *openapi.BatchSetConfigRequest, v validat
 	}
 
 	if len(req.Configs) > maxBatchConfigItems {
-		return httperr.NewValidationErrorf("configs: at most %d items allowed", maxBatchConfigItems)
+		return apperr.NewValidationErrorf("configs: at most %d items allowed", maxBatchConfigItems)
 	}
 
 	for i := range req.Configs {
@@ -106,7 +106,7 @@ func ValidateBatchSetConfigRequest(req *openapi.BatchSetConfigRequest, v validat
 
 		err := ValidateConstraints(v, &c)
 		if err != nil {
-			return httperr.NewValidationErrorf("configs[%d]: %v", i, err)
+			return apperr.NewValidationErrorf("configs[%d]: %v", i, err)
 		}
 	}
 

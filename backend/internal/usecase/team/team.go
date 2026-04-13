@@ -1,6 +1,6 @@
-// Package team implements team use cases. Lock order for concurrent safety:
+// Package team implements team use cases. Lock order for concurrent safety
 // always lock user(s) first in canonical order (by UUID string), then team(s)
-// in canonical order (orderTeamLockIDs). Never lock team before user when both are needed.
+// in canonical order (orderTeamLockIDs). Never lock team before user when both are needed
 package team
 
 import (
@@ -13,11 +13,14 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 type TeamUseCase struct {
@@ -37,6 +40,7 @@ type TeamDeps struct {
 	CompRepo           repo.CompetitionRepository
 	SettingsGetter     usecase.SettingsGetter
 	ChallengeRepo      repo.ChallengeRepository
+	CompParamUC        usecase.CompetitionParamUseCase
 	TM                 repo.TransactionManager
 	Guard              usecase.CompetitionGuard
 	ScoreboardCache    cache.ScoreboardCacheInvalidator
@@ -44,17 +48,20 @@ type TeamDeps struct {
 	UserCache          cache.UserCacheInvalidator
 	TeamCache          *cachekit.Cache
 	HintRepo           repo.HintRepository
+	RatingRepo         repo.RatingRepository
 	FieldValueRepo     repo.FieldValueRepository
 	JWTRevoker         JWTRevoker
 	DefaultMaxTeamSize int
 	Logger             logkit.Logger
 }
 
+const defaultMaxTeamSize = 10
+
 var _ usecase.TeamUseCase = (*TeamUseCase)(nil)
 
 func NewTeamUseCase(deps TeamDeps) *TeamUseCase {
 	if deps.DefaultMaxTeamSize <= 0 {
-		deps.DefaultMaxTeamSize = 10
+		deps.DefaultMaxTeamSize = defaultMaxTeamSize
 	}
 
 	if deps.Logger == nil {
@@ -73,6 +80,8 @@ func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team,
 	return team, nil
 }
 
+// GetMyTeam returns the caller's team along with its members, active solve count, and captain flag.
+// Uses errgroup for concurrent fan-out: team, members, solves, and awards are fetched in parallel.
 func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain.Team, []*domain.User, int, bool, error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -80,7 +89,7 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain
 	}
 
 	if user.TeamID == nil {
-		return nil, nil, 0, false, httperr.ErrUserNotInTeam
+		return nil, nil, 0, false, apperr.ErrUserNotInTeam
 	}
 
 	teamID := *user.TeamID
@@ -92,21 +101,21 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		var err2 error
+		var errTeam error
 
-		team, err2 = uc.deps.TeamRepo.GetByID(gCtx, teamID)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - GetMyTeam - TeamRepo.GetByID: %w", err2)
+		team, errTeam = uc.deps.TeamRepo.GetByID(gCtx, teamID)
+		if errTeam != nil {
+			return fmt.Errorf("TeamUseCase - GetMyTeam - TeamRepo.GetByID: %w", errTeam)
 		}
 
 		return nil
 	})
 	g.Go(func() error {
-		var err2 error
+		var errMembers error
 
-		members, err2 = uc.deps.UserRepo.GetByTeamID(gCtx, teamID)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - GetMyTeam - UserRepo.GetByTeamID: %w", err2)
+		members, errMembers = uc.deps.UserRepo.GetByTeamID(gCtx, teamID)
+		if errMembers != nil {
+			return fmt.Errorf("TeamUseCase - GetMyTeam - UserRepo.GetByTeamID: %w", errMembers)
 		}
 
 		return nil
@@ -139,6 +148,9 @@ func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]
 	return users, nil
 }
 
+// SetHidden locks the team row, updates the hidden flag, then invalidates the
+// scoreboard cache for that team only. The lock prevents a concurrent visibility
+// flip from racing with score recalculations.
 func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
@@ -160,11 +172,14 @@ func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden b
 		return fmt.Errorf("TeamUseCase - SetHidden - TM.Run: %w", err)
 	}
 
-	uc.invalidateScoreboardCacheForTeam(ctx, teamID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 
 	return nil
 }
 
+// SetBracket locks the team row, assigns the bracket (nil removes it), then invalidates
+// the scoreboard cache. Scoreboard entries are bracket-partitioned so any bracket change
+// requires cache eviction.
 func (uc *TeamUseCase) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
@@ -186,44 +201,13 @@ func (uc *TeamUseCase) SetBracket(ctx context.Context, teamID uuid.UUID, bracket
 		return fmt.Errorf("TeamUseCase - SetBracket - TM.Run: %w", err)
 	}
 
-	uc.invalidateScoreboardCacheForTeam(ctx, teamID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 
 	return nil
 }
 
-func (uc *TeamUseCase) invalidateScoreboardCache(ctx context.Context) {
-	if uc.deps.ScoreboardCache != nil {
-		uc.deps.ScoreboardCache.InvalidateAll(ctx)
-	}
-}
-
-func (uc *TeamUseCase) invalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID) {
-	if uc.deps.ScoreboardCache != nil {
-		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
-	}
-}
-
-func (uc *TeamUseCase) invalidateChallengeListCache(ctx context.Context) {
-	if uc.deps.ChallengeListCache != nil {
-		uc.deps.ChallengeListCache.InvalidateAll(ctx)
-	}
-}
-
-func (uc *TeamUseCase) invalidateUserCache(ctx context.Context, userID uuid.UUID) {
-	if uc.deps.UserCache != nil {
-		uc.deps.UserCache.InvalidateUser(ctx, userID)
-	}
-}
-
-func (uc *TeamUseCase) invalidateTeamCache(ctx context.Context, teamID uuid.UUID) {
-	if uc.deps.TeamCache != nil {
-		err := uc.deps.TeamCache.Del(ctx, cache.KeyTeam(teamID.String()))
-		if err != nil && uc.deps.Logger != nil {
-			uc.deps.Logger.WithError(err).Warn("TeamUseCase - invalidateTeamCache - Del")
-		}
-	}
-}
-
+// ListTeams runs Search + CountSearch inside a read-only snapshot transaction so that
+// the page slice and total count are consistent with each other.
 func (uc *TeamUseCase) ListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
 	var result *usecase.Paginated[*domain.Team]
 
@@ -251,6 +235,8 @@ func (uc *TeamUseCase) ListTeams(ctx context.Context, search *string, page, perP
 	return result, nil
 }
 
+// GetTeamSolves returns the team's solves, excluding any that occurred after the
+// competition freeze time. Banned teams always return ErrTeamBanned.
 func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
@@ -258,7 +244,7 @@ func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*
 	}
 
 	if team.IsBanned {
-		return nil, httperr.ErrTeamBanned
+		return nil, apperr.ErrTeamBanned
 	}
 
 	solves, err := uc.deps.SolveRepo.GetByTeamIDWithDetails(ctx, teamID)
@@ -266,35 +252,11 @@ func (uc *TeamUseCase) GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*
 		return nil, fmt.Errorf("TeamUseCase - GetTeamSolves - SolveRepo.GetByTeamIDWithDetails: %w", err)
 	}
 
-	return uc.filterSolveDetailsByFreeze(ctx, solves)
+	return scoring.FilterSolveDetailsByFreezeFromRepo(ctx, uc.deps.CompRepo, solves)
 }
 
-func (uc *TeamUseCase) filterSolveDetailsByFreeze(ctx context.Context, solves []*domain.SolveWithDetails) ([]*domain.SolveWithDetails, error) {
-	if uc.deps.CompRepo == nil {
-		return solves, nil
-	}
-
-	comp, err := uc.deps.CompRepo.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - filterSolveDetailsByFreeze - CompRepo.Get: %w", err)
-	}
-
-	if !comp.IsFreezeActive() || comp.FreezeTime == nil {
-		return solves, nil
-	}
-
-	freezeAt := *comp.FreezeTime
-	filtered := make([]*domain.SolveWithDetails, 0, len(solves))
-
-	for _, s := range solves {
-		if !s.SolvedAt.After(freezeAt) {
-			filtered = append(filtered, s)
-		}
-	}
-
-	return filtered, nil
-}
-
+// GetTeamFails returns paginated failed submissions. Banned teams return ErrTeamBanned;
+// freeze-time filtering is not applied to fails (they are not public scoring data).
 func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
@@ -302,7 +264,7 @@ func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page,
 	}
 
 	if team.IsBanned {
-		return nil, httperr.ErrTeamBanned
+		return nil, apperr.ErrTeamBanned
 	}
 
 	result, err := usecase.FetchPage(ctx, page, perPage,
@@ -320,6 +282,8 @@ func (uc *TeamUseCase) GetTeamFails(ctx context.Context, teamID uuid.UUID, page,
 	return result, nil
 }
 
+// GetTeamAwards returns the team's awards. Returns an empty slice (not an error) when
+// AwardRepo is not wired, so callers can treat awards as an optional feature.
 func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*domain.Award, error) {
 	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
@@ -327,7 +291,7 @@ func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*
 	}
 
 	if team.IsBanned {
-		return nil, httperr.ErrTeamBanned
+		return nil, apperr.ErrTeamBanned
 	}
 
 	if uc.deps.AwardRepo == nil {
@@ -342,6 +306,9 @@ func (uc *TeamUseCase) GetTeamAwards(ctx context.Context, teamID uuid.UUID) ([]*
 	return awards, nil
 }
 
+// UpdateMyTeam validates the competition-level team-switch guard, runs updateMyTeamTx
+// in a transaction, then evicts both the team-specific cache entry and the full
+// scoreboard cache (name change affects public display).
 func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
 	if _, err := uc.deps.Guard.RequireTeamSwitch(ctx); err != nil {
 		return nil, fmt.Errorf("TeamUseCase - UpdateMyTeam - Guard.RequireTeamSwitch: %w", err)
@@ -364,21 +331,23 @@ func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, na
 	}
 
 	if team != nil {
-		uc.invalidateTeamCache(ctx, team.ID)
-		uc.invalidateScoreboardCache(ctx)
+		cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, team.ID)
+		cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
 	}
 
 	return team, nil
 }
 
+// updateMyTeamTx performs the team name update inside a transaction: locks the team row,
+// validates name uniqueness, recomputes the slug, and persists the change.
 func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
 	comp, err := uc.deps.CompRepo.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - CompetitionRepo.Get: %w", err)
 	}
 
-	if err := uc.requireTeamSwitch(comp); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - requireTeamSwitch: %w", err)
+	if err := guard.ValidateTeamSwitchState(comp); err != nil {
+		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - ValidateTeamSwitchState: %w", err)
 	}
 
 	if err := uc.deps.UserRepo.Lock(ctx, captainID); err != nil {
@@ -391,11 +360,11 @@ func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, 
 	}
 
 	if user.TeamID == nil {
-		return nil, httperr.ErrTeamNotFound
+		return nil, apperr.ErrTeamNotFound
 	}
 
 	if user.IsBanned {
-		return nil, httperr.ErrUserBanned
+		return nil, apperr.ErrUserBanned
 	}
 
 	if err := uc.deps.TeamRepo.Lock(ctx, *user.TeamID); err != nil {
@@ -408,11 +377,11 @@ func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, 
 	}
 
 	if team.IsBanned {
-		return nil, httperr.ErrTeamBanned
+		return nil, apperr.ErrTeamBanned
 	}
 
 	if team.CaptainID != captainID {
-		return nil, httperr.ErrNotCaptain
+		return nil, apperr.ErrNotCaptain
 	}
 
 	if team.Name != name {
@@ -442,11 +411,11 @@ func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) 
 	}
 
 	if user.IsBanned {
-		return nil, httperr.ErrUserBanned
+		return nil, apperr.ErrUserBanned
 	}
 
 	if user.TeamID == nil {
-		return nil, httperr.ErrTeamNotFound
+		return nil, apperr.ErrTeamNotFound
 	}
 
 	team, err := uc.deps.TeamRepo.GetByID(ctx, *user.TeamID)
@@ -455,11 +424,11 @@ func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) 
 	}
 
 	if team.CaptainID != captainID {
-		return nil, httperr.ErrNotCaptain
+		return nil, apperr.ErrNotCaptain
 	}
 
 	if team.IsBanned {
-		return nil, httperr.ErrTeamBanned
+		return nil, apperr.ErrTeamBanned
 	}
 
 	return team, nil
@@ -467,6 +436,7 @@ func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) 
 
 const defaultInviteTokenTTL = 7 * 24 * time.Hour
 
+// RegenerateInviteToken rotates the team invite token inside a transaction and returns the updated team.
 func (uc *TeamUseCase) RegenerateInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error) {
 	var team *domain.Team
 
@@ -476,8 +446,8 @@ func (uc *TeamUseCase) RegenerateInviteToken(ctx context.Context, captainID uuid
 			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - CompetitionRepo.Get: %w", err)
 		}
 
-		if err := uc.requireTeamSwitch(comp); err != nil {
-			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - requireTeamSwitch: %w", err)
+		if err := guard.ValidateTeamSwitchState(comp); err != nil {
+			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - ValidateTeamSwitchState: %w", err)
 		}
 
 		if err := uc.deps.UserRepo.Lock(txCtx, captainID); err != nil {
@@ -490,34 +460,34 @@ func (uc *TeamUseCase) RegenerateInviteToken(ctx context.Context, captainID uuid
 		}
 
 		if user.IsBanned {
-			return httperr.ErrUserBanned
+			return apperr.ErrUserBanned
 		}
 
 		if user.TeamID == nil {
-			return httperr.ErrTeamNotFound
+			return apperr.ErrTeamNotFound
 		}
 
 		if err := uc.deps.TeamRepo.Lock(txCtx, *user.TeamID); err != nil {
 			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - TeamRepo.Lock: %w", err)
 		}
 
-		var err2 error
+		var errTeam error
 
-		team, err2 = uc.deps.TeamRepo.GetByID(txCtx, *user.TeamID)
-		if err2 != nil {
-			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - TeamRepo.GetByID: %w", err2)
+		team, errTeam = uc.deps.TeamRepo.GetByID(txCtx, *user.TeamID)
+		if errTeam != nil {
+			return fmt.Errorf("TeamUseCase - RegenerateInviteToken - TeamRepo.GetByID: %w", errTeam)
 		}
 
 		if team.CaptainID != captainID {
-			return httperr.ErrNotCaptain
+			return apperr.ErrNotCaptain
 		}
 
 		if team.IsSolo {
-			return httperr.ErrTeamNotFound
+			return apperr.ErrTeamNotFound
 		}
 
 		if team.IsBanned {
-			return httperr.ErrTeamBanned
+			return apperr.ErrTeamBanned
 		}
 
 		newToken := uuid.New()

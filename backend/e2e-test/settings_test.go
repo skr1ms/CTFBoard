@@ -9,7 +9,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
-// GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.).
+// GET /admin/settings: admin gets app settings (app_name, verify_emails, scoreboard_visible, etc.)
 func TestSettings_Admin_Get(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())

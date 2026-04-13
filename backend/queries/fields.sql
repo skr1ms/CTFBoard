@@ -6,7 +6,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE id = $1;
 
--- name: GetFieldsByentityType :many
+-- name: GetFieldsByEntityType :many
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE entity_type = $1 ORDER BY order_index, name;
 
@@ -21,7 +21,7 @@ WHERE id = $1;
 -- name: DeleteField :exec
 DELETE FROM fields WHERE id = $1;
 
--- name: GetFieldValuesByentityID :many
+-- name: GetFieldValuesByEntityID :many
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values WHERE entity_id = $1;
 
@@ -29,10 +29,6 @@ FROM field_values WHERE entity_id = $1;
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values ORDER BY field_id, entity_id;
 
--- name: DeleteFieldValuesByentityID :exec
+-- name: DeleteFieldValuesByEntityID :exec
 DELETE FROM field_values WHERE entity_id = $1;
 
--- name: UpsertFieldValue :exec
-INSERT INTO field_values (id, field_id, entity_id, value, created_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value;

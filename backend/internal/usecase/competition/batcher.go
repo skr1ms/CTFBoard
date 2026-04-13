@@ -56,6 +56,9 @@ func WithBatcherLogger(l logkit.Logger) BatcherOption {
 	return func(b *SubmissionBatcher) { b.logger = l }
 }
 
+// NewSubmissionBatcher creates a SubmissionBatcher with buffered channels and immediately
+// starts a background flush goroutine via b.wg.Go(b.run). Stop must be called to drain
+// the queue and shut it down gracefully.
 func NewSubmissionBatcher(submissionRepo repo.SubmissionRepository, opts ...BatcherOption) *SubmissionBatcher {
 	b := &SubmissionBatcher{
 		ch:               make(chan *domain.Submission, defaultChannelBufSize),
@@ -77,8 +80,11 @@ func NewSubmissionBatcher(submissionRepo repo.SubmissionRepository, opts ...Batc
 	return b
 }
 
-// Enqueue adds a submission to the flush queue. Non-blocking; if the buffer is full
-// the submission is written synchronously to avoid data loss.
+// Enqueue adds a submission to the flush queue without blocking. If the
+// channel buffer is full it falls back to a synchronous write with a short
+// timeout to avoid dropping the entry. When the batcher has been stopped or
+// the synchronous write fails, the submission is dropped and the
+// BatcherDroppedTotal counter is incremented.
 func (b *SubmissionBatcher) Enqueue(sub *domain.Submission) {
 	if b.stopped.Load() {
 		BatcherDroppedTotal.Inc()
@@ -105,7 +111,7 @@ func (b *SubmissionBatcher) Enqueue(sub *domain.Submission) {
 	}
 }
 
-// Stop signals the flush goroutine to drain remaining submissions and exit.
+// Stop signals the flush goroutine to drain remaining submissions and exit
 // After Stop returns, Enqueue is a no-op (submissions are dropped).
 func (b *SubmissionBatcher) Stop() {
 	b.stopped.Store(true)
@@ -118,6 +124,14 @@ func (b *SubmissionBatcher) Stop() {
 	cancel()
 }
 
+// run is the background flush loop started by NewSubmissionBatcher. It
+// accumulates incoming submissions into an in-memory slice and flushes them to
+// the database either when the slice reaches defaultBatchSize or when the
+// ticker fires at defaultFlushInterval. On shutdown (done channel closed) it
+// drains all remaining entries from the channel before executing a final flush
+// so that no buffered submissions are lost. The flush context is taken from
+// shutdownFlushCtx if Stop provided one, otherwise a short timeout context is
+// used.
 func (b *SubmissionBatcher) run() {
 	ticker := time.NewTicker(defaultFlushInterval)
 	defer ticker.Stop()
@@ -168,6 +182,9 @@ func (b *SubmissionBatcher) run() {
 	}
 }
 
+// retryCreate attempts to persist a single submission with exponential backoff.
+// Context cancellation is treated as a permanent failure to avoid retrying after
+// the shutdown timeout expires. Up to attempts-1 retries are performed.
 func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *domain.Submission, attempts int) error {
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = retryCreateBaseDelay
@@ -179,12 +196,7 @@ func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *domain.Submiss
 			return backoff.Permanent(fmt.Errorf("SubmissionBatcher - retryCreate: %w", err))
 		}
 
-		err = b.repo.Create(ctx, sub)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return b.repo.Create(ctx, sub)
 	}
 
 	maxRetries := max(attempts-1, 0)
@@ -192,6 +204,12 @@ func (b *SubmissionBatcher) retryCreate(ctx context.Context, sub *domain.Submiss
 	return backoff.Retry(op, backoff.WithContext(backoff.WithMaxRetries(bo, uint64(maxRetries)), ctx))
 }
 
+// flush batch-inserts a slice of submissions. If the batch insert fails it
+// retries each submission individually with exponential backoff (up to
+// retryCreateAttempts attempts) to minimise data loss. Submissions that
+// exhaust all retries are dropped and counted in BatcherDroppedTotal
+// Successfully persisted submissions (batch or individual) increment
+// BatcherFlushedTotal.
 func (b *SubmissionBatcher) flush(ctx context.Context, subs []*domain.Submission) {
 	if len(subs) == 0 {
 		return

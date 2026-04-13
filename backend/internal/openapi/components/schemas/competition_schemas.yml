@@ -23,6 +23,14 @@ schemas:
         type: string
       status:
         type: string
+      allow_team_switch:
+        type: boolean
+      min_team_size:
+        type: integer
+      max_team_size:
+        type: integer
+      flag_regex:
+        type: string
     type: object
   response.CompetitionStatusResponse:
     properties:

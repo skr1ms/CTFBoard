@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestUserRepo_Create(t *testing.T) {
@@ -95,7 +95,7 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.UserRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
+	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetByEmail(t *testing.T) {
@@ -121,7 +121,7 @@ func TestUserRepo_GetByEmail_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByEmail(ctx, "nonexistent@example.com")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
+	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetByUsername(t *testing.T) {
@@ -146,7 +146,7 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 
 	_, err := f.UserRepo.GetByUsername(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrUserNotFound)
+	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
 
 func TestUserRepo_GetAll_Success(t *testing.T) {

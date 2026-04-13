@@ -12,14 +12,17 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
 )
 
 const (
+	// submitMinCheckDuration is the minimum time spent on flag validation to mitigate timing attacks on flag comparison.
 	submitMinCheckDuration = 75 * time.Millisecond
 	MaxFlagLength          = 200
 	regexMatchTimeout      = 500 * time.Millisecond
@@ -39,6 +42,11 @@ type submitContext struct {
 	comp        *domain.Competition
 }
 
+// getCompiledRegex returns a compiled *regexp.Regexp for pattern, using an LRU cache to
+// avoid redundant compilations. When multiple goroutines request the same pattern
+// simultaneously, singleflight ensures only one compilation runs; the rest receive the
+// shared result. A double-checked get inside the singleflight body prevents a race between
+// the outer cache miss and the singleflight flight being started.
 func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, error) {
 	if re, ok := uc.regexCache.Get(pattern); ok {
 		return re, nil
@@ -70,13 +78,20 @@ func (uc *ChallengeUseCase) getCompiledRegex(pattern string) (*regexp.Regexp, er
 	return re, nil
 }
 
+// safeMatchString executes re.MatchString(input) with two layers of protection against
+// ReDoS. First it acquires a slot from the global weighted semaphore (capacity
+// maxConcurrentRegex) so that the number of simultaneously running regex goroutines is
+// bounded. Then it launches the match in a separate goroutine and uses a select to honour
+// the caller's context deadline or the explicit timeout, whichever fires first. The result
+// channel is buffered (cap 1) so the goroutine can always send and call
+// regexSem.Release even when the caller has already timed out and stopped receiving.
 func safeMatchString(ctx context.Context, re *regexp.Regexp, input string, timeout time.Duration) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	err := regexSem.Acquire(ctx, 1)
 	if err != nil {
-		return false, fmt.Errorf("regex semaphore: %w", err)
+		return false, fmt.Errorf("ChallengeUseCase - safeMatchString - acquire semaphore: %w", err)
 	}
 
 	ch := make(chan bool, 1)
@@ -91,14 +106,29 @@ func safeMatchString(ctx context.Context, re *regexp.Regexp, input string, timeo
 	case matched := <-ch:
 		return matched, nil
 	case <-ctx.Done():
-		return false, fmt.Errorf("regex match timed out: %w", ctx.Err())
+		return false, fmt.Errorf("ChallengeUseCase - safeMatchString - match timed out: %w", ctx.Err())
 	}
 }
 
+// SubmitFlag orchestrates the full flag-submission pipeline
+//  1. Verifies competition time window and that the caller belongs to a team
+//  2. Checks user and team ban status, competition mode constraints (solo/teams/min-size)
+//  3. Fetches the challenge via a singleflight-deduplicated cache read and validates its
+//     state (hidden -> not found, locked -> locked error)
+//  4. Ensures all prerequisite challenges are solved by the team
+//  5. Short-circuits early when the per-window attempt cap is already reached
+//  6. Validates the submitted flag against the challenge's (or competition's) flag-format
+//     regex if one is configured
+//  7. Checks the flag: HMAC-SHA256 comparison for plain flags, decrypted-regex match for
+//     regex challenges; timing-attack mitigation pads the check to submitMinCheckDuration
+//  8. On an incorrect flag, records the attempt and re-enforces the attempt cap atomically
+//  9. On a correct flag, runs submitRecordSolve to atomically record the solve, then
+//     invalidates scoreboard/challenge-list caches (freeze-aware) and broadcasts the event
+//
 //nolint:funlen // submission flow: validation, lock, solve check, create, broadcast
 func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error) {
 	if teamID == nil {
-		return false, httperr.ErrUserMustBeInTeam
+		return false, apperr.ErrUserNotInTeam
 	}
 
 	comp, err := uc.submitCheckCompetitionTime(ctx)
@@ -108,11 +138,11 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 
 	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: strings.TrimSpace(flag), userID: userID, teamID: *teamID, clientIP: clientIP, comp: comp}
 	if sc.flag == "" {
-		return false, httperr.ErrInvalidFlagFormat
+		return false, apperr.ErrInvalidFlagFormat
 	}
 
 	if len(sc.flag) > MaxFlagLength {
-		return false, httperr.ErrInvalidFlagFormat
+		return false, apperr.ErrInvalidFlagFormat
 	}
 
 	if uc.deps.UserRepo != nil {
@@ -121,55 +151,44 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - UserRepo.GetByID: %w", err)
 		}
 
-		if user.IsBanned {
-			return false, httperr.ErrUserBanned
-		}
-	}
+		var team *domain.Team
 
-	if uc.deps.TeamRepo != nil {
+		if uc.deps.TeamRepo != nil {
+			team, err = uc.deps.TeamRepo.GetByID(ctx, sc.teamID)
+			if err != nil {
+				return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - TeamRepo.GetByID: %w", err)
+			}
+
+			sc.team = team
+		}
+
+		if err := guard.ValidateSubmissionEligibility(ctx, user, team, comp, uc.deps.TeamRepo); err != nil {
+			return false, err
+		}
+	} else if uc.deps.TeamRepo != nil {
 		team, err := uc.deps.TeamRepo.GetByID(ctx, sc.teamID)
 		if err != nil {
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - TeamRepo.GetByID: %w", err)
 		}
 
 		sc.team = team
-		if team.IsBanned {
-			return false, httperr.ErrTeamBanned
-		}
 
-		if comp != nil {
-			if comp.Mode == domain.ModeTeamsOnly && team.IsSolo {
-				return false, httperr.ErrTeamModeRequired
-			}
-
-			if comp.Mode == domain.ModeSoloOnly && !team.IsSolo {
-				return false, httperr.ErrSoloModeRequired
-			}
-
-			if comp.MinTeamSize > 0 && !team.IsSolo {
-				count, err := uc.deps.TeamRepo.CountTeamMembers(ctx, sc.teamID)
-				if err != nil {
-					return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - TeamRepo.CountTeamMembers: %w", err)
-				}
-
-				if count < comp.MinTeamSize {
-					return false, httperr.ErrTeamBelowMinSize
-				}
-			}
+		if err := guard.ValidateSubmissionEligibility(ctx, nil, team, comp, uc.deps.TeamRepo); err != nil {
+			return false, err
 		}
 	}
 
 	challenge, err := uc.submitGetChallenge(sc)
 	if err != nil {
-		if errors.Is(err, httperr.ErrChallengeNotFound) {
-			return false, httperr.ErrChallengeNotFound
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return false, apperr.ErrChallengeNotFound
 		}
 
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitGetChallenge: %w", err)
 	}
 
 	if challenge.State == domain.ChallengeStateLocked {
-		return false, httperr.ErrChallengeLocked
+		return false, apperr.ErrChallengeLocked
 	}
 
 	met, err := requirementsMet(ctx, sc.challengeID, sc.teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
@@ -178,17 +197,17 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 	}
 
 	if !met {
-		return false, httperr.ErrRequirementsNotMet
+		return false, apperr.ErrRequirementsNotMet
 	}
 
 	if challenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil {
-		count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(sc.ctx, sc.teamID, sc.challengeID)
+		count, err := uc.countAttempts(sc.ctx, sc.teamID, sc.challengeID, challenge.MaxAttemptsWindow)
 		if err != nil {
-			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - CountSubmissionsByTeamAndChallenge: %w", err)
+			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - countAttempts: %w", err)
 		}
 
 		if count >= int64(challenge.MaxAttempts) {
-			return false, httperr.ErrMaxAttemptsReached
+			return false, apperr.ErrMaxAttemptsReached
 		}
 	}
 
@@ -214,8 +233,8 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 	if !correct {
 		err := uc.submitLogIncorrectAndEnforceMaxAttempts(sc, challenge)
 		if err != nil {
-			if errors.Is(err, httperr.ErrMaxAttemptsReached) {
-				return false, httperr.ErrMaxAttemptsReached
+			if errors.Is(err, apperr.ErrMaxAttemptsReached) {
+				return false, apperr.ErrMaxAttemptsReached
 			}
 
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitLogIncorrectAndEnforceMaxAttempts: %w", err)
@@ -226,12 +245,16 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 
 	solvedChallenge, solveCount, alreadySolved, wasFrozen, err := uc.submitRecordSolve(sc, challenge)
 	if err != nil {
-		if errors.Is(err, httperr.ErrRequirementsNotMet) {
-			return false, httperr.ErrRequirementsNotMet
+		if errors.Is(err, apperr.ErrRequirementsNotMet) {
+			return false, apperr.ErrRequirementsNotMet
 		}
 
-		if errors.Is(err, httperr.ErrMaxAttemptsReached) {
-			return false, httperr.ErrMaxAttemptsReached
+		if errors.Is(err, apperr.ErrMaxAttemptsReached) {
+			return false, apperr.ErrMaxAttemptsReached
+		}
+
+		if errors.Is(err, apperr.ErrAlreadySolved) {
+			return true, nil
 		}
 
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitRecordSolve: %w", err)
@@ -242,11 +265,13 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 	}
 
 	uc.submitInvalidateCacheWithFrozenStatus(sc.ctx, sc.teamID, wasFrozen)
-	uc.submitNotifySolve(sc, solvedChallenge, solveCount == 1)
+	uc.submitNotifySolve(sc, solvedChallenge, solveCount == 1, wasFrozen)
 
 	return true, nil
 }
 
+// submitCheckCompetitionTime loads the current competition and returns an error if submissions are not allowed.
+// Uses CompUC when available (cached), falling back to CompRepo for direct DB access.
 func (uc *ChallengeUseCase) submitCheckCompetitionTime(ctx context.Context) (*domain.Competition, error) {
 	if uc.deps.CompUC == nil && uc.deps.CompRepo == nil {
 		return nil, nil
@@ -268,12 +293,14 @@ func (uc *ChallengeUseCase) submitCheckCompetitionTime(ctx context.Context) (*do
 	}
 
 	if !comp.IsSubmissionAllowed() {
-		return nil, httperr.ErrSubmissionNotAllowed
+		return nil, apperr.ErrSubmissionNotAllowed
 	}
 
 	return comp, nil
 }
 
+// submitGetChallenge loads the challenge by ID using singleflight deduplication to avoid
+// stampeding the DB under concurrent submissions for the same challenge.
 func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*domain.Challenge, error) {
 	key := sc.challengeID.String()
 
@@ -281,8 +308,8 @@ func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*domain.Chall
 		return uc.deps.ChallengeRepo.GetByID(context.WithoutCancel(sc.ctx), sc.challengeID)
 	})
 	if err != nil {
-		if errors.Is(err, httperr.ErrChallengeNotFound) {
-			return nil, httperr.ErrChallengeNotFound
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return nil, apperr.ErrChallengeNotFound
 		}
 
 		return nil, fmt.Errorf("ChallengeUseCase - SubmitFlag - ChallengeRepo.GetByID: %w", err)
@@ -293,13 +320,15 @@ func (uc *ChallengeUseCase) submitGetChallenge(sc *submitContext) (*domain.Chall
 		return nil, fmt.Errorf("ChallengeUseCase - SubmitFlag - ChallengeRepo.GetByID: unexpected type")
 	}
 
-	if challenge.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
 	}
 
 	return challenge, nil
 }
 
+// submitCheckRequirementsInTx verifies that the team has solved all prerequisite challenges.
+// Called inside the submit transaction so the check is consistent with the advisory lock.
 func (uc *ChallengeUseCase) submitCheckRequirementsInTx(ctx context.Context, challengeID, teamID uuid.UUID) error {
 	requirements, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
 	if err != nil {
@@ -327,13 +356,33 @@ func (uc *ChallengeUseCase) submitCheckRequirementsInTx(ctx context.Context, cha
 
 	for _, req := range requirements {
 		if _, ok := solvedSet[req.ChallengeID]; !ok {
-			return httperr.ErrRequirementsNotMet
+			return apperr.ErrRequirementsNotMet
 		}
 	}
 
 	return nil
 }
 
+// countAttempts returns the number of submissions by the team for the challenge.
+// When window > 0 only submissions within the rolling time window are counted
+// (rate-limiting semantics); otherwise the total lifetime count is returned.
+func (uc *ChallengeUseCase) countAttempts(ctx context.Context, teamID, challengeID uuid.UUID, window time.Duration) (int64, error) {
+	if window > 0 {
+		windowStart := time.Now().Add(-window)
+
+		return uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallengeInWindow(ctx, teamID, challengeID, windowStart)
+	}
+
+	return uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, teamID, challengeID)
+}
+
+// submitLogIncorrectAndEnforceMaxAttempts records an incorrect submission and enforces the
+// per-team, per-challenge attempt limit. When MaxAttempts is configured it wraps both
+// operations in a serializable transaction protected by an advisory lock so that the
+// count read and the submission insert are atomic: a concurrent submission cannot sneak in
+// between the read and the write. If the count already equals or exceeds MaxAttempts the
+// transaction returns ErrMaxAttemptsReached without inserting. When MaxAttempts is not
+// configured the submission is written directly without a transaction.
 func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitContext, challenge *domain.Challenge) error {
 	sub := &domain.Submission{
 		UserID:        sc.userID,
@@ -349,22 +398,22 @@ func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitCo
 	if challenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil && uc.deps.TM != nil {
 		err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
 			if err := uc.deps.SubmissionRepo.AcquireAdvisoryLockForSubmit(ctx, sc.teamID, sc.challengeID); err != nil {
-				return err
+				return fmt.Errorf("ChallengeUseCase - submitLogIncorrectAndEnforceMaxAttempts - AcquireAdvisoryLockForSubmit: %w", err)
 			}
 
-			count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, sc.teamID, sc.challengeID)
+			count, err := uc.countAttempts(ctx, sc.teamID, sc.challengeID, challenge.MaxAttemptsWindow)
 			if err != nil {
-				return fmt.Errorf("CountSubmissionsByTeamAndChallenge: %w", err)
+				return fmt.Errorf("ChallengeUseCase - submitLogIncorrectAndEnforceMaxAttempts - countAttempts: %w", err)
 			}
 
 			if count >= int64(challenge.MaxAttempts) {
-				return httperr.ErrMaxAttemptsReached
+				return apperr.ErrMaxAttemptsReached
 			}
 
 			return uc.deps.SubmissionRepo.Create(ctx, sub)
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("ChallengeUseCase - submitLogIncorrectAndEnforceMaxAttempts - TM.Run: %w", err)
 		}
 
 		return nil
@@ -377,6 +426,8 @@ func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitCo
 	return nil
 }
 
+// submitValidateFlagFormat validates the submitted flag against the challenge-level or competition-level
+// format regex (if configured). Uses safeMatchString with ReDoS protection.
 func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challenge *domain.Challenge) error {
 	formatRegex := ""
 
@@ -401,12 +452,13 @@ func (uc *ChallengeUseCase) submitValidateFlagFormat(sc *submitContext, challeng
 	}
 
 	if !matched {
-		return httperr.ErrInvalidFlagFormat
+		return apperr.ErrInvalidFlagFormat
 	}
 
 	return nil
 }
 
+// submitCheckFlag dispatches to submitCheckRegexFlag or submitCheckHashFlag based on challenge type.
 func (uc *ChallengeUseCase) submitCheckFlag(sc *submitContext, challenge *domain.Challenge) (bool, error) {
 	if challenge.IsRegex {
 		return uc.submitCheckRegexFlag(sc, challenge)
@@ -415,6 +467,9 @@ func (uc *ChallengeUseCase) submitCheckFlag(sc *submitContext, challenge *domain
 	return uc.submitCheckHashFlag(sc, challenge), nil
 }
 
+// submitCheckRegexFlag decrypts the AES-encrypted flag_regex, optionally prepends (?i) for
+// case-insensitive matching, then evaluates the submission via safeMatchString with semaphore
+// and timeout protection against ReDoS.
 func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *domain.Challenge) (bool, error) {
 	if uc.deps.Crypto == nil {
 		return false, fmt.Errorf("ChallengeUseCase - submitCheckRegexFlag - crypto not configured")
@@ -446,6 +501,8 @@ func (uc *ChallengeUseCase) submitCheckRegexFlag(sc *submitContext, challenge *d
 	return matched, nil
 }
 
+// submitCheckHashFlag compares the SHA-256 hex of the submitted flag against the stored hash
+// using constant-time comparison to prevent timing-based side channels.
 func (uc *ChallengeUseCase) submitCheckHashFlag(sc *submitContext, challenge *domain.Challenge) bool {
 	userInput := sc.flag
 
@@ -458,6 +515,25 @@ func (uc *ChallengeUseCase) submitCheckHashFlag(sc *submitContext, challenge *do
 	return subtle.ConstantTimeCompare([]byte(hashStr), []byte(challenge.FlagHash)) == 1
 }
 
+// submitRecordSolve atomically records a correct solve inside a SERIALIZABLE transaction
+// The strategy inside the transaction is
+//  1. Re-read the competition state (GetForUpdate) to detect freeze and re-check the
+//     submission window; returns ErrSubmissionNotAllowed if the window has just closed
+//  2. Lock and re-validate user (still in the team, not banned) and team (not banned,
+//     mode/min-size constraints) rows with SELECT … FOR UPDATE to prevent concurrent
+//     membership changes from producing an inconsistent solve record
+//  3. Lock the challenge row (GetByIDForUpdate) and re-check hidden/locked state and
+//     prerequisites - all inside the same transaction for idempotency
+//  4. If MaxAttempts is set, acquires a second advisory lock keyed on (teamID, challengeID)
+//     to prevent two concurrent correct submissions from both slipping under the cap
+//     if the cap is exceeded and a solve already exists the call is treated as idempotent
+//     (alreadySolved = true)
+//  5. Inserts the correct submission record, then delegates to deps.SolveRecord
+//     which handles idempotency (returns alreadySolved), dynamic score decay, and
+//     first-blood detection
+//
+// Returns the locked challenge, the new solve count, an alreadySolved flag, a wasFrozen
+// flag (used by the caller to decide which cache keys to invalidate), and any error.
 func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Challenge) (*domain.Challenge, int, bool, bool, error) {
 	var (
 		solvedChallenge *domain.Challenge
@@ -471,7 +547,7 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 
 		if uc.deps.CompRepo != nil {
 			c, err := uc.deps.CompRepo.GetForUpdate(ctx)
-			if err != nil && !errors.Is(err, httperr.ErrCompetitionNotFound) {
+			if err != nil && !errors.Is(err, apperr.ErrCompetitionNotFound) {
 				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - CompRepo.GetForUpdate: %w", err)
 			}
 
@@ -482,7 +558,7 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 		}
 
 		if comp != nil && !comp.IsSubmissionAllowed() {
-			return httperr.ErrSubmissionNotAllowed
+			return apperr.ErrSubmissionNotAllowed
 		}
 
 		if uc.deps.UserRepo != nil {
@@ -496,11 +572,11 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 			}
 
 			if freshUser.TeamID == nil || *freshUser.TeamID != sc.teamID {
-				return httperr.ErrTeamMemberNotFound
+				return apperr.ErrTeamMemberNotFound
 			}
 
 			if freshUser.IsBanned {
-				return httperr.ErrUserBanned
+				return apperr.ErrUserBanned
 			}
 		}
 
@@ -514,29 +590,8 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - TeamRepo.GetByID: %w", err)
 			}
 
-			if freshTeam.IsBanned {
-				return httperr.ErrTeamBanned
-			}
-
-			if comp != nil {
-				if comp.Mode == domain.ModeTeamsOnly && freshTeam.IsSolo {
-					return httperr.ErrTeamModeRequired
-				}
-
-				if comp.Mode == domain.ModeSoloOnly && !freshTeam.IsSolo {
-					return httperr.ErrSoloModeRequired
-				}
-
-				if comp.MinTeamSize > 0 && !freshTeam.IsSolo {
-					count, err := uc.deps.TeamRepo.CountTeamMembers(ctx, sc.teamID)
-					if err != nil {
-						return fmt.Errorf("ChallengeUseCase - submitRecordSolve - TeamRepo.CountTeamMembers: %w", err)
-					}
-
-					if count < comp.MinTeamSize {
-						return httperr.ErrTeamBelowMinSize
-					}
-				}
+			if err := guard.ValidateSubmissionEligibility(ctx, nil, freshTeam, comp, uc.deps.TeamRepo); err != nil {
+				return err
 			}
 		}
 
@@ -545,12 +600,12 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 			return fmt.Errorf("ChallengeUseCase - submitRecordSolve - ChallengeRepo.GetByIDForUpdate: %w", err)
 		}
 
-		if freshChallenge.State == domain.ChallengeStateHidden {
-			return httperr.ErrChallengeNotFound
+		if err := guard.EnsureChallengeVisible(freshChallenge); err != nil {
+			return err
 		}
 
 		if freshChallenge.State == domain.ChallengeStateLocked {
-			return httperr.ErrChallengeLocked
+			return apperr.ErrChallengeLocked
 		}
 
 		if err := uc.submitCheckRequirementsInTx(ctx, sc.challengeID, sc.teamID); err != nil {
@@ -559,12 +614,12 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 
 		if freshChallenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil {
 			if err := uc.deps.SubmissionRepo.AcquireAdvisoryLockForSubmit(ctx, sc.teamID, sc.challengeID); err != nil {
-				return fmt.Errorf("AcquireAdvisoryLockForSubmit: %w", err)
+				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - AcquireAdvisoryLockForSubmit: %w", err)
 			}
 
-			count, err := uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, sc.teamID, sc.challengeID)
+			count, err := uc.countAttempts(ctx, sc.teamID, sc.challengeID, freshChallenge.MaxAttemptsWindow)
 			if err != nil {
-				return fmt.Errorf("CountSubmissionsByTeamAndChallenge: %w", err)
+				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - countAttempts: %w", err)
 			}
 
 			if count >= int64(freshChallenge.MaxAttempts) {
@@ -573,29 +628,12 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 					if solveErr == nil {
 						solvedChallenge = freshChallenge
 						alreadySolved = true
-						correctSub := &domain.Submission{
-							UserID:        sc.userID,
-							TeamID:        &sc.teamID,
-							ChallengeID:   sc.challengeID,
-							SubmittedFlag: sc.flag,
-							IsCorrect:     true,
-							Type:          domain.SubmissionTypeCorrect,
-							IP:            sc.clientIP,
-							CreatedAt:     time.Now(),
-						}
-
-						if uc.deps.SubmissionRepo != nil {
-							err := uc.deps.SubmissionRepo.Create(ctx, correctSub)
-							if err != nil {
-								return fmt.Errorf("SubmissionRepo.Create: %w", err)
-							}
-						}
 
 						return nil
 					}
 				}
 
-				return httperr.ErrMaxAttemptsReached
+				return apperr.ErrMaxAttemptsReached
 			}
 		}
 
@@ -613,14 +651,18 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 		if uc.deps.SubmissionRepo != nil {
 			err := uc.deps.SubmissionRepo.Create(ctx, correctSub)
 			if err != nil {
-				return fmt.Errorf("SubmissionRepo.Create: %w", err)
+				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - SubmissionRepo.Create: %w", err)
 			}
 		}
 
 		solvedChallenge = freshChallenge
 		solve := &domain.Solve{UserID: sc.userID, TeamID: sc.teamID, ChallengeID: sc.challengeID}
 
-		solveCount, err = competition.RecordSolveInTx(ctx, solve, freshChallenge, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+		if uc.deps.SolveRecord == nil {
+			return fmt.Errorf("ChallengeUseCase - submitRecordSolve: SolveRecord not configured")
+		}
+
+		solveCount, err = uc.deps.SolveRecord(ctx, solve, freshChallenge, uc.deps.ChallengeRepo, uc.deps.SolveRepo, scoring.GetDecayFn(ctx, uc.deps.CompParamUC))
 		if err != nil {
 			return fmt.Errorf("ChallengeUseCase - submitRecordSolve - RecordSolveInTx: %w", err)
 		}
@@ -628,8 +670,8 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 		return nil
 	})
 	if err != nil {
-		var httpErr *httperr.HTTPError
-		if errors.As(err, &httpErr) {
+		var ve *apperr.ValidationError
+		if errors.As(err, &ve) || errors.Is(err, apperr.ErrMaxAttemptsReached) || errors.Is(err, apperr.ErrAlreadySolved) {
 			return nil, 0, false, false, err
 		}
 
@@ -639,9 +681,12 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 	return solvedChallenge, solveCount, alreadySolved, wasFrozen, nil
 }
 
+// submitRecordSolveUpdatePointsIfDecay applies dynamic score decay after recording a solve.
+// When the new score differs from the current score, updates the challenge points in the DB.
 func (uc *ChallengeUseCase) submitRecordSolveUpdatePointsIfDecay(ctx context.Context, challengeID uuid.UUID, solvedChallenge *domain.Challenge, solveCount int) error {
 	_, err := scoring.ApplySolveScore(ctx,
 		solvedChallenge.InitialValue, solvedChallenge.MinValue, solvedChallenge.Decay, solvedChallenge.Points, solveCount,
+		scoring.GetDecayFn(ctx, uc.deps.CompParamUC),
 		func(ctx context.Context, pts int) error {
 			err := uc.deps.ChallengeRepo.UpdatePoints(ctx, challengeID, pts)
 			if err != nil {
@@ -660,52 +705,26 @@ func (uc *ChallengeUseCase) submitRecordSolveUpdatePointsIfDecay(ctx context.Con
 	return nil
 }
 
+// submitInvalidateCache invalidates scoreboard and challenge caches after a solve.
+// Delegates to submitInvalidateCacheWithFrozenStatus after checking current freeze state.
 func (uc *ChallengeUseCase) submitInvalidateCache(ctx context.Context, teamID uuid.UUID) {
-	comp := uc.submitGetFreshCompetition(ctx)
+	comp := computil.Fresh(ctx, uc.deps.CompRepo, uc.deps.CompUC)
 	wasFrozen := comp != nil && comp.IsFreezeActive()
 	uc.submitInvalidateCacheWithFrozenStatus(ctx, teamID, wasFrozen)
 }
 
+// submitInvalidateCacheWithFrozenStatus invalidates scoreboard and challenge list caches
+// with awareness of freeze state. When frozen, only live scoreboard is invalidated
+// (frozen snapshot is preserved). Challenge list cache is always invalidated.
 func (uc *ChallengeUseCase) submitInvalidateCacheWithFrozenStatus(ctx context.Context, teamID uuid.UUID, wasFrozen bool) {
-	if uc.deps.ScoreboardCache != nil {
-		if wasFrozen {
-			uc.deps.ScoreboardCache.InvalidateLiveOnly(ctx, teamID)
-			uc.InvalidateChallengeListCacheForTeam(ctx, teamID)
-
-			return
-		}
-
-		uc.deps.ScoreboardCache.InvalidateForTeam(ctx, teamID)
-	}
-
+	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, wasFrozen)
 	uc.InvalidateChallengeListCacheForTeam(ctx, teamID)
 }
 
-func (uc *ChallengeUseCase) submitGetFreshCompetition(ctx context.Context) *domain.Competition {
-	if uc.deps.CompRepo != nil {
-		comp, err := uc.deps.CompRepo.Get(ctx)
-		if err == nil {
-			return comp
-		}
-	}
-
-	if uc.deps.CompUC != nil {
-		comp, err := uc.deps.CompUC.Get(ctx)
-		if err == nil {
-			return comp
-		}
-	}
-
-	return nil
-}
-
-func (uc *ChallengeUseCase) submitNotifySolve(sc *submitContext, challenge *domain.Challenge, isFirstBlood bool) {
-	if uc.deps.Broadcaster == nil || challenge == nil {
-		return
-	}
-
-	comp := uc.submitGetFreshCompetition(sc.ctx)
-	if comp != nil && comp.IsFreezeActive() {
+// submitNotifySolve broadcasts a solve event (and optionally a first-blood event) to WebSocket/SSE clients.
+// wasFrozen is forwarded from submitRecordSolve to skip the redundant CompRepo hit.
+func (uc *ChallengeUseCase) submitNotifySolve(sc *submitContext, challenge *domain.Challenge, isFirstBlood, wasFrozen bool) {
+	if uc.deps.Broadcaster == nil || challenge == nil || wasFrozen {
 		return
 	}
 

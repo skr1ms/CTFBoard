@@ -1,8 +1,9 @@
 package response
 
 import (
+	"slices"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/samber/lo"
 
@@ -11,8 +12,6 @@ import (
 )
 
 func FromAppSettings(s *domain.Settings) openapi.AppSettingsResponse {
-	updatedAt := s.UpdatedAt.Format(time.RFC3339)
-
 	return openapi.AppSettingsResponse{
 		AppName:                          new(s.AppName),
 		CorsOrigins:                      new(s.CORSOrigins),
@@ -46,7 +45,7 @@ func FromAppSettings(s *domain.Settings) openapi.AppSettingsResponse {
 		WriteupEnabled:                   new(s.WriteupEnabled),
 		OauthGithubEnabled:               new(s.OAuthGithubEnabled),
 		OauthGoogleEnabled:               new(s.OAuthGoogleEnabled),
-		UpdatedAt:                        new(updatedAt),
+		UpdatedAt:                        timePtr(&s.UpdatedAt),
 	}
 }
 
@@ -71,11 +70,26 @@ func FromConfig(c *domain.CompetitionParam) openapi.ConfigResponse {
 	return res
 }
 
-func FromConfigResponseList(items []*domain.CompetitionParam) []openapi.ConfigResponse {
-	return lo.Map(items, func(item *domain.CompetitionParam, _ int) openapi.ConfigResponse { return FromConfig(item) })
+func FromConfigCategories(items []*domain.CompetitionParam) []openapi.ConfigCategoryItem {
+	counts := make(map[string]int)
+
+	for _, p := range items {
+		if p.Category != "" {
+			counts[p.Category]++
+		}
+	}
+
+	out := make([]openapi.ConfigCategoryItem, 0, len(counts))
+	for name, count := range counts {
+		out = append(out, openapi.ConfigCategoryItem{Name: name, Count: count})
+	}
+
+	slices.SortFunc(out, func(a, b openapi.ConfigCategoryItem) int { return strings.Compare(a.Name, b.Name) })
+
+	return out
 }
 
-func FromConfigList(items []*domain.CompetitionParam) []openapi.ConfigResponse {
+func FromConfigResponseList(items []*domain.CompetitionParam) []openapi.ConfigResponse {
 	return lo.Map(items, func(item *domain.CompetitionParam, _ int) openapi.ConfigResponse { return FromConfig(item) })
 }
 

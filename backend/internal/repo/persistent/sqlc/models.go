@@ -81,7 +81,7 @@ type Bracket struct {
 	ID          uuid.UUID          `json:"id"`
 	Name        string             `json:"name"`
 	Description *string            `json:"description"`
-	IsDefault   *bool              `json:"is_default"`
+	IsDefault   bool               `json:"is_default"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -90,18 +90,19 @@ type Challenge struct {
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Category          string             `json:"category"`
-	Points            *int32             `json:"points"`
+	Points            int32              `json:"points"`
 	FlagHash          string             `json:"flag_hash"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
+	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
 	State             string             `json:"state"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
 	Decay             int32              `json:"decay"`
 	SolveCount        int32              `json:"solve_count"`
-	IsRegex           *bool              `json:"is_regex"`
-	IsCaseInsensitive *bool              `json:"is_case_insensitive"`
+	IsRegex           bool               `json:"is_regex"`
+	IsCaseInsensitive bool               `json:"is_case_insensitive"`
 	FlagRegex         *string            `json:"flag_regex"`
 	FlagFormatRegex   *string            `json:"flag_format_regex"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
@@ -141,14 +142,14 @@ type Competition struct {
 	StartTime                    pgtype.Timestamptz `json:"start_time"`
 	EndTime                      pgtype.Timestamptz `json:"end_time"`
 	FreezeTime                   pgtype.Timestamptz `json:"freeze_time"`
-	IsPaused                     *bool              `json:"is_paused"`
+	IsPaused                     bool               `json:"is_paused"`
 	PausedAt                     pgtype.Timestamptz `json:"paused_at"`
-	IsPublic                     *bool              `json:"is_public"`
+	IsPublic                     bool               `json:"is_public"`
 	FlagRegex                    *string            `json:"flag_regex"`
-	Mode                         *string            `json:"mode"`
-	AllowTeamSwitch              *bool              `json:"allow_team_switch"`
-	MinTeamSize                  *int32             `json:"min_team_size"`
-	MaxTeamSize                  *int32             `json:"max_team_size"`
+	Mode                         string             `json:"mode"`
+	AllowTeamSwitch              bool               `json:"allow_team_switch"`
+	MinTeamSize                  int32              `json:"min_team_size"`
+	MaxTeamSize                  int32              `json:"max_team_size"`
 	KeepScoreboardFrozenAfterEnd bool               `json:"keep_scoreboard_frozen_after_end"`
 	CreatedAt                    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                    pgtype.Timestamptz `json:"updated_at"`
@@ -168,9 +169,9 @@ type Field struct {
 	Name       string             `json:"name"`
 	FieldType  string             `json:"field_type"`
 	EntityType string             `json:"entity_type"`
-	Required   *bool              `json:"required"`
+	Required   bool               `json:"required"`
 	Options    []byte             `json:"options"`
-	OrderIndex *int32             `json:"order_index"`
+	OrderIndex int32              `json:"order_index"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -185,7 +186,8 @@ type FieldValue struct {
 type File struct {
 	ID          uuid.UUID          `json:"id"`
 	Type        string             `json:"type"`
-	ChallengeID uuid.UUID          `json:"challenge_id"`
+	ChallengeID *uuid.UUID         `json:"challenge_id"`
+	PageID      *uuid.UUID         `json:"page_id"`
 	Location    string             `json:"location"`
 	Filename    string             `json:"filename"`
 	Size        int64              `json:"size"`
@@ -214,9 +216,9 @@ type Notification struct {
 	ID        uuid.UUID          `json:"id"`
 	Title     string             `json:"title"`
 	Content   string             `json:"content"`
-	Type      *string            `json:"type"`
-	IsPinned  *bool              `json:"is_pinned"`
-	IsGlobal  *bool              `json:"is_global"`
+	Type      string             `json:"type"`
+	IsPinned  bool               `json:"is_pinned"`
+	IsGlobal  bool               `json:"is_global"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -236,8 +238,8 @@ type Page struct {
 	Title      string             `json:"title"`
 	Slug       string             `json:"slug"`
 	Content    string             `json:"content"`
-	IsDraft    *bool              `json:"is_draft"`
-	OrderIndex *int32             `json:"order_index"`
+	IsDraft    bool               `json:"is_draft"`
+	OrderIndex int32              `json:"order_index"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
@@ -296,12 +298,12 @@ type Team struct {
 	InviteToken          uuid.UUID          `json:"invite_token"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
@@ -331,8 +333,8 @@ type User struct {
 	Username        string             `json:"username"`
 	Email           string             `json:"email"`
 	PasswordHash    string             `json:"password_hash"`
-	Role            *string            `json:"role"`
-	IsVerified      *bool              `json:"is_verified"`
+	Role            string             `json:"role"`
+	IsVerified      bool               `json:"is_verified"`
 	VerifiedAt      pgtype.Timestamptz `json:"verified_at"`
 	IsBanned        bool               `json:"is_banned"`
 	BannedAt        pgtype.Timestamptz `json:"banned_at"`
@@ -348,8 +350,8 @@ type UserNotification struct {
 	NotificationID *uuid.UUID         `json:"notification_id"`
 	Title          *string            `json:"title"`
 	Content        *string            `json:"content"`
-	Type           *string            `json:"type"`
-	IsRead         *bool              `json:"is_read"`
+	Type           string             `json:"type"`
+	IsRead         bool               `json:"is_read"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 

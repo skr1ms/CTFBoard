@@ -6,15 +6,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// NotificationType is a string-backed enum for the severity/style of a notification.
 type NotificationType string
 
 const (
-	NotificationInfo    NotificationType = "info"
+	// NotificationInfo represents an informational notification.
+	NotificationInfo NotificationType = "info"
+	// NotificationWarning represents a warning notification.
 	NotificationWarning NotificationType = "warning"
+	// NotificationSuccess represents a success notification.
 	NotificationSuccess NotificationType = "success"
-	NotificationError   NotificationType = "error"
+	// NotificationError represents an error notification.
+	NotificationError NotificationType = "error"
 )
 
+// IsValid returns true if t is one of the four recognized notification types.
 func (t NotificationType) IsValid() bool {
 	switch t {
 	case NotificationInfo, NotificationWarning, NotificationSuccess, NotificationError:
@@ -24,6 +30,7 @@ func (t NotificationType) IsValid() bool {
 	}
 }
 
+// Notification is a broadcast message created by admins, optionally pinned or sent globally.
 type Notification struct {
 	ID        uuid.UUID        `json:"id"`
 	Title     string           `json:"title"`
@@ -34,6 +41,7 @@ type Notification struct {
 	CreatedAt time.Time        `json:"created_at"`
 }
 
+// UserNotification links a notification to a specific user and tracks whether it has been read.
 type UserNotification struct {
 	ID             uuid.UUID        `json:"id"`
 	UserID         uuid.UUID        `json:"user_id"`

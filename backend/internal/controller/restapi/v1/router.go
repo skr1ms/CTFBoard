@@ -12,6 +12,7 @@ import (
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -48,6 +49,7 @@ const (
 	rlKeyFileDownloadIP    = "file:download:ip"
 	rlKeyWebSocketIP       = "websocket:ip"
 	rlKeyAvatarUploadUser  = "avatar:upload:user"
+	defaultRLWindow        = time.Minute
 	avatarUploadLimit      = 5
 	avatarUploadWindow     = time.Minute
 	teamOpRateLimit        = 5
@@ -60,6 +62,22 @@ const (
 	adminGeneralWindow     = time.Minute
 )
 
+// dynamicRL is a factory that closes over the four shared rate-limit dependencies
+// so each call site only needs to supply the per-endpoint key, window, field
+// selector, and key function.
+type dynamicRL func(key string, window time.Duration, field func(*restapimiddleware.RateLimitConfig) int64, keyFunc func(*http.Request) (string, error)) func(http.Handler) http.Handler
+
+func newDynamicRL(
+	redisClient *redis.Client,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
+	getter restapimiddleware.SettingsGetter,
+	logger logkit.Logger,
+) dynamicRL {
+	return func(key string, window time.Duration, field func(*restapimiddleware.RateLimitConfig) int64, keyFunc func(*http.Request) (string, error)) func(http.Handler) http.Handler {
+		return restapimiddleware.DynamicRateLimit(redisClient, key, window, rateLimitCache, getter, field, keyFunc, logger)
+	}
+}
+
 // ipKeyFunc returns a rate-limit key function that uses the client IP address from context.
 func ipKeyFunc() func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
@@ -71,14 +89,31 @@ func ipKeyFunc() func(*http.Request) (string, error) {
 func userIDKeyFunc(r *http.Request) (string, error) {
 	user, ok := restapimiddleware.GetUser(r.Context())
 	if !ok {
-		return "", errors.New("user not authenticated")
+		return "", apperr.ErrNotAuthenticated
 	}
 
 	return user.ID.String(), nil
 }
 
+// protectedMiddlewareStack returns the shared middleware chain used by all
+// authenticated route groups that require IP tracking:
+// Auth → InjectUser → ipTracking → notUserBanned.
+func protectedMiddlewareStack(
+	deps *helper.ServerDeps,
+	sharedCache *cachekit.Cache,
+	ipTracking func(http.Handler) http.Handler,
+	notUserBanned func(http.Handler) http.Handler,
+) []func(http.Handler) http.Handler {
+	return []func(http.Handler) http.Handler{
+		restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger),
+		restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger),
+		ipTracking,
+		notUserBanned,
+	}
+}
+
 func scoreboardVisibilityMiddleware(deps *helper.ServerDeps) func(http.Handler) http.Handler {
-	getter := deps.Admin.SettingsRepo
+	getter := deps.Admin.SettingsUC
 	if deps.Infra.ScoreboardVisibilityCache != nil {
 		return deps.Infra.ScoreboardVisibilityCache.Middleware(getter)
 	}
@@ -86,6 +121,12 @@ func scoreboardVisibilityMiddleware(deps *helper.ServerDeps) func(http.Handler) 
 	return restapimiddleware.ScoreboardVisibility(getter)
 }
 
+// NewRouter wires the entire HTTP route tree onto router. It creates the Server
+// and the OpenAPI wrapper (with typed error handlers for missing/invalid params),
+// builds shared infrastructure (cachekit, IP tracking, ban middleware, scoreboard
+// visibility), then delegates to the four route-group setup functions:
+// setupPublicRoutes, setupAuthOnlyRoutes, setupProtectedRoutes, and (transitively)
+// setupScoreboardRoutes / setupFileDownloadRoute / setupWebSocketRoute.
 func NewRouter(
 	ctx context.Context,
 	router chi.Router,
@@ -130,21 +171,27 @@ func NewRouter(
 	setupProtectedRoutes(router, server, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notUserBanned, scoreboardVis)
 }
 
+// setupPublicRoutes registers all unauthenticated routes with per-endpoint dynamic
+// rate limiters sourced from the settings use-case. Each limiter uses the client
+// IP as its key. Routes are grouped into: auth endpoints (login, register, verify,
+// forgot/reset password, refresh, logout, OAuth) and public read endpoints (competition
+// status, tags, fields, brackets, pages, notifications, challenge types, healthcheck,
+// robots.txt, ToS, privacy, and public configs), all rate-limited at GeneralIPPerMinute.
 func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper, deps *helper.ServerDeps, redisClient *redis.Client, logger logkit.Logger, rateLimitCache *restapimiddleware.RateLimitConfigCache) {
-	getter := deps.Admin.SettingsUC
+	rl := newDynamicRL(redisClient, rateLimitCache, deps.Admin.SettingsUC, logger)
 	keyFunc := ipKeyFunc()
 
-	loginLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyLoginIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LoginPerMinute) }, keyFunc, logger)
-	registerLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyRegisterIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RegisterPerMinute) }, keyFunc, logger)
-	forgotPasswordLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyForgotIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ForgotPasswordPerMinute) }, keyFunc, logger)
-	resetPasswordLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyResetIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ResetPasswordPerMinute) }, keyFunc, logger)
-	logoutLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyLogoutIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LogoutPerMinute) }, keyFunc, logger)
-	refreshLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyRefreshIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RefreshPerMinute) }, keyFunc, logger)
+	loginLimit := rl(rlKeyLoginIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LoginPerMinute) }, keyFunc)
+	registerLimit := rl(rlKeyRegisterIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RegisterPerMinute) }, keyFunc)
+	forgotPasswordLimit := rl(rlKeyForgotIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ForgotPasswordPerMinute) }, keyFunc)
+	resetPasswordLimit := rl(rlKeyResetIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ResetPasswordPerMinute) }, keyFunc)
+	logoutLimit := rl(rlKeyLogoutIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.LogoutPerMinute) }, keyFunc)
+	refreshLimit := rl(rlKeyRefreshIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RefreshPerMinute) }, keyFunc)
 
-	verifyEmailLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyVerifyEmailIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) }, keyFunc, logger)
-	oauthCallbackLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyOAuthCallbackIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthCallbackPerMinute) }, keyFunc, logger)
-	oauthRedirectLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyOAuthRedirectIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthRedirectPerMinute) }, keyFunc, logger)
-	publicReadLimit := restapimiddleware.DynamicRateLimit(redisClient, rlKeyPublicReadIP, time.Minute, rateLimitCache, getter, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, keyFunc, logger)
+	verifyEmailLimit := rl(rlKeyVerifyEmailIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) }, keyFunc)
+	oauthCallbackLimit := rl(rlKeyOAuthCallbackIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthCallbackPerMinute) }, keyFunc)
+	oauthRedirectLimit := rl(rlKeyOAuthRedirectIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.OAuthRedirectPerMinute) }, keyFunc)
+	publicReadLimit := rl(rlKeyPublicReadIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, keyFunc)
 
 	router.Group(func(r chi.Router) {
 		// Auth endpoints with rate limiting
@@ -178,12 +225,8 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 }
 
 func setupAuthOnlyRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, sharedCache *cachekit.Cache, rateLimitCache *restapimiddleware.RateLimitConfigCache, notUserBanned func(http.Handler) http.Handler) {
-	resendVerificationLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyResendVerifyIP, time.Minute,
-		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
+	resendVerificationLimit := rl(rlKeyResendVerifyIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.VerifyEmailPerMinute) }, ipKeyFunc())
 
 	router.Group(func(r chi.Router) {
 		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
@@ -194,6 +237,11 @@ func setupAuthOnlyRoutes(router chi.Router, deps *helper.ServerDeps, wrapper ope
 	})
 }
 
+// setupProtectedRoutes creates the RequireTeamNotBanned middleware (shared across
+// all authenticated route groups so the team cache is consulted only once per
+// request) and then delegates to the five sub-group setup functions:
+// setupBasicAuthRoutes, setupScoreboardRoutes, setupFirstBloodRoute,
+// setupWebSocketRoute, and setupFileDownloadRoute.
 func setupProtectedRoutes(
 	router chi.Router,
 	server *Server,
@@ -209,11 +257,17 @@ func setupProtectedRoutes(
 	notBanned := restapimiddleware.RequireTeamNotBanned(deps.Team.TeamUC, sharedCache)
 	setupBasicAuthRoutes(router, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
 	setupScoreboardRoutes(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
-	setupFirstBloodRoute(router, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
+	setupFirstBloodRoute(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
 	setupWebSocketRoute(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
 	setupFileDownloadRoute(router, server, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, notBanned, notUserBanned, ipTracking)
 }
 
+// setupBasicAuthRoutes registers all authenticated non-scoreboard routes:
+// profile read/update, user/team reads (behind scoreboard visibility), per-user
+// solves/fails/awards (behind notBanned), notifications, API tokens, avatar
+// upload/delete with per-user rate limit, and delegates to setupTeamRoutes and
+// setupChallengeRoutes. All routes share the Auth + InjectUser + IP-tracking +
+// notUserBanned middleware stack defined in this group.
 func setupBasicAuthRoutes(
 	router chi.Router,
 	deps *helper.ServerDeps,
@@ -226,39 +280,17 @@ func setupBasicAuthRoutes(
 	notUserBanned func(http.Handler) http.Handler,
 	scoreboardVis func(http.Handler) http.Handler,
 ) {
-	getter := deps.Admin.SettingsUC
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
 	keyFunc := ipKeyFunc()
+	generalIP := func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }
 
-	profileUpdateLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyProfileUpdateIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.Logger,
-	)
-	apiTokenLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyAPITokenIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.Logger,
-	)
-	notificationLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyNotificationIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.Logger,
-	)
-	protectedReadLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyProtectedReadIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		keyFunc, deps.Infra.Logger,
-	)
+	profileUpdateLimit := rl(rlKeyProfileUpdateIP, defaultRLWindow, generalIP, keyFunc)
+	apiTokenLimit := rl(rlKeyAPITokenIP, defaultRLWindow, generalIP, keyFunc)
+	notificationLimit := rl(rlKeyNotificationIP, defaultRLWindow, generalIP, keyFunc)
+	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
 
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
-		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
-		r.Use(ipTracking)
-		r.Use(notUserBanned)
+		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 
 		r.Get("/auth/me", wrapper.GetAuthMe)
 		r.With(profileUpdateLimit).Patch("/auth/me", wrapper.PatchAuthMe)
@@ -297,12 +329,7 @@ func setupBasicAuthRoutes(
 		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned, scoreboardVis)
 		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, verifyEmails, sharedCache, notBanned)
 
-		fileDownloadLimit := restapimiddleware.DynamicRateLimit(
-			deps.Infra.RedisClient, rlKeyFileDownloadIP, time.Minute,
-			rateLimitCache, getter,
-			func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-			ipKeyFunc(), deps.Infra.Logger,
-		)
+		fileDownloadLimit := rl(rlKeyFileDownloadIP, defaultRLWindow, generalIP, ipKeyFunc())
 		r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned, fileDownloadLimit).Get("/files/by-id/{ID}/download", wrapper.GetFilesIDDownload)
 
 		setupAdminRoutes(r, wrapper, deps.Infra.RedisClient, deps.Infra.Logger)
@@ -310,19 +337,11 @@ func setupBasicAuthRoutes(
 }
 
 func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
-	getter := deps.Admin.SettingsUC
-	scoreboardLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyScoreboardIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
+	scoreboardLimit := rl(rlKeyScoreboardIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) }, ipKeyFunc())
 
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
-		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
-		r.Use(ipTracking)
-		r.Use(notUserBanned)
+		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 		r.Use(notBanned)
 		r.Use(scoreboardVis)
 		r.Use(scoreboardLimit)
@@ -348,19 +367,12 @@ func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper o
 	})
 }
 
-func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, _ bool, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
-	challengeReadLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyChallengeReadIP, time.Minute,
-		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
+	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, ipKeyFunc())
 
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
-		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
-		r.Use(ipTracking)
-		r.Use(notUserBanned)
+		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 		r.Use(notBanned)
 		r.Use(scoreboardVis)
 		r.Use(restapimiddleware.ChallengeVisibility(deps.Comp.CompetitionUC))
@@ -371,40 +383,36 @@ func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper op
 }
 
 func setupWebSocketRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
-	getter := deps.Admin.SettingsUC
-	wsLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyWebSocketIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
+	wsLimit := rl(rlKeyWebSocketIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, ipKeyFunc())
 
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
-		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
-		r.Use(ipTracking)
-		r.Use(notUserBanned)
+		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 		r.Use(notBanned)
 		r.Use(scoreboardVis)
 		r.Use(wsLimit)
 
 		r.Get("/ws", wrapper.GetWs)
+
+		if deps.Infra.SSEHandler != nil {
+			r.Get("/sse", deps.Infra.SSEHandler.ServeHTTP)
+		}
 	})
 }
 
+// setupFileDownloadRoute registers the chi wildcard GET /files/download/* route
+// behind a dedicated middleware stack (Auth, InjectUser, IP tracking, notUserBanned,
+// RequireVerified, ChallengeVisibility, notBanned, file-download rate limit).
+// It bridges the chi.URLParam wildcard to the typed OpenAPI handler rather than
+// registering the handler directly, preserving OpenAPI param extraction.
+// Also registers the public /avatars/* wildcard (public read rate limit only).
 func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.ServerDeps, _ openapi.ServerInterfaceWrapper, verifyEmails bool, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, notBanned, notUserBanned, ipTracking func(http.Handler) http.Handler) {
-	fileDownloadLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyFileDownloadIP, time.Minute,
-		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
+	generalIP := func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }
+	fileDownloadLimit := rl(rlKeyFileDownloadIP, defaultRLWindow, generalIP, ipKeyFunc())
 
 	router.Group(func(r chi.Router) {
-		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
-		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
-		r.Use(ipTracking)
-		r.Use(notUserBanned)
+		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 		r.Use(restapimiddleware.RequireVerified(verifyEmails))
 		r.Use(restapimiddleware.ChallengeVisibility(deps.Comp.CompetitionUC))
 		r.Use(notBanned)
@@ -415,12 +423,7 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 		})
 	})
 
-	avatarLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyPublicReadIP, time.Minute,
-		rateLimitCache, deps.Admin.SettingsUC,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(), deps.Infra.Logger,
-	)
+	avatarLimit := rl(rlKeyPublicReadIP, defaultRLWindow, generalIP, ipKeyFunc())
 	router.With(avatarLimit).Get("/avatars/*", func(w http.ResponseWriter, req *http.Request) {
 		path := chi.URLParam(req, "*")
 		server.GetAvatarByPath(w, req, path)
@@ -461,6 +464,11 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verif
 	verified.With(teamOpLimit).Post("/teams/solo", wrapper.PostTeamsSolo)
 }
 
+// setupChallengeRoutes wires three distinct middleware stacks onto challenge routes:
+// (1) read endpoints behind ChallengeVisibility + notBanned + challenge-read rate limit;
+// (2) comment/rating endpoints additionally gated by CompetitionEnded / RequireVerified;
+// (3) submit and hint-unlock endpoints behind CompetitionActive + RequireTeam +
+// SubmitRateLimitWithAudit (dual IP+user rate limit with async audit log on excess).
 func setupChallengeRoutes(
 	r chi.Router,
 	wrapper openapi.ServerInterfaceWrapper,
@@ -473,12 +481,8 @@ func setupChallengeRoutes(
 	competitionUC := deps.Comp.CompetitionUC
 	log := deps.Infra.Logger
 	getter := deps.Admin.SettingsUC
-	challengeReadLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyChallengeReadIP, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) },
-		ipKeyFunc(), log,
-	)
+	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, getter, log)
+	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, ipKeyFunc())
 
 	r.Group(func(challenges chi.Router) {
 		challenges.Use(challengeReadLimit)
@@ -495,18 +499,8 @@ func setupChallengeRoutes(
 		challenges.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
 	})
 
-	commentLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyCommentUser, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.CommentPerMinute) },
-		userIDKeyFunc, log,
-	)
-	ratingLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyRatingUser, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) },
-		userIDKeyFunc, log,
-	)
+	commentLimit := rl(rlKeyCommentUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.CommentPerMinute) }, userIDKeyFunc)
+	ratingLimit := rl(rlKeyRatingUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) }, userIDKeyFunc)
 
 	r.Group(func(comments chi.Router) {
 		comments.Use(restapimiddleware.CompetitionEnded(competitionUC))
@@ -528,7 +522,7 @@ func setupChallengeRoutes(
 	})
 
 	submitLimitWithAudit := restapimiddleware.SubmitRateLimitWithAudit(
-		deps.Infra.RedisClient, rlKeySubmitIP, rlKeySubmitUser, time.Minute,
+		deps.Infra.RedisClient, rlKeySubmitIP, rlKeySubmitUser, defaultRLWindow,
 		rateLimitCache, getter,
 		ipKeyFunc(), userIDKeyFunc,
 		log,
@@ -536,12 +530,7 @@ func setupChallengeRoutes(
 		deps.Infra.RatelimitAuditWG,
 	)
 
-	hintUnlockUserLimit := restapimiddleware.DynamicRateLimit(
-		deps.Infra.RedisClient, rlKeyHintUnlockUser, time.Minute,
-		rateLimitCache, getter,
-		func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.HintUnlockUserPerMinute) },
-		userIDKeyFunc, log,
-	)
+	hintUnlockUserLimit := rl(rlKeyHintUnlockUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.HintUnlockUserPerMinute) }, userIDKeyFunc)
 
 	r.Group(func(sub chi.Router) {
 		sub.Use(restapimiddleware.CompetitionActive(competitionUC))
@@ -563,6 +552,12 @@ func setupChallengeRoutes(
 	})
 }
 
+// setupAdminRoutes applies the Admin role-check middleware and a shared per-user
+// general rate limiter (adminGeneralLimit / adminGeneralWindow) to the admin
+// subtree, then delegates to 11 sub-group helpers covering: configs, challenges,
+// awards, users, teams, brackets, tags, fields, pages, notifications, and utility
+// (export, import, reset, debug) - the last group adds its own tighter destructive
+// and export-zip rate limits.
 func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redisClient *redis.Client, log logkit.Logger) {
 	adminGeneralLimitMw := restapimiddleware.RateLimit(redisClient, rlKeyAdminGeneral, adminGeneralLimit, adminGeneralWindow, userIDKeyFunc, log)
 

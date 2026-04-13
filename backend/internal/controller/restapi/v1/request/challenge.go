@@ -2,12 +2,13 @@ package request
 
 import (
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -28,6 +29,7 @@ type ChallengeParams struct {
 	Flag              string
 	ConnectionInfo    string
 	MaxAttempts       int
+	MaxAttemptsWindow time.Duration
 	Position          int
 	State             string
 	IsRegex           bool
@@ -47,6 +49,7 @@ type UpdateChallengeParams struct {
 	Flag              string
 	ConnectionInfo    *string
 	MaxAttempts       *int
+	MaxAttemptsWindow *time.Duration
 	Position          *int
 	State             string
 	IsRegex           *bool
@@ -57,15 +60,15 @@ type UpdateChallengeParams struct {
 
 func validateChallengeNumericParams(points, initialValue, minValue, decay int) error {
 	if points < 0 {
-		return httperr.NewValidationErrorf("points must be >= 0")
+		return apperr.NewValidationErrorf("points must be >= 0")
 	}
 
 	if initialValue < 0 || minValue < 0 || decay < 0 {
-		return httperr.NewValidationErrorf("initial_value, min_value and decay must be >= 0")
+		return apperr.NewValidationErrorf("initial_value, min_value and decay must be >= 0")
 	}
 
 	if initialValue < minValue {
-		return httperr.NewValidationErrorf("initial_value must be >= min_value")
+		return apperr.NewValidationErrorf("initial_value must be >= min_value")
 	}
 
 	return nil
@@ -78,7 +81,7 @@ func validateChallengeState(state string) error {
 		return nil
 	}
 
-	return httperr.NewValidationErrorf("state must be one of: visible, hidden, locked")
+	return apperr.NewValidationErrorf("state must be one of: visible, hidden, locked")
 }
 
 func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (ChallengeParams, error) {
@@ -108,6 +111,7 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 		Flag:              req.Flag,
 		ConnectionInfo:    lo.FromPtrOr(req.ConnectionInfo, ""),
 		MaxAttempts:       lo.FromPtrOr(req.MaxAttempts, 0),
+		MaxAttemptsWindow: time.Duration(lo.FromPtrOr(req.MaxAttemptsWindow, 0)) * time.Second,
 		Position:          lo.FromPtrOr(req.Position, 0),
 		State:             state,
 		FlagFormatRegex:   req.FlagFormatRegex,
@@ -176,6 +180,13 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 		}
 	}
 
+	var maxAttemptsWindow *time.Duration
+
+	if req.MaxAttemptsWindow != nil {
+		d := time.Duration(*req.MaxAttemptsWindow) * time.Second
+		maxAttemptsWindow = &d
+	}
+
 	return UpdateChallengeParams{
 		Title:             req.Title,
 		Description:       req.Description,
@@ -189,6 +200,7 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 		Flag:              lo.FromPtrOr(req.Flag, ""),
 		ConnectionInfo:    req.ConnectionInfo,
 		MaxAttempts:       req.MaxAttempts,
+		MaxAttemptsWindow: maxAttemptsWindow,
 		Position:          req.Position,
 		State:             state,
 		IsRegex:           req.IsRegex,

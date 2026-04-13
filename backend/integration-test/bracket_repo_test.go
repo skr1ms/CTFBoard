@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestBracketRepo_Create_Success(t *testing.T) {
@@ -34,7 +34,7 @@ func TestBracketRepo_Create_Error_DuplicateName(t *testing.T) {
 	bracket2 := &domain.Bracket{Name: b1.Name, Description: "x", IsDefault: false}
 	err := f.BracketRepo.Create(ctx, bracket2)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBracketNameConflict)
+	assert.ErrorIs(t, err, apperr.ErrBracketNameConflict)
 }
 
 func TestBracketRepo_GetByID_Success(t *testing.T) {
@@ -58,7 +58,7 @@ func TestBracketRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.BracketRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
+	assert.ErrorIs(t, err, apperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_GetByName_Success(t *testing.T) {
@@ -81,7 +81,7 @@ func TestBracketRepo_GetByName_Error_NotFound(t *testing.T) {
 
 	_, err := f.BracketRepo.GetByName(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
+	assert.ErrorIs(t, err, apperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_GetAll_Success(t *testing.T) {
@@ -142,7 +142,7 @@ func TestBracketRepo_Update_Error_DuplicateName(t *testing.T) {
 	b2.Name = b1.Name
 	err := f.BracketRepo.Update(ctx, b2)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBracketNameConflict)
+	assert.ErrorIs(t, err, apperr.ErrBracketNameConflict)
 }
 
 func TestBracketRepo_Delete_Success(t *testing.T) {
@@ -156,7 +156,7 @@ func TestBracketRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.BracketRepo.GetByID(ctx, bracket.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBracketNotFound)
+	assert.ErrorIs(t, err, apperr.ErrBracketNotFound)
 }
 
 func TestBracketRepo_Delete_Error_NotFound(t *testing.T) {

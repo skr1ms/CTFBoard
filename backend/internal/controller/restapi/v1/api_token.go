@@ -5,20 +5,20 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// List my API tokens
 // (GET /user/tokens).
 func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
-	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	tokens, err := h.user.APITokenUC.List(r.Context(), userIDParsed)
+	tokens, err := h.user.APITokenUC.List(r.Context(), user.ID)
 	if h.OnError(w, r, err, "GetUserTokens", "List") {
 		return
 	}
@@ -26,10 +26,9 @@ func (h *Server) GetUserTokens(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromAPITokenList(tokens))
 }
 
-// Create API token
 // (POST /user/tokens).
 func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
-	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -46,7 +45,7 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), userIDParsed, description, expiresAt)
+	plaintext, token, err := h.user.APITokenUC.Create(r.Context(), user.ID, description, expiresAt)
 	if h.OnError(w, r, err, "PostUserTokens", "Create") {
 		return
 	}
@@ -54,10 +53,9 @@ func (h *Server) PostUserTokens(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderCreated(w, r, response.FromAPITokenCreated(plaintext, token))
 }
 
-// Revoke API token
 // (DELETE /user/tokens/{ID}).
 func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, ID string) {
-	userIDParsed, ok := httputil.ParseAuthUserID(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -67,7 +65,7 @@ func (h *Server) DeleteUserTokensID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	if h.OnError(w, r, h.user.APITokenUC.Delete(r.Context(), tokenIDParsed, userIDParsed), "DeleteUserTokensID", "Delete") {
+	if h.OnError(w, r, h.user.APITokenUC.Delete(r.Context(), tokenIDParsed, user.ID), "DeleteUserTokensID", "Delete") {
 		return
 	}
 

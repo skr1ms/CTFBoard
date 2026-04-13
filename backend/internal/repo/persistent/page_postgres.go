@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type PageRepo struct {
@@ -27,7 +27,6 @@ func NewPageRepo(pool *pgxpool.Pool) *PageRepo {
 
 func (r *PageRepo) Create(ctx context.Context, page *domain.Page) error {
 	EnsureID(&page.ID)
-	isDraft := &page.IsDraft
 
 	orderIndex, err := intToInt32Safe(page.OrderIndex)
 	if err != nil {
@@ -41,14 +40,14 @@ func (r *PageRepo) Create(ctx context.Context, page *domain.Page) error {
 		Title:      page.Title,
 		Slug:       page.Slug,
 		Content:    page.Content,
-		IsDraft:    isDraft,
-		OrderIndex: &orderIndex,
+		IsDraft:    page.IsDraft,
+		OrderIndex: orderIndex,
 		CreatedAt:  pgutil.TimeToTimestamptz(&now),
 		UpdatedAt:  pgutil.TimeToTimestamptz(&now),
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrPageSlugConflict
+			return apperr.ErrPageSlugConflict
 		}
 
 		return fmt.Errorf("PageRepo - Create: %w", err)
@@ -61,26 +60,20 @@ func (r *PageRepo) Create(ctx context.Context, page *domain.Page) error {
 }
 
 func (r *PageRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, error) {
-	row, err := r.Q(ctx).GetPageByID(ctx, ID)
+	row, err := GetOrNotFound(func() (sqlc.Page, error) { return r.Q(ctx).GetPageByID(ctx, ID) },
+		apperr.ErrPageNotFound, "PageRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrPageNotFound
-		}
-
-		return nil, fmt.Errorf("PageRepo - GetByID: %w", err)
+		return nil, err
 	}
 
 	return toDomainPage(row), nil
 }
 
 func (r *PageRepo) GetBySlug(ctx context.Context, slug string) (*domain.Page, error) {
-	row, err := r.Q(ctx).GetPageBySlug(ctx, slug)
+	row, err := GetOrNotFound(func() (sqlc.Page, error) { return r.Q(ctx).GetPageBySlug(ctx, slug) },
+		apperr.ErrPageNotFound, "PageRepo - GetBySlug")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrPageNotFound
-		}
-
-		return nil, fmt.Errorf("PageRepo - GetBySlug: %w", err)
+		return nil, err
 	}
 
 	return toDomainPage(row), nil
@@ -94,17 +87,11 @@ func (r *PageRepo) GetPublishedList(ctx context.Context) ([]*domain.PageListItem
 
 	out := make([]*domain.PageListItem, len(rows))
 	for i, row := range rows {
-		orderIndex := 0
-
-		if row.OrderIndex != nil {
-			orderIndex = int(*row.OrderIndex)
-		}
-
 		out[i] = &domain.PageListItem{
 			ID:         row.ID,
 			Title:      row.Title,
 			Slug:       row.Slug,
-			OrderIndex: orderIndex,
+			OrderIndex: int(row.OrderIndex),
 		}
 	}
 
@@ -126,8 +113,6 @@ func (r *PageRepo) GetAllList(ctx context.Context) ([]*domain.Page, error) {
 }
 
 func (r *PageRepo) Update(ctx context.Context, page *domain.Page) error {
-	isDraft := &page.IsDraft
-
 	orderIndex, err := intToInt32Safe(page.OrderIndex)
 	if err != nil {
 		return fmt.Errorf("PageRepo - Update - OrderIndex: %w", err)
@@ -140,13 +125,13 @@ func (r *PageRepo) Update(ctx context.Context, page *domain.Page) error {
 		Title:      page.Title,
 		Slug:       page.Slug,
 		Content:    page.Content,
-		IsDraft:    isDraft,
-		OrderIndex: &orderIndex,
+		IsDraft:    page.IsDraft,
+		OrderIndex: orderIndex,
 		UpdatedAt:  pgutil.TimeToTimestamptz(&now),
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrPageSlugConflict
+			return apperr.ErrPageSlugConflict
 		}
 
 		return fmt.Errorf("PageRepo - Update: %w", err)
@@ -165,25 +150,13 @@ func (r *PageRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 }
 
 func toDomainPage(row sqlc.Page) *domain.Page {
-	orderIndex := 0
-
-	if row.OrderIndex != nil {
-		orderIndex = int(*row.OrderIndex)
-	}
-
-	isDraft := false
-
-	if row.IsDraft != nil {
-		isDraft = *row.IsDraft
-	}
-
 	return &domain.Page{
 		ID:         row.ID,
 		Title:      row.Title,
 		Slug:       row.Slug,
 		Content:    row.Content,
-		IsDraft:    isDraft,
-		OrderIndex: orderIndex,
+		IsDraft:    row.IsDraft,
+		OrderIndex: int(row.OrderIndex),
 		CreatedAt:  pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		UpdatedAt:  pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
 	}

@@ -143,6 +143,7 @@ mockery: ## Generate all mocks (one config per usecase so same interface can out
 	@mockery --config codegen/.mockery_middleware.yml
 	@mockery --config codegen/.mockery_cache.yml
 	@mockery --config codegen/.mockery_usecase.yml
+	@mockery --config codegen/.mockery_avatar.yml
 	@mockery --config codegen/.mockery_config.yml
 	@echo "All mocks generated"
 
@@ -217,18 +218,38 @@ clean: ## Clean generated files
 ##@ Tests
 
 TEST_RACE_TIMEOUT ?= 15m
+BENCH_PKGS = ./pkg/scoring/... ./pkg/crypto/... ./pkg/websocket/... ./internal/usecase/competition/...
+BENCH_TIME  ?= 3s
+BENCH_COUNT ?= 1
 
-test: test-race
-
+# TEST_PKGS covers all packages except load-test (requires -tags load) and load-test itself.
 TEST_PKGS = ./cmd/... ./config/... ./internal/... ./pkg/... ./integration-test/... ./e2e-test/...
 
-test-race: ## Run all tests with race detection (default, excludes load-test)
+test: ## Run all tests without race (excludes load-test)
+	@echo "Running all tests..."
+	@go test -parallel 5 -timeout $(TEST_RACE_TIMEOUT) $(TEST_PKGS)
+
+test-race: ## Run all tests with race detection (excludes load-test)
 	@echo "Running all tests (race)..."
 	@go test -race -parallel 5 -timeout $(TEST_RACE_TIMEOUT) $(TEST_PKGS)
 
-test-no-race: ## Run all tests without race (faster, excludes load-test)
-	@echo "Running all tests (no race)..."
-	@go test -parallel 5 $(TEST_PKGS)
+test-no-race: test ## Alias for test (no race)
+
+bench: ## Run benchmark tests (scoring, crypto, websocket, batcher)
+	@echo "Running benchmarks..."
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -count=$(BENCH_COUNT) -benchmem $(BENCH_PKGS)
+
+bench-scoring: ## Benchmark dynamic scoring algorithms
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/scoring/...
+
+bench-crypto: ## Benchmark AES-256-GCM encrypt/decrypt
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/crypto/...
+
+bench-websocket: ## Benchmark WebSocket broadcaster
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/websocket/...
+
+bench-batcher: ## Benchmark submission batcher enqueue
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./internal/usecase/competition/...
 
 test-unit: ## Run unit tests (internal + pkg) without race
 	@echo "Running unit tests..."

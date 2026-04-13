@@ -6,37 +6,40 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
+// CompetitionActive returns a middleware that rejects requests when submission is not allowed
+// (competition not started, ended, or paused), returning a status-specific error.
 func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
 
 			now := time.Now()
 			if !comp.IsSubmissionAllowedAt(now) {
-				var httpErr *httperr.HTTPError
+				var appErr error
 
 				switch comp.GetStatusAt(now) { //nolint:exhaustive // Active/Frozen allow submission and never reach this branch
 				case domain.CompetitionStatusNotStarted:
-					httpErr = httperr.ErrCompetitionNotStarted
+					appErr = apperr.ErrCompetitionNotStarted
 				case domain.CompetitionStatusEnded:
-					httpErr = httperr.ErrCompetitionEnded
+					appErr = apperr.ErrCompetitionEnded
 				case domain.CompetitionStatusPaused:
-					httpErr = httperr.ErrCompetitionPaused
+					appErr = apperr.ErrCompetitionPaused
 				default:
-					httpErr = httperr.ErrSubmissionNotAllowed
+					appErr = apperr.ErrSubmissionNotAllowed
 				}
 
-				httputil.HandleError(w, r, httpErr)
+				httputil.HandleError(w, r, errmap.MapAppError(appErr))
 
 				return
 			}
@@ -46,19 +49,21 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 	}
 }
 
+// CompetitionEnded returns a middleware that rejects requests when the competition has not yet effectively ended.
+// Used for endpoints that are only available post-competition (e.g. comments).
 func CompetitionEnded(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
 
 			now := time.Now()
 			if !comp.IsEffectivelyEnded(now) {
-				httputil.HandleError(w, r, httperr.ErrCommentsAvailableAfterEnd)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrCommentsAvailableAfterEnd))
 
 				return
 			}

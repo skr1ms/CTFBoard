@@ -2,24 +2,24 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const asyncLogTimeout = 5 * time.Second
 
-// Get challenges list
 // (GET /challenges).
 func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params openapi.GetChallengesParams) {
 	user, ok := helper.RequireUser(w, r)
@@ -46,7 +46,6 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 	httputil.RenderOK(w, r, response.FromChallengeList(challenges))
 }
 
-// Submit flag
 // (POST /challenges/{challengeID}/submit).
 func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -91,7 +90,6 @@ func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.
 	httputil.RenderOK(w, r, response.FromSubmitFlag(true, "flag accepted"))
 }
 
-// Create challenge
 // (POST /admin/challenges).
 func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.CreateChallengeRequest](
@@ -109,7 +107,7 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 	challenge, err := h.challenge.ChallengeUC.Create(
 		r.Context(),
 		params.Title, params.Description, params.Category, params.Points, params.InitialValue, params.MinValue, params.Decay, params.Flag,
-		params.ConnectionInfo, params.MaxAttempts, params.Position, params.State, params.IsRegex, params.IsCaseInsensitive, params.FlagFormatRegex, params.TagIDs,
+		params.ConnectionInfo, params.MaxAttempts, params.MaxAttemptsWindow, params.Position, params.State, params.IsRegex, params.IsCaseInsensitive, params.FlagFormatRegex, params.TagIDs,
 	)
 	if h.OnError(w, r, err, "PostAdminChallenges", "Create") {
 		return
@@ -118,7 +116,6 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderCreated(w, r, response.FromChallenge(challenge))
 }
 
-// Delete challenge
 // (DELETE /admin/challenges/{ID}).
 func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -141,7 +138,6 @@ func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request,
 	httputil.RenderNoContent(w, r)
 }
 
-// Update challenge
 // (PUT /admin/challenges/{ID}).
 func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -165,7 +161,7 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		r.Context(),
 		challengeIDParsed,
 		params.Title, params.Description, params.Category, params.Points, params.InitialValue, params.MinValue, params.Decay, params.Flag,
-		params.ConnectionInfo, params.MaxAttempts, params.Position, params.State, params.IsRegex, params.IsCaseInsensitive, params.FlagFormatRegex, params.TagIDs,
+		params.ConnectionInfo, params.MaxAttempts, params.MaxAttemptsWindow, params.Position, params.State, params.IsRegex, params.IsCaseInsensitive, params.FlagFormatRegex, params.TagIDs,
 	)
 	if h.OnError(w, r, err, "PutAdminChallengesID", "Update") {
 		return
@@ -174,7 +170,12 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 	httputil.RenderOK(w, r, response.FromChallenge(challenge))
 }
 
-// Get challenge by ID
+// GetChallengesChallengeID returns the full detail view of a challenge and
+// records a challenge-open tracking event asynchronously. The tracking call
+// runs in a detached goroutine using context.WithoutCancel so it is not
+// cancelled when the HTTP response is sent; it has its own asyncLogTimeout
+// deadline. A deferred recover prevents a tracking panic from affecting the
+// response already written.
 // (GET /challenges/{challengeID}).
 func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -202,7 +203,11 @@ func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request
 	reqCtx := r.Context()
 
 	go func() {
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				h.infra.Logger.Error("GetChallengesChallengeID - TrackChallengeOpen panic", logkit.Fields{"recover": fmt.Sprint(r)})
+			}
+		}()
 
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(reqCtx), asyncLogTimeout)
 		defer cancel()
@@ -213,7 +218,6 @@ func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request
 	httputil.RenderOK(w, r, response.FromChallengeDetail(detail))
 }
 
-// Get challenge solves
 // (GET /challenges/{challengeID}/solves).
 func (h *Server) GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -229,7 +233,6 @@ func (h *Server) GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.R
 	httputil.RenderOK(w, r, response.FromChallengeSolves(solves))
 }
 
-// Get challenge tags
 // (GET /challenges/{challengeID}/tags).
 func (h *Server) GetChallengesChallengeIDTags(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -245,7 +248,6 @@ func (h *Server) GetChallengesChallengeIDTags(w http.ResponseWriter, r *http.Req
 	httputil.RenderOK(w, r, response.FromTagList(tags))
 }
 
-// Get challenge types
 // (GET /challenges/types).
 func (h *Server) GetChallengesTypes(w http.ResponseWriter, r *http.Request) {
 	types, err := h.challenge.ChallengeUC.GetTypes(r.Context())
@@ -256,7 +258,6 @@ func (h *Server) GetChallengesTypes(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromChallengeTypes(types))
 }
 
-// Get challenge requirements
 // (GET /challenges/{challengeID}/requirements).
 func (h *Server) GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -272,7 +273,6 @@ func (h *Server) GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *
 	httputil.RenderOK(w, r, response.FromChallengeRequirements(requirements))
 }
 
-// Get challenge solution
 // (GET /challenges/solutions).
 func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -290,14 +290,7 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	team, err := h.team.TeamUC.GetByID(r.Context(), *user.TeamID)
-	if h.OnError(w, r, err, "GetChallengesSolutions", "TeamCheck") {
-		return
-	}
-
-	if team.IsBanned {
-		h.OnError(w, r, httperr.ErrTeamBanned, "GetChallengesSolutions", "BanCheck")
-
+	if _, ok := helper.RequireUnbannedTeam(w, r, h.team.TeamUC, *user.TeamID, h.OnError, "GetChallengesSolutions"); !ok {
 		return
 	}
 
@@ -312,7 +305,7 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 		allFiles = append(allFiles, e.Files...)
 	}
 
-	urls, err := h.buildDownloadURLs(r.Context(), allFiles, user.TeamID, user.Role == domain.RoleAdmin)
+	urls, err := h.buildDownloadURLs(r.Context(), allFiles, user.TeamID, helper.IsAdmin(user))
 	if h.OnError(w, r, err, "GetChallengesSolutions", "buildDownloadURLs") {
 		return
 	}
@@ -320,7 +313,6 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 	httputil.RenderOK(w, r, response.FromChallengeSolutionEntryList(entries, urls))
 }
 
-// Get challenge solution
 // (GET /challenges/{challengeID}/solution).
 func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -337,17 +329,8 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 		return
 	}
 
-	if user.TeamID != nil {
-		team, err := h.team.TeamUC.GetByID(r.Context(), *user.TeamID)
-		if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "TeamCheck") {
-			return
-		}
-
-		if team.IsBanned {
-			h.OnError(w, r, httperr.ErrTeamBanned, "GetChallengesChallengeIDSolution", "BanCheck")
-
-			return
-		}
+	if !helper.CheckOptionalTeamBan(w, r, h.team.TeamUC, user.TeamID, h.OnError, "GetChallengesChallengeIDSolution") {
+		return
 	}
 
 	solution, err := h.challenge.ChallengeUC.GetSolution(r.Context(), challengeIDParsed, user.TeamID)
@@ -355,7 +338,7 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 		return
 	}
 
-	urls, err := h.buildDownloadURLs(r.Context(), solution.Files, user.TeamID, user.Role == domain.RoleAdmin)
+	urls, err := h.buildDownloadURLs(r.Context(), solution.Files, user.TeamID, helper.IsAdmin(user))
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "buildDownloadURLs") {
 		return
 	}
@@ -363,7 +346,6 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 	httputil.RenderOK(w, r, response.FromChallengeSolution(solution, urls))
 }
 
-// Create or update challenge solution
 // (POST /admin/challenges/{challengeID}/solution).
 func (h *Server) PostAdminChallengesChallengeIDSolution(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -391,7 +373,6 @@ func (h *Server) PostAdminChallengesChallengeIDSolution(w http.ResponseWriter, r
 	httputil.RenderOK(w, r, response.FromChallengeSolution(solution, urls))
 }
 
-// Delete challenge solution
 // (DELETE /admin/challenges/{challengeID}/solution).
 func (h *Server) DeleteAdminChallengesChallengeIDSolution(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -407,7 +388,6 @@ func (h *Server) DeleteAdminChallengesChallengeIDSolution(w http.ResponseWriter,
 	httputil.RenderNoContent(w, r)
 }
 
-// Get challenge flags (admin)
 // (GET /admin/challenges/{challengeID}/flags).
 func (h *Server) GetAdminChallengesChallengeIDFlags(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -423,7 +403,6 @@ func (h *Server) GetAdminChallengesChallengeIDFlags(w http.ResponseWriter, r *ht
 	httputil.RenderOK(w, r, response.FromChallengeFlags(flags))
 }
 
-// Set challenge requirements (admin)
 // (PUT /admin/challenges/{challengeID}/requirements).
 func (h *Server) PutAdminChallengesChallengeIDRequirements(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)

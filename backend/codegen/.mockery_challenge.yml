@@ -83,6 +83,13 @@ packages:
           filename: "TransactionManager.go"
           pkgname: "mock"
           structname: "MockTransactionManager"
+      
+      RatingRepository:
+        config:
+          dir: "internal/usecase/challenge/mock"
+          filename: "RatingRepository.go"
+          pkgname: "mock"
+          structname: "MockRatingRepository"
 
       UserRepository:
         config:

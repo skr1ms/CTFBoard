@@ -78,6 +78,11 @@ schemas:
         example: 0
         minimum: 0
         type: integer
+      max_attempts_window:
+        description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+        example: 0
+        minimum: 0
+        type: integer
       position:
         description: Display order (lower = first)
         example: 0
@@ -191,6 +196,11 @@ schemas:
         example: 0
         minimum: 0
         type: integer
+      max_attempts_window:
+        description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+        example: 0
+        minimum: 0
+        type: integer
       position:
         description: Display order (lower = first)
         example: 0
@@ -288,6 +298,8 @@ schemas:
         type: string
       max_attempts:
         type: integer
+      max_attempts_window:
+        type: integer
       position:
         type: integer
       description:
@@ -323,6 +335,8 @@ schemas:
       connection_info:
         type: string
       max_attempts:
+        type: integer
+      max_attempts_window:
         type: integer
       position:
         type: integer
@@ -414,6 +428,8 @@ schemas:
         type: string
       user_id:
         type: string
+      username:
+        type: string
       challenge_id:
         type: string
       content:
@@ -456,6 +472,9 @@ schemas:
       review:
         type: string
       created_at:
+        type: string
+        format: date-time
+      updated_at:
         type: string
         format: date-time
     type: object

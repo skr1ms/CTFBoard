@@ -17,14 +17,14 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type competitionTestDeps struct {
@@ -116,7 +116,7 @@ func (d *competitionTestDeps) createCompetitionParamUseCaseWithCache(cache cache
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).
 		Maybe()
 
-	return NewCompetitionParamUseCase(context.Background(), CompetitionParamDeps{
+	return NewCompetitionParamUseCase(CompetitionParamDeps{
 		Repo: d.configRepo, AuditLogRepo: d.auditLogRepo, TM: d.tm, Logger: d.logger,
 		Cache: cache, PubSub: pubsub,
 	})
@@ -212,13 +212,13 @@ func TestCompetitionUseCase_Get_NotFound_Error(t *testing.T) {
 	uc, redisClient := d.createCompetitionUseCase()
 
 	redisClient.ExpectGet(cache.KeyCompetition).SetErr(redis.Nil)
-	d.competitionRepo.On("Get", mock.Anything).Return(nil, httperr.ErrCompetitionNotFound)
+	d.competitionRepo.On("Get", mock.Anything).Return(nil, apperr.ErrCompetitionNotFound)
 
 	result, err := uc.Get(context.Background())
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionNotFound)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionNotFound)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
@@ -319,7 +319,7 @@ func TestCompetitionUseCase_Update_ActiveCompetitionRejectsDangerousChanges(t *t
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionActiveCannotUpdate)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionActiveCannotUpdate)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 
@@ -790,7 +790,7 @@ func TestCompetitionUseCase_Update_ActiveRejectsTeamSizeChange(t *testing.T) {
 	err := uc.Update(context.Background(), comp, optionalsFromComp(comp), uuid.New(), "127.0.0.1")
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionActiveCannotUpdate)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionActiveCannotUpdate)
 	d.competitionRepo.AssertNotCalled(t, "Update", mock.Anything)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }

@@ -111,6 +111,32 @@
         description: Switching Protocols - WebSocket connection established
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+
+/sse:
+  get:
+    operationId: GetSse
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: SSE connection
+    description: |
+      Server-Sent Events transport — alternative to WebSocket for environments that
+      do not support WebSocket upgrades. Emits the same event types as /ws.
+    tags:
+      - Events
+    responses:
+      "200":
+        description: SSE stream established (text/event-stream)
       "401":
         description: Unauthorized
         content:

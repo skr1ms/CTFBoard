@@ -8,13 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type UserRepo struct {
@@ -33,8 +32,8 @@ type userRow struct {
 	Username        string
 	Email           string
 	PasswordHash    string
-	Role            *string
-	IsVerified      *bool
+	Role            string
+	IsVerified      bool
 	VerifiedAt      pgtype.Timestamptz
 	IsBanned        bool
 	BannedAt        pgtype.Timestamptz
@@ -44,14 +43,33 @@ type userRow struct {
 	CreatedAt       pgtype.Timestamptz
 }
 
+func userRowFrom(u sqlc.User) *userRow {
+	return &userRow{
+		ID:              u.ID,
+		TeamID:          u.TeamID,
+		Username:        u.Username,
+		Email:           u.Email,
+		PasswordHash:    u.PasswordHash,
+		Role:            u.Role,
+		IsVerified:      u.IsVerified,
+		VerifiedAt:      u.VerifiedAt,
+		IsBanned:        u.IsBanned,
+		BannedAt:        u.BannedAt,
+		BannedReason:    u.BannedReason,
+		WasInBannedTeam: u.WasInBannedTeam,
+		AvatarUrl:       u.AvatarUrl,
+		CreatedAt:       u.CreatedAt,
+	}
+}
+
 func toDomainUser(r *userRow) *domain.User {
 	return &domain.User{
 		ID:              r.ID,
 		Username:        r.Username,
 		Email:           r.Email,
 		PasswordHash:    r.PasswordHash,
-		Role:            domain.Role(lo.FromPtr(r.Role)),
-		IsVerified:      lo.FromPtr(r.IsVerified),
+		Role:            domain.Role(r.Role),
+		IsVerified:      r.IsVerified,
 		TeamID:          r.TeamID,
 		VerifiedAt:      pgutil.TimestamptzToTime(r.VerifiedAt),
 		CreatedAt:       pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(r.CreatedAt)),
@@ -70,22 +88,19 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 
 	EnsureID(&u.ID)
 	u.CreatedAt = time.Now()
-	u.IsVerified = false
-	isVerified := false
-	roleStr := string(u.Role)
 
 	err := r.Q(ctx).CreateUser(ctx, sqlc.CreateUserParams{
 		ID:           u.ID,
 		Username:     u.Username,
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
-		Role:         &roleStr,
-		IsVerified:   &isVerified,
+		Role:         string(u.Role),
+		IsVerified:   u.IsVerified,
 		CreatedAt:    pgutil.TimeToTimestamptz(&u.CreatedAt),
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrUserAlreadyExists
+			return apperr.ErrUserAlreadyExists
 		}
 
 		return fmt.Errorf("UserRepo - Create: %w", err)
@@ -95,42 +110,30 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 }
 
 func (r *UserRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error) {
-	u, err := r.Q(ctx).GetUserByID(ctx, ID)
+	u, err := GetOrNotFound(func() (sqlc.User, error) { return r.Q(ctx).GetUserByID(ctx, ID) }, apperr.ErrUserNotFound, "UserRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrUserNotFound
-		}
-
-		return nil, fmt.Errorf("UserRepo - GetByID: %w", err)
+		return nil, err
 	}
 
-	return toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}), nil
+	return toDomainUser(userRowFrom(u)), nil
 }
 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	u, err := r.Q(ctx).GetUserByEmail(ctx, email)
+	u, err := GetOrNotFound(func() (sqlc.User, error) { return r.Q(ctx).GetUserByEmail(ctx, email) }, apperr.ErrUserNotFound, "UserRepo - GetByEmail")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrUserNotFound
-		}
-
-		return nil, fmt.Errorf("UserRepo - GetByEmail: %w", err)
+		return nil, err
 	}
 
-	return toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}), nil
+	return toDomainUser(userRowFrom(u)), nil
 }
 
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	u, err := r.Q(ctx).GetUserByUsername(ctx, username)
+	u, err := GetOrNotFound(func() (sqlc.User, error) { return r.Q(ctx).GetUserByUsername(ctx, username) }, apperr.ErrUserNotFound, "UserRepo - GetByUsername")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrUserNotFound
-		}
-
-		return nil, fmt.Errorf("UserRepo - GetByUsername: %w", err)
+		return nil, err
 	}
 
-	return toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}), nil
+	return toDomainUser(userRowFrom(u)), nil
 }
 
 func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error) {
@@ -141,7 +144,7 @@ func (r *UserRepo) GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain
 
 	out := make([]*domain.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}))
+		out = append(out, toDomainUser(userRowFrom(u)))
 	}
 
 	return out, nil
@@ -161,7 +164,7 @@ func (r *UserRepo) GetByTeamIDs(ctx context.Context, teamIDs []uuid.UUID) (map[u
 
 	for _, u := range rows {
 		if u.TeamID != nil {
-			out[*u.TeamID] = append(out[*u.TeamID], toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}))
+			out[*u.TeamID] = append(out[*u.TeamID], toDomainUser(userRowFrom(u)))
 		}
 	}
 
@@ -218,75 +221,48 @@ func (r *UserRepo) GetAll(ctx context.Context) ([]*domain.User, error) {
 
 	out := make([]*domain.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}))
+		out = append(out, toDomainUser(userRowFrom(u)))
 	}
 
 	return out, nil
 }
 
 func (r *UserRepo) UpdateTeamID(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error {
-	_, err := r.Q(ctx).UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{
-		ID:     userID,
-		TeamID: teamID,
-	})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateUserTeamID(ctx, sqlc.UpdateUserTeamIDParams{ID: userID, TeamID: teamID})
+	}, apperr.ErrUserNotFound, "UserRepo - UpdateTeamID")
 
-		return fmt.Errorf("UserRepo - UpdateTeamID: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) SetVerified(ctx context.Context, userID uuid.UUID) error {
 	now := time.Now()
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{ID: userID, IsVerified: true, VerifiedAt: pgutil.TimeToTimestamptz(&now)})
+	}, apperr.ErrUserNotFound, "UserRepo - SetVerified")
 
-	ok := true
-	if _, err := r.Q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{
-		ID:         userID,
-		IsVerified: &ok,
-		VerifiedAt: pgutil.TimeToTimestamptz(&now),
-	}); err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
-
-		return fmt.Errorf("UserRepo - SetVerified: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) SetUnverified(ctx context.Context, userID uuid.UUID) error {
-	ok := false
-	if _, err := r.Q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{
-		ID:         userID,
-		IsVerified: &ok,
-		VerifiedAt: pgutil.TimeToTimestamptz(nil),
-	}); err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateUserVerified(ctx, sqlc.UpdateUserVerifiedParams{ID: userID, IsVerified: false, VerifiedAt: pgutil.TimeToTimestamptz(nil)})
+	}, apperr.ErrUserNotFound, "UserRepo - SetUnverified")
 
-		return fmt.Errorf("UserRepo - SetUnverified: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string) error {
-	err := r.Q(ctx).UpdatePassword(ctx, sqlc.UpdatePasswordParams{
+	rows, err := r.Q(ctx).UpdatePassword(ctx, sqlc.UpdatePasswordParams{
 		ID:           userID,
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
-
 		return fmt.Errorf("UserRepo - UpdatePassword: %w", err)
+	}
+
+	if rows == 0 {
+		return apperr.ErrUserNotFound
 	}
 
 	return nil
@@ -298,12 +274,7 @@ func (r *UserRepo) Search(ctx context.Context, search *string, limit, offset int
 		return nil, fmt.Errorf("UserRepo - Search: %w", err)
 	}
 
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	rows, err := r.Q(ctx).SearchUsers(ctx, sqlc.SearchUsersParams{
 		Limit:  limit32,
@@ -311,24 +282,19 @@ func (r *UserRepo) Search(ctx context.Context, search *string, limit, offset int
 		Search: escapedSearch,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - Search: %w", err)
+		return nil, fmt.Errorf("UserRepo - Search - scan: %w", err)
 	}
 
 	out := make([]*domain.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}))
+		out = append(out, toDomainUser(userRowFrom(u)))
 	}
 
 	return out, nil
 }
 
 func (r *UserRepo) CountSearch(ctx context.Context, search *string) (int64, error) {
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	count, err := r.Q(ctx).CountSearchUsers(ctx, escapedSearch)
 	if err != nil {
@@ -339,7 +305,7 @@ func (r *UserRepo) CountSearch(ctx context.Context, search *string) (int64, erro
 }
 
 func (r *UserRepo) UpdateAdmin(ctx context.Context, userID uuid.UUID, username, email, role, passwordHash *string, isVerified *bool) error {
-	err := r.Q(ctx).UpdateUserAdmin(ctx, sqlc.UpdateUserAdminParams{
+	rows, err := r.Q(ctx).UpdateUserAdmin(ctx, sqlc.UpdateUserAdminParams{
 		ID:           userID,
 		Username:     username,
 		Email:        email,
@@ -348,33 +314,33 @@ func (r *UserRepo) UpdateAdmin(ctx context.Context, userID uuid.UUID, username, 
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
-
 		return fmt.Errorf("UserRepo - UpdateAdmin: %w", err)
+	}
+
+	if rows == 0 {
+		return apperr.ErrUserNotFound
 	}
 
 	return nil
 }
 
 func (r *UserRepo) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, passwordHash *string) error {
-	err := r.Q(ctx).UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
+	rows, err := r.Q(ctx).UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
 		ID:           userID,
 		Username:     username,
 		Email:        email,
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
-
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrUserAlreadyExists
+			return apperr.ErrUserAlreadyExists
 		}
 
 		return fmt.Errorf("UserRepo - UpdateProfile: %w", err)
+	}
+
+	if rows == 0 {
+		return apperr.ErrUserNotFound
 	}
 
 	return nil
@@ -401,12 +367,12 @@ func (r *UserRepo) SearchByIP(ctx context.Context, ip string, limit, offset int)
 		IP:     ip,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("UserRepo - SearchByIP: %w", err)
+		return nil, fmt.Errorf("UserRepo - SearchByIP - scan: %w", err)
 	}
 
 	out := make([]*domain.User, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, toDomainUser(&userRow{u.ID, u.TeamID, u.Username, u.Email, u.PasswordHash, u.Role, u.IsVerified, u.VerifiedAt, u.IsBanned, u.BannedAt, u.BannedReason, u.WasInBannedTeam, u.AvatarUrl, u.CreatedAt}))
+		out = append(out, toDomainUser(userRowFrom(u)))
 	}
 
 	return out, nil
@@ -422,48 +388,24 @@ func (r *UserRepo) CountSearchByIP(ctx context.Context, ip string) (int64, error
 }
 
 func (r *UserRepo) Lock(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.Q(ctx).LockUser(ctx, userID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) { return r.Q(ctx).LockUser(ctx, userID) }, apperr.ErrUserNotFound, "UserRepo - Lock")
 
-		return fmt.Errorf("UserRepo - Lock: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) Ban(ctx context.Context, userID uuid.UUID, reason string) error {
 	bannedAt := time.Now()
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).BanUser(ctx, sqlc.BanUserParams{ID: userID, BannedAt: pgutil.TimeToTimestamptz(&bannedAt), BannedReason: &reason})
+	}, apperr.ErrUserNotFound, "UserRepo - Ban")
 
-	_, err := r.Q(ctx).BanUser(ctx, sqlc.BanUserParams{
-		ID:           userID,
-		BannedAt:     pgutil.TimeToTimestamptz(&bannedAt),
-		BannedReason: &reason,
-	})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
-
-		return fmt.Errorf("UserRepo - Ban: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) Unban(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.Q(ctx).UnbanUser(ctx, userID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrUserNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) { return r.Q(ctx).UnbanUser(ctx, userID) }, apperr.ErrUserNotFound, "UserRepo - Unban")
 
-		return fmt.Errorf("UserRepo - Unban: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *UserRepo) SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error {
@@ -482,15 +424,6 @@ func (r *UserRepo) SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.U
 	return nil
 }
 
-func (r *UserRepo) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
-	db := ExtractDB(ctx, r.pool)
-	if _, err := db.Exec(ctx, "SELECT pg_advisory_xact_lock($1::bigint)", lockKey); err != nil {
-		return fmt.Errorf("UserRepo - AcquireAdvisoryLock: %w", err)
-	}
-
-	return nil
-}
-
 func (r *UserRepo) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error {
 	err := r.Q(ctx).UpdateUserAvatarURL(ctx, sqlc.UpdateUserAvatarURLParams{
 		ID:        userID,
@@ -503,13 +436,12 @@ func (r *UserRepo) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatar
 	return nil
 }
 
-func (r *UserRepo) ClearAvatarURL(ctx context.Context, userID uuid.UUID) (*string, error) {
-	oldURL, err := r.Q(ctx).ClearUserAvatarURL(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("UserRepo - ClearAvatarURL: %w", err)
+func (r *UserRepo) ClearAvatarURL(ctx context.Context, userID uuid.UUID) error {
+	if err := r.Q(ctx).ClearUserAvatarURL(ctx, userID); err != nil {
+		return fmt.Errorf("UserRepo - ClearAvatarURL: %w", err)
 	}
 
-	return oldURL, nil
+	return nil
 }
 
 func (r *UserRepo) ListAllUserAvatarURLs(ctx context.Context) ([]*string, error) {

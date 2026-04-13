@@ -11,6 +11,7 @@ func FromComment(c *domain.Comment) openapi.CommentResponse {
 	return openapi.CommentResponse{
 		ID:          new(c.ID.String()),
 		UserID:      new(c.UserID.String()),
+		Username:    new(c.Username),
 		ChallengeID: new(c.ChallengeID.String()),
 		Content:     new(c.Content),
 		CreatedAt:   new(c.CreatedAt),

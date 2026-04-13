@@ -113,7 +113,7 @@ func TestClient_GetSecret_Error(t *testing.T) {
 
 	_, err = c.GetSecret(context.Background(), "missing")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to read secret")
+	assert.Contains(t, err.Error(), "vault.GetSecret")
 }
 
 func TestClient_GetSecret_EmptyData(t *testing.T) {

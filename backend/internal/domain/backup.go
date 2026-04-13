@@ -6,13 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// BackupVersion is the current version string embedded in every exported backup file.
 const BackupVersion = "1.0"
 
+// ConflictMode controls how records that already exist in the database are handled during import.
 type ConflictMode string
 
 const (
+	// ConflictModeOverwrite replaces existing records with imported data.
 	ConflictModeOverwrite ConflictMode = "overwrite"
-	ConflictModeSkip      ConflictMode = "skip"
+	// ConflictModeSkip retains existing records and ignores conflicting imported entries.
+	ConflictModeSkip ConflictMode = "skip"
 )
 
 type ChallengeRequirementPair struct {
@@ -26,6 +30,7 @@ type SolutionBackup struct {
 	Content     string    `json:"content"`
 }
 
+// BackupData is the root structure of the JSON backup format, versioned and timestamped.
 type BackupData struct {
 	Version               string                     `json:"version"`
 	ExportedAt            time.Time                  `json:"exported_at"`
@@ -47,6 +52,8 @@ type BackupData struct {
 	Ratings               []Rating                   `json:"ratings,omitempty"`
 }
 
+// ChallengeExport extends Challenge with admin-only fields and associated data
+// needed to fully reconstruct a challenge from a backup.
 type ChallengeExport struct {
 	Challenge
 
@@ -60,6 +67,7 @@ type ChallengeExport struct {
 	TagIDs         []uuid.UUID `json:"tag_ids,omitempty"`
 }
 
+// TeamExport extends Team with its member list for backup and import purposes.
 type TeamExport struct {
 	Team
 
@@ -68,6 +76,7 @@ type TeamExport struct {
 	MemberIDs            []uuid.UUID `json:"member_ids,omitempty"`
 }
 
+// UserExport is a portable representation of a user account for backup and import.
 type UserExport struct {
 	ID           uuid.UUID  `json:"id"`
 	Username     string     `json:"username"`
@@ -82,6 +91,7 @@ type UserExport struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+// ExportOptions controls which optional data categories are included in a backup export.
 type ExportOptions struct {
 	IncludeUsers       bool
 	IncludeTeams       bool
@@ -91,6 +101,8 @@ type ExportOptions struct {
 	IncludeFiles       bool
 }
 
+// ImportOptions controls backup import behavior, including whether to erase existing data
+// first and how to resolve conflicts between imported and existing records.
 type ImportOptions struct {
 	EraseExisting      bool         `json:"erase_existing"`
 	ConflictMode       ConflictMode `json:"conflict_mode"`
@@ -100,12 +112,14 @@ type ImportOptions struct {
 	AdminIP            string       `json:"-"`
 }
 
+// ImportResult summarizes the outcome of a backup import operation.
 type ImportResult struct {
 	Success      bool     `json:"success"`
 	Errors       []string `json:"errors,omitempty"`
 	SkippedCount int      `json:"skipped_count,omitempty"`
 }
 
+// AdminResetOptions specifies which data categories to wipe during an admin reset operation.
 type AdminResetOptions struct {
 	Pages         bool
 	Notifications bool

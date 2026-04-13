@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -56,10 +55,6 @@ func seedLoadTestData(ctx context.Context, baseURL string, pool *pgxpool.Pool) (
 		return nil, fmt.Errorf("seed admin: %w", err)
 	}
 
-	if err := seedStartCompetition(ctx, client, adminToken); err != nil {
-		return nil, fmt.Errorf("start competition: %w", err)
-	}
-
 	challengeIDs, flags, err := seedChallenges(ctx, client, adminToken, NumChallenges)
 	if err != nil {
 		return nil, fmt.Errorf("seed challenges: %w", err)
@@ -73,6 +68,10 @@ func seedLoadTestData(ctx context.Context, baseURL string, pool *pgxpool.Pool) (
 	users, err := seedUsers(ctx, client, pool, NumUsers)
 	if err != nil {
 		return nil, fmt.Errorf("seed users: %w", err)
+	}
+
+	if err := seedTeamAwards(ctx, pool); err != nil {
+		return nil, fmt.Errorf("seed team awards: %w", err)
 	}
 
 	raceToken, raceChallengeID, raceHintID, raceHintChalID, err := seedRaceUser(ctx, client, pool, adminToken, challengeIDs, hintEntries)
@@ -104,9 +103,9 @@ func seedAdmin(ctx context.Context, client *openapi.ClientWithResponses, pool *p
 	password := "ValidPass1"
 
 	regResp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
-		Username: &username,
-		Email:    &email,
-		Password: &password,
+		Username: username,
+		Email:    email,
+		Password: password,
 	})
 	if err != nil {
 		return "", fmt.Errorf("register: %w", err)
@@ -122,7 +121,7 @@ func seedAdmin(ctx context.Context, client *openapi.ClientWithResponses, pool *p
 	}
 
 	loginResp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
-		Email:    &email,
+		Email:    email,
 		Password: password,
 	})
 	if err != nil {
@@ -150,34 +149,6 @@ func seedAdmin(ctx context.Context, client *openapi.ClientWithResponses, pool *p
 	}
 
 	return "Token " + tokenResp.JSON201.Token, nil
-}
-
-func seedStartCompetition(ctx context.Context, client *openapi.ClientWithResponses, adminToken string) error {
-	now := time.Now().UTC()
-	start := now.Add(-1 * time.Hour)
-	end := now.Add(48 * time.Hour)
-	isPaused := false
-	allowSwitch := true
-	mode := "flexible"
-	authFn := bearerEditor(adminToken)
-
-	resp, err := client.PutAdminCompetitionWithResponse(ctx, openapi.PutAdminCompetitionJSONRequestBody{
-		Name:            "Load Test CTF",
-		StartTime:       &start,
-		EndTime:         &end,
-		IsPaused:        &isPaused,
-		AllowTeamSwitch: &allowSwitch,
-		Mode:            &mode,
-	}, authFn)
-	if err != nil {
-		return fmt.Errorf("put competition: %w", err)
-	}
-
-	if resp.StatusCode() != 200 {
-		return fmt.Errorf("put competition returned %d: %s", resp.StatusCode(), string(resp.Body))
-	}
-
-	return nil
 }
 
 func seedChallenges(ctx context.Context, client *openapi.ClientWithResponses, adminToken string, n int) ([]string, []string, error) {
@@ -302,9 +273,9 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	password := "ValidPass1"
 
 	regResp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
-		Username: &username,
-		Email:    &email,
-		Password: &password,
+		Username: username,
+		Email:    email,
+		Password: password,
 	})
 	if err != nil {
 		return seedResult{err: fmt.Errorf("register user %d: %w", idx, err)}
@@ -315,7 +286,7 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	}
 
 	loginResp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
-		Email:    &email,
+		Email:    email,
 		Password: password,
 	})
 	if err != nil {
@@ -376,9 +347,9 @@ func seedRaceUser(
 	password := "ValidPass1"
 
 	regResp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
-		Username: &username,
-		Email:    &email,
-		Password: &password,
+		Username: username,
+		Email:    email,
+		Password: password,
 	})
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("register race user: %w", err)
@@ -391,7 +362,7 @@ func seedRaceUser(
 	_ = pool
 
 	loginResp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
-		Email:    &email,
+		Email:    email,
 		Password: password,
 	})
 	if err != nil {
@@ -447,6 +418,16 @@ func rehashUsersWithMinCost(ctx context.Context, pool *pgxpool.Pool, password st
 	}
 
 	_, err = pool.Exec(ctx, "UPDATE users SET password_hash = $1", string(hash))
+
+	return err
+}
+
+func seedTeamAwards(ctx context.Context, pool *pgxpool.Pool) error {
+	_, err := pool.Exec(ctx, `
+		INSERT INTO awards (team_id, value, description)
+		SELECT id, 1000, 'load-test seed balance'
+		FROM teams
+	`)
 
 	return err
 }

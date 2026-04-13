@@ -6,6 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Solve records a successful challenge solution by a team/user pair, capturing
+// the point value at the moment of the solve for immutable scoring history.
 type Solve struct {
 	ID            uuid.UUID  `json:"id"`
 	UserID        uuid.UUID  `json:"user_id"`
@@ -17,6 +19,7 @@ type Solve struct {
 	BannedUserID  *uuid.UUID `json:"banned_user_id,omitempty"`
 }
 
+// SolveWithDetails embeds Solve and adds resolved foreign-key fields for display purposes.
 type SolveWithDetails struct {
 	Solve
 

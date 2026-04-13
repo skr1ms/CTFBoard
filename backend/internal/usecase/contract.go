@@ -15,12 +15,16 @@ import (
 const (
 	DefaultPerPage    = 20
 	DefaultMaxPerPage = 100
+
+	DefaultScoreboardHistoryLimit = 10
+	MaxScoreboardHistoryLimit     = 100
 )
 
 // =============================================================================
 // Shared
 // =============================================================================
 
+// Paginated is a generic wrapper for paginated list responses, aliasing the httputil implementation.
 type Paginated[T any] = httputil.Paginated[T]
 
 // =============================================================================
@@ -28,11 +32,13 @@ type Paginated[T any] = httputil.Paginated[T]
 // =============================================================================
 
 type (
+	// UserProfile is a user profile view combining the user record with their solve history.
 	UserProfile struct {
 		User   *domain.User
 		Solves []*domain.Solve
 	}
 
+	// UserUseCase handles user registration, authentication, profile management, and admin operations.
 	UserUseCase interface {
 		Register(ctx context.Context, username, email, password string, customFields map[string]string) (*domain.User, error)
 		Login(ctx context.Context, email, password string) (*jwtkit.TokenPair, error)
@@ -70,6 +76,7 @@ type (
 		AwardsTotal     int
 	}
 
+	// TeamCreateResult is the result of a team creation attempt that may require explicit confirmation before proceeding.
 	TeamCreateResult struct {
 		Team               *domain.Team
 		RequiresConfirm    bool
@@ -77,6 +84,7 @@ type (
 		AffectedData       *TeamCreateAffectedData
 	}
 
+	// TeamUseCase handles team lifecycle, membership, bans, and admin operations.
 	TeamUseCase interface {
 		Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error)
 		TryCreate(ctx context.Context, name string, captainID uuid.UUID, isSolo bool) (*TeamCreateResult, error)
@@ -115,12 +123,15 @@ type (
 // =============================================================================
 
 type (
+	// ChallengeWithTags is a challenge enriched with its associated tags and whether prerequisites are met.
 	ChallengeWithTags struct {
 		*domain.ChallengeWithSolved
 
-		Tags []*domain.Tag
+		Tags            []*domain.Tag
+		RequirementsMet *bool
 	}
 
+	// ChallengeDetail is the full challenge detail view used on the challenge detail page.
 	ChallengeDetail struct {
 		Challenge  *domain.Challenge
 		Tags       []*domain.Tag
@@ -131,6 +142,7 @@ type (
 		SolveCount int
 	}
 
+	// ChallengeUseCase handles challenge CRUD, flag submission, solve management, and scoreboard cache.
 	ChallengeUseCase interface {
 		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
 		GetByID(ctx context.Context, challengeID uuid.UUID) (*domain.Challenge, error)
@@ -147,8 +159,8 @@ type (
 		GetTypes(ctx context.Context) ([]string, error)
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
-		Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag, connectionInfo string, maxAttempts, position int, state string, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*domain.Challenge, error)
-		Update(ctx context.Context, ID uuid.UUID, title, description, category string, points int, initialValue, minValue, decay *int, flag string, connectionInfo *string, maxAttempts, position *int, state string, isRegex, isCaseInsensitive *bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*domain.Challenge, error)
+		Create(ctx context.Context, title, description, category string, points, initialValue, minValue, decay int, flag, connectionInfo string, maxAttempts int, maxAttemptsWindow time.Duration, position int, state string, isRegex, isCaseInsensitive bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*domain.Challenge, error)
+		Update(ctx context.Context, ID uuid.UUID, title, description, category string, points int, initialValue, minValue, decay *int, flag string, connectionInfo *string, maxAttempts *int, maxAttemptsWindow *time.Duration, position *int, state string, isRegex, isCaseInsensitive *bool, flagFormatRegex *string, tagIDs []uuid.UUID) (*domain.Challenge, error)
 		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
 		SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error)
 		InvalidateScoreboardCache(ctx context.Context)
@@ -163,6 +175,7 @@ type (
 // =============================================================================
 
 type (
+	// TagUseCase manages challenge classification tags.
 	TagUseCase interface {
 		Create(ctx context.Context, name, color string) (*domain.Tag, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error)
@@ -178,11 +191,13 @@ type (
 // =============================================================================
 
 type (
+	// HintWithUnlockStatus is a hint paired with whether the requesting team has already unlocked it.
 	HintWithUnlockStatus struct {
 		Hint     *domain.Hint
 		Unlocked bool
 	}
 
+	// HintUseCase manages challenge hints and team unlock operations.
 	HintUseCase interface {
 		Create(ctx context.Context, challengeID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Hint, error)
@@ -199,14 +214,17 @@ type (
 // =============================================================================
 
 type (
+	// FileUseCase handles file uploads, downloads, and access-controlled URL generation for challenges and pages.
 	FileUseCase interface {
 		Upload(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
+		UploadPageFile(ctx context.Context, pageID uuid.UUID, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
 		Download(ctx context.Context, path string) (io.ReadCloser, error)
 		GetDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error)
 		GetDownloadURLWithAccess(ctx context.Context, fileID uuid.UUID, teamID *uuid.UUID, isAdmin bool) (string, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error)
 		GetByChallengeIDWithAccess(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, teamID *uuid.UUID, isAdmin bool) ([]*domain.File, error)
-		VerifyDownloadTokenAndGetFile(ctx context.Context, path, token string) (*domain.File, error)
+		GetByPageID(ctx context.Context, pageID uuid.UUID) ([]*domain.File, error)
+		VerifyDownloadTokenAndGetFile(ctx context.Context, path, token string, teamID *uuid.UUID) (*domain.File, error)
 		Delete(ctx context.Context, fileID uuid.UUID) error
 	}
 )
@@ -216,6 +234,7 @@ type (
 // =============================================================================
 
 type (
+	// AwardUseCase manages bonus point awards granted to teams by admins.
 	AwardUseCase interface {
 		Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*domain.Award, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, error)
@@ -229,6 +248,7 @@ type (
 // Competition
 // =============================================================================
 
+// CompetitionUpdateOptionals carries optional fields for a competition update, using nil to indicate "no change".
 type CompetitionUpdateOptionals struct {
 	IsPaused                     *bool
 	IsPublic                     *bool
@@ -241,6 +261,7 @@ type CompetitionUpdateOptionals struct {
 }
 
 type (
+	// CompetitionUseCase manages competition settings, status, and submission gating.
 	CompetitionUseCase interface {
 		Get(ctx context.Context) (*domain.Competition, error)
 		Update(ctx context.Context, comp *domain.Competition, optionals *CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error
@@ -266,6 +287,7 @@ type (
 // =============================================================================
 
 type (
+	// SolveUseCase handles solve recording, scoreboard retrieval, and first-blood lookups.
 	SolveUseCase interface {
 		Create(ctx context.Context, solve *domain.Solve) error
 		GetScoreboard(ctx context.Context, bracketID *uuid.UUID, forceLive bool) ([]*domain.ScoreboardEntry, error)
@@ -278,6 +300,7 @@ type (
 // =============================================================================
 
 type (
+	// StatisticsUseCase provides competition analytics including scoreboards, solve rates, and time-series data.
 	StatisticsUseCase interface {
 		GetGeneralStats(ctx context.Context, forceLive bool) (*domain.GeneralStats, error)
 		GetChallengeStats(ctx context.Context, forceLive bool) ([]*domain.ChallengeStats, error)
@@ -299,6 +322,7 @@ type (
 // =============================================================================
 
 type (
+	// EmailUseCase handles email delivery for verification, password reset, and related notifications.
 	EmailUseCase interface {
 		IsEnabled() bool
 		SendVerificationEmail(ctx context.Context, user *domain.User) error
@@ -314,8 +338,10 @@ type (
 // =============================================================================
 
 type (
+	// SubmissionUseCase manages flag submission records, querying, and admin corrections.
 	SubmissionUseCase interface {
 		LogSubmission(ctx context.Context, sub *domain.Submission) error
+		LogRateLimited(ctx context.Context, userID, teamID, challengeID uuid.UUID, ip string) error
 		AdminCreate(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) (*domain.SubmissionWithDetails, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error)
 		GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*domain.SubmissionWithDetails], error)
@@ -324,6 +350,7 @@ type (
 		GetAll(ctx context.Context, page, perPage int, forceLive bool) (*Paginated[*domain.SubmissionWithDetails], error)
 		GetStats(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*domain.SubmissionStats, error)
 		Update(ctx context.Context, ID uuid.UUID, isCorrect bool) (*domain.SubmissionWithDetails, error)
+		Discard(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
 
@@ -339,6 +366,7 @@ type (
 // =============================================================================
 
 type (
+	// TrackingUseCase records user activity events such as logins and challenge page opens.
 	TrackingUseCase interface {
 		Track(ctx context.Context, userID uuid.UUID, ip, userAgent string) error
 		TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error
@@ -351,6 +379,7 @@ type (
 // =============================================================================
 
 type (
+	// CSVImportResult reports the outcome of a CSV import operation including counts and per-row errors.
 	CSVImportResult struct {
 		Success       bool
 		ImportedCount int
@@ -358,6 +387,7 @@ type (
 		SkippedCount  int
 	}
 
+	// BackupUseCase handles full-platform export/import (ZIP, JSON, CSV) and admin reset operations.
 	BackupUseCase interface {
 		Export(ctx context.Context, opts domain.ExportOptions) (*domain.BackupData, error)
 		ExportZIP(ctx context.Context, opts domain.ExportOptions) (io.ReadCloser, error)
@@ -373,6 +403,7 @@ type (
 // =============================================================================
 
 type (
+	// PageUseCase manages static content pages including draft/publish lifecycle.
 	PageUseCase interface {
 		GetPublishedList(ctx context.Context) ([]*domain.PageListItem, error)
 		GetBySlug(ctx context.Context, slug string) (*domain.Page, error)
@@ -389,6 +420,7 @@ type (
 // =============================================================================
 
 type (
+	// NotificationUseCase manages global and personal notifications, including read state tracking.
 	NotificationUseCase interface {
 		CreateGlobal(ctx context.Context, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error)
 		CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error)
@@ -406,6 +438,7 @@ type (
 // =============================================================================
 
 type (
+	// BracketUseCase manages competition brackets used to segment teams in the scoreboard.
 	BracketUseCase interface {
 		Create(ctx context.Context, name, description string, isDefault bool) (*domain.Bracket, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Bracket, error)
@@ -420,6 +453,7 @@ type (
 // =============================================================================
 
 type (
+	// FieldUseCase manages custom registration fields attached to users or teams.
 	FieldUseCase interface {
 		GetByEntityType(ctx context.Context, entityType domain.EntityType) ([]*domain.Field, error)
 		Create(ctx context.Context, name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) (*domain.Field, error)
@@ -435,6 +469,7 @@ type (
 // =============================================================================
 
 type (
+	// APITokenUseCase manages long-lived API tokens for programmatic access on behalf of users.
 	APITokenUseCase interface {
 		List(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error)
 		Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *domain.APIToken, err error)
@@ -450,6 +485,7 @@ type (
 // =============================================================================
 
 type (
+	// CommentUseCase manages participant comments on challenges.
 	CommentUseCase interface {
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error)
 		Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*domain.Comment, error)
@@ -462,6 +498,7 @@ type (
 // =============================================================================
 
 type (
+	// RatingUseCase manages participant difficulty ratings and reviews for challenges.
 	RatingUseCase interface {
 		PutRating(ctx context.Context, challengeID, userID, teamID uuid.UUID, value int, review string) (*domain.Rating, error)
 		GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error)
@@ -484,10 +521,12 @@ type (
 // =============================================================================
 
 type (
+	// CompetitionParamUseCase manages dynamic key-value competition parameters with typed access helpers.
 	CompetitionParamUseCase interface {
 		Get(ctx context.Context, key string) (*domain.CompetitionParam, error)
 		GetAll(ctx context.Context) ([]*domain.CompetitionParam, error)
 		GetByCategory(ctx context.Context, category string) ([]*domain.CompetitionParam, error)
+		GetPublic(ctx context.Context) ([]*domain.CompetitionParam, error)
 		Set(ctx context.Context, key, value, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error
 		SetBatch(ctx context.Context, params []*domain.CompetitionParam, actorID uuid.UUID, clientIP string) error
 		Delete(ctx context.Context, key string, actorID uuid.UUID, clientIP string) error
@@ -502,6 +541,7 @@ type (
 // =============================================================================
 
 type (
+	// OAuthUseCase handles OAuth2 authorization URL generation, state validation, and callback processing.
 	OAuthUseCase interface {
 		GetAuthURL(ctx context.Context, provider string) (authURL, state string, err error)
 		ValidateState(cookieState, queryState string) bool
@@ -513,6 +553,7 @@ type (
 // Avatar
 // =============================================================================
 
+// AvatarUseCase handles upload, deletion, and URL retrieval for user and team avatars.
 type AvatarUseCase interface {
 	UploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
 	DeleteUserAvatar(ctx context.Context, userID uuid.UUID) error
@@ -521,6 +562,7 @@ type AvatarUseCase interface {
 	UploadTeamAvatar(ctx context.Context, teamID, callerID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
 	DeleteTeamAvatar(ctx context.Context, teamID, callerID uuid.UUID) error
 	GetTeamAvatarURL(ctx context.Context, teamID uuid.UUID) (fullURL, thumbURL *string, err error)
+	GetTeamAvatarURLBatch(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID]string, error)
 
 	AdminUploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
 	AdminDeleteUserAvatar(ctx context.Context, userID uuid.UUID) error
@@ -544,10 +586,12 @@ type Cleaner interface {
 // Helpers
 // =============================================================================
 
+// NewPaginated constructs a Paginated response from a data slice, total count, and pagination parameters.
 func NewPaginated[T any](data []T, total int64, page, perPage int) *Paginated[T] {
 	return httputil.NewPaginated(data, total, page, perPage)
 }
 
+// FetchPage executes a paginated fetch using the provided fetch and count functions, returning a Paginated result.
 func FetchPage[T any](
 	ctx context.Context,
 	page, perPage int,

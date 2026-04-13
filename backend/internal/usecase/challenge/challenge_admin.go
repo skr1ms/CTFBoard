@@ -8,16 +8,17 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 const maxSolutionContentLen = 524288
 
 func (uc *ChallengeUseCase) AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error) {
 	if utf8.RuneCountInString(content) > maxSolutionContentLen {
-		return nil, httperr.NewValidationErrorf("solution content exceeds maximum length")
+		return nil, apperr.NewValidationErrorf("solution content exceeds maximum length")
 	}
 
 	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
@@ -41,6 +42,13 @@ func (uc *ChallengeUseCase) AdminDeleteSolution(ctx context.Context, challengeID
 	return nil
 }
 
+// AdminCreateSolve records a solve on behalf of an admin inside a SERIALIZABLE transaction
+// with row-level advisory locks on the user and team rows. It checks team and user ban
+// status, enforces competition mode constraints (solo/teams/min-size), and optionally
+// skips the submission-window check when skipCompetitionCheck is true. Before inserting it
+// reads the solve row with FOR UPDATE to provide idempotency: if the solve already exists
+// the transaction returns nil without duplicating it. Dynamic score decay is applied via
+// ApplySolveScore and PointsAtSolve is stored on the new solve record.
 func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if uc.deps.UserRepo != nil {
@@ -65,7 +73,7 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 			}
 
 			if team.IsBanned {
-				return httperr.ErrTeamBanned
+				return apperr.ErrTeamBanned
 			}
 		}
 
@@ -77,28 +85,11 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 
 			if comp != nil {
 				if !skipCompetitionCheck && !comp.IsSubmissionAllowed() {
-					return httperr.ErrSubmissionNotAllowed
+					return apperr.ErrSubmissionNotAllowed
 				}
 
-				if team != nil {
-					if comp.Mode == domain.ModeTeamsOnly && team.IsSolo {
-						return httperr.ErrTeamModeRequired
-					}
-
-					if comp.Mode == domain.ModeSoloOnly && !team.IsSolo {
-						return httperr.ErrSoloModeRequired
-					}
-
-					if comp.MinTeamSize > 0 && !team.IsSolo {
-						count, err := uc.deps.TeamRepo.CountTeamMembers(ctx, teamID)
-						if err != nil {
-							return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - TeamRepo.CountTeamMembers: %w", err)
-						}
-
-						if count < comp.MinTeamSize {
-							return httperr.ErrTeamBelowMinSize
-						}
-					}
+				if err := guard.ValidateSubmissionEligibility(ctx, nil, team, comp, uc.deps.TeamRepo); err != nil {
+					return err
 				}
 			}
 		}
@@ -115,17 +106,17 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 			}
 
 			if user.TeamID == nil || *user.TeamID != teamID {
-				return httperr.ErrUserNotInTeam
+				return apperr.ErrUserNotInTeam
 			}
 
 			if user.IsBanned {
-				return httperr.ErrUserBanned
+				return apperr.ErrUserBanned
 			}
 		}
 
 		if _, err := uc.deps.SolveRepo.GetByTeamAndChallengeForUpdate(ctx, teamID, challengeID); err == nil {
 			return nil
-		} else if !errors.Is(err, httperr.ErrSolveNotFound) {
+		} else if !errors.Is(err, apperr.ErrSolveNotFound) {
 			return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
 		}
 
@@ -136,6 +127,7 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 
 		pointsAtSolve, err := scoring.ApplySolveScore(ctx,
 			solvedChallenge.InitialValue, solvedChallenge.MinValue, solvedChallenge.Decay, solvedChallenge.Points, solveCount,
+			scoring.GetDecayFn(ctx, uc.deps.CompParamUC),
 			func(ctx context.Context, pts int) error {
 				err := uc.deps.ChallengeRepo.UpdatePoints(ctx, challengeID, pts)
 				if err != nil {
@@ -167,11 +159,18 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 	return nil
 }
 
+// AdminDeleteSolve removes a solve record inside a SERIALIZABLE transaction. It reads the
+// solve with FOR UPDATE to lock it, then deletes it and decrements the challenge's
+// solve count. If the challenge uses dynamic scoring (InitialValue > 0 and Decay > 0) it
+// recalculates the current challenge points via submitRecordSolveUpdatePointsIfDecay, then
+// fetches all remaining solves and calls scoring.RecalculatePointsAtSolveRows to recompute
+// the historical PointsAtSolve values for each previous solver, persisting the new values
+// in a single BatchUpdateSolvePoints call.
 func (uc *ChallengeUseCase) AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		_, err := uc.deps.SolveRepo.GetByTeamAndChallengeForUpdate(ctx, teamID, challengeID)
 		if err != nil {
-			if errors.Is(err, httperr.ErrSolveNotFound) {
+			if errors.Is(err, apperr.ErrSolveNotFound) {
 				return err
 			}
 
@@ -193,27 +192,24 @@ func (uc *ChallengeUseCase) AdminDeleteSolve(ctx context.Context, teamID, challe
 		}
 
 		if err := uc.submitRecordSolveUpdatePointsIfDecay(ctx, challengeID, solvedChallenge, solveCount); err != nil {
-			return err
+			return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - submitRecordSolveUpdatePointsIfDecay: %w", err)
 		}
 
 		if solvedChallenge.InitialValue > 0 && solvedChallenge.Decay > 0 && uc.deps.SolveRepo != nil {
-			rows, err := uc.deps.SolveRepo.GetSolvesForPointsRecalc(ctx, []uuid.UUID{challengeID})
+			getSolves := scoring.MapSolvesForRecalcFn(
+				uc.deps.SolveRepo.GetSolvesForPointsRecalc,
+				scoring.DefaultSolveMapper,
+				"ChallengeUseCase - AdminDeleteSolve",
+			)
+
+			recalcRows, err := getSolves(ctx, []uuid.UUID{challengeID})
 			if err != nil {
-				return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - SolveRepo.GetSolvesForPointsRecalc: %w", err)
+				return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - GetSolvesForPointsRecalc: %w", err)
 			}
 
-			recalcRows := make([]*scoring.SolveRowForPointsRecalc, 0, len(rows))
-			for _, r := range rows {
-				recalcRows = append(recalcRows, &scoring.SolveRowForPointsRecalc{
-					ID: r.ID, ChallengeID: r.ChallengeID,
-					InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay,
-				})
-			}
-
-			solveIDs, newPoints := scoring.RecalculatePointsAtSolveRows(recalcRows)
+			solveIDs, newPoints := scoring.RecalculatePointsAtSolveRows(recalcRows, scoring.GetDecayFn(ctx, uc.deps.CompParamUC))
 			if len(solveIDs) > 0 {
-				err := uc.deps.SolveRepo.BatchUpdateSolvePoints(ctx, solveIDs, newPoints)
-				if err != nil {
+				if err := uc.deps.SolveRepo.BatchUpdateSolvePoints(ctx, solveIDs, newPoints); err != nil {
 					return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - SolveRepo.BatchUpdateSolvePoints: %w", err)
 				}
 			}

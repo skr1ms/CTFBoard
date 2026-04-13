@@ -7,7 +7,7 @@ package mock
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,23 +39,23 @@ func (_m *MockOAuthProviderAPI) EXPECT() *MockOAuthProviderAPI_Expecter {
 }
 
 // FetchUserProfile provides a mock function for the type MockOAuthProviderAPI
-func (_mock *MockOAuthProviderAPI) FetchUserProfile(ctx context.Context, accessToken string) (*webapi.OAuthUserProfile, error) {
+func (_mock *MockOAuthProviderAPI) FetchUserProfile(ctx context.Context, accessToken string) (*domain.OAuthUserProfile, error) {
 	ret := _mock.Called(ctx, accessToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FetchUserProfile")
 	}
 
-	var r0 *webapi.OAuthUserProfile
+	var r0 *domain.OAuthUserProfile
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*webapi.OAuthUserProfile, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.OAuthUserProfile, error)); ok {
 		return returnFunc(ctx, accessToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *webapi.OAuthUserProfile); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.OAuthUserProfile); ok {
 		r0 = returnFunc(ctx, accessToken)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*webapi.OAuthUserProfile)
+			r0 = ret.Get(0).(*domain.OAuthUserProfile)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -96,12 +96,12 @@ func (_c *MockOAuthProviderAPI_FetchUserProfile_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockOAuthProviderAPI_FetchUserProfile_Call) Return(oAuthUserProfile *webapi.OAuthUserProfile, err error) *MockOAuthProviderAPI_FetchUserProfile_Call {
+func (_c *MockOAuthProviderAPI_FetchUserProfile_Call) Return(oAuthUserProfile *domain.OAuthUserProfile, err error) *MockOAuthProviderAPI_FetchUserProfile_Call {
 	_c.Call.Return(oAuthUserProfile, err)
 	return _c
 }
 
-func (_c *MockOAuthProviderAPI_FetchUserProfile_Call) RunAndReturn(run func(ctx context.Context, accessToken string) (*webapi.OAuthUserProfile, error)) *MockOAuthProviderAPI_FetchUserProfile_Call {
+func (_c *MockOAuthProviderAPI_FetchUserProfile_Call) RunAndReturn(run func(ctx context.Context, accessToken string) (*domain.OAuthUserProfile, error)) *MockOAuthProviderAPI_FetchUserProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }

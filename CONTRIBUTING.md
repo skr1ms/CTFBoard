@@ -69,14 +69,25 @@ AstroCTFb/
 │   ├── config/                 # Config loading from env / Vault
 │   ├── internal/
 │   │   ├── app/                # App wiring and server startup
-│   │   ├── controller/         # HTTP handlers and middleware
-│   │   │   └── restapi/v1/     # REST API (OpenAPI-generated interfaces)
-│   │   ├── entity/             # Domain models
-│   │   ├── openapi/            # Generated OpenAPI code (do not edit manually)
-│   │   ├── repo/               # Repository interfaces and implementations
-│   │   │   └── persistent/     # PostgreSQL implementations (sqlc-generated queries)
+│   │   ├── apperr/             # Domain error sentinels (ErrNotFound, etc.)
+│   │   ├── cache/              # In-memory TTL cache (scoreboard, etc.)
+│   │   ├── controller/
+│   │   │   ├── restapi/
+│   │   │   │   ├── errmap/     # Domain error -> HTTP status mapping
+│   │   │   │   ├── middleware/ # Auth, rate-limit, competition guard, etc.
+│   │   │   │   └── v1/        # REST API handlers (OpenAPI-generated interfaces)
+│   │   │   └── websocket/v1/  # WebSocket handler
+│   │   ├── domain/             # Domain entities and types
+│   │   ├── loginlockout/       # Redis-backed failed-login lockout
+│   │   ├── openapi/            # OpenAPI spec and generated code
+│   │   ├── repo/
+│   │   │   ├── persistent/     # PostgreSQL implementations (sqlc queries)
+│   │   │   └── webapi/         # External HTTP clients (OAuth providers)
+│   │   ├── scoring/            # Dynamic scoring engine (decay formulas)
+│   │   ├── seed/               # Default data seeding (admin, settings)
 │   │   ├── storage/            # File storage (local, S3/SeaweedFS)
 │   │   ├── usecase/            # Business logic
+│   │   │   ├── avatar/         # Avatar upload, resize, WebP encode
 │   │   │   ├── backup/
 │   │   │   ├── challenge/
 │   │   │   ├── competition/
@@ -86,13 +97,15 @@ AstroCTFb/
 │   │   │   ├── settings/
 │   │   │   ├── team/
 │   │   │   └── user/
-│   │   └── wire/               # Wire DI providers (generated)
-│   ├── migrations/             # SQL migrations (up/down)
-│   ├── pkg/                    # Shared packages (jwt, cache, logger, etc.)
+│   │   ├── websocket/          # WebSocket broadcaster and events
+│   │   └── wire/               # Wire DI providers
+│   ├── migrations/             # SQL migrations (goose, fixed 3-file set)
+│   ├── queries/                # sqlc SQL query files
+│   ├── pkg/                    # Shared packages (crypto, mailer, validator, vault, i18n, sse)
 │   └── codegen/                # Code generation configs (sqlc, oapi-codegen, mockery, wire)
-├── deployment/docker/          # Docker Compose files and Dockerfiles
-├── monitoring/                 # Prometheus, Grafana, Loki config
-└── docs/                       # Architecture and additional docs
+├── deployment/docker/          # Docker Compose files and configs
+├── monitoring/                 # Prometheus, Grafana, Loki, Alertmanager
+└── docs/                       # Architecture, deployment, monitoring docs
 ```
 
 ## Making Contributions
@@ -125,18 +138,25 @@ Submit PRs against `main`. Use the [PR template](.github/PULL_REQUEST_TEMPLATE.m
 
 AstroCTFb follows **Clean Architecture**:
 
-- `entity/` - domain models, no external dependencies
-- `usecase/` - business logic; depends only on `entity` and `repo` interfaces
+- `domain/` - domain entities and types, no external dependencies
+- `usecase/` - business logic; depends only on `domain` and repository interfaces
 - `controller/` - HTTP layer; calls usecases, never touches repo directly
-- `repo/persistent/` - database implementations; implement `repo` interfaces
+- `repo/persistent/` - database implementations; implement repository interfaces defined in usecases
+
+**Error handling (two-layer system):**
+
+- `internal/apperr/` - domain-level sentinel errors (`ErrNotFound`, `ErrConflict`, etc.)
+- `internal/controller/restapi/errmap/` - maps `apperr` sentinels to HTTP status codes
+- Handlers use `v1/helper` to write error responses; they never import `apperr` directly
 
 **Rules:**
 
-- Usecases depend on interfaces, not concrete types
+- Usecases depend on interfaces, not concrete types (interfaces defined on consumer side)
 - All multi-step DB operations must be wrapped in `tm.Run(ctx, ...)` (transaction manager)
 - Use `singleflight` for cache-miss deduplication on hot read paths
 - Use `errgroup` for parallel independent operations
 - Always propagate `context.Context` as the first argument
+- Wrap errors with context: `fmt.Errorf("Layer - Method - step: %w", err)`
 
 ## Adding New Features
 
@@ -159,12 +179,19 @@ AstroCTFb follows **Clean Architecture**:
 
 ### DB Schema Change
 
-1. Create migration: `cd backend && make migrate-create name=add_something`
-2. Write `*.up.sql` and `*.down.sql` in `backend/migrations/`
-3. Update sqlc queries in `internal/repo/persistent/query/`
-4. Run `make sqlc` to regenerate query code
-5. Update entity types in `internal/entity/` if needed
-6. Mention migration in your PR description
+The project uses a **fixed 3-file migration set** (no incremental numbered migrations):
+
+| File                            | Purpose                                                               |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `000001_init.sql`               | Full schema: tables, constraints, indexes (no `CONCURRENTLY`)         |
+| `000002_concurrent_indexes.sql` | Indexes with `CREATE INDEX CONCURRENTLY` (`-- +goose NO TRANSACTION`) |
+| `000003_seed.sql`               | Default data (competition, settings, configs)                         |
+
+1. Add DDL changes to `000001_init.sql`, concurrent indexes to `000002`, seed data to `000003`
+2. Update sqlc queries in `backend/queries/`
+3. Run `make sqlc` to regenerate query code
+4. Update domain types in `internal/domain/` if needed
+5. Mention schema changes in your PR description
 
 ### New Environment Variable
 
@@ -225,15 +252,15 @@ All of the above run in CI on every push and PR. Fix lint errors locally before 
 
 GitHub Actions runs on every push and PR:
 
-| Job | Command |
-| --- | --- |
-| `golangci-lint` | `make lint` |
-| `yamllint` | for all YAML files |
-| `hadolint` | for `backend/Dockerfile` |
-| `dotenv-linter` | for `.env*` files |
-| Unit tests | `make test-unit` |
-| Integration tests | `make test-integration` |
-| E2E tests | `make test-e2e` |
+| Job               | Command                  |
+| ----------------- | ------------------------ |
+| `golangci-lint`   | `make lint`              |
+| `yamllint`        | for all YAML files       |
+| `hadolint`        | for `backend/Dockerfile` |
+| `dotenv-linter`   | for `.env*` files        |
+| Unit tests        | `make test-unit`         |
+| Integration tests | `make test-integration`  |
+| E2E tests         | `make test-e2e`          |
 
 Reproduce CI locally with the exact same commands before submitting.
 
@@ -241,9 +268,9 @@ Reproduce CI locally with the exact same commands before submitting.
 
 - **Formatting:** `gofmt` / `go fmt` - no exceptions
 - **Error handling:** always wrap with context: `fmt.Errorf("UserUseCase - GetByID: %w", err)`
-- **Error naming:** use sentinel errors from `pkg/httperr/` for domain errors; don't return raw DB errors to HTTP layer
+- **Error sentinels:** use `internal/apperr/` for domain errors; mapping to HTTP is in `internal/controller/restapi/errmap/`
 - **Naming:** exported - `CamelCase`; unexported - `camelCase`; acronyms - `ID`, `URL`, `JWT` (not `Id`, `Url`, `Jwt`)
-- **Comments:** document all exported functions with GoDoc style
+- **Comments:** only for non-trivial logic (transactions, concurrency, crypto, deadlock prevention); skip CRUD, transformers, handlers
 - **Function length:** aim for < 50 lines; extract helpers for clarity
 - **No global state:** all dependencies injected via constructors
 - **Transactions:** multi-step operations always in `tm.Run(ctx, func(ctx context.Context) error { ... })`

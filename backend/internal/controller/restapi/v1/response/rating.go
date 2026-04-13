@@ -20,6 +20,7 @@ func FromRating(r *domain.Rating) openapi.RatingResponse {
 		Value:       new(r.Value),
 		Review:      new(r.Review),
 		CreatedAt:   new(r.CreatedAt),
+		UpdatedAt:   new(r.UpdatedAt),
 	}
 
 	return res

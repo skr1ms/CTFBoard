@@ -6,14 +6,27 @@ import (
 	"github.com/google/uuid"
 )
 
+// FlagHashRegexSentinel is stored in FlagHash when the challenge uses regex-based flag
+// matching rather than a hashed comparison.
 const FlagHashRegexSentinel = "REGEX_CHALLENGE"
 
 const (
+	// ChallengeStateVisible marks a challenge as publicly visible to participants.
 	ChallengeStateVisible = "visible"
-	ChallengeStateHidden  = "hidden"
-	ChallengeStateLocked  = "locked"
+	// ChallengeStateHidden marks a challenge as invisible to participants.
+	ChallengeStateHidden = "hidden"
+	// ChallengeStateLocked marks a challenge as visible but not solvable until prerequisites are met.
+	ChallengeStateLocked = "locked"
 )
 
+const (
+	// ChallengeTypeStandard is a challenge with a fixed flag.
+	ChallengeTypeStandard = "standard"
+	// ChallengeTypeDynamic is a challenge with dynamic (per-team) scoring.
+	ChallengeTypeDynamic = "dynamic"
+)
+
+// ChallengeStateOrDefault returns state if it is one of visible/hidden/locked, otherwise returns "hidden".
 func ChallengeStateOrDefault(state string) string {
 	if state == ChallengeStateHidden || state == ChallengeStateLocked || state == ChallengeStateVisible {
 		return state
@@ -61,25 +74,28 @@ type ChallengeWithSolved struct {
 	Solved    bool
 }
 
+// Challenge is the main challenge entity holding scoring parameters, flag verification
+// configuration, and display metadata.
 type Challenge struct {
-	ID                uuid.UUID `json:"id"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Category          string    `json:"category"`
-	Points            int       `json:"points"`
-	InitialValue      int       `json:"initial_value"`
-	MinValue          int       `json:"min_value"`
-	Decay             int       `json:"decay"`
-	SolveCount        int       `json:"solve_count"`
-	FlagHash          string    `json:"-"`
-	ConnectionInfo    string    `json:"-"`
-	MaxAttempts       int       `json:"-"`
-	Position          int       `json:"-"`
-	State             string    `json:"-"`
-	IsRegex           bool      `json:"is_regex"`
-	IsCaseInsensitive bool      `json:"is_case_insensitive"`
-	FlagRegex         *string   `json:"-"`
-	FlagFormatRegex   *string   `json:"flag_format_regex,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                uuid.UUID     `json:"id"`
+	Title             string        `json:"title"`
+	Description       string        `json:"description"`
+	Category          string        `json:"category"`
+	Points            int           `json:"points"`
+	InitialValue      int           `json:"initial_value"`
+	MinValue          int           `json:"min_value"`
+	Decay             int           `json:"decay"`
+	SolveCount        int           `json:"solve_count"`
+	FlagHash          string        `json:"-"`
+	ConnectionInfo    string        `json:"-"`
+	MaxAttempts       int           `json:"-"`
+	MaxAttemptsWindow time.Duration `json:"-"`
+	Position          int           `json:"-"`
+	State             string        `json:"-"`
+	IsRegex           bool          `json:"is_regex"`
+	IsCaseInsensitive bool          `json:"is_case_insensitive"`
+	FlagRegex         *string       `json:"-"`
+	FlagFormatRegex   *string       `json:"flag_format_regex,omitempty"`
+	CreatedAt         time.Time     `json:"created_at"`
+	UpdatedAt         time.Time     `json:"updated_at"`
 }

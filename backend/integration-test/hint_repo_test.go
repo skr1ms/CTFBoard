@@ -294,7 +294,7 @@ func TestScoreboardWithAwards(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 80, score)
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
 	found := false
@@ -310,4 +310,76 @@ func TestScoreboardWithAwards(t *testing.T) {
 	}
 
 	assert.True(t, found)
+}
+
+// TestHintRepo_SoftBanUnlocksByTeamID verifies that soft-banning marks hint unlocks as banned.
+func TestHintRepo_SoftBanUnlocksByTeamID(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "hint_ban_team")
+	challenge := f.CreateChallenge(t, "hint_ban_chal", 100)
+	hint1 := f.CreateHint(t, challenge.ID, 10, 1)
+	hint2 := f.CreateHint(t, challenge.ID, 20, 2)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		if err := f.HintRepo.CreateUnlock(txCtx, team.ID, hint1.ID); err != nil {
+			return err
+		}
+
+		return f.HintRepo.CreateUnlock(txCtx, team.ID, hint2.ID)
+	})
+	require.NoError(t, err)
+
+	err = f.HintRepo.SoftBanUnlocksByTeamID(ctx, team.ID)
+	require.NoError(t, err)
+
+	var bannedCount int
+
+	err = testPool.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM hint_unlocks WHERE team_id = $1 AND banned_team_id IS NOT NULL`,
+		team.ID).Scan(&bannedCount)
+	require.NoError(t, err)
+	assert.Equal(t, 2, bannedCount, "both hint unlocks should be soft-banned")
+}
+
+// TestHintRepo_RestoreUnlocksByBannedTeamID verifies that restoring unsets the banned_at field.
+func TestHintRepo_RestoreUnlocksByBannedTeamID(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	_, team := f.CreateUserWithTeam(t, "hint_restore_team")
+	challenge := f.CreateChallenge(t, "hint_restore_chal", 100)
+	hint := f.CreateHint(t, challenge.ID, 15, 1)
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.HintRepo.CreateUnlock(txCtx, team.ID, hint.ID)
+	})
+	require.NoError(t, err)
+
+	err = f.HintRepo.SoftBanUnlocksByTeamID(ctx, team.ID)
+	require.NoError(t, err)
+
+	var bannedCount int
+
+	err = testPool.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM hint_unlocks WHERE team_id = $1 AND banned_team_id IS NOT NULL`,
+		team.ID).Scan(&bannedCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, bannedCount, "hint unlock should be soft-banned before restore")
+
+	err = f.HintRepo.RestoreUnlocksByBannedTeamID(ctx, team.ID)
+	require.NoError(t, err)
+
+	var restoredCount int
+
+	err = testPool.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM hint_unlocks WHERE team_id = $1 AND banned_team_id IS NULL`,
+		team.ID).Scan(&restoredCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, restoredCount, "hint unlock should be restored after unban")
 }

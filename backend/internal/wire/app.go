@@ -8,7 +8,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 )
 
 type App struct {

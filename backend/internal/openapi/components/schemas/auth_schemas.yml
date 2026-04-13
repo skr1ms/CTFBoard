@@ -16,13 +16,14 @@ schemas:
         example: player1@example.com
         type: string
         x-oapi-codegen-extra-tags:
-          validate: "omitempty,custom_email"
+          validate: "required,custom_email"
       password:
         example: SecurePassword123!
         type: string
         x-oapi-codegen-extra-tags:
           validate: "required"
     required:
+      - email
       - password
     type: object
   request.RegisterRequest:
@@ -47,6 +48,10 @@ schemas:
         additionalProperties:
           type: string
         type: object
+    required:
+      - email
+      - username
+      - password
     type: object
   response.MeResponse:
     properties:
@@ -62,6 +67,8 @@ schemas:
       team_id:
         type: string
       username:
+        type: string
+      avatar_url:
         type: string
     type: object
   response.RegisterResponse:

@@ -161,6 +161,9 @@ func TestAuth_TokenSuccess(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
+	// UpdateLastUsedAt is called asynchronously; give the goroutine time to run.
+	time.Sleep(50 * time.Millisecond)
+
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 

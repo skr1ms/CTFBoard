@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestNewBackupUseCase(t *testing.T) {
@@ -324,7 +324,7 @@ func TestBackupUseCase_ExportCSV_Error_UnknownTable(t *testing.T) {
 	_, err := uc.ExportCSV(ctx, "unknown_table")
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBackupTableUnsupported)
+	assert.ErrorIs(t, err, apperr.ErrBackupTableUnsupported)
 }
 
 func TestBackupUseCase_ImportCSV_Success(t *testing.T) {
@@ -388,5 +388,5 @@ func TestBackupUseCase_ImportCSV_Error_UnknownTable(t *testing.T) {
 	_, err := uc.ImportCSV(ctx, "unknown_table", []byte("a,b\n1,2"))
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrBackupTableUnsupported)
+	assert.ErrorIs(t, err, apperr.ErrBackupTableUnsupported)
 }

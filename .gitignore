@@ -64,3 +64,5 @@ CTFd/
 backend/bin/
 backend/openapi/components/schemas.yml
 PRD/
+main_frontend_prd/
+.vault-keys

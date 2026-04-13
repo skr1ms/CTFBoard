@@ -25,7 +25,7 @@ func TestSpike_CompetitionStart(t *testing.T) {
 
 	fmt.Println("\n[spike] Competition Start - challenge list + scoreboard ramp:")
 
-	for _, step := range SpikeProfile {
+	for _, step := range effectiveSpikeProfile() {
 		chalAttacker := NewAttacker(200)
 		chalR := RunAttack(chalAttacker, fmt.Sprintf("challenges@%drps", step.RPS), step.RPS/2, step.Duration, chalTargeter)
 		chalAttacker.Stop()
@@ -60,9 +60,11 @@ func TestSpike_CompetitionStart(t *testing.T) {
 	peak := stepResults[len(stepResults)-1]
 	for _, r := range []*AttackResult{peak.chalResult, peak.sbResult} {
 		PrintMetrics(r)
-		require.LessOrEqual(t, r.Metrics.Latencies.P99, P99ThresholdStrict,
+
+		threshold := effectiveP99ThresholdStrict()
+		require.LessOrEqual(t, r.Metrics.Latencies.P99, threshold,
 			"%s P99 latency exceeded %s at peak RPS (got %s)",
-			r.Name, P99ThresholdStrict, r.Metrics.Latencies.P99)
+			r.Name, threshold, r.Metrics.Latencies.P99)
 	}
 }
 
@@ -77,7 +79,7 @@ func TestSpike_EndOfContest(t *testing.T) {
 
 	var all []*AttackResult
 
-	for _, step := range SpikeProfile {
+	for _, step := range effectiveSpikeProfile() {
 		attacker := NewAttacker(300)
 		r := RunAttack(attacker, fmt.Sprintf("submit@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()

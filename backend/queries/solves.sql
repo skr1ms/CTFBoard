@@ -58,30 +58,6 @@ SELECT id, user_id, team_id, challenge_id, solved_at, points_at_solve, banned_te
 FROM solves
 ORDER BY solved_at ASC;
 
--- name: GetScoreboard :many
-SELECT
-    t.id AS team_id,
-    t.name AS team_name,
-    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
-    solve_points.last_solved AS solved_at
-FROM teams t
-LEFT JOIN (
-    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
-    FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-    GROUP BY s.team_id
-) solve_points ON solve_points.team_id = t.id
-LEFT JOIN (
-    SELECT team_id, SUM(value)::int AS total
-    FROM awards
-    WHERE banned_team_id IS NULL
-    GROUP BY team_id
-) award_points ON award_points.team_id = t.id
-WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
-LIMIT 10000;
-
 -- name: GetScoreboardByBracket :many
 SELECT
     t.id AS team_id,
@@ -94,42 +70,19 @@ LEFT JOIN (
     FROM solves s
     JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
     WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
 LEFT JOIN (
     SELECT team_id, SUM(value)::int AS total
     FROM awards
     WHERE banned_team_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR awards.created_at <= sqlc.narg('freeze_time'))
     GROUP BY team_id
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
   AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
-LIMIT 10000;
-
--- name: GetScoreboardByBracketFrozen :many
-SELECT
-    t.id AS team_id,
-    t.name AS team_name,
-    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
-    solve_points.last_solved AS solved_at
-FROM teams t
-LEFT JOIN (
-    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
-    FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-    WHERE s.solved_at <= $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-    GROUP BY s.team_id
-) solve_points ON solve_points.team_id = t.id
-LEFT JOIN (
-    SELECT team_id, SUM(value)::int AS total
-    FROM awards
-    WHERE awards.created_at <= $1 AND awards.banned_team_id IS NULL
-    GROUP BY team_id
-) award_points ON award_points.team_id = t.id
-WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-  AND (sqlc.narg('bracket_id')::uuid IS NULL OR t.bracket_id = sqlc.narg('bracket_id'))
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC, t.id ASC
 LIMIT 10000;
 
 -- name: GetTeamScore :one
@@ -149,17 +102,7 @@ FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN teams t ON t.id = s.team_id
 WHERE s.challenge_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-  AND t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-ORDER BY s.solved_at ASC
-LIMIT 1;
-
--- name: GetFirstBloodFrozen :one
-SELECT s.user_id, u.username, s.team_id, t.name AS team_name, s.solved_at
-FROM solves s
-JOIN users u ON u.id = s.user_id
-JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1 AND s.solved_at <= $2
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
   AND t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 ORDER BY s.solved_at ASC
 LIMIT 1;
@@ -171,27 +114,17 @@ FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN teams t ON t.id = s.team_id
 WHERE s.challenge_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
   AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
 ORDER BY s.solved_at ASC;
 
--- name: GetSolvesByChallengeIDFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
-       u.username, t.name AS team_name
-FROM solves s
-JOIN users u ON u.id = s.user_id
-JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1 AND s.solved_at <= $2
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-  AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
-ORDER BY s.solved_at ASC;
-
--- name: GetSolveCountsFrozen :many
+-- name: GetSolveCounts :many
 SELECT s.challenge_id, COUNT(*)::int AS solve_count
 FROM solves s
 JOIN teams t ON t.id = s.team_id
 JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-WHERE s.solved_at <= $1
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
   AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
 GROUP BY s.challenge_id;
 

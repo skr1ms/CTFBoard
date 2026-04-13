@@ -12,6 +12,8 @@ schemas:
         nullable: true
       name:
         type: string
+      avatar_url:
+        type: string
     type: object
   response.TeamWithMembersResponse:
     properties:
@@ -43,6 +45,8 @@ schemas:
       meets_min_size:
         description: True if the team has at least min_team_size members (or min is not set).
         type: boolean
+      avatar_url:
+        type: string
     type: object
   response.TeamListResponse:
     properties:
@@ -156,6 +160,9 @@ schemas:
         type: boolean
       banned_reason:
         type: string
+      banned_at:
+        type: string
+        format: date-time
       is_hidden:
         type: boolean
       member_count:
@@ -163,6 +170,8 @@ schemas:
       created_at:
         type: string
         format: date-time
+      avatar_url:
+        type: string
     type: object
   response.AdminTeamListResponse:
     properties:

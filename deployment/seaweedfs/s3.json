@@ -1,8 +1,7 @@
 {
-  "_comment": "DONT FORGET CHANGE CREDENTIALS!",
   "identities": [
     {
-      "name": "admin",
+      "name": "app",
       "credentials": [
         {
           "accessKey": "admin",

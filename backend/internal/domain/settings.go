@@ -3,11 +3,16 @@ package domain
 import "time"
 
 const (
-	ScoreboardVisiblePublic     = "public"
-	ScoreboardVisibleHidden     = "hidden"
+	// ScoreboardVisiblePublic makes the scoreboard visible to all visitors.
+	ScoreboardVisiblePublic = "public"
+	// ScoreboardVisibleHidden hides the scoreboard from all non-admin users.
+	ScoreboardVisibleHidden = "hidden"
+	// ScoreboardVisibleAdminsOnly restricts scoreboard access to administrators.
 	ScoreboardVisibleAdminsOnly = "admins_only"
 )
 
+// Settings holds application-level configuration managed by admins at runtime,
+// including registration controls, rate limits, email settings, and OAuth toggles.
 type Settings struct {
 	ID                               int       `json:"id"`
 	AppName                          string    `json:"app_name"`

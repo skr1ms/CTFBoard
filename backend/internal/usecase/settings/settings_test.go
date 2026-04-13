@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wahrwelt-kit/go-cachekit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 type settingsTestDeps struct {

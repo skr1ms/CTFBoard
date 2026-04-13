@@ -13,16 +13,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -34,11 +34,17 @@ const (
 	configsInvChannel         = "configs:inv"
 	loadAllKey                = "competition_params:loadAll"
 	competitionParamKeyMaxLen = 100
-	subBackoffInitial         = 1 * time.Second
-	subBackoffMax             = 30 * time.Second
 )
 
 var competitionParamKeyRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+var errCacheNotInitialized = errors.New("cache not initialized")
+
+var publicConfigKeys = []string{
+	"ctf_name", "ctf_description", "ctf_logo", "tos_url", "privacy_url",
+	"theme_color_primary", "theme_color_secondary", "theme_header_html", "theme_footer_html", "theme_dark_mode",
+	"social_github", "social_discord", "social_twitter", "social_website",
+}
 
 var allowedCategories = map[string]struct{}{
 	"general": {}, "theme": {}, "visibility": {}, "scoring": {},
@@ -47,11 +53,11 @@ var allowedCategories = map[string]struct{}{
 
 func validateCategory(category string) error {
 	if category == "" {
-		return httperr.NewValidationErrorf("category is required")
+		return apperr.NewValidationErrorf("category is required")
 	}
 
 	if _, ok := allowedCategories[category]; !ok {
-		return httperr.NewValidationErrorf("invalid category %q: must be one of general, theme, visibility, scoring, email, social, legal, advanced", category)
+		return apperr.NewValidationErrorf("invalid category %q: must be one of general, theme, visibility, scoring, email, social, legal, advanced", category)
 	}
 
 	return nil
@@ -78,13 +84,16 @@ type CompetitionParamDeps struct {
 
 var _ usecase.CompetitionParamUseCase = (*CompetitionParamUseCase)(nil)
 
-func NewCompetitionParamUseCase(ctx context.Context, deps CompetitionParamDeps) *CompetitionParamUseCase {
+// NewCompetitionParamUseCase initializes a CompetitionParamUseCase with an in-process map
+// cache and a negative-miss cache. If PubSub is configured, a background goroutine is
+// started to subscribe to Redis invalidation events and call invalidateLocal on each message.
+func NewCompetitionParamUseCase(deps CompetitionParamDeps) *CompetitionParamUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
 
 	if deps.StopContext == nil {
-		deps.StopContext = ctx
+		deps.StopContext = context.Background()
 	}
 
 	uc := &CompetitionParamUseCase{
@@ -93,12 +102,7 @@ func NewCompetitionParamUseCase(ctx context.Context, deps CompetitionParamDeps) 
 		negativeCache: make(map[string]time.Time),
 	}
 	if uc.deps.PubSub != nil {
-		stopCtx := uc.deps.StopContext
-		if stopCtx == nil {
-			stopCtx = context.Background()
-		}
-
-		go uc.subscribeInvalidation(stopCtx)
+		go cache.SubscribeInvalidation(uc.deps.StopContext, uc.deps.PubSub, configsInvChannel, uc.invalidateLocal, uc.deps.Logger, "competition_params")
 	}
 
 	return uc
@@ -134,86 +138,22 @@ func (uc *CompetitionParamUseCase) invalidate() {
 	}
 }
 
-func (uc *CompetitionParamUseCase) subscribeInvalidation(stopCtx context.Context) {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = subBackoffInitial
-	bo.MaxInterval = subBackoffMax
-	bo.MaxElapsedTime = 0
-	notify := func(err error, d time.Duration) {
-		uc.deps.Logger.WithError(err).Warn("competition_params: subscribe to invalidation channel failed, retrying",
-			logkit.Fields{"backoff_sec": d.Seconds()})
-	}
-
-	for {
-		select {
-		case <-stopCtx.Done():
-			return
-		default:
-		}
-
-		var ch <-chan string
-
-		op := func() error {
-			var err error
-
-			ch, err = uc.deps.PubSub.Subscribe(stopCtx, configsInvChannel)
-
-			return err
-		}
-		if err := backoff.RetryNotify(op, backoff.WithContext(bo, stopCtx), notify); err != nil {
-			return
-		}
-
-		bo.Reset()
-
-	readLoop:
-		for {
-			select {
-			case <-stopCtx.Done():
-				return
-			case msg, ok := <-ch:
-				if !ok {
-					break readLoop
-				}
-
-				_ = msg
-
-				uc.invalidateLocal()
-			}
-		}
-
-		next := bo.NextBackOff()
-		if next == backoff.Stop {
-			return
-		}
-
-		uc.deps.Logger.Warn("competition_params: configs invalidation subscriber stopped, reconnecting",
-			logkit.Fields{"backoff_sec": next.Seconds()})
-
-		t := time.NewTimer(next)
-		select {
-		case <-stopCtx.Done():
-			t.Stop()
-
-			return
-		case <-t.C:
-		}
-	}
-}
-
+// loadFromRedis attempts to populate the local in-memory cache from the Redis
+// JSON blob stored under configsCacheKey. Returns an error when Redis is unavailable
+// or the key is missing/stale, causing ensureLoaded to fall through to loadAll.
 func (uc *CompetitionParamUseCase) loadFromRedis(ctx context.Context) error {
 	if uc.deps.Cache == nil {
-		return fmt.Errorf("no cache")
+		return errCacheNotInitialized
 	}
 
 	raw, err := uc.deps.Cache.Get(ctx, configsCacheKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("CompetitionParamUseCase - loadFromRedis - Cache.Get: %w", err)
 	}
 
 	var params []*domain.CompetitionParam
 	if err := json.Unmarshal([]byte(raw), &params); err != nil {
-		return err
+		return fmt.Errorf("CompetitionParamUseCase - loadFromRedis - json.Unmarshal: %w", err)
 	}
 
 	uc.mu.Lock()
@@ -229,6 +169,8 @@ func (uc *CompetitionParamUseCase) loadFromRedis(ctx context.Context) error {
 	return nil
 }
 
+// loadAll fetches all competition params from the database, rebuilds the
+// in-memory map, and writes the result to Redis for other instances to share.
 func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
 	params, err := uc.deps.Repo.GetAll(ctx)
 	if err != nil {
@@ -256,6 +198,8 @@ func (uc *CompetitionParamUseCase) loadAll(ctx context.Context) error {
 	return nil
 }
 
+// ensureLoaded deduplicates concurrent cache misses with singleflight.
+// Order of fallback: in-memory TTL check -> Redis -> database (loadAll).
 func (uc *CompetitionParamUseCase) ensureLoaded(ctx context.Context) error {
 	_, err, _ := uc.sf.Do(loadAllKey, func() (any, error) {
 		uc.mu.RLock()
@@ -272,12 +216,24 @@ func (uc *CompetitionParamUseCase) ensureLoaded(ctx context.Context) error {
 			}
 		}
 
-		return nil, uc.loadAll(ctx)
+		if err := uc.loadAll(ctx); err != nil {
+			return nil, fmt.Errorf("CompetitionParamUseCase - ensureLoaded - loadAll: %w", err)
+		}
+
+		return nil, nil
 	})
 
 	return err
 }
 
+// Get returns a competition parameter by key using a multi-layer cache
+// in-memory map (guarded by a read mutex, valid for localTTL) -> Redis -> database
+// Concurrent cache misses are deduplicated with singleflight so only one
+// database round-trip is made per key per miss window. When the database
+// returns not-found, the registered config registry is checked; if the key has
+// a default there, a synthetic param is returned and stored in the local cache
+// Keys that are absent from both the database and the registry are stored in a
+// negative cache for negativeCacheTTL to prevent repeated database queries.
 func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*domain.CompetitionParam, error) {
 	key = strings.TrimSpace(key)
 	if err := validateCompetitionParamKey(key); err != nil {
@@ -311,7 +267,7 @@ func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*domain
 		if exp, ok := uc.negativeCache[key]; ok && time.Now().Before(exp) {
 			uc.mu.RUnlock()
 
-			return nil, httperr.ErrCompetitionParamNotFound
+			return nil, apperr.ErrCompetitionParamNotFound
 		}
 	}
 
@@ -326,7 +282,7 @@ func (uc *CompetitionParamUseCase) Get(ctx context.Context, key string) (*domain
 	v, err, _ := uc.sf.Do(sfKey, func() (any, error) {
 		c, err := uc.deps.Repo.GetByKey(context.WithoutCancel(ctx), key)
 		if err != nil {
-			if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
+			if errors.Is(err, apperr.ErrCompetitionParamNotFound) {
 				if def, ok := domain.GetConfigDef(key); ok {
 					p := paramFromDef(def)
 
@@ -370,6 +326,9 @@ func paramFromDef(def domain.ConfigDef) *domain.CompetitionParam {
 	}
 }
 
+// GetAll returns all competition params merged with config registry defaults.
+// Registry defaults are overridden by any database-persisted values. The result
+// is sorted by key for deterministic output.
 func (uc *CompetitionParamUseCase) GetAll(ctx context.Context) ([]*domain.CompetitionParam, error) {
 	uc.mu.RLock()
 	cacheValid := time.Since(uc.lastLoad) < localTTL
@@ -405,6 +364,11 @@ func (uc *CompetitionParamUseCase) GetAll(ctx context.Context) ([]*domain.Compet
 	return list, nil
 }
 
+// GetByCategory returns all competition parameters for a specific category,
+// merging config registry defaults with any database-persisted values.
+// Registry defaults for the category are loaded first; persisted values
+// then override them so callers always see the effective configuration.
+// The result is sorted by key for deterministic output.
 func (uc *CompetitionParamUseCase) GetByCategory(ctx context.Context, category string) ([]*domain.CompetitionParam, error) {
 	if err := validateCategory(category); err != nil {
 		return nil, err
@@ -439,6 +403,14 @@ func (uc *CompetitionParamUseCase) GetByCategory(ctx context.Context, category s
 	return out, nil
 }
 
+// SetBatch validates and upserts a batch of competition parameters in a single
+// transaction. For each entry it resolves the category and value type from the
+// config registry when the key is registered, then validates the key format,
+// value type, and category. All upserts run inside one transaction together
+// with an audit log entry listing the affected keys. After the transaction
+// commits, invalidate broadcasts a cache invalidation message over PubSub and
+// clears both the local in-memory map and the Redis entry so all instances
+// pick up the new values on their next request.
 func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domain.CompetitionParam, actorID uuid.UUID, clientIP string) error {
 	if len(params) == 0 {
 		return nil
@@ -513,20 +485,26 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 
 func validateCompetitionParamKey(key string) error {
 	if key == "" {
-		return httperr.ErrCompetitionParamKeyRequired
+		return apperr.ErrCompetitionParamKeyRequired
 	}
 
 	if len(key) > competitionParamKeyMaxLen {
-		return httperr.NewValidationErrorf("config key must be at most %d characters", competitionParamKeyMaxLen)
+		return apperr.NewValidationErrorf("config key must be at most %d characters", competitionParamKeyMaxLen)
 	}
 
 	if !competitionParamKeyRe.MatchString(key) {
-		return httperr.NewValidationErrorf("config key must contain only letters, digits, dots, underscores and hyphens")
+		return apperr.NewValidationErrorf("config key must contain only letters, digits, dots, underscores and hyphens")
 	}
 
 	return nil
 }
 
+// Set validates and upserts a single competition parameter inside a transaction.
+// The key is trimmed and validated against the format rules. Category and value
+// type are resolved from the config registry when the key is registered there;
+// otherwise the caller-supplied values are used. After the transaction commits,
+// invalidate broadcasts a cache-bust message over PubSub and clears both the
+// local in-memory map and the Redis entry.
 func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error {
 	key = strings.TrimSpace(key)
 	if err := validateCompetitionParamKey(key); err != nil {
@@ -589,6 +567,11 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 	return nil
 }
 
+// Delete removes a persisted competition parameter inside a transaction.
+// GetByKeyForUpdate acquires a pessimistic row lock to prevent concurrent
+// deletes. The audit log entry notes whether the key has a registry default
+// (effectively resetting the parameter to its default) or is being fully
+// removed. After commit, invalidate clears all cache layers.
 func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actorID uuid.UUID, clientIP string) error {
 	key = strings.TrimSpace(key)
 	if err := validateCompetitionParamKey(key); err != nil {
@@ -634,23 +617,55 @@ func (uc *CompetitionParamUseCase) Delete(ctx context.Context, key string, actor
 	return nil
 }
 
+// GetPublic returns competition parameters for the public allow-list, falling
+// back to registry defaults for keys that have not been persisted yet.
+func (uc *CompetitionParamUseCase) GetPublic(ctx context.Context) ([]*domain.CompetitionParam, error) {
+	all, err := uc.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("CompetitionParamUseCase - GetPublic - GetAll: %w", err)
+	}
+
+	byKey := make(map[string]*domain.CompetitionParam, len(all))
+	for _, p := range all {
+		byKey[p.Key] = p
+	}
+
+	list := make([]*domain.CompetitionParam, 0, len(publicConfigKeys))
+	for _, key := range publicConfigKeys {
+		if p, ok := byKey[key]; ok {
+			list = append(list, p)
+
+			continue
+		}
+
+		if def, ok := domain.GetConfigDef(key); ok {
+			list = append(list, paramFromDef(def))
+		}
+	}
+
+	return list, nil
+}
+
+// validateValueType checks that value is parseable as the declared type:
+// int -> strconv.Atoi, bool -> "true"/"false", string -> always valid,
+// json -> json.Valid. Any unknown type also returns ErrCompetitionParamInvalidValueType.
 func (uc *CompetitionParamUseCase) validateValueType(valueType domain.CompetitionParamValueType, value string) error {
 	switch valueType {
 	case domain.CompetitionParamTypeInt:
 		if _, err := strconv.Atoi(value); err != nil {
-			return httperr.ErrCompetitionParamInvalidValueType
+			return apperr.ErrCompetitionParamInvalidValueType
 		}
 	case domain.CompetitionParamTypeBool:
 		if value != "true" && value != "false" {
-			return httperr.ErrCompetitionParamInvalidValueType
+			return apperr.ErrCompetitionParamInvalidValueType
 		}
 	case domain.CompetitionParamTypeString:
 	case domain.CompetitionParamTypeJSON:
 		if !json.Valid([]byte(value)) {
-			return httperr.ErrCompetitionParamInvalidValueType
+			return apperr.ErrCompetitionParamInvalidValueType
 		}
 	default:
-		return httperr.ErrCompetitionParamInvalidValueType
+		return apperr.ErrCompetitionParamInvalidValueType
 	}
 
 	return nil
@@ -659,7 +674,7 @@ func (uc *CompetitionParamUseCase) validateValueType(valueType domain.Competitio
 func (uc *CompetitionParamUseCase) GetString(ctx context.Context, key, defaultVal string) string {
 	p, err := uc.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
+		if errors.Is(err, apperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
 
@@ -678,7 +693,7 @@ func (uc *CompetitionParamUseCase) GetString(ctx context.Context, key, defaultVa
 func (uc *CompetitionParamUseCase) GetInt(ctx context.Context, key string, defaultVal int) int {
 	p, err := uc.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
+		if errors.Is(err, apperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
 
@@ -702,7 +717,7 @@ func (uc *CompetitionParamUseCase) GetInt(ctx context.Context, key string, defau
 func (uc *CompetitionParamUseCase) GetBool(ctx context.Context, key string, defaultVal bool) bool {
 	p, err := uc.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, httperr.ErrCompetitionParamNotFound) {
+		if errors.Is(err, apperr.ErrCompetitionParamNotFound) {
 			return defaultVal
 		}
 
