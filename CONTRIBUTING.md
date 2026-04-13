@@ -87,6 +87,9 @@ AstroCTFb/
 │   │   ├── seed/               # Default data seeding (admin, settings)
 │   │   ├── storage/            # File storage (local, S3/SeaweedFS)
 │   │   ├── usecase/            # Business logic
+│   │   │   ├── cacheutil/      # Shared cache invalidation helpers
+│   │   │   ├── computil/       # Cached/Fresh competition resolver
+│   │   │   ├── guard/          # Submission eligibility, challenge visibility checks
 │   │   │   ├── avatar/         # Avatar upload, resize, WebP encode
 │   │   │   ├── backup/
 │   │   │   ├── challenge/
@@ -101,7 +104,7 @@ AstroCTFb/
 │   │   └── wire/               # Wire DI providers
 │   ├── migrations/             # SQL migrations (goose, fixed 3-file set)
 │   ├── queries/                # sqlc SQL query files
-│   ├── pkg/                    # Shared packages (crypto, mailer, validator, vault, i18n, sse)
+│   ├── pkg/                    # Shared packages (crypto, httperr, mailer, slug, sse, testutil, validator, vault)
 │   └── codegen/                # Code generation configs (sqlc, oapi-codegen, mockery, wire)
 ├── deployment/docker/          # Docker Compose files and configs
 ├── monitoring/                 # Prometheus, Grafana, Loki, Alertmanager
