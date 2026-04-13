@@ -30,15 +30,13 @@ func (q *Queries) BanTeam(ctx context.Context, arg BanTeamParams) (uuid.UUID, er
 	return id, err
 }
 
-const clearTeamAvatarURL = `-- name: ClearTeamAvatarURL :one
-UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL RETURNING avatar_url
+const clearTeamAvatarURL = `-- name: ClearTeamAvatarURL :exec
+UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) ClearTeamAvatarURL(ctx context.Context, id uuid.UUID) (*string, error) {
-	row := q.db.QueryRow(ctx, clearTeamAvatarURL, id)
-	var avatar_url *string
-	err := row.Scan(&avatar_url)
-	return avatar_url, err
+func (q *Queries) ClearTeamAvatarURL(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearTeamAvatarURL, id)
+	return err
 }
 
 const countActiveTeams = `-- name: CountActiveTeams :one
@@ -55,7 +53,7 @@ func (q *Queries) CountActiveTeams(ctx context.Context) (int32, error) {
 }
 
 const countSearchTeams = `-- name: CountSearchTeams :one
-SELECT COUNT(*)
+SELECT COUNT(*)::bigint
 FROM teams
 WHERE deleted_at IS NULL
   AND is_hidden = false
@@ -65,22 +63,22 @@ WHERE deleted_at IS NULL
 
 func (q *Queries) CountSearchTeams(ctx context.Context, search *string) (int64, error) {
 	row := q.db.QueryRow(ctx, countSearchTeams, search)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSearchTeamsAdmin = `-- name: CountSearchTeamsAdmin :one
-SELECT COUNT(*) FROM teams
+SELECT COUNT(*)::bigint FROM teams
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
 `
 
 func (q *Queries) CountSearchTeamsAdmin(ctx context.Context, search *string) (int64, error) {
 	row := q.db.QueryRow(ctx, countSearchTeamsAdmin, search)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countTeamMembers = `-- name: CountTeamMembers :one
@@ -94,36 +92,6 @@ func (q *Queries) CountTeamMembers(ctx context.Context, teamID *uuid.UUID) (int3
 	return column_1, err
 }
 
-const createTeam = `-- name: CreateTeam :exec
-INSERT INTO teams (id, name, invite_token, captain_id, is_solo, is_auto_created, created_at, invite_token_expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-`
-
-type CreateTeamParams struct {
-	ID                   uuid.UUID          `json:"id"`
-	Name                 string             `json:"name"`
-	InviteToken          uuid.UUID          `json:"invite_token"`
-	CaptainID            uuid.UUID          `json:"captain_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	CreatedAt            pgtype.Timestamptz `json:"created_at"`
-	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
-}
-
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) error {
-	_, err := q.db.Exec(ctx, createTeam,
-		arg.ID,
-		arg.Name,
-		arg.InviteToken,
-		arg.CaptainID,
-		arg.IsSolo,
-		arg.IsAutoCreated,
-		arg.CreatedAt,
-		arg.InviteTokenExpiresAt,
-	)
-	return err
-}
-
 const createTeamReturningID = `-- name: CreateTeamReturningID :one
 INSERT INTO teams (name, invite_token, captain_id, is_solo, is_auto_created, created_at, invite_token_expires_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -134,8 +102,8 @@ type CreateTeamReturningIDParams struct {
 	Name                 string             `json:"name"`
 	InviteToken          uuid.UUID          `json:"invite_token"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 }
@@ -169,12 +137,12 @@ type GetAllTeamsRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -215,7 +183,7 @@ func (q *Queries) GetAllTeams(ctx context.Context) ([]GetAllTeamsRow, error) {
 }
 
 const getSoloTeamByUserID = `-- name: GetSoloTeamByUserID :one
-SELECT t.id, t.name, t.invite_token, t.invite_token_expires_at, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.created_at
+SELECT t.id, t.name, t.invite_token, t.invite_token_expires_at, t.captain_id, t.bracket_id, t.is_solo, t.is_auto_created, t.is_banned, t.banned_at, t.banned_reason, t.is_hidden, t.avatar_url, t.created_at
 FROM teams t
 JOIN users u ON u.team_id = t.id
 WHERE u.id = $1 AND t.is_solo = true AND t.deleted_at IS NULL
@@ -228,12 +196,13 @@ type GetSoloTeamByUserIDRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -253,6 +222,7 @@ func (q *Queries) GetSoloTeamByUserID(ctx context.Context, id uuid.UUID) (GetSol
 		&i.BannedAt,
 		&i.BannedReason,
 		&i.IsHidden,
+		&i.AvatarUrl,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -271,12 +241,12 @@ type GetTeamByIDRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -316,12 +286,12 @@ type GetTeamByInviteTokenRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -361,12 +331,12 @@ type GetTeamByNameRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -460,12 +430,12 @@ type SearchTeamsRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -527,12 +497,12 @@ type SearchTeamsAdminRow struct {
 	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
 	CaptainID            uuid.UUID          `json:"captain_id"`
 	BracketID            *uuid.UUID         `json:"bracket_id"`
-	IsSolo               *bool              `json:"is_solo"`
-	IsAutoCreated        *bool              `json:"is_auto_created"`
-	IsBanned             *bool              `json:"is_banned"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
 	BannedAt             pgtype.Timestamptz `json:"banned_at"`
 	BannedReason         *string            `json:"banned_reason"`
-	IsHidden             *bool              `json:"is_hidden"`
+	IsHidden             bool               `json:"is_hidden"`
 	AvatarUrl            *string            `json:"avatar_url"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 }
@@ -594,7 +564,7 @@ UPDATE teams SET is_hidden = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING i
 
 type SetTeamHiddenParams struct {
 	ID       uuid.UUID `json:"id"`
-	IsHidden *bool     `json:"is_hidden"`
+	IsHidden bool      `json:"is_hidden"`
 }
 
 func (q *Queries) SetTeamHidden(ctx context.Context, arg SetTeamHiddenParams) (uuid.UUID, error) {

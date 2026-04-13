@@ -1,0 +1,54 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+template: testify
+
+packages:
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+    interfaces:
+      UserRepository:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "UserRepository.go"
+          pkgname: "mock"
+          structname: "MockUserRepository"
+
+      TeamRepository:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "TeamRepository.go"
+          pkgname: "mock"
+          structname: "MockTeamRepository"
+
+      AuditLogRepository:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "AuditLogRepository.go"
+          pkgname: "mock"
+          structname: "MockAuditLogRepository"
+
+      TransactionManager:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "TransactionManager.go"
+          pkgname: "mock"
+          structname: "MockTransactionManager"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
+    interfaces:
+      Provider:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "StorageProvider.go"
+          pkgname: "mock"
+          structname: "MockStorageProvider"
+
+  github.com/wahrwelt-kit/go-cachekit:
+    interfaces:
+      KeyValueStore:
+        config:
+          dir: "internal/usecase/avatar/mock"
+          filename: "KeyValueStore.go"
+          pkgname: "mock"
+          structname: "MockKeyValueStore"

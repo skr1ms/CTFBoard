@@ -11,6 +11,10 @@ import (
 
 const oauthRetryMaxElapsed = 30 * time.Second
 
+// doWithRetry executes an HTTP request with exponential-backoff retry for
+// transient failures. mkReq is called on each attempt to build a fresh request.
+// Network errors and HTTP 5xx responses are retried; non-5xx responses are
+// returned as-is. Retries stop after oauthRetryMaxElapsed or when ctx is done.
 func doWithRetry(ctx context.Context, client *http.Client, mkReq func() (*http.Request, error)) (*http.Response, error) {
 	var resp *http.Response
 
@@ -28,7 +32,7 @@ func doWithRetry(ctx context.Context, client *http.Client, mkReq func() (*http.R
 		if r.StatusCode >= 500 {
 			_ = r.Body.Close()
 
-			return fmt.Errorf("oauth API returned %d", r.StatusCode)
+			return fmt.Errorf("OAuthClient - doWithRetry - bad status: oauth API returned %d", r.StatusCode)
 		}
 
 		resp = r

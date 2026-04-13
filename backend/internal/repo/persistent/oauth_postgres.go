@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type OAuthRepo struct {
@@ -30,6 +30,9 @@ func NewOAuthRepo(pool *pgxpool.Pool, cryptoService crypto.Service) *OAuthRepo {
 	}
 }
 
+// toDomainOAuthAccount maps a sqlc OAuthAccount row to the domain type,
+// conditionally decrypting access and refresh tokens when a crypto.Service is
+// configured. Tokens stored as empty strings are treated as absent.
 func (r *OAuthRepo) toDomainOAuthAccount(o sqlc.OAuthAccount) (*domain.OAuthAccount, error) {
 	acc := &domain.OAuthAccount{
 		ID:             o.ID,
@@ -44,7 +47,7 @@ func (r *OAuthRepo) toDomainOAuthAccount(o sqlc.OAuthAccount) (*domain.OAuthAcco
 		if r.crypto != nil {
 			decrypted, err := r.crypto.Decrypt(*o.AccessToken)
 			if err != nil {
-				return nil, fmt.Errorf("toDomainOAuthAccount - decrypt access token: %w", err)
+				return nil, fmt.Errorf("OAuthRepo - toDomainOAuthAccount - decrypt access token: %w", err)
 			}
 
 			acc.AccessToken = decrypted
@@ -57,7 +60,7 @@ func (r *OAuthRepo) toDomainOAuthAccount(o sqlc.OAuthAccount) (*domain.OAuthAcco
 		if r.crypto != nil {
 			decrypted, err := r.crypto.Decrypt(*o.RefreshToken)
 			if err != nil {
-				return nil, fmt.Errorf("toDomainOAuthAccount - decrypt refresh token: %w", err)
+				return nil, fmt.Errorf("OAuthRepo - toDomainOAuthAccount - decrypt refresh token: %w", err)
 			}
 
 			acc.RefreshToken = &decrypted
@@ -69,6 +72,9 @@ func (r *OAuthRepo) toDomainOAuthAccount(o sqlc.OAuthAccount) (*domain.OAuthAcco
 	return acc, nil
 }
 
+// Create persists a new OAuth account, encrypting access and refresh tokens via
+// crypto.Service when one is configured. Returns ErrOAuthAccountAlreadyLinked
+// on unique-constraint violation.
 func (r *OAuthRepo) Create(ctx context.Context, acc *domain.OAuthAccount) error {
 	EnsureID(&acc.ID)
 
@@ -103,7 +109,7 @@ func (r *OAuthRepo) Create(ctx context.Context, acc *domain.OAuthAccount) error 
 		}
 	}
 
-	err := r.Q(ctx).CreateOAuthAccount(ctx, sqlc.CreateOAuthAccountParams{
+	err := r.Q(ctx).UpsertOAuthAccount(ctx, sqlc.UpsertOAuthAccountParams{
 		ID:             acc.ID,
 		UserID:         acc.UserID,
 		Provider:       acc.Provider,
@@ -114,7 +120,7 @@ func (r *OAuthRepo) Create(ctx context.Context, acc *domain.OAuthAccount) error 
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrOAuthAccountAlreadyLinked
+			return apperr.ErrOAuthAccountAlreadyLinked
 		}
 
 		return fmt.Errorf("OAuthRepo - Create: %w", err)
@@ -123,6 +129,8 @@ func (r *OAuthRepo) Create(ctx context.Context, acc *domain.OAuthAccount) error 
 	return nil
 }
 
+// Upsert inserts or updates an OAuth account. Both tokens are encrypted via
+// crypto.Service when configured, matching the Create behaviour.
 func (r *OAuthRepo) Upsert(ctx context.Context, acc *domain.OAuthAccount) error {
 	EnsureID(&acc.ID)
 
@@ -180,7 +188,7 @@ func (r *OAuthRepo) GetByProvider(ctx context.Context, provider, providerUserID 
 	})
 	if err != nil {
 		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrOAuthAccountNotFound
+			return nil, apperr.ErrOAuthAccountNotFound
 		}
 
 		return nil, fmt.Errorf("OAuthRepo - GetByProvider: %w", err)
@@ -188,7 +196,7 @@ func (r *OAuthRepo) GetByProvider(ctx context.Context, provider, providerUserID 
 
 	acc, err := r.toDomainOAuthAccount(o)
 	if err != nil {
-		return nil, fmt.Errorf("OAuthRepo - GetByProvider: %w", err)
+		return nil, fmt.Errorf("OAuthRepo - GetByProvider - scan: %w", err)
 	}
 
 	return acc, nil
@@ -204,7 +212,7 @@ func (r *OAuthRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domai
 	for i := range rows {
 		acc, err := r.toDomainOAuthAccount(rows[i])
 		if err != nil {
-			return nil, fmt.Errorf("OAuthRepo - GetByUserID: %w", err)
+			return nil, fmt.Errorf("OAuthRepo - GetByUserID - scan: %w", err)
 		}
 
 		out = append(out, acc)

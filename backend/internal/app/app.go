@@ -19,21 +19,29 @@ import (
 	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/seed"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/wire"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/seed"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 const (
 	asyncMailerQueueSize = 100
 	asyncMailerWorkers   = 2
+	shutdownGraceTimeout = 5 * time.Second
 )
 
+// Run is the application entry point. It initialises infrastructure in order:
+// PostgreSQL pool -> Redis -> goose migrations -> signal context -> storage
+// provider -> JWT service -> WebSocket hub -> async mailer -> wire DI graph.
+// After wiring, it configures the JWT role-lookup callback, seeds the default
+// admin when credentials are present, then runs an oklog/run group that
+// combines the HTTP server and a signal-cancel actor with graceful shutdown
+// (draining in-flight rate-limit audits and avatar goroutines).
 func Run(cfg *config.Config, l logkit.Logger) {
 	l.Info("Application initialized", map[string]any{
 		"structured_logger": cfg.StructuredLogger,
@@ -124,7 +132,12 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	wsHub := wskit.NewHub(
 		wskit.WithRedis(redisClient, cache.PubSubScoreboard),
 		wskit.WithOnTimeout(func(op string) { l.Warn("websocket hub operation timed out", logkit.Fields{"op": op}) }),
-		wskit.WithOnConnect(func(client *wskit.Client) {
+		wskit.WithOnConnect(func(sub wskit.Subscriber) {
+			client, ok := sub.(*wskit.Client)
+			if !ok {
+				return
+			}
+
 			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
 			if err == nil {
 				client.Send(data)
@@ -150,15 +163,15 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	jwtService.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, error) {
 		u, err := app.UserRepo.GetByID(ctx, userID)
 		if err != nil {
-			return "", fmt.Errorf("app - SetUserRoleLookup - GetByID: %w", err)
+			return "", fmt.Errorf("SetUserRoleLookup - GetByID: %w", err)
 		}
 
 		if u.IsBanned {
-			return "", httperr.ErrUserBanned
+			return "", apperr.ErrUserBanned
 		}
 
 		if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
-			return "", httperr.ErrUserBanned
+			return "", apperr.ErrUserBanned
 		}
 
 		return string(u.Role), nil
@@ -205,7 +218,7 @@ func Run(cfg *config.Config, l logkit.Logger) {
 
 			select {
 			case <-waitDone:
-			case <-time.After(5 * time.Second):
+			case <-time.After(shutdownGraceTimeout):
 				l.Warn("ratelimit audit wait group timeout")
 			}
 		}
@@ -231,6 +244,9 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	}
 }
 
+// runSeed creates the default admin account when all three credentials
+// (username, email, password) are set in cfg. A missing credential is treated
+// as intentional and logged as info rather than an error.
 func runSeed(cfg *config.Config, app *wire.App, l logkit.Logger) {
 	adminUsername, adminEmail, adminPassword := cfg.Username, cfg.Email, cfg.Admin.Password
 	if adminUsername == "" || adminEmail == "" || adminPassword == "" {
@@ -239,12 +255,15 @@ func runSeed(cfg *config.Config, app *wire.App, l logkit.Logger) {
 		return
 	}
 
-	err := seed.CreateDefaultAdmin(context.Background(), app.UserRepo, adminUsername, adminEmail, adminPassword, l)
+	err := seed.CreateDefaultAdmin(context.Background(), app.UserRepo, adminUsername, adminEmail, adminPassword, l, 0)
 	if err != nil {
 		l.WithError(err).Error("Failed to seed default admin")
 	}
 }
 
+// provideStorage constructs the appropriate storage.Provider based on
+// cfg.Provider: "s3" initialises an S3-compatible backend (minio-go) and
+// ensures the bucket exists; any other value uses the local filesystem backend.
 func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (storage.Provider, error) {
 	if cfg.Provider == "s3" {
 		s3Provider, err := storage.NewS3Provider(
@@ -257,11 +276,11 @@ func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (s
 			cfg.S3UseSSL,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("app - provideStorage - NewS3Provider: %w", err)
+			return nil, fmt.Errorf("provideStorage - NewS3Provider: %w", err)
 		}
 
 		if err := s3Provider.EnsureBucket(ctx); err != nil {
-			return nil, fmt.Errorf("app - provideStorage - EnsureBucket: %w", err)
+			return nil, fmt.Errorf("provideStorage - EnsureBucket: %w", err)
 		}
 
 		l.Info("Using S3 storage provider", map[string]any{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
@@ -271,7 +290,7 @@ func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (s
 
 	fsProvider, err := storage.NewFilesystemProvider(cfg.LocalPath)
 	if err != nil {
-		return nil, fmt.Errorf("app - provideStorage - NewFilesystemProvider: %w", err)
+		return nil, fmt.Errorf("provideStorage - NewFilesystemProvider: %w", err)
 	}
 
 	l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})

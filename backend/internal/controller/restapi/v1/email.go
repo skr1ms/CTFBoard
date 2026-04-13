@@ -5,14 +5,14 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-// Verify email
 // (POST /auth/verify-email).
 func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.VerifyEmailRequest](
@@ -30,7 +30,11 @@ func (h *Server) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.Message("email verified successfully"))
 }
 
-// Request password reset
+// PostAuthForgotPassword handles password-reset requests. It applies a per-email
+// daily rate limit on top of the IP-level rate limit applied at the router layer,
+// which together prevent targeted account enumeration. Errors from SendPasswordResetEmail
+// are deliberately swallowed and a generic success message is always returned so
+// the response gives no hint about whether an account exists for the given email.
 // (POST /auth/forgot-password).
 func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.ForgotPasswordRequest](
@@ -42,14 +46,14 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 
 	email := request.ForgotPasswordRequestToParams(&req)
 
-	// Rate Limit: per-email daily limit (prevents targeting a specific account).
+	// Rate Limit: per-email daily limit (prevents targeting a specific account)
 	allowed, err := h.infra.ForgotPasswordRateLimiter.Check(r.Context(), email)
 	if h.OnError(w, r, err, "PostAuthForgotPassword", "CheckRateLimit") {
 		return
 	}
 
 	if !allowed {
-		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthForgotPassword", "RateLimit")
+		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthForgotPassword", "RateLimit")
 
 		return
 	}
@@ -62,7 +66,8 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 	httputil.RenderOK(w, r, response.Message("if an account exists with this email, a password reset link has been sent"))
 }
 
-// Reset password
+// PostAuthResetPassword applies a per-token rate limit keyed by the SHA-256 hash
+// of the reset token to prevent brute-force guessing of short-lived tokens.
 // (POST /auth/reset-password).
 func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.ResetPasswordRequest](
@@ -81,7 +86,7 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !allowed {
-		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
+		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
 
 		return
 	}
@@ -94,27 +99,26 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.Message("password reset successfully"))
 }
 
-// Resend verification email
 // (POST /auth/resend-verification).
 func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Request) {
-	userID, ok := httputil.ParseAuthUserID(w, r)
+	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
 	// Rate Limit: 10 requests per day per user (resend)
-	allowed, err := h.infra.ResendVerificationRateLimiter.Check(r.Context(), userID.String())
+	allowed, err := h.infra.ResendVerificationRateLimiter.Check(r.Context(), user.ID.String())
 	if h.OnError(w, r, err, "PostAuthResendVerification", "CheckRateLimit") {
 		return
 	}
 
 	if !allowed {
-		h.OnError(w, r, httperr.ErrTooManyRequests(), "PostAuthResendVerification", "RateLimit")
+		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResendVerification", "RateLimit")
 
 		return
 	}
 
-	if h.OnError(w, r, h.user.EmailUC.ResendVerification(r.Context(), userID), "PostAuthResendVerification", "ResendVerification") {
+	if h.OnError(w, r, h.user.EmailUC.ResendVerification(r.Context(), user.ID), "PostAuthResendVerification", "ResendVerification") {
 		return
 	}
 

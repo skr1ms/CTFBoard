@@ -5,4 +5,6 @@ import (
 	"time"
 )
 
-var defaultOAuthClient = &http.Client{Timeout: 10 * time.Second}
+const defaultOAuthTimeout = 10 * time.Second
+
+var defaultOAuthClient = &http.Client{Timeout: defaultOAuthTimeout}

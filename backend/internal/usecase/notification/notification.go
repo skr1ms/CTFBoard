@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 // NotificationBroadcaster broadcasts a notification to connected WebSocket clients. Optional.
@@ -41,11 +41,11 @@ func NewNotificationUseCase(deps NotificationDeps) *NotificationUseCase {
 
 func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
 	if title == "" || content == "" {
-		return nil, httperr.ErrNotificationTitleContentRequired
+		return nil, apperr.ErrNotificationTitleContentRequired
 	}
 
 	if !notifType.IsValid() {
-		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
 
 	notif := &domain.Notification{
@@ -72,11 +72,11 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 
 func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error) {
 	if title == "" || content == "" {
-		return nil, httperr.ErrNotificationTitleContentRequired
+		return nil, apperr.ErrNotificationTitleContentRequired
 	}
 
 	if !notifType.IsValid() {
-		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
 
 	userNotif := &domain.UserNotification{
@@ -144,7 +144,7 @@ func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID
 
 func (uc *NotificationUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
 	if !notifType.IsValid() {
-		return nil, httperr.NewValidationErrorf("invalid notification type %q", notifType)
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
 	}
 
 	notif, err := uc.deps.NotifRepo.GetByID(ctx, ID)

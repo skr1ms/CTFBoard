@@ -1,9 +1,7 @@
 package response
 
 import (
-	"context"
-	"time"
-
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -16,7 +14,7 @@ func FromChallenge(c *domain.Challenge) openapi.ChallengeResponse {
 		return openapi.ChallengeResponse{}
 	}
 
-	return openapi.ChallengeResponse{
+	resp := openapi.ChallengeResponse{
 		ID:             new(c.ID.String()),
 		Title:          new(c.Title),
 		Description:    new(c.Description),
@@ -28,6 +26,13 @@ func FromChallenge(c *domain.Challenge) openapi.ChallengeResponse {
 		SolveCount:     new(c.SolveCount),
 		State:          ptrChallengeResponseState(c.State),
 	}
+
+	if c.MaxAttemptsWindow > 0 {
+		secs := int(c.MaxAttemptsWindow.Seconds())
+		resp.MaxAttemptsWindow = &secs
+	}
+
+	return resp
 }
 
 func FromChallengeWithSolved(cws *domain.ChallengeWithSolved) openapi.ChallengeResponse {
@@ -42,6 +47,10 @@ func FromChallengeWithSolved(cws *domain.ChallengeWithSolved) openapi.ChallengeR
 }
 
 func FromChallengeWithTags(cwt *usecase.ChallengeWithTags) openapi.ChallengeResponse {
+	if cwt.RequirementsMet != nil && !*cwt.RequirementsMet {
+		return anonymizedChallengeResponse(cwt)
+	}
+
 	res := FromChallengeWithSolved(cwt.ChallengeWithSolved)
 	if len(cwt.Tags) > 0 {
 		tags := make([]openapi.TagResponse, len(cwt.Tags))
@@ -53,6 +62,29 @@ func FromChallengeWithTags(cwt *usecase.ChallengeWithTags) openapi.ChallengeResp
 	}
 
 	return res
+}
+
+// anonymizedChallengeResponse returns a censored challenge response used when
+// the team has not met prerequisite challenges. Title, description, connection
+// info, and hint data are replaced with "???" / nil, and the state is forced to
+// ChallengeStateLocked. Points and solve count are preserved so the scoreboard
+// stays accurate, and the challenge ID is kept so the frontend can correlate entries.
+func anonymizedChallengeResponse(cwt *usecase.ChallengeWithTags) openapi.ChallengeResponse {
+	hidden := "???"
+
+	return openapi.ChallengeResponse{
+		ID:             new(cwt.Challenge.ID.String()),
+		Title:          &hidden,
+		Description:    &hidden,
+		Category:       new(cwt.Challenge.Category),
+		ConnectionInfo: nil,
+		MaxAttempts:    nil,
+		Points:         new(cwt.Challenge.Points),
+		SolveCount:     new(cwt.Challenge.SolveCount),
+		Solved:         new(cwt.Solved),
+		State:          ptrChallengeResponseState(domain.ChallengeStateLocked),
+		Tags:           nil,
+	}
 }
 
 func FromChallengeList(items []*usecase.ChallengeWithTags) []openapi.ChallengeResponse {
@@ -80,7 +112,7 @@ func FromScoreboardEntry(e *domain.ScoreboardEntry) openapi.ScoreboardEntryRespo
 		Points:   new(e.Points),
 	}
 	if !e.SolvedAt.IsZero() {
-		res.LastSolved = new(e.SolvedAt.Format(time.RFC3339))
+		res.LastSolved = timePtr(&e.SolvedAt)
 	}
 
 	return res
@@ -92,26 +124,22 @@ func FromScoreboardList(items []*domain.ScoreboardEntry) []openapi.ScoreboardEnt
 	})
 }
 
-func FromScoreboardListWithAvatars(ctx context.Context, items []*domain.ScoreboardEntry, avatarUC usecase.AvatarUseCase) ([]openapi.ScoreboardEntryResponse, error) {
+// FromScoreboardListWithAvatars builds the scoreboard response, attaching
+// pre-resolved thumbnail URLs from the provided map (teamID → thumbURL).
+// Pass a nil map when avatars are disabled.
+func FromScoreboardListWithAvatars(items []*domain.ScoreboardEntry, thumbURLs map[uuid.UUID]string) []openapi.ScoreboardEntryResponse {
 	result := make([]openapi.ScoreboardEntryResponse, len(items))
 	for i, item := range items {
 		res := FromScoreboardEntry(item)
 
-		if avatarUC != nil {
-			_, thumbURL, err := avatarUC.GetTeamAvatarURL(ctx, item.TeamID)
-			if err != nil {
-				return nil, err
-			}
-
-			if thumbURL != nil && *thumbURL != "" {
-				res.TeamAvatarThumbnailURL = thumbURL
-			}
+		if url, ok := thumbURLs[item.TeamID]; ok && url != "" {
+			res.TeamAvatarThumbnailURL = &url
 		}
 
 		result[i] = res
 	}
 
-	return result, nil
+	return result
 }
 
 func FromFirstBlood(fb *domain.FirstBloodEntry) openapi.FirstBloodResponse {
@@ -120,7 +148,7 @@ func FromFirstBlood(fb *domain.FirstBloodEntry) openapi.FirstBloodResponse {
 		Username: new(fb.Username),
 		TeamID:   new(fb.TeamID.String()),
 		TeamName: new(fb.TeamName),
-		SolvedAt: new(fb.SolvedAt.Format(time.RFC3339)),
+		SolvedAt: timePtr(&fb.SolvedAt),
 	}
 }
 
@@ -137,6 +165,11 @@ func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResp
 		Points:         new(d.Challenge.Points),
 		SolveCount:     new(d.SolveCount),
 		SolvedByMe:     new(d.SolvedByMe),
+	}
+
+	if d.Challenge.MaxAttemptsWindow > 0 {
+		secs := int(d.Challenge.MaxAttemptsWindow.Seconds())
+		res.MaxAttemptsWindow = &secs
 	}
 
 	if len(d.Tags) > 0 {

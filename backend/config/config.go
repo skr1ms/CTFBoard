@@ -219,6 +219,12 @@ type rawConfig struct {
 	MetricsAllowedIPs []string
 }
 
+// loadFromEnv probes .env, ../.env, and /app/.env in order, loading the first
+// file found via godotenv. It then reads all env-tagged fields into rawConfig
+// via cleanenv (missing optional fields use struct defaults). Post-load it
+// splits CORS_ORIGINS and TRUSTED_PROXY_CIDRS into slices, and clears the
+// placeholder S3 endpoint/bucket when the provider is s3 but defaults are
+// still set (prevents accidental connection to the dev SeaweedFS instance).
 func loadFromEnv(l logkit.Logger) *rawConfig {
 	envPaths := []string{".env", "../.env", "/app/.env"}
 	for _, path := range envPaths {
@@ -253,6 +259,13 @@ func loadFromEnv(l logkit.Logger) *rawConfig {
 	return raw
 }
 
+// loadFromVault fetches secrets from Vault in parallel via errgroup (8 goroutines,
+// one per secret path: database, redis, jwt, resend, storage, app, admin, oauth).
+// Each goroutine uses vaultFetch, which silently logs a warning and returns nil on
+// missing secrets so that a partial Vault setup does not block startup. A mutex
+// protects concurrent writes into raw. The entire fetch is bounded by the caller's
+// context (typically 30 s). If VAULT_ADDR or VAULT_TOKEN are absent the function
+// returns immediately, leaving raw unchanged.
 func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 	vaultAddr := os.Getenv("VAULT_ADDR")
 
@@ -371,6 +384,12 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 	}
 }
 
+// validate performs cross-field validation of rawConfig after env + Vault loading.
+// It checks: required Postgres/JWT/Redis credentials are present; JWT secrets meet
+// the minimum length required by go-jwtkit; FLAG_ENCRYPTION_KEY is exactly 64 hex
+// chars (32 bytes AES-256); OAUTH_STATE_SECRET is set whenever any OAuth client ID
+// is configured; COMPETITION_MODE is a recognized value; MIN/MAX_TEAM_SIZE range is
+// valid; STORAGE_PROVIDER is one of filesystem or s3; RATE_LIMIT_SUBMIT_FLAG is positive.
 func validate(raw *rawConfig) error {
 	if raw.PostgresUser == "" || raw.PostgresPassword == "" || raw.PostgresDB == "" {
 		return fmt.Errorf("required database configuration is missing (env or vault)")
@@ -429,6 +448,15 @@ func validate(raw *rawConfig) error {
 	return nil
 }
 
+// buildConfig assembles the final Config from a validated rawConfig. Key steps:
+// JWT key rotation arrays (JWT_ACCESS_KEYS / JWT_REFRESH_KEYS) are parsed from
+// JSON if present, otherwise the single primary secret is wrapped as kid="0".
+// If JWT_DOWNLOAD_SECRET is empty, it is derived via HMAC-SHA256 over the access
+// secret with the fixed label "download-url-signing". The Postgres DSN is
+// constructed programmatically to avoid injection via url.URL. SecureCookies is
+// forced true when API_BASE_URL starts with https://. Post-assembly warnings are
+// emitted for known configuration anti-patterns (solo_only with MinTeamSize>1,
+// flexible with MinTeamSize>1).
 func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	jwtAccessKeys := []JWTKey{{Kid: "0", Secret: raw.JWTAccessSecret}}
 	if s := raw.JWTAccessKeysStr; s != "" {
@@ -604,6 +632,12 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	return cfg, nil
 }
 
+// New builds a Config by running the full configuration pipeline:
+// bootstrap logger -> loadFromEnv (multi-path .env probing + cleanenv) ->
+// rebuild logger at the resolved log level -> loadFromVault (parallel Vault
+// fetch with 30 s deadline) -> validate -> buildConfig.
+// Any step failure is returned as a wrapped error; the caller (cmd/app/main.go)
+// treats a non-nil error as a fatal startup failure.
 func New() (*Config, error) {
 	bootL, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	if err != nil {

@@ -2,8 +2,6 @@ package v1
 
 import (
 	"net/http"
-	"slices"
-	"strings"
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
@@ -11,17 +9,9 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-var publicConfigKeys = []string{
-	"ctf_name", "ctf_description", "ctf_logo", "tos_url", "privacy_url",
-	"theme_color_primary", "theme_color_secondary", "theme_header_html", "theme_footer_html", "theme_dark_mode",
-	"social_github", "social_discord", "social_twitter", "social_website",
-}
-
-// Get all configs (admin)
 // (GET /admin/configs).
 func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
 	list, err := h.admin.CompetitionParamUC.GetAll(r.Context())
@@ -32,7 +22,6 @@ func (h *Server) GetAdminConfigs(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromConfigResponseList(list))
 }
 
-// Get config categories (admin)
 // (GET /admin/configs/categories).
 func (h *Server) GetAdminConfigsCategories(w http.ResponseWriter, r *http.Request) {
 	list, err := h.admin.CompetitionParamUC.GetAll(r.Context())
@@ -40,24 +29,9 @@ func (h *Server) GetAdminConfigsCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	counts := make(map[string]int)
-
-	for _, p := range list {
-		if p.Category != "" {
-			counts[p.Category]++
-		}
-	}
-
-	out := make([]openapi.ConfigCategoryItem, 0, len(counts))
-	for name, count := range counts {
-		out = append(out, openapi.ConfigCategoryItem{Name: name, Count: count})
-	}
-
-	slices.SortFunc(out, func(a, b openapi.ConfigCategoryItem) int { return strings.Compare(a.Name, b.Name) })
-	httputil.RenderOK(w, r, out)
+	httputil.RenderOK(w, r, response.FromConfigCategories(list))
 }
 
-// Get configs by category (admin)
 // (GET /admin/configs/category/{category}).
 func (h *Server) GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request, category string) {
 	list, err := h.admin.CompetitionParamUC.GetByCategory(r.Context(), category)
@@ -68,7 +42,6 @@ func (h *Server) GetAdminConfigsCategory(w http.ResponseWriter, r *http.Request,
 	httputil.RenderOK(w, r, response.FromConfigResponseList(list))
 }
 
-// Set configs in batch (admin)
 // (PUT /admin/configs/batch).
 func (h *Server) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -100,39 +73,16 @@ func (h *Server) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.Message("configs updated"))
 }
 
-// Get public configs
 // (GET /configs/public).
 func (h *Server) GetConfigsPublic(w http.ResponseWriter, r *http.Request) {
-	all, err := h.admin.CompetitionParamUC.GetAll(r.Context())
-	if h.OnError(w, r, err, "GetConfigsPublic", "GetAll") {
+	list, err := h.admin.CompetitionParamUC.GetPublic(r.Context())
+	if h.OnError(w, r, err, "GetConfigsPublic", "GetPublic") {
 		return
-	}
-
-	byKey := make(map[string]*domain.CompetitionParam, len(all))
-	for _, p := range all {
-		byKey[p.Key] = p
-	}
-
-	list := make([]*domain.CompetitionParam, 0, len(publicConfigKeys))
-	for _, key := range publicConfigKeys {
-		if p, ok := byKey[key]; ok {
-			list = append(list, p)
-
-			continue
-		}
-
-		if def, ok := domain.GetConfigDef(key); ok {
-			list = append(list, &domain.CompetitionParam{
-				Key: def.Key, Value: def.DefaultValue, ValueType: def.ValueType,
-				Category: def.Category, Description: def.Description,
-			})
-		}
 	}
 
 	httputil.RenderOK(w, r, response.FromConfigListToPublicMap(list))
 }
 
-// Get config by key (admin)
 // (GET /admin/configs/{key}).
 func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
 	cfg, err := h.admin.CompetitionParamUC.Get(r.Context(), key)
@@ -143,7 +93,6 @@ func (h *Server) GetAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	httputil.RenderOK(w, r, response.FromConfig(cfg))
 }
 
-// Set config (admin)
 // (PUT /admin/configs/{key}).
 func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
 	user, ok := helper.RequireUser(w, r)
@@ -176,7 +125,6 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 	httputil.RenderOK(w, r, response.Message("config updated"))
 }
 
-// Delete config (admin)
 // (DELETE /admin/configs/{key}).
 func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, key string) {
 	user, ok := helper.RequireUser(w, r)
@@ -192,7 +140,6 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 	httputil.RenderNoContent(w, r)
 }
 
-// Get app settings
 // (GET /admin/settings).
 func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 	s, err := h.admin.SettingsUC.Get(r.Context())
@@ -203,7 +150,11 @@ func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromAppSettings(s))
 }
 
-// Update app settings
+// PutAdminSettings persists new application settings and invalidates in-process
+// caches that are derived from them. After a successful update, RateLimitConfigCache
+// is invalidated so dynamic rate limiters pick up new limits on the next request,
+// and ScoreboardVisibilityCache is invalidated so the scoreboard visibility
+// middleware re-evaluates the new visibility setting immediately.
 // (PUT /admin/settings).
 func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)

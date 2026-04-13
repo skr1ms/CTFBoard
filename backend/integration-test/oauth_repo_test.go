@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestOAuthRepo_Create_Success(t *testing.T) {
@@ -113,7 +113,7 @@ func TestOAuthRepo_GetByProvider_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := oauthRepo.GetByProvider(ctx, "github", "nonexistent-id")
-	assert.ErrorIs(t, err, httperr.ErrOAuthAccountNotFound)
+	assert.ErrorIs(t, err, apperr.ErrOAuthAccountNotFound)
 }
 
 func TestOAuthRepo_GetByUserID_Success(t *testing.T) {

@@ -24,6 +24,7 @@ type adminSettingsBody struct {
 	ResendEnabled                    *bool  `mapstructure:"resend_enabled"`
 	ScoreboardVisible                string `mapstructure:"scoreboard_visible"`
 	WriteupEnabled                   *bool  `mapstructure:"writeup_enabled"`
+	MaxTeams                         *int   `mapstructure:"max_teams"`
 	RateLimitForgotPasswordPerMinute *int   `mapstructure:"rate_limit_forgot_password_per_minute"`
 }
 
@@ -76,6 +77,10 @@ func bodyToPutAdminSettingsRequest(body map[string]any) (openapi.PutAdminSetting
 
 	if b.WriteupEnabled != nil {
 		req.WriteupEnabled = b.WriteupEnabled
+	}
+
+	if b.MaxTeams != nil {
+		req.MaxTeams = b.MaxTeams
 	}
 
 	if b.RateLimitForgotPasswordPerMinute != nil && *b.RateLimitForgotPasswordPerMinute >= 1 {

@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
@@ -56,7 +56,6 @@ type AdminDeps struct {
 	FieldUC            usecase.FieldUseCase
 	PageUC             usecase.PageUseCase
 	NotifUC            usecase.NotificationUseCase
-	SettingsRepo       repo.SettingsRepository
 }
 
 type InfraDeps struct {
@@ -64,6 +63,7 @@ type InfraDeps struct {
 	RedisClient                   *redis.Client
 	StorageProvider               storage.Provider
 	WSController                  *wsV1.Controller
+	SSEHandler                    http.Handler
 	Validator                     validator.Validator
 	Logger                        logkit.Logger
 	TrustedProxyCIDRs             []string

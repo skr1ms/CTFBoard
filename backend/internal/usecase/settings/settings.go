@@ -6,25 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
 	cacheTTL           = 5 * time.Minute
 	settingsInvChannel = "settings:inv"
 	invTimeout         = 2 * time.Second
-	subBackoffInitial  = 1 * time.Second
-	subBackoffMax      = 30 * time.Second
+
+	maxTTLHours     = 168
+	maxPerPageLimit = 1000
 )
 
 type SettingsUseCase struct {
@@ -59,12 +59,19 @@ func NewSettingsUseCase(deps SettingsDeps) *SettingsUseCase {
 			stopCtx = context.Background()
 		}
 
-		go uc.subscribeInvalidation(stopCtx)
+		go cache.SubscribeInvalidation(stopCtx, deps.PubSub, settingsInvChannel, func() {
+			uc.sf.Forget(cache.KeyAppSettings)
+		}, deps.Logger, "settings")
 	}
 
 	return uc
 }
 
+// Get returns the current application settings using a two-layer cache.
+// A Redis entry is checked first; on miss, concurrent lookups are deduplicated
+// via singleflight and the result is fetched from the database and written
+// back to Redis for cacheTTL. The singleflight key is the same as the Redis
+// key so a PubSub-driven invalidation (sf.Forget) also prevents stale reads.
 func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 	if uc.deps.Redis != nil {
 		val, err := uc.deps.Redis.Get(ctx, cache.KeyAppSettings)
@@ -104,6 +111,14 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 	return s, nil
 }
 
+// Update validates and persists new application settings inside a transaction.
+// GetForUpdate acquires a pessimistic lock on the settings row. When a
+// competition is active/frozen/paused, changes to ScoreboardVisible or
+// RegistrationOpen are rejected to preserve competition integrity. UpdateIfCurrent
+// provides optimistic concurrency: it errors with ErrSettingsConflict if the row
+// was modified between the lock and the update. After commit, invalidateCache
+// evicts the singleflight entry, deletes the Redis key, and broadcasts a PubSub
+// invalidation to other instances.
 func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actorID uuid.UUID, clientIP string) error {
 	err := uc.validate(s)
 	if err != nil {
@@ -122,7 +137,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actor
 				status := comp.GetStatus()
 				if status == domain.CompetitionStatusActive || status == domain.CompetitionStatusFrozen || status == domain.CompetitionStatusPaused {
 					if s.ScoreboardVisible != current.ScoreboardVisible || s.RegistrationOpen != current.RegistrationOpen {
-						return httperr.ErrSettingsCannotChangeDuringCompetition
+						return apperr.ErrSettingsCannotChangeDuringCompetition
 					}
 				}
 			}
@@ -174,67 +189,6 @@ func (uc *SettingsUseCase) invalidateCache() {
 	}
 }
 
-func (uc *SettingsUseCase) subscribeInvalidation(stopCtx context.Context) {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = subBackoffInitial
-	bo.MaxInterval = subBackoffMax
-	bo.MaxElapsedTime = 0
-	notify := func(err error, d time.Duration) {
-		uc.deps.Logger.WithError(err).Warn("settings: subscribe to invalidation channel failed, retrying")
-	}
-
-	for {
-		select {
-		case <-stopCtx.Done():
-			return
-		default:
-		}
-
-		var ch <-chan string
-
-		op := func() error {
-			var err error
-
-			ch, err = uc.deps.PubSub.Subscribe(stopCtx, settingsInvChannel)
-
-			return err
-		}
-		if err := backoff.RetryNotify(op, backoff.WithContext(bo, stopCtx), notify); err != nil {
-			return
-		}
-
-		bo.Reset()
-
-	readLoop:
-		for {
-			select {
-			case <-stopCtx.Done():
-				return
-			case _, ok := <-ch:
-				if !ok {
-					break readLoop
-				}
-
-				uc.sf.Forget(cache.KeyAppSettings)
-			}
-		}
-
-		next := bo.NextBackOff()
-		if next == backoff.Stop {
-			return
-		}
-
-		t := time.NewTimer(next)
-		select {
-		case <-stopCtx.Done():
-			t.Stop()
-
-			return
-		case <-t.C:
-		}
-	}
-}
-
 func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 	err := validateTimings(s)
 	if err != nil {
@@ -254,7 +208,7 @@ func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 	switch s.ScoreboardVisible {
 	case domain.ScoreboardVisiblePublic, domain.ScoreboardVisibleHidden, domain.ScoreboardVisibleAdminsOnly:
 	default:
-		return httperr.NewValidationErrorf("scoreboard_visible must be public, hidden, or admins_only")
+		return apperr.NewValidationErrorf("scoreboard_visible must be public, hidden, or admins_only")
 	}
 
 	return nil
@@ -262,39 +216,39 @@ func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 
 func validateTimings(s *domain.Settings) error {
 	if s.SubmitLimitPerUser < 1 {
-		return httperr.NewValidationErrorf("submit_limit_per_user must be >= 1")
+		return apperr.NewValidationErrorf("submit_limit_per_user must be >= 1")
 	}
 
 	if s.SubmitLimitDurationMin < 1 {
-		return httperr.NewValidationErrorf("submit_limit_duration_min must be >= 1")
+		return apperr.NewValidationErrorf("submit_limit_duration_min must be >= 1")
 	}
 
-	if s.VerifyTTLHours < 1 || s.VerifyTTLHours > 168 {
-		return httperr.NewValidationErrorf("verify_ttl_hours must be between 1 and 168")
+	if s.VerifyTTLHours < 1 || s.VerifyTTLHours > maxTTLHours {
+		return apperr.NewValidationErrorf("verify_ttl_hours must be between 1 and %d", maxTTLHours)
 	}
 
-	if s.ResetTTLHours < 1 || s.ResetTTLHours > 168 {
-		return httperr.NewValidationErrorf("reset_ttl_hours must be between 1 and 168")
+	if s.ResetTTLHours < 1 || s.ResetTTLHours > maxTTLHours {
+		return apperr.NewValidationErrorf("reset_ttl_hours must be between 1 and %d", maxTTLHours)
 	}
 
 	return nil
 }
 
 func validatePagination(s *domain.Settings) error {
-	if s.DefaultPerPage < 1 || s.DefaultPerPage > 1000 {
-		return httperr.NewValidationErrorf("default_per_page must be between 1 and 1000")
+	if s.DefaultPerPage < 1 || s.DefaultPerPage > maxPerPageLimit {
+		return apperr.NewValidationErrorf("default_per_page must be between 1 and %d", maxPerPageLimit)
 	}
 
-	if s.MaxPerPage < 1 || s.MaxPerPage > 1000 {
-		return httperr.NewValidationErrorf("max_per_page must be between 1 and 1000")
+	if s.MaxPerPage < 1 || s.MaxPerPage > maxPerPageLimit {
+		return apperr.NewValidationErrorf("max_per_page must be between 1 and %d", maxPerPageLimit)
 	}
 
 	if s.DefaultPerPage > s.MaxPerPage {
-		return httperr.NewValidationErrorf("default_per_page must be <= max_per_page")
+		return apperr.NewValidationErrorf("default_per_page must be <= max_per_page")
 	}
 
 	if s.CSVExportMaxRows < 1 {
-		return httperr.NewValidationErrorf("csv_export_max_rows must be >= 1")
+		return apperr.NewValidationErrorf("csv_export_max_rows must be >= 1")
 	}
 
 	return nil
@@ -302,51 +256,51 @@ func validatePagination(s *domain.Settings) error {
 
 func validateRateLimits(s *domain.Settings) error {
 	if s.RateLimitLoginPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_login_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_login_per_minute must be >= 1")
 	}
 
 	if s.RateLimitRegisterPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_register_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_register_per_minute must be >= 1")
 	}
 
 	if s.RateLimitForgotPasswordPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_forgot_password_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_forgot_password_per_minute must be >= 1")
 	}
 
 	if s.RateLimitResetPasswordPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_reset_password_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_reset_password_per_minute must be >= 1")
 	}
 
 	if s.RateLimitLogoutPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_logout_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_logout_per_minute must be >= 1")
 	}
 
 	if s.RateLimitRefreshPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_refresh_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_refresh_per_minute must be >= 1")
 	}
 
 	if s.RateLimitScoreboardPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_scoreboard_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_scoreboard_per_minute must be >= 1")
 	}
 
 	if s.RateLimitGeneralIPPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_general_ip_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_general_ip_per_minute must be >= 1")
 	}
 
 	if s.RateLimitVerifyEmailPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_verify_email_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_verify_email_per_minute must be >= 1")
 	}
 
 	if s.RateLimitOAuthCallbackPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_oauth_callback_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_oauth_callback_per_minute must be >= 1")
 	}
 
 	if s.RateLimitOAuthRedirectPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_oauth_redirect_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_oauth_redirect_per_minute must be >= 1")
 	}
 
 	if s.RateLimitCommentPerMinute < 1 {
-		return httperr.NewValidationErrorf("rate_limit_comment_per_minute must be >= 1")
+		return apperr.NewValidationErrorf("rate_limit_comment_per_minute must be >= 1")
 	}
 
 	return nil

@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type RatingRepo struct {
@@ -55,26 +55,21 @@ func (r *RatingRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID
 
 	out := make([]*domain.Rating, len(rows))
 	for i := range rows {
-		out[i] = ratingRowToentity(rows[i])
+		out[i] = toDomainRating(rows[i])
 	}
 
 	return out, nil
 }
 
 func (r *RatingRepo) GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Rating, error) {
-	row, err := r.Q(ctx).GetRatingByTeamAndChallenge(ctx, sqlc.GetRatingByTeamAndChallengeParams{
-		TeamID:      teamID,
-		ChallengeID: challengeID,
-	})
+	row, err := GetOrNotFound(func() (sqlc.Rating, error) {
+		return r.Q(ctx).GetRatingByTeamAndChallenge(ctx, sqlc.GetRatingByTeamAndChallengeParams{TeamID: teamID, ChallengeID: challengeID})
+	}, apperr.ErrRatingNotFound, "RatingRepo - GetByTeamAndChallenge")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrRatingNotFound
-		}
-
-		return nil, fmt.Errorf("RatingRepo - GetByTeamAndChallenge: %w", err)
+		return nil, err
 	}
 
-	return ratingRowToentity(row), nil
+	return toDomainRating(row), nil
 }
 
 func (r *RatingRepo) GetAll(ctx context.Context) ([]*domain.Rating, error) {
@@ -85,13 +80,21 @@ func (r *RatingRepo) GetAll(ctx context.Context) ([]*domain.Rating, error) {
 
 	out := make([]*domain.Rating, len(rows))
 	for i := range rows {
-		out[i] = ratingRowToentity(rows[i])
+		out[i] = toDomainRating(rows[i])
 	}
 
 	return out, nil
 }
 
-func ratingRowToentity(row sqlc.Rating) *domain.Rating {
+func (r *RatingRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.Q(ctx).DeleteRatingsByTeamID(ctx, teamID); err != nil {
+		return fmt.Errorf("RatingRepo - DeleteByTeamID: %w", err)
+	}
+
+	return nil
+}
+
+func toDomainRating(row sqlc.Rating) *domain.Rating {
 	return &domain.Rating{
 		ID:          row.ID,
 		ChallengeID: row.ChallengeID,

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestChallengeRepo_Create(t *testing.T) {
@@ -65,7 +65,7 @@ func TestChallengeRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.ChallengeRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_GetAll_NoTeam(t *testing.T) {
@@ -219,7 +219,7 @@ func TestChallengeRepo_Delete(t *testing.T) {
 
 	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_GetByIDTx(t *testing.T) {
@@ -266,7 +266,7 @@ func TestChallengeRepo_GetByIDTx_NotFound(t *testing.T) {
 		return err
 	})
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestChallengeRepo_IncrementSolveCountTx(t *testing.T) {
@@ -480,4 +480,93 @@ func TestChallengeRepo_GetByIDs_PartialMatch(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, ch1.ID, got[ch1.ID].ID)
 	assert.Equal(t, 50, got[ch1.ID].Points)
+}
+
+func TestChallengeRepo_BatchDecrementSolveCount(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	ch1 := f.CreateChallenge(t, "dec1", 100)
+	ch2 := f.CreateChallenge(t, "dec2", 100)
+
+	// Seed solve counts to 2 each
+	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 2 WHERE id = ANY($1)", []uuid.UUID{ch1.ID, ch2.ID})
+	require.NoError(t, err)
+
+	err = f.ChallengeRepo.BatchDecrementSolveCount(ctx, []uuid.UUID{ch1.ID, ch2.ID})
+	require.NoError(t, err)
+
+	got1, err := f.ChallengeRepo.GetByID(ctx, ch1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got1.SolveCount)
+
+	got2, err := f.ChallengeRepo.GetByID(ctx, ch2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got2.SolveCount)
+}
+
+func TestChallengeRepo_BatchIncrementSolveCount(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	ch1 := f.CreateChallenge(t, "inc1", 100)
+	ch2 := f.CreateChallenge(t, "inc2", 100)
+
+	err := f.ChallengeRepo.BatchIncrementSolveCount(ctx, []uuid.UUID{ch1.ID, ch2.ID})
+	require.NoError(t, err)
+
+	got1, err := f.ChallengeRepo.GetByID(ctx, ch1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got1.SolveCount)
+
+	got2, err := f.ChallengeRepo.GetByID(ctx, ch2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got2.SolveCount)
+}
+
+func TestChallengeRepo_BatchUpdatePoints(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	ch1 := f.CreateChallenge(t, "bup1", 100)
+	ch2 := f.CreateChallenge(t, "bup2", 200)
+
+	err := f.ChallengeRepo.BatchUpdatePoints(ctx, []uuid.UUID{ch1.ID, ch2.ID}, []int{150, 250})
+	require.NoError(t, err)
+
+	got1, err := f.ChallengeRepo.GetByID(ctx, ch1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 150, got1.Points)
+
+	got2, err := f.ChallengeRepo.GetByID(ctx, ch2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 250, got2.Points)
+}
+
+func TestChallengeRepo_RecalculateSolveCounts(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "recalc")
+	ch := f.CreateChallenge(t, "recalc_ch", 100)
+	f.CreateSolve(t, user.ID, team.ID, ch.ID)
+
+	// Corrupt the solve_count
+	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 99 WHERE id = $1", ch.ID)
+	require.NoError(t, err)
+
+	err = f.ChallengeRepo.RecalculateSolveCounts(ctx, []uuid.UUID{ch.ID})
+	require.NoError(t, err)
+
+	got, err := f.ChallengeRepo.GetByID(ctx, ch.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.SolveCount, "RecalculateSolveCounts should fix corrupted solve_count")
 }

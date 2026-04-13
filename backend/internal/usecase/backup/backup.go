@@ -6,11 +6,11 @@ import (
 
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const defaultCSVExportMaxRows = 100_000
@@ -92,7 +92,7 @@ func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOption
 
 func (uc *BackupUseCase) ExportCSV(ctx context.Context, tableName string) ([]byte, error) {
 	if !isAllowedCSVTable(tableName) {
-		return nil, httperr.ErrBackupTableUnsupported
+		return nil, apperr.ErrBackupTableUnsupported
 	}
 
 	exporters := map[string]func(context.Context) ([]byte, error){
@@ -106,7 +106,7 @@ func (uc *BackupUseCase) ExportCSV(ctx context.Context, tableName string) ([]byt
 
 	exporter, ok := exporters[tableName]
 	if !ok {
-		return nil, httperr.ErrBackupTableUnsupported
+		return nil, apperr.ErrBackupTableUnsupported
 	}
 
 	return exporter(ctx)
@@ -155,7 +155,7 @@ func (uc *BackupUseCase) exportCSVSubmissions(ctx context.Context) ([]byte, erro
 		maxRows = defaultCSVExportMaxRows
 	}
 
-	subs, err := uc.deps.SubmissionRepo.GetAll(ctx, maxRows, 0)
+	subs, err := uc.deps.SubmissionRepo.GetAll(ctx, nil, maxRows, 0)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ExportCSV - SubmissionRepo.GetAll: %w", err)
 	}
@@ -183,7 +183,7 @@ func (uc *BackupUseCase) exportCSVAwards(ctx context.Context) ([]byte, error) {
 
 func (uc *BackupUseCase) ImportCSV(ctx context.Context, tableName string, data []byte) (*usecase.CSVImportResult, error) {
 	if !isAllowedCSVTable(tableName) {
-		return nil, httperr.ErrBackupTableUnsupported
+		return nil, apperr.ErrBackupTableUnsupported
 	}
 
 	header, rows, err := parseCSV(data)

@@ -14,6 +14,10 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "500":
         description: Internal Server Error
         content:

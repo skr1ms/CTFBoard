@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 )
 
 func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
@@ -20,7 +20,7 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 	f.CreateUserWithTeam(t, uuid.New().String())
 	f.CreateChallenge(t, uuid.New().String(), 100)
 
-	stats, err := f.StatisticsRepo.GetGeneralStats(context.Background())
+	stats, err := f.StatisticsRepo.GetGeneralStats(context.Background(), nil)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, stats.UserCount, 1)
 	require.GreaterOrEqual(t, stats.TeamCount, 1)
@@ -34,7 +34,7 @@ func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetChallengeStats(ctx)
+	_, err := f.StatisticsRepo.GetChallengeStats(ctx, nil)
 	require.Error(t, err)
 }
 
@@ -50,7 +50,7 @@ func TestStatisticsRepo_GetChallengeStats_Success(t *testing.T) {
 	_, err := f.Pool.Exec(context.Background(), "UPDATE challenges SET solve_count = 1 WHERE ID = $1", chall.ID)
 	require.NoError(t, err)
 
-	stats, err := f.StatisticsRepo.GetChallengeStats(context.Background())
+	stats, err := f.StatisticsRepo.GetChallengeStats(context.Background(), nil)
 	require.NoError(t, err)
 
 	found := false
@@ -83,7 +83,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	_, err := f.Pool.Exec(ctx, "INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at, points_at_solve) VALUES ($1, $2, $3, $4, $5, $6)", uuid.New(), user1.ID, team1.ID, chall1.ID, solveTime, 100)
 	require.NoError(t, err)
 
-	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 1000)
+	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 1000, nil)
 	require.NoError(t, err)
 
 	found := false
@@ -106,7 +106,7 @@ func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 10)
+	_, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 10, nil)
 	require.Error(t, err)
 }
 
@@ -118,7 +118,7 @@ func TestStatisticsRepo_GetGeneralStats_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetGeneralStats(ctx)
+	_, err := f.StatisticsRepo.GetGeneralStats(ctx, nil)
 	require.Error(t, err)
 }
 
@@ -135,7 +135,7 @@ func TestStatisticsRepo_GetChallengeDetailStats_Success(t *testing.T) {
 	_, err := f.Pool.Exec(ctx, "UPDATE challenges SET solve_count = 1 WHERE id = $1", chall.ID)
 	require.NoError(t, err)
 
-	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID)
+	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID, nil)
 	require.NoError(t, err)
 	require.NotNil(t, stats)
 	assert.Equal(t, chall.ID, stats.ID)
@@ -158,9 +158,9 @@ func TestStatisticsRepo_GetChallengeDetailStats_NotFound(t *testing.T) {
 	f := NewTestFixture(pool.Pool)
 	ctx := context.Background()
 
-	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New())
+	stats, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, uuid.New(), nil)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, stats)
 }
 
@@ -172,7 +172,7 @@ func TestStatisticsRepo_GetChallengeDetailStats_Error_CancelledContext(t *testin
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID)
+	_, err := f.StatisticsRepo.GetChallengeDetailStats(ctx, chall.ID, nil)
 	require.Error(t, err)
 }
 
@@ -236,7 +236,7 @@ func TestStatisticsRepo_GetSolveMatrix_Success(t *testing.T) {
 	chall := f.CreateChallenge(t, uuid.New().String(), 100)
 	f.CreateSolve(t, user.ID, team.ID, chall.ID)
 
-	matrix, err := f.StatisticsRepo.GetSolveMatrix(ctx)
+	matrix, err := f.StatisticsRepo.GetSolveMatrix(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, matrix)
 
@@ -262,6 +262,141 @@ func TestStatisticsRepo_GetSolveMatrix_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetSolveMatrix(ctx)
+	_, err := f.StatisticsRepo.GetSolveMatrix(ctx, nil)
 	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetChallengeSolvePercentages(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "pct")
+	chall := f.CreateChallenge(t, "pct_ch", 100)
+	f.CreateSolve(t, user.ID, team.ID, chall.ID)
+
+	result, err := f.StatisticsRepo.GetChallengeSolvePercentages(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	found := false
+
+	for _, r := range result {
+		if r.ID == chall.ID {
+			assert.GreaterOrEqual(t, r.SolveCount, 1)
+
+			found = true
+
+			break
+		}
+	}
+
+	assert.True(t, found, "challenge should appear in solve percentages")
+}
+
+func TestStatisticsRepo_GetChallengeSolvePercentages_CancelledContext(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetChallengeSolvePercentages(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetScoreDistribution(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "dist")
+	chall := f.CreateChallenge(t, "dist_ch", 200)
+	f.CreateSolve(t, user.ID, team.ID, chall.ID)
+
+	buckets, err := f.StatisticsRepo.GetScoreDistribution(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, buckets)
+	// at least one non-zero bucket for the team that solved
+	total := 0
+
+	for _, b := range buckets {
+		total += b.Count
+	}
+
+	assert.GreaterOrEqual(t, total, 1)
+}
+
+func TestStatisticsRepo_GetScoreDistribution_CancelledContext(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetScoreDistribution(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetSubmissionTimeSeries(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "ts")
+	chall := f.CreateChallenge(t, "ts_ch", 100)
+
+	// Insert a submission row directly
+	_, err := f.Pool.Exec(ctx,
+		"INSERT INTO submissions (id, user_id, team_id, challenge_id, submitted_flag, is_correct, submission_type) VALUES ($1, $2, $3, $4, $5, TRUE, 'correct')",
+		uuid.New(), user.ID, team.ID, chall.ID, "FLAG{test}",
+	)
+	require.NoError(t, err)
+
+	series, err := f.StatisticsRepo.GetSubmissionTimeSeries(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, series)
+	assert.GreaterOrEqual(t, series.TotalCorrect+series.TotalIncorrect, 1)
+}
+
+func TestStatisticsRepo_GetSubmissionTimeSeries_CancelledContext(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := f.StatisticsRepo.GetSubmissionTimeSeries(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestStatisticsRepo_GetSubmissionTimeSeriesByType(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "tstype")
+	chall := f.CreateChallenge(t, "tstype_ch", 100)
+
+	_, err := f.Pool.Exec(ctx,
+		"INSERT INTO submissions (id, user_id, team_id, challenge_id, submitted_flag, is_correct, submission_type) VALUES ($1, $2, $3, $4, $5, FALSE, 'incorrect')",
+		uuid.New(), user.ID, team.ID, chall.ID, "WRONG{flag}",
+	)
+	require.NoError(t, err)
+
+	series, err := f.StatisticsRepo.GetSubmissionTimeSeriesByType(ctx, false, nil)
+	require.NoError(t, err)
+	require.NotNil(t, series)
+	// should have at least one data point for the wrong submission we just inserted
+	total := 0
+
+	for _, pt := range series {
+		total += pt.Count
+	}
+
+	assert.GreaterOrEqual(t, total, 1)
 }

@@ -13,11 +13,18 @@ import (
 	vault "github.com/hashicorp/vault/api"
 )
 
+const (
+	vaultRetryMaxElapsed      = 30 * time.Second
+	vaultRetryInitialInterval = 500 * time.Millisecond
+)
+
+// Client wraps the HashiCorp Vault API client with a configured KV v2 mount path.
 type Client struct {
 	client    *vault.Client
 	mountPath string
 }
 
+// New creates a Client pointed at addr, authenticated with token, using the default "secret" KV mount.
 func New(
 	addr string,
 	token string,
@@ -25,6 +32,7 @@ func New(
 	return NewWithMount(addr, token, "secret")
 }
 
+// NewWithMount creates a Client with an explicit KV v2 mount path.
 func NewWithMount(
 	addr string,
 	token string,
@@ -35,7 +43,7 @@ func NewWithMount(
 
 	client, err := vault.NewClient(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create vault client: %w", err)
+		return nil, fmt.Errorf("vault.NewWithMount: %w", err)
 	}
 
 	client.SetToken(token)
@@ -46,20 +54,22 @@ func NewWithMount(
 	}, nil
 }
 
+// NewFromEnv creates a Client from VAULT_ADDR and VAULT_TOKEN environment variables.
 func NewFromEnv() (*Client, error) {
 	addr := os.Getenv("VAULT_ADDR")
 	if addr == "" {
-		return nil, fmt.Errorf("VAULT_ADDR environment variable is not set")
+		return nil, fmt.Errorf("vault.NewFromEnv: VAULT_ADDR environment variable is not set")
 	}
 
 	token := os.Getenv("VAULT_TOKEN")
 	if token == "" {
-		return nil, fmt.Errorf("VAULT_TOKEN environment variable is not set")
+		return nil, fmt.Errorf("vault.NewFromEnv: VAULT_TOKEN environment variable is not set")
 	}
 
 	return NewWithMount(addr, token, "secret")
 }
 
+// GetSecret reads all key-value pairs from a KV v2 secret at secretPath, retrying on transient errors.
 func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]any, error) {
 	kv := c.client.KVv2(c.mountPath)
 
@@ -69,14 +79,14 @@ func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]a
 		secret, err := kv.Get(ctx, secretPath)
 		if err != nil {
 			if isVaultPermanentError(err) {
-				return backoff.Permanent(fmt.Errorf("failed to read secret from vault: %w", err))
+				return backoff.Permanent(fmt.Errorf("vault.GetSecret: %w", err))
 			}
 
-			return fmt.Errorf("failed to read secret from vault: %w", err)
+			return fmt.Errorf("vault.GetSecret: %w", err)
 		}
 
 		if secret == nil || secret.Data == nil {
-			return backoff.Permanent(fmt.Errorf("secret not found at path: %s/%s", c.mountPath, secretPath))
+			return backoff.Permanent(fmt.Errorf("vault.GetSecret: secret not found at path: %s/%s", c.mountPath, secretPath))
 		}
 
 		data = secret.Data
@@ -85,8 +95,8 @@ func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]a
 	}
 
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 30 * time.Second
-	bo.InitialInterval = 500 * time.Millisecond
+	bo.MaxElapsedTime = vaultRetryMaxElapsed
+	bo.InitialInterval = vaultRetryInitialInterval
 
 	err := backoff.Retry(operation, backoff.WithContext(bo, ctx))
 	if err != nil {
@@ -96,6 +106,9 @@ func (c *Client) GetSecret(ctx context.Context, secretPath string) (map[string]a
 	return data, nil
 }
 
+// isVaultPermanentError returns true for errors that should not be retried.
+// Uses two strategies: substring matching on status code strings in the error message,
+// and errors.As on *vault.ResponseError to check the HTTP status code directly.
 func isVaultPermanentError(err error) bool {
 	if err == nil {
 		return false
@@ -131,6 +144,7 @@ func asVaultResponseError(err error, target **vault.ResponseError) bool {
 	return false
 }
 
+// GetString retrieves a single string value identified by key from the secret at secretPath.
 func (c *Client) GetString(ctx context.Context, secretPath, key string) (string, error) {
 	data, err := c.GetSecret(ctx, secretPath)
 	if err != nil {
@@ -139,7 +153,7 @@ func (c *Client) GetString(ctx context.Context, secretPath, key string) (string,
 
 	value, ok := data[key].(string)
 	if !ok {
-		return "", fmt.Errorf("key %s not found or not a string in path %s/%s", key, c.mountPath, secretPath)
+		return "", fmt.Errorf("vault.GetString: key %s not found or not a string in path %s/%s", key, c.mountPath, secretPath)
 	}
 
 	return value, nil

@@ -13,7 +13,7 @@ import (
 
 // POST /challenges/{challengeID}/comments + GET /challenges/{challengeID}/comments: allowed only after competition ended.
 func TestComment_CreateAndList_Success(t *testing.T) {
-	// Sequential: mutates global competition state; parallel tests could repopulate Redis cache with "active".
+	// Sequential: mutates global competition state; parallel tests could repopulate Redis cache with "active"
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_ok_" + helper.UID())
@@ -66,7 +66,7 @@ func TestComment_Create_Forbidden_WhenActive(t *testing.T) {
 
 // DELETE /comments/{id}: author deletes own comment.
 func TestComment_Delete_Success(t *testing.T) {
-	// Sequential: mutates global competition state.
+	// Sequential: mutates global competition state
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
 	_, _, tokenAdmin := h.RegisterAdmin("adm_comments_del_" + helper.UID())

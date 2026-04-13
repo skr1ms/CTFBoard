@@ -22,6 +22,10 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get fields by entity type
     tags:
       - Fields

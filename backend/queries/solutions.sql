@@ -1,5 +1,5 @@
 -- name: GetSolutionByChallengeID :one
-SELECT * FROM solutions WHERE challenge_id = $1;
+SELECT id, challenge_id, content FROM solutions WHERE challenge_id = $1;
 
 -- name: GetAllSolutions :many
 SELECT id, challenge_id, content FROM solutions ORDER BY challenge_id;
@@ -8,7 +8,7 @@ SELECT id, challenge_id, content FROM solutions ORDER BY challenge_id;
 INSERT INTO solutions (challenge_id, content)
 VALUES ($1, $2)
 ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content
-RETURNING *;
+RETURNING id, challenge_id, content;
 
 -- name: DeleteSolution :exec
 DELETE FROM solutions WHERE challenge_id = $1;
@@ -29,9 +29,3 @@ WHERE c.state IN ('visible', 'locked')
       AND sv.banned_team_id IS NULL AND sv.banned_user_id IS NULL
 )
 ORDER BY c.category, c.title;
-
--- name: GetWriteupFilesByIDs :many
-SELECT * FROM files
-WHERE type = 'writeup'
-  AND challenge_id = ANY($1::uuid[])
-ORDER BY challenge_id, created_at;

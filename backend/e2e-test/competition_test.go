@@ -72,7 +72,7 @@ func TestCompetition_UpdateAndEnforce(t *testing.T) {
 	h.SubmitFlag(tokenUser, challengeID, "FLAG{comp}", http.StatusOK)
 }
 
-// GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.).
+// GET /admin/competition: admin gets full competition config (name, start_time, end_time, freeze_time, etc.)
 func TestCompetition_Admin_Get(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())

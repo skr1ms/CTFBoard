@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -16,7 +14,7 @@ func FromNotification(n *domain.Notification) openapi.NotificationResponse {
 		Content:   new(n.Content),
 		Type:      new(string(n.Type)),
 		IsPinned:  new(n.IsPinned),
-		CreatedAt: new(n.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&n.CreatedAt),
 	}
 }
 
@@ -31,7 +29,7 @@ func FromUserNotification(un *domain.UserNotification) openapi.UserNotificationR
 		Content:   new(un.Content),
 		Type:      new(string(un.Type)),
 		IsRead:    new(un.IsRead),
-		CreatedAt: new(un.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&un.CreatedAt),
 	}
 }
 

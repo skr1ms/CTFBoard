@@ -29,32 +29,30 @@ func (q *Queries) BanUser(ctx context.Context, arg BanUserParams) (uuid.UUID, er
 	return id, err
 }
 
-const clearUserAvatarURL = `-- name: ClearUserAvatarURL :one
-UPDATE users SET avatar_url = NULL WHERE id = $1 RETURNING avatar_url
+const clearUserAvatarURL = `-- name: ClearUserAvatarURL :exec
+UPDATE users SET avatar_url = NULL WHERE id = $1
 `
 
-func (q *Queries) ClearUserAvatarURL(ctx context.Context, id uuid.UUID) (*string, error) {
-	row := q.db.QueryRow(ctx, clearUserAvatarURL, id)
-	var avatar_url *string
-	err := row.Scan(&avatar_url)
-	return avatar_url, err
+func (q *Queries) ClearUserAvatarURL(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearUserAvatarURL, id)
+	return err
 }
 
 const countSearchUsers = `-- name: CountSearchUsers :one
-SELECT COUNT(*)
+SELECT COUNT(*)::bigint
 FROM users
 WHERE ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
 `
 
 func (q *Queries) CountSearchUsers(ctx context.Context, search *string) (int64, error) {
 	row := q.db.QueryRow(ctx, countSearchUsers, search)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSearchUsersByIP = `-- name: CountSearchUsersByIP :one
-SELECT COUNT(DISTINCT u.id)
+SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1
@@ -62,9 +60,9 @@ WHERE t.ip = $1
 
 func (q *Queries) CountSearchUsersByIP(ctx context.Context, ip string) (int64, error) {
 	row := q.db.QueryRow(ctx, countSearchUsersByIP, ip)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const createUser = `-- name: CreateUser :exec
@@ -77,8 +75,8 @@ type CreateUserParams struct {
 	Username     string             `json:"username"`
 	Email        string             `json:"email"`
 	PasswordHash string             `json:"password_hash"`
-	Role         *string            `json:"role"`
-	IsVerified   *bool              `json:"is_verified"`
+	Role         string             `json:"role"`
+	IsVerified   bool               `json:"is_verified"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -93,35 +91,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.CreatedAt,
 	)
 	return err
-}
-
-const createUserReturningID = `-- name: CreateUserReturningID :one
-INSERT INTO users (username, email, password_hash, role, is_verified, created_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id
-`
-
-type CreateUserReturningIDParams struct {
-	Username     string             `json:"username"`
-	Email        string             `json:"email"`
-	PasswordHash string             `json:"password_hash"`
-	Role         *string            `json:"role"`
-	IsVerified   *bool              `json:"is_verified"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) CreateUserReturningID(ctx context.Context, arg CreateUserReturningIDParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createUserReturningID,
-		arg.Username,
-		arg.Email,
-		arg.PasswordHash,
-		arg.Role,
-		arg.IsVerified,
-		arg.CreatedAt,
-	)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
 }
 
 const deleteUser = `-- name: DeleteUser :exec
@@ -546,7 +515,7 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (uuid.UUID, error
 	return id, err
 }
 
-const updatePassword = `-- name: UpdatePassword :exec
+const updatePassword = `-- name: UpdatePassword :execrows
 UPDATE users SET password_hash = $2 WHERE id = $1
 `
 
@@ -555,12 +524,15 @@ type UpdatePasswordParams struct {
 	PasswordHash string    `json:"password_hash"`
 }
 
-func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
-	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
-	return err
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const updateUserAdmin = `-- name: UpdateUserAdmin :exec
+const updateUserAdmin = `-- name: UpdateUserAdmin :execrows
 UPDATE users SET
     username = COALESCE($2, username),
     email = COALESCE($3, email),
@@ -579,8 +551,8 @@ type UpdateUserAdminParams struct {
 	PasswordHash *string   `json:"password_hash"`
 }
 
-func (q *Queries) UpdateUserAdmin(ctx context.Context, arg UpdateUserAdminParams) error {
-	_, err := q.db.Exec(ctx, updateUserAdmin,
+func (q *Queries) UpdateUserAdmin(ctx context.Context, arg UpdateUserAdminParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUserAdmin,
 		arg.ID,
 		arg.Username,
 		arg.Email,
@@ -588,7 +560,10 @@ func (q *Queries) UpdateUserAdmin(ctx context.Context, arg UpdateUserAdminParams
 		arg.IsVerified,
 		arg.PasswordHash,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :exec
@@ -605,7 +580,7 @@ func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarU
 	return err
 }
 
-const updateUserProfile = `-- name: UpdateUserProfile :exec
+const updateUserProfile = `-- name: UpdateUserProfile :execrows
 UPDATE users SET
     username = COALESCE($2, username),
     email = COALESCE($3, email),
@@ -620,14 +595,17 @@ type UpdateUserProfileParams struct {
 	PasswordHash *string   `json:"password_hash"`
 }
 
-func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
-	_, err := q.db.Exec(ctx, updateUserProfile,
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUserProfile,
 		arg.ID,
 		arg.Username,
 		arg.Email,
 		arg.PasswordHash,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateUserTeamID = `-- name: UpdateUserTeamID :one
@@ -666,7 +644,7 @@ UPDATE users SET is_verified = $2, verified_at = $3 WHERE id = $1 RETURNING id
 
 type UpdateUserVerifiedParams struct {
 	ID         uuid.UUID          `json:"id"`
-	IsVerified *bool              `json:"is_verified"`
+	IsVerified bool               `json:"is_verified"`
 	VerifiedAt pgtype.Timestamptz `json:"verified_at"`
 }
 

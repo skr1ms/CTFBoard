@@ -3,7 +3,7 @@ name: Feature Request
 about: Suggest a new feature, improvement, or enhancement for AstroCTFb
 title: "[Feature]: "
 labels: enhancement
-assignees: ''
+assignees: ""
 ---
 
 ## Feature Description

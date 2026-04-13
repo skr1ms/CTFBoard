@@ -10,7 +10,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// Get tags list
 // (GET /tags).
 func (h *Server) GetTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := h.challenge.TagUC.GetAll(r.Context())
@@ -21,7 +20,6 @@ func (h *Server) GetTags(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromTagList(tags))
 }
 
-// Create tag
 // (POST /admin/tags).
 func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.CreateTagRequest](
@@ -48,7 +46,6 @@ func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderCreated(w, r, response.FromTag(tag))
 }
 
-// Update tag
 // (PUT /admin/tags/{ID}).
 func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, ID string) {
 	tagIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -80,7 +77,6 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, ID strin
 	httputil.RenderOK(w, r, response.FromTag(tag))
 }
 
-// Delete tag
 // (DELETE /admin/tags/{ID}).
 func (h *Server) DeleteAdminTagsID(w http.ResponseWriter, r *http.Request, ID string) {
 	tagIDParsed, ok := httputil.ParseUUID(w, r, ID)

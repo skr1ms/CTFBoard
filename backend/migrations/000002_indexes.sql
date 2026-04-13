@@ -10,12 +10,18 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_team_created_at ON submi
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_name_trgm ON teams USING gin (name gin_trgm_ops);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_was_in_banned_team ON users (was_in_banned_team) WHERE was_in_banned_team = true;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_banned_user_id ON submissions (banned_user_id) WHERE banned_user_id IS NOT NULL;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_team_challenge ON submissions (team_id, challenge_id) WHERE banned_team_id IS NULL AND banned_user_id IS NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_submissions_team_challenge_window ON submissions (team_id, challenge_id, created_at DESC) WHERE banned_team_id IS NULL AND banned_user_id IS NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_solves_challenge_active ON solves (challenge_id, solved_at) WHERE banned_team_id IS NULL AND banned_user_id IS NULL;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_global_pinned_created ON notifications (is_global, is_pinned, created_at DESC) WHERE is_global = TRUE;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_notifications_unread ON user_notifications (user_id) WHERE is_read = FALSE;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_solves_user_solved_at ON solves (user_id, solved_at DESC) WHERE banned_team_id IS NULL AND banned_user_id IS NULL;
 
 -- +goose Down
+DROP INDEX CONCURRENTLY IF EXISTS idx_solves_user_solved_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_user_notifications_unread;
 DROP INDEX CONCURRENTLY IF EXISTS idx_notifications_global_pinned_created;
-DROP INDEX CONCURRENTLY IF EXISTS idx_submissions_team_challenge;
+DROP INDEX CONCURRENTLY IF EXISTS idx_solves_challenge_active;
+DROP INDEX CONCURRENTLY IF EXISTS idx_submissions_team_challenge_window;
 DROP INDEX CONCURRENTLY IF EXISTS idx_solves_team_scoreboard;
 DROP INDEX CONCURRENTLY IF EXISTS idx_awards_team_scoreboard;
 DROP INDEX CONCURRENTLY IF EXISTS idx_submissions_ip_fail;

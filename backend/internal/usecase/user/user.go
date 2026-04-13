@@ -14,18 +14,23 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+// registrationAdvisoryKey derives a PostgreSQL advisory lock key from a prefix+value
+// pair using FNV-1a 64-bit hash, capped to int64 range. Used to serialize concurrent
+// registrations for the same username or email and prevent TOCTOU races.
 func registrationAdvisoryKey(prefix, value string) int64 {
 	h := fnv.New64a()
 	h.Write([]byte(prefix))
@@ -36,13 +41,13 @@ func registrationAdvisoryKey(prefix, value string) int64 {
 	return int64(u)
 }
 
-// FieldValidator validates custom field values (e.g. on registration).
+// FieldValidator validates custom field values (e.g. on registration)
 // Implemented by *settings.FieldValidator.
 type FieldValidator interface {
 	ValidateValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]string) error
 }
 
-// EmailVerificationSender sends verification email (e.g. usecase.EmailUseCase).
+// EmailVerificationSender sends verification email (e.g. usecase.EmailUseCase)
 // Optional; when set, used to send verification after email change in UpdateProfile.
 type EmailVerificationSender interface {
 	SendVerificationEmail(ctx context.Context, user *domain.User) error
@@ -60,12 +65,6 @@ type SoloTeamCreator interface {
 	CreateSoloTeamForNewUser(ctx context.Context, userID uuid.UUID) (*domain.Team, error)
 }
 
-// UserCacheInvalidator evicts a cached user entry so ban/unban takes effect immediately.
-// Implemented by *cache.UserCacheService.
-type UserCacheInvalidator interface {
-	InvalidateUser(ctx context.Context, userID uuid.UUID)
-}
-
 // PersonalNotificationSender sends a personal notification to a user. Optional; used e.g. to notify team captain when team falls below MinTeamSize after a ban.
 type PersonalNotificationSender interface {
 	CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error)
@@ -73,8 +72,9 @@ type PersonalNotificationSender interface {
 
 type UserUseCase struct {
 	deps      UserDeps
-	bcryptSem chan struct{} // limits concurrent bcrypt to avoid CPU saturation
-	dummyHash []byte        // pre-computed hash used for constant-time login when user is not found
+	bcryptSem chan struct{}      // limits concurrent bcrypt to avoid CPU saturation
+	dummyHash []byte             // pre-computed hash used for constant-time login when user is not found
+	profileSF singleflight.Group // deduplicates concurrent GetProfile calls for the same userID
 }
 
 type UserDeps struct {
@@ -95,15 +95,20 @@ type UserDeps struct {
 	CompRepo                   repo.CompetitionRepository
 	SoloTeamCreator            SoloTeamCreator
 	Logger                     logkit.Logger
-	UserCache                  UserCacheInvalidator
+	UserCache                  cache.UserCacheInvalidator
 	ScoreboardCache            cache.ScoreboardCacheInvalidator
 	ChallengeListCache         cache.ChallengeListCacheInvalidator
 	TeamCache                  *cachekit.Cache
 	PersonalNotificationSender PersonalNotificationSender
+	CompParamUC                usecase.CompetitionParamUseCase
+	BcryptCost                 int // 0 = bcrypt.DefaultCost; set to bcrypt.MinCost in tests to avoid race-detector slowdown
 }
 
 var _ usecase.UserUseCase = (*UserUseCase)(nil)
 
+// NewUserUseCase builds a UserUseCase: creates a bcrypt semaphore sized to NumCPU*2
+// to cap concurrent bcrypt operations, and pre-computes a dummy hash used in Login
+// for constant-time responses when the username does not exist (timing-attack mitigation).
 func NewUserUseCase(deps UserDeps) *UserUseCase {
 	n := max(runtime.NumCPU()*2, 2)
 
@@ -111,7 +116,7 @@ func NewUserUseCase(deps UserDeps) *UserUseCase {
 		deps.Logger = logkit.Noop()
 	}
 
-	dummy, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-pad-astroctfb"), bcrypt.DefaultCost)
+	dummy, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-pad-astroctfb"), deps.bcryptCost())
 	if err != nil {
 		deps.Logger.Warn("UserUseCase - dummy bcrypt hash failed, using fallback")
 
@@ -129,12 +134,12 @@ const (
 
 func validateCustomFieldsLimits(fields map[string]string) error {
 	if len(fields) > maxCustomFields {
-		return httperr.NewValidationErrorf("too many custom fields (max %d)", maxCustomFields)
+		return apperr.NewValidationErrorf("too many custom fields (max %d)", maxCustomFields)
 	}
 
 	for k, v := range fields {
 		if len(k) > maxCustomFieldKey || len(v) > maxCustomFieldVal {
-			return httperr.NewValidationErrorf("custom field key or value too long")
+			return apperr.NewValidationErrorf("custom field key or value too long")
 		}
 	}
 
@@ -166,6 +171,15 @@ func sanitizeCustomFields(fields map[string]string) map[string]string {
 	return out
 }
 
+// Register creates a new user account. It normalizes the email address, enforces
+// custom-field limits and validates field values against the configured schema, then
+// hashes the password under a semaphore to cap concurrent bcrypt work. Inside a
+// transaction it acquires two PostgreSQL advisory locks (one per unique key) in a
+// deterministic order to prevent TOCTOU races between the uniqueness check and the
+// INSERT. After the user row is created it persists any custom field values and, when
+// the competition is in solo_only mode, auto-creates a solo team within the same
+// transaction so a rollback on failure leaves no orphaned rows. A verification email
+// is dispatched outside the transaction on a best-effort basis.
 func (uc *UserUseCase) Register(ctx context.Context, username, email, password string, customFields map[string]string) (*domain.User, error) {
 	email = normalizeEmail(email)
 
@@ -182,7 +196,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 
 	defer func() { <-uc.bcryptSem }()
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), uc.bcryptCost())
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - GenerateFromPassword: %w", err)
 	}
@@ -202,7 +216,7 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 			}
 
 			if !settings.RegistrationOpen {
-				return httperr.ErrRegistrationClosed
+				return apperr.ErrRegistrationClosed
 			}
 		}
 
@@ -242,22 +256,10 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 			}
 		}
 		// Solo team creation is inside the transaction so that a failure rolls
-		// back the entire registration rather than leaving a user without a team.
-		// CreateSoloTeamForNewUser internally calls TM.Run which reuses this tx.
-		if uc.deps.CompRepo != nil && uc.deps.SoloTeamCreator != nil {
-			comp, err := uc.deps.CompRepo.Get(ctx)
-			if err != nil {
-				return fmt.Errorf("UserUseCase - Register - CompRepo.Get: %w", err)
-			}
-
-			if comp.Mode == domain.ModeSoloOnly {
-				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - Register - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
-				}
-
-				user.TeamID = &team.ID
-			}
+		// back the entire registration rather than leaving a user without a team
+		// CreateSoloTeamForNewUser internally calls TM.Run which reuses this tx
+		if err := ensureSoloTeamIfRequired(ctx, uc.deps.CompRepo, uc.deps.SoloTeamCreator, user); err != nil {
+			return fmt.Errorf("UserUseCase - Register - ensureSoloTeamIfRequired: %w", err)
 		}
 
 		return nil
@@ -269,6 +271,10 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	return user, nil
 }
 
+// registerValidateCustomFields parses the string-keyed custom field map into
+// uuid.UUID-keyed values (returning ErrValidation on a malformed key) and then
+// delegates value validation to FieldValidator. No-ops when customFields is
+// empty or FieldValidator is not wired.
 func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customFields map[string]string) error {
 	if len(customFields) == 0 || uc.deps.FieldValidator == nil {
 		return nil
@@ -279,7 +285,7 @@ func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customF
 	for k, v := range customFields {
 		id, err := uuid.Parse(k)
 		if err != nil {
-			return httperr.NewValidationErrorf("invalid custom field key")
+			return apperr.NewValidationErrorf("invalid custom field key")
 		}
 
 		fieldValues[id] = v
@@ -293,28 +299,38 @@ func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customF
 	return nil
 }
 
+// registerCheckUniqueness verifies that neither the username nor the email is already
+// taken. Both checks run sequentially inside the registration advisory lock so the
+// uniqueness window is as small as possible.
 func (uc *UserUseCase) registerCheckUniqueness(ctx context.Context, username, email string) error {
 	existing, err := uc.deps.UserRepo.GetByUsername(ctx, username)
 	if err == nil && existing != nil {
-		return fmt.Errorf("UserUseCase - registerCheckUniqueness - username taken: %w", httperr.ErrUserAlreadyExists)
+		return fmt.Errorf("UserUseCase - registerCheckUniqueness - username taken: %w", apperr.ErrUserAlreadyExists)
 	}
 
-	if err != nil && !errors.Is(err, httperr.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, apperr.ErrUserNotFound) {
 		return fmt.Errorf("UserUseCase - registerCheckUniqueness - UserRepo.GetByUsername: %w", err)
 	}
 
 	existing, err = uc.deps.UserRepo.GetByEmail(ctx, email)
 	if err == nil && existing != nil {
-		return fmt.Errorf("UserUseCase - registerCheckUniqueness - email taken: %w", httperr.ErrUserAlreadyExists)
+		return fmt.Errorf("UserUseCase - registerCheckUniqueness - email taken: %w", apperr.ErrUserAlreadyExists)
 	}
 
-	if err != nil && !errors.Is(err, httperr.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, apperr.ErrUserNotFound) {
 		return fmt.Errorf("UserUseCase - registerCheckUniqueness - UserRepo.GetByEmail: %w", err)
 	}
 
 	return nil
 }
 
+// Login authenticates a user by email and password. It normalizes the email,
+// checks whether the address is locked out due to previous failed attempts, and
+// looks up the user. When the user is not found it still executes a dummy bcrypt
+// comparison under the CPU semaphore so that the response time does not leak
+// whether the address exists (timing-attack mitigation). Ban status and an
+// OAuth-only sentinel password are checked before the real hash comparison
+// On success the failed-login counter is cleared and a JWT token pair is issued.
 func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtkit.TokenPair, error) {
 	email = normalizeEmail(email)
 
@@ -325,13 +341,13 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtk
 		}
 
 		if locked {
-			return nil, httperr.ErrTooManyRequests()
+			return nil, apperr.ErrTooManyRequests
 		}
 	}
 
 	user, err := uc.deps.UserRepo.GetByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, httperr.ErrUserNotFound) {
+		if errors.Is(err, apperr.ErrUserNotFound) {
 			func() {
 				uc.bcryptSem <- struct{}{}
 
@@ -341,7 +357,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtk
 			}()
 			uc.recordFailedLogin(ctx, email)
 
-			return nil, httperr.ErrInvalidCredentials
+			return nil, apperr.ErrInvalidCredentials
 		}
 
 		return nil, fmt.Errorf("UserUseCase - Login - UserRepo.GetByEmail: %w", err)
@@ -350,19 +366,19 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtk
 	if user.IsBanned {
 		uc.recordFailedLogin(ctx, email)
 
-		return nil, httperr.ErrInvalidCredentials
+		return nil, apperr.ErrInvalidCredentials
 	}
 
 	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
 		uc.recordFailedLogin(ctx, email)
 
-		return nil, httperr.ErrInvalidCredentials
+		return nil, apperr.ErrInvalidCredentials
 	}
 
 	if user.PasswordHash == "" || user.PasswordHash == domain.OAuthOnlyPasswordSentinel {
 		uc.recordFailedLogin(ctx, email)
 
-		return nil, httperr.ErrInvalidCredentials
+		return nil, apperr.ErrInvalidCredentials
 	}
 
 	uc.bcryptSem <- struct{}{}
@@ -373,7 +389,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtk
 	if err != nil {
 		uc.recordFailedLogin(ctx, email)
 
-		return nil, httperr.ErrInvalidCredentials
+		return nil, apperr.ErrInvalidCredentials
 	}
 
 	uc.clearFailedLogin(ctx, email)
@@ -407,75 +423,89 @@ func (uc *UserUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.User,
 	return user, nil
 }
 
+// GetProfile fetches user, solves, and competition settings in parallel via
+// errgroup, then filters the solve list to only include entries at or before
+// the freeze time when the competition is currently frozen.
 func (uc *UserUseCase) GetProfile(ctx context.Context, userID uuid.UUID) (*usecase.UserProfile, error) {
-	var (
-		user   *domain.User
-		solves []*domain.Solve
-		comp   *domain.Competition
-	)
+	v, err, _ := uc.profileSF.Do(userID.String(), func() (any, error) {
+		sfCtx := context.WithoutCancel(ctx)
 
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var err error
+		var (
+			user   *domain.User
+			solves []*domain.Solve
+			comp   *domain.Competition
+		)
 
-		user, err = uc.deps.UserRepo.GetByID(gCtx, userID)
-		if err != nil {
-			return fmt.Errorf("UserUseCase - GetProfile - UserRepo.GetByID: %w", err)
-		}
+		g, gCtx := errgroup.WithContext(sfCtx)
+		g.Go(func() error {
+			var err error
 
-		return nil
-	})
-	g.Go(func() error {
-		var err error
-
-		solves, err = uc.deps.SolveRepo.GetByUserID(gCtx, userID)
-		if err != nil {
-			return fmt.Errorf("UserUseCase - GetProfile - SolveRepo.GetByUserID: %w", err)
-		}
-
-		return nil
-	})
-	g.Go(func() error {
-		if uc.deps.CompRepo == nil {
-			return nil
-		}
-
-		var err error
-
-		comp, err = uc.deps.CompRepo.Get(gCtx)
-		if err != nil {
-			return fmt.Errorf("UserUseCase - GetProfile - CompRepo.Get: %w", err)
-		}
-
-		return nil
-	})
-
-	err := g.Wait()
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - GetProfile - errgroup.Wait: %w", err)
-	}
-
-	if comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		freezeAt := *comp.FreezeTime
-		filtered := solves[:0]
-
-		for _, s := range solves {
-			if !s.SolvedAt.After(freezeAt) {
-				filtered = append(filtered, s)
+			user, err = uc.deps.UserRepo.GetByID(gCtx, userID)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - GetProfile - UserRepo.GetByID: %w", err)
 			}
+
+			return nil
+		})
+		g.Go(func() error {
+			var err error
+
+			solves, err = uc.deps.SolveRepo.GetByUserID(gCtx, userID)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - GetProfile - SolveRepo.GetByUserID: %w", err)
+			}
+
+			return nil
+		})
+		g.Go(func() error {
+			if uc.deps.CompRepo == nil {
+				return nil
+			}
+
+			var err error
+
+			comp, err = uc.deps.CompRepo.Get(gCtx)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - GetProfile - CompRepo.Get: %w", err)
+			}
+
+			return nil
+		})
+
+		if err := g.Wait(); err != nil {
+			return nil, fmt.Errorf("UserUseCase - GetProfile - errgroup.Wait: %w", err)
 		}
 
-		solves = filtered
+		if comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
+			freezeAt := *comp.FreezeTime
+			filtered := solves[:0]
+
+			for _, s := range solves {
+				if !s.SolvedAt.After(freezeAt) {
+					filtered = append(filtered, s)
+				}
+			}
+
+			solves = filtered
+		}
+
+		user.PasswordHash = ""
+
+		return &usecase.UserProfile{
+			User:   user,
+			Solves: solves,
+		}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	user.PasswordHash = ""
-
-	return &usecase.UserProfile{
-		User:   user,
-		Solves: solves,
-	}, nil
+	return v.(*usecase.UserProfile), nil
 }
 
+// ListUsers returns a paginated user list inside a read-only transaction.
+// When field=="ip" the search targets tracked IP addresses; otherwise it
+// performs a standard username/email search.
 func (uc *UserUseCase) ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*usecase.Paginated[*domain.User], error) {
 	offset := (page - 1) * perPage
 
@@ -532,33 +562,7 @@ func (uc *UserUseCase) GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*
 		return nil, fmt.Errorf("UserUseCase - GetUserSolves - SolveRepo.GetByUserIDWithDetails: %w", err)
 	}
 
-	return uc.filterSolveDetailsByFreeze(ctx, solves)
-}
-
-func (uc *UserUseCase) filterSolveDetailsByFreeze(ctx context.Context, solves []*domain.SolveWithDetails) ([]*domain.SolveWithDetails, error) {
-	if uc.deps.CompRepo == nil {
-		return solves, nil
-	}
-
-	comp, err := uc.deps.CompRepo.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - filterSolveDetailsByFreeze - CompRepo.Get: %w", err)
-	}
-
-	if !comp.IsFreezeActive() || comp.FreezeTime == nil {
-		return solves, nil
-	}
-
-	freezeAt := *comp.FreezeTime
-	filtered := make([]*domain.SolveWithDetails, 0, len(solves))
-
-	for _, s := range solves {
-		if !s.SolvedAt.After(freezeAt) {
-			filtered = append(filtered, s)
-		}
-	}
-
-	return filtered, nil
+	return scoring.FilterSolveDetailsByFreezeFromRepo(ctx, uc.deps.CompRepo, solves)
 }
 
 func (uc *UserUseCase) GetUserFails(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
@@ -611,10 +615,10 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 	if username != nil && *username != currentUsername {
 		existing, err := uc.deps.UserRepo.GetByUsername(ctx, *username)
 		if err == nil && existing != nil {
-			return httperr.ErrUserAlreadyExists
+			return apperr.ErrUserAlreadyExists
 		}
 
-		if err != nil && !errors.Is(err, httperr.ErrUserNotFound) {
+		if err != nil && !errors.Is(err, apperr.ErrUserNotFound) {
 			return fmt.Errorf("UserUseCase - profileCheckUniqueness - UserRepo.GetByUsername: %w", err)
 		}
 	}
@@ -622,10 +626,10 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 	if email != nil && *email != currentEmail {
 		existing, err := uc.deps.UserRepo.GetByEmail(ctx, *email)
 		if err == nil && existing != nil {
-			return httperr.ErrUserAlreadyExists
+			return apperr.ErrUserAlreadyExists
 		}
 
-		if err != nil && !errors.Is(err, httperr.ErrUserNotFound) {
+		if err != nil && !errors.Is(err, apperr.ErrUserNotFound) {
 			return fmt.Errorf("UserUseCase - profileCheckUniqueness - UserRepo.GetByEmail: %w", err)
 		}
 	}
@@ -633,6 +637,16 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 	return nil
 }
 
+// UpdateProfile updates username, email, and/or password for the authenticated
+// user. When email or password is being changed, the caller must supply the
+// current password for re-verification (unless the account has no password hash,
+// i.e. OAuth-only). A new password hash is produced under the CPU semaphore
+// Inside a transaction the user row is locked, uniqueness is rechecked against
+// the latest state to prevent races, and the profile is updated; an email change
+// additionally marks the account as unverified. After the transaction commits a
+// verification email is sent on a best-effort basis, and a password change
+// triggers revocation of all existing JWTs except the current session so that
+// other devices are signed out.
 func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, currentPassword, newPassword *string) (*domain.User, error) {
 	if email != nil {
 		norm := normalizeEmail(*email)
@@ -646,12 +660,12 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 
 	if (newPassword != nil || email != nil) && current.PasswordHash != "" {
 		if currentPassword == nil {
-			return nil, httperr.ErrInvalidCredentials
+			return nil, apperr.ErrInvalidCredentials
 		}
 
 		err := bcrypt.CompareHashAndPassword([]byte(current.PasswordHash), []byte(*currentPassword))
 		if err != nil {
-			return nil, httperr.ErrInvalidCredentials
+			return nil, apperr.ErrInvalidCredentials
 		}
 	}
 
@@ -662,7 +676,7 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 
 		defer func() { <-uc.bcryptSem }()
 
-		hash, err := bcrypt.GenerateFromPassword([]byte(*newPassword), bcrypt.DefaultCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(*newPassword), uc.bcryptCost())
 		if err != nil {
 			return nil, fmt.Errorf("UserUseCase - UpdateProfile - GenerateFromPassword: %w", err)
 		}
@@ -677,7 +691,7 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 		if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
 			return fmt.Errorf("UserUseCase - UpdateProfile - UserRepo.Lock: %w", err)
 		}
-		// Re-fetch inside the transaction so uniqueness checks are consistent.
+		// Re-fetch inside the transaction so uniqueness checks are consistent
 		fresh, err := uc.deps.UserRepo.GetByID(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("UserUseCase - UpdateProfile - UserRepo.GetByID (tx): %w", err)
@@ -727,10 +741,10 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 func (uc *UserUseCase) GetMySubmissions(ctx context.Context, userID uuid.UUID, page, perPage int) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
 	result, err := usecase.FetchPage(ctx, page, perPage,
 		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-			return uc.deps.SubmissionRepo.GetByUser(ctx, userID, limit, offset)
+			return uc.deps.SubmissionRepo.GetByUser(ctx, userID, nil, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
-			return uc.deps.SubmissionRepo.CountByUser(ctx, userID)
+			return uc.deps.SubmissionRepo.CountByUser(ctx, userID, nil)
 		},
 	)
 	if err != nil {
@@ -738,4 +752,42 @@ func (uc *UserUseCase) GetMySubmissions(ctx context.Context, userID uuid.UUID, p
 	}
 
 	return result, nil
+}
+
+func (d UserDeps) bcryptCost() int {
+	if d.BcryptCost > 0 {
+		return d.BcryptCost
+	}
+
+	return bcrypt.DefaultCost
+}
+
+func (uc *UserUseCase) bcryptCost() int {
+	return uc.deps.bcryptCost()
+}
+
+// ensureSoloTeamIfRequired creates a solo team for user when the competition is in
+// solo-only mode. No-ops when compRepo or creator are nil.
+func ensureSoloTeamIfRequired(ctx context.Context, compRepo repo.CompetitionRepository, creator SoloTeamCreator, user *domain.User) error {
+	if compRepo == nil || creator == nil {
+		return nil
+	}
+
+	comp, err := compRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("ensureSoloTeamIfRequired - CompRepo.Get: %w", err)
+	}
+
+	if comp.Mode != domain.ModeSoloOnly {
+		return nil
+	}
+
+	team, err := creator.CreateSoloTeamForNewUser(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("ensureSoloTeamIfRequired - CreateSoloTeamForNewUser: %w", err)
+	}
+
+	user.TeamID = &team.ID
+
+	return nil
 }

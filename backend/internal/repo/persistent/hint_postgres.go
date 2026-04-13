@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type HintRepo struct {
@@ -74,26 +74,18 @@ func (r *HintRepo) Create(ctx context.Context, h *domain.Hint) error {
 }
 
 func (r *HintRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Hint, error) {
-	h, err := r.Q(ctx).GetHintByID(ctx, ID)
+	h, err := GetOrNotFound(func() (sqlc.Hint, error) { return r.Q(ctx).GetHintByID(ctx, ID) }, apperr.ErrHintNotFound, "HintRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrHintNotFound
-		}
-
-		return nil, fmt.Errorf("HintRepo - GetByID: %w", err)
+		return nil, err
 	}
 
 	return toDomainHint(hintRow{ID: h.ID, ChallengeID: h.ChallengeID, Title: h.Title, Content: h.Content, Cost: h.Cost, OrderIndex: h.OrderIndex}), nil
 }
 
 func (r *HintRepo) GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*domain.Hint, error) {
-	h, err := r.Q(ctx).GetHintByIDForUpdate(ctx, ID)
+	h, err := GetOrNotFound(func() (sqlc.Hint, error) { return r.Q(ctx).GetHintByIDForUpdate(ctx, ID) }, apperr.ErrHintNotFound, "HintRepo - GetByIDForUpdate")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrHintNotFound
-		}
-
-		return nil, fmt.Errorf("HintRepo - GetByIDForUpdate: %w", err)
+		return nil, err
 	}
 
 	return toDomainHint(hintRow{ID: h.ID, ChallengeID: h.ChallengeID, Title: h.Title, Content: h.Content, Cost: h.Cost, OrderIndex: h.OrderIndex}), nil
@@ -187,16 +179,11 @@ func toDomainHintUnlockFromBackup(u sqlc.HintUnlock) *domain.HintUnlock {
 }
 
 func (r *HintRepo) GetByTeamAndHint(ctx context.Context, teamID, hintID uuid.UUID) (*domain.HintUnlock, error) {
-	u, err := r.Q(ctx).GetHintUnlockByTeamAndHint(ctx, sqlc.GetHintUnlockByTeamAndHintParams{
-		TeamID: teamID,
-		HintID: hintID,
-	})
+	u, err := GetOrNotFound(func() (sqlc.GetHintUnlockByTeamAndHintRow, error) {
+		return r.Q(ctx).GetHintUnlockByTeamAndHint(ctx, sqlc.GetHintUnlockByTeamAndHintParams{TeamID: teamID, HintID: hintID})
+	}, apperr.ErrHintNotFound, "HintRepo - GetByTeamAndHint")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrHintNotFound
-		}
-
-		return nil, fmt.Errorf("HintRepo - GetByTeamAndHint: %w", err)
+		return nil, err
 	}
 
 	return toDomainHintUnlockFromRow(u.ID, u.HintID, u.TeamID, u.UnlockedAt), nil
@@ -225,7 +212,7 @@ func (r *HintRepo) GetAll(ctx context.Context, limit, offset int) ([]*domain.Hin
 		Offset: offset32,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("HintRepo - GetAll: %w", err)
+		return nil, fmt.Errorf("HintRepo - GetAll - scan: %w", err)
 	}
 
 	out := make([]*domain.HintUnlockWithDetails, 0, len(rows))
@@ -269,7 +256,7 @@ func (r *HintRepo) CreateUnlock(ctx context.Context, teamID, hintID uuid.UUID) e
 	})
 	if err != nil {
 		if pgutil.IsNoRows(err) {
-			return httperr.ErrHintAlreadyUnlocked
+			return apperr.ErrHintAlreadyUnlocked
 		}
 
 		return fmt.Errorf("HintRepo - CreateUnlock: %w", err)
@@ -334,16 +321,11 @@ func (r *HintRepo) GetAllUnlocksForBackup(ctx context.Context) ([]*domain.HintUn
 }
 
 func (r *HintRepo) GetByTeamAndHintForUpdate(ctx context.Context, teamID, hintID uuid.UUID) (*domain.HintUnlock, error) {
-	u, err := r.Q(ctx).GetHintUnlockByTeamAndHintForUpdate(ctx, sqlc.GetHintUnlockByTeamAndHintForUpdateParams{
-		TeamID: teamID,
-		HintID: hintID,
-	})
+	u, err := GetOrNotFound(func() (sqlc.GetHintUnlockByTeamAndHintForUpdateRow, error) {
+		return r.Q(ctx).GetHintUnlockByTeamAndHintForUpdate(ctx, sqlc.GetHintUnlockByTeamAndHintForUpdateParams{TeamID: teamID, HintID: hintID})
+	}, apperr.ErrHintNotFound, "HintRepo - GetByTeamAndHintForUpdate")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrHintNotFound
-		}
-
-		return nil, fmt.Errorf("HintRepo - GetByTeamAndHintForUpdate: %w", err)
+		return nil, err
 	}
 
 	return toDomainHintUnlockFromRow(u.ID, u.HintID, u.TeamID, u.UnlockedAt), nil

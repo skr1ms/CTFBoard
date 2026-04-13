@@ -8,15 +8,20 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-const maxAvatarSize = 5 << 20 // 5 MB
+const (
+	maxAvatarSize      = 5 << 20 // 5 MB
+	avatarCacheControl = "public, max-age=3600"
+)
 
 var validAvatarPath = regexp.MustCompile(`^(users|teams)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[a-f0-9]+_(full|thumb)\.webp$`)
 
+// (PUT /users/me/avatar).
 func (h *Server) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -34,12 +39,8 @@ func (h *Server) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !helper.RequireMultipartFile(w, r, h.OnError, "PutUsersMeAvatar", "FormFile", body.File.FileSize()) {
-		return
-	}
-
-	reader, err := body.File.Reader()
-	if h.OnError(w, r, err, "PutUsersMeAvatar", "OpenFile") {
+	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutUsersMeAvatar", &body.File)
+	if !ok {
 		return
 	}
 
@@ -56,12 +57,10 @@ func (h *Server) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, openapi.AvatarUploadResponse{
-		FullURL:  fullURL,
-		ThumbURL: thumbURL,
-	})
+	httputil.RenderOK(w, r, response.FromAvatarUpload(fullURL, thumbURL))
 }
 
+// (DELETE /users/me/avatar).
 func (h *Server) DeleteUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
@@ -73,18 +72,18 @@ func (h *Server) DeleteUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
+// (PUT /teams/me/avatar).
 func (h *Server) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	if user.TeamID == nil {
-		h.OnError(w, r, httperr.ErrUserNotInTeam, "PutTeamsMeAvatar", "TeamIDNil")
-
+	teamID, ok := helper.RequireTeamID(w, r, user, h.OnError, "PutTeamsMeAvatar")
+	if !ok {
 		return
 	}
 
@@ -99,12 +98,8 @@ func (h *Server) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !helper.RequireMultipartFile(w, r, h.OnError, "PutTeamsMeAvatar", "FormFile", body.File.FileSize()) {
-		return
-	}
-
-	reader, err := body.File.Reader()
-	if h.OnError(w, r, err, "PutTeamsMeAvatar", "OpenFile") {
+	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutTeamsMeAvatar", &body.File)
+	if !ok {
 		return
 	}
 
@@ -112,7 +107,7 @@ func (h *Server) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 
 	fullURL, thumbURL, err := h.user.AvatarUC.UploadTeamAvatar(
 		r.Context(),
-		*user.TeamID,
+		teamID,
 		user.ID,
 		reader,
 		body.File.Filename(),
@@ -122,32 +117,30 @@ func (h *Server) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, openapi.AvatarUploadResponse{
-		FullURL:  fullURL,
-		ThumbURL: thumbURL,
-	})
+	httputil.RenderOK(w, r, response.FromAvatarUpload(fullURL, thumbURL))
 }
 
+// (DELETE /teams/me/avatar).
 func (h *Server) DeleteTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	if user.TeamID == nil {
-		h.OnError(w, r, httperr.ErrUserNotInTeam, "DeleteTeamsMeAvatar", "TeamIDNil")
-
+	teamID, ok := helper.RequireTeamID(w, r, user, h.OnError, "DeleteTeamsMeAvatar")
+	if !ok {
 		return
 	}
 
-	err := h.user.AvatarUC.DeleteTeamAvatar(r.Context(), *user.TeamID, user.ID)
+	err := h.user.AvatarUC.DeleteTeamAvatar(r.Context(), teamID, user.ID)
 	if h.OnError(w, r, err, "DeleteTeamsMeAvatar", "DeleteTeamAvatar") {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
+// (PUT /admin/users/{ID}/avatar).
 func (h *Server) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
 	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
 		return
@@ -160,12 +153,8 @@ func (h *Server) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	if !helper.RequireMultipartFile(w, r, h.OnError, "PutAdminUsersIDAvatar", "FormFile", body.File.FileSize()) {
-		return
-	}
-
-	reader, err := body.File.Reader()
-	if h.OnError(w, r, err, "PutAdminUsersIDAvatar", "OpenFile") {
+	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutAdminUsersIDAvatar", &body.File)
+	if !ok {
 		return
 	}
 
@@ -182,21 +171,20 @@ func (h *Server) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	httputil.RenderOK(w, r, openapi.AvatarUploadResponse{
-		FullURL:  fullURL,
-		ThumbURL: thumbURL,
-	})
+	httputil.RenderOK(w, r, response.FromAvatarUpload(fullURL, thumbURL))
 }
 
+// (DELETE /admin/users/{ID}/avatar).
 func (h *Server) DeleteAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
 	err := h.user.AvatarUC.AdminDeleteUserAvatar(r.Context(), ID)
 	if h.OnError(w, r, err, "DeleteAdminUsersIDAvatar", "AdminDeleteUserAvatar") {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
+// (PUT /admin/teams/{ID}/avatar).
 func (h *Server) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
 	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
 		return
@@ -209,12 +197,8 @@ func (h *Server) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	if !helper.RequireMultipartFile(w, r, h.OnError, "PutAdminTeamsIDAvatar", "FormFile", body.File.FileSize()) {
-		return
-	}
-
-	reader, err := body.File.Reader()
-	if h.OnError(w, r, err, "PutAdminTeamsIDAvatar", "OpenFile") {
+	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutAdminTeamsIDAvatar", &body.File)
+	if !ok {
 		return
 	}
 
@@ -231,24 +215,26 @@ func (h *Server) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	httputil.RenderOK(w, r, openapi.AvatarUploadResponse{
-		FullURL:  fullURL,
-		ThumbURL: thumbURL,
-	})
+	httputil.RenderOK(w, r, response.FromAvatarUpload(fullURL, thumbURL))
 }
 
+// (DELETE /admin/teams/{ID}/avatar).
 func (h *Server) DeleteAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
 	err := h.user.AvatarUC.AdminDeleteTeamAvatar(r.Context(), ID)
 	if h.OnError(w, r, err, "DeleteAdminTeamsIDAvatar", "AdminDeleteTeamAvatar") {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
+// GetAvatarByPath serves stored avatar images at /avatars/*. The path is validated
+// against validAvatarPath regex (users|teams/<uuid>/<hash>_(full|thumb).webp) before
+// any storage access. Response headers enforce nosniff, a restrictive CSP
+// (default-src 'none'), and a 1-hour public cache to reduce storage load.
 func (h *Server) GetAvatarByPath(w http.ResponseWriter, r *http.Request, path string) {
 	if !validAvatarPath.MatchString(path) {
-		h.OnError(w, r, httperr.NewValidationErrorf("invalid avatar path"), "GetAvatarByPath", "PathValidate")
+		h.OnError(w, r, apperr.NewValidationErrorf("invalid avatar path"), "GetAvatarByPath", "PathValidate")
 
 		return
 	}
@@ -261,7 +247,7 @@ func (h *Server) GetAvatarByPath(w http.ResponseWriter, r *http.Request, path st
 	defer func() { _ = reader.Close() }()
 
 	w.Header().Set("Content-Type", "image/webp")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", avatarCacheControl)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'")
 

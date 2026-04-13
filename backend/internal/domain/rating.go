@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Rating is a numerical score with an optional review that a user submits for a challenge after solving it.
 type Rating struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`

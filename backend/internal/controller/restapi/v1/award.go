@@ -11,7 +11,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// Create award
 // (POST /admin/awards).
 func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -39,21 +38,10 @@ func (h *Server) PostAdminAwards(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderCreated(w, r, response.FromAward(award))
 }
 
-// Get all awards
 // (GET /admin/awards).
 func (h *Server) GetAdminAwards(w http.ResponseWriter, r *http.Request, params openapi.GetAdminAwardsParams) {
 	if params.TeamID != nil && *params.TeamID != "" {
-		teamIDParsed, ok := httputil.ParseUUID(w, r, *params.TeamID)
-		if !ok {
-			return
-		}
-
-		awards, err := h.team.AwardUC.GetByTeamID(r.Context(), teamIDParsed)
-		if h.OnError(w, r, err, "GetAdminAwards", "GetByTeamID") {
-			return
-		}
-
-		httputil.RenderOK(w, r, response.FromAwardList(awards))
+		h.GetAdminAwardsTeamTeamID(w, r, *params.TeamID)
 
 		return
 	}
@@ -66,7 +54,6 @@ func (h *Server) GetAdminAwards(w http.ResponseWriter, r *http.Request, params o
 	httputil.RenderOK(w, r, response.FromAwardList(awards))
 }
 
-// Get award by ID
 // (GET /admin/awards/{ID}).
 func (h *Server) GetAdminAwardsID(w http.ResponseWriter, r *http.Request, ID string) {
 	awardIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -82,7 +69,6 @@ func (h *Server) GetAdminAwardsID(w http.ResponseWriter, r *http.Request, ID str
 	httputil.RenderOK(w, r, response.FromAward(award))
 }
 
-// Delete award
 // (DELETE /admin/awards/{ID}).
 func (h *Server) DeleteAdminAwardsID(w http.ResponseWriter, r *http.Request, ID string) {
 	awardIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -98,7 +84,6 @@ func (h *Server) DeleteAdminAwardsID(w http.ResponseWriter, r *http.Request, ID 
 	httputil.RenderNoContent(w, r)
 }
 
-// Get awards by team
 // (GET /admin/awards/team/{teamID}).
 func (h *Server) GetAdminAwardsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, teamID)

@@ -58,7 +58,7 @@ func (r *TrackingRepo) GetByUser(ctx context.Context, userID uuid.UUID, limit, o
 		Offset: offset32,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("TrackingRepo - GetByUser: %w", err)
+		return nil, fmt.Errorf("TrackingRepo - GetByUser - scan: %w", err)
 	}
 
 	out := make([]*domain.TrackingEntry, 0, len(rows))
@@ -118,7 +118,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 		Offset:      offset32,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("TrackingRepo - GetChallengeOpensByChallenge: %w", err)
+		return nil, fmt.Errorf("TrackingRepo - GetChallengeOpensByChallenge - scan: %w", err)
 	}
 
 	out := make([]*domain.ChallengeOpen, 0, len(rows))
@@ -144,6 +144,8 @@ func (r *TrackingRepo) CountChallengeOpensByChallenge(ctx context.Context, chall
 	return int(n), nil
 }
 
+// DeleteOlderThan removes all tracking rows whose tracked_at is before
+// cutoffDate. Used by the cleanup job to bound table growth.
 func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error {
 	db := ExtractDB(ctx, r.pool)
 
@@ -155,6 +157,8 @@ func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time
 	return nil
 }
 
+// DeleteChallengeOpensOlderThan removes challenge_opens rows whose opened_at
+// is before cutoffDate. Used by the cleanup job to bound table growth.
 func (r *TrackingRepo) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error {
 	db := ExtractDB(ctx, r.pool)
 

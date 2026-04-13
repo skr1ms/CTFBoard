@@ -8,10 +8,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type SettingsRepo struct {
@@ -64,31 +64,28 @@ func toDomainAppSettings(s sqlc.AppSettings) *domain.Settings {
 }
 
 func (r *SettingsRepo) Get(ctx context.Context) (*domain.Settings, error) {
-	s, err := r.Q(ctx).GetAppSettings(ctx)
+	s, err := GetOrNotFound(func() (sqlc.AppSettings, error) { return r.Q(ctx).GetAppSettings(ctx) },
+		apperr.ErrAppSettingsNotFound, "SettingsRepo - Get")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrAppSettingsNotFound
-		}
-
-		return nil, fmt.Errorf("SettingsRepo - Get: %w", err)
+		return nil, err
 	}
 
 	return toDomainAppSettings(s), nil
 }
 
 func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*domain.Settings, error) {
-	s, err := r.Q(ctx).GetAppSettingsForUpdate(ctx)
+	s, err := GetOrNotFound(func() (sqlc.AppSettings, error) { return r.Q(ctx).GetAppSettingsForUpdate(ctx) },
+		apperr.ErrAppSettingsNotFound, "SettingsRepo - GetForUpdate")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrAppSettingsNotFound
-		}
-
-		return nil, fmt.Errorf("SettingsRepo - GetForUpdate: %w", err)
+		return nil, err
 	}
 
 	return toDomainAppSettings(s), nil
 }
 
+// settingsIntFields returns all int-typed Settings fields as an ordered slice for
+// batch narrowing via ConvertIntFieldsToInt32. The positional order (vals[0..19])
+// must stay in sync with the index-based destructuring in Update.
 func settingsIntFields(s *domain.Settings) []IntField {
 	return []IntField{
 		{"VerifyTTLHours", s.VerifyTTLHours},
@@ -114,10 +111,13 @@ func settingsIntFields(s *domain.Settings) []IntField {
 	}
 }
 
+// Update writes all Settings fields to app_settings. Integer fields are narrowed from int to
+// int32 via settingsIntFields; vals are destructured positionally (vals[0..19] mapping must
+// match the settingsIntFields order).
 func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	vals, err := ConvertIntFieldsToInt32(settingsIntFields(s))
 	if err != nil {
-		return fmt.Errorf("SettingsRepo - Update - %w", err)
+		return fmt.Errorf("SettingsRepo - Update: %w", err)
 	}
 
 	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
@@ -170,10 +170,13 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	return nil
 }
 
+// UpdateIfCurrent performs an optimistic-concurrency update: the SQL WHERE
+// clause matches on updated_at so the write is rejected (ErrSettingsConflict)
+// when another transaction has already committed a newer version.
 func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) error {
 	vals, err := ConvertIntFieldsToInt32(settingsIntFields(s))
 	if err != nil {
-		return fmt.Errorf("SettingsRepo - UpdateIfCurrent - %w", err)
+		return fmt.Errorf("SettingsRepo - UpdateIfCurrent: %w", err)
 	}
 
 	verifyTTL, resetTTL, submitLimit, submitDuration := vals[0], vals[1], vals[2], vals[3]
@@ -222,7 +225,7 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 	})
 	if err != nil {
 		if pgutil.IsNoRows(err) {
-			return httperr.ErrSettingsConflict
+			return apperr.ErrSettingsConflict
 		}
 
 		return fmt.Errorf("SettingsRepo - UpdateIfCurrent: %w", err)

@@ -8,11 +8,16 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
+// AdminCreate creates a new user account with an optional role.
+// bcrypt hashing runs before the transaction and is bounded by bcryptSem to
+// limit concurrent CPU-intensive hashes. Inside the transaction, uniqueness of
+// username and email is verified before insert. In solo_only competition mode
+// a personal team is automatically created for the new user via SoloTeamCreator.
 func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, password, role string) (*domain.User, error) {
 	email = normalizeEmail(email)
 
@@ -20,7 +25,7 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 
 	defer func() { <-uc.bcryptSem }()
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), uc.bcryptCost())
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - AdminCreate - GenerateFromPassword: %w", err)
 	}
@@ -30,7 +35,7 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 	}
 
 	if domain.Role(role) != domain.RoleUser && domain.Role(role) != domain.RoleAdmin {
-		return nil, httperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", role)
+		return nil, apperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", role)
 	}
 
 	user := &domain.User{
@@ -38,9 +43,27 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 		Email:        email,
 		PasswordHash: string(passwordHash),
 		Role:         domain.Role(role),
+		IsVerified:   true,
 	}
 
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		keyEmail := registrationAdvisoryKey("reg:email:", email)
+
+		keyUsername := registrationAdvisoryKey("reg:username:", username)
+		if keyEmail > keyUsername {
+			keyEmail, keyUsername = keyUsername, keyEmail
+		}
+
+		if err := uc.deps.UserRepo.AcquireAdvisoryLock(ctx, keyEmail); err != nil {
+			return fmt.Errorf("UserUseCase - AdminCreate - AcquireAdvisoryLock(email): %w", err)
+		}
+
+		if keyUsername != keyEmail {
+			if err := uc.deps.UserRepo.AcquireAdvisoryLock(ctx, keyUsername); err != nil {
+				return fmt.Errorf("UserUseCase - AdminCreate - AcquireAdvisoryLock(username): %w", err)
+			}
+		}
+
 		if err := uc.registerCheckUniqueness(ctx, username, email); err != nil {
 			return fmt.Errorf("UserUseCase - AdminCreate - registerCheckUniqueness: %w", err)
 		}
@@ -49,20 +72,8 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 			return fmt.Errorf("UserUseCase - AdminCreate - UserRepo.Create: %w", err)
 		}
 
-		if uc.deps.CompRepo != nil && uc.deps.SoloTeamCreator != nil {
-			comp, err := uc.deps.CompRepo.Get(ctx)
-			if err != nil {
-				return fmt.Errorf("UserUseCase - AdminCreate - CompRepo.Get: %w", err)
-			}
-
-			if comp.Mode == domain.ModeSoloOnly {
-				team, err := uc.deps.SoloTeamCreator.CreateSoloTeamForNewUser(ctx, user.ID)
-				if err != nil {
-					return fmt.Errorf("UserUseCase - AdminCreate - SoloTeamCreator.CreateSoloTeamForNewUser: %w", err)
-				}
-
-				user.TeamID = &team.ID
-			}
+		if err := ensureSoloTeamIfRequired(ctx, uc.deps.CompRepo, uc.deps.SoloTeamCreator, user); err != nil {
+			return fmt.Errorf("UserUseCase - AdminCreate - ensureSoloTeamIfRequired: %w", err)
 		}
 
 		return nil
@@ -74,6 +85,11 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 	return user, nil
 }
 
+// AdminUpdate modifies an existing user account. If a new password is supplied,
+// bcrypt hashing runs under bcryptSem before the transaction. Inside the
+// transaction, UserRepo.Lock acquires a pessimistic row lock, the current record
+// is fetched for TOCTOU-safe uniqueness rechecking, and UpdateAdmin applies the
+// partial update. After commit, the user cache entry is invalidated.
 func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, username, email, role, password *string, isVerified *bool) (*domain.User, error) {
 	if email != nil {
 		norm := normalizeEmail(*email)
@@ -81,7 +97,7 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 	}
 
 	if role != nil && domain.Role(*role) != domain.RoleUser && domain.Role(*role) != domain.RoleAdmin {
-		return nil, httperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", *role)
+		return nil, apperr.NewValidationErrorf("invalid role %q: must be one of [user, admin]", *role)
 	}
 
 	var passwordHash *string
@@ -91,7 +107,7 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 
 		defer func() { <-uc.bcryptSem }()
 
-		hash, err := bcrypt.GenerateFromPassword([]byte(*password), bcrypt.DefaultCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(*password), uc.bcryptCost())
 		if err != nil {
 			return nil, fmt.Errorf("UserUseCase - AdminUpdate - GenerateFromPassword: %w", err)
 		}
@@ -99,6 +115,8 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		h := string(hash)
 		passwordHash = &h
 	}
+
+	var previousRole domain.Role
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
@@ -109,6 +127,8 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		if err != nil {
 			return fmt.Errorf("UserUseCase - AdminUpdate - UserRepo.GetByID: %w", err)
 		}
+
+		previousRole = current.Role
 
 		if err := uc.profileCheckUniqueness(ctx, current.Username, current.Email, username, email); err != nil {
 			return fmt.Errorf("UserUseCase - AdminUpdate - profileCheckUniqueness: %w", err)
@@ -129,23 +149,44 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		return nil, fmt.Errorf("UserUseCase - AdminUpdate - UserRepo.GetByID: %w", err)
 	}
 
-	if uc.deps.UserCache != nil {
-		uc.deps.UserCache.InvalidateUser(context.WithoutCancel(ctx), userID)
+	postCtx := context.WithoutCancel(ctx)
+
+	// Revoke JWT when password changed or role demoted (admin -> user)
+	needsRevoke := passwordHash != nil
+
+	if role != nil && previousRole == domain.RoleAdmin && domain.Role(*role) == domain.RoleUser {
+		needsRevoke = true
 	}
+
+	if needsRevoke && uc.deps.JWTService != nil {
+		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
+			uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminUpdate - RevokeAllForUser")
+		}
+	}
+
+	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
 
 	return user, nil
 }
 
+// AdminDelete permanently removes a user account with cascading cleanup.
+// Guards enforced before the transaction: self-delete is rejected. Inside the
+// transaction: UserRepo.Lock + admin-protect check + captain-guard (captains
+// cannot be deleted while leading a team). banUserRemoveSolvesAndAdjustScores
+// strips solves and recalculates team scores; custom field values are deleted.
+// After the transaction: JWT tokens are revoked, user/scoreboard/team/challenge
+// caches are invalidated via context.WithoutCancel so post-tx work survives
+// request cancellation.
 func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUID) error {
 	if userID == actorID {
-		return httperr.ErrAccessDenied
+		return apperr.ErrAccessDenied
 	}
 
 	var scoreboardInvalidateTeamID *uuid.UUID
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
-			if errors.Is(err, httperr.ErrUserNotFound) {
+			if errors.Is(err, apperr.ErrUserNotFound) {
 				return nil
 			}
 
@@ -162,7 +203,7 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 		}
 
 		if u.Role == domain.RoleAdmin {
-			return httperr.ErrAccessDenied
+			return apperr.ErrAccessDenied
 		}
 
 		if u.TeamID != nil && uc.deps.TeamRepo != nil {
@@ -173,7 +214,7 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 			team, err := uc.deps.TeamRepo.GetByID(ctx, *u.TeamID)
 			if err == nil && team != nil {
 				if team.CaptainID == userID {
-					return httperr.ErrCaptainCannotBeDeleted
+					return apperr.ErrCaptainCannotBeDeleted
 				}
 
 				if err := uc.banUserRemoveSolvesAndAdjustScores(ctx, team.ID, userID); err != nil {
@@ -198,27 +239,17 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 	postCtx := context.WithoutCancel(ctx)
 
 	if uc.deps.JWTService != nil {
-		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil && uc.deps.Logger != nil {
+		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
 			uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminDelete - RevokeAllForUser")
 		}
 	}
 
-	if uc.deps.UserCache != nil {
-		uc.deps.UserCache.InvalidateUser(postCtx, userID)
-	}
+	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
 
-	if scoreboardInvalidateTeamID != nil && uc.deps.ScoreboardCache != nil {
-		uc.deps.ScoreboardCache.InvalidateForTeam(postCtx, *scoreboardInvalidateTeamID)
-	}
-
-	if scoreboardInvalidateTeamID != nil && uc.deps.TeamCache != nil {
-		if err := uc.deps.TeamCache.Del(postCtx, cache.KeyTeam(scoreboardInvalidateTeamID.String())); err != nil && uc.deps.Logger != nil {
-			uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminDelete - TeamCache.Del")
-		}
-	}
-
-	if scoreboardInvalidateTeamID != nil && uc.deps.ChallengeListCache != nil {
-		uc.deps.ChallengeListCache.InvalidateAll(postCtx)
+	if scoreboardInvalidateTeamID != nil {
+		cacheutil.InvalidateScoreboardForTeam(postCtx, uc.deps.ScoreboardCache, *scoreboardInvalidateTeamID)
+		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, *scoreboardInvalidateTeamID)
+		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
 	}
 
 	return nil

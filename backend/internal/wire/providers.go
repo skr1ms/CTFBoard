@@ -2,6 +2,7 @@ package wire
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
@@ -25,13 +27,18 @@ import (
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
+	"golang.org/x/text/language"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	wsController "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/loginlockout"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
@@ -48,13 +55,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	iws "github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/loginlockout"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/sse"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 const (
@@ -189,12 +194,26 @@ func ProvideOAuthRepo(pool *pgxpool.Pool, cryptoService crypto.Service) *persist
 	return persistent.NewOAuthRepo(pool, cryptoService)
 }
 
-func ProvideOAuthProviders() map[string]webapi.OAuthProviderAPI {
-	oauthClient := &http.Client{Timeout: 30 * time.Second}
+func ProvideOAuthProviders() map[string]user.OAuthProviderAPI {
+	return map[string]user.OAuthProviderAPI{
+		"github": webapi.NewGitHubAPI(nil),
+		"google": webapi.NewGoogleAPI(nil),
+	}
+}
 
-	return map[string]webapi.OAuthProviderAPI{
-		"github": webapi.NewGitHubAPI(oauthClient),
-		"google": webapi.NewGoogleAPI(oauthClient),
+func ProvideOAuthConfig(cfg *config.Config) user.OAuthConfig {
+	return user.OAuthConfig{
+		StateSecret: cfg.StateSecret,
+		GitHub: user.OAuthProviderConfig{
+			ClientID:     cfg.GitHub.ClientID,
+			ClientSecret: cfg.GitHub.ClientSecret,
+			RedirectURL:  cfg.GitHub.RedirectURL,
+		},
+		Google: user.OAuthProviderConfig{
+			ClientID:     cfg.Google.ClientID,
+			ClientSecret: cfg.Google.ClientSecret,
+			RedirectURL:  cfg.Google.RedirectURL,
+		},
 	}
 }
 
@@ -204,8 +223,8 @@ func ProvideOAuthUseCase(
 	TM repo.TransactionManager,
 	settingsRepo repo.SettingsRepository,
 	jwtService *jwtkit.JWTService,
-	providers map[string]webapi.OAuthProviderAPI,
-	cfg *config.Config,
+	providers map[string]user.OAuthProviderAPI,
+	oauthCfg user.OAuthConfig,
 	compRepo repo.CompetitionRepository,
 	soloTeamCreator user.SoloTeamCreator,
 	l logkit.Logger,
@@ -217,7 +236,7 @@ func ProvideOAuthUseCase(
 		SettingsRepo:    settingsRepo,
 		JWTService:      jwtService,
 		Providers:       providers,
-		Cfg:             cfg.OAuth,
+		Cfg:             oauthCfg,
 		CompRepo:        compRepo,
 		SoloTeamCreator: soloTeamCreator,
 		Logger:          l,
@@ -231,7 +250,6 @@ func ProvideAvatarUseCase(
 	keyValueStore cachekit.KeyValueStore,
 	TM repo.TransactionManager,
 	auditLogRepo repo.AuditLogRepository,
-	cfg *config.Config,
 	l logkit.Logger,
 ) *avatar.AvatarUseCase {
 	return avatar.NewAvatarUseCase(avatar.AvatarDeps{
@@ -274,7 +292,7 @@ func ProvideUserUseCase(
 	jwtService *jwtkit.JWTService,
 	fieldValidator *settings.FieldValidator,
 	fieldValueRepo repo.FieldValueRepository,
-	SettingsRepo repo.SettingsRepository,
+	settingsRepo repo.SettingsRepository,
 	emailUC *email.EmailUseCase,
 	failedLoginTracker *loginlockout.Tracker,
 	compRepo repo.CompetitionRepository,
@@ -284,6 +302,7 @@ func ProvideUserUseCase(
 	scoreboardCache *cache.ScoreboardCacheService,
 	challengeListCache cache.ChallengeListCacheInvalidator,
 	sharedCache *cachekit.Cache,
+	compParamUC *competition.CompetitionParamUseCase,
 	l logkit.Logger,
 ) *user.UserUseCase {
 	return user.NewUserUseCase(user.UserDeps{
@@ -292,13 +311,14 @@ func ProvideUserUseCase(
 		SubmissionRepo: submissionRepo, AwardRepo: awardRepo, HintRepo: hintRepo,
 		TM: TM, JWTService: jwtService,
 		FieldValidator: fieldValidator, FieldValueRepo: fieldValueRepo,
-		SettingsRepo: SettingsRepo, EmailSender: emailUC, FailedLogin: failedLoginTracker,
+		SettingsRepo: settingsRepo, EmailSender: emailUC, FailedLogin: failedLoginTracker,
 		CompRepo: compRepo, SoloTeamCreator: soloTeamCreator,
 		PersonalNotificationSender: notificationUC,
 		UserCache:                  userCacheSvc,
 		ScoreboardCache:            scoreboardCache,
 		ChallengeListCache:         challengeListCache,
 		TeamCache:                  sharedCache,
+		CompParamUC:                compParamUC,
 		Logger:                     l,
 	})
 }
@@ -310,11 +330,11 @@ type teamBracketIDGetter struct {
 func (g *teamBracketIDGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UUID) (*uuid.UUID, error) {
 	team, err := g.r.GetByID(ctx, teamID)
 	if err != nil {
-		return nil, fmt.Errorf("wire - GetTeamBracketID - TeamRepo.GetByID: %w", err)
+		return nil, fmt.Errorf("teamBracketIDGetter - GetTeamBracketID - TeamRepo.GetByID: %w", err)
 	}
 
 	if team == nil {
-		return nil, fmt.Errorf("wire - GetTeamBracketID: team %s not found", teamID)
+		return nil, fmt.Errorf("teamBracketIDGetter - GetTeamBracketID: team %s not found", teamID)
 	}
 
 	return team.BracketID, nil
@@ -338,6 +358,7 @@ func ProvideTeamUseCase(
 	compRepo repo.CompetitionRepository,
 	settingsUC *settings.SettingsUseCase,
 	challengeRepo repo.ChallengeRepository,
+	compParamUC *competition.CompetitionParamUseCase,
 	TM repo.TransactionManager,
 	guard usecase.CompetitionGuard,
 	scoreboardCache *cache.ScoreboardCacheService,
@@ -345,6 +366,7 @@ func ProvideTeamUseCase(
 	userCacheSvc *cache.UserCacheService,
 	sharedCache *cachekit.Cache,
 	hintRepo repo.HintRepository,
+	ratingRepo repo.RatingRepository,
 	fieldValueRepo repo.FieldValueRepository,
 	jwtService *jwtkit.JWTService,
 	l logkit.Logger,
@@ -358,6 +380,7 @@ func ProvideTeamUseCase(
 		CompRepo:           compRepo,
 		SettingsGetter:     settingsUC,
 		ChallengeRepo:      challengeRepo,
+		CompParamUC:        compParamUC,
 		TM:                 TM,
 		Guard:              guard,
 		ScoreboardCache:    scoreboardCache,
@@ -365,6 +388,7 @@ func ProvideTeamUseCase(
 		UserCache:          userCacheSvc,
 		TeamCache:          sharedCache,
 		HintRepo:           hintRepo,
+		RatingRepo:         ratingRepo,
 		FieldValueRepo:     fieldValueRepo,
 		JWTRevoker:         jwtService,
 		DefaultMaxTeamSize: cfg.MaxTeamSize,
@@ -396,11 +420,12 @@ func ProvideChallengeUseCase(
 	TM repo.TransactionManager,
 	compRepo repo.CompetitionRepository,
 	compUC *competition.CompetitionUseCase,
+	compParamUC *competition.CompetitionParamUseCase,
 	teamRepo repo.TeamRepository,
 	userRepo repo.UserRepository,
 	scoreboardCache *cache.ScoreboardCacheService,
 	c *cachekit.Cache,
-	broadcaster *websocket.Broadcaster,
+	broadcaster *iws.Broadcaster,
 	auditLogRepo repo.AuditLogRepository,
 	cryptoService crypto.Service,
 	fileRepo repo.FileRepository,
@@ -416,6 +441,7 @@ func ProvideChallengeUseCase(
 		TM:              TM,
 		CompRepo:        compRepo,
 		CompUC:          compUC,
+		CompParamUC:     compParamUC,
 		TeamRepo:        teamRepo,
 		UserRepo:        userRepo,
 		ScoreboardCache: scoreboardCache,
@@ -426,6 +452,7 @@ func ProvideChallengeUseCase(
 		FileRepo:        fileRepo,
 		Storage:         storageProvider,
 		HintUC:          hintUC,
+		SolveRecord:     competition.RecordSolveInTx,
 		Logger:          l,
 	})
 }
@@ -449,7 +476,7 @@ func ProvideHintUseCase(
 		TM:              TM,
 		SolveRepo:       solveRepo,
 		CompRepo:        compRepo,
-		CompGetter:      competitionUC,
+		CompUC:          competitionUC,
 		TeamRepo:        teamRepo,
 		UserRepo:        userRepo,
 		ChallengeRepo:   challengeRepo,
@@ -489,19 +516,21 @@ func ProvideSolveUseCase(
 	challengeRepo repo.ChallengeRepository,
 	competitionRepo repo.CompetitionRepository,
 	competitionUC usecase.CompetitionUseCase,
+	compParamUC *competition.CompetitionParamUseCase,
 	userRepo repo.UserRepository,
 	teamRepo repo.TeamRepository,
 	TM repo.TransactionManager,
 	c *cachekit.Cache,
 	scoreboardCache *cache.ScoreboardCacheService,
 	challengeListCache cache.ChallengeListCacheInvalidator,
-	broadcaster *websocket.Broadcaster,
+	broadcaster *iws.Broadcaster,
 ) *competition.SolveUseCase {
 	return competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo:          solveRepo,
 		ChallengeRepo:      challengeRepo,
 		CompetitionRepo:    competitionRepo,
 		CompetitionUC:      competitionUC,
+		CompParamUC:        compParamUC,
 		UserRepo:           userRepo,
 		TeamRepo:           teamRepo,
 		TM:                 TM,
@@ -512,8 +541,8 @@ func ProvideSolveUseCase(
 	})
 }
 
-func ProvideBroadcaster(hub *wskit.Hub) *websocket.Broadcaster {
-	return websocket.NewBroadcaster(hub)
+func ProvideBroadcaster(hub *wskit.Hub) *iws.Broadcaster {
+	return iws.NewBroadcaster(hub)
 }
 
 func ProvideCache(r *redis.Client) *cachekit.Cache {
@@ -572,7 +601,7 @@ func ProvideFieldValidator(fieldRepo repo.FieldRepository) *settings.FieldValida
 	return settings.NewFieldValidator(fieldRepo)
 }
 
-func ProvideNotificationUseCase(notifRepo repo.NotificationRepository, broadcaster *websocket.Broadcaster, l logkit.Logger) *notification.NotificationUseCase {
+func ProvideNotificationUseCase(notifRepo repo.NotificationRepository, broadcaster *iws.Broadcaster, l logkit.Logger) *notification.NotificationUseCase {
 	return notification.NewNotificationUseCase(notification.NotificationDeps{
 		NotifRepo:   notifRepo,
 		Broadcaster: broadcaster,
@@ -655,7 +684,7 @@ func ProvideBackupUseCase(
 	submissionRepo repo.SubmissionRepository,
 	fileRepo repo.FileRepository,
 	backupRepo repo.BackupRepository,
-	SettingsRepo repo.SettingsRepository,
+	settingsRepo repo.SettingsRepository,
 	auditLogRepo repo.AuditLogRepository,
 	bracketRepo repo.BracketRepository,
 	commentRepo repo.CommentRepository,
@@ -678,7 +707,7 @@ func ProvideBackupUseCase(
 		SubmissionRepo:  submissionRepo,
 		FileRepo:        fileRepo,
 		BackupRepo:      backupRepo,
-		SettingsRepo:    SettingsRepo,
+		SettingsRepo:    settingsRepo,
 		AuditLogRepo:    auditLogRepo,
 		BracketRepo:     bracketRepo,
 		CommentRepo:     commentRepo,
@@ -693,16 +722,17 @@ func ProvideBackupUseCase(
 
 func ProvideSettingsUseCase(
 	ctx context.Context,
-	SettingsRepo repo.SettingsRepository,
+	settingsRepo repo.SettingsRepository,
 	auditLogRepo repo.AuditLogRepository,
 	TM repo.TransactionManager,
 	kv cachekit.KeyValueStore,
 	competitionRepo repo.CompetitionRepository,
 	competitionParamUC *competition.CompetitionParamUseCase,
 	pubsub cachekit.PubSubStore,
+	l logkit.Logger,
 ) *settings.SettingsUseCase {
 	return settings.NewSettingsUseCase(settings.SettingsDeps{
-		Repo:         SettingsRepo,
+		Repo:         settingsRepo,
 		AuditLogRepo: auditLogRepo,
 		TM:           TM,
 		Redis:        kv,
@@ -710,6 +740,7 @@ func ProvideSettingsUseCase(
 		ConfigUC:     competitionParamUC,
 		PubSub:       pubsub,
 		StopContext:  ctx,
+		Logger:       l,
 	})
 }
 
@@ -722,7 +753,7 @@ func ProvideCompetitionParamUseCase(
 	kv cachekit.KeyValueStore,
 	pubsub cachekit.PubSubStore,
 ) *competition.CompetitionParamUseCase {
-	return competition.NewCompetitionParamUseCase(ctx, competition.CompetitionParamDeps{
+	return competition.NewCompetitionParamUseCase(competition.CompetitionParamDeps{
 		Repo:         paramRepo,
 		AuditLogRepo: auditLogRepo,
 		TM:           TM,
@@ -740,12 +771,14 @@ func ProvideEmailUseCase(
 	mailer mailer.Mailer,
 	cfg *config.Config,
 	competitionParamUC *competition.CompetitionParamUseCase,
+	jwtService *jwtkit.JWTService,
 	l logkit.Logger,
 ) *email.EmailUseCase {
 	return email.NewEmailUseCase(email.EmailDeps{
 		UserRepo: userRepo, TokenRepo: tokenRepo, TM: TM, Mailer: mailer,
-		ConfigUC:  competitionParamUC,
-		VerifyTTL: cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
+		ConfigUC:   competitionParamUC,
+		JWTRevoker: jwtService,
+		VerifyTTL:  cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
 		Logger: l,
 	})
 }
@@ -784,25 +817,25 @@ func ProvideServerDeps(
 	avatarUC *avatar.AvatarUseCase,
 	jwtService *jwtkit.JWTService,
 	redisClient *redis.Client,
-	SettingsRepo repo.SettingsRepository,
 	storageProvider storage.Provider,
 	wsCtrl *wsController.Controller,
+	wsHub *wskit.Hub,
 	v validator.Validator,
 	l logkit.Logger,
 ) (*helper.ServerDeps, error) {
 	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyForgot, forgotPasswordRateLimit, perKeyRateLimitWindow)
 	if err != nil {
-		return nil, fmt.Errorf("wire - ProvideServerDeps - create forgot-password rate limiter: %w", err)
+		return nil, fmt.Errorf("ProvideServerDeps - create forgot-password rate limiter: %w", err)
 	}
 
 	resendLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyResend, resendVerificationRateLimit, perKeyRateLimitWindow)
 	if err != nil {
-		return nil, fmt.Errorf("wire - ProvideServerDeps - create resend-verification rate limiter: %w", err)
+		return nil, fmt.Errorf("ProvideServerDeps - create resend-verification rate limiter: %w", err)
 	}
 
 	resetTokenLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyResetTok, resetPasswordTokenRateLimit, resetPasswordTokenRateWindow)
 	if err != nil {
-		return nil, fmt.Errorf("wire - ProvideServerDeps - create reset-password-token rate limiter: %w", err)
+		return nil, fmt.Errorf("ProvideServerDeps - create reset-password-token rate limiter: %w", err)
 	}
 
 	rateLimitCache := restapimiddleware.NewRateLimitConfigCache(rateLimitCacheTTL)
@@ -846,13 +879,13 @@ func ProvideServerDeps(
 			FieldUC:            fieldUC,
 			PageUC:             pageUC,
 			NotifUC:            notifUC,
-			SettingsRepo:       SettingsRepo,
 		},
 		Infra: helper.InfraDeps{
 			JWTService:                    jwtService,
 			RedisClient:                   redisClient,
 			StorageProvider:               storageProvider,
 			WSController:                  wsCtrl,
+			SSEHandler:                    sse.NewSSEHandler(wsHub, l),
 			Validator:                     v,
 			Logger:                        l,
 			TrustedProxyCIDRs:             cfg.TrustedProxyCIDRs,
@@ -941,9 +974,13 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 		MaxAge:           300,
 	}))
 
+	i18nBundle := goi18n.NewBundle(language.English)
+	i18nBundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	router.Use(kitMiddleware.I18n(i18nBundle))
+
 	healthHandler := httputil.HealthHandler(map[string]httputil.Checker{
 		"db": healthCheckerFunc(func(ctx context.Context) error {
-			_, err := deps.Admin.SettingsRepo.Get(ctx)
+			_, err := deps.Admin.SettingsUC.Get(ctx)
 
 			return err
 		}),
@@ -1014,7 +1051,7 @@ func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Han
 
 		ip := net.ParseIP(clientIP)
 		if ip == nil {
-			httputil.HandleError(w, r, httperr.ErrAccessDenied)
+			httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrAccessDenied))
 
 			return
 		}
@@ -1033,7 +1070,7 @@ func metricsAllowlistMiddleware(allowedIPs []string, next http.Handler) http.Han
 			return
 		}
 
-		httputil.HandleError(w, r, httperr.ErrAccessDenied)
+		httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrAccessDenied))
 	})
 }
 
@@ -1056,7 +1093,7 @@ func ProvideServer(router chi.Router, cfg *config.Config) *http.Server {
 	}
 }
 
-func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher, solveUC *competition.SolveUseCase, avatarUC *avatar.AvatarUseCase, serverDeps *helper.ServerDeps, broadcaster *websocket.Broadcaster) *App {
+func ProvideApp(server *http.Server, userRepo repo.UserRepository, batcher usecase.SubmissionBatcher, solveUC *competition.SolveUseCase, avatarUC *avatar.AvatarUseCase, serverDeps *helper.ServerDeps, broadcaster *iws.Broadcaster) *App {
 	return &App{
 		Server:            server,
 		UserRepo:          userRepo,

@@ -29,7 +29,7 @@ func TestStatisticsUseCase_GetGeneralStats_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:general").SetErr(redis.Nil)
-	d.statsRepo.On("GetGeneralStats", mock.Anything).Return(stats, nil)
+	d.statsRepo.On("GetGeneralStats", mock.Anything, mock.Anything).Return(stats, nil)
 	redisClient.Regexp().ExpectSet("stats:general", `.*`, 5*time.Minute).SetVal("OK")
 
 	result, err := uc.GetGeneralStats(context.Background(), false)
@@ -63,7 +63,7 @@ func TestStatisticsUseCase_GetGeneralStats_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:general").SetErr(redis.Nil)
-	d.statsRepo.On("GetGeneralStats", mock.Anything).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetGeneralStats", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetGeneralStats(context.Background(), false)
 
@@ -82,7 +82,7 @@ func TestStatisticsUseCase_GetChallengeStats_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:challenges").SetErr(redis.Nil)
-	d.statsRepo.On("GetChallengeStats", mock.Anything).Return(stats, nil)
+	d.statsRepo.On("GetChallengeStats", mock.Anything, mock.Anything).Return(stats, nil)
 	redisClient.Regexp().ExpectSet("stats:challenges", `.*`, 5*time.Minute).SetVal("OK")
 
 	result, err := uc.GetChallengeStats(context.Background(), false)
@@ -103,7 +103,7 @@ func TestStatisticsUseCase_GetScoreboardHistory_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:history:10").SetErr(redis.Nil)
-	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(history, nil)
+	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10, mock.Anything).Return(history, nil)
 	redisClient.Regexp().ExpectSet("stats:history:10", `.*`, 30*time.Second).SetVal("OK")
 
 	result, err := uc.GetScoreboardHistory(context.Background(), 10, false)
@@ -119,7 +119,7 @@ func TestStatisticsUseCase_GetChallengeStats_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:challenges").SetErr(redis.Nil)
-	d.statsRepo.On("GetChallengeStats", mock.Anything).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetChallengeStats", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetChallengeStats(context.Background(), false)
 
@@ -134,7 +134,7 @@ func TestStatisticsUseCase_GetScoreboardHistory_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:history:10").SetErr(redis.Nil)
-	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetScoreboardHistory(context.Background(), 10, false)
 
@@ -153,7 +153,7 @@ func TestStatisticsUseCase_GetScoreboardGraph_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:graph:10").SetErr(redis.Nil)
-	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(history, nil)
+	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10, mock.Anything).Return(history, nil)
 	redisClient.Regexp().ExpectSet("stats:graph:10", `.*`, 30*time.Second).SetVal("OK")
 
 	result, err := uc.GetScoreboardGraph(context.Background(), 10, false)
@@ -169,7 +169,7 @@ func TestStatisticsUseCase_GetScoreboardGraph_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:graph:10").SetErr(redis.Nil)
-	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetScoreboardHistory", mock.Anything, 10, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetScoreboardGraph(context.Background(), 10, false)
 
@@ -194,7 +194,7 @@ func TestStatisticsUseCase_GetChallengeDetailStats_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:challenge:" + challengeID.String()).SetErr(redis.Nil)
-	d.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID).Return(stats, nil)
+	d.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID, mock.Anything).Return(stats, nil)
 	redisClient.Regexp().ExpectSet("stats:challenge:"+challengeID.String(), `.*`, time.Minute).SetVal("OK")
 
 	result, err := uc.GetChallengeDetailStats(context.Background(), challengeID.String(), false)
@@ -213,7 +213,7 @@ func TestStatisticsUseCase_GetChallengeDetailStats_Error(t *testing.T) {
 
 	challengeID := uuid.New()
 	redisClient.ExpectGet("stats:challenge:" + challengeID.String()).SetErr(redis.Nil)
-	d.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetChallengeDetailStats", mock.Anything, challengeID, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetChallengeDetailStats(context.Background(), challengeID.String(), false)
 
@@ -301,7 +301,7 @@ func TestStatisticsUseCase_GetSolveMatrix_Success(t *testing.T) {
 	}
 
 	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
-	d.statsRepo.On("GetSolveMatrix", mock.Anything).Return(matrix, nil)
+	d.statsRepo.On("GetSolveMatrix", mock.Anything, mock.Anything).Return(matrix, nil)
 	redisClient.Regexp().ExpectSet("stats:solve_matrix", `.*`, 30*time.Second).SetVal("OK")
 
 	result, err := uc.GetSolveMatrix(context.Background(), false)
@@ -319,7 +319,7 @@ func TestStatisticsUseCase_GetSolveMatrix_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:solve_matrix").SetErr(redis.Nil)
-	d.statsRepo.On("GetSolveMatrix", mock.Anything).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetSolveMatrix", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetSolveMatrix(context.Background(), false)
 
@@ -336,7 +336,7 @@ func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Success(t *testing.T) {
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 3}}
 
 	redisClient.ExpectGet("stats:submission_timeseries:true").SetErr(redis.Nil)
-	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, true).Return(data, nil)
+	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, true, mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:submission_timeseries:true", `.*`, 5*time.Minute).SetVal("OK")
 
 	result, err := uc.GetSubmissionTimeSeriesByType(context.Background(), true, false)
@@ -353,7 +353,7 @@ func TestStatisticsUseCase_GetSubmissionTimeSeriesByType_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:submission_timeseries:false").SetErr(redis.Nil)
-	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, false).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetSubmissionTimeSeriesByType", mock.Anything, false, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetSubmissionTimeSeriesByType(context.Background(), false, false)
 

@@ -100,14 +100,14 @@ type UpdateCompetitionParams struct {
 	StartTime                    pgtype.Timestamptz `json:"start_time"`
 	EndTime                      pgtype.Timestamptz `json:"end_time"`
 	FreezeTime                   pgtype.Timestamptz `json:"freeze_time"`
-	IsPaused                     *bool              `json:"is_paused"`
+	IsPaused                     bool               `json:"is_paused"`
 	PausedAt                     pgtype.Timestamptz `json:"paused_at"`
-	IsPublic                     *bool              `json:"is_public"`
+	IsPublic                     bool               `json:"is_public"`
 	FlagRegex                    *string            `json:"flag_regex"`
-	Mode                         *string            `json:"mode"`
-	AllowTeamSwitch              *bool              `json:"allow_team_switch"`
-	MinTeamSize                  *int32             `json:"min_team_size"`
-	MaxTeamSize                  *int32             `json:"max_team_size"`
+	Mode                         string             `json:"mode"`
+	AllowTeamSwitch              bool               `json:"allow_team_switch"`
+	MinTeamSize                  int32              `json:"min_team_size"`
+	MaxTeamSize                  int32              `json:"max_team_size"`
 	KeepScoreboardFrozenAfterEnd bool               `json:"keep_scoreboard_frozen_after_end"`
 	UpdatedAt                    pgtype.Timestamptz `json:"updated_at"`
 }

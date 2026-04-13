@@ -2,8 +2,9 @@
 """Merge all schema files into components/schemas.yml"""
 
 import re
-import yaml
 from pathlib import Path
+
+import yaml
 
 SCHEMAS_DIR = Path("internal/openapi/components/schemas")
 SCHEMAS_FILE = Path("internal/openapi/components/schemas.yml")
@@ -30,18 +31,21 @@ SCHEMA_FILES = [
     "field_schemas.yml",
     "tag_schemas.yml",
     "award_schemas.yml",
+    "avatar_schemas.yml",
     "statistics_schemas.yml",
     "scoreboard_schemas.yml",
 ]
 
+
 def normalize_schema_name(name):
     """Remove prefixes like response., request., v1., jwt., entity. from schema names"""
     # Remove common prefixes
-    prefixes = ['response.', 'request.', 'v1.', 'jwt.', 'entity.']
+    prefixes = ["response.", "request.", "v1.", "jwt.", "entity."]
     for prefix in prefixes:
         if name.startswith(prefix):
-            return name[len(prefix):]
+            return name[len(prefix) :]
     return name
+
 
 def convert_refs(obj, name_mapping):
     """Recursively convert #/schemas/ refs to #/ refs and normalize schema names"""
@@ -62,7 +66,9 @@ def convert_refs(obj, name_mapping):
                     old_name = value.split("#/schemas/")[-1]
                     new_name = normalize_schema_name(old_name)
                     if old_name in name_mapping:
-                        result[key] = f"../components/schemas.yml#/{name_mapping[old_name]}"
+                        result[key] = (
+                            f"../components/schemas.yml#/{name_mapping[old_name]}"
+                        )
                     else:
                         result[key] = f"../components/schemas.yml#/{new_name}"
                 else:
@@ -74,6 +80,7 @@ def convert_refs(obj, name_mapping):
         return [convert_refs(item, name_mapping) for item in obj]
     else:
         return obj
+
 
 all_schemas = {}
 name_mapping = {}  # old_name -> new_name
@@ -89,7 +96,9 @@ for schema_file in SCHEMA_FILES:
                 for old_name, schema_def in file_schemas.items():
                     new_name = normalize_schema_name(old_name)
                     if new_name in all_schemas:
-                        print(f"Warning: Duplicate normalized schema name '{new_name}' (from '{old_name}')")
+                        print(
+                            f"Warning: Duplicate normalized schema name '{new_name}' (from '{old_name}')"
+                        )
                     name_mapping[old_name] = new_name
                     all_schemas[new_name] = schema_def
 
@@ -116,27 +125,29 @@ print("Normalized schema names (removed prefixes)")
 print("\nFixing references in route files...")
 ROUTES_DIR = Path("internal/openapi/routes")
 
+
 def fix_refs_in_file(file_path):
     """Fix schema references in a route file"""
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         content = f.read()
-    
+
     # Pattern: ../components/schemas.yml#/schemas/response.X or request.X etc.
     pattern = r"('../components/schemas\.yml#/schemas/)([^']+)'"
-    
+
     def replace_ref(match):
         old_name = match.group(2)  # 'response.X' or 'request.X' etc.
         new_name = normalize_schema_name(old_name)
         # Replace #/schemas/response.X with #/X
         return f"'../components/schemas.yml#/{new_name}'"
-    
+
     new_content = re.sub(pattern, replace_ref, content)
-    
+
     if new_content != content:
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.write(new_content)
         return True
     return False
+
 
 fixed_count = 0
 for route_file in ROUTES_DIR.glob("*.yml"):

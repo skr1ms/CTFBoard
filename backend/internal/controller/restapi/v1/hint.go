@@ -9,10 +9,8 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-// Get hints for challenge
 // (GET /challenges/{challengeID}/hints).
 func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -33,7 +31,6 @@ func (h *Server) GetChallengesChallengeIDHints(w http.ResponseWriter, r *http.Re
 	httputil.RenderOK(w, r, response.FromHintWithUnlockList(hints))
 }
 
-// Unlock hint
 // (POST /challenges/{challengeID}/hints/{hintID}/unlock).
 func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWriter, r *http.Request, challengeID, hintID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -51,13 +48,12 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 		return
 	}
 
-	if user.TeamID == nil {
-		h.OnError(w, r, httperr.ErrUserNotInTeam, "PostChallengesChallengeIDHintsHintIDUnlock", "RequireTeam")
-
+	teamID, ok := helper.RequireTeamID(w, r, user, h.OnError, "PostChallengesChallengeIDHintsHintIDUnlock")
+	if !ok {
 		return
 	}
 
-	hint, err := h.challenge.HintUC.UnlockHint(r.Context(), user.ID, *user.TeamID, challengeIDParsed, hintIDParsed)
+	hint, err := h.challenge.HintUC.UnlockHint(r.Context(), user.ID, teamID, challengeIDParsed, hintIDParsed)
 	if h.OnError(w, r, err, "PostChallengesChallengeIDHintsHintIDUnlock", "UnlockHint") {
 		return
 	}
@@ -65,7 +61,6 @@ func (h *Server) PostChallengesChallengeIDHintsHintIDUnlock(w http.ResponseWrite
 	httputil.RenderOK(w, r, response.FromUnlockedHint(hint))
 }
 
-// Create hint
 // (POST /admin/challenges/{challengeID}/hints).
 func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -93,7 +88,6 @@ func (h *Server) PostAdminChallengesChallengeIDHints(w http.ResponseWriter, r *h
 	httputil.RenderCreated(w, r, response.FromHint(hint))
 }
 
-// Update hint
 // (PUT /admin/hints/{ID}).
 func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
 	hintIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -121,7 +115,6 @@ func (h *Server) PutAdminHintsID(w http.ResponseWriter, r *http.Request, ID stri
 	httputil.RenderOK(w, r, response.FromHint(hint))
 }
 
-// Delete hint
 // (DELETE /admin/hints/{ID}).
 func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID string) {
 	hintIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -136,7 +129,6 @@ func (h *Server) DeleteAdminHintsID(w http.ResponseWriter, r *http.Request, ID s
 	httputil.RenderNoContent(w, r)
 }
 
-// Get all hint unlocks (admin)
 // (GET /admin/unlocks).
 func (h *Server) GetAdminUnlocks(w http.ResponseWriter, r *http.Request, params openapi.GetAdminUnlocksParams) {
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)

@@ -22,9 +22,9 @@ type CreateFieldParams struct {
 	Name       string             `json:"name"`
 	FieldType  string             `json:"field_type"`
 	EntityType string             `json:"entity_type"`
-	Required   *bool              `json:"required"`
+	Required   bool               `json:"required"`
 	Options    []byte             `json:"options"`
-	OrderIndex *int32             `json:"order_index"`
+	OrderIndex int32              `json:"order_index"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -51,12 +51,12 @@ func (q *Queries) DeleteField(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const deleteFieldValuesByentityID = `-- name: DeleteFieldValuesByentityID :exec
+const deleteFieldValuesByEntityID = `-- name: DeleteFieldValuesByEntityID :exec
 DELETE FROM field_values WHERE entity_id = $1
 `
 
-func (q *Queries) DeleteFieldValuesByentityID(ctx context.Context, entityID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteFieldValuesByentityID, entityID)
+func (q *Queries) DeleteFieldValuesByEntityID(ctx context.Context, entityID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteFieldValuesByEntityID, entityID)
 	return err
 }
 
@@ -146,13 +146,13 @@ func (q *Queries) GetFieldByID(ctx context.Context, id uuid.UUID) (Field, error)
 	return i, err
 }
 
-const getFieldValuesByentityID = `-- name: GetFieldValuesByentityID :many
+const getFieldValuesByEntityID = `-- name: GetFieldValuesByEntityID :many
 SELECT id, field_id, entity_id, value, created_at
 FROM field_values WHERE entity_id = $1
 `
 
-func (q *Queries) GetFieldValuesByentityID(ctx context.Context, entityID uuid.UUID) ([]FieldValue, error) {
-	rows, err := q.db.Query(ctx, getFieldValuesByentityID, entityID)
+func (q *Queries) GetFieldValuesByEntityID(ctx context.Context, entityID uuid.UUID) ([]FieldValue, error) {
+	rows, err := q.db.Query(ctx, getFieldValuesByEntityID, entityID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,13 +177,13 @@ func (q *Queries) GetFieldValuesByentityID(ctx context.Context, entityID uuid.UU
 	return items, nil
 }
 
-const getFieldsByentityType = `-- name: GetFieldsByentityType :many
+const getFieldsByEntityType = `-- name: GetFieldsByEntityType :many
 SELECT id, name, field_type, entity_type, required, options, order_index, created_at
 FROM fields WHERE entity_type = $1 ORDER BY order_index, name
 `
 
-func (q *Queries) GetFieldsByentityType(ctx context.Context, entityType string) ([]Field, error) {
-	rows, err := q.db.Query(ctx, getFieldsByentityType, entityType)
+func (q *Queries) GetFieldsByEntityType(ctx context.Context, entityType string) ([]Field, error) {
+	rows, err := q.db.Query(ctx, getFieldsByEntityType, entityType)
 	if err != nil {
 		return nil, err
 	}
@@ -220,9 +220,9 @@ type UpdateFieldParams struct {
 	ID         uuid.UUID `json:"id"`
 	Name       string    `json:"name"`
 	FieldType  string    `json:"field_type"`
-	Required   *bool     `json:"required"`
+	Required   bool      `json:"required"`
 	Options    []byte    `json:"options"`
-	OrderIndex *int32    `json:"order_index"`
+	OrderIndex int32     `json:"order_index"`
 }
 
 func (q *Queries) UpdateField(ctx context.Context, arg UpdateFieldParams) error {
@@ -233,31 +233,6 @@ func (q *Queries) UpdateField(ctx context.Context, arg UpdateFieldParams) error 
 		arg.Required,
 		arg.Options,
 		arg.OrderIndex,
-	)
-	return err
-}
-
-const upsertFieldValue = `-- name: UpsertFieldValue :exec
-INSERT INTO field_values (id, field_id, entity_id, value, created_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value
-`
-
-type UpsertFieldValueParams struct {
-	ID        uuid.UUID          `json:"id"`
-	FieldID   uuid.UUID          `json:"field_id"`
-	EntityID  uuid.UUID          `json:"entity_id"`
-	Value     string             `json:"value"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) UpsertFieldValue(ctx context.Context, arg UpsertFieldValueParams) error {
-	_, err := q.db.Exec(ctx, upsertFieldValue,
-		arg.ID,
-		arg.FieldID,
-		arg.EntityID,
-		arg.Value,
-		arg.CreatedAt,
 	)
 	return err
 }

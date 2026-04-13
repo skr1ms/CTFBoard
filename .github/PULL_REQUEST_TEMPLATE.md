@@ -15,7 +15,7 @@ Refs #
 - [ ] Refactor
 - [ ] Security fix
 - [ ] Documentation / config / CI
-- [ ] Other: ___
+- [ ] Other: \_\_\_
 
 ## Testing
 
@@ -58,4 +58,4 @@ Refs #
 
 - [ ] DB migration required
 - [ ] Env vars update required
-- [ ] Other: ___
+- [ ] Other: \_\_\_

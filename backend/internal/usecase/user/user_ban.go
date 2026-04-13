@@ -3,22 +3,34 @@ package user
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
 
+// BanUser bans the specified user. The operation refuses to ban the actor
+// themselves or any admin. Inside a transaction it: soft-bans the user's
+// submissions; removes all of the user's solves from every team they belong to
+// and recalculates solve counts and dynamic scores for affected challenges; for a
+// solo team hides the team and soft-bans its awards and hint unlocks, while for a
+// non-solo team it removes the user from the team, reassigns captaincy if needed
+// (choosing the lexicographically smallest eligible member), and hides the team
+// if all remaining members are also banned. After the transaction it revokes all
+// JWTs for the banned user, invalidates user and scoreboard caches, and
+// optionally sends a personal notification to the team captain when the team
+// drops below the configured minimum size
+//
 //nolint:funlen // ban flow: lock, validations, DB updates, cache invalidation, notifications
 func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason string, actorID uuid.UUID) error {
 	if userID == actorID {
-		return httperr.ErrAccessDenied
+		return apperr.ErrAccessDenied
 	}
 
 	var (
@@ -38,7 +50,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 		}
 
 		if u.Role == domain.RoleAdmin {
-			return httperr.ErrAccessDenied
+			return apperr.ErrAccessDenied
 		}
 
 		if u.IsBanned {
@@ -130,7 +142,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 							}
 
 							if len(eligible) > 0 {
-								slices.SortFunc(eligible, func(a, b *domain.User) int { return strings.Compare(a.ID.String(), b.ID.String()) })
+								domain.SortUsersByID(eligible)
 
 								newCaptainID := eligible[0].ID
 								if err := uc.deps.TeamRepo.UpdateCaptain(ctx, team.ID, newCaptainID); err != nil {
@@ -150,7 +162,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 						}
 					}
 
-					if uc.deps.CompRepo != nil && uc.deps.Logger != nil {
+					if uc.deps.CompRepo != nil {
 						comp, errComp := uc.deps.CompRepo.Get(ctx)
 						if errComp == nil && comp != nil && comp.MinTeamSize > 0 {
 							count, errCount := uc.deps.TeamRepo.CountTeamMembers(ctx, team.ID)
@@ -176,34 +188,25 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 	postCtx := context.WithoutCancel(ctx)
 
 	if uc.deps.JWTService != nil {
-		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil && uc.deps.Logger != nil {
+		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
 			uc.deps.Logger.WithError(err).Warn("UserUseCase - BanUser - RevokeAllForUser")
 		}
 	}
 
-	if uc.deps.UserCache != nil {
-		uc.deps.UserCache.InvalidateUser(postCtx, userID)
-	}
+	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
+
+	comp := computil.Cached(postCtx, nil, uc.deps.CompRepo)
+	frozen := comp != nil && comp.IsFreezeActive()
 
 	for _, teamID := range scoreboardInvalidateTeamIDs {
-		if uc.deps.ScoreboardCache != nil {
-			uc.deps.ScoreboardCache.InvalidateForTeam(postCtx, teamID)
-		}
-
-		if uc.deps.TeamCache != nil {
-			if err := uc.deps.TeamCache.Del(postCtx, cache.KeyTeam(teamID.String())); err != nil && uc.deps.Logger != nil {
-				uc.deps.Logger.WithError(err).Warn("UserUseCase - BanUser - TeamCache.Del")
-			}
-		}
-
-		if uc.deps.ChallengeListCache != nil {
-			uc.deps.ChallengeListCache.InvalidateAll(postCtx)
-		}
+		cache.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, teamID)
+		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
 	}
 
 	if shouldNotifyCaptain && uc.deps.PersonalNotificationSender != nil {
 		_, err := uc.deps.PersonalNotificationSender.CreatePersonal(ctx, captainIDToNotify, "Team below minimum size", "A member of your team was banned. Your team is now below the minimum size required to submit. Please add members or contact an administrator.", domain.NotificationWarning)
-		if err != nil && uc.deps.Logger != nil {
+		if err != nil {
 			uc.deps.Logger.WithError(err).Warn("UserUseCase - BanUser - CreatePersonal notification failed")
 		}
 	}
@@ -211,12 +214,17 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 	return nil
 }
 
-// UnbanUser does not restore team_id for non-solo teams: the user was removed from
-// the team on ban and must re-join. For solo: team is unhidden and solves restored.
-// For non-solo: solves are restored so the team regains points; user must re-join manually.
+// UnbanUser reverses a user ban. Inside a transaction it unsets the ban flag,
+// clears the was_in_banned_team flag, and restores soft-banned submissions. For a
+// solo team that was hidden at ban time it unhides the team, restores the user's
+// solves with score recalculation, and restores soft-banned awards and hint
+// unlocks. For a user whose team_id is nil (was removed from a non-solo team on
+// ban) it restores the solves so the former team regains the associated points
+// the user must re-join the team manually. After the transaction the user cache
+// and all affected scoreboard caches are invalidated.
 func (uc *UserUseCase) UnbanUser(ctx context.Context, userID, actorID uuid.UUID) error {
 	if userID == actorID {
-		return httperr.ErrAccessDenied
+		return apperr.ErrAccessDenied
 	}
 
 	var scoreboardInvalidateTeamIDs []uuid.UUID
@@ -307,32 +315,28 @@ func (uc *UserUseCase) UnbanUser(ctx context.Context, userID, actorID uuid.UUID)
 
 	postCtx := context.WithoutCancel(ctx)
 
-	if uc.deps.UserCache != nil {
-		uc.deps.UserCache.InvalidateUser(postCtx, userID)
-	}
+	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
+
+	comp := computil.Cached(postCtx, nil, uc.deps.CompRepo)
+	frozen := comp != nil && comp.IsFreezeActive()
 
 	for _, teamID := range scoreboardInvalidateTeamIDs {
-		if uc.deps.ScoreboardCache != nil {
-			uc.deps.ScoreboardCache.InvalidateForTeam(postCtx, teamID)
-		}
-
-		if uc.deps.TeamCache != nil {
-			if err := uc.deps.TeamCache.Del(postCtx, cache.KeyTeam(teamID.String())); err != nil && uc.deps.Logger != nil {
-				uc.deps.Logger.WithError(err).Warn("UserUseCase - UnbanUser - TeamCache.Del")
-			}
-		}
-
-		if uc.deps.ChallengeListCache != nil {
-			uc.deps.ChallengeListCache.InvalidateAll(postCtx)
-		}
+		cache.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, teamID)
+		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
 	}
 
 	return nil
 }
 
-// banUserRemoveSolvesAndAdjustScores removes only the solves of the given user
-// for the given team, then decrements challenge solve counts and recalculates
-// dynamic scoring for affected challenges. Other team members' solves are unchanged.
+// banUserRemoveSolvesAndAdjustScores removes all solves belonging to userID
+// within teamID and then heals the scoring state for every affected challenge
+// It first collects the distinct challenge IDs touched by the user, soft-bans
+// those solve rows, recalculates the per-challenge solve counts, recomputes
+// static point values via scoring.RecalculatePoints, and finally recalculates
+// the per-solve point snapshots for dynamic (decay-based) challenges using
+// scoring.RecalculatePointsAtSolveRows. Other team members' solves are left
+// untouched.
 func (uc *UserUseCase) banUserRemoveSolvesAndAdjustScores(ctx context.Context, teamID, userID uuid.UUID) error {
 	if uc.deps.SolveRepo == nil || uc.deps.ChallengeRepo == nil {
 		return nil
@@ -340,161 +344,71 @@ func (uc *UserUseCase) banUserRemoveSolvesAndAdjustScores(ctx context.Context, t
 
 	solves, err := uc.deps.SolveRepo.GetByTeamIDWithDetails(ctx, teamID)
 	if err != nil {
-		return fmt.Errorf("SolveRepo.GetByTeamIDWithDetails: %w", err)
+		return fmt.Errorf("UserUseCase - banUserRemoveSolvesAndAdjustScores - SolveRepo.GetByTeamIDWithDetails: %w", err)
 	}
 
-	var challengeIDs []uuid.UUID
-
-	seen := make(map[uuid.UUID]struct{})
+	var rawIDs []uuid.UUID
 
 	for _, s := range solves {
 		if s.UserID != userID {
 			continue
 		}
 
-		if _, ok := seen[s.ChallengeID]; ok {
-			continue
-		}
-
-		seen[s.ChallengeID] = struct{}{}
-		challengeIDs = append(challengeIDs, s.ChallengeID)
+		rawIDs = append(rawIDs, s.ChallengeID)
 	}
+
+	challengeIDs := domain.UniqueUUIDs(rawIDs)
 
 	if len(challengeIDs) > 0 {
 		if err := uc.deps.SolveRepo.SoftBanByTeamIDAndUserID(ctx, teamID, userID); err != nil {
-			return fmt.Errorf("SolveRepo.SoftBanByTeamIDAndUserID: %w", err)
+			return fmt.Errorf("UserUseCase - banUserRemoveSolvesAndAdjustScores - SolveRepo.SoftBanByTeamIDAndUserID: %w", err)
 		}
 	}
 
-	if len(challengeIDs) == 0 {
-		return nil
-	}
-
-	if err := uc.deps.ChallengeRepo.BatchDecrementSolveCount(ctx, challengeIDs); err != nil {
-		return fmt.Errorf("ChallengeRepo.BatchDecrementSolveCount: %w", err)
-	}
-
-	challengesMap, err := uc.deps.ChallengeRepo.GetByIDs(ctx, challengeIDs)
-	if err != nil {
-		return fmt.Errorf("ChallengeRepo.GetByIDs: %w", err)
-	}
-
-	ids, points := scoring.RecalculatePoints(challengesMap)
-	if len(ids) > 0 {
-		if err := uc.deps.ChallengeRepo.BatchUpdatePoints(ctx, ids, points); err != nil {
-			return fmt.Errorf("ChallengeRepo.BatchUpdatePoints: %w", err)
-		}
-	}
-
-	var dynamicIDs []uuid.UUID
-
-	for _, id := range challengeIDs {
-		if c := challengesMap[id]; c != nil && c.InitialValue > 0 && c.Decay > 0 {
-			dynamicIDs = append(dynamicIDs, id)
-		}
-	}
-
-	if len(dynamicIDs) > 0 {
-		rows, err := uc.deps.SolveRepo.GetSolvesForPointsRecalc(ctx, dynamicIDs)
-		if err != nil {
-			return fmt.Errorf("SolveRepo.GetSolvesForPointsRecalc: %w", err)
-		}
-
-		recalcRows := make([]*scoring.SolveRowForPointsRecalc, 0, len(rows))
-		for _, r := range rows {
-			recalcRows = append(recalcRows, &scoring.SolveRowForPointsRecalc{
-				ID: r.ID, ChallengeID: r.ChallengeID,
-				InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay,
-			})
-		}
-
-		solveIDs, newPoints := scoring.RecalculatePointsAtSolveRows(recalcRows)
-		if len(solveIDs) > 0 {
-			if err := uc.deps.SolveRepo.BatchUpdateSolvePoints(ctx, solveIDs, newPoints); err != nil {
-				return fmt.Errorf("SolveRepo.BatchUpdateSolvePoints: %w", err)
-			}
-		}
-	}
-
-	return nil
+	return uc.adjustDynamicScores(ctx, challengeIDs)
 }
 
+// unbanUserRestoreSolvesAndAdjustScores restores soft-banned solve rows for a user,
+// then recalculates solve counts, static point values, and per-solve decay snapshots
+// for all affected challenges. The mirror inverse of banUserRemoveSolvesAndAdjustScores.
 func (uc *UserUseCase) unbanUserRestoreSolvesAndAdjustScores(ctx context.Context, userID uuid.UUID) error {
 	if uc.deps.SolveRepo == nil || uc.deps.ChallengeRepo == nil {
 		return nil
 	}
 
 	if err := uc.deps.SolveRepo.RestoreByBannedUserID(ctx, userID); err != nil {
-		return fmt.Errorf("SolveRepo.RestoreByBannedUserID: %w", err)
+		return fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.RestoreByBannedUserID: %w", err)
 	}
 
 	solves, err := uc.deps.SolveRepo.GetByUserIDWithDetails(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("SolveRepo.GetByUserIDWithDetails: %w", err)
+		return fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.GetByUserIDWithDetails: %w", err)
 	}
 
-	seen := make(map[uuid.UUID]struct{})
-
-	var challengeIDs []uuid.UUID
+	rawIDs := make([]uuid.UUID, 0, len(solves))
 
 	for _, s := range solves {
-		if _, ok := seen[s.ChallengeID]; ok {
-			continue
-		}
-
-		seen[s.ChallengeID] = struct{}{}
-		challengeIDs = append(challengeIDs, s.ChallengeID)
+		rawIDs = append(rawIDs, s.ChallengeID)
 	}
 
+	return uc.adjustDynamicScores(ctx, domain.UniqueUUIDs(rawIDs))
+}
+
+func (uc *UserUseCase) adjustDynamicScores(ctx context.Context, challengeIDs []uuid.UUID) error {
 	if len(challengeIDs) == 0 {
 		return nil
 	}
 
-	if err := uc.deps.ChallengeRepo.BatchIncrementSolveCount(ctx, challengeIDs); err != nil {
-		return fmt.Errorf("ChallengeRepo.BatchIncrementSolveCount: %w", err)
-	}
+	getSolves := scoring.MapSolvesForRecalcFn(
+		uc.deps.SolveRepo.GetSolvesForPointsRecalc,
+		scoring.DefaultSolveMapper,
+		"UserUseCase - adjustDynamicScores",
+	)
 
-	challengesMap, err := uc.deps.ChallengeRepo.GetByIDs(ctx, challengeIDs)
-	if err != nil {
-		return fmt.Errorf("ChallengeRepo.GetByIDs: %w", err)
-	}
-
-	ids, points := scoring.RecalculatePoints(challengesMap)
-	if len(ids) > 0 {
-		if err := uc.deps.ChallengeRepo.BatchUpdatePoints(ctx, ids, points); err != nil {
-			return fmt.Errorf("ChallengeRepo.BatchUpdatePoints: %w", err)
-		}
-	}
-
-	var dynamicIDs []uuid.UUID
-
-	for _, id := range challengeIDs {
-		if c := challengesMap[id]; c != nil && c.InitialValue > 0 && c.Decay > 0 {
-			dynamicIDs = append(dynamicIDs, id)
-		}
-	}
-
-	if len(dynamicIDs) > 0 {
-		rows, err := uc.deps.SolveRepo.GetSolvesForPointsRecalc(ctx, dynamicIDs)
-		if err != nil {
-			return fmt.Errorf("SolveRepo.GetSolvesForPointsRecalc: %w", err)
-		}
-
-		recalcRows := make([]*scoring.SolveRowForPointsRecalc, 0, len(rows))
-		for _, r := range rows {
-			recalcRows = append(recalcRows, &scoring.SolveRowForPointsRecalc{
-				ID: r.ID, ChallengeID: r.ChallengeID,
-				InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay,
-			})
-		}
-
-		solveIDs, newPoints := scoring.RecalculatePointsAtSolveRows(recalcRows)
-		if len(solveIDs) > 0 {
-			if err := uc.deps.SolveRepo.BatchUpdateSolvePoints(ctx, solveIDs, newPoints); err != nil {
-				return fmt.Errorf("SolveRepo.BatchUpdateSolvePoints: %w", err)
-			}
-		}
-	}
-
-	return nil
+	return scoring.AdjustDynamicScores(
+		ctx, challengeIDs, uc.deps.ChallengeRepo,
+		getSolves,
+		uc.deps.SolveRepo.BatchUpdateSolvePoints,
+		scoring.GetDecayFn(ctx, uc.deps.CompParamUC),
+	)
 }

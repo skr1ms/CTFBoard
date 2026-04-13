@@ -5,11 +5,6 @@ SELECT id FROM users WHERE id = $1 FOR UPDATE;
 INSERT INTO users (id, username, email, password_hash, role, is_verified, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
--- name: CreateUserReturningID :one
-INSERT INTO users (username, email, password_hash, role, is_verified, created_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id;
-
 -- name: GetUserByID :one
 SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
 FROM users
@@ -56,7 +51,7 @@ SELECT id, team_id, username, email, password_hash, role, is_verified, verified_
 FROM users
 ORDER BY created_at ASC;
 
--- name: UpdatePassword :exec
+-- name: UpdatePassword :execrows
 UPDATE users SET password_hash = $2 WHERE id = $1;
 
 -- name: SearchUsers :many
@@ -67,11 +62,11 @@ ORDER BY created_at ASC
 LIMIT $1 OFFSET $2;
 
 -- name: CountSearchUsers :one
-SELECT COUNT(*)
+SELECT COUNT(*)::bigint
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL OR username ILIKE '%' || sqlc.narg('search') || '%');
 
--- name: UpdateUserAdmin :exec
+-- name: UpdateUserAdmin :execrows
 UPDATE users SET
     username = COALESCE(sqlc.narg('username'), username),
     email = COALESCE(sqlc.narg('email'), email),
@@ -83,7 +78,7 @@ WHERE id = $1;
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;
 
--- name: UpdateUserProfile :exec
+-- name: UpdateUserProfile :execrows
 UPDATE users SET
     username = COALESCE(sqlc.narg('username'), username),
     email = COALESCE(sqlc.narg('email'), email),
@@ -99,7 +94,7 @@ ORDER BY u.created_at ASC
 LIMIT $2 OFFSET $3;
 
 -- name: CountSearchUsersByIP :one
-SELECT COUNT(DISTINCT u.id)
+SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1;
@@ -116,8 +111,8 @@ UPDATE users SET was_in_banned_team = $1 WHERE id = ANY($2::uuid[]);
 -- name: UpdateUserAvatarURL :exec
 UPDATE users SET avatar_url = $2 WHERE id = $1;
 
--- name: ClearUserAvatarURL :one
-UPDATE users SET avatar_url = NULL WHERE id = $1 RETURNING avatar_url;
+-- name: ClearUserAvatarURL :exec
+UPDATE users SET avatar_url = NULL WHERE id = $1;
 
 -- name: ListAllUserAvatarURLs :many
 SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL;

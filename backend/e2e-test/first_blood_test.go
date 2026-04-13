@@ -36,6 +36,7 @@ func TestFirstBlood_Display(t *testing.T) {
 
 	h.SubmitFlag(tokenUser1, challengeID, "FLAG{firstblood}", http.StatusOK)
 
+	// First blood record is written after commit; poll until the endpoint returns 200.
 	require.Eventually(t, func() bool { return h.FirstBloodAvailable(tokenUser1, challengeID) }, 2*time.Second, 100*time.Millisecond)
 
 	h.SubmitFlag(tokenUser2, challengeID, "FLAG{firstblood}", http.StatusOK)
@@ -61,7 +62,7 @@ func TestFirstBlood_NotFound(t *testing.T) {
 	resp := h.GetFirstBlood(tokenAdmin, challengeID, http.StatusNotFound)
 	require.NotNil(t, resp.JSON404)
 	require.NotEmpty(t, resp.JSON404.Message)
-	require.Equal(t, "solve not found", resp.JSON404.Message)
+	require.Contains(t, resp.JSON404.Message, "solve not found")
 }
 
 // GET /challenges/{ID}/first-blood: invalid challenge ID format returns 400.

@@ -11,7 +11,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// Get custom fields
 // (GET /fields).
 func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openapi.GetFieldsParams) {
 	entityType := domain.EntityTypeUser
@@ -28,7 +27,6 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 	httputil.RenderOK(w, r, response.FromFieldList(list))
 }
 
-// Create field
 // (POST /admin/fields).
 func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.CreateFieldRequest](
@@ -55,7 +53,6 @@ func (h *Server) PostAdminFields(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderCreated(w, r, response.FromField(field))
 }
 
-// Update field
 // (PUT /admin/fields/{ID}).
 func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, ID string) {
 	fieldIDParsed, ok := httputil.ParseUUID(w, r, ID)
@@ -87,7 +84,6 @@ func (h *Server) PutAdminFieldsID(w http.ResponseWriter, r *http.Request, ID str
 	httputil.RenderOK(w, r, response.FromField(field))
 }
 
-// Delete field
 // (DELETE /admin/fields/{ID}).
 func (h *Server) DeleteAdminFieldsID(w http.ResponseWriter, r *http.Request, ID string) {
 	fieldIDParsed, ok := httputil.ParseUUID(w, r, ID)

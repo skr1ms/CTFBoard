@@ -53,7 +53,7 @@ func TestSubmissionRace_ConcurrentWrongFlagSubmits_NoDuplicateCountingOrPanic(t 
 		t.Errorf("unexpected error in concurrent submission: %v", err)
 	}
 
-	count, err := f.SubmissionRepo.CountByUser(ctx, user.ID)
+	count, err := f.SubmissionRepo.CountByUser(ctx, user.ID, nil)
 	require.NoError(t, err)
 	assert.Equal(t, int64(goroutines), count, "submission count must match exactly the number of goroutines")
 }
@@ -97,7 +97,7 @@ func TestSubmissionRace_ConcurrentSubmissions_MultipleChallenges(t *testing.T) {
 
 	wg.Wait()
 
-	total, err := f.SubmissionRepo.CountByChallenge(ctx, challenge.ID)
+	total, err := f.SubmissionRepo.CountByChallenge(ctx, challenge.ID, nil)
 	require.NoError(t, err)
 	assert.Equal(t, int64(workers), total)
 }

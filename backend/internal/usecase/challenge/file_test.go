@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestFileUseCase_Upload(t *testing.T) {
@@ -35,7 +35,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&domain.Challenge{ID: challengeID}, nil).Once()
 		d.s3Provider.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(nil)
 		d.fileRepo.On("Create", ctx, mock.MatchedBy(func(f *domain.File) bool {
-			return f.ChallengeID == challengeID &&
+			return f.ChallengeID != nil && *f.ChallengeID == challengeID &&
 				f.Filename == filename &&
 				f.Size == size &&
 				f.Type == fileType
@@ -46,7 +46,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, file)
 		assert.Equal(t, filename, file.Filename)
-		assert.Equal(t, challengeID, file.ChallengeID)
+		assert.Equal(t, challengeID, *file.ChallengeID)
 
 		d.s3Provider.AssertExpectations(t)
 		d.fileRepo.AssertExpectations(t)
@@ -156,7 +156,7 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 		ctx := context.Background()
 		fileID := uuid.New()
 
-		d.fileRepo.On("GetByID", ctx, fileID).Return(nil, httperr.ErrFileNotFound)
+		d.fileRepo.On("GetByID", ctx, fileID).Return(nil, apperr.ErrFileNotFound)
 
 		url, err := uc.GetDownloadURL(ctx, fileID)
 		assert.Error(t, err)
@@ -242,7 +242,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 		ctx := context.Background()
 		fileID := uuid.New()
 
-		d.fileRepo.On("GetByID", ctx, fileID).Return(nil, httperr.ErrFileNotFound)
+		d.fileRepo.On("GetByID", ctx, fileID).Return(nil, apperr.ErrFileNotFound)
 
 		err := uc.Delete(ctx, fileID)
 		assert.Error(t, err)

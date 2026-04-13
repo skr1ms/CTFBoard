@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	settingsMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type fieldTestDeps struct {
@@ -213,12 +213,12 @@ func TestFieldUseCase_Update_Error(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.New()
 
-	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, httperr.ErrFieldNotFound)
+	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperr.ErrFieldNotFound)
 
 	uc := d.createUseCase()
 	got, err := uc.Update(ctx, id, "name", domain.FieldTypeText, false, nil, 0)
 
-	assert.ErrorIs(t, err, httperr.ErrFieldNotFound)
+	assert.ErrorIs(t, err, apperr.ErrFieldNotFound)
 	assert.Nil(t, got)
 }
 

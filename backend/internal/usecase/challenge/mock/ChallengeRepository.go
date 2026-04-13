@@ -1392,6 +1392,63 @@ func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// RecalculateSolveCounts provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) RecalculateSolveCounts(ctx context.Context, ids []uuid.UUID) error {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RecalculateSolveCounts")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_RecalculateSolveCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecalculateSolveCounts'
+type MockChallengeRepository_RecalculateSolveCounts_Call struct {
+	*mock.Call
+}
+
+// RecalculateSolveCounts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockChallengeRepository_Expecter) RecalculateSolveCounts(ctx interface{}, ids interface{}) *MockChallengeRepository_RecalculateSolveCounts_Call {
+	return &MockChallengeRepository_RecalculateSolveCounts_Call{Call: _e.mock.On("RecalculateSolveCounts", ctx, ids)}
+}
+
+func (_c *MockChallengeRepository_RecalculateSolveCounts_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockChallengeRepository_RecalculateSolveCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_RecalculateSolveCounts_Call) Return(err error) *MockChallengeRepository_RecalculateSolveCounts_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_RecalculateSolveCounts_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) error) *MockChallengeRepository_RecalculateSolveCounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetRequirements provides a mock function for the type MockChallengeRepository
 func (_mock *MockChallengeRepository) SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error {
 	ret := _mock.Called(ctx, challengeID, requirementIDs)

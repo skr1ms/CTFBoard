@@ -235,19 +235,29 @@ func TestUsers_MeSolves_Unauthorized(t *testing.T) {
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "me solves no auth")
 }
 
-// GET /users/{ID}/solves: authed gets another user's solves.
+// GET /users/{ID}/solves: admin can view any user's solves; regular user can only view own.
 func TestUsers_IDSolves_Success(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_viewer")
+	_, tokenAdmin := h.SetupCompetition("id_solves_admin")
 	uid := helper.UID()
 	h.Register("id_solves_"+uid, "id_solves_"+uid+"@test.com", "ValidPass1")
 	targetID := h.GetUserIDByEmail("id_solves_" + uid + "@test.com")
 
-	resp, err := h.Client().GetUsersIDSolvesWithResponse(context.Background(), targetID, helper.WithBearerToken(tokenUser))
+	// Admin can view any user's solves.
+	resp, err := h.Client().GetUsersIDSolvesWithResponse(context.Background(), targetID, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get user id solves")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "admin get user id solves")
+
+	// Regular user can view own solves.
+	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_self_" + uid)
+	meResp := h.GetMe(tokenUser, http.StatusOK)
+	require.NotNil(t, meResp.JSON200)
+	selfID := *meResp.JSON200.ID
+	selfResp, err := h.Client().GetUsersIDSolvesWithResponse(context.Background(), selfID, helper.WithBearerToken(tokenUser))
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusOK, selfResp.StatusCode(), selfResp.Body, "user get own solves")
 }
 
 // GET /users/{ID}/solves: user not found -> 404.
@@ -255,9 +265,9 @@ func TestUsers_IDSolves_NotFound(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_notfound")
+	_, tokenAdmin := h.SetupCompetition("id_solves_notfound")
 
-	resp, err := h.Client().GetUsersIDSolvesWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
+	resp, err := h.Client().GetUsersIDSolvesWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "get user id solves not found")
 }
@@ -345,12 +355,12 @@ func TestUsers_IDAwards_Success(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenUser := h.RegisterUserAndLogin("id_awards_viewer")
+	_, tokenAdmin := h.SetupCompetition("id_awards_admin")
 	uid := helper.UID()
 	h.Register("id_awards_"+uid, "id_awards_"+uid+"@test.com", "ValidPass1")
 	targetID := h.GetUserIDByEmail("id_awards_" + uid + "@test.com")
 
-	resp, err := h.Client().GetUsersIDAwardsWithResponse(context.Background(), targetID, helper.WithBearerToken(tokenUser))
+	resp, err := h.Client().GetUsersIDAwardsWithResponse(context.Background(), targetID, helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get user id awards")
 }
@@ -360,9 +370,9 @@ func TestUsers_IDAwards_NotFound(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	_, _, tokenUser := h.RegisterUserAndLogin("id_awards_notfound_viewer")
+	_, tokenAdmin := h.SetupCompetition("id_awards_notfound")
 
-	resp, err := h.Client().GetUsersIDAwardsWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
+	resp, err := h.Client().GetUsersIDAwardsWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenAdmin))
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "get user id awards not found")
 }

@@ -3,14 +3,13 @@ package team
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
 func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
@@ -40,6 +39,9 @@ func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page,
 	return result, nil
 }
 
+// AdminUpdate modifies team metadata without competition-state restrictions. When a new
+// captain is requested the candidate is locked and validated (must be in the team and
+// not banned) before the team row is locked, preventing captain/team lock inversion.
 func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) (*domain.Team, error) {
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if captainID != nil {
@@ -53,11 +55,11 @@ func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *
 			}
 
 			if candidate.TeamID == nil || *candidate.TeamID != teamID {
-				return httperr.ErrNewCaptainNotInTeam
+				return apperr.ErrNewCaptainNotInTeam
 			}
 
 			if candidate.IsBanned {
-				return httperr.ErrUserBanned
+				return apperr.ErrUserBanned
 			}
 		}
 
@@ -91,80 +93,46 @@ func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *
 		return nil, fmt.Errorf("TeamUseCase - AdminUpdate - TeamRepo.GetByID: %w", err)
 	}
 
-	uc.invalidateScoreboardCache(ctx)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 
 	return team, nil
 }
 
+// AdminDelete force-deletes a team without competition-state restrictions. To guard
+// against race conditions the function reads the member list, sorts it, locks each
+// member row in lexicographic UUID order, then locks the team row, and reads the
+// member list a second time. If the two snapshots differ in length or membership the
+// transaction returns ErrTeamConflict and the caller retries. Once a consistent
+// snapshot is confirmed, solve counts are recalculated before the cascade deletion so
+// that challenge point totals are correct even if the transaction rolls back partway
+// Solves, submissions, awards, and hint unlocks are then hard-deleted, all member
+// team_id fields are cleared in a batch, the team record is deleted, and an audit log
+// entry is written.
 func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error {
 	var memberIDs []uuid.UUID
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		members, err := uc.deps.UserRepo.GetByTeamID(ctx, teamID)
+		members, err := uc.lockTeamWithMembers(ctx, teamID)
 		if err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - UserRepo.GetByTeamID: %w", err)
+			return fmt.Errorf("TeamUseCase - AdminDelete - lockTeamWithMembers: %w", err)
 		}
 
-		slices.SortFunc(members, func(a, b *domain.User) int {
-			return strings.Compare(a.ID.String(), b.ID.String())
-		})
-
-		for _, m := range members {
-			err := uc.deps.UserRepo.Lock(ctx, m.ID)
-			if err != nil {
-				return fmt.Errorf("TeamUseCase - AdminDelete - UserRepo.Lock: %w", err)
-			}
-		}
-
-		if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - TeamRepo.Lock: %w", err)
-		}
-
-		membersAfter, err := uc.deps.UserRepo.GetByTeamID(ctx, teamID)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - UserRepo.GetByTeamID (recheck): %w", err)
-		}
-
-		slices.SortFunc(membersAfter, func(a, b *domain.User) int {
-			return strings.Compare(a.ID.String(), b.ID.String())
-		})
-
-		if len(membersAfter) != len(members) {
-			return httperr.ErrTeamConflict
-		}
-
-		for i := range members {
-			if members[i].ID != membersAfter[i].ID {
-				return httperr.ErrTeamConflict
-			}
-		}
-
-		memberIDs = make([]uuid.UUID, len(membersAfter))
-		for i, m := range membersAfter {
+		memberIDs = make([]uuid.UUID, len(members))
+		for i, m := range members {
 			memberIDs[i] = m.ID
 		}
 
-		if err := uc.adjustSolveCountsForTeam(ctx, teamID, true); err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - adjustSolveCountsForTeam: %w", err)
+		challengeIDs, err := uc.getChallengeIDsForTeam(ctx, teamID)
+		if err != nil {
+			return fmt.Errorf("TeamUseCase - AdminDelete - getChallengeIDsForTeam: %w", err)
 		}
 
-		if err := uc.deps.SolveRepo.DeleteByTeamID(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - SolveRepo.DeleteByTeamID: %w", err)
+		if err := uc.cascadeDelete(ctx, teamID); err != nil {
+			return fmt.Errorf("TeamUseCase - AdminDelete - cascadeDelete: %w", err)
 		}
 
-		if err := uc.deps.SubmissionRepo.DeleteByTeamID(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - SubmissionRepo.DeleteByTeamID: %w", err)
-		}
-
-		if err := uc.deps.AwardRepo.DeleteByTeamID(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - AdminDelete - AwardRepo.DeleteByTeamID: %w", err)
-		}
-
-		if uc.deps.HintRepo != nil {
-			err := uc.deps.HintRepo.DeleteUnlocksByTeamID(ctx, teamID)
-			if err != nil {
-				return fmt.Errorf("TeamUseCase - AdminDelete - HintRepo.DeleteUnlocksByTeamID: %w", err)
-			}
+		if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs); err != nil {
+			return fmt.Errorf("TeamUseCase - AdminDelete - adjustSolveCountsForChallenges: %w", err)
 		}
 
 		if err := uc.deps.UserRepo.UpdateTeamIDBatch(ctx, memberIDs, nil); err != nil {
@@ -192,11 +160,11 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 	}
 
 	for _, id := range memberIDs {
-		uc.invalidateUserCache(ctx, id)
+		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, id)
 	}
 
-	uc.invalidateScoreboardCache(ctx)
-	uc.invalidateChallengeListCache(ctx)
+	cacheutil.InvalidateScoreboard(ctx, uc.deps.ScoreboardCache)
+	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 
 	return nil
 }
@@ -222,12 +190,14 @@ func (uc *TeamUseCase) AdminAddMember(ctx context.Context, teamID, userID uuid.U
 		return fmt.Errorf("TeamUseCase - AdminAddMember - TM.Run: %w", err)
 	}
 
-	uc.invalidateUserCache(ctx, userID)
-	uc.invalidateScoreboardCache(ctx)
+	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 
 	return nil
 }
 
+// adminAddMemberTx locks the user then the team (user-before-team order), validates
+// team capacity, competition mode, and user eligibility, then assigns the user.
 func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid.UUID) error {
 	if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
 		return fmt.Errorf("TeamUseCase - AdminAddMember - UserRepo.Lock: %w", err)
@@ -242,11 +212,11 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 	}
 
 	if team.IsSolo {
-		return httperr.ErrCannotAddToSoloTeam
+		return apperr.ErrCannotAddToSoloTeam
 	}
 
 	if team.IsBanned {
-		return httperr.ErrTeamBanned
+		return apperr.ErrTeamBanned
 	}
 
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
@@ -255,15 +225,15 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 	}
 
 	if user.IsBanned {
-		return httperr.ErrUserBanned
+		return apperr.ErrUserBanned
 	}
 
 	if user.WasInBannedTeam {
-		return httperr.ErrUserWasInBannedTeam
+		return apperr.ErrUserWasInBannedTeam
 	}
 
 	if user.TeamID != nil {
-		return httperr.ErrTeamConflict
+		return apperr.ErrTeamConflict
 	}
 
 	members, err := uc.deps.UserRepo.GetByTeamID(ctx, teamID)
@@ -277,16 +247,13 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 	}
 
 	if !comp.Mode.AllowsTeams() {
-		return httperr.ErrTeamsNotAllowed
+		return apperr.ErrTeamsNotAllowed
 	}
 
-	maxSize := comp.MaxTeamSize
-	if maxSize <= 0 {
-		maxSize = uc.deps.DefaultMaxTeamSize
-	}
+	maxSize := resolveMaxTeamSize(comp, uc.deps.DefaultMaxTeamSize)
 
 	if len(members) >= maxSize {
-		return httperr.ErrTeamFull
+		return apperr.ErrTeamFull
 	}
 
 	if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, &teamID); err != nil {
@@ -323,7 +290,7 @@ func (uc *TeamUseCase) AdminRemoveMember(ctx context.Context, teamID, userID uui
 		}
 
 		if user.TeamID == nil || *user.TeamID != teamID {
-			return httperr.ErrTeamMemberNotFound
+			return apperr.ErrTeamMemberNotFound
 		}
 
 		team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
@@ -332,7 +299,7 @@ func (uc *TeamUseCase) AdminRemoveMember(ctx context.Context, teamID, userID uui
 		}
 
 		if team.CaptainID == userID {
-			return httperr.ErrCaptainCannotLeave
+			return apperr.ErrCaptainCannotLeave
 		}
 
 		if err := uc.deps.UserRepo.UpdateTeamID(ctx, userID, nil); err != nil {
@@ -355,8 +322,8 @@ func (uc *TeamUseCase) AdminRemoveMember(ctx context.Context, teamID, userID uui
 		return fmt.Errorf("TeamUseCase - AdminRemoveMember - TM.Run: %w", err)
 	}
 
-	uc.invalidateUserCache(ctx, userID)
-	uc.invalidateScoreboardCache(ctx)
+	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 
 	return nil
 }

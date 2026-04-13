@@ -315,7 +315,7 @@ func TestSolutions_List_WriteupDisabled(t *testing.T) {
 	_, _, tokenUser := h.RegisterUserAndLogin("sol_list_d_usr_" + suffix)
 	h.CreateSoloTeam(tokenUser, http.StatusCreated)
 
-	// writeup_enabled is global state shared with parallel tests; accept either outcome.
+	// writeup_enabled is global state shared with parallel tests; accept either outcome
 	_ = disableStatus
 
 	h.ListSolutionsExpectOneOf(tokenUser, []int{http.StatusOK, http.StatusForbidden})

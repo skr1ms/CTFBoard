@@ -368,7 +368,7 @@ func TestChallenge_GetSolution_NotFound(t *testing.T) {
 
 	resp, err := h.Client().GetChallengesChallengeIDSolutionWithResponse(context.Background(), "00000000-0000-0000-0000-000000000000", helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
-	// 404 when challenge missing; 403 when writeups disabled (parallel test may have disabled it).
+	// 404 when challenge missing; 403 when writeups disabled (parallel test may have disabled it)
 	require.Contains(t, []int{http.StatusNotFound, http.StatusForbidden}, resp.StatusCode(), "solution not found: status %d body=%s", resp.StatusCode(), string(resp.Body))
 
 	if resp.StatusCode() == http.StatusNotFound {

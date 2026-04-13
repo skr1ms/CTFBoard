@@ -5,11 +5,11 @@ log-level: info
 template: testify
 
 packages:
-  github.com/TakuyaYagam1/AstroCTFb/pkg/cache:
+  github.com/TakuyaYagam1/AstroCTFb/internal/cache:
     interfaces:
       TeamBracketIDGetter:
         config:
-          dir: "pkg/cache/mock"
+          dir: "internal/cache/mock"
           filename: "TeamBracketIDGetter.go"
           pkgname: "mock"
           structname: "MockTeamBracketIDGetter"

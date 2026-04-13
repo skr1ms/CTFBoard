@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestAPITokenRepo_Create_Success(t *testing.T) {
@@ -90,7 +90,7 @@ func TestAPITokenRepo_GetByTokenHash_Error_NotFound(t *testing.T) {
 	got, err := f.APITokenRepo.GetByTokenHash(ctx, "nonexistent_hash_xyz")
 	require.Error(t, err)
 	assert.Nil(t, got)
-	assert.ErrorIs(t, err, httperr.ErrAPITokenNotFound)
+	assert.ErrorIs(t, err, apperr.ErrAPITokenNotFound)
 }
 
 func TestAPITokenRepo_Delete_Success(t *testing.T) {

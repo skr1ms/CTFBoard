@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	slugpkg "github.com/TakuyaYagam1/AstroCTFb/pkg/slug"
 )
 
@@ -46,7 +46,7 @@ func (uc *PageUseCase) GetPublishedList(ctx context.Context) ([]*domain.PageList
 
 func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*domain.Page, error) {
 	if strings.TrimSpace(slug) == "" {
-		return nil, httperr.ErrPageSlugRequired
+		return nil, apperr.ErrPageSlugRequired
 	}
 
 	page, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
@@ -55,11 +55,11 @@ func (uc *PageUseCase) GetBySlug(ctx context.Context, slug string) (*domain.Page
 	}
 
 	if page == nil {
-		return nil, httperr.ErrPageNotFound
+		return nil, apperr.ErrPageNotFound
 	}
 
 	if page.IsDraft {
-		return nil, httperr.ErrPageNotFound
+		return nil, apperr.ErrPageNotFound
 	}
 
 	return page, nil
@@ -88,15 +88,15 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 	slug = strings.TrimSpace(slug)
 
 	if title == "" {
-		return nil, httperr.ErrPageTitleRequired
+		return nil, apperr.ErrPageTitleRequired
 	}
 
 	if slug == "" {
-		return nil, httperr.ErrPageSlugRequired
+		return nil, apperr.ErrPageSlugRequired
 	}
 
 	if !slugpkg.MatchPageSlug(slug) {
-		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
+		return nil, apperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPatternString)
 	}
 
 	page := &domain.Page{
@@ -126,24 +126,24 @@ func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, co
 	slug = strings.TrimSpace(slug)
 
 	if title == "" {
-		return nil, httperr.ErrPageTitleRequired
+		return nil, apperr.ErrPageTitleRequired
 	}
 
 	if slug == "" {
-		return nil, httperr.ErrPageSlugRequired
+		return nil, apperr.ErrPageSlugRequired
 	}
 
 	if !slugpkg.MatchPageSlug(slug) {
-		return nil, httperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPattern.String())
+		return nil, apperr.NewValidationErrorf("slug must match %q", slugpkg.PageSlugPatternString)
 	}
 
 	existing, err := uc.deps.PageRepo.GetBySlug(ctx, slug)
-	if err != nil && !errors.Is(err, httperr.ErrPageNotFound) {
+	if err != nil && !errors.Is(err, apperr.ErrPageNotFound) {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetBySlug: %w", err)
 	}
 
 	if existing != nil && existing.ID != ID {
-		return nil, httperr.ErrPageSlugConflict
+		return nil, apperr.ErrPageSlugConflict
 	}
 
 	page.Title = title

@@ -46,7 +46,7 @@ func ExtractDB(ctx context.Context, pool *pgxpool.Pool) sqlc.DBTX {
 	return pool
 }
 
-// Run executes fn inside a ReadCommitted transaction.
+// Run executes fn inside a ReadCommitted transaction
 // If ctx already carries a transaction, fn is called directly (nested call reuses it).
 func (tm *TransactionManager) Run(ctx context.Context, fn func(context.Context) error) (retErr error) {
 	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
@@ -56,8 +56,8 @@ func (tm *TransactionManager) Run(ctx context.Context, fn func(context.Context) 
 	return tm.runInNewTx(ctx, "Run", pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadWrite}, fn)
 }
 
-// ReadOnly executes fn inside a read-only transaction (no writes).
-// If ctx already carries a transaction, fn is called directly.
+// ReadOnly executes fn inside a read-only transaction (no writes)
+// If ctx already carries a transaction, fn is called directly
 // Use for scoreboard, statistics, and listing operations.
 func (tm *TransactionManager) ReadOnly(ctx context.Context, fn func(context.Context) error) (retErr error) {
 	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
@@ -67,7 +67,12 @@ func (tm *TransactionManager) ReadOnly(ctx context.Context, fn func(context.Cont
 	return tm.runInNewTx(ctx, "ReadOnly", pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadOnly}, fn)
 }
 
-// runInNewTx starts a new transaction with the given options and runs fn inside it.
+// runInNewTx opens a new pgx transaction with opts, injects it into a derived
+// context (txKey + isoLevelKey), and calls fn. A deferred finishTx handles
+// cleanup: it rolls back if fn returned an error or panicked, and does nothing
+// if Commit already succeeded (committed flag). The named return retErr allows
+// finishTx to inspect and potentially replace the return value (e.g. surfacing
+// a Rollback error when fn itself succeeded but commit was never reached).
 func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pgx.TxOptions, fn func(context.Context) error) (retErr error) {
 	tx, err := tm.pool.BeginTx(ctx, opts)
 	if err != nil {
@@ -79,7 +84,7 @@ func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pg
 	defer func() {
 		p := recover()
 
-		retErr = tm.finishTx(op, p, committed, tx, ctx, retErr)
+		retErr = tm.finishTx(ctx, op, p, committed, tx, retErr)
 		if p != nil {
 			panic(p)
 		}
@@ -101,8 +106,14 @@ func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pg
 	return nil
 }
 
-// finishTx handles defer: panic wrapping and rollback if not committed.
-func (tm *TransactionManager) finishTx(op string, p any, committed bool, tx pgx.Tx, ctx context.Context, retErr error) error {
+// finishTx is called from the defer inside runInNewTx. If a panic was recovered
+// it wraps the value as an error and returns it (the caller re-panics after).
+// Otherwise, if the transaction was not committed, it attempts Rollback using
+// context.WithoutCancel so that a cancelled ctx does not suppress the rollback.
+// A Rollback error is only returned when retErr is nil, preserving the original
+// business error in all other cases. This guarantees that the first error wins
+// and cleanup errors do not mask application logic failures.
+func (tm *TransactionManager) finishTx(ctx context.Context, op string, p any, committed bool, tx pgx.Tx, retErr error) error {
 	if p != nil {
 		if pErr, ok := p.(error); ok {
 			return fmt.Errorf("TransactionManager - %s - panic: %w", op, pErr)
@@ -131,21 +142,25 @@ func runSerializableInExistingTx(ctx context.Context, fn func(context.Context) e
 
 	currentIso, ok := ctx.Value(isoLevelKey{}).(pgx.TxIsoLevel)
 	if !ok {
-		return false, fmt.Errorf("TransactionManager: cannot run Serializable inside existing transaction with unknown isolation level")
+		return false, fmt.Errorf("TransactionManager - RunSerializable - nested tx: unknown isolation level")
 	}
 
 	if currentIso != pgx.Serializable {
-		return false, fmt.Errorf("TransactionManager: cannot run Serializable inside existing %s transaction", currentIso)
+		return false, fmt.Errorf("TransactionManager - RunSerializable - nested tx: existing %s transaction is not serializable", currentIso)
 	}
 
 	return true, fn(ctx)
 }
 
-const serializableMaxRetries = 3
+const (
+	serializableMaxRetries     = 3
+	serializableRetryMaxJitter = 10 * time.Millisecond
+	serializableRetryBaseDelay = 5 * time.Millisecond
+)
 
-// RunSerializable executes fn inside a Serializable transaction.
-// If ctx already carries a transaction, fn is called only when that transaction is already Serializable;
-// otherwise an error is returned (isolation level cannot be "upgraded" from ReadCommitted to Serializable).
+// RunSerializable executes fn inside a Serializable transaction
+// If ctx already carries a transaction, fn is called only when that transaction is already Serializable
+// otherwise an error is returned (isolation level cannot be "upgraded" from ReadCommitted to Serializable)
 // New transactions are retried up to serializableMaxRetries times on serialization failure (40001).
 func (tm *TransactionManager) RunSerializable(ctx context.Context, fn func(context.Context) error) (retErr error) {
 	if ran, err := runSerializableInExistingTx(ctx, fn); ran || err != nil {
@@ -168,7 +183,7 @@ func (tm *TransactionManager) RunSerializable(ctx context.Context, fn func(conte
 			return err
 		}
 
-		jitter := time.Duration(cryptoRandN(int64(10*time.Millisecond))) + time.Duration(attempt+1)*5*time.Millisecond
+		jitter := time.Duration(cryptoRandN(int64(serializableRetryMaxJitter))) + time.Duration(attempt+1)*serializableRetryBaseDelay
 		t := time.NewTimer(jitter)
 
 		select {
@@ -183,6 +198,8 @@ func (tm *TransactionManager) RunSerializable(ctx context.Context, fn func(conte
 	return nil
 }
 
+// isSerializationFailure reports whether err is a PostgreSQL serialization failure
+// (SQLSTATE 40001), which triggers a retry in RunSerializable.
 func isSerializationFailure(err error) bool {
 	var pgErr *pgconn.PgError
 
@@ -193,6 +210,8 @@ func isSerializationFailure(err error) bool {
 	return false
 }
 
+// cryptoRandN returns a cryptographically random int64 in [0, n). Used for
+// jitter in the serializable-transaction retry back-off to prevent thundering herd.
 func cryptoRandN(n int64) int64 {
 	if n <= 0 {
 		return 0

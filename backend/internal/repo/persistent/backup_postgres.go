@@ -35,7 +35,7 @@ func quoteIdentifier(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
-// backupEraseTablesQuoted maps each allowed table name to its PostgreSQL-quoted form.
+// backupEraseTablesQuoted maps each allowed table name to its PostgreSQL-quoted form
 // Used so TRUNCATE is built only from fixed quoted identifiers, not string concatenation of input.
 var backupEraseTablesQuoted = func() map[string]string {
 	m := make(map[string]string, len(backupEraseTables))
@@ -51,7 +51,7 @@ var (
 
 	backupChallengeImportCols = []string{
 		"id", "title", "description", "category", "flag_hash", "points",
-		"initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "position",
+		"initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "max_attempts_window", "position",
 		"is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex",
 	}
 	backupHintImportCols       = []string{"id", "challenge_id", "content", "cost", "order_index", "title"}
@@ -77,7 +77,7 @@ const (
 		title = EXCLUDED.title, description = EXCLUDED.description, category = EXCLUDED.category,
 		flag_hash = EXCLUDED.flag_hash, points = EXCLUDED.points, initial_value = EXCLUDED.initial_value,
 		min_value = EXCLUDED.min_value, decay = EXCLUDED.decay, solve_count = EXCLUDED.solve_count,
-		state = EXCLUDED.state, connection_info = EXCLUDED.connection_info, max_attempts = EXCLUDED.max_attempts, position = EXCLUDED.position,
+		state = EXCLUDED.state, connection_info = EXCLUDED.connection_info, max_attempts = EXCLUDED.max_attempts, max_attempts_window = EXCLUDED.max_attempts_window, position = EXCLUDED.position,
 		is_regex = EXCLUDED.is_regex, is_case_insensitive = EXCLUDED.is_case_insensitive,
 		flag_regex = EXCLUDED.flag_regex, flag_format_regex = EXCLUDED.flag_format_regex`
 	backupHintUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, cost = EXCLUDED.cost, order_index = EXCLUDED.order_index, title = EXCLUDED.title`
@@ -121,10 +121,15 @@ func NewBackupRepo(pool *pgxpool.Pool) *BackupRepo {
 	return &BackupRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
+// EraseAllTables truncates all backup-managed tables via EraseTables. Used at the
+// start of a full backup import to reset state before replaying exported data.
 func (r *BackupRepo) EraseAllTables(ctx context.Context) error {
 	return r.EraseTables(ctx, backupEraseTables)
 }
 
+// EraseTables truncates a dynamic set of tables with CASCADE. Each table name is
+// validated against an allowlist before inclusion to prevent SQL injection; names
+// not in the allowlist are silently skipped.
 func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 	if len(tables) == 0 {
 		return nil
@@ -139,8 +144,8 @@ func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 
 		quoted = append(quoted, q)
 	}
-	// TRUNCATE ... CASCADE handles FKs and is faster than DELETE; RESTART IDentity resets sequences.
-	// SQL is built only from precomputed quoted identifiers, no input concatenation.
+	// TRUNCATE ... CASCADE handles FKs and is faster than DELETE; RESTART IDentity resets sequences
+	// SQL is built only from precomputed quoted identifiers, no input concatenation
 	sql := "TRUNCATE " + strings.Join(quoted, ", ") + " RESTART IDentity CASCADE"
 
 	_, err := r.DB(ctx).Exec(ctx, sql)
@@ -151,6 +156,8 @@ func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 	return nil
 }
 
+// ImportTags upserts tags in batches using ON CONFLICT (id) DO UPDATE, so re-importing
+// a backup overwrites existing tags rather than failing on duplicate IDs.
 func (r *BackupRepo) ImportTags(ctx context.Context, data *domain.BackupData) error {
 	if len(data.Tags) == 0 {
 		return nil
@@ -207,6 +214,8 @@ func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *domain.Backu
 	return nil
 }
 
+// ImportCompetition updates the single competition row (WHERE id=1) with exported data.
+// Unlike other Import methods it does not insert - the row is pre-seeded by migrations.
 func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *domain.Competition) error {
 	if comp == nil {
 		return nil
@@ -236,6 +245,10 @@ func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *domain.Competi
 	return nil
 }
 
+// ImportChallenges upserts challenges and their hints in two separate batched
+// loops. All hints from every challenge are collected into a flat slice first,
+// then inserted independently so that hint rows are not duplicated per batch
+// boundary. Both inserts use ON CONFLICT UPDATE to overwrite existing rows.
 func (r *BackupRepo) ImportChallenges(ctx context.Context, data *domain.BackupData) error {
 	var allHints []domain.Hint
 
@@ -263,7 +276,7 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *domain.BackupDa
 			}
 
 			q = q.Values(ch.ID, ch.Title, ch.Description, ch.Category, ch.FlagHash, ch.Points,
-				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, state, ch.ConnectionInfo, ch.MaxAttempts, ch.Position,
+				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, state, ch.ConnectionInfo, ch.MaxAttempts, int64(ch.MaxAttemptsWindow), ch.Position,
 				ch.IsRegex, ch.IsCaseInsensitive, flagRegex, flagFormatRegex)
 		}
 
@@ -292,6 +305,9 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *domain.BackupDa
 	return nil
 }
 
+// ImportTeams upserts teams in batches. The ON CONFLICT behaviour is driven by
+// opts.ConflictMode: ConflictModeSkip emits DO NOTHING; all other modes use the
+// full UPDATE suffix defined in backupTeamUpsertSuffix.
 func (r *BackupRepo) ImportTeams(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error {
 	suffix := backupTeamUpsertSuffix
 
@@ -318,6 +334,10 @@ func (r *BackupRepo) ImportTeams(ctx context.Context, data *domain.BackupData, o
 	return nil
 }
 
+// ImportUsers upserts users in batches. Passwords are replaced with
+// backupUserRestoredPasswordHash (a sentinel invalid hash) so that restored
+// accounts cannot log in with their old credentials until a reset is performed.
+// Conflict behaviour mirrors ImportTeams.
 func (r *BackupRepo) ImportUsers(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error {
 	suffix := backupUserUpsertSuffix
 
@@ -344,6 +364,11 @@ func (r *BackupRepo) ImportUsers(ctx context.Context, data *domain.BackupData, o
 	return nil
 }
 
+// UpdateUserTeamIDs bulk-sets team_id on restored user rows using an
+// UPDATE … FROM (VALUES …) pattern. Placeholders are constructed manually
+// because squirrel does not support multi-column VALUES lists natively; the
+// generated SQL is safe - no user input is concatenated, only $N positional
+// placeholders are used.
 func (r *BackupRepo) UpdateUserTeamIDs(ctx context.Context, data *domain.BackupData) error {
 	var withTeam []*domain.UserExport
 
@@ -684,21 +709,27 @@ func toSet(cols []string) map[string]bool {
 	return m
 }
 
+// validateCSVColumns checks that every column name in header is present in the
+// per-table allowlist derived from the backup import column sets. Returns an
+// error on the first unknown column to prevent arbitrary column injection.
 func validateCSVColumns(table string, header []string) error {
 	allowed, ok := csvAllowedColumns[table]
 	if !ok {
-		return fmt.Errorf("no allowed columns defined for table %q", table)
+		return fmt.Errorf("BackupRepo - validateCSVColumns: no allowed columns defined for table %q", table)
 	}
 
 	for _, col := range header {
 		if !allowed[col] {
-			return fmt.Errorf("column %q is not allowed for table %q", col, table)
+			return fmt.Errorf("BackupRepo - validateCSVColumns: column %q is not allowed for table %q", col, table)
 		}
 	}
 
 	return nil
 }
 
+// validateCSVRowValues validates per-cell constraints for a single CSV row:
+// UUID format for columns listed in csvUUIDColumns, and email format for "email" columns.
+// Returns a non-empty error description string on the first violation found.
 func validateCSVRowValues(table string, header, row []string) string {
 	uuidCols := csvUUIDColumns[table]
 
@@ -722,6 +753,11 @@ func validateCSVRowValues(table string, header, row []string) string {
 	return ""
 }
 
+// ImportCSV imports CSV rows into an allowlisted table.
+// Rows are validated (column count, UUID/email format) before insert.
+// Valid rows are inserted in batches with ON CONFLICT (id) DO NOTHING.
+// When a batch fails, each row is retried individually so partial imports succeed.
+// Returns (importedCount, rowErrors, error).
 func (r *BackupRepo) ImportCSV(ctx context.Context, tableName string, header []string, rows [][]string) (int, []string, error) {
 	if !csvImportAllowedTables[tableName] {
 		return 0, nil, fmt.Errorf("BackupRepo - ImportCSV: unsupported table %q", tableName)

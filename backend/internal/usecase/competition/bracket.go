@@ -7,10 +7,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type BracketUseCase struct {
@@ -31,7 +31,7 @@ func NewBracketUseCase(deps BracketDeps) *BracketUseCase {
 func (uc *BracketUseCase) Create(ctx context.Context, name, description string, isDefault bool) (*domain.Bracket, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, httperr.ErrBracketNameRequired
+		return nil, apperr.ErrBracketNameRequired
 	}
 
 	bracket := &domain.Bracket{
@@ -84,7 +84,7 @@ func (uc *BracketUseCase) GetAll(ctx context.Context) ([]*domain.Bracket, error)
 func (uc *BracketUseCase) Update(ctx context.Context, ID uuid.UUID, name, description string, isDefault bool) (*domain.Bracket, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, httperr.ErrBracketNameRequired
+		return nil, apperr.ErrBracketNameRequired
 	}
 
 	var bracket *domain.Bracket

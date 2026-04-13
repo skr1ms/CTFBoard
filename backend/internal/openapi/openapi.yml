@@ -182,6 +182,8 @@ paths:
     $ref: './routes/avatar.yml#/~1admin~1users~1{ID}~1avatar'
   /admin/teams/{ID}/avatar:
     $ref: './routes/avatar.yml#/~1admin~1teams~1{ID}~1avatar'
+  /avatars/{path}:
+    $ref: './routes/avatar.yml#/~1avatars~1{path}'
 
   # Team (team.go)
   /teams:
@@ -311,9 +313,11 @@ paths:
   /notifications:
     $ref: './routes/notification.yml#/~1notifications'
 
-  # WebSocket (websocket.go)
+  # WebSocket / SSE (websocket.go)
   /ws:
     $ref: './routes/websocket.yml#/~1ws'
+  /sse:
+    $ref: './routes/websocket.yml#/~1sse'
 
   # Award (award.go)
   /admin/awards:
@@ -419,7 +423,6 @@ paths:
     $ref: './routes/page.yml#/~1admin~1pages'
   /admin/pages/{ID}:
     $ref: './routes/page.yml#/~1admin~1pages~1{ID}'
-
   # Notification (notification.go) admin
   /admin/notifications:
     $ref: './routes/notification.yml#/~1admin~1notifications'

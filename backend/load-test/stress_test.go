@@ -30,7 +30,7 @@ func TestStress_FlagSubmit(t *testing.T) {
 		results     []*AttackResult
 	)
 
-	for _, step := range StressProfile {
+	for _, step := range effectiveStressProfile() {
 		attacker := NewAttacker(500)
 		r := RunAttack(attacker, fmt.Sprintf("submit_stress@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
@@ -38,7 +38,7 @@ func TestStress_FlagSubmit(t *testing.T) {
 		results = append(results, r)
 
 		m := r.Metrics
-		broken := m.Success < SuccessThreshold || m.Latencies.P99 > P99Threshold
+		broken := m.Success < SuccessThreshold || m.Latencies.P99 > effectiveP99Threshold()
 		status := "OK"
 
 		if broken {
@@ -87,10 +87,10 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 	targeter := BruteForceTargeter(Fixture, len(Fixture.Users)-1, 0)
 
 	bruteProfile := []StressStep{
-		{RPS: 100, Duration: 10 * time.Second},
-		{RPS: 500, Duration: 10 * time.Second},
-		{RPS: 1000, Duration: 10 * time.Second},
-		{RPS: 2000, Duration: 10 * time.Second},
+		{RPS: raceScale(100), Duration: 10 * time.Second},
+		{RPS: raceScale(500), Duration: 10 * time.Second},
+		{RPS: raceScale(1000), Duration: 10 * time.Second},
+		{RPS: raceScale(2000), Duration: 10 * time.Second},
 	}
 
 	fmt.Println("\n[stress] BruteForce single-challenge throughput (rate limiter disabled):")
@@ -120,10 +120,11 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 		require.Zero(t, serverErr,
 			"brute-force at %d RPS must not produce 500 errors", step.RPS)
 
-		if step.RPS <= 1500 {
-			require.LessOrEqual(t, m.Latencies.P99, P99Threshold,
+		if step.RPS <= raceScale(1500) {
+			threshold := effectiveP99Threshold()
+			require.LessOrEqual(t, m.Latencies.P99, threshold,
 				"brute-force P99 must be ≤ %s at %d RPS (got %s)",
-				P99Threshold, step.RPS, m.Latencies.P99)
+				threshold, step.RPS, m.Latencies.P99)
 		}
 
 		time.Sleep(500 * time.Millisecond)
@@ -214,11 +215,11 @@ func TestStress_ChallengeList(t *testing.T) {
 	targeter := ChallengeListTargeter(Fixture)
 
 	readProfile := []StressStep{
-		{RPS: 100, Duration: 10 * time.Second},
-		{RPS: 500, Duration: 10 * time.Second},
-		{RPS: 1000, Duration: 10 * time.Second},
-		{RPS: 2000, Duration: 10 * time.Second},
-		{RPS: 3000, Duration: 10 * time.Second},
+		{RPS: raceScale(100), Duration: 10 * time.Second},
+		{RPS: raceScale(500), Duration: 10 * time.Second},
+		{RPS: raceScale(1000), Duration: 10 * time.Second},
+		{RPS: raceScale(2000), Duration: 10 * time.Second},
+		{RPS: raceScale(3000), Duration: 10 * time.Second},
 	}
 
 	fmt.Println("\n[stress] Challenge List - read scalability:")

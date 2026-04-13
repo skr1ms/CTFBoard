@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestCommentRepo_Create_Success(t *testing.T) {
@@ -59,7 +59,7 @@ func TestCommentRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.CommentRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCommentNotFound)
+	assert.ErrorIs(t, err, apperr.ErrCommentNotFound)
 }
 
 func TestCommentRepo_GetByChallengeID_Success(t *testing.T) {
@@ -127,7 +127,7 @@ func TestCommentRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.CommentRepo.GetByID(ctx, comment.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCommentNotFound)
+	assert.ErrorIs(t, err, apperr.ErrCommentNotFound)
 }
 
 func TestCommentRepo_Delete_Error_NotFound(t *testing.T) {

@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type CommentRepo struct {
@@ -49,16 +49,21 @@ func (r *CommentRepo) Create(ctx context.Context, comment *domain.Comment) error
 }
 
 func (r *CommentRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Comment, error) {
-	row, err := r.Q(ctx).GetCommentByID(ctx, ID)
+	row, err := GetOrNotFound(func() (sqlc.GetCommentByIDRow, error) { return r.Q(ctx).GetCommentByID(ctx, ID) },
+		apperr.ErrCommentNotFound, "CommentRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrCommentNotFound
-		}
-
-		return nil, fmt.Errorf("CommentRepo - GetByID: %w", err)
+		return nil, err
 	}
 
-	return toDomainComment(row), nil
+	return &domain.Comment{
+		ID:          row.ID,
+		UserID:      row.UserID,
+		Username:    row.Username,
+		ChallengeID: row.ChallengeID,
+		Content:     row.Content,
+		CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+		UpdatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
+	}, nil
 }
 
 func (r *CommentRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error) {
@@ -69,7 +74,15 @@ func (r *CommentRepo) GetByChallengeID(ctx context.Context, challengeID uuid.UUI
 
 	out := make([]*domain.Comment, len(rows))
 	for i, row := range rows {
-		out[i] = toDomainComment(row)
+		out[i] = &domain.Comment{
+			ID:          row.ID,
+			UserID:      row.UserID,
+			Username:    row.Username,
+			ChallengeID: row.ChallengeID,
+			Content:     row.Content,
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+			UpdatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
+		}
 	}
 
 	return out, nil
@@ -83,7 +96,15 @@ func (r *CommentRepo) GetAll(ctx context.Context) ([]*domain.Comment, error) {
 
 	out := make([]*domain.Comment, len(rows))
 	for i, row := range rows {
-		out[i] = toDomainComment(row)
+		out[i] = &domain.Comment{
+			ID:          row.ID,
+			UserID:      row.UserID,
+			Username:    row.Username,
+			ChallengeID: row.ChallengeID,
+			Content:     row.Content,
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+			UpdatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
+		}
 	}
 
 	return out, nil
@@ -99,7 +120,7 @@ func (r *CommentRepo) Update(ctx context.Context, comment *domain.Comment) error
 	})
 	if err != nil {
 		if pgutil.IsNoRows(err) {
-			return httperr.ErrCommentNotFound
+			return apperr.ErrCommentNotFound
 		}
 
 		return fmt.Errorf("CommentRepo - Update: %w", err)
@@ -115,15 +136,4 @@ func (r *CommentRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	}
 
 	return nil
-}
-
-func toDomainComment(row sqlc.Comment) *domain.Comment {
-	return &domain.Comment{
-		ID:          row.ID,
-		UserID:      row.UserID,
-		ChallengeID: row.ChallengeID,
-		Content:     row.Content,
-		CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
-		UpdatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
-	}
 }

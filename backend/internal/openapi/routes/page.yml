@@ -14,6 +14,10 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get published pages list
     tags:
       - Pages
@@ -38,6 +42,10 @@
               $ref: '../components/schemas.yml#/PageResponse'
       "404":
         description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get page by slug
     tags:
       - Pages

@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// APIToken is a long-lived bearer token that allows programmatic access to the API on behalf of a user.
 type APIToken struct {
 	ID          uuid.UUID  `json:"id"`
 	UserID      uuid.UUID  `json:"user_id"`

@@ -6,6 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// Team represents a group of participants. IsSolo is true for auto-created wrapper teams
+// that represent individual players in team-based competition modes. IsBanned and IsHidden
+// exclude the team from public views. DeletedAt implements soft deletion.
 type Team struct {
 	ID                   uuid.UUID  `json:"id"`
 	Name                 string     `json:"name"`

@@ -21,36 +21,37 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/avatar_schemas.yml#/schemas/AvatarUploadResponse'
+              $ref: '../components/schemas.yml#/AvatarUploadResponse'
       "400":
         description: Bad Request
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (email not verified)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "413":
         description: Payload Too Large
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Upload user avatar
     tags:
-      - User
+      - Users
   delete:
     operationId: DeleteUsersMeAvatar
     description: Delete current user's avatar
@@ -62,12 +63,13 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete user avatar
     tags:
-      - User
+      - Users
 
 "/teams/me/avatar":
   put:
@@ -92,36 +94,37 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/avatar_schemas.yml#/schemas/AvatarUploadResponse'
+              $ref: '../components/schemas.yml#/AvatarUploadResponse'
       "400":
         description: Bad Request
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not captain or team banned)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "413":
         description: Payload Too Large
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Upload team avatar (captain)
     tags:
-      - Team
+      - Teams
   delete:
     operationId: DeleteTeamsMeAvatar
     description: Delete team avatar (captain only)
@@ -133,18 +136,19 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not captain)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
+      - ApiTokenAuth: []
     summary: Delete team avatar (captain)
     tags:
-      - Team
+      - Teams
 
 "/admin/users/{ID}/avatar":
   put:
@@ -176,37 +180,37 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/avatar_schemas.yml#/schemas/AvatarUploadResponse'
+              $ref: '../components/schemas.yml#/AvatarUploadResponse'
       "400":
         description: Bad Request
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not admin)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: User not found
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "413":
         description: Payload Too Large
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
@@ -231,19 +235,19 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not admin)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: User not found
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
@@ -281,37 +285,37 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/avatar_schemas.yml#/schemas/AvatarUploadResponse'
+              $ref: '../components/schemas.yml#/AvatarUploadResponse'
       "400":
         description: Bad Request
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "401":
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not admin)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Team not found
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "413":
         description: Payload Too Large
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
@@ -336,22 +340,60 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
         description: Forbidden (not admin)
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "404":
         description: Team not found
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/common_schemas.yml#/schemas/v1.ErrorResponse'
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Delete team avatar (admin)
     tags:
       - Admin
+
+"/avatars/{path}":
+  get:
+    operationId: GetAvatarByPath
+    description: Serves avatar files (full-size or thumbnail) by storage path. Public endpoint with rate limiting.
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Storage path to the avatar file
+    responses:
+      "200":
+        description: Avatar image file
+        content:
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+      "404":
+        description: Avatar not found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security: []
+    summary: Get avatar by path
+    tags:
+      - Avatars

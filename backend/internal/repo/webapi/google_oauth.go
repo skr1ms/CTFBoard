@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 const googleUserInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
@@ -32,7 +34,10 @@ type googleUserInfo struct {
 	Name          string `json:"name"`
 }
 
-func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*OAuthUserProfile, error) {
+// FetchUserProfile fetches Google userinfo from the OAuth2 userinfo endpoint
+// with retry. Rejects accounts whose email is not marked verified by Google.
+// When the display name is empty the email address is used as the username.
+func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*domain.OAuthUserProfile, error) {
 	mkReq := func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userInfoURL, http.NoBody)
 		if err != nil {
@@ -73,7 +78,7 @@ func (g *GoogleAPI) FetchUserProfile(ctx context.Context, accessToken string) (*
 		username = info.Email
 	}
 
-	return &OAuthUserProfile{
+	return &domain.OAuthUserProfile{
 		ID:       info.ID,
 		Email:    info.Email,
 		Username: username,

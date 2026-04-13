@@ -60,6 +60,7 @@ type TestFixture struct {
 	SubmissionRepo        *persistent.SubmissionRepo
 	APITokenRepo          *persistent.APITokenRepo
 	OAuthRepo             *persistent.OAuthRepo
+	RatingRepo            *persistent.RatingRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -92,12 +93,13 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		SubmissionRepo:        persistent.NewSubmissionRepo(Pool),
 		APITokenRepo:          persistent.NewAPITokenRepo(Pool),
 		OAuthRepo:             persistent.NewOAuthRepo(Pool, itestCryptoService()),
+		RatingRepo:            persistent.NewRatingRepo(Pool),
 	}
 }
 
 func (f *TestFixture) CreateUser(t *testing.T, suffix string) *domain.User {
 	t.Helper()
-	// Username and email must fit varchar(50): "user_" = 5, "@x.com" = 6, so unique at most 39.
+	// Username and email must fit varchar(50): "user_" = 5, "@x.com" = 6, so unique at most 39
 	unique := suffix + "_" + uuid.NewString()[:8]
 	if len(unique) > 39 {
 		unique = unique[:39]
@@ -454,7 +456,7 @@ func (f *TestFixture) ResetAppSettings(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, `
-		UPDATE app_settings SET 
+		UPDATE app_settings SET
 			app_name = 'AstroCTFb',
 			verify_emails = TRUE,
 			frontend_url = 'http://localhost:3000',

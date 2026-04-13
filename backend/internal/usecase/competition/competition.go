@@ -13,17 +13,20 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
 	localCompTTL             = 5 * time.Second
 	redisCacheTTL            = 15 * time.Second
 	boundaryInvalidateWindow = 25 * time.Second
+
+	maxCompetitionNameLen = 200
+	maxFlagRegexLen       = 500
 )
 
 type CompetitionUseCase struct {
@@ -57,6 +60,19 @@ func NewCompetitionUseCase(deps CompetitionDeps) *CompetitionUseCase {
 	return &CompetitionUseCase{deps: deps}
 }
 
+// InvalidateLocalCache clears the in-process competition cache so that the next call to Get
+// re-fetches from Redis/DB. Use in tests after directly mutating the competition row in the DB.
+func (uc *CompetitionUseCase) InvalidateLocalCache() {
+	uc.localComp.Store(nil)
+	uc.localCompAt.Store(0)
+}
+
+// competitionCacheStale reports whether the cached competition data should be
+// considered stale because the current time has crossed one of its critical
+// temporal boundaries (start, end, or freeze time). A boundary is considered
+// crossed when now is after it but still within boundaryInvalidateWindow, so
+// the cache is invalidated exactly once per transition rather than on every
+// request after the boundary passes.
 func competitionCacheStale(comp *domain.Competition, now time.Time) bool {
 	if comp == nil {
 		return false
@@ -77,6 +93,12 @@ func competitionCacheStale(comp *domain.Competition, now time.Time) bool {
 	return false
 }
 
+// Get returns the current competition using a three-layer cache: atomic local
+// store -> Redis -> database. It deduplicates concurrent database loads via
+// singleflight. If the cached value has crossed a temporal boundary (start,
+// end, or freeze time), both the local store and the Redis entry are
+// invalidated before the next load, and the statistics cache is also flushed
+// so downstream callers reflect the updated competition state immediately.
 func (uc *CompetitionUseCase) Get(ctx context.Context) (*domain.Competition, error) {
 	now := time.Now()
 
@@ -92,14 +114,14 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*domain.Competition, err
 
 			if uc.deps.Redis != nil {
 				err := uc.deps.Redis.Del(ctx, cache.KeyCompetition)
-				if err != nil && uc.deps.Logger != nil {
+				if err != nil {
 					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - Redis.Del")
 				}
 			}
 
 			if uc.deps.StatsCacheInvalidator != nil {
 				err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx)
-				if err != nil && uc.deps.Logger != nil {
+				if err != nil {
 					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - InvalidateStatistics")
 				}
 			}
@@ -120,13 +142,13 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*domain.Competition, err
 				}
 
 				err := uc.deps.Redis.Del(ctx, cache.KeyCompetition)
-				if err != nil && uc.deps.Logger != nil {
+				if err != nil {
 					uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - Redis.Del stale")
 				}
 
 				if uc.deps.StatsCacheInvalidator != nil {
 					err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx)
-					if err != nil && uc.deps.Logger != nil {
+					if err != nil {
 						uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Get - InvalidateStatistics stale")
 					}
 				}
@@ -149,7 +171,7 @@ func (uc *CompetitionUseCase) Get(ctx context.Context) (*domain.Competition, err
 		return comp, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("CompetitionUseCase - Get - CompetitionRepo.Get: %w", err)
+		return nil, err
 	}
 
 	comp, ok := v.(*domain.Competition)
@@ -182,6 +204,14 @@ func timePtrEqual(a, b *time.Time) bool {
 	return ta.Equal(tb)
 }
 
+// Update transactionally updates the competition settings. It merges partial
+// updates from optionals into the current persisted state, validates field
+// constraints and time ordering, enforces that mode/start-time/team-size
+// settings cannot change while a competition is active or frozen, and applies
+// pause/unpause transitions (shifting EndTime and FreezeTime forward by the
+// elapsed pause duration on unpause). After the transaction commits, all cache
+// layers (local atomic store, Redis, singleflight key) are flushed and an
+// audit log entry is written.
 func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competition, optionals *usecase.CompetitionUpdateOptionals, actorID uuid.UUID, clientIP string) error {
 	auditLog := &domain.AuditLog{
 		UserID:     &actorID,
@@ -213,7 +243,7 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 		}
 
 		if comp.Mode != "" && !comp.Mode.IsValid() {
-			return httperr.NewValidationErrorf("invalid competition mode %q: must be solo_only, teams_only, or flexible", comp.Mode)
+			return apperr.NewValidationErrorf("invalid competition mode %q: must be solo_only, teams_only, or flexible", comp.Mode)
 		}
 
 		if err := uc.validateActiveConstraints(comp, current, status); err != nil {
@@ -244,7 +274,6 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 	uc.localCompAt.Store(0)
 
 	if uc.deps.Redis != nil {
-		_ = uc.deps.Redis.Del(ctx, cache.KeyCompetition)
 		_ = uc.deps.Redis.Del(ctx, cache.KeyCompetitionGuard)
 	}
 
@@ -273,6 +302,10 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 	return nil
 }
 
+// mergeDefaults fills nil or zero fields in comp from the currently persisted
+// state so that a partial update does not silently erase unchanged settings.
+// Nullable time fields (EndTime, FreezeTime) can be explicitly cleared via the
+// ClearEndTime/ClearFreezeTime flags in optionals; otherwise they are inherited.
 func (uc *CompetitionUseCase) mergeDefaults(comp, current *domain.Competition, optionals *usecase.CompetitionUpdateOptionals) {
 	if comp.StartTime == nil {
 		comp.StartTime = current.StartTime
@@ -319,25 +352,28 @@ func (uc *CompetitionUseCase) mergeDefaults(comp, current *domain.Competition, o
 	}
 }
 
+// validateCompetitionFields validates scalar competition fields: name length,
+// optional flag_regex length, non-negative team sizes, and the constraint that
+// min_team_size must not exceed max_team_size when both are set.
 func (uc *CompetitionUseCase) validateCompetitionFields(comp *domain.Competition) error {
-	if len(comp.Name) == 0 || len(comp.Name) > 200 {
-		return httperr.NewValidationErrorf("competition name must be 1-200 characters")
+	if len(comp.Name) == 0 || len(comp.Name) > maxCompetitionNameLen {
+		return apperr.NewValidationErrorf("competition name must be 1-200 characters")
 	}
 
-	if comp.FlagRegex != nil && len(*comp.FlagRegex) > 500 {
-		return httperr.NewValidationErrorf("flag_regex must be at most 500 characters")
+	if comp.FlagRegex != nil && len(*comp.FlagRegex) > maxFlagRegexLen {
+		return apperr.NewValidationErrorf("flag_regex must be at most 500 characters")
 	}
 
 	if comp.MinTeamSize < 0 {
-		return httperr.NewValidationErrorf("min_team_size must be >= 0")
+		return apperr.NewValidationErrorf("min_team_size must be >= 0")
 	}
 
 	if comp.MaxTeamSize < 0 {
-		return httperr.NewValidationErrorf("max_team_size must be >= 0")
+		return apperr.NewValidationErrorf("max_team_size must be >= 0")
 	}
 
 	if comp.MinTeamSize > 0 && comp.MaxTeamSize > 0 && comp.MinTeamSize > comp.MaxTeamSize {
-		return httperr.NewValidationErrorf("min_team_size must be <= max_team_size")
+		return apperr.NewValidationErrorf("min_team_size must be <= max_team_size")
 	}
 
 	return nil
@@ -345,61 +381,75 @@ func (uc *CompetitionUseCase) validateCompetitionFields(comp *domain.Competition
 
 func (uc *CompetitionUseCase) validateCompetitionTimes(comp *domain.Competition) error {
 	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
-		return httperr.NewValidationErrorf("end_time must be after start_time")
+		return apperr.NewValidationErrorf("end_time must be after start_time")
 	}
 
 	if comp.FreezeTime != nil && comp.EndTime != nil && !comp.FreezeTime.Before(*comp.EndTime) {
-		return httperr.NewValidationErrorf("freeze_time must be before end_time")
+		return apperr.NewValidationErrorf("freeze_time must be before end_time")
 	}
 
 	if comp.FreezeTime != nil && comp.StartTime != nil && comp.FreezeTime.Before(*comp.StartTime) {
-		return httperr.NewValidationErrorf("freeze_time must be after start_time")
+		return apperr.NewValidationErrorf("freeze_time must be after start_time")
 	}
 
 	return nil
 }
 
+// validateCompetitionTimesAfterUnpause re-validates time ordering after applyPauseTransition
+// has shifted EndTime/FreezeTime forward. It returns an actionable error message when the
+// shifted freeze_time would end up after end_time so the admin can correct the values.
 func (uc *CompetitionUseCase) validateCompetitionTimesAfterUnpause(comp, current *domain.Competition) error {
 	if comp.EndTime != nil && comp.StartTime != nil && comp.EndTime.Before(*comp.StartTime) {
-		return httperr.NewValidationErrorf("end_time must be after start_time")
+		return apperr.NewValidationErrorf("end_time must be after start_time")
 	}
 
 	if comp.FreezeTime != nil && comp.EndTime != nil && !comp.FreezeTime.Before(*comp.EndTime) {
 		if current.IsPaused && current.PausedAt != nil && comp.FreezeTime != nil &&
 			current.FreezeTime != nil && current.PausedAt.Before(*current.FreezeTime) {
-			return httperr.NewValidationErrorf("unpausing shifts freeze_time by the pause duration; result would be after end_time — set a later end_time or clear freeze_time")
+			return apperr.NewValidationErrorf("unpausing shifts freeze_time by the pause duration; result would be after end_time - set a later end_time or clear freeze_time")
 		}
 
-		return httperr.NewValidationErrorf("freeze_time must be before end_time")
+		return apperr.NewValidationErrorf("freeze_time must be before end_time")
 	}
 
 	if comp.FreezeTime != nil && comp.StartTime != nil && comp.FreezeTime.Before(*comp.StartTime) {
-		return httperr.NewValidationErrorf("freeze_time must be after start_time")
+		return apperr.NewValidationErrorf("freeze_time must be after start_time")
 	}
 
 	return nil
 }
 
+// validateActiveConstraints rejects changes to immutable fields (mode, start_time,
+// team sizes, allow_team_switch) while the competition is active, frozen, or paused,
+// since modifying them mid-competition would corrupt existing submission records.
 func (uc *CompetitionUseCase) validateActiveConstraints(comp, current *domain.Competition, status domain.CompetitionStatus) error {
 	if status != domain.CompetitionStatusActive && status != domain.CompetitionStatusFrozen && status != domain.CompetitionStatusPaused {
 		return nil
 	}
 
 	if comp.Mode != current.Mode || !timePtrEqual(comp.StartTime, current.StartTime) {
-		return httperr.ErrCompetitionActiveCannotUpdate
+		return apperr.ErrCompetitionActiveCannotUpdate
 	}
 
 	if comp.MinTeamSize != current.MinTeamSize || comp.MaxTeamSize != current.MaxTeamSize {
-		return httperr.ErrCompetitionActiveCannotUpdate
+		return apperr.ErrCompetitionActiveCannotUpdate
 	}
 
 	if comp.AllowTeamSwitch != current.AllowTeamSwitch {
-		return httperr.ErrCompetitionActiveCannotUpdate
+		return apperr.ErrCompetitionActiveCannotUpdate
 	}
 
 	return nil
 }
 
+// applyPauseTransition mutates comp in place to apply a pause or unpause
+// transition. On a pause (was running, now paused) it records now as PausedAt
+// On an unpause (was paused, now running) it computes the elapsed pause
+// duration from PausedAt to now (clamped to StartTime if PausedAt predates
+// it) and shifts EndTime and FreezeTime forward by that duration, but only
+// when those fields have not been changed by the caller in this request. If
+// PausedAt was nil on an already-paused competition, now is used as a fallback
+// and a warning is logged.
 func (uc *CompetitionUseCase) applyPauseTransition(comp, current *domain.Competition, now time.Time) {
 	wasPaused := current.IsPaused
 	isPausing := comp.IsPaused
@@ -413,9 +463,7 @@ func (uc *CompetitionUseCase) applyPauseTransition(comp, current *domain.Competi
 	if wasPaused && !isPausing {
 		pausedAt := current.PausedAt
 		if pausedAt == nil {
-			if uc.deps.Logger != nil {
-				uc.deps.Logger.Warn("CompetitionUseCase - applyPauseTransition: competition was paused but paused_at was nil; using now as fallback")
-			}
+			uc.deps.Logger.Warn("CompetitionUseCase - applyPauseTransition: competition was paused but paused_at was nil; using now as fallback")
 
 			pausedAt = &now
 		}

@@ -12,6 +12,8 @@ services:
     command: ["vault", "server", "-config=/vault/config/vault.hcl"]
     environment:
       VAULT_LOG_LEVEL: "info"
+    cap_add:
+      - IPC_LOCK
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -33,6 +35,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -53,6 +60,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
 
   seaweedfs:
     image: chrislusf/seaweedfs:latest
@@ -169,7 +181,7 @@ services:
       STORAGE_LOCAL_PATH: /app/uploads
       STORAGE_S3_ENDPOINT: seaweedfs:8333
       STORAGE_S3_PUBLIC_ENDPOINT: ${STORAGE_S3_PUBLIC_ENDPOINT:-http://localhost:8333}
-      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-tasks}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-ctf}
       STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
       STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-false}
       STORAGE_PRESIGNED_EXPIRY_MINUTES: ${STORAGE_PRESIGNED_EXPIRY_MINUTES:-60}
@@ -191,6 +203,17 @@ services:
       OAUTH_GOOGLE_REDIRECT_URL: ${OAUTH_GOOGLE_REDIRECT_URL:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8090}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "2.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -268,6 +291,7 @@ services:
       - ../../monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_data:/data
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -281,7 +305,7 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=https://grafana.ctfleague.ru
+      - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-https://grafana.ctfleague.ru}
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
     volumes:
@@ -293,6 +317,12 @@ services:
       - ../../monitoring/grafana/dashboards/redis:/var/lib/grafana/dashboards/redis:ro
       - ../../monitoring/grafana/dashboards/vault:/var/lib/grafana/dashboards/vault:ro
       - ../../monitoring/grafana/dashboards/seaweedfs:/var/lib/grafana/dashboards/seaweedfs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - astroctfb_network
     restart: unless-stopped
@@ -393,6 +423,7 @@ volumes:
   vault_data:
   prometheus_data:
   loki_data:
+  promtail_data:
   grafana_data:
     name: docker_grafana_data
   seaweed_data:

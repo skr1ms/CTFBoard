@@ -172,7 +172,7 @@ func TestMode_TeamsOnly_CannotCreateSoloTeam(t *testing.T) {
 	h.CreateSoloTeam(tokenUser, http.StatusForbidden)
 }
 
-// POST /challenges/{ID}/submit: teams_only mode rejects solo team on submission (TOCTOU — mode changed after solo team was created).
+// POST /challenges/{ID}/submit: teams_only mode rejects solo team on submission (TOCTOU - mode changed after solo team was created).
 func TestMode_TeamsOnly_SoloTeamCannotSubmit(t *testing.T) {
 	t.Cleanup(resetCompetitionModeToFlexible)
 

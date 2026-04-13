@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestSolveRepo_Create(t *testing.T) {
@@ -82,7 +82,7 @@ func TestSolveRepo_GetByID_NotFound(t *testing.T) {
 	nonExistentID := uuid.New()
 	_, err := f.SolveRepo.GetByID(ctx, nonExistentID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
+	assert.ErrorIs(t, err, apperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetByTeamAndChallenge(t *testing.T) {
@@ -113,7 +113,7 @@ func TestSolveRepo_GetByTeamAndChallenge_NotFound(t *testing.T) {
 
 	_, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
+	assert.ErrorIs(t, err, apperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetSolvedChallengeIDsByTeam_EmptyChallengeIDs(t *testing.T) {
@@ -311,7 +311,7 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	f.CreateSolve(t, u2.ID, t2.ID, ch1.ID)
 
 	require.Eventually(t, func() bool {
-		sb, err := f.SolveRepo.GetScoreboard(ctx)
+		sb, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 		if err != nil {
 			return false
 		}
@@ -339,7 +339,7 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 		return t1Found && t2Found
 	}, 2*time.Second, 20*time.Millisecond)
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
 	idx1 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
@@ -359,7 +359,7 @@ func TestSolveRepo_GetScoreboard_Error_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	assert.Error(t, err)
 	assert.Nil(t, scoreboard)
 }
@@ -372,7 +372,7 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 
 	_, team := f.CreateUserWithTeam(t, "empty_score")
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
 	idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
@@ -397,7 +397,7 @@ func TestSolveRepo_GetScoreboard_HiddenTeamNotIncluded(t *testing.T) {
 	err := f.TeamRepo.SetHidden(ctx, t2.ID, true)
 	require.NoError(t, err)
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "visible team t1 should be in scoreboard")
 	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "hidden team t2 should not be in scoreboard")
@@ -419,7 +419,7 @@ func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
 	err := f.TeamRepo.Ban(ctx, t2.ID, "test ban")
 	require.NoError(t, err)
 
-	scoreboard, err := f.SolveRepo.GetScoreboard(ctx)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "active team t1 should be in scoreboard")
 	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "banned team t2 should not be in scoreboard")
@@ -439,12 +439,12 @@ func TestSolveRepo_GetFirstBlood(t *testing.T) {
 	f.CreateSolve(t, u2.ID, t2.ID, ch.ID)
 
 	require.Eventually(t, func() bool {
-		fb, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
+		fb, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID, nil)
 
 		return err == nil && fb != nil && fb.UserID == u1.ID
 	}, 2*time.Second, 50*time.Millisecond)
 
-	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
+	firstBlood, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID, nil)
 	require.NoError(t, err)
 	assert.Equal(t, u1.ID, firstBlood.UserID)
 	assert.Equal(t, u1.Username, firstBlood.Username)
@@ -460,9 +460,9 @@ func TestSolveRepo_GetFirstBlood_NoSolves(t *testing.T) {
 
 	ch := f.CreateChallenge(t, "no_solves_ch", 100)
 
-	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID)
+	_, err := f.SolveRepo.GetFirstBlood(ctx, ch.ID, nil)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
+	assert.ErrorIs(t, err, apperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
@@ -485,7 +485,7 @@ func TestSolveRepo_GetScoreboardFrozen(t *testing.T) {
 
 	f.CreateSolve(t, u1.ID, t1.ID, ch2.ID)
 
-	scoreboard, err := f.SolveRepo.GetScoreboardFrozen(ctx, freezeTime)
+	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, &freezeTime)
 	require.NoError(t, err)
 
 	found := false
@@ -553,7 +553,7 @@ func TestSolveRepo_CreateTx_Rollback(t *testing.T) {
 
 	_, err = f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.ID, ch.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
+	assert.ErrorIs(t, err, apperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetByTeamAndChallengeTx(t *testing.T) {
@@ -595,7 +595,7 @@ func TestSolveRepo_GetByTeamAndChallengeTx_NotFound(t *testing.T) {
 		return err
 	})
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSolveNotFound)
+	assert.ErrorIs(t, err, apperr.ErrSolveNotFound)
 }
 
 func TestSolveRepo_GetTeamScoreTx(t *testing.T) {
@@ -640,7 +640,7 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 			return errors.New("expected not found")
 		}
 
-		if !errors.Is(err, httperr.ErrSolveNotFound) {
+		if !errors.Is(err, apperr.ErrSolveNotFound) {
 			return err
 		}
 
@@ -675,4 +675,78 @@ func TestSolveRepo_AtomicSubmitFlow(t *testing.T) {
 	finalSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, tTeam.ID, ch.ID)
 	require.NoError(t, err)
 	assert.Equal(t, u.ID, finalSolve.UserID)
+}
+
+func TestSolveRepo_SoftBanByTeamIDAndUserID(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "softban")
+	ch := f.CreateChallenge(t, "softban_ch", 100)
+	solve := f.CreateSolve(t, user.ID, team.ID, ch.ID)
+
+	err := f.SolveRepo.SoftBanByTeamIDAndUserID(ctx, team.ID, user.ID)
+	require.NoError(t, err)
+
+	// solve should now be soft-banned (banned_user_id set to user_id)
+	row := f.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM solves WHERE id = $1 AND banned_user_id IS NOT NULL", solve.ID)
+
+	var count int
+	require.NoError(t, row.Scan(&count))
+	assert.Equal(t, 1, count, "solve should have banned_user_id set after SoftBan")
+}
+
+func TestSolveRepo_RestoreByBannedUserID(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user, team := f.CreateUserWithTeam(t, "restore")
+	ch := f.CreateChallenge(t, "restore_ch", 100)
+	solve := f.CreateSolve(t, user.ID, team.ID, ch.ID)
+
+	// Soft-ban the solve first
+	require.NoError(t, f.SolveRepo.SoftBanByTeamIDAndUserID(ctx, team.ID, user.ID))
+
+	// Now restore
+	err := f.SolveRepo.RestoreByBannedUserID(ctx, user.ID)
+	require.NoError(t, err)
+
+	row := f.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM solves WHERE id = $1 AND banned_user_id IS NULL", solve.ID)
+
+	var count int
+	require.NoError(t, row.Scan(&count))
+	assert.Equal(t, 1, count, "solve should have banned_user_id cleared after restore")
+}
+
+func TestSolveRepo_BatchUpdateSolvePoints(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user1, team1 := f.CreateUserWithTeam(t, "bsp1")
+	user2, team2 := f.CreateUserWithTeam(t, "bsp2")
+	ch := f.CreateChallenge(t, "bsp_ch", 100)
+
+	solve1 := f.CreateSolve(t, user1.ID, team1.ID, ch.ID)
+	solve2 := f.CreateSolve(t, user2.ID, team2.ID, ch.ID)
+
+	err := f.SolveRepo.BatchUpdateSolvePoints(ctx, []uuid.UUID{solve1.ID, solve2.ID}, []int{150, 175})
+	require.NoError(t, err)
+
+	row1 := f.Pool.QueryRow(ctx, "SELECT points_at_solve FROM solves WHERE id = $1", solve1.ID)
+
+	var pts1 int
+	require.NoError(t, row1.Scan(&pts1))
+	assert.Equal(t, 150, pts1)
+
+	row2 := f.Pool.QueryRow(ctx, "SELECT points_at_solve FROM solves WHERE id = $1", solve2.ID)
+
+	var pts2 int
+	require.NoError(t, row2.Scan(&pts2))
+	assert.Equal(t, 175, pts2)
 }

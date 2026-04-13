@@ -258,6 +258,8 @@ type AdminTeamListResponse struct {
 
 // AdminTeamResponse defines model for AdminTeamResponse.
 type AdminTeamResponse struct {
+	AvatarURL    *string    `json:"avatar_url,omitempty"`
+	BannedAt     *time.Time `json:"banned_at,omitempty"`
 	BannedReason *string    `json:"banned_reason,omitempty"`
 	BracketID    *string    `json:"bracket_id,omitempty"`
 	CaptainID    *string    `json:"captain_id,omitempty"`
@@ -272,7 +274,9 @@ type AdminTeamResponse struct {
 
 // AdminUpdateSubmissionRequest defines model for AdminUpdateSubmissionRequest.
 type AdminUpdateSubmissionRequest struct {
-	IsCorrect bool `json:"is_correct"`
+	// Discard Mark submission as discarded (admin cleanup). Overrides is_correct.
+	Discard   *bool `json:"discard,omitempty"`
+	IsCorrect bool  `json:"is_correct"`
 }
 
 // AdminUpdateTeamRequest defines model for AdminUpdateTeamRequest.
@@ -306,6 +310,7 @@ type AdminUserListResponse struct {
 
 // AdminUserResponse defines model for AdminUserResponse.
 type AdminUserResponse struct {
+	AvatarURL    *string    `json:"avatar_url,omitempty"`
 	BannedAt     *time.Time `json:"banned_at,omitempty"`
 	BannedReason *string    `json:"banned_reason,omitempty"`
 	CreatedAt    *time.Time `json:"created_at,omitempty"`
@@ -380,16 +385,6 @@ type AvatarUploadResponse struct {
 	ThumbURL string `json:"thumb_url"`
 }
 
-// Award defines model for Award.
-type Award struct {
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	CreatedBy   *string    `json:"created_by"`
-	Description *string    `json:"description,omitempty"`
-	ID          *string    `json:"id,omitempty"`
-	TeamID      *string    `json:"team_id,omitempty"`
-	Value       *int       `json:"value,omitempty"`
-}
-
 // AwardResponse defines model for AwardResponse.
 type AwardResponse struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
@@ -402,7 +397,7 @@ type AwardResponse struct {
 
 // BackupData defines model for BackupData.
 type BackupData struct {
-	Awards      *[]Award           `json:"awards,omitempty"`
+	Awards      *[]AwardResponse   `json:"awards,omitempty"`
 	Challenges  *[]ChallengeExport `json:"challenges,omitempty"`
 	Competition *Competition       `json:"competition,omitempty"`
 	ExportedAt  *string            `json:"exported_at,omitempty"`
@@ -462,21 +457,22 @@ type CSVImportResult struct {
 
 // ChallengeDetailResponse defines model for ChallengeDetailResponse.
 type ChallengeDetailResponse struct {
-	Category       *string                       `json:"category,omitempty"`
-	ConnectionInfo *string                       `json:"connection_info,omitempty"`
-	Description    *string                       `json:"description,omitempty"`
-	Files          *[]FileItem                   `json:"files,omitempty"`
-	FirstBlood     *FirstBloodResponse           `json:"first_blood,omitempty"`
-	Hints          *[]HintItem                   `json:"hints,omitempty"`
-	ID             *string                       `json:"id,omitempty"`
-	MaxAttempts    *int                          `json:"max_attempts,omitempty"`
-	Points         *int                          `json:"points,omitempty"`
-	Position       *int                          `json:"position,omitempty"`
-	SolveCount     *int                          `json:"solve_count,omitempty"`
-	SolvedByMe     *bool                         `json:"solved_by_me,omitempty"`
-	State          *ChallengeDetailResponseState `json:"state,omitempty"`
-	Tags           *[]TagResponse                `json:"tags,omitempty"`
-	Title          *string                       `json:"title,omitempty"`
+	Category          *string                       `json:"category,omitempty"`
+	ConnectionInfo    *string                       `json:"connection_info,omitempty"`
+	Description       *string                       `json:"description,omitempty"`
+	Files             *[]FileItem                   `json:"files,omitempty"`
+	FirstBlood        *FirstBloodResponse           `json:"first_blood,omitempty"`
+	Hints             *[]HintItem                   `json:"hints,omitempty"`
+	ID                *string                       `json:"id,omitempty"`
+	MaxAttempts       *int                          `json:"max_attempts,omitempty"`
+	MaxAttemptsWindow *int                          `json:"max_attempts_window,omitempty"`
+	Points            *int                          `json:"points,omitempty"`
+	Position          *int                          `json:"position,omitempty"`
+	SolveCount        *int                          `json:"solve_count,omitempty"`
+	SolvedByMe        *bool                         `json:"solved_by_me,omitempty"`
+	State             *ChallengeDetailResponseState `json:"state,omitempty"`
+	Tags              *[]TagResponse                `json:"tags,omitempty"`
+	Title             *string                       `json:"title,omitempty"`
 }
 
 // ChallengeDetailResponseState defines model for ChallengeDetailResponse.State.
@@ -533,18 +529,19 @@ type ChallengeRequirementResponse struct {
 
 // ChallengeResponse defines model for ChallengeResponse.
 type ChallengeResponse struct {
-	Category       *string                 `json:"category,omitempty"`
-	ConnectionInfo *string                 `json:"connection_info,omitempty"`
-	Description    *string                 `json:"description,omitempty"`
-	ID             *string                 `json:"id,omitempty"`
-	MaxAttempts    *int                    `json:"max_attempts,omitempty"`
-	Points         *int                    `json:"points,omitempty"`
-	Position       *int                    `json:"position,omitempty"`
-	SolveCount     *int                    `json:"solve_count,omitempty"`
-	Solved         *bool                   `json:"solved,omitempty"`
-	State          *ChallengeResponseState `json:"state,omitempty"`
-	Tags           *[]TagResponse          `json:"tags,omitempty"`
-	Title          *string                 `json:"title,omitempty"`
+	Category          *string                 `json:"category,omitempty"`
+	ConnectionInfo    *string                 `json:"connection_info,omitempty"`
+	Description       *string                 `json:"description,omitempty"`
+	ID                *string                 `json:"id,omitempty"`
+	MaxAttempts       *int                    `json:"max_attempts,omitempty"`
+	MaxAttemptsWindow *int                    `json:"max_attempts_window,omitempty"`
+	Points            *int                    `json:"points,omitempty"`
+	Position          *int                    `json:"position,omitempty"`
+	SolveCount        *int                    `json:"solve_count,omitempty"`
+	Solved            *bool                   `json:"solved,omitempty"`
+	State             *ChallengeResponseState `json:"state,omitempty"`
+	Tags              *[]TagResponse          `json:"tags,omitempty"`
+	Title             *string                 `json:"title,omitempty"`
 }
 
 // ChallengeResponseState defines model for ChallengeResponse.State.
@@ -600,6 +597,7 @@ type CommentResponse struct {
 	ID          *string    `json:"id,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	UserID      *string    `json:"user_id,omitempty"`
+	Username    *string    `json:"username,omitempty"`
 }
 
 // Competition defines model for Competition.
@@ -615,12 +613,16 @@ type Competition struct {
 
 // CompetitionResponse defines model for CompetitionResponse.
 type CompetitionResponse struct {
+	AllowTeamSwitch              *bool   `json:"allow_team_switch,omitempty"`
 	EndTime                      *string `json:"end_time,omitempty"`
+	FlagRegex                    *string `json:"flag_regex,omitempty"`
 	FreezeTime                   *string `json:"freeze_time,omitempty"`
 	ID                           *int    `json:"id,omitempty"`
 	IsPaused                     *bool   `json:"is_paused,omitempty"`
 	IsPublic                     *bool   `json:"is_public,omitempty"`
 	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
+	MaxTeamSize                  *int    `json:"max_team_size,omitempty"`
+	MinTeamSize                  *int    `json:"min_team_size,omitempty"`
 	Mode                         *string `json:"mode,omitempty"`
 	Name                         *string `json:"name,omitempty"`
 	PausedAt                     *string `json:"paused_at,omitempty"`
@@ -703,8 +705,11 @@ type CreateChallengeRequest struct {
 
 	// MaxAttempts Max submission attempts per team (0 = unlimited)
 	MaxAttempts *int `json:"max_attempts,omitempty"`
-	MinValue    *int `json:"min_value,omitempty"`
-	Points      int  `json:"points"`
+
+	// MaxAttemptsWindow Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty"`
+	MinValue          *int `json:"min_value,omitempty"`
+	Points            int  `json:"points"`
 
 	// Position Display order (lower = first)
 	Position *int `json:"position,omitempty"`
@@ -964,8 +969,8 @@ type JoinTeamRequest struct {
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
-	Email    *string `json:"email,omitempty" validate:"omitempty,custom_email"`
-	Password string  `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,custom_email"`
+	Password string `json:"password" validate:"required"`
 }
 
 // LogoutRequest Optional body for logout. The refresh token can also be passed via Authorization header.
@@ -975,6 +980,7 @@ type LogoutRequest struct {
 
 // MeResponse defines model for MeResponse.
 type MeResponse struct {
+	AvatarURL *string `json:"avatar_url,omitempty"`
 	CreatedAt *string `json:"created_at,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	ID        *string `json:"id,omitempty"`
@@ -1044,6 +1050,7 @@ type RatingResponse struct {
 	ID          *string    `json:"id,omitempty"`
 	Review      *string    `json:"review,omitempty"`
 	TeamID      *string    `json:"team_id,omitempty"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	UserID      *string    `json:"user_id,omitempty"`
 	Value       *int       `json:"value,omitempty"`
 }
@@ -1052,9 +1059,9 @@ type RatingResponse struct {
 type RegisterRequest struct {
 	// CustomFields Custom field values (field_id -> value)
 	CustomFields *map[string]string `json:"custom_fields,omitempty"`
-	Email        *string            `json:"email,omitempty" validate:"required,custom_email"`
-	Password     *string            `json:"password,omitempty" validate:"required,strong_password"`
-	Username     *string            `json:"username,omitempty" validate:"required,custom_username"`
+	Email        string             `json:"email" validate:"required,custom_email"`
+	Password     string             `json:"password" validate:"required,strong_password"`
+	Username     string             `json:"username" validate:"required,custom_username"`
 }
 
 // RegisterResponse defines model for RegisterResponse.
@@ -1196,6 +1203,7 @@ type SubmissionResponse struct {
 	ID                *string `json:"id,omitempty"`
 	IP                *string `json:"ip,omitempty"`
 	IsCorrect         *bool   `json:"is_correct,omitempty"`
+	SubmissionType    *string `json:"submission_type,omitempty"`
 	SubmittedFlag     *string `json:"submitted_flag,omitempty"`
 	TeamID            *string `json:"team_id,omitempty"`
 	TeamName          *string `json:"team_name,omitempty"`
@@ -1264,6 +1272,7 @@ type TeamListResponse struct {
 
 // TeamResponse defines model for TeamResponse.
 type TeamResponse struct {
+	AvatarURL   *string `json:"avatar_url,omitempty"`
 	CaptainID   *string `json:"captain_id,omitempty"`
 	CreatedAt   *string `json:"created_at,omitempty"`
 	ID          *string `json:"id,omitempty"`
@@ -1280,6 +1289,7 @@ type TeamTimeline struct {
 
 // TeamWithMembersResponse defines model for TeamWithMembersResponse.
 type TeamWithMembersResponse struct {
+	AvatarURL    *string `json:"avatar_url,omitempty"`
 	BannedAt     *string `json:"banned_at,omitempty"`
 	BannedReason *string `json:"banned_reason,omitempty"`
 	CaptainID    *string `json:"captain_id,omitempty"`
@@ -1403,8 +1413,11 @@ type UpdateChallengeRequest struct {
 
 	// MaxAttempts Max submission attempts per team (0 = unlimited)
 	MaxAttempts *int `json:"max_attempts,omitempty"`
-	MinValue    *int `json:"min_value,omitempty"`
-	Points      int  `json:"points"`
+
+	// MaxAttemptsWindow Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty"`
+	MinValue          *int `json:"min_value,omitempty"`
+	Points            int  `json:"points"`
 
 	// Position Display order (lower = first)
 	Position *int `json:"position,omitempty"`
@@ -1532,6 +1545,7 @@ type UserNotificationResponse struct {
 
 // UserProfileResponse defines model for UserProfileResponse.
 type UserProfileResponse struct {
+	AvatarURL *string          `json:"avatar_url,omitempty"`
 	CreatedAt *string          `json:"created_at,omitempty"`
 	ID        *string          `json:"id,omitempty"`
 	Solves    *[]SolveResponse `json:"solves,omitempty"`
@@ -1541,10 +1555,11 @@ type UserProfileResponse struct {
 
 // UserResponse defines model for UserResponse.
 type UserResponse struct {
-	ID       *string `json:"id,omitempty"`
-	Role     *string `json:"role,omitempty"`
-	TeamID   *string `json:"team_id,omitempty"`
-	Username *string `json:"username,omitempty"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	ID        *string `json:"id,omitempty"`
+	Role      *string `json:"role,omitempty"`
+	TeamID    *string `json:"team_id,omitempty"`
+	Username  *string `json:"username,omitempty"`
 }
 
 // ValidationErrorItem defines model for ValidationErrorItem.
@@ -1564,12 +1579,6 @@ type ValidationErrorResponse struct {
 type VerifyEmailRequest struct {
 	// Token Verification token (from email link or copy-paste)
 	Token string `json:"token" validate:"required"`
-}
-
-// V1ErrorResponse defines model for v1.ErrorResponse.
-type V1ErrorResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
 }
 
 // GetAdminAwardsParams defines parameters for GetAdminAwards.

@@ -3,10 +3,13 @@ package webapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 const (
@@ -42,7 +45,10 @@ type githubEmail struct {
 	Verified bool   `json:"verified"`
 }
 
-func (g *GitHubAPI) FetchUserProfile(ctx context.Context, accessToken string) (*OAuthUserProfile, error) {
+// FetchUserProfile retrieves the GitHub user's profile. It calls fetchUser to
+// get the login and email; if the email field is empty (users may hide it),
+// it falls back to fetchPrimaryEmail to find a primary verified address.
+func (g *GitHubAPI) FetchUserProfile(ctx context.Context, accessToken string) (*domain.OAuthUserProfile, error) {
 	user, err := g.fetchUser(ctx, accessToken)
 	if err != nil {
 		return nil, err
@@ -56,13 +62,15 @@ func (g *GitHubAPI) FetchUserProfile(ctx context.Context, accessToken string) (*
 		}
 	}
 
-	return &OAuthUserProfile{
+	return &domain.OAuthUserProfile{
 		ID:       strconv.FormatInt(user.ID, 10),
 		Email:    email,
 		Username: user.Login,
 	}, nil
 }
 
+// fetchUser calls the GitHub /user endpoint with retry and decodes the response
+// into a githubUser struct.
 func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubUser, error) {
 	mkReq := func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.userURL, http.NoBody)
@@ -99,6 +107,9 @@ func (g *GitHubAPI) fetchUser(ctx context.Context, accessToken string) (*githubU
 	return &user, nil
 }
 
+// fetchPrimaryEmail calls the GitHub /user/emails endpoint and returns the
+// first primary+verified address. Falls back to any verified address if no
+// primary+verified one exists. Returns an error when no verified email is found.
 func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
 	mkReq := func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.emailsURL, http.NoBody)
@@ -144,5 +155,5 @@ func (g *GitHubAPI) fetchPrimaryEmail(ctx context.Context, accessToken string) (
 		}
 	}
 
-	return "", fmt.Errorf("GitHubAPI - fetchPrimaryEmail: no verified email found")
+	return "", errors.New("GitHubAPI - fetchPrimaryEmail: no verified email found")
 }

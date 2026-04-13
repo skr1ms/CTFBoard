@@ -8,13 +8,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-type createNotificationConstraints struct {
-	Title   string `validate:"required,max=200"`
-	Content string `validate:"required,max=5000"`
-	Type    string `validate:"omitempty,oneof=info warning success error"`
-}
-
-type updateNotificationConstraints struct {
+type notificationConstraints struct {
 	Title   string `validate:"required,max=200"`
 	Content string `validate:"required,max=5000"`
 	Type    string `validate:"omitempty,oneof=info warning success error"`
@@ -35,7 +29,7 @@ func ValidateCreateNotificationRequest(req *openapi.CreateNotificationRequest, v
 		t = "info"
 	}
 
-	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
 
 	return ValidateConstraints(v, &c)
 }
@@ -46,7 +40,7 @@ func ValidateCreateUserNotificationRequest(req *openapi.CreateUserNotificationRe
 		t = "info"
 	}
 
-	c := createNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
 
 	return ValidateConstraints(v, &c)
 }
@@ -57,7 +51,7 @@ func ValidateUpdateNotificationRequest(req *openapi.UpdateNotificationRequest, v
 		t = "info"
 	}
 
-	c := updateNotificationConstraints{Title: req.Title, Content: req.Content, Type: t}
+	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
 
 	return ValidateConstraints(v, &c)
 }

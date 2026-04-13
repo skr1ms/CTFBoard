@@ -3,6 +3,9 @@ schemas:
     properties:
       is_correct:
         type: boolean
+      discard:
+        type: boolean
+        description: Mark submission as discarded (admin cleanup). Overrides is_correct.
     required:
       - is_correct
     type: object
@@ -46,6 +49,8 @@ schemas:
         type: string
       is_correct:
         type: boolean
+      submission_type:
+        type: string
       ip:
         type: string
       created_at:

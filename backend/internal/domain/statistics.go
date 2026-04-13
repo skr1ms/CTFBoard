@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// GeneralStats holds top-level competition counters shown on the admin dashboard.
 type GeneralStats struct {
 	UserCount      int `json:"user_count"`
 	TeamCount      int `json:"team_count"`
@@ -13,6 +14,7 @@ type GeneralStats struct {
 	SolveCount     int `json:"solve_count"`
 }
 
+// ChallengeStats is a summary row for a challenge used in admin statistics listings.
 type ChallengeStats struct {
 	ID         uuid.UUID `json:"id"`
 	Title      string    `json:"title"`
@@ -21,12 +23,14 @@ type ChallengeStats struct {
 	SolveCount int       `json:"solve_count"`
 }
 
+// ChallengeSolveEntry identifies a team that solved a challenge and when they did so.
 type ChallengeSolveEntry struct {
 	TeamID   uuid.UUID `json:"team_id"`
 	TeamName string    `json:"team_name"`
 	SolvedAt time.Time `json:"solved_at"`
 }
 
+// ChallengeDetailStats aggregates solve rate and solver list for a single challenge detail view.
 type ChallengeDetailStats struct {
 	ID               uuid.UUID             `json:"id"`
 	Title            string                `json:"title"`
@@ -39,6 +43,7 @@ type ChallengeDetailStats struct {
 	Solves           []ChallengeSolveEntry `json:"solves"`
 }
 
+// ScoreboardHistoryEntry represents a team's point total at a specific point in time for history charts.
 type ScoreboardHistoryEntry struct {
 	TeamID    uuid.UUID `json:"team_id"`
 	TeamName  string    `json:"team_name"`
@@ -46,6 +51,7 @@ type ScoreboardHistoryEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// ChallengeSolvePercentage pairs a challenge with its solve rate relative to the total team count.
 type ChallengeSolvePercentage struct {
 	ID         uuid.UUID `json:"id"`
 	Title      string    `json:"title"`
@@ -55,28 +61,33 @@ type ChallengeSolvePercentage struct {
 	Percentage float64   `json:"percentage"`
 }
 
+// ScoreDistributionBucket counts how many teams fall within a named score range bucket.
 type ScoreDistributionBucket struct {
 	Bucket string `json:"bucket"`
 	Count  int    `json:"count"`
 }
 
+// SubmissionTimeSeries holds correct and incorrect submission counts for a single date bucket.
 type SubmissionTimeSeries struct {
 	Date      string `json:"date"`
 	Correct   int    `json:"correct"`
 	Incorrect int    `json:"incorrect"`
 }
 
+// SubmissionTimeSeriesStats wraps the per-day submission series with overall totals.
 type SubmissionTimeSeriesStats struct {
 	Items          []*SubmissionTimeSeries `json:"items"`
 	TotalCorrect   int                     `json:"total_correct"`
 	TotalIncorrect int                     `json:"total_incorrect"`
 }
 
+// RegistrationTimePoint records how many users registered on a given date, used for growth charts.
 type RegistrationTimePoint struct {
 	Date  string `json:"date"`
 	Count int    `json:"count"`
 }
 
+// SolveMatrixRow is a single cell in the admin solve matrix, indicating whether a team solved a challenge.
 type SolveMatrixRow struct {
 	TeamID            uuid.UUID  `json:"team_id"`
 	TeamName          string     `json:"team_name"`

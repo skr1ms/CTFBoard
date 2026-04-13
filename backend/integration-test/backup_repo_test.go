@@ -340,7 +340,7 @@ func TestBackupRepo_ImportFileMetadataTx_Success(t *testing.T) {
 	fileID := uuid.New()
 	data := &domain.BackupData{
 		Files: []domain.File{
-			{ID: fileID, Type: domain.FileTypeChallenge, ChallengeID: challenge.ID, Location: "test/path", Filename: "file.txt", Size: 100, SHA256: "abc", CreatedAt: time.Now()},
+			{ID: fileID, Type: domain.FileTypeChallenge, ChallengeID: &challenge.ID, Location: "test/path", Filename: "file.txt", Size: 100, SHA256: "abc", CreatedAt: time.Now()},
 		},
 	}
 
@@ -360,7 +360,11 @@ func TestBackupRepo_ImportFileMetadataTx_Error_InvalidChallengeID(t *testing.T) 
 
 	data := &domain.BackupData{
 		Files: []domain.File{
-			{ID: uuid.New(), Type: domain.FileTypeChallenge, ChallengeID: uuid.New(), Location: "x", Filename: "f", Size: 0, SHA256: "x", CreatedAt: time.Now()},
+			{ID: uuid.New(), Type: domain.FileTypeChallenge, ChallengeID: func() *uuid.UUID {
+				id := uuid.New()
+
+				return &id
+			}(), Location: "x", Filename: "f", Size: 0, SHA256: "x", CreatedAt: time.Now()},
 		},
 	}
 

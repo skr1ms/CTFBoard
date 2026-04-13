@@ -13,6 +13,11 @@ type vaultSecretGetter interface {
 	GetSecret(ctx context.Context, path string) (map[string]any, error)
 }
 
+// vaultFetch returns an errgroup-compatible closure that fetches the Vault KV secret
+// at path and calls apply (mutex-wrapped by the caller) to write selected fields into
+// rawConfig. On error it logs a warning and returns nil so that a missing or
+// inaccessible secret path does not abort the entire errgroup - the field simply
+// retains its env/default value (errSuffix describes that fallback in the log line).
 func vaultFetch(ctx context.Context, client vaultSecretGetter, l logkit.Logger, path, logName, errSuffix string, apply func(map[string]any)) func() error {
 	return func() error {
 		s, err := client.GetSecret(ctx, path)
@@ -45,6 +50,10 @@ func parseCommaSeparated(s string) []string {
 	return lo.Filter(lo.Map(strings.Split(s, ","), func(x string, _ int) string { return strings.TrimSpace(x) }), func(s string, _ int) bool { return s != "" })
 }
 
+// parseTrustedProxyCIDRs parses a comma-separated list of CIDR strings. Invalid
+// entries are silently dropped with a warning log rather than failing startup,
+// because misconfigured trusted-proxy CIDRs should not block the server - but
+// they do affect IP-based access control, so the warning is intentionally noisy.
 func parseTrustedProxyCIDRs(s string, l logkit.Logger) []string {
 	if s == "" {
 		return nil

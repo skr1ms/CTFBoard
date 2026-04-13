@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestAdminUpsertSolution_Success(t *testing.T) {
@@ -44,13 +44,13 @@ func TestAdminUpsertSolution_ChallengeNotFound(t *testing.T) {
 
 	challengeID := uuid.New()
 
-	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, httperr.ErrChallengeNotFound)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
 
 	result, err := uc.AdminUpsertSolution(context.Background(), challengeID, "content")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestAdminUpsertSolution_RepoError(t *testing.T) {
@@ -102,8 +102,8 @@ func TestAdminUpsertSolution_ContentTooLong(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 
-	var httpErr *httperr.HTTPError
-	assert.True(t, errors.As(err, &httpErr) && httpErr.HTTPStatus() == 400 && httpErr.GetCode() == "VALIDATION_ERROR")
+	var ve *apperr.ValidationError
+	assert.True(t, errors.As(err, &ve))
 }
 
 func TestAdminDeleteSolution_Success(t *testing.T) {
@@ -237,13 +237,13 @@ func TestGetSolution_ChallengeNotFound(t *testing.T) {
 	challengeID := uuid.New()
 	teamID := uuid.New()
 
-	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, httperr.ErrChallengeNotFound)
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
 
 	result, err := uc.GetSolution(context.Background(), challengeID, &teamID)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, httperr.ErrChallengeNotFound)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 }
 
 func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
@@ -260,7 +260,7 @@ func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, httperr.ErrNotAuthenticatedSentinel)
+	assert.ErrorIs(t, err, apperr.ErrNotAuthenticated)
 }
 
 func TestGetSolution_NotSolved_Forbidden(t *testing.T) {
@@ -274,7 +274,7 @@ func TestGetSolution_NotSolved_Forbidden(t *testing.T) {
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, httperr.ErrSolveNotFound)
+	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, apperr.ErrSolveNotFound)
 
 	result, err := uc.GetSolution(context.Background(), challengeID, &teamID)
 
@@ -295,7 +295,7 @@ func TestGetSolution_SolutionNotFound(t *testing.T) {
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(solve, nil)
-	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(nil, httperr.ErrChallengeNotFound)
+	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
 
 	result, err := uc.GetSolution(context.Background(), challengeID, &teamID)
 

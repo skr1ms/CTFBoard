@@ -12,6 +12,10 @@
               $ref: '../components/schemas.yml#/HealthcheckResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Health check (liveness)
     tags:
       - System
@@ -34,6 +38,10 @@
                 Allow: /
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get robots.txt
     tags:
       - System
@@ -52,6 +60,10 @@
               type: string
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get Terms of Service
     tags:
       - System
@@ -70,6 +82,10 @@
               type: string
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     summary: Get Privacy Policy
     tags:
       - System
@@ -88,6 +104,12 @@
               additionalProperties: true
       "401":
         description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
         content:
           application/json:
             schema:

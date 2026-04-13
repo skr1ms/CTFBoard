@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -44,7 +44,7 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 
 	if req.IP != nil {
 		if net.ParseIP(*req.IP) == nil {
-			return nil, httperr.NewValidationErrorf("invalid ip address format")
+			return nil, apperr.NewValidationErrorf("invalid ip address format")
 		}
 
 		ip = *req.IP
@@ -62,7 +62,7 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 
 func AdminUpdateSubmissionRequestToParams(req *openapi.AdminUpdateSubmissionRequest) (*bool, error) {
 	if req == nil {
-		return nil, httperr.NewValidationErrorf("is_correct is required")
+		return nil, apperr.NewValidationErrorf("is_correct is required")
 	}
 
 	return &req.IsCorrect, nil

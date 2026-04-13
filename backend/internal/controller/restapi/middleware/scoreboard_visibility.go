@@ -8,8 +8,9 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -37,6 +38,11 @@ func (s *ScoreboardVisibilityCache) Invalidate() {
 	s.cv.Invalidate()
 }
 
+// Middleware returns an HTTP middleware that enforces the scoreboard_visible
+// setting. Visibility is loaded via CachedValue (scoreboardVisibilityTTL=30s)
+// and re-fetched only after expiry or explicit Invalidate. Admin users bypass
+// the check. The three modes are: public (pass-through), hidden (403 for all),
+// admins_only (403 for non-admins).
 func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
 	load := func(ctx context.Context) (string, error) {
 		settings, err := settingsGetter.Get(ctx)
@@ -49,8 +55,7 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := GetUser(r.Context())
-			if ok && user != nil && user.Role == domain.RoleAdmin {
+			if isAdmin(r.Context()) {
 				next.ServeHTTP(w, r)
 
 				return
@@ -58,7 +63,7 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 
 			visibility, err := s.cv.Get(r.Context(), load)
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
@@ -67,15 +72,15 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 			case domain.ScoreboardVisiblePublic:
 				next.ServeHTTP(w, r)
 			case domain.ScoreboardVisibleHidden:
-				httputil.HandleError(w, r, httperr.ErrScoreboardHidden)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrScoreboardHidden))
 
 				return
 			case domain.ScoreboardVisibleAdminsOnly:
-				httputil.HandleError(w, r, httperr.ErrScoreboardAdminsOnly)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrScoreboardAdminsOnly))
 
 				return
 			default:
-				httputil.HandleError(w, r, httperr.ErrScoreboardAccessDenied)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrScoreboardAccessDenied))
 
 				return
 			}
@@ -83,6 +88,10 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 	}
 }
 
+// ScoreboardVisibility is a convenience constructor that creates a
+// ScoreboardVisibilityCache and returns its Middleware. Use this when a
+// shared cache instance is not needed (e.g. in tests or simple setups);
+// for production use the shared ScoreboardVisibilityCache from wire/providers.
 func ScoreboardVisibility(settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
 	c := NewScoreboardVisibilityCache()
 

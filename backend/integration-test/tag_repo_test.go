@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 func TestTagRepo_Create_Success(t *testing.T) {
@@ -57,7 +57,7 @@ func TestTagRepo_GetByID_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByID(ctx, uuid.New())
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTagNotFound)
 }
 
 func TestTagRepo_GetByName_Success(t *testing.T) {
@@ -80,7 +80,7 @@ func TestTagRepo_GetByName_Error_NotFound(t *testing.T) {
 
 	_, err := f.TagRepo.GetByName(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTagNotFound)
 }
 
 func TestTagRepo_GetAll_Success(t *testing.T) {
@@ -153,7 +153,7 @@ func TestTagRepo_Delete_Success(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.TagRepo.GetByID(ctx, tag.ID)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTagNotFound)
+	assert.ErrorIs(t, err, apperr.ErrTagNotFound)
 }
 
 func TestTagRepo_Delete_Error_NoRows(t *testing.T) {

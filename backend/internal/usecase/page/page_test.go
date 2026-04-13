@@ -2,275 +2,301 @@ package page
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	pageMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page/mock"
 )
 
-type pageTestDeps struct {
-	pageRepo *pageMock.MockPageRepository
-}
-
-func newPageTestDeps(t *testing.T) *pageTestDeps {
+func newUC(t *testing.T) (*PageUseCase, *pageMock.MockPageRepository) {
 	t.Helper()
 
-	return &pageTestDeps{pageRepo: pageMock.NewMockPageRepository(t)}
+	repo := pageMock.NewMockPageRepository(t)
+	uc := NewPageUseCase(PageDeps{PageRepo: repo})
+
+	return uc, repo
 }
 
-func (d *pageTestDeps) createUseCase() *PageUseCase {
-	return NewPageUseCase(PageDeps{PageRepo: d.pageRepo})
-}
-
-func newTestPage(title, slug, content string, isDraft bool, orderIndex int) *domain.Page {
+func makePage(slug string, isDraft bool) *domain.Page {
 	return &domain.Page{
-		ID:         uuid.New(),
-		Title:      title,
-		Slug:       slug,
-		Content:    content,
-		IsDraft:    isDraft,
-		OrderIndex: orderIndex,
+		ID:      uuid.New(),
+		Title:   "title",
+		Slug:    slug,
+		Content: "content",
+		IsDraft: isDraft,
 	}
 }
 
-func newTestPageListItem(id uuid.UUID, title, slug string, orderIndex int) *domain.PageListItem {
-	return &domain.PageListItem{
-		ID:         id,
-		Title:      title,
-		Slug:       slug,
-		OrderIndex: orderIndex,
-	}
+func TestGetPublishedList_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
+	want := []*domain.PageListItem{{ID: uuid.New(), Slug: "hello"}}
+	repo.EXPECT().GetPublishedList(mock.Anything).Return(want, nil)
+
+	got, err := uc.GetPublishedList(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
-func TestPageUseCase_GetPublishedList_Success(t *testing.T) {
+func TestGetPublishedList_RepoError(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-	list := []*domain.PageListItem{newTestPageListItem(uuid.New(), "t", "s", 0)}
 
-	d.pageRepo.EXPECT().GetPublishedList(mock.Anything).Return(list, nil)
+	uc, repo := newUC(t)
+	repo.EXPECT().GetPublishedList(mock.Anything).Return(nil, errors.New("db error"))
 
-	uc := d.createUseCase()
-	got, err := uc.GetPublishedList(ctx)
+	_, err := uc.GetPublishedList(context.Background())
 
-	assert.NoError(t, err)
-	assert.Len(t, got, 1)
-	assert.Equal(t, list[0].Slug, got[0].Slug)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
 }
 
-func TestPageUseCase_GetPublishedList_Error(t *testing.T) {
+func TestGetBySlug_Success(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
 
-	d.pageRepo.EXPECT().GetPublishedList(mock.Anything).Return(nil, assert.AnError)
+	uc, repo := newUC(t)
+	page := makePage("my-page", false)
+	repo.EXPECT().GetBySlug(mock.Anything, "my-page").Return(page, nil)
 
-	uc := d.createUseCase()
-	got, err := uc.GetPublishedList(ctx)
+	got, err := uc.GetBySlug(context.Background(), "my-page")
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
+	assert.Equal(t, "my-page", got.Slug)
 }
 
-func TestPageUseCase_GetBySlug_Success(t *testing.T) {
+func TestGetBySlug_EmptySlug_Error(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-	slug := "about"
-	page := newTestPage("About", slug, "content", false, 0)
 
-	d.pageRepo.EXPECT().GetBySlug(mock.Anything, slug).Return(page, nil)
+	uc, _ := newUC(t)
 
-	uc := d.createUseCase()
-	got, err := uc.GetBySlug(ctx, slug)
+	_, err := uc.GetBySlug(context.Background(), "   ")
 
-	assert.NoError(t, err)
-	assert.Equal(t, page.ID, got.ID)
-	assert.Equal(t, slug, got.Slug)
+	require.ErrorIs(t, err, apperr.ErrPageSlugRequired)
 }
 
-func TestPageUseCase_GetBySlug_Error(t *testing.T) {
+func TestGetBySlug_NotFound_NilPage_Error(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-	slug := "about"
 
-	d.pageRepo.EXPECT().GetBySlug(mock.Anything, slug).Return(nil, assert.AnError)
+	uc, repo := newUC(t)
+	repo.EXPECT().GetBySlug(mock.Anything, "missing").Return(nil, nil)
 
-	uc := d.createUseCase()
-	got, err := uc.GetBySlug(ctx, slug)
+	_, err := uc.GetBySlug(context.Background(), "missing")
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.ErrorIs(t, err, apperr.ErrPageNotFound)
 }
 
-func TestPageUseCase_GetByID_Success(t *testing.T) {
+func TestGetBySlug_Draft_Error(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo := newUC(t)
+	page := makePage("draft-page", true)
+	repo.EXPECT().GetBySlug(mock.Anything, "draft-page").Return(page, nil)
+
+	_, err := uc.GetBySlug(context.Background(), "draft-page")
+
+	require.ErrorIs(t, err, apperr.ErrPageNotFound)
+}
+
+func TestGetBySlug_RepoError(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
+	repo.EXPECT().GetBySlug(mock.Anything, "slug").Return(nil, errors.New("db error"))
+
+	_, err := uc.GetBySlug(context.Background(), "slug")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+}
+
+func TestGetByID_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
 	id := uuid.New()
-	page := newTestPage("T", "s", "c", false, 0)
+	page := makePage("slug", false)
 	page.ID = id
+	repo.EXPECT().GetByID(mock.Anything, id).Return(page, nil)
 
-	d.pageRepo.EXPECT().GetByID(mock.Anything, id).Return(page, nil)
+	got, err := uc.GetByID(context.Background(), id)
 
-	uc := d.createUseCase()
-	got, err := uc.GetByID(ctx, id)
-
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 }
 
-func TestPageUseCase_GetByID_Error(t *testing.T) {
+func TestGetAllList_Success(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo := newUC(t)
+	want := []*domain.Page{makePage("p1", false), makePage("p2", true)}
+	repo.EXPECT().GetAllList(mock.Anything).Return(want, nil)
+
+	got, err := uc.GetAllList(context.Background())
+
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
+}
+
+func TestCreate_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *domain.Page) bool {
+		return p.Title == "My Page" && p.Slug == "my-page" && !p.IsDraft
+	})).Return(nil)
+
+	got, err := uc.Create(context.Background(), "My Page", "my-page", "content", false, 0)
+
+	require.NoError(t, err)
+	assert.Equal(t, "My Page", got.Title)
+	assert.Equal(t, "my-page", got.Slug)
+}
+
+func TestCreate_TitleTrimmed(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *domain.Page) bool {
+		return p.Title == "Trimmed Title"
+	})).Return(nil)
+
+	_, err := uc.Create(context.Background(), "  Trimmed Title  ", "valid-slug", "content", false, 0)
+
+	require.NoError(t, err)
+}
+
+func TestCreate_EmptyTitle_Error(t *testing.T) {
+	t.Parallel()
+
+	uc, _ := newUC(t)
+
+	_, err := uc.Create(context.Background(), "  ", "slug", "content", false, 0)
+
+	require.ErrorIs(t, err, apperr.ErrPageTitleRequired)
+}
+
+func TestCreate_EmptySlug_Error(t *testing.T) {
+	t.Parallel()
+
+	uc, _ := newUC(t)
+
+	_, err := uc.Create(context.Background(), "title", "  ", "content", false, 0)
+
+	require.ErrorIs(t, err, apperr.ErrPageSlugRequired)
+}
+
+func TestCreate_InvalidSlug_Error(t *testing.T) {
+	t.Parallel()
+
+	uc, _ := newUC(t)
+
+	for _, badSlug := range []string{"UPPERCASE", "has space", "-leading-dash", "trailing-dash-", "double--dash", "hello_world"} {
+		_, err := uc.Create(context.Background(), "title", badSlug, "content", false, 0)
+		require.Error(t, err, "expected error for slug %q", badSlug)
+	}
+}
+
+func TestUpdate_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
 	id := uuid.New()
+	existing := makePage("old-slug", false)
+	existing.ID = id
 
-	d.pageRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
+	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
+	repo.EXPECT().GetBySlug(mock.Anything, "new-slug").Return(nil, nil)
+	repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(p *domain.Page) bool {
+		return p.Title == "new title" && p.Slug == "new-slug"
+	})).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.GetByID(ctx, id)
+	got, err := uc.Update(context.Background(), id, "new title", "new-slug", "new content", false, 1)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
+	assert.Equal(t, "new title", got.Title)
+	assert.Equal(t, "new-slug", got.Slug)
 }
 
-func TestPageUseCase_GetAllList_Success(t *testing.T) {
+func TestUpdate_SlugConflict_Error(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-	list := []*domain.Page{newTestPage("T", "s", "c", false, 0)}
 
-	d.pageRepo.EXPECT().GetAllList(mock.Anything).Return(list, nil)
-
-	uc := d.createUseCase()
-	got, err := uc.GetAllList(ctx)
-
-	assert.NoError(t, err)
-	assert.Len(t, got, 1)
-}
-
-func TestPageUseCase_GetAllList_Error(t *testing.T) {
-	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-
-	d.pageRepo.EXPECT().GetAllList(mock.Anything).Return(nil, assert.AnError)
-
-	uc := d.createUseCase()
-	got, err := uc.GetAllList(ctx)
-
-	assert.Error(t, err)
-	assert.Nil(t, got)
-}
-
-func TestPageUseCase_Create_Success(t *testing.T) {
-	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-	title, slug, content := "Title", "slug", "content"
-	isDraft := false
-	orderIndex := 1
-
-	d.pageRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *domain.Page) {
-		assert.Equal(t, title, p.Title)
-		assert.Equal(t, slug, p.Slug)
-		assert.Equal(t, content, p.Content)
-		assert.Equal(t, isDraft, p.IsDraft)
-		assert.Equal(t, orderIndex, p.OrderIndex)
-	})
-
-	uc := d.createUseCase()
-	got, err := uc.Create(ctx, title, slug, content, false, orderIndex)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, got)
-	assert.Equal(t, title, got.Title)
-}
-
-func TestPageUseCase_Create_Error(t *testing.T) {
-	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
-
-	d.pageRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
-
-	uc := d.createUseCase()
-	got, err := uc.Create(ctx, "T", "s", "c", false, 0)
-
-	assert.Error(t, err)
-	assert.Nil(t, got)
-}
-
-func TestPageUseCase_Update_Success(t *testing.T) {
-	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+	uc, repo := newUC(t)
 	id := uuid.New()
-	page := newTestPage("Old", "old", "c", false, 0)
-	page.ID = id
-	title, slug, content := "New", "new", "body"
-	orderIndex := 2
+	existing := makePage("old-slug", false)
+	existing.ID = id
 
-	d.pageRepo.EXPECT().GetByID(mock.Anything, id).Return(page, nil)
-	d.pageRepo.EXPECT().GetBySlug(mock.Anything, slug).Return(nil, nil)
-	d.pageRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, p *domain.Page) {
-		assert.Equal(t, title, p.Title)
-		assert.Equal(t, slug, p.Slug)
-		assert.Equal(t, orderIndex, p.OrderIndex)
-	})
+	other := makePage("taken-slug", false)
+	other.ID = uuid.New()
 
-	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, title, slug, content, true, orderIndex)
+	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
+	repo.EXPECT().GetBySlug(mock.Anything, "taken-slug").Return(other, nil)
 
-	assert.NoError(t, err)
-	assert.Equal(t, title, got.Title)
+	_, err := uc.Update(context.Background(), id, "title", "taken-slug", "content", false, 0)
+
+	require.ErrorIs(t, err, apperr.ErrPageSlugConflict)
 }
 
-func TestPageUseCase_Update_Error(t *testing.T) {
+func TestUpdate_SameSlugSamePage_Success(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo := newUC(t)
 	id := uuid.New()
+	existing := makePage("same-slug", false)
+	existing.ID = id
 
-	d.pageRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, assert.AnError)
+	// GetBySlug returns the same page - not a conflict
+	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
+	repo.EXPECT().GetBySlug(mock.Anything, "same-slug").Return(existing, nil)
+	repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
-	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, "T", "s", "c", false, 0)
+	_, err := uc.Update(context.Background(), id, "title", "same-slug", "content", false, 0)
 
-	assert.Error(t, err)
-	assert.Nil(t, got)
+	require.NoError(t, err)
 }
 
-func TestPageUseCase_Delete_Success(t *testing.T) {
+func TestUpdate_InvalidSlug_Error(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo := newUC(t)
 	id := uuid.New()
+	existing := makePage("old-slug", false)
+	existing.ID = id
+	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 
-	d.pageRepo.EXPECT().Delete(mock.Anything, id).Return(nil)
+	_, err := uc.Update(context.Background(), id, "title", "INVALID SLUG", "content", false, 0)
 
-	uc := d.createUseCase()
-	err := uc.Delete(ctx, id)
-
-	assert.NoError(t, err)
+	require.Error(t, err)
 }
 
-func TestPageUseCase_Delete_Error(t *testing.T) {
+func TestDelete_Success(t *testing.T) {
 	t.Parallel()
-	d := newPageTestDeps(t)
-	ctx := context.Background()
+
+	uc, repo := newUC(t)
 	id := uuid.New()
+	repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
-	d.pageRepo.EXPECT().Delete(mock.Anything, id).Return(assert.AnError)
+	err := uc.Delete(context.Background(), id)
 
-	uc := d.createUseCase()
-	err := uc.Delete(ctx, id)
+	require.NoError(t, err)
+}
 
-	assert.Error(t, err)
+func TestDelete_RepoError(t *testing.T) {
+	t.Parallel()
+
+	uc, repo := newUC(t)
+	id := uuid.New()
+	repo.EXPECT().Delete(mock.Anything, id).Return(errors.New("constraint error"))
+
+	err := uc.Delete(context.Background(), id)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "constraint error")
 }

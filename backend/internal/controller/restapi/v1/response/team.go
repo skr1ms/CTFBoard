@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
@@ -18,7 +16,8 @@ func FromTeam(t *domain.Team) openapi.TeamResponse {
 		Name:        new(t.Name),
 		InviteToken: new(t.InviteToken.String()),
 		CaptainID:   new(t.CaptainID.String()),
-		CreatedAt:   new(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt:   timePtr(&t.CreatedAt),
+		AvatarURL:   t.AvatarURL,
 	}
 }
 
@@ -31,7 +30,8 @@ func FromTeamWithoutToken(t *domain.Team) openapi.TeamResponse {
 		ID:        new(t.ID.String()),
 		Name:      new(t.Name),
 		CaptainID: new(t.CaptainID.String()),
-		CreatedAt: new(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt: timePtr(&t.CreatedAt),
+		AvatarURL: t.AvatarURL,
 	}
 }
 
@@ -52,15 +52,16 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 		Name:         new(t.Name),
 		InviteToken:  new(t.InviteToken.String()),
 		CaptainID:    new(t.CaptainID.String()),
-		CreatedAt:    new(t.CreatedAt.Format(time.RFC3339)),
+		CreatedAt:    timePtr(&t.CreatedAt),
 		Members:      &memberResponses,
 		IsBanned:     new(t.IsBanned),
 		MinTeamSize:  new(minTeamSize),
 		MeetsMinSize: new(meetsMinSize),
+		AvatarURL:    t.AvatarURL,
 	}
 
 	if t.BannedAt != nil {
-		res.BannedAt = new(t.BannedAt.Format(time.RFC3339))
+		res.BannedAt = timePtr(t.BannedAt)
 	}
 
 	if t.BannedReason != nil {
@@ -86,9 +87,14 @@ func FromAdminTeam(t *domain.Team, memberCount *int) openapi.AdminTeamResponse {
 		IsHidden:    new(t.IsHidden),
 		MemberCount: memberCount,
 		CreatedAt:   new(t.CreatedAt),
+		AvatarURL:   t.AvatarURL,
 	}
 	if t.BracketID != nil {
 		res.BracketID = new(t.BracketID.String())
+	}
+
+	if t.BannedAt != nil {
+		res.BannedAt = t.BannedAt
 	}
 
 	if t.BannedReason != nil {

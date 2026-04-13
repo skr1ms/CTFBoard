@@ -87,8 +87,8 @@ func (h *E2EHelper) downloadURLToAbsolute(rawURL string) string {
 
 	parsed, err := url.Parse(rawURL)
 	if err == nil {
-		baseParsed, err2 := url.Parse(h.baseURL)
-		if err2 == nil {
+		baseParsed, errParse := url.Parse(h.baseURL)
+		if errParse == nil {
 			parsed.Scheme = baseParsed.Scheme
 			parsed.Host = baseParsed.Host
 

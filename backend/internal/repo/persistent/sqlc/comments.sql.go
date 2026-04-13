@@ -58,19 +58,31 @@ func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllComments = `-- name: GetAllComments :many
-SELECT id, user_id, challenge_id, content, created_at, updated_at
-FROM comments ORDER BY created_at ASC
+SELECT c.id, c.user_id, c.challenge_id, c.content, c.created_at, c.updated_at, u.username
+FROM comments c
+JOIN users u ON u.id = c.user_id
+ORDER BY c.created_at ASC
 `
 
-func (q *Queries) GetAllComments(ctx context.Context) ([]Comment, error) {
+type GetAllCommentsRow struct {
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Content     string             `json:"content"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Username    string             `json:"username"`
+}
+
+func (q *Queries) GetAllComments(ctx context.Context) ([]GetAllCommentsRow, error) {
 	rows, err := q.db.Query(ctx, getAllComments)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Comment
+	var items []GetAllCommentsRow
 	for rows.Next() {
-		var i Comment
+		var i GetAllCommentsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -78,6 +90,7 @@ func (q *Queries) GetAllComments(ctx context.Context) ([]Comment, error) {
 			&i.Content,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Username,
 		); err != nil {
 			return nil, err
 		}
@@ -90,13 +103,25 @@ func (q *Queries) GetAllComments(ctx context.Context) ([]Comment, error) {
 }
 
 const getCommentByID = `-- name: GetCommentByID :one
-SELECT id, user_id, challenge_id, content, created_at, updated_at
-FROM comments WHERE id = $1
+SELECT c.id, c.user_id, c.challenge_id, c.content, c.created_at, c.updated_at, u.username
+FROM comments c
+JOIN users u ON u.id = c.user_id
+WHERE c.id = $1
 `
 
-func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (Comment, error) {
+type GetCommentByIDRow struct {
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Content     string             `json:"content"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Username    string             `json:"username"`
+}
+
+func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (GetCommentByIDRow, error) {
 	row := q.db.QueryRow(ctx, getCommentByID, id)
-	var i Comment
+	var i GetCommentByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -104,24 +129,37 @@ func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (Comment, er
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Username,
 	)
 	return i, err
 }
 
 const getCommentsByChallengeID = `-- name: GetCommentsByChallengeID :many
-SELECT id, user_id, challenge_id, content, created_at, updated_at
-FROM comments WHERE challenge_id = $1 ORDER BY created_at ASC
+SELECT c.id, c.user_id, c.challenge_id, c.content, c.created_at, c.updated_at, u.username
+FROM comments c
+JOIN users u ON u.id = c.user_id
+WHERE c.challenge_id = $1 ORDER BY c.created_at ASC
 `
 
-func (q *Queries) GetCommentsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]Comment, error) {
+type GetCommentsByChallengeIDRow struct {
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Content     string             `json:"content"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Username    string             `json:"username"`
+}
+
+func (q *Queries) GetCommentsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]GetCommentsByChallengeIDRow, error) {
 	rows, err := q.db.Query(ctx, getCommentsByChallengeID, challengeID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Comment
+	var items []GetCommentsByChallengeIDRow
 	for rows.Next() {
-		var i Comment
+		var i GetCommentsByChallengeIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -129,6 +167,7 @@ func (q *Queries) GetCommentsByChallengeID(ctx context.Context, challengeID uuid
 			&i.Content,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Username,
 		); err != nil {
 			return nil, err
 		}

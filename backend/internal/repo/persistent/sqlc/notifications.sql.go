@@ -12,15 +12,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countUnreadUserNotifications = `-- name: CountUnreadUserNotifications :one
-SELECT COUNT(*) FROM user_notifications WHERE user_id = $1 AND is_read = FALSE
+const countAllNotifications = `-- name: CountAllNotifications :one
+SELECT COUNT(*)::int FROM notifications WHERE is_global = TRUE
 `
 
-func (q *Queries) CountUnreadUserNotifications(ctx context.Context, userID uuid.UUID) (int64, error) {
+func (q *Queries) CountAllNotifications(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countAllNotifications)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countUnreadUserNotifications = `-- name: CountUnreadUserNotifications :one
+SELECT COUNT(*)::int FROM user_notifications WHERE user_id = $1 AND is_read = FALSE
+`
+
+func (q *Queries) CountUnreadUserNotifications(ctx context.Context, userID uuid.UUID) (int32, error) {
 	row := q.db.QueryRow(ctx, countUnreadUserNotifications, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const createNotification = `-- name: CreateNotification :one
@@ -33,9 +44,9 @@ type CreateNotificationParams struct {
 	ID        uuid.UUID          `json:"id"`
 	Title     string             `json:"title"`
 	Content   string             `json:"content"`
-	Type      *string            `json:"type"`
-	IsPinned  *bool              `json:"is_pinned"`
-	IsGlobal  *bool              `json:"is_global"`
+	Type      string             `json:"type"`
+	IsPinned  bool               `json:"is_pinned"`
+	IsGlobal  bool               `json:"is_global"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -74,8 +85,8 @@ type CreateUserNotificationParams struct {
 	NotificationID *uuid.UUID         `json:"notification_id"`
 	Title          *string            `json:"title"`
 	Content        *string            `json:"content"`
-	Type           *string            `json:"type"`
-	IsRead         *bool              `json:"is_read"`
+	Type           string             `json:"type"`
+	IsRead         bool               `json:"is_read"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -274,7 +285,7 @@ func (q *Queries) MarkUserNotificationAsRead(ctx context.Context, arg MarkUserNo
 	return err
 }
 
-const updateNotification = `-- name: UpdateNotification :exec
+const updateNotification = `-- name: UpdateNotification :execrows
 UPDATE notifications
 SET title = $2, content = $3, type = $4, is_pinned = $5
 WHERE id = $1
@@ -284,17 +295,20 @@ type UpdateNotificationParams struct {
 	ID       uuid.UUID `json:"id"`
 	Title    string    `json:"title"`
 	Content  string    `json:"content"`
-	Type     *string   `json:"type"`
-	IsPinned *bool     `json:"is_pinned"`
+	Type     string    `json:"type"`
+	IsPinned bool      `json:"is_pinned"`
 }
 
-func (q *Queries) UpdateNotification(ctx context.Context, arg UpdateNotificationParams) error {
-	_, err := q.db.Exec(ctx, updateNotification,
+func (q *Queries) UpdateNotification(ctx context.Context, arg UpdateNotificationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateNotification,
 		arg.ID,
 		arg.Title,
 		arg.Content,
 		arg.Type,
 		arg.IsPinned,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

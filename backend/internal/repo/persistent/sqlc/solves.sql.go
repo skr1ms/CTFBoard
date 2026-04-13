@@ -119,10 +119,16 @@ FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN teams t ON t.id = s.team_id
 WHERE s.challenge_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($2::timestamptz IS NULL OR s.solved_at <= $2)
   AND t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
 ORDER BY s.solved_at ASC
 LIMIT 1
 `
+
+type GetFirstBloodParams struct {
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	FreezeTime  pgtype.Timestamptz `json:"freeze_time"`
+}
 
 type GetFirstBloodRow struct {
 	UserID   uuid.UUID          `json:"user_id"`
@@ -132,8 +138,8 @@ type GetFirstBloodRow struct {
 	SolvedAt pgtype.Timestamptz `json:"solved_at"`
 }
 
-func (q *Queries) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (GetFirstBloodRow, error) {
-	row := q.db.QueryRow(ctx, getFirstBlood, challengeID)
+func (q *Queries) GetFirstBlood(ctx context.Context, arg GetFirstBloodParams) (GetFirstBloodRow, error) {
+	row := q.db.QueryRow(ctx, getFirstBlood, arg.ChallengeID, arg.FreezeTime)
 	var i GetFirstBloodRow
 	err := row.Scan(
 		&i.UserID,
@@ -143,101 +149,6 @@ func (q *Queries) GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (Get
 		&i.SolvedAt,
 	)
 	return i, err
-}
-
-const getFirstBloodFrozen = `-- name: GetFirstBloodFrozen :one
-SELECT s.user_id, u.username, s.team_id, t.name AS team_name, s.solved_at
-FROM solves s
-JOIN users u ON u.id = s.user_id
-JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1 AND s.solved_at <= $2
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-  AND t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-ORDER BY s.solved_at ASC
-LIMIT 1
-`
-
-type GetFirstBloodFrozenParams struct {
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	SolvedAt    pgtype.Timestamptz `json:"solved_at"`
-}
-
-type GetFirstBloodFrozenRow struct {
-	UserID   uuid.UUID          `json:"user_id"`
-	Username string             `json:"username"`
-	TeamID   uuid.UUID          `json:"team_id"`
-	TeamName string             `json:"team_name"`
-	SolvedAt pgtype.Timestamptz `json:"solved_at"`
-}
-
-func (q *Queries) GetFirstBloodFrozen(ctx context.Context, arg GetFirstBloodFrozenParams) (GetFirstBloodFrozenRow, error) {
-	row := q.db.QueryRow(ctx, getFirstBloodFrozen, arg.ChallengeID, arg.SolvedAt)
-	var i GetFirstBloodFrozenRow
-	err := row.Scan(
-		&i.UserID,
-		&i.Username,
-		&i.TeamID,
-		&i.TeamName,
-		&i.SolvedAt,
-	)
-	return i, err
-}
-
-const getScoreboard = `-- name: GetScoreboard :many
-SELECT
-    t.id AS team_id,
-    t.name AS team_name,
-    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
-    solve_points.last_solved AS solved_at
-FROM teams t
-LEFT JOIN (
-    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
-    FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-    GROUP BY s.team_id
-) solve_points ON solve_points.team_id = t.id
-LEFT JOIN (
-    SELECT team_id, SUM(value)::int AS total
-    FROM awards
-    WHERE banned_team_id IS NULL
-    GROUP BY team_id
-) award_points ON award_points.team_id = t.id
-WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
-LIMIT 10000
-`
-
-type GetScoreboardRow struct {
-	TeamID   uuid.UUID   `json:"team_id"`
-	TeamName string      `json:"team_name"`
-	Points   int32       `json:"points"`
-	SolvedAt interface{} `json:"solved_at"`
-}
-
-func (q *Queries) GetScoreboard(ctx context.Context) ([]GetScoreboardRow, error) {
-	rows, err := q.db.Query(ctx, getScoreboard)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetScoreboardRow
-	for rows.Next() {
-		var i GetScoreboardRow
-		if err := rows.Scan(
-			&i.TeamID,
-			&i.TeamName,
-			&i.Points,
-			&i.SolvedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getScoreboardByBracket = `-- name: GetScoreboardByBracket :many
@@ -252,19 +163,26 @@ LEFT JOIN (
     FROM solves s
     JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
     WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND ($1::timestamptz IS NULL OR s.solved_at <= $1)
     GROUP BY s.team_id
 ) solve_points ON solve_points.team_id = t.id
 LEFT JOIN (
     SELECT team_id, SUM(value)::int AS total
     FROM awards
     WHERE banned_team_id IS NULL
+      AND ($1::timestamptz IS NULL OR awards.created_at <= $1)
     GROUP BY team_id
 ) award_points ON award_points.team_id = t.id
 WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-  AND ($1::uuid IS NULL OR t.bracket_id = $1)
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
+  AND ($2::uuid IS NULL OR t.bracket_id = $2)
+ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC, t.id ASC
 LIMIT 10000
 `
+
+type GetScoreboardByBracketParams struct {
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
+	BracketID  *uuid.UUID         `json:"bracket_id"`
+}
 
 type GetScoreboardByBracketRow struct {
 	TeamID   uuid.UUID   `json:"team_id"`
@@ -273,8 +191,8 @@ type GetScoreboardByBracketRow struct {
 	SolvedAt interface{} `json:"solved_at"`
 }
 
-func (q *Queries) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]GetScoreboardByBracketRow, error) {
-	rows, err := q.db.Query(ctx, getScoreboardByBracket, bracketID)
+func (q *Queries) GetScoreboardByBracket(ctx context.Context, arg GetScoreboardByBracketParams) ([]GetScoreboardByBracketRow, error) {
+	rows, err := q.db.Query(ctx, getScoreboardByBracket, arg.FreezeTime, arg.BracketID)
 	if err != nil {
 		return nil, err
 	}
@@ -282,69 +200,6 @@ func (q *Queries) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UU
 	var items []GetScoreboardByBracketRow
 	for rows.Next() {
 		var i GetScoreboardByBracketRow
-		if err := rows.Scan(
-			&i.TeamID,
-			&i.TeamName,
-			&i.Points,
-			&i.SolvedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getScoreboardByBracketFrozen = `-- name: GetScoreboardByBracketFrozen :many
-SELECT
-    t.id AS team_id,
-    t.name AS team_name,
-    COALESCE(solve_points.points, 0) + COALESCE(award_points.total, 0) AS points,
-    solve_points.last_solved AS solved_at
-FROM teams t
-LEFT JOIN (
-    SELECT s.team_id, SUM(s.points_at_solve)::int AS points, MAX(s.solved_at) AS last_solved
-    FROM solves s
-    JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-    WHERE s.solved_at <= $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-    GROUP BY s.team_id
-) solve_points ON solve_points.team_id = t.id
-LEFT JOIN (
-    SELECT team_id, SUM(value)::int AS total
-    FROM awards
-    WHERE awards.created_at <= $1 AND awards.banned_team_id IS NULL
-    GROUP BY team_id
-) award_points ON award_points.team_id = t.id
-WHERE t.is_banned = false AND t.is_hidden = false AND t.deleted_at IS NULL
-  AND ($2::uuid IS NULL OR t.bracket_id = $2)
-ORDER BY points DESC, COALESCE(solve_points.last_solved, '9999-12-31'::timestamp) ASC
-LIMIT 10000
-`
-
-type GetScoreboardByBracketFrozenParams struct {
-	SolvedAt  pgtype.Timestamptz `json:"solved_at"`
-	BracketID *uuid.UUID         `json:"bracket_id"`
-}
-
-type GetScoreboardByBracketFrozenRow struct {
-	TeamID   uuid.UUID   `json:"team_id"`
-	TeamName string      `json:"team_name"`
-	Points   int32       `json:"points"`
-	SolvedAt interface{} `json:"solved_at"`
-}
-
-func (q *Queries) GetScoreboardByBracketFrozen(ctx context.Context, arg GetScoreboardByBracketFrozenParams) ([]GetScoreboardByBracketFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getScoreboardByBracketFrozen, arg.SolvedAt, arg.BracketID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetScoreboardByBracketFrozenRow
-	for rows.Next() {
-		var i GetScoreboardByBracketFrozenRow
 		if err := rows.Scan(
 			&i.TeamID,
 			&i.TeamName,
@@ -438,31 +293,31 @@ func (q *Queries) GetSolveByTeamAndChallengeForUpdate(ctx context.Context, arg G
 	return i, err
 }
 
-const getSolveCountsFrozen = `-- name: GetSolveCountsFrozen :many
+const getSolveCounts = `-- name: GetSolveCounts :many
 SELECT s.challenge_id, COUNT(*)::int AS solve_count
 FROM solves s
 JOIN teams t ON t.id = s.team_id
 JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
-WHERE s.solved_at <= $1
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($1::timestamptz IS NULL OR s.solved_at <= $1)
   AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
 GROUP BY s.challenge_id
 `
 
-type GetSolveCountsFrozenRow struct {
+type GetSolveCountsRow struct {
 	ChallengeID uuid.UUID `json:"challenge_id"`
 	SolveCount  int32     `json:"solve_count"`
 }
 
-func (q *Queries) GetSolveCountsFrozen(ctx context.Context, solvedAt pgtype.Timestamptz) ([]GetSolveCountsFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getSolveCountsFrozen, solvedAt)
+func (q *Queries) GetSolveCounts(ctx context.Context, freezeTime pgtype.Timestamptz) ([]GetSolveCountsRow, error) {
+	rows, err := q.db.Query(ctx, getSolveCounts, freezeTime)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetSolveCountsFrozenRow
+	var items []GetSolveCountsRow
 	for rows.Next() {
-		var i GetSolveCountsFrozenRow
+		var i GetSolveCountsRow
 		if err := rows.Scan(&i.ChallengeID, &i.SolveCount); err != nil {
 			return nil, err
 		}
@@ -512,9 +367,15 @@ FROM solves s
 JOIN users u ON u.id = s.user_id
 JOIN teams t ON t.id = s.team_id
 WHERE s.challenge_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($2::timestamptz IS NULL OR s.solved_at <= $2)
   AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
 ORDER BY s.solved_at ASC
 `
+
+type GetSolvesByChallengeIDParams struct {
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	FreezeTime  pgtype.Timestamptz `json:"freeze_time"`
+}
 
 type GetSolvesByChallengeIDRow struct {
 	ID          uuid.UUID          `json:"id"`
@@ -526,8 +387,8 @@ type GetSolvesByChallengeIDRow struct {
 	TeamName    string             `json:"team_name"`
 }
 
-func (q *Queries) GetSolvesByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]GetSolvesByChallengeIDRow, error) {
-	rows, err := q.db.Query(ctx, getSolvesByChallengeID, challengeID)
+func (q *Queries) GetSolvesByChallengeID(ctx context.Context, arg GetSolvesByChallengeIDParams) ([]GetSolvesByChallengeIDRow, error) {
+	rows, err := q.db.Query(ctx, getSolvesByChallengeID, arg.ChallengeID, arg.FreezeTime)
 	if err != nil {
 		return nil, err
 	}
@@ -535,61 +396,6 @@ func (q *Queries) GetSolvesByChallengeID(ctx context.Context, challengeID uuid.U
 	var items []GetSolvesByChallengeIDRow
 	for rows.Next() {
 		var i GetSolvesByChallengeIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.TeamID,
-			&i.ChallengeID,
-			&i.SolvedAt,
-			&i.Username,
-			&i.TeamName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getSolvesByChallengeIDFrozen = `-- name: GetSolvesByChallengeIDFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.solved_at,
-       u.username, t.name AS team_name
-FROM solves s
-JOIN users u ON u.id = s.user_id
-JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1 AND s.solved_at <= $2
-  AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-  AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
-ORDER BY s.solved_at ASC
-`
-
-type GetSolvesByChallengeIDFrozenParams struct {
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	SolvedAt    pgtype.Timestamptz `json:"solved_at"`
-}
-
-type GetSolvesByChallengeIDFrozenRow struct {
-	ID          uuid.UUID          `json:"id"`
-	UserID      uuid.UUID          `json:"user_id"`
-	TeamID      uuid.UUID          `json:"team_id"`
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	SolvedAt    pgtype.Timestamptz `json:"solved_at"`
-	Username    string             `json:"username"`
-	TeamName    string             `json:"team_name"`
-}
-
-func (q *Queries) GetSolvesByChallengeIDFrozen(ctx context.Context, arg GetSolvesByChallengeIDFrozenParams) ([]GetSolvesByChallengeIDFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getSolvesByChallengeIDFrozen, arg.ChallengeID, arg.SolvedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSolvesByChallengeIDFrozenRow
-	for rows.Next() {
-		var i GetSolvesByChallengeIDFrozenRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -628,7 +434,7 @@ type GetSolvesByTeamIDWithDetailsRow struct {
 	Username          string             `json:"username"`
 	ChallengeTitle    string             `json:"challenge_title"`
 	ChallengeCategory string             `json:"challenge_category"`
-	ChallengePoints   *int32             `json:"challenge_points"`
+	ChallengePoints   int32              `json:"challenge_points"`
 }
 
 func (q *Queries) GetSolvesByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]GetSolvesByTeamIDWithDetailsRow, error) {
@@ -714,7 +520,7 @@ type GetSolvesByUserIDWithDetailsRow struct {
 	SolvedAt          pgtype.Timestamptz `json:"solved_at"`
 	ChallengeTitle    string             `json:"challenge_title"`
 	ChallengeCategory string             `json:"challenge_category"`
-	ChallengePoints   *int32             `json:"challenge_points"`
+	ChallengePoints   int32              `json:"challenge_points"`
 }
 
 func (q *Queries) GetSolvesByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]GetSolvesByUserIDWithDetailsRow, error) {

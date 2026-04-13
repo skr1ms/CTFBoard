@@ -6,12 +6,14 @@ import (
 	"sync"
 )
 
+// VerificationData carries template variables for the email verification message.
 type VerificationData struct {
 	Username  string
 	ActionURL string
 	AppName   string
 }
 
+// PasswordResetData carries template variables for the password reset message.
 type PasswordResetData struct {
 	Username  string
 	ActionURL string
@@ -127,12 +129,10 @@ func getTemplates() {
 	tmplOnce.Do(initTemplates)
 }
 
+// RenderVerificationEmail renders the account verification email body. When html is true an HTML
+// template is used; otherwise a plain-text template is used.
 func RenderVerificationEmail(data VerificationData, html bool) (string, error) {
 	getTemplates()
-
-	if data.AppName == "" {
-		data.AppName = "AstroCTFb"
-	}
 
 	var (
 		buf bytes.Buffer
@@ -152,12 +152,10 @@ func RenderVerificationEmail(data VerificationData, html bool) (string, error) {
 	return buf.String(), nil
 }
 
+// RenderPasswordResetEmail renders the password reset email body. When html is true an HTML
+// template is used; otherwise a plain-text template is used.
 func RenderPasswordResetEmail(data PasswordResetData, html bool) (string, error) {
 	getTemplates()
-
-	if data.AppName == "" {
-		data.AppName = "AstroCTFb"
-	}
 
 	var (
 		buf bytes.Buffer

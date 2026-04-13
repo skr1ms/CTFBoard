@@ -13,7 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-// PUT /admin/competition + POST /admin/challenges + POST /challenges/{ID}/submit + GET /scoreboard: full CTF lifecycle from setup to scoreboard.
+// PUT /admin/competition + POST /admin/challenges + POST /challenges/{ID}/submit + GET /scoreboard: full CTF lifecycle from setup to scoreboard
 //
 //nolint:funlen
 func TestFullCTFFlow(t *testing.T) {
@@ -173,11 +173,35 @@ func TestFullCTFFlow(t *testing.T) {
 	require.NotNil(t, scoreboardResp.JSON200)
 	require.GreaterOrEqual(t, len(*scoreboardResp.JSON200), 2)
 
-	firstPlace := (*scoreboardResp.JSON200)[0]
-	require.NotNil(t, firstPlace.TeamName)
-	require.Equal(t, "Team Beta "+suffix, *firstPlace.TeamName)
-	require.NotNil(t, firstPlace.Points)
-	require.GreaterOrEqual(t, *firstPlace.Points, 600)
+	// Find Team Alpha and Team Beta by name (other parallel tests may also have entries on the
+	// global scoreboard, so we must not assume absolute position - only relative order).
+	var (
+		betaPos, alphaPos = -1, -1
+		betaPoints        int
+	)
+
+	for idx, entry := range *scoreboardResp.JSON200 {
+		if entry.TeamName == nil {
+			continue
+		}
+
+		if *entry.TeamName == "Team Beta "+suffix {
+			betaPos = idx
+
+			if entry.Points != nil {
+				betaPoints = *entry.Points
+			}
+		}
+
+		if *entry.TeamName == "Team Alpha "+suffix {
+			alphaPos = idx
+		}
+	}
+
+	require.NotEqual(t, -1, betaPos, "Team Beta not found on scoreboard")
+	require.NotEqual(t, -1, alphaPos, "Team Alpha not found on scoreboard")
+	assert.Less(t, betaPos, alphaPos, "Team Beta should rank above Team Alpha on scoreboard")
+	assert.GreaterOrEqual(t, betaPoints, 600, "Team Beta should have at least 600 points")
 
 	generalStats := h.GetStatisticsGeneral(tokenAdmin)
 	require.NotNil(t, generalStats.JSON200)

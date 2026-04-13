@@ -2,6 +2,8 @@ package domain
 
 import "sync"
 
+// ConfigDef describes a registered dynamic configuration key, including its expected
+// value type, default value, and organizational metadata.
 type ConfigDef struct {
 	Key          string
 	DefaultValue string
@@ -78,7 +80,7 @@ var configRegistry = map[string]ConfigDef{
 		Category: "scoring", Description: "Bonus points for first blood",
 	},
 	"mail_verification_subject": {
-		Key: "mail_verification_subject", DefaultValue: "Verify your email — {ctf_name}", ValueType: CompetitionParamTypeString,
+		Key: "mail_verification_subject", DefaultValue: "Verify your email - {ctf_name}", ValueType: CompetitionParamTypeString,
 		Category: "email", Description: "Verification email subject (supports {ctf_name})",
 	},
 	"mail_verification_body": {
@@ -86,7 +88,7 @@ var configRegistry = map[string]ConfigDef{
 		Category: "email", Description: "Verification email body (supports {url}, {ctf_name})",
 	},
 	"mail_reset_subject": {
-		Key: "mail_reset_subject", DefaultValue: "Password reset — {ctf_name}", ValueType: CompetitionParamTypeString,
+		Key: "mail_reset_subject", DefaultValue: "Password reset - {ctf_name}", ValueType: CompetitionParamTypeString,
 		Category: "email", Description: "Password reset email subject",
 	},
 	"mail_reset_body": {
@@ -125,6 +127,10 @@ var configRegistry = map[string]ConfigDef{
 		Key: "privacy_text", DefaultValue: "", ValueType: CompetitionParamTypeString,
 		Category: "legal", Description: "Privacy policy text (Markdown)",
 	},
+	"challenge_prerequisite_anonymize": {
+		Key: "challenge_prerequisite_anonymize", DefaultValue: "false", ValueType: CompetitionParamTypeBool,
+		Category: "visibility", Description: "Show locked-by-requirements challenges as '???' instead of hiding",
+	},
 	"html_sanitization": {
 		Key: "html_sanitization", DefaultValue: "true", ValueType: CompetitionParamTypeBool,
 		Category: "advanced", Description: "Sanitize HTML in challenge descriptions",
@@ -151,6 +157,7 @@ var configRegistry = map[string]ConfigDef{
 	},
 }
 
+// GetConfigDef performs a thread-safe lookup of a config definition by key in the global registry.
 func GetConfigDef(key string) (ConfigDef, bool) {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
@@ -160,6 +167,7 @@ func GetConfigDef(key string) (ConfigDef, bool) {
 	return def, ok
 }
 
+// ConfigRegistryCount returns the number of registered config keys in a thread-safe manner.
 func ConfigRegistryCount() int {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
@@ -167,6 +175,8 @@ func ConfigRegistryCount() int {
 	return len(configRegistry)
 }
 
+// RangeConfigRegistry iterates over all registered config definitions in a thread-safe manner
+// The callback f receives each key and its definition; returning false stops the iteration.
 func RangeConfigRegistry(f func(key string, def ConfigDef) bool) {
 	configRegistryMu.RLock()
 	defer configRegistryMu.RUnlock()
@@ -178,6 +188,7 @@ func RangeConfigRegistry(f func(key string, def ConfigDef) bool) {
 	}
 }
 
+// GetConfigDefault returns the default value for a registered config key, or false if the key is unknown.
 func GetConfigDefault(key string) (string, bool) {
 	def, ok := GetConfigDef(key)
 	if !ok {

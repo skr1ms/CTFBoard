@@ -29,7 +29,7 @@ schemas:
       awards:
         type: array
         items:
-          $ref: "#/schemas/Award"
+          $ref: "#/schemas/response.AwardResponse"
       solves:
         type: array
         items:

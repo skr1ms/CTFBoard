@@ -1,6 +1,8 @@
 package response
 
 import (
+	"time"
+
 	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
@@ -20,4 +22,16 @@ func PaginationMeta(page, perPage int, total int64) *openapi.PaginationMeta {
 
 func BuildListResponse[D, R any](items []D, convert func(D) R, total int64, page, perPage int) ([]R, *openapi.PaginationMeta) {
 	return lo.Map(items, func(item D, _ int) R { return convert(item) }), PaginationMeta(page, perPage, total)
+}
+
+// timePtr formats t as RFC3339 and returns a pointer to the string.
+// Returns nil when t is nil.
+func timePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+
+	s := t.Format(time.RFC3339)
+
+	return &s
 }

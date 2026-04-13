@@ -3,6 +3,7 @@ package wire
 import (
 	"github.com/google/wire"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
@@ -12,7 +13,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
 )
 
 var RepoSet = wire.NewSet(
@@ -105,6 +105,7 @@ var UseCaseSet = wire.NewSet(
 	ProvideOAuthUseCase,
 	ProvideAvatarUseCase,
 	ProvideOAuthProviders,
+	ProvideOAuthConfig,
 	wire.Bind(new(usecase.BackupUseCase), new(*backup.BackupUseCase)),
 	wire.Bind(new(usecase.CompetitionUseCase), new(*competition.CompetitionUseCase)),
 	wire.Bind(new(usecase.CompetitionParamUseCase), new(*competition.CompetitionParamUseCase)),

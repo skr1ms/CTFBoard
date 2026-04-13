@@ -10,10 +10,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type AwardRepo struct {
@@ -101,16 +101,14 @@ func (r *AwardRepo) GetAllForBackup(ctx context.Context) ([]*domain.Award, error
 }
 
 func (r *AwardRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, error) {
-	a, err := r.Q(ctx).GetAwardByID(ctx, ID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrAwardNotFound
+	return GetOrNotFound(func() (*domain.Award, error) {
+		a, err := r.Q(ctx).GetAwardByID(ctx, ID)
+		if err != nil {
+			return nil, err
 		}
 
-		return nil, fmt.Errorf("AwardRepo - GetByID: %w", err)
-	}
-
-	return toDomainAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt), nil
+		return toDomainAwardFromRow(a.ID, a.TeamID, a.Value, a.Description, a.CreatedBy, a.CreatedAt), nil
+	}, apperr.ErrAwardNotFound, "AwardRepo - GetByID")
 }
 
 func (r *AwardRepo) Delete(ctx context.Context, ID uuid.UUID) error {

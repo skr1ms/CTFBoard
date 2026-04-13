@@ -283,9 +283,9 @@ func TestAuth_Register_InvalidCustomFieldKey_Returns400(t *testing.T) {
 	password := "ValidPass1"
 	invalidKey := "not-a-uuid"
 	req := openapi.PostAuthRegisterJSONRequestBody{
-		Username:     &username,
-		Email:        &email,
-		Password:     &password,
+		Username:     username,
+		Email:        email,
+		Password:     password,
 		CustomFields: &map[string]string{invalidKey: "value"},
 	}
 	resp, err := h.Client().PostAuthRegisterWithResponse(context.Background(), req)

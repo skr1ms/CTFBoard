@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type AdminSolveCreator interface {
@@ -27,7 +27,7 @@ type CacheInvalidator interface {
 	InvalidateScoreboardCache(ctx context.Context)
 	// InvalidateScoreboardCacheForTeam invalidates both the global and bracket-specific
 	// scoreboard cache keys for the given team. Use when a teamID is known (e.g. admin
-	// submission updates) to avoid leaving bracket scoreboards stale.
+	// submission updates) to avoid leaving bracket scoreboards stale
 	InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
 }
 
@@ -53,13 +53,17 @@ type SubmissionDeps struct {
 	TeamRepo         repo.TeamRepository
 }
 
+// NewSubmissionUseCase constructs a SubmissionUseCase. It panics at startup
+// when TM, SolveCreator, and SolveDeleter are only partially configured, since
+// the transactional path requires all three together and a partial wiring would
+// silently fall back to the non-transactional degraded path in production.
 func NewSubmissionUseCase(deps SubmissionDeps) *SubmissionUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
 	// Guard against partial configuration: the transactional path requires all
-	// three deps together. A mismatch means the caller made a wiring mistake.
-	// Panic at startup rather than silently running the degraded path in production.
+	// three deps together. A mismatch means the caller made a wiring mistake
+	// Panic at startup rather than silently running the degraded path in production
 	txDeps := []bool{deps.TM != nil, deps.SolveCreator != nil, deps.SolveDeleter != nil}
 	hasAny := txDeps[0] || txDeps[1] || txDeps[2]
 
@@ -79,30 +83,34 @@ func (uc *SubmissionUseCase) LogSubmission(ctx context.Context, sub *domain.Subm
 	return nil
 }
 
-func (uc *SubmissionUseCase) GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int, forceLive bool) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
-	comp, freezeTime := uc.getCompAndFreezeTime(ctx)
-	if !forceLive && comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		result, err := usecase.FetchPage(ctx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-				return uc.deps.SubmissionRepo.GetByChallengeFrozen(ctx, challengeID, *freezeTime, limit, offset)
-			},
-			func(ctx context.Context) (int64, error) {
-				return uc.deps.SubmissionRepo.CountByChallengeFrozen(ctx, challengeID, *freezeTime)
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - GetByChallenge: %w", err)
-		}
-
-		return result, nil
+func (uc *SubmissionUseCase) LogRateLimited(ctx context.Context, userID, teamID, challengeID uuid.UUID, ip string) error {
+	sub := &domain.Submission{
+		UserID:        userID,
+		TeamID:        &teamID,
+		ChallengeID:   challengeID,
+		SubmittedFlag: "",
+		IsCorrect:     false,
+		Type:          domain.SubmissionTypeRatelimited,
+		IP:            ip,
+		CreatedAt:     time.Now(),
 	}
+
+	if err := uc.deps.SubmissionRepo.Create(ctx, sub); err != nil {
+		return fmt.Errorf("SubmissionUseCase - LogRateLimited - SubmissionRepo.Create: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *SubmissionUseCase) GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int, forceLive bool) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
+	ft := uc.freezeTimeOrNil(ctx, forceLive)
 
 	result, err := usecase.FetchPage(ctx, page, perPage,
 		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-			return uc.deps.SubmissionRepo.GetByChallenge(ctx, challengeID, limit, offset)
+			return uc.deps.SubmissionRepo.GetByChallenge(ctx, challengeID, ft, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
-			return uc.deps.SubmissionRepo.CountByChallenge(ctx, challengeID)
+			return uc.deps.SubmissionRepo.CountByChallenge(ctx, challengeID, ft)
 		},
 	)
 	if err != nil {
@@ -113,29 +121,14 @@ func (uc *SubmissionUseCase) GetByChallenge(ctx context.Context, challengeID uui
 }
 
 func (uc *SubmissionUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int, forceLive bool) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
-	comp, freezeTime := uc.getCompAndFreezeTime(ctx)
-	if !forceLive && comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		result, err := usecase.FetchPage(ctx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-				return uc.deps.SubmissionRepo.GetByUserFrozen(ctx, userID, *freezeTime, limit, offset)
-			},
-			func(ctx context.Context) (int64, error) {
-				return uc.deps.SubmissionRepo.CountByUserFrozen(ctx, userID, *freezeTime)
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - GetByUser: %w", err)
-		}
-
-		return result, nil
-	}
+	ft := uc.freezeTimeOrNil(ctx, forceLive)
 
 	result, err := usecase.FetchPage(ctx, page, perPage,
 		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-			return uc.deps.SubmissionRepo.GetByUser(ctx, userID, limit, offset)
+			return uc.deps.SubmissionRepo.GetByUser(ctx, userID, ft, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
-			return uc.deps.SubmissionRepo.CountByUser(ctx, userID)
+			return uc.deps.SubmissionRepo.CountByUser(ctx, userID, ft)
 		},
 	)
 	if err != nil {
@@ -146,29 +139,14 @@ func (uc *SubmissionUseCase) GetByUser(ctx context.Context, userID uuid.UUID, pa
 }
 
 func (uc *SubmissionUseCase) GetByTeam(ctx context.Context, teamID uuid.UUID, page, perPage int, forceLive bool) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
-	comp, freezeTime := uc.getCompAndFreezeTime(ctx)
-	if !forceLive && comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		result, err := usecase.FetchPage(ctx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-				return uc.deps.SubmissionRepo.GetByTeamFrozen(ctx, teamID, *freezeTime, limit, offset)
-			},
-			func(ctx context.Context) (int64, error) {
-				return uc.deps.SubmissionRepo.CountByTeamFrozen(ctx, teamID, *freezeTime)
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - GetByTeam: %w", err)
-		}
-
-		return result, nil
-	}
+	ft := uc.freezeTimeOrNil(ctx, forceLive)
 
 	result, err := usecase.FetchPage(ctx, page, perPage,
 		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-			return uc.deps.SubmissionRepo.GetByTeam(ctx, teamID, limit, offset)
+			return uc.deps.SubmissionRepo.GetByTeam(ctx, teamID, ft, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
-			return uc.deps.SubmissionRepo.CountByTeam(ctx, teamID)
+			return uc.deps.SubmissionRepo.CountByTeam(ctx, teamID, ft)
 		},
 	)
 	if err != nil {
@@ -179,29 +157,14 @@ func (uc *SubmissionUseCase) GetByTeam(ctx context.Context, teamID uuid.UUID, pa
 }
 
 func (uc *SubmissionUseCase) GetAll(ctx context.Context, page, perPage int, forceLive bool) (*usecase.Paginated[*domain.SubmissionWithDetails], error) {
-	comp, freezeTime := uc.getCompAndFreezeTime(ctx)
-	if !forceLive && comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		result, err := usecase.FetchPage(ctx, page, perPage,
-			func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-				return uc.deps.SubmissionRepo.GetAllFrozen(ctx, *freezeTime, limit, offset)
-			},
-			func(ctx context.Context) (int64, error) {
-				return uc.deps.SubmissionRepo.CountAllFrozen(ctx, *freezeTime)
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - GetAll: %w", err)
-		}
-
-		return result, nil
-	}
+	ft := uc.freezeTimeOrNil(ctx, forceLive)
 
 	result, err := usecase.FetchPage(ctx, page, perPage,
 		func(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error) {
-			return uc.deps.SubmissionRepo.GetAll(ctx, limit, offset)
+			return uc.deps.SubmissionRepo.GetAll(ctx, ft, limit, offset)
 		},
 		func(ctx context.Context) (int64, error) {
-			return uc.deps.SubmissionRepo.CountAll(ctx)
+			return uc.deps.SubmissionRepo.CountAll(ctx, ft)
 		},
 	)
 	if err != nil {
@@ -212,17 +175,9 @@ func (uc *SubmissionUseCase) GetAll(ctx context.Context, page, perPage int, forc
 }
 
 func (uc *SubmissionUseCase) GetStats(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*domain.SubmissionStats, error) {
-	comp, freezeTime := uc.getCompAndFreezeTime(ctx)
-	if !forceLive && comp != nil && comp.IsFreezeActive() && comp.FreezeTime != nil {
-		stats, err := uc.deps.SubmissionRepo.GetStatsFrozen(ctx, challengeID, *freezeTime)
-		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - GetStats - SubmissionRepo.GetStatsFrozen: %w", err)
-		}
+	ft := uc.freezeTimeOrNil(ctx, forceLive)
 
-		return stats, nil
-	}
-
-	stats, err := uc.deps.SubmissionRepo.GetStats(ctx, challengeID)
+	stats, err := uc.deps.SubmissionRepo.GetStats(ctx, challengeID, ft)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionUseCase - GetStats - SubmissionRepo.GetStats: %w", err)
 	}
@@ -230,17 +185,17 @@ func (uc *SubmissionUseCase) GetStats(ctx context.Context, challengeID uuid.UUID
 	return stats, nil
 }
 
-func (uc *SubmissionUseCase) getCompAndFreezeTime(ctx context.Context) (*domain.Competition, *time.Time) {
-	if uc.deps.CompGetter == nil {
-		return nil, nil
+func (uc *SubmissionUseCase) freezeTimeOrNil(ctx context.Context, forceLive bool) *time.Time {
+	if forceLive || uc.deps.CompGetter == nil {
+		return nil
 	}
 
 	comp, err := uc.deps.CompGetter.Get(ctx)
-	if err != nil || comp == nil || comp.FreezeTime == nil {
-		return comp, nil
+	if err != nil || comp == nil || !comp.IsFreezeActive() {
+		return nil
 	}
 
-	return comp, comp.FreezeTime
+	return comp.FreezeTime
 }
 
 func (uc *SubmissionUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error) {
@@ -252,12 +207,22 @@ func (uc *SubmissionUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain
 	return sub, nil
 }
 
+// Update changes the correctness flag of a submission. When TM, SolveCreator,
+// and SolveDeleter are all wired in, it runs inside a transaction: it
+// re-reads the row with FOR UPDATE to prevent concurrent admin edits from
+// racing, then creates a solve (triggering dynamic score recalculation) when
+// flipping from incorrect to correct, or removes the existing solve (reversing
+// decay) when flipping from correct to incorrect. If any of those three deps
+// are absent, it falls back to a non-transactional path and logs a warning
+// because submission and solve state may diverge on partial failure
+// Scoreboard cache is invalidated after the update, scoped to the team when
+// the team ID is known.
 func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect bool) (*domain.SubmissionWithDetails, error) {
 	if uc.deps.TM != nil && uc.deps.SolveCreator != nil && uc.deps.SolveDeleter != nil {
 		var locked *domain.Submission
 
 		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-			// Re-read with FOR UPDATE inside the transaction to avoid TOCTOU on concurrent admin edits.
+			// Re-read with FOR UPDATE inside the transaction to avoid TOCTOU on concurrent admin edits
 			var err error
 
 			locked, err = uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
@@ -301,8 +266,8 @@ func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect
 		return sub, nil
 	}
 
-	// Degraded path: TM/SolveCreator/SolveDeleter are nil (NewSubmissionUseCase panics if only some are set).
-	// Non-transactional: concurrent admin updates can desync submission and solve state; log warning below.
+	// Degraded path: TM/SolveCreator/SolveDeleter are nil (NewSubmissionUseCase panics if only some are set)
+	// Non-transactional: concurrent admin updates can desync submission and solve state; log warning below
 	prev, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByID: %w", err)
@@ -345,6 +310,66 @@ func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect
 	return sub, nil
 }
 
+// Discard marks a submission as discarded. If the submission was correct it
+// also removes the associated solve and triggers dynamic score recalculation
+// for the affected challenge. When TM and SolveDeleter are available the
+// removal and discard are executed atomically inside a transaction (row locked
+// with FOR UPDATE); otherwise the operations run sequentially without a
+// transaction. Scoreboard cache is invalidated for the affected team if one
+// was present on the submission.
+func (uc *SubmissionUseCase) Discard(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error) {
+	var teamIDToInvalidate *uuid.UUID
+
+	if uc.deps.TM != nil && uc.deps.SolveDeleter != nil {
+		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+			locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
+			if err != nil {
+				return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByIDForUpdate: %w", err)
+			}
+
+			if locked.IsCorrect && locked.TeamID != nil {
+				if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
+					return fmt.Errorf("SubmissionUseCase - Discard - SolveDeleter.AdminDeleteSolve: %w", err)
+				}
+
+				teamIDToInvalidate = locked.TeamID
+			}
+
+			if err := uc.deps.SubmissionRepo.Discard(ctx, ID); err != nil {
+				return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.Discard: %w", err)
+			}
+
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("SubmissionUseCase - Discard - TM.Run: %w", err)
+		}
+	} else {
+		sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
+		if err != nil {
+			return nil, fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByID: %w", err)
+		}
+
+		if err := uc.deps.SubmissionRepo.Discard(ctx, ID); err != nil {
+			return nil, fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.Discard: %w", err)
+		}
+
+		if sub.IsCorrect && sub.TeamID != nil {
+			teamIDToInvalidate = sub.TeamID
+		}
+	}
+
+	if uc.deps.CacheInvalidator != nil && teamIDToInvalidate != nil {
+		uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamIDToInvalidate)
+	}
+
+	result, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
+	if err != nil {
+		return nil, fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByID: %w", err)
+	}
+
+	return result, nil
+}
+
 func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	var teamIDToInvalidate *uuid.UUID
 
@@ -352,7 +377,7 @@ func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 			locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
 			if err != nil {
-				if errors.Is(err, httperr.ErrSubmissionNotFound) {
+				if errors.Is(err, apperr.ErrSubmissionNotFound) {
 					return nil
 				}
 
@@ -378,7 +403,7 @@ func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	} else {
 		sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
 		if err != nil {
-			if errors.Is(err, httperr.ErrSubmissionNotFound) {
+			if errors.Is(err, apperr.ErrSubmissionNotFound) {
 				return nil
 			}
 
@@ -401,9 +426,17 @@ func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
+// AdminCreate creates a submission record on behalf of an admin. It checks
+// user and team ban status before persisting. When isCorrect is true and
+// teamID is provided it additionally calls RecordSolveInTx with dynamic score
+// decay inside a transaction so the solve and submission are written atomically
+// the scoreboard cache is then invalidated for the affected team. Passing
+// isCorrect true without a teamID is rejected with a validation error. If TM
+// or SolveCreator are absent and a correct submission with a team is requested,
+// the call returns an error rather than silently skipping the solve.
 func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) (*domain.SubmissionWithDetails, error) {
 	if isCorrect && teamID == nil {
-		return nil, httperr.NewValidationErrorf("team_id is required when is_correct is true")
+		return nil, apperr.NewValidationErrorf("team_id is required when is_correct is true")
 	}
 
 	if uc.deps.UserRepo != nil {
@@ -411,7 +444,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 		if err != nil {
 			uc.deps.Logger.WithError(err).WithFields(logkit.UserID(userID.String())).Warn("SubmissionUseCase - AdminCreate: failed to check user ban status")
 		} else if u.IsBanned {
-			return nil, httperr.ErrUserBanned
+			return nil, apperr.ErrUserBanned
 		}
 	}
 
@@ -420,7 +453,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 		if err != nil {
 			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"team_id": teamID.String()}).Warn("SubmissionUseCase - AdminCreate: failed to check team ban status")
 		} else if t.IsBanned {
-			return nil, httperr.ErrTeamBanned
+			return nil, apperr.ErrTeamBanned
 		}
 	}
 
@@ -451,11 +484,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 		}
 
 		if uc.deps.CacheInvalidator != nil {
-			if teamID != nil {
-				uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamID)
-			} else {
-				uc.deps.CacheInvalidator.InvalidateScoreboardCache(ctx)
-			}
+			uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamID)
 		}
 	} else {
 		if isCorrect && teamID != nil && (uc.deps.TM == nil || uc.deps.SolveCreator == nil) {

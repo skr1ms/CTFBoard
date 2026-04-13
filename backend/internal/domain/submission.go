@@ -7,11 +7,17 @@ import (
 )
 
 const (
-	SubmissionTypeCorrect     = "correct"
-	SubmissionTypeIncorrect   = "incorrect"
+	// SubmissionTypeCorrect indicates the submitted flag matched the challenge answer.
+	SubmissionTypeCorrect = "correct"
+	// SubmissionTypeIncorrect indicates the submitted flag did not match.
+	SubmissionTypeIncorrect = "incorrect"
+	// SubmissionTypeRatelimited indicates the submission was rejected due to rate limiting.
 	SubmissionTypeRatelimited = "ratelimited"
+	// SubmissionTypeDiscard indicates the submission was discarded, e.g. after the competition ended.
+	SubmissionTypeDiscard = "discard"
 )
 
+// SubmissionTypeFromCorrect returns "correct" if isCorrect is true, "incorrect" otherwise.
 func SubmissionTypeFromCorrect(isCorrect bool) string {
 	if isCorrect {
 		return SubmissionTypeCorrect
@@ -20,6 +26,7 @@ func SubmissionTypeFromCorrect(isCorrect bool) string {
 	return SubmissionTypeIncorrect
 }
 
+// Submission records a single flag submission attempt by a user.
 type Submission struct {
 	ID            uuid.UUID  `json:"id"`
 	UserID        uuid.UUID  `json:"user_id"`
@@ -34,6 +41,8 @@ type Submission struct {
 	BannedTeamID  *uuid.UUID `json:"banned_team_id,omitempty"`
 }
 
+// SubmissionWithDetails embeds Submission and adds resolved foreign-key fields
+// for display in list and detail responses.
 type SubmissionWithDetails struct {
 	Submission
 
@@ -43,6 +52,7 @@ type SubmissionWithDetails struct {
 	ChallengeCategory string `json:"challenge_category,omitempty"`
 }
 
+// SubmissionStats holds aggregate submission counts for a challenge or competition scope.
 type SubmissionStats struct {
 	Total     int `json:"total"`
 	Correct   int `json:"correct"`

@@ -4,29 +4,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-type createBracketConstraints struct {
-	Name        string `validate:"required,max=200"`
-	Description string `validate:"max=500"`
-}
-
-type updateBracketConstraints struct {
+type bracketConstraints struct {
 	Name        string `validate:"required,max=200"`
 	Description string `validate:"max=500"`
 }
 
 func ValidateCreateBracketRequest(req *openapi.CreateBracketRequest, v validator.Validator) error {
-	c := createBracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
+	c := bracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
 
 	return ValidateConstraints(v, &c)
 }
 
 func ValidateUpdateBracketRequest(req *openapi.UpdateBracketRequest, v validator.Validator) error {
-	c := updateBracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
+	c := bracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
 
 	return ValidateConstraints(v, &c)
 }
@@ -46,7 +41,7 @@ func SetTeamBracketRequestToParams(req *openapi.SetTeamBracketRequest) (*uuid.UU
 
 	id := *req.BracketID
 	if id == uuid.Nil {
-		return nil, httperr.NewValidationErrorf("invalid bracket_id")
+		return nil, apperr.NewValidationErrorf("invalid bracket_id")
 	}
 
 	return &id, nil

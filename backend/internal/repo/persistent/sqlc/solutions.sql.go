@@ -105,42 +105,6 @@ func (q *Queries) GetSolutionsByTeamID(ctx context.Context, teamID uuid.UUID) ([
 	return items, nil
 }
 
-const getWriteupFilesByIDs = `-- name: GetWriteupFilesByIDs :many
-SELECT id, type, challenge_id, location, filename, size, sha256, created_at FROM files
-WHERE type = 'writeup'
-  AND challenge_id = ANY($1::uuid[])
-ORDER BY challenge_id, created_at
-`
-
-func (q *Queries) GetWriteupFilesByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]File, error) {
-	rows, err := q.db.Query(ctx, getWriteupFilesByIDs, dollar_1)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []File
-	for rows.Next() {
-		var i File
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.ChallengeID,
-			&i.Location,
-			&i.Filename,
-			&i.Size,
-			&i.SHA256,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const upsertSolution = `-- name: UpsertSolution :one
 INSERT INTO solutions (challenge_id, content)
 VALUES ($1, $2)

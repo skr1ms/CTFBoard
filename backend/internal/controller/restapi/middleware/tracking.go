@@ -33,6 +33,10 @@ const (
 	trackingUserAgentMax  = 512
 )
 
+// sanitizeUserAgent strips control characters (code points < 32 and DEL 127)
+// and Unicode replacement characters from the User-Agent header value, then
+// truncates the result to trackingUserAgentMax bytes to prevent excessively
+// large strings from being stored in the tracking database.
 func sanitizeUserAgent(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -57,6 +61,9 @@ type trackingDebouncer struct {
 	lastSeen map[uuid.UUID]time.Time
 }
 
+// shouldTrack returns true when userID has not been seen within trackingDebounce.
+// Holds the mutex for the duration of both the check and the map update so
+// concurrent callers for the same user never both pass the debounce window.
 func (d *trackingDebouncer) shouldTrack(userID uuid.UUID) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -70,6 +77,9 @@ func (d *trackingDebouncer) shouldTrack(userID uuid.UUID) bool {
 	return true
 }
 
+// purgeStale removes entries from the lastSeen map that are older than
+// trackingDebounce. Called periodically to bound map growth for long-running
+// deployments with large numbers of distinct users.
 func (d *trackingDebouncer) purgeStale() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -99,6 +109,10 @@ func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log log
 	}
 }
 
+// IPTracking returns a middleware that asynchronously records authenticated user activity (IP, user-agent).
+// Tracking is debounced per user (2 min) and dispatched to a bounded worker pool (5 goroutines) via a
+// buffered channel (256). Dropped events increment a prometheus counter. The workers shut down cleanly
+// when ctx is cancelled.
 func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log logkit.Logger) func(http.Handler) http.Handler {
 	debouncer := &trackingDebouncer{lastSeen: make(map[uuid.UUID]time.Time)}
 	ch := make(chan trackingJob, trackingBufSize)

@@ -5,46 +5,25 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
 	maxBackupZIPSize = 500 << 20 // 500 MB
 	maxBackupCSVSize = 50 << 20  // 50 MB
-)
 
-var allowedExportTables = []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
-
-// Health check
-// (GET /healthcheck).
-func (h *Server) GetHealthcheck(w http.ResponseWriter, r *http.Request) {
-	httputil.RenderOK(w, r, response.FromHealthcheck("ok", "ok"))
-}
-
-// Get robots.txt
-// (GET /robots.txt).
-func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
-	robotsTxt := `User-agent: *
-Disallow: /api/
-Allow: /
-`
-	httputil.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
-}
-
-// Get Terms of Service
-// (GET /tos).
-func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
-	tosContent := `<!DOCTYPE html>
+	tosHTML = `<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="UTF-8">
@@ -56,13 +35,8 @@ func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `
-	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosContent)
-}
 
-// Get Privacy Policy
-// (GET /privacy).
-func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
-	privacyContent := `<!DOCTYPE html>
+	privacyHTML = `<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="UTF-8">
@@ -74,14 +48,38 @@ func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `
-	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyContent)
+)
+
+var allowedExportTables = []string{"users", "teams", "challenges", "submissions", "solves", "awards"}
+
+// (GET /healthcheck).
+func (h *Server) GetHealthcheck(w http.ResponseWriter, r *http.Request) {
+	httputil.RenderOK(w, r, response.FromHealthcheck("ok", "ok"))
 }
 
-// Get debug information
+// (GET /robots.txt).
+func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
+	robotsTxt := `User-agent: *
+Disallow: /api/
+Allow: /
+`
+	httputil.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
+}
+
+// (GET /tos).
+func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
+	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosHTML)
+}
+
+// (GET /privacy).
+func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
+	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyHTML)
+}
+
 // (GET /debug).
 func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 	if !h.infra.DebugEnabled {
-		h.OnError(w, r, httperr.ErrDebugNotEnabled, "GetDebug", "DebugCheck")
+		h.OnError(w, r, apperr.ErrDebugNotEnabled, "GetDebug", "DebugCheck")
 
 		return
 	}
@@ -94,7 +92,6 @@ func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, debugInfo)
 }
 
-// Export competition backup as JSON
 // (GET /admin/export).
 func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportParams) {
 	opts := domain.ExportOptions{
@@ -116,7 +113,6 @@ func (h *Server) GetAdminExport(w http.ResponseWriter, r *http.Request, params o
 	}
 }
 
-// Export competition backup as ZIP archive
 // (GET /admin/export/zip).
 func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportZipParams) {
 	includeFiles := params.IncludeFiles == nil || *params.IncludeFiles
@@ -142,7 +138,6 @@ func (h *Server) GetAdminExportZip(w http.ResponseWriter, r *http.Request, param
 	}
 }
 
-// Reset competition data
 // (POST /admin/reset).
 func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 	req, ok := httputil.DecodeAndValidate[openapi.AdminResetRequest](
@@ -162,7 +157,12 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.Message("reset completed"))
 }
 
-// Import competition backup from ZIP file
+// PostAdminImport imports a competition backup from an uploaded ZIP file. The
+// handler validates the ZIP magic bytes (PK: 0x50 0x4B) before passing to the
+// use-case to prevent processing arbitrary binary uploads. It supports three
+// conflict modes (merge, overwrite, skip), optional table erasure, file
+// validation, and admin-role preservation - the requesting admin's ID and IP
+// are recorded in ImportOptions for the audit trail.
 // (POST /admin/import).
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -206,7 +206,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(data) < 2 || data[0] != 0x50 || data[1] != 0x4B {
-		h.OnError(w, r, httperr.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
+		h.OnError(w, r, apperr.NewValidationErrorf("file must be a ZIP archive"), "PostAdminImport", "MIMECheck")
 
 		return
 	}
@@ -230,12 +230,11 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromImportResult(result))
 }
 
-// Export table as CSV
 // (GET /admin/export/csv).
 func (h *Server) GetAdminExportCsv(w http.ResponseWriter, r *http.Request, params openapi.GetAdminExportCsvParams) {
 	table, ok := httputil.ParseEnumQuery(r, "table", allowedExportTables)
 	if !ok {
-		h.OnError(w, r, httperr.NewValidationErrorf("invalid table: allowed values are users, teams, challenges, submissions, solves, awards"), "GetAdminExportCsv", "TableValidate")
+		h.OnError(w, r, apperr.NewValidationErrorf("invalid table: allowed values are %s", strings.Join(allowedExportTables, ", ")), "GetAdminExportCsv", "TableValidate")
 
 		return
 	}
@@ -255,7 +254,6 @@ func (h *Server) GetAdminExportCsv(w http.ResponseWriter, r *http.Request, param
 	}
 }
 
-// Import CSV data
 // (POST /admin/import/csv).
 func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	if !helper.ParseMultipartFormLimit(w, r, maxBackupCSVSize, maxBackupCSVSize) {
@@ -274,7 +272,7 @@ func (h *Server) PostAdminImportCsv(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.Table == "" {
-		h.OnError(w, r, httperr.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
+		h.OnError(w, r, apperr.NewValidationErrorf("table parameter is required"), "PostAdminImportCsv", "TableRequired")
 
 		return
 	}

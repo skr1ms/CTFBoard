@@ -13,29 +13,19 @@ import (
 )
 
 const countAllSubmissions = `-- name: CountAllSubmissions :one
-SELECT COUNT(*) FROM submissions WHERE banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+  AND ($1::timestamptz IS NULL OR created_at <= $1)
 `
 
-func (q *Queries) CountAllSubmissions(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countAllSubmissions)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countAllSubmissionsFrozen = `-- name: CountAllSubmissionsFrozen :one
-SELECT COUNT(*) FROM submissions WHERE created_at <= $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-`
-
-func (q *Queries) CountAllSubmissionsFrozen(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error) {
-	row := q.db.QueryRow(ctx, countAllSubmissionsFrozen, createdAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) CountAllSubmissions(ctx context.Context, freezeTime pgtype.Timestamptz) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllSubmissions, freezeTime)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countFailedSubmissionsByIP = `-- name: CountFailedSubmissionsByIP :one
-SELECT COUNT(*) FROM submissions WHERE ip = $1 AND is_correct = FALSE AND created_at > $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE ip = $1 AND is_correct = FALSE AND created_at > $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 type CountFailedSubmissionsByIPParams struct {
@@ -45,69 +35,65 @@ type CountFailedSubmissionsByIPParams struct {
 
 func (q *Queries) CountFailedSubmissionsByIP(ctx context.Context, arg CountFailedSubmissionsByIPParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countFailedSubmissionsByIP, arg.IP, arg.CreatedAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countFailsByTeamID = `-- name: CountFailsByTeamID :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE team_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountFailsByTeamID(ctx context.Context, teamID *uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countFailsByTeamID, teamID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countFailsByUserID = `-- name: CountFailsByUserID :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE user_id = $1 AND is_correct = FALSE AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
 func (q *Queries) CountFailsByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countFailsByUserID, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSubmissionsByChallenge = `-- name: CountSubmissionsByChallenge :one
-SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+  AND ($2::timestamptz IS NULL OR created_at <= $2)
 `
 
-func (q *Queries) CountSubmissionsByChallenge(ctx context.Context, challengeID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByChallenge, challengeID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countSubmissionsByChallengeFrozen = `-- name: CountSubmissionsByChallengeFrozen :one
-SELECT COUNT(*) FROM submissions WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-`
-
-type CountSubmissionsByChallengeFrozenParams struct {
+type CountSubmissionsByChallengeParams struct {
 	ChallengeID uuid.UUID          `json:"challenge_id"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	FreezeTime  pgtype.Timestamptz `json:"freeze_time"`
 }
 
-func (q *Queries) CountSubmissionsByChallengeFrozen(ctx context.Context, arg CountSubmissionsByChallengeFrozenParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByChallengeFrozen, arg.ChallengeID, arg.CreatedAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) CountSubmissionsByChallenge(ctx context.Context, arg CountSubmissionsByChallengeParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubmissionsByChallenge, arg.ChallengeID, arg.FreezeTime)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSubmissionsByTeam = `-- name: CountSubmissionsByTeam :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+  AND ($2::timestamptz IS NULL OR created_at <= $2)
 `
 
-func (q *Queries) CountSubmissionsByTeam(ctx context.Context, teamID *uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByTeam, teamID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+type CountSubmissionsByTeamParams struct {
+	TeamID     *uuid.UUID         `json:"team_id"`
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
+}
+
+func (q *Queries) CountSubmissionsByTeam(ctx context.Context, arg CountSubmissionsByTeamParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubmissionsByTeam, arg.TeamID, arg.FreezeTime)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSubmissionsByTeamAndChallenge = `-- name: CountSubmissionsByTeamAndChallenge :one
@@ -127,47 +113,38 @@ func (q *Queries) CountSubmissionsByTeamAndChallenge(ctx context.Context, arg Co
 	return column_1, err
 }
 
-const countSubmissionsByTeamFrozen = `-- name: CountSubmissionsByTeamFrozen :one
-SELECT COUNT(*) FROM submissions WHERE team_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+const countSubmissionsByTeamAndChallengeInWindow = `-- name: CountSubmissionsByTeamAndChallengeInWindow :one
+SELECT COUNT(*)::bigint FROM submissions WHERE team_id = $1 AND challenge_id = $2 AND created_at >= $3 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
 `
 
-type CountSubmissionsByTeamFrozenParams struct {
-	TeamID    *uuid.UUID         `json:"team_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+type CountSubmissionsByTeamAndChallengeInWindowParams struct {
+	TeamID      *uuid.UUID         `json:"team_id"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-func (q *Queries) CountSubmissionsByTeamFrozen(ctx context.Context, arg CountSubmissionsByTeamFrozenParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByTeamFrozen, arg.TeamID, arg.CreatedAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) CountSubmissionsByTeamAndChallengeInWindow(ctx context.Context, arg CountSubmissionsByTeamAndChallengeInWindowParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubmissionsByTeamAndChallengeInWindow, arg.TeamID, arg.ChallengeID, arg.CreatedAt)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const countSubmissionsByUser = `-- name: CountSubmissionsByUser :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+SELECT COUNT(*)::bigint FROM submissions WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+  AND ($2::timestamptz IS NULL OR created_at <= $2)
 `
 
-func (q *Queries) CountSubmissionsByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByUser, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+type CountSubmissionsByUserParams struct {
+	UserID     uuid.UUID          `json:"user_id"`
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
 }
 
-const countSubmissionsByUserFrozen = `-- name: CountSubmissionsByUserFrozen :one
-SELECT COUNT(*) FROM submissions WHERE user_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-`
-
-type CountSubmissionsByUserFrozenParams struct {
-	UserID    uuid.UUID          `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) CountSubmissionsByUserFrozen(ctx context.Context, arg CountSubmissionsByUserFrozenParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubmissionsByUserFrozen, arg.UserID, arg.CreatedAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) CountSubmissionsByUser(ctx context.Context, arg CountSubmissionsByUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubmissionsByUser, arg.UserID, arg.FreezeTime)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const createSubmission = `-- name: CreateSubmission :exec
@@ -220,6 +197,18 @@ func (q *Queries) DeleteSubmissionsByTeamID(ctx context.Context, teamID *uuid.UU
 	return err
 }
 
+const discardSubmission = `-- name: DiscardSubmission :exec
+UPDATE submissions
+SET is_correct = false,
+    submission_type = 'discard'
+WHERE id = $1
+`
+
+func (q *Queries) DiscardSubmission(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, discardSubmission, id)
+	return err
+}
+
 const getAllSubmissions = `-- name: GetAllSubmissions :many
 SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
@@ -228,13 +217,15 @@ JOIN users u ON u.id = s.user_id
 LEFT JOIN teams t ON t.id = s.team_id
 JOIN challenges c ON c.id = s.challenge_id
 WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($3::timestamptz IS NULL OR s.created_at <= $3)
 ORDER BY s.created_at DESC
 LIMIT $1 OFFSET $2
 `
 
 type GetAllSubmissionsParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit      int32              `json:"limit"`
+	Offset     int32              `json:"offset"`
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
 }
 
 type GetAllSubmissionsRow struct {
@@ -255,7 +246,7 @@ type GetAllSubmissionsRow struct {
 }
 
 func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsParams) ([]GetAllSubmissionsRow, error) {
-	rows, err := q.db.Query(ctx, getAllSubmissions, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getAllSubmissions, arg.Limit, arg.Offset, arg.FreezeTime)
 	if err != nil {
 		return nil, err
 	}
@@ -263,76 +254,6 @@ func (q *Queries) GetAllSubmissions(ctx context.Context, arg GetAllSubmissionsPa
 	var items []GetAllSubmissionsRow
 	for rows.Next() {
 		var i GetAllSubmissionsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.TeamID,
-			&i.ChallengeID,
-			&i.SubmittedFlag,
-			&i.IsCorrect,
-			&i.SubmissionType,
-			&i.IP,
-			&i.CreatedAt,
-			&i.BannedUserID,
-			&i.Username,
-			&i.TeamName,
-			&i.ChallengeTitle,
-			&i.ChallengeCategory,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllSubmissionsFrozen = `-- name: GetAllSubmissionsFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
-       u.username, COALESCE(t.name, '') AS team_name, c.title AS challenge_title, c.category AS challenge_category
-FROM submissions s
-JOIN users u ON u.id = s.user_id
-LEFT JOIN teams t ON t.id = s.team_id
-JOIN challenges c ON c.id = s.challenge_id
-WHERE s.created_at <= $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-ORDER BY s.created_at DESC
-LIMIT $2 OFFSET $3
-`
-
-type GetAllSubmissionsFrozenParams struct {
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Limit     int32              `json:"limit"`
-	Offset    int32              `json:"offset"`
-}
-
-type GetAllSubmissionsFrozenRow struct {
-	ID                uuid.UUID          `json:"id"`
-	UserID            uuid.UUID          `json:"user_id"`
-	TeamID            *uuid.UUID         `json:"team_id"`
-	ChallengeID       uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag     string             `json:"submitted_flag"`
-	IsCorrect         bool               `json:"is_correct"`
-	SubmissionType    string             `json:"submission_type"`
-	IP                string             `json:"ip"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
-	Username          string             `json:"username"`
-	TeamName          string             `json:"team_name"`
-	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory string             `json:"challenge_category"`
-}
-
-func (q *Queries) GetAllSubmissionsFrozen(ctx context.Context, arg GetAllSubmissionsFrozenParams) ([]GetAllSubmissionsFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getAllSubmissionsFrozen, arg.CreatedAt, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetAllSubmissionsFrozenRow
-	for rows.Next() {
-		var i GetAllSubmissionsFrozenRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -567,49 +488,28 @@ func (q *Queries) GetSubmissionByIDForUpdate(ctx context.Context, id uuid.UUID) 
 
 const getSubmissionStats = `-- name: GetSubmissionStats :one
 SELECT 
-    COUNT(*) AS total,
-    COUNT(*) FILTER (WHERE is_correct = TRUE) AS correct,
-    COUNT(*) FILTER (WHERE is_correct = FALSE) AS incorrect
+    COUNT(*)::int AS total,
+    COUNT(*) FILTER (WHERE is_correct = TRUE)::int AS correct,
+    COUNT(*) FILTER (WHERE is_correct = FALSE)::int AS incorrect
 FROM submissions
 WHERE challenge_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
+  AND ($2::timestamptz IS NULL OR created_at <= $2)
 `
+
+type GetSubmissionStatsParams struct {
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	FreezeTime  pgtype.Timestamptz `json:"freeze_time"`
+}
 
 type GetSubmissionStatsRow struct {
-	Total     int64 `json:"total"`
-	Correct   int64 `json:"correct"`
-	Incorrect int64 `json:"incorrect"`
+	Total     int32 `json:"total"`
+	Correct   int32 `json:"correct"`
+	Incorrect int32 `json:"incorrect"`
 }
 
-func (q *Queries) GetSubmissionStats(ctx context.Context, challengeID uuid.UUID) (GetSubmissionStatsRow, error) {
-	row := q.db.QueryRow(ctx, getSubmissionStats, challengeID)
+func (q *Queries) GetSubmissionStats(ctx context.Context, arg GetSubmissionStatsParams) (GetSubmissionStatsRow, error) {
+	row := q.db.QueryRow(ctx, getSubmissionStats, arg.ChallengeID, arg.FreezeTime)
 	var i GetSubmissionStatsRow
-	err := row.Scan(&i.Total, &i.Correct, &i.Incorrect)
-	return i, err
-}
-
-const getSubmissionStatsFrozen = `-- name: GetSubmissionStatsFrozen :one
-SELECT 
-    COUNT(*) AS total,
-    COUNT(*) FILTER (WHERE is_correct = TRUE) AS correct,
-    COUNT(*) FILTER (WHERE is_correct = FALSE) AS incorrect
-FROM submissions
-WHERE challenge_id = $1 AND created_at <= $2 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-`
-
-type GetSubmissionStatsFrozenParams struct {
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-}
-
-type GetSubmissionStatsFrozenRow struct {
-	Total     int64 `json:"total"`
-	Correct   int64 `json:"correct"`
-	Incorrect int64 `json:"incorrect"`
-}
-
-func (q *Queries) GetSubmissionStatsFrozen(ctx context.Context, arg GetSubmissionStatsFrozenParams) (GetSubmissionStatsFrozenRow, error) {
-	row := q.db.QueryRow(ctx, getSubmissionStatsFrozen, arg.ChallengeID, arg.CreatedAt)
-	var i GetSubmissionStatsFrozenRow
 	err := row.Scan(&i.Total, &i.Correct, &i.Incorrect)
 	return i, err
 }
@@ -621,14 +521,16 @@ FROM submissions s
 JOIN users u ON u.id = s.user_id
 LEFT JOIN teams t ON t.id = s.team_id
 WHERE s.challenge_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($4::timestamptz IS NULL OR s.created_at <= $4)
 ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type GetSubmissionsByChallengeParams struct {
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	Limit       int32     `json:"limit"`
-	Offset      int32     `json:"offset"`
+	ChallengeID uuid.UUID          `json:"challenge_id"`
+	Limit       int32              `json:"limit"`
+	Offset      int32              `json:"offset"`
+	FreezeTime  pgtype.Timestamptz `json:"freeze_time"`
 }
 
 type GetSubmissionsByChallengeRow struct {
@@ -647,7 +549,12 @@ type GetSubmissionsByChallengeRow struct {
 }
 
 func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissionsByChallengeParams) ([]GetSubmissionsByChallengeRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByChallenge, arg.ChallengeID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getSubmissionsByChallenge,
+		arg.ChallengeID,
+		arg.Limit,
+		arg.Offset,
+		arg.FreezeTime,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -679,77 +586,6 @@ func (q *Queries) GetSubmissionsByChallenge(ctx context.Context, arg GetSubmissi
 	return items, nil
 }
 
-const getSubmissionsByChallengeFrozen = `-- name: GetSubmissionsByChallengeFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
-       u.username, COALESCE(t.name, '') AS team_name
-FROM submissions s
-JOIN users u ON u.id = s.user_id
-LEFT JOIN teams t ON t.id = s.team_id
-WHERE s.challenge_id = $1 AND s.created_at <= $2 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-ORDER BY s.created_at DESC
-LIMIT $3 OFFSET $4
-`
-
-type GetSubmissionsByChallengeFrozenParams struct {
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	Limit       int32              `json:"limit"`
-	Offset      int32              `json:"offset"`
-}
-
-type GetSubmissionsByChallengeFrozenRow struct {
-	ID             uuid.UUID          `json:"id"`
-	UserID         uuid.UUID          `json:"user_id"`
-	TeamID         *uuid.UUID         `json:"team_id"`
-	ChallengeID    uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag  string             `json:"submitted_flag"`
-	IsCorrect      bool               `json:"is_correct"`
-	SubmissionType string             `json:"submission_type"`
-	IP             string             `json:"ip"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	BannedUserID   *uuid.UUID         `json:"banned_user_id"`
-	Username       string             `json:"username"`
-	TeamName       string             `json:"team_name"`
-}
-
-func (q *Queries) GetSubmissionsByChallengeFrozen(ctx context.Context, arg GetSubmissionsByChallengeFrozenParams) ([]GetSubmissionsByChallengeFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByChallengeFrozen,
-		arg.ChallengeID,
-		arg.CreatedAt,
-		arg.Limit,
-		arg.Offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSubmissionsByChallengeFrozenRow
-	for rows.Next() {
-		var i GetSubmissionsByChallengeFrozenRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.TeamID,
-			&i.ChallengeID,
-			&i.SubmittedFlag,
-			&i.IsCorrect,
-			&i.SubmissionType,
-			&i.IP,
-			&i.CreatedAt,
-			&i.BannedUserID,
-			&i.Username,
-			&i.TeamName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getSubmissionsByTeam = `-- name: GetSubmissionsByTeam :many
 SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        u.username, c.title AS challenge_title, c.category AS challenge_category
@@ -757,14 +593,16 @@ FROM submissions s
 JOIN users u ON u.id = s.user_id
 JOIN challenges c ON c.id = s.challenge_id
 WHERE s.team_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($4::timestamptz IS NULL OR s.created_at <= $4)
 ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type GetSubmissionsByTeamParams struct {
-	TeamID *uuid.UUID `json:"team_id"`
-	Limit  int32      `json:"limit"`
-	Offset int32      `json:"offset"`
+	TeamID     *uuid.UUID         `json:"team_id"`
+	Limit      int32              `json:"limit"`
+	Offset     int32              `json:"offset"`
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
 }
 
 type GetSubmissionsByTeamRow struct {
@@ -784,7 +622,12 @@ type GetSubmissionsByTeamRow struct {
 }
 
 func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsByTeamParams) ([]GetSubmissionsByTeamRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByTeam, arg.TeamID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getSubmissionsByTeam,
+		arg.TeamID,
+		arg.Limit,
+		arg.Offset,
+		arg.FreezeTime,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -817,93 +660,22 @@ func (q *Queries) GetSubmissionsByTeam(ctx context.Context, arg GetSubmissionsBy
 	return items, nil
 }
 
-const getSubmissionsByTeamFrozen = `-- name: GetSubmissionsByTeamFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
-       u.username, c.title AS challenge_title, c.category AS challenge_category
-FROM submissions s
-JOIN users u ON u.id = s.user_id
-JOIN challenges c ON c.id = s.challenge_id
-WHERE s.team_id = $1 AND s.created_at <= $2 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-ORDER BY s.created_at DESC
-LIMIT $3 OFFSET $4
-`
-
-type GetSubmissionsByTeamFrozenParams struct {
-	TeamID    *uuid.UUID         `json:"team_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Limit     int32              `json:"limit"`
-	Offset    int32              `json:"offset"`
-}
-
-type GetSubmissionsByTeamFrozenRow struct {
-	ID                uuid.UUID          `json:"id"`
-	UserID            uuid.UUID          `json:"user_id"`
-	TeamID            *uuid.UUID         `json:"team_id"`
-	ChallengeID       uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag     string             `json:"submitted_flag"`
-	IsCorrect         bool               `json:"is_correct"`
-	SubmissionType    string             `json:"submission_type"`
-	IP                string             `json:"ip"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
-	Username          string             `json:"username"`
-	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory string             `json:"challenge_category"`
-}
-
-func (q *Queries) GetSubmissionsByTeamFrozen(ctx context.Context, arg GetSubmissionsByTeamFrozenParams) ([]GetSubmissionsByTeamFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByTeamFrozen,
-		arg.TeamID,
-		arg.CreatedAt,
-		arg.Limit,
-		arg.Offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSubmissionsByTeamFrozenRow
-	for rows.Next() {
-		var i GetSubmissionsByTeamFrozenRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.TeamID,
-			&i.ChallengeID,
-			&i.SubmittedFlag,
-			&i.IsCorrect,
-			&i.SubmissionType,
-			&i.IP,
-			&i.CreatedAt,
-			&i.BannedUserID,
-			&i.Username,
-			&i.ChallengeTitle,
-			&i.ChallengeCategory,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getSubmissionsByUser = `-- name: GetSubmissionsByUser :many
 SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
        c.title AS challenge_title, c.category AS challenge_category
 FROM submissions s
 JOIN challenges c ON c.id = s.challenge_id
 WHERE s.user_id = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND ($4::timestamptz IS NULL OR s.created_at <= $4)
 ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type GetSubmissionsByUserParams struct {
-	UserID uuid.UUID `json:"user_id"`
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
+	UserID     uuid.UUID          `json:"user_id"`
+	Limit      int32              `json:"limit"`
+	Offset     int32              `json:"offset"`
+	FreezeTime pgtype.Timestamptz `json:"freeze_time"`
 }
 
 type GetSubmissionsByUserRow struct {
@@ -922,7 +694,12 @@ type GetSubmissionsByUserRow struct {
 }
 
 func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsByUserParams) ([]GetSubmissionsByUserRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByUser, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getSubmissionsByUser,
+		arg.UserID,
+		arg.Limit,
+		arg.Offset,
+		arg.FreezeTime,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -930,76 +707,6 @@ func (q *Queries) GetSubmissionsByUser(ctx context.Context, arg GetSubmissionsBy
 	var items []GetSubmissionsByUserRow
 	for rows.Next() {
 		var i GetSubmissionsByUserRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.TeamID,
-			&i.ChallengeID,
-			&i.SubmittedFlag,
-			&i.IsCorrect,
-			&i.SubmissionType,
-			&i.IP,
-			&i.CreatedAt,
-			&i.BannedUserID,
-			&i.ChallengeTitle,
-			&i.ChallengeCategory,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getSubmissionsByUserFrozen = `-- name: GetSubmissionsByUserFrozen :many
-SELECT s.id, s.user_id, s.team_id, s.challenge_id, s.submitted_flag, s.is_correct, s.submission_type, s.ip, s.created_at, s.banned_user_id,
-       c.title AS challenge_title, c.category AS challenge_category
-FROM submissions s
-JOIN challenges c ON c.id = s.challenge_id
-WHERE s.user_id = $1 AND s.created_at <= $2 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
-ORDER BY s.created_at DESC
-LIMIT $3 OFFSET $4
-`
-
-type GetSubmissionsByUserFrozenParams struct {
-	UserID    uuid.UUID          `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Limit     int32              `json:"limit"`
-	Offset    int32              `json:"offset"`
-}
-
-type GetSubmissionsByUserFrozenRow struct {
-	ID                uuid.UUID          `json:"id"`
-	UserID            uuid.UUID          `json:"user_id"`
-	TeamID            *uuid.UUID         `json:"team_id"`
-	ChallengeID       uuid.UUID          `json:"challenge_id"`
-	SubmittedFlag     string             `json:"submitted_flag"`
-	IsCorrect         bool               `json:"is_correct"`
-	SubmissionType    string             `json:"submission_type"`
-	IP                string             `json:"ip"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	BannedUserID      *uuid.UUID         `json:"banned_user_id"`
-	ChallengeTitle    string             `json:"challenge_title"`
-	ChallengeCategory string             `json:"challenge_category"`
-}
-
-func (q *Queries) GetSubmissionsByUserFrozen(ctx context.Context, arg GetSubmissionsByUserFrozenParams) ([]GetSubmissionsByUserFrozenRow, error) {
-	rows, err := q.db.Query(ctx, getSubmissionsByUserFrozen,
-		arg.UserID,
-		arg.CreatedAt,
-		arg.Limit,
-		arg.Offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSubmissionsByUserFrozenRow
-	for rows.Next() {
-		var i GetSubmissionsByUserFrozenRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,

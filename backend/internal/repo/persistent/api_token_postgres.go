@@ -10,10 +10,10 @@ import (
 	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type APITokenRepo struct {
@@ -81,24 +81,22 @@ func (r *APITokenRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*do
 }
 
 func (r *APITokenRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error) {
-	row, err := r.Q(ctx).GetAPITokenByHash(ctx, tokenHash)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrAPITokenNotFound
+	return GetOrNotFound(func() (*domain.APIToken, error) {
+		row, err := r.Q(ctx).GetAPITokenByHash(ctx, tokenHash)
+		if err != nil {
+			return nil, err
 		}
 
-		return nil, fmt.Errorf("APITokenRepo - GetByTokenHash: %w", err)
-	}
-
-	return &domain.APIToken{
-		ID:          row.ID,
-		UserID:      row.UserID,
-		TokenHash:   row.TokenHash,
-		Description: lo.FromPtr(row.Description),
-		ExpiresAt:   pgutil.TimestamptzToTime(row.ExpiresAt),
-		LastUsedAt:  pgutil.TimestamptzToTime(row.LastUsedAt),
-		CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
-	}, nil
+		return &domain.APIToken{
+			ID:          row.ID,
+			UserID:      row.UserID,
+			TokenHash:   row.TokenHash,
+			Description: lo.FromPtr(row.Description),
+			ExpiresAt:   pgutil.TimestamptzToTime(row.ExpiresAt),
+			LastUsedAt:  pgutil.TimestamptzToTime(row.LastUsedAt),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+		}, nil
+	}, apperr.ErrAPITokenNotFound, "APITokenRepo - GetByTokenHash")
 }
 
 func (r *APITokenRepo) Delete(ctx context.Context, ID, userID uuid.UUID) error {

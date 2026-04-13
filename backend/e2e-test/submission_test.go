@@ -90,7 +90,7 @@ func TestSubmission_AdminListByChallenge_Success(t *testing.T) {
 	require.GreaterOrEqual(t, *statsResp.JSON200.Total, 1)
 }
 
-// GET /admin/submissions/challenge/{challengeID}/stats: admin gets submission stats for challenge; returns 200 (total, etc.).
+// GET /admin/submissions/challenge/{challengeID}/stats: admin gets submission stats for challenge; returns 200 (total, etc.)
 func TestSubmission_AdminStatsByChallenge_Success(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())

@@ -53,8 +53,8 @@ func TestSubmissionUseCase_GetByChallenge_Success(t *testing.T) {
 
 	total := int64(0)
 
-	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(list, nil)
-	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, mock.Anything, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID, mock.Anything).Return(total, nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage, false)
@@ -71,8 +71,8 @@ func TestSubmissionUseCase_GetByChallenge_Error(t *testing.T) {
 	challengeID := uuid.New()
 	page, perPage := 1, 20
 
-	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage, false)
@@ -92,8 +92,8 @@ func TestSubmissionUseCase_GetByUser_Success(t *testing.T) {
 
 	total := int64(0)
 
-	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(list, nil)
-	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, mock.Anything, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID, mock.Anything).Return(total, nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByUser(ctx, userID, page, perPage, false)
@@ -110,8 +110,8 @@ func TestSubmissionUseCase_GetByUser_Error(t *testing.T) {
 	userID := uuid.New()
 	page, perPage := 1, 20
 
-	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByUser(ctx, userID, page, perPage, false)
@@ -131,8 +131,8 @@ func TestSubmissionUseCase_GetByTeam_Success(t *testing.T) {
 
 	total := int64(0)
 
-	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(list, nil)
-	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(total, nil)
+	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, mock.Anything, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID, mock.Anything).Return(total, nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByTeam(ctx, teamID, page, perPage, false)
@@ -149,8 +149,8 @@ func TestSubmissionUseCase_GetByTeam_Error(t *testing.T) {
 	teamID := uuid.New()
 	page, perPage := 1, 20
 
-	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByTeam(ctx, teamID, page, perPage, false)
@@ -169,8 +169,8 @@ func TestSubmissionUseCase_GetAll_Success(t *testing.T) {
 
 	total := int64(0)
 
-	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(list, nil)
-	d.submissionRepo.EXPECT().CountAll(mock.Anything).Return(total, nil)
+	d.submissionRepo.EXPECT().GetAll(mock.Anything, mock.Anything, perPage, 0).Return(list, nil)
+	d.submissionRepo.EXPECT().CountAll(mock.Anything, mock.Anything).Return(total, nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetAll(ctx, page, perPage, false)
@@ -186,8 +186,8 @@ func TestSubmissionUseCase_GetAll_Error(t *testing.T) {
 	ctx := context.Background()
 	page, perPage := 1, 20
 
-	d.submissionRepo.EXPECT().GetAll(mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountAll(mock.Anything).Return(int64(0), nil)
+	d.submissionRepo.EXPECT().GetAll(mock.Anything, mock.Anything, perPage, 0).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().CountAll(mock.Anything, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetAll(ctx, page, perPage, false)
@@ -203,7 +203,7 @@ func TestSubmissionUseCase_GetStats_Success(t *testing.T) {
 	challengeID := uuid.New()
 	stats := &domain.SubmissionStats{Total: 10, Correct: 3, Incorrect: 7}
 
-	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(stats, nil)
+	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID, mock.Anything).Return(stats, nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetStats(ctx, challengeID, false)
@@ -219,7 +219,7 @@ func TestSubmissionUseCase_GetStats_Error(t *testing.T) {
 	ctx := context.Background()
 	challengeID := uuid.New()
 
-	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID).Return(nil, assert.AnError)
+	d.submissionRepo.EXPECT().GetStats(mock.Anything, challengeID, mock.Anything).Return(nil, assert.AnError)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetStats(ctx, challengeID, false)

@@ -9,26 +9,31 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const teamBanCacheTTL = 50 * time.Millisecond
 
 // RequireTeamNotBanned uses cache with teamBanCacheTTL. After BanTeam/UnbanTeam
 // the usecase invalidates the team cache; a short TTL limits the window where a banned
-// team could still be seen as active before invalidation or expiry.
+// team could still be seen as active before invalidation or expiry
 
 type TeamGetter interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Team, error)
 }
 
+// RequireTeamNotBanned blocks requests from users whose team is banned.
+// Team data is fetched via a short TTL cache (teamBanCacheTTL) to reduce database
+// load while keeping the ban enforcement window small. Admin users and users
+// without a team are passed through unconditionally.
 func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := GetUser(r.Context())
-			if !ok || user == nil || user.Role == domain.RoleAdmin || user.TeamID == nil {
+			if !ok || user == nil || isAdmin(r.Context()) || user.TeamID == nil {
 				next.ServeHTTP(w, r)
 
 				return
@@ -50,7 +55,7 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 			}
 
 			if err != nil {
-				httputil.HandleError(w, r, err)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
@@ -62,7 +67,7 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 			}
 
 			if team.IsBanned {
-				httputil.HandleError(w, r, httperr.ErrTeamBanned)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrTeamBanned))
 
 				return
 			}
@@ -72,18 +77,20 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 	}
 }
 
+// RequireUserNotBanned blocks requests from users with IsBanned=true.
+// Admin users and unauthenticated requests pass through unconditionally.
 func RequireUserNotBanned() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := GetUser(r.Context())
-			if !ok || user == nil || user.Role == domain.RoleAdmin {
+			if !ok || user == nil || isAdmin(r.Context()) {
 				next.ServeHTTP(w, r)
 
 				return
 			}
 
 			if user.IsBanned {
-				httputil.HandleError(w, r, httperr.ErrUserBanned)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrUserBanned))
 
 				return
 			}

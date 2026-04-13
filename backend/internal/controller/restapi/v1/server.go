@@ -9,11 +9,13 @@ import (
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -34,7 +36,7 @@ func (h *Server) pageParams(ctx context.Context, page, perPage *int) (int, int) 
 }
 
 func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, step string) bool {
-	return h.errHandler.Handle(w, r, err, "restapi - v1 - "+op+" - "+step)
+	return h.errHandler.Handle(w, r, errmap.MapAppError(err), "restapi - v1 - "+op+" - "+step)
 }
 
 // checkWriteupEnabled loads app settings and ensures writeups are enabled. If not, it
@@ -46,12 +48,32 @@ func (h *Server) checkWriteupEnabled(w http.ResponseWriter, r *http.Request, han
 	}
 
 	if !settings.WriteupEnabled {
-		h.OnError(w, r, httperr.ErrWriteupsDisabled, handlerName, op)
+		h.OnError(w, r, apperr.ErrWriteupsDisabled, handlerName, op)
 
 		return false
 	}
 
 	return true
+}
+
+// forceLiveFromParams returns true only when the caller explicitly requests live
+// data AND is an admin. Used on mixed-access routes (e.g. scoreboard, statistics)
+// where both regular users and admins share the same endpoint.
+func forceLiveFromParams(r *http.Request, live *bool) bool {
+	if live == nil || !*live {
+		return false
+	}
+
+	user, ok := middleware.GetUser(r.Context())
+
+	return ok && helper.IsAdmin(user)
+}
+
+// adminForceLive returns true when the caller requests live data. Role is not
+// re-checked here because these endpoints are already protected by admin
+// middleware.
+func adminForceLive(live *bool) bool {
+	return live != nil && *live
 }
 
 var _ openapi.ServerInterface = (*Server)(nil)
@@ -84,6 +106,10 @@ func NewServer(deps *helper.ServerDeps) *Server {
 	}
 }
 
+// buildDownloadURLs generates presigned download URLs for all files concurrently.
+// An errgroup with SetLimit(buildDownloadURLsConcurrency=10) bounds parallelism to
+// avoid overwhelming the storage backend. A mutex serialises writes into the result
+// map. Any single URL error aborts the whole group and returns nil.
 func (h *Server) buildDownloadURLs(ctx context.Context, files []*domain.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error) {
 	if len(files) == 0 {
 		return nil, nil

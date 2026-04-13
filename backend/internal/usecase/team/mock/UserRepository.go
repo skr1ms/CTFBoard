@@ -160,31 +160,20 @@ func (_c *MockUserRepository_Ban_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // ClearAvatarURL provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ClearAvatarURL(ctx context.Context, userID uuid.UUID) (*string, error) {
+func (_mock *MockUserRepository) ClearAvatarURL(ctx context.Context, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ClearAvatarURL")
 	}
 
-	var r0 *string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*string, error)); ok {
-		return returnFunc(ctx, userID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *string); ok {
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = returnFunc(ctx, userID)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*string)
-		}
+		r0 = ret.Error(0)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
 // MockUserRepository_ClearAvatarURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearAvatarURL'
@@ -217,12 +206,12 @@ func (_c *MockUserRepository_ClearAvatarURL_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockUserRepository_ClearAvatarURL_Call) Return(s *string, err error) *MockUserRepository_ClearAvatarURL_Call {
-	_c.Call.Return(s, err)
+func (_c *MockUserRepository_ClearAvatarURL_Call) Return(err error) *MockUserRepository_ClearAvatarURL_Call {
+	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockUserRepository_ClearAvatarURL_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*string, error)) *MockUserRepository_ClearAvatarURL_Call {
+func (_c *MockUserRepository_ClearAvatarURL_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_ClearAvatarURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

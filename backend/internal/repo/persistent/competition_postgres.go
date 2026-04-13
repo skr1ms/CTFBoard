@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type CompetitionRepo struct {
@@ -32,14 +31,14 @@ func toDomainCompetition(c sqlc.Competition) *domain.Competition {
 		StartTime:                    pgutil.TimestamptzToTime(c.StartTime),
 		EndTime:                      pgutil.TimestamptzToTime(c.EndTime),
 		FreezeTime:                   pgutil.TimestamptzToTime(c.FreezeTime),
-		IsPaused:                     lo.FromPtr(c.IsPaused),
+		IsPaused:                     c.IsPaused,
 		PausedAt:                     pgutil.TimestamptzToTime(c.PausedAt),
-		IsPublic:                     lo.FromPtr(c.IsPublic),
+		IsPublic:                     c.IsPublic,
 		FlagRegex:                    c.FlagRegex,
-		Mode:                         domain.CompetitionMode(lo.FromPtr(c.Mode)),
-		AllowTeamSwitch:              lo.FromPtr(c.AllowTeamSwitch),
-		MinTeamSize:                  int(lo.FromPtr(c.MinTeamSize)),
-		MaxTeamSize:                  int(lo.FromPtr(c.MaxTeamSize)),
+		Mode:                         domain.CompetitionMode(c.Mode),
+		AllowTeamSwitch:              c.AllowTeamSwitch,
+		MinTeamSize:                  int(c.MinTeamSize),
+		MaxTeamSize:                  int(c.MaxTeamSize),
 		KeepScoreboardFrozenAfterEnd: c.KeepScoreboardFrozenAfterEnd,
 		CreatedAt:                    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(c.CreatedAt)),
 		UpdatedAt:                    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(c.UpdatedAt)),
@@ -47,26 +46,20 @@ func toDomainCompetition(c sqlc.Competition) *domain.Competition {
 }
 
 func (r *CompetitionRepo) Get(ctx context.Context) (*domain.Competition, error) {
-	c, err := r.Q(ctx).GetCompetition(ctx)
+	c, err := GetOrNotFound(func() (sqlc.Competition, error) { return r.Q(ctx).GetCompetition(ctx) },
+		apperr.ErrCompetitionNotFound, "CompetitionRepo - Get")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrCompetitionNotFound
-		}
-
-		return nil, fmt.Errorf("CompetitionRepo - Get: %w", err)
+		return nil, err
 	}
 
 	return toDomainCompetition(c), nil
 }
 
 func (r *CompetitionRepo) GetForUpdate(ctx context.Context) (*domain.Competition, error) {
-	c, err := r.Q(ctx).GetCompetitionForUpdate(ctx)
+	c, err := GetOrNotFound(func() (sqlc.Competition, error) { return r.Q(ctx).GetCompetitionForUpdate(ctx) },
+		apperr.ErrCompetitionNotFound, "CompetitionRepo - GetForUpdate")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrCompetitionNotFound
-		}
-
-		return nil, fmt.Errorf("CompetitionRepo - GetForUpdate: %w", err)
+		return nil, err
 	}
 
 	return toDomainCompetition(c), nil
@@ -86,22 +79,18 @@ func (r *CompetitionRepo) Update(ctx context.Context, c *domain.Competition) err
 	now := time.Now()
 
 	err = r.Q(ctx).UpdateCompetition(ctx, sqlc.UpdateCompetitionParams{
-		Name:       c.Name,
-		StartTime:  pgutil.TimeToTimestamptz(c.StartTime),
-		EndTime:    pgutil.TimeToTimestamptz(c.EndTime),
-		FreezeTime: pgutil.TimeToTimestamptz(c.FreezeTime),
-		IsPaused:   &c.IsPaused,
-		PausedAt:   pgutil.TimeToTimestamptz(c.PausedAt),
-		IsPublic:   &c.IsPublic,
-		FlagRegex:  c.FlagRegex,
-		Mode: func() *string {
-			s := string(c.Mode)
-
-			return &s
-		}(),
-		AllowTeamSwitch:              &c.AllowTeamSwitch,
-		MinTeamSize:                  &minTeamSize,
-		MaxTeamSize:                  &maxTeamSize,
+		Name:                         c.Name,
+		StartTime:                    pgutil.TimeToTimestamptz(c.StartTime),
+		EndTime:                      pgutil.TimeToTimestamptz(c.EndTime),
+		FreezeTime:                   pgutil.TimeToTimestamptz(c.FreezeTime),
+		IsPaused:                     c.IsPaused,
+		PausedAt:                     pgutil.TimeToTimestamptz(c.PausedAt),
+		IsPublic:                     c.IsPublic,
+		FlagRegex:                    c.FlagRegex,
+		Mode:                         string(c.Mode),
+		AllowTeamSwitch:              c.AllowTeamSwitch,
+		MinTeamSize:                  minTeamSize,
+		MaxTeamSize:                  maxTeamSize,
 		KeepScoreboardFrozenAfterEnd: c.KeepScoreboardFrozenAfterEnd,
 		UpdatedAt:                    pgutil.TimeToTimestamptz(&now),
 	})

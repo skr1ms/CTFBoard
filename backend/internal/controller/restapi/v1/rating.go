@@ -9,10 +9,8 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
-// Put rating for challenge
 // (PUT /challenges/{challengeID}/rating).
 func (h *Server) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)
@@ -25,9 +23,8 @@ func (h *Server) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if user.TeamID == nil {
-		h.OnError(w, r, httperr.ErrUserNotInTeam, "PutChallengesChallengeIDRating", "RequireTeam")
-
+	teamID, ok := helper.RequireTeamID(w, r, user, h.OnError, "PutChallengesChallengeIDRating")
+	if !ok {
 		return
 	}
 
@@ -43,7 +40,7 @@ func (h *Server) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	rating, err := h.challenge.RatingUC.PutRating(r.Context(), challengeIDParsed, user.ID, *user.TeamID, value, review)
+	rating, err := h.challenge.RatingUC.PutRating(r.Context(), challengeIDParsed, user.ID, teamID, value, review)
 	if h.OnError(w, r, err, "PutChallengesChallengeIDRating", "PutRating") {
 		return
 	}
@@ -51,7 +48,6 @@ func (h *Server) PutChallengesChallengeIDRating(w http.ResponseWriter, r *http.R
 	httputil.RenderOK(w, r, response.FromRating(rating))
 }
 
-// Get ratings for challenge
 // (GET /challenges/{challengeID}/ratings).
 func (h *Server) GetChallengesChallengeIDRatings(w http.ResponseWriter, r *http.Request, challengeID string) {
 	challengeIDParsed, ok := httputil.ParseUUID(w, r, challengeID)

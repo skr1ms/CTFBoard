@@ -7,10 +7,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 type RatingUseCase struct {
@@ -34,28 +35,28 @@ func NewRatingUseCase(deps RatingDeps) *RatingUseCase {
 
 func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, teamID uuid.UUID, value int, review string) (*domain.Rating, error) {
 	if uc.deps.ChallengeRepo == nil {
-		return nil, fmt.Errorf("rating: ChallengeRepo not configured")
+		return nil, fmt.Errorf("RatingUseCase - PutRating: ChallengeRepo not configured")
 	}
 
 	if uc.deps.SolveRepo == nil {
-		return nil, fmt.Errorf("rating: SolveRepo not configured")
+		return nil, fmt.Errorf("RatingUseCase - PutRating: SolveRepo not configured")
 	}
 
 	if uc.deps.RatingRepo == nil {
-		return nil, fmt.Errorf("rating: RatingRepo not configured")
+		return nil, fmt.Errorf("RatingUseCase - PutRating: RatingRepo not configured")
 	}
 
 	ch, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
-		if errors.Is(err, httperr.ErrChallengeNotFound) {
-			return nil, httperr.ErrChallengeNotFound
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return nil, apperr.ErrChallengeNotFound
 		}
 
 		return nil, fmt.Errorf("RatingUseCase - PutRating - ChallengeRepo.GetByID: %w", err)
 	}
 
-	if ch.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(ch); err != nil {
+		return nil, err
 	}
 
 	if uc.deps.UserRepo != nil {
@@ -65,7 +66,7 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 		}
 
 		if user.IsBanned {
-			return nil, httperr.ErrUserBanned
+			return nil, apperr.ErrUserBanned
 		}
 	}
 
@@ -76,7 +77,7 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 		}
 
 		if team.IsBanned {
-			return nil, httperr.ErrTeamBanned
+			return nil, apperr.ErrTeamBanned
 		}
 	}
 
@@ -89,28 +90,28 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 	}
 
 	if uc.deps.TM == nil {
-		return nil, fmt.Errorf("rating: TransactionManager not configured")
+		return nil, fmt.Errorf("RatingUseCase - PutRating: TransactionManager not configured")
 	}
 
 	err = uc.deps.TM.Run(ctx, func(txCtx context.Context) error {
 		if _, err := uc.deps.SolveRepo.GetByTeamAndChallengeForUpdate(txCtx, teamID, challengeID); err != nil {
-			if errors.Is(err, httperr.ErrSolveNotFound) {
-				return httperr.ErrSolveRequiredForRating
+			if errors.Is(err, apperr.ErrSolveNotFound) {
+				return apperr.ErrSolveRequiredForRating
 			}
 
-			return fmt.Errorf("SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
+			return fmt.Errorf("RatingUseCase - PutRating - SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
 		}
 
 		err := uc.deps.RatingRepo.Upsert(txCtx, rating)
 		if err != nil {
-			return fmt.Errorf("RatingRepo.Upsert: %w", err)
+			return fmt.Errorf("RatingUseCase - PutRating - RatingRepo.Upsert: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, httperr.ErrSolveRequiredForRating) {
-			return nil, httperr.ErrSolveRequiredForRating
+		if errors.Is(err, apperr.ErrSolveRequiredForRating) {
+			return nil, apperr.ErrSolveRequiredForRating
 		}
 
 		return nil, fmt.Errorf("RatingUseCase - PutRating - TM.Run: %w", err)
@@ -121,24 +122,24 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 
 func (uc *RatingUseCase) GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error) {
 	if uc.deps.ChallengeRepo == nil {
-		return nil, fmt.Errorf("rating: ChallengeRepo not configured")
+		return nil, fmt.Errorf("RatingUseCase - GetRatingsByChallengeID: ChallengeRepo not configured")
 	}
 
 	if uc.deps.RatingRepo == nil {
-		return nil, fmt.Errorf("rating: RatingRepo not configured")
+		return nil, fmt.Errorf("RatingUseCase - GetRatingsByChallengeID: RatingRepo not configured")
 	}
 
 	ch, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
-		if errors.Is(err, httperr.ErrChallengeNotFound) {
-			return nil, httperr.ErrChallengeNotFound
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return nil, apperr.ErrChallengeNotFound
 		}
 
 		return nil, fmt.Errorf("RatingUseCase - GetRatingsByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
 
-	if ch.State == domain.ChallengeStateHidden {
-		return nil, httperr.ErrChallengeNotFound
+	if err := guard.EnsureChallengeVisible(ch); err != nil {
+		return nil, err
 	}
 
 	list, err := uc.deps.RatingRepo.GetByChallengeID(ctx, challengeID)

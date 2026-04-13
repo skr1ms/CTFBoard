@@ -21,7 +21,9 @@ import (
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	v1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1"
 	v1helper "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -39,11 +41,10 @@ import (
 	settingsUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
 	teamUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	userUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/cache"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/websocket"
 )
 
 type teamBracketGetterImpl struct {
@@ -222,6 +223,7 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		ResetTTL:    1 * time.Hour,
 		FrontendURL: "http://localhost:3000",
 		Enabled:     true,
+		BcryptCost:  bcrypt.MinCost,
 	})
 	u := userUC.NewUserUseCase(userUC.UserDeps{
 		UserRepo:        repos.userRepo,
@@ -239,6 +241,7 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		CompRepo:        repos.compRepo,
 		SoloTeamCreator: t,
 		UserCache:       userCacheSvc,
+		BcryptCost:      bcrypt.MinCost,
 	})
 	comp := competitionUC.NewCompetitionUseCase(competitionUC.CompetitionDeps{
 		CompetitionRepo: repos.compRepo,
@@ -247,32 +250,52 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		Redis:           &cachekit.RedisKeyValueStore{Client: redisClient},
 		Logger:          deps.log,
 	})
+	competitionParam := competitionUC.NewCompetitionParamUseCase(competitionUC.CompetitionParamDeps{
+		Repo:         repos.configRepo,
+		AuditLogRepo: repos.auditLogRepo,
+		TM:           repos.tm,
+		Logger:       deps.log,
+	})
+	hint := challengeUC.NewHintUseCase(challengeUC.HintDeps{
+		HintRepo:        repos.hintRepo,
+		AwardRepo:       repos.awardRepo,
+		TM:              repos.tm,
+		SolveRepo:       repos.solveRepo,
+		CompRepo:        repos.compRepo,
+		CompUC:          comp,
+		TeamRepo:        repos.teamRepo,
+		UserRepo:        repos.userRepo,
+		ChallengeRepo:   repos.challengeRepo,
+		ScoreboardCache: scoreboardCache,
+		Logger:          deps.log,
+	})
 	ch := challengeUC.NewChallengeUseCase(challengeUC.ChallengeDeps{
 		ChallengeRepo:   repos.challengeRepo,
 		TagRepo:         repos.tagRepo,
 		SolveRepo:       repos.solveRepo,
 		SubmissionRepo:  repos.submissionRepo,
+		FileRepo:        repos.fileRepo,
+		Storage:         fileStorage,
+		HintUC:          hint,
 		TM:              repos.tm,
 		CompRepo:        repos.compRepo,
 		CompUC:          comp,
+		CompParamUC:     competitionParam,
 		TeamRepo:        repos.teamRepo,
+		UserRepo:        repos.userRepo,
 		ScoreboardCache: scoreboardCache,
 		ListCache:       c,
 		Broadcaster:     broadcaster,
 		AuditLogRepo:    repos.auditLogRepo,
 		Crypto:          deps.crypto,
+		Logger:          deps.log,
+		SolveRecord:     competitionUC.RecordSolveInTx,
 	})
 	solve := competitionUC.NewSolveUseCase(competitionUC.SolveDeps{
 		SolveRepo: repos.solveRepo, ChallengeRepo: repos.challengeRepo,
 		CompetitionRepo: repos.compRepo, CompetitionUC: comp, UserRepo: repos.userRepo,
 		TeamRepo: repos.teamRepo, TM: repos.tm,
 		Cache: c, ScoreboardCache: scoreboardCache, ChallengeListCache: ch, Broadcaster: broadcaster,
-	})
-	hint := challengeUC.NewHintUseCase(challengeUC.HintDeps{
-		HintRepo: repos.hintRepo, AwardRepo: repos.awardRepo,
-		TM: repos.tm, SolveRepo: repos.solveRepo, CompRepo: repos.compRepo,
-		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, ChallengeRepo: repos.challengeRepo,
-		ScoreboardCache: scoreboardCache,
 	})
 	award := teamUC.NewAwardUseCase(teamUC.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache, CompRepo: repos.compRepo})
 	stats := competitionUC.NewStatisticsUseCase(competitionUC.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: c})
@@ -299,15 +322,9 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		Redis:        &cachekit.RedisKeyValueStore{Client: redisClient},
 		CompRepo:     repos.compRepo,
 	})
-	competitionParam := competitionUC.NewCompetitionParamUseCase(context.Background(), competitionUC.CompetitionParamDeps{
-		Repo:         repos.configRepo,
-		AuditLogRepo: repos.auditLogRepo,
-		TM:           repos.tm,
-		Logger:       deps.log,
-	})
 	comment := challengeUC.NewCommentUseCase(challengeUC.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
 	tracking := userUC.NewTrackingUseCase(userUC.TrackingDeps{TrackingRepo: repos.trackingRepo})
-	ws := wsV1.NewController(hub, deps.log, []string{"*"})
+	ws := wsV1.NewController(hub, deps.log, []string{"localhost"})
 	fileSvc := challengeUC.NewFileUseCase(challengeUC.FileDeps{
 		FileRepo:       repos.fileRepo,
 		ChallengeRepo:  repos.challengeRepo,
@@ -374,7 +391,7 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 		Team:  v1helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
 		User:  v1helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
 		Comp:  v1helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, SubmissionBatcher: uc.submissionBatcher, BracketUC: uc.bracketUC},
-		Admin: v1helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC, SettingsRepo: uc.SettingsRepo},
+		Admin: v1helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
 		Infra: v1helper.InfraDeps{
 			JWTService:                    jwtSvc,
 			RedisClient:                   redisClient,
@@ -427,7 +444,12 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 
 	hub := wskit.NewHub(
 		wskit.WithRedis(redisClient, "lt:events"),
-		wskit.WithOnConnect(func(c *wskit.Client) {
+		wskit.WithOnConnect(func(sub wskit.Subscriber) {
+			c, ok := sub.(*wskit.Client)
+			if !ok {
+				return
+			}
+
 			data, err := json.Marshal(wskit.NewEvent(websocket.EventTypeConnected, nil))
 			if err == nil {
 				c.Send(data)

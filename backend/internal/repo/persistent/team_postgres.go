@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type TeamRepo struct {
@@ -27,65 +27,160 @@ func NewTeamRepo(pool *pgxpool.Pool) *TeamRepo {
 	return &TeamRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-func toDomainTeam(ID uuid.UUID, name string, inviteToken uuid.UUID, inviteTokenExpiresAt *time.Time, captainID uuid.UUID, bracketID *uuid.UUID, isSolo, isAutoCreated, isBanned, isHidden *bool, bannedAt *time.Time, bannedReason *string, createdAt *time.Time) *domain.Team {
+type teamRow struct {
+	ID                   uuid.UUID
+	Name                 string
+	InviteToken          uuid.UUID
+	InviteTokenExpiresAt *time.Time
+	CaptainID            uuid.UUID
+	BracketID            *uuid.UUID
+	IsSolo               bool
+	IsAutoCreated        bool
+	IsBanned             bool
+	IsHidden             bool
+	BannedAt             *time.Time
+	BannedReason         *string
+	AvatarURL            *string
+	CreatedAt            *time.Time
+}
+
+func toDomainTeam(r teamRow) *domain.Team {
 	return &domain.Team{
-		ID:                   ID,
-		Name:                 name,
-		InviteToken:          inviteToken,
-		InviteTokenExpiresAt: inviteTokenExpiresAt,
-		CaptainID:            captainID,
-		BracketID:            bracketID,
-		IsSolo:               lo.FromPtr(isSolo),
-		IsAutoCreated:        lo.FromPtr(isAutoCreated),
-		IsBanned:             lo.FromPtr(isBanned),
-		BannedAt:             bannedAt,
-		BannedReason:         bannedReason,
-		IsHidden:             lo.FromPtr(isHidden),
-		CreatedAt:            pgutil.PtrTimeToTime(createdAt),
+		ID:                   r.ID,
+		Name:                 r.Name,
+		InviteToken:          r.InviteToken,
+		InviteTokenExpiresAt: r.InviteTokenExpiresAt,
+		CaptainID:            r.CaptainID,
+		BracketID:            r.BracketID,
+		IsSolo:               r.IsSolo,
+		IsAutoCreated:        r.IsAutoCreated,
+		IsBanned:             r.IsBanned,
+		BannedAt:             r.BannedAt,
+		BannedReason:         r.BannedReason,
+		IsHidden:             r.IsHidden,
+		AvatarURL:            r.AvatarURL,
+		CreatedAt:            pgutil.PtrTimeToTime(r.CreatedAt),
+	}
+}
+
+// teamRowFromSQLC converts the common set of sqlc-generated team fields to teamRow,
+// eliminating the repeated pgutil.TimestamptzToTime conversions across all repo methods.
+func teamRowFromSQLC(
+	id uuid.UUID, name string, inviteToken uuid.UUID,
+	inviteTokenExpiresAt, bannedAt, createdAt pgtype.Timestamptz,
+	captainID uuid.UUID, bracketID *uuid.UUID,
+	isSolo, isAutoCreated, isBanned, isHidden bool,
+	bannedReason, avatarURL *string,
+) teamRow {
+	return teamRow{
+		ID: id, Name: name, InviteToken: inviteToken,
+		InviteTokenExpiresAt: pgutil.TimestamptzToTime(inviteTokenExpiresAt),
+		CaptainID:            captainID, BracketID: bracketID,
+		IsSolo: isSolo, IsAutoCreated: isAutoCreated, IsBanned: isBanned, IsHidden: isHidden,
+		BannedAt: pgutil.TimestamptzToTime(bannedAt), BannedReason: bannedReason,
+		AvatarURL: avatarURL,
+		CreatedAt: pgutil.TimestamptzToTime(createdAt),
 	}
 }
 
 func (r *TeamRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error) {
-	row, err := r.Q(ctx).GetTeamByID(ctx, ID)
+	row, err := GetOrNotFound(func() (sqlc.GetTeamByIDRow, error) { return r.Q(ctx).GetTeamByID(ctx, ID) }, apperr.ErrTeamNotFound, "TeamRepo - GetByID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrTeamNotFound
-		}
-
-		return nil, fmt.Errorf("TeamRepo - GetByID: %w", err)
+		return nil, err
 	}
 
-	return toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)), nil
+	return toDomainTeam(teamRowFromSQLC(
+		row.ID, row.Name, row.InviteToken,
+		row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+		row.CaptainID, row.BracketID,
+		row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+		row.BannedReason, row.AvatarUrl,
+	)), nil
+}
+
+func (r *TeamRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Team, error) {
+	if len(ids) == 0 {
+		return map[uuid.UUID]*domain.Team{}, nil
+	}
+
+	const q = `
+		SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id,
+		       is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden,
+		       avatar_url, created_at
+		FROM teams
+		WHERE id = ANY($1) AND deleted_at IS NULL`
+
+	rows, err := r.DB(ctx).Query(ctx, q, ids)
+	if err != nil {
+		return nil, fmt.Errorf("TeamRepo - GetByIDs: %w", err)
+	}
+
+	defer rows.Close()
+
+	out := make(map[uuid.UUID]*domain.Team, len(ids))
+
+	for rows.Next() {
+		var (
+			row     teamRow
+			pgDates [3]pgtype.Timestamptz
+		)
+
+		if err = rows.Scan(
+			&row.ID, &row.Name, &row.InviteToken, &pgDates[0],
+			&row.CaptainID, &row.BracketID,
+			&row.IsSolo, &row.IsAutoCreated, &row.IsBanned, &pgDates[1],
+			&row.BannedReason, &row.IsHidden,
+			&row.AvatarURL, &pgDates[2],
+		); err != nil {
+			return nil, fmt.Errorf("TeamRepo - GetByIDs - scan: %w", err)
+		}
+
+		row.InviteTokenExpiresAt = pgutil.TimestamptzToTime(pgDates[0])
+		row.BannedAt = pgutil.TimestamptzToTime(pgDates[1])
+		row.CreatedAt = pgutil.TimestamptzToTime(pgDates[2])
+
+		out[row.ID] = toDomainTeam(row)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("TeamRepo - GetByIDs - rows: %w", err)
+	}
+
+	return out, nil
 }
 
 func (r *TeamRepo) GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*domain.Team, error) {
 	if inviteToken == uuid.Nil {
-		return nil, httperr.ErrTeamNotFound
+		return nil, apperr.ErrTeamNotFound
 	}
 
-	row, err := r.Q(ctx).GetTeamByInviteToken(ctx, inviteToken)
+	row, err := GetOrNotFound(func() (sqlc.GetTeamByInviteTokenRow, error) { return r.Q(ctx).GetTeamByInviteToken(ctx, inviteToken) }, apperr.ErrTeamNotFound, "TeamRepo - GetByInviteToken")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrTeamNotFound
-		}
-
-		return nil, fmt.Errorf("TeamRepo - GetByInviteToken: %w", err)
+		return nil, err
 	}
 
-	return toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)), nil
+	return toDomainTeam(teamRowFromSQLC(
+		row.ID, row.Name, row.InviteToken,
+		row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+		row.CaptainID, row.BracketID,
+		row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+		row.BannedReason, row.AvatarUrl,
+	)), nil
 }
 
 func (r *TeamRepo) GetByName(ctx context.Context, name string) (*domain.Team, error) {
-	row, err := r.Q(ctx).GetTeamByName(ctx, name)
+	row, err := GetOrNotFound(func() (sqlc.GetTeamByNameRow, error) { return r.Q(ctx).GetTeamByName(ctx, name) }, apperr.ErrTeamNotFound, "TeamRepo - GetByName")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrTeamNotFound
-		}
-
-		return nil, fmt.Errorf("TeamRepo - GetByName: %w", err)
+		return nil, err
 	}
 
-	return toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)), nil
+	return toDomainTeam(teamRowFromSQLC(
+		row.ID, row.Name, row.InviteToken,
+		row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+		row.CaptainID, row.BracketID,
+		row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+		row.BannedReason, row.AvatarUrl,
+	)), nil
 }
 
 func (r *TeamRepo) Delete(ctx context.Context, ID uuid.UUID) error {
@@ -112,16 +207,18 @@ func (r *TeamRepo) HardDeleteTeams(ctx context.Context, cutoffDate time.Time) er
 }
 
 func (r *TeamRepo) GetSoloTeamByUserID(ctx context.Context, userID uuid.UUID) (*domain.Team, error) {
-	row, err := r.Q(ctx).GetSoloTeamByUserID(ctx, userID)
+	row, err := GetOrNotFound(func() (sqlc.GetSoloTeamByUserIDRow, error) { return r.Q(ctx).GetSoloTeamByUserID(ctx, userID) }, apperr.ErrTeamNotFound, "TeamRepo - GetSoloTeamByUserID")
 	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return nil, httperr.ErrTeamNotFound
-		}
-
-		return nil, fmt.Errorf("TeamRepo - GetSoloTeamByUserID: %w", err)
+		return nil, err
 	}
 
-	return toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)), nil
+	return toDomainTeam(teamRowFromSQLC(
+		row.ID, row.Name, row.InviteToken,
+		row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+		row.CaptainID, row.BracketID,
+		row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+		row.BannedReason, row.AvatarUrl,
+	)), nil
 }
 
 func (r *TeamRepo) CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error) {
@@ -144,47 +241,25 @@ func (r *TeamRepo) CountActiveTeams(ctx context.Context) (int, error) {
 
 func (r *TeamRepo) Ban(ctx context.Context, teamID uuid.UUID, reason string) error {
 	bannedAt := time.Now()
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).BanTeam(ctx, sqlc.BanTeamParams{ID: teamID, BannedAt: pgutil.TimeToTimestamptz(&bannedAt), BannedReason: &reason})
+	}, apperr.ErrTeamNotFound, "TeamRepo - Ban")
 
-	_, err := r.Q(ctx).BanTeam(ctx, sqlc.BanTeamParams{
-		ID:           teamID,
-		BannedAt:     pgutil.TimeToTimestamptz(&bannedAt),
-		BannedReason: &reason,
-	})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
-
-		return fmt.Errorf("TeamRepo - Ban: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) Unban(ctx context.Context, teamID uuid.UUID) error {
-	_, err := r.Q(ctx).UnbanTeam(ctx, teamID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) { return r.Q(ctx).UnbanTeam(ctx, teamID) }, apperr.ErrTeamNotFound, "TeamRepo - Unban")
 
-		return fmt.Errorf("TeamRepo - Unban: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
-	_, err := r.Q(ctx).SetTeamHidden(ctx, sqlc.SetTeamHiddenParams{ID: teamID, IsHidden: &hidden})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).SetTeamHidden(ctx, sqlc.SetTeamHiddenParams{ID: teamID, IsHidden: hidden})
+	}, apperr.ErrTeamNotFound, "TeamRepo - SetHidden")
 
-		return fmt.Errorf("TeamRepo - SetHidden: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) GetAll(ctx context.Context) ([]*domain.Team, error) {
@@ -195,23 +270,24 @@ func (r *TeamRepo) GetAll(ctx context.Context) ([]*domain.Team, error) {
 
 	out := make([]*domain.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)))
+		out = append(out, toDomainTeam(teamRowFromSQLC(
+			row.ID, row.Name, row.InviteToken,
+			row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+			row.CaptainID, row.BracketID,
+			row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+			row.BannedReason, row.AvatarUrl,
+		)))
 	}
 
 	return out, nil
 }
 
 func (r *TeamRepo) SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error {
-	_, err := r.Q(ctx).SetTeamBracket(ctx, sqlc.SetTeamBracketParams{ID: teamID, BracketID: bracketID})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).SetTeamBracket(ctx, sqlc.SetTeamBracketParams{ID: teamID, BracketID: bracketID})
+	}, apperr.ErrTeamNotFound, "TeamRepo - SetBracket")
 
-		return fmt.Errorf("TeamRepo - SetBracket: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) Search(ctx context.Context, search *string, limit, offset int) ([]*domain.Team, error) {
@@ -220,12 +296,7 @@ func (r *TeamRepo) Search(ctx context.Context, search *string, limit, offset int
 		return nil, fmt.Errorf("TeamRepo - Search: %w", err)
 	}
 
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	rows, err := r.Q(ctx).SearchTeams(ctx, sqlc.SearchTeamsParams{
 		Limit:  limit32,
@@ -233,24 +304,25 @@ func (r *TeamRepo) Search(ctx context.Context, search *string, limit, offset int
 		Search: escapedSearch,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("TeamRepo - Search: %w", err)
+		return nil, fmt.Errorf("TeamRepo - Search - scan: %w", err)
 	}
 
 	out := make([]*domain.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)))
+		out = append(out, toDomainTeam(teamRowFromSQLC(
+			row.ID, row.Name, row.InviteToken,
+			row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+			row.CaptainID, row.BracketID,
+			row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+			row.BannedReason, row.AvatarUrl,
+		)))
 	}
 
 	return out, nil
 }
 
 func (r *TeamRepo) CountSearch(ctx context.Context, search *string) (int64, error) {
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	count, err := r.Q(ctx).CountSearchTeams(ctx, escapedSearch)
 	if err != nil {
@@ -266,12 +338,7 @@ func (r *TeamRepo) SearchAdmin(ctx context.Context, search *string, limit, offse
 		return nil, fmt.Errorf("TeamRepo - SearchAdmin: %w", err)
 	}
 
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	rows, err := r.Q(ctx).SearchTeamsAdmin(ctx, sqlc.SearchTeamsAdminParams{
 		Limit:  limit32,
@@ -279,24 +346,25 @@ func (r *TeamRepo) SearchAdmin(ctx context.Context, search *string, limit, offse
 		Search: escapedSearch,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("TeamRepo - SearchAdmin: %w", err)
+		return nil, fmt.Errorf("TeamRepo - SearchAdmin - scan: %w", err)
 	}
 
 	out := make([]*domain.Team, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, toDomainTeam(row.ID, row.Name, row.InviteToken, pgutil.TimestamptzToTime(row.InviteTokenExpiresAt), row.CaptainID, row.BracketID, row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden, pgutil.TimestamptzToTime(row.BannedAt), row.BannedReason, pgutil.TimestamptzToTime(row.CreatedAt)))
+		out = append(out, toDomainTeam(teamRowFromSQLC(
+			row.ID, row.Name, row.InviteToken,
+			row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+			row.CaptainID, row.BracketID,
+			row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+			row.BannedReason, row.AvatarUrl,
+		)))
 	}
 
 	return out, nil
 }
 
 func (r *TeamRepo) CountSearchAdmin(ctx context.Context, search *string) (int64, error) {
-	var escapedSearch *string
-
-	if search != nil {
-		escaped := EscapeLikePattern(*search)
-		escapedSearch = &escaped
-	}
+	escapedSearch := EscapeSearchPtr(search)
 
 	count, err := r.Q(ctx).CountSearchTeamsAdmin(ctx, escapedSearch)
 	if err != nil {
@@ -307,21 +375,11 @@ func (r *TeamRepo) CountSearchAdmin(ctx context.Context, search *string) (int64,
 }
 
 func (r *TeamRepo) UpdateAdmin(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) error {
-	if _, err := r.Q(ctx).UpdateTeamAdmin(ctx, sqlc.UpdateTeamAdminParams{
-		ID:        teamID,
-		Name:      name,
-		CaptainID: captainID,
-		BracketID: bracketID,
-		IsHidden:  isHidden,
-	}); err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateTeamAdmin(ctx, sqlc.UpdateTeamAdminParams{ID: teamID, Name: name, CaptainID: captainID, BracketID: bracketID, IsHidden: isHidden})
+	}, apperr.ErrTeamNotFound, "TeamRepo - UpdateAdmin")
 
-		return fmt.Errorf("TeamRepo - UpdateAdmin: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) UpdateName(ctx context.Context, teamID uuid.UUID, name string) error {
@@ -330,11 +388,11 @@ func (r *TeamRepo) UpdateName(ctx context.Context, teamID uuid.UUID, name string
 		Name: name,
 	}); err != nil {
 		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
+			return apperr.ErrTeamNotFound
 		}
 
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrTeamAlreadyExists
+			return apperr.ErrTeamAlreadyExists
 		}
 
 		return fmt.Errorf("TeamRepo - UpdateName: %w", err)
@@ -350,14 +408,14 @@ func (r *TeamRepo) Create(ctx context.Context, team *domain.Team) error {
 		Name:                 team.Name,
 		InviteToken:          team.InviteToken,
 		CaptainID:            team.CaptainID,
-		IsSolo:               &team.IsSolo,
-		IsAutoCreated:        &team.IsAutoCreated,
+		IsSolo:               team.IsSolo,
+		IsAutoCreated:        team.IsAutoCreated,
 		CreatedAt:            pgutil.TimeToTimestamptz(&team.CreatedAt),
 		InviteTokenExpiresAt: pgutil.TimeToTimestamptz(team.InviteTokenExpiresAt),
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {
-			return httperr.ErrTeamAlreadyExists
+			return apperr.ErrTeamAlreadyExists
 		}
 
 		return fmt.Errorf("TeamRepo - Create: %w", err)
@@ -369,25 +427,9 @@ func (r *TeamRepo) Create(ctx context.Context, team *domain.Team) error {
 }
 
 func (r *TeamRepo) Lock(ctx context.Context, teamID uuid.UUID) error {
-	_, err := r.Q(ctx).LockTeam(ctx, teamID)
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) { return r.Q(ctx).LockTeam(ctx, teamID) }, apperr.ErrTeamNotFound, "TeamRepo - Lock")
 
-		return fmt.Errorf("TeamRepo - Lock: %w", err)
-	}
-
-	return nil
-}
-
-func (r *TeamRepo) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
-	db := ExtractDB(ctx, r.pool)
-	if _, err := db.Exec(ctx, "SELECT pg_advisory_xact_lock($1::bigint)", lockKey); err != nil {
-		return fmt.Errorf("TeamRepo - AcquireAdvisoryLock: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) UpdateAvatarURL(ctx context.Context, teamID uuid.UUID, avatarURL string) error {
@@ -402,13 +444,12 @@ func (r *TeamRepo) UpdateAvatarURL(ctx context.Context, teamID uuid.UUID, avatar
 	return nil
 }
 
-func (r *TeamRepo) ClearAvatarURL(ctx context.Context, teamID uuid.UUID) (*string, error) {
-	oldURL, err := r.Q(ctx).ClearTeamAvatarURL(ctx, teamID)
-	if err != nil {
-		return nil, fmt.Errorf("TeamRepo - ClearAvatarURL: %w", err)
+func (r *TeamRepo) ClearAvatarURL(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.Q(ctx).ClearTeamAvatarURL(ctx, teamID); err != nil {
+		return fmt.Errorf("TeamRepo - ClearAvatarURL: %w", err)
 	}
 
-	return oldURL, nil
+	return nil
 }
 
 func (r *TeamRepo) ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error) {
@@ -421,38 +462,28 @@ func (r *TeamRepo) ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error)
 }
 
 func (r *TeamRepo) UpdateCaptain(ctx context.Context, teamID, newCaptainID uuid.UUID) error {
-	_, err := r.Q(ctx).UpdateTeamCaptain(ctx, sqlc.UpdateTeamCaptainParams{
-		ID:        teamID,
-		CaptainID: newCaptainID,
-	})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateTeamCaptain(ctx, sqlc.UpdateTeamCaptainParams{ID: teamID, CaptainID: newCaptainID})
+	}, apperr.ErrTeamNotFound, "TeamRepo - UpdateCaptain")
 
-		return fmt.Errorf("TeamRepo - UpdateCaptain: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (r *TeamRepo) UpdateInviteToken(ctx context.Context, teamID, inviteToken uuid.UUID, expiresAt *time.Time) error {
-	_, err := r.Q(ctx).UpdateInviteToken(ctx, sqlc.UpdateInviteTokenParams{
-		ID:                   teamID,
-		InviteToken:          inviteToken,
-		InviteTokenExpiresAt: pgutil.TimeToTimestamptz(expiresAt),
-	})
-	if err != nil {
-		if pgutil.IsNoRows(err) {
-			return httperr.ErrTeamNotFound
-		}
+	_, err := GetOrNotFound(func() (uuid.UUID, error) {
+		return r.Q(ctx).UpdateInviteToken(ctx, sqlc.UpdateInviteTokenParams{
+			ID:                   teamID,
+			InviteToken:          inviteToken,
+			InviteTokenExpiresAt: pgutil.TimeToTimestamptz(expiresAt),
+		})
+	}, apperr.ErrTeamNotFound, "TeamRepo - UpdateInviteToken")
 
-		return fmt.Errorf("TeamRepo - UpdateInviteToken: %w", err)
-	}
-
-	return nil
+	return err
 }
 
+// CreateAuditLog inserts a team audit-log entry, generating a new UUID and
+// setting CreatedAt to the current time. The Details field, when non-nil, is
+// marshalled to JSON; an empty JSON object is stored otherwise.
 func (r *TeamRepo) CreateAuditLog(ctx context.Context, log *domain.TeamAuditLog) error {
 	log.ID = uuid.New()
 	log.CreatedAt = time.Now()
@@ -482,6 +513,9 @@ func (r *TeamRepo) CreateAuditLog(ctx context.Context, log *domain.TeamAuditLog)
 	return nil
 }
 
+// GetLatestAuditLogByTeamIDAndAction returns the most recent audit log entry for the
+// given team and action, or (nil, nil) when no such entry exists (ErrNoRows is not an error here).
+// The JSON details field is unmarshalled into map[string]any.
 func (r *TeamRepo) GetLatestAuditLogByTeamIDAndAction(ctx context.Context, teamID uuid.UUID, action string) (*domain.TeamAuditLog, error) {
 	row, err := r.Q(ctx).GetLatestTeamAuditLogByTeamIDAndAction(ctx, sqlc.GetLatestTeamAuditLogByTeamIDAndActionParams{
 		TeamID: teamID,

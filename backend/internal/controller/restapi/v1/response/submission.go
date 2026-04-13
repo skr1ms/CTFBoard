@@ -1,8 +1,6 @@
 package response
 
 import (
-	"time"
-
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
@@ -14,7 +12,8 @@ func FromSubmission(s *domain.SubmissionWithDetails) openapi.SubmissionResponse 
 		ChallengeID:       new(s.ChallengeID.String()),
 		SubmittedFlag:     new(s.SubmittedFlag),
 		IsCorrect:         new(s.IsCorrect),
-		CreatedAt:         new(s.CreatedAt.Format(time.RFC3339)),
+		SubmissionType:    new(s.Type),
+		CreatedAt:         timePtr(&s.CreatedAt),
 		Username:          new(s.Username),
 		TeamName:          new(s.TeamName),
 		ChallengeTitle:    new(s.ChallengeTitle),
@@ -31,13 +30,17 @@ func FromSubmission(s *domain.SubmissionWithDetails) openapi.SubmissionResponse 
 	return res
 }
 
+// FromSubmissionPublic maps a submission to the public API response format.
+// SubmittedFlag and IP are intentionally omitted to prevent flag leakage and
+// to protect submitter privacy when the endpoint is accessible to regular users.
 func FromSubmissionPublic(s *domain.SubmissionWithDetails) openapi.SubmissionResponse {
 	res := openapi.SubmissionResponse{
 		ID:                new(s.ID.String()),
 		UserID:            new(s.UserID.String()),
 		ChallengeID:       new(s.ChallengeID.String()),
 		IsCorrect:         new(s.IsCorrect),
-		CreatedAt:         new(s.CreatedAt.Format(time.RFC3339)),
+		SubmissionType:    new(s.Type),
+		CreatedAt:         timePtr(&s.CreatedAt),
 		Username:          new(s.Username),
 		TeamName:          new(s.TeamName),
 		ChallengeTitle:    new(s.ChallengeTitle),

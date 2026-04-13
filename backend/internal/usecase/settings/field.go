@@ -7,10 +7,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type FieldUseCase struct {
@@ -39,7 +39,7 @@ func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType domain.E
 func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) (*domain.Field, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, httperr.NewValidationErrorf("name is required")
+		return nil, apperr.NewValidationErrorf("name is required")
 	}
 
 	field := &domain.Field{
@@ -86,7 +86,7 @@ func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, f
 
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, httperr.NewValidationErrorf("name is required")
+		return nil, apperr.NewValidationErrorf("name is required")
 	}
 
 	field.Name = name

@@ -25,6 +25,10 @@
               type: array
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "429":
         description: Too Many Requests
         content:

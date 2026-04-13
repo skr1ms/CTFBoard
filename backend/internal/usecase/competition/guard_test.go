@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type guardTestDeps struct {
@@ -80,7 +80,7 @@ func TestGuard_RequireTeamSwitch_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrRosterFrozen)
+	assert.ErrorIs(t, err, apperr.ErrRosterFrozen)
 	assert.Nil(t, got)
 }
 
@@ -98,7 +98,7 @@ func TestGuard_RequireTeamSwitch_Paused_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrCompetitionPaused)
+	assert.ErrorIs(t, err, apperr.ErrCompetitionPaused)
 	assert.Nil(t, got)
 }
 
@@ -123,7 +123,7 @@ func TestGuard_RequireTeamSwitchAndTeamsMode_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitchAndTeamsMode(context.Background())
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrTeamsNotAllowed)
+	assert.ErrorIs(t, err, apperr.ErrTeamsNotAllowed)
 	assert.Nil(t, got)
 }
 
@@ -148,6 +148,6 @@ func TestGuard_RequireTeamSwitchAndSoloMode_Error(t *testing.T) {
 	got, err := d.createGuard().RequireTeamSwitchAndSoloMode(context.Background())
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, httperr.ErrSoloModeNotAllowed)
+	assert.ErrorIs(t, err, apperr.ErrSoloModeNotAllowed)
 	assert.Nil(t, got)
 }

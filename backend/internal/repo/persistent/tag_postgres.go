@@ -8,10 +8,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type TagRepo struct {
@@ -46,7 +46,7 @@ func (r *TagRepo) Create(ctx context.Context, tag *domain.Tag) error {
 }
 
 func (r *TagRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error) {
-	row, err := GetOrNotFound(func() (sqlc.Tag, error) { return r.Q(ctx).GetTagByID(ctx, ID) }, httperr.ErrTagNotFound, "TagRepo - GetByID")
+	row, err := GetOrNotFound(func() (sqlc.Tag, error) { return r.Q(ctx).GetTagByID(ctx, ID) }, apperr.ErrTagNotFound, "TagRepo - GetByID")
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (r *TagRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error
 }
 
 func (r *TagRepo) GetByName(ctx context.Context, name string) (*domain.Tag, error) {
-	row, err := GetOrNotFound(func() (sqlc.Tag, error) { return r.Q(ctx).GetTagByName(ctx, name) }, httperr.ErrTagNotFound, "TagRepo - GetByName")
+	row, err := GetOrNotFound(func() (sqlc.Tag, error) { return r.Q(ctx).GetTagByName(ctx, name) }, apperr.ErrTagNotFound, "TagRepo - GetByName")
 	if err != nil {
 		return nil, err
 	}

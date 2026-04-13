@@ -7,11 +7,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 const (
@@ -44,7 +44,7 @@ func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*domai
 
 func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *domain.APIToken, err error) {
 	if len(description) > apiTokenDescriptionMaxLen {
-		return "", nil, httperr.NewValidationErrorf("description must not exceed %d characters", apiTokenDescriptionMaxLen)
+		return "", nil, apperr.NewValidationErrorf("description must not exceed %d characters", apiTokenDescriptionMaxLen)
 	}
 
 	plaintext, err = crypto.SecureRandomHex(apiTokenRandomBytes)

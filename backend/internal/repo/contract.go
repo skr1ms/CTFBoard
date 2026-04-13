@@ -8,16 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 )
 
-type SolveForPointsRecalc struct {
-	ID           uuid.UUID
-	ChallengeID  uuid.UUID
-	SolvedAt     time.Time
-	InitialValue int
-	MinValue     int
-	Decay        int
-}
+// SolveForPointsRecalc is a type alias for scoring.SolveForPointsRecalc kept for
+// backwards compatibility with existing repo interface consumers and mocks.
+type SolveForPointsRecalc = scoring.SolveForPointsRecalc
 
 // =============================================================================
 // Shared
@@ -28,6 +24,7 @@ type (
 		Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	}
 
+	// TransactionManager runs database transactions at various isolation levels (read-write, serializable, read-only).
 	TransactionManager interface {
 		Run(ctx context.Context, fn func(context.Context) error) error
 		RunSerializable(ctx context.Context, fn func(context.Context) error) error
@@ -41,6 +38,7 @@ type (
 // =============================================================================
 
 type (
+	// UserRepository provides persistence operations for user accounts.
 	UserRepository interface {
 		Create(ctx context.Context, user *domain.User) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error)
@@ -69,7 +67,7 @@ type (
 		SetWasInBannedTeamByIDs(ctx context.Context, userIDs []uuid.UUID, value bool) error
 		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 		UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error
-		ClearAvatarURL(ctx context.Context, userID uuid.UUID) (*string, error)
+		ClearAvatarURL(ctx context.Context, userID uuid.UUID) error
 		ListAllUserAvatarURLs(ctx context.Context) ([]*string, error)
 	}
 )
@@ -79,9 +77,11 @@ type (
 // =============================================================================
 
 type (
+	// TeamRepository provides persistence operations for teams and their audit logs.
 	TeamRepository interface {
 		Create(ctx context.Context, team *domain.Team) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error)
+		GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Team, error)
 		GetByInviteToken(ctx context.Context, inviteToken uuid.UUID) (*domain.Team, error)
 		GetByName(ctx context.Context, name string) (*domain.Team, error)
 		GetSoloTeamByUserID(ctx context.Context, userID uuid.UUID) (*domain.Team, error)
@@ -104,12 +104,12 @@ type (
 		UpdateInviteToken(ctx context.Context, teamID, inviteToken uuid.UUID, expiresAt *time.Time) error
 		Lock(ctx context.Context, teamID uuid.UUID) error
 		// AcquireAdvisoryLock acquires a session-level advisory lock for the duration
-		// of the current transaction. Used to serialize team-count checks.
+		// of the current transaction. Used to serialize team-count checks
 		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 		CreateAuditLog(ctx context.Context, log *domain.TeamAuditLog) error
 		GetLatestAuditLogByTeamIDAndAction(ctx context.Context, teamID uuid.UUID, action string) (*domain.TeamAuditLog, error)
 		UpdateAvatarURL(ctx context.Context, teamID uuid.UUID, avatarURL string) error
-		ClearAvatarURL(ctx context.Context, teamID uuid.UUID) (*string, error)
+		ClearAvatarURL(ctx context.Context, teamID uuid.UUID) error
 		ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error)
 	}
 )
@@ -134,6 +134,7 @@ type (
 	// ChallengeWithSolved is an alias for domain.ChallengeWithSolved.
 	ChallengeWithSolved = domain.ChallengeWithSolved
 
+	// ChallengeRepository provides persistence operations for challenges, flags, requirements, and solutions.
 	ChallengeRepository interface {
 		Create(ctx context.Context, c *domain.Challenge) error
 		Update(ctx context.Context, c *domain.Challenge) error
@@ -148,6 +149,7 @@ type (
 		BatchDecrementSolveCount(ctx context.Context, ids []uuid.UUID) error
 		BatchIncrementSolveCount(ctx context.Context, ids []uuid.UUID) error
 		BatchUpdatePoints(ctx context.Context, ids []uuid.UUID, points []int) error
+		RecalculateSolveCounts(ctx context.Context, ids []uuid.UUID) error
 		UpdatePoints(ctx context.Context, ID uuid.UUID, points int) error
 		SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error
 		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
@@ -169,6 +171,7 @@ type (
 // =============================================================================
 
 type (
+	// TagRepository provides persistence operations for challenge tags.
 	TagRepository interface {
 		Create(ctx context.Context, tag *domain.Tag) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error)
@@ -186,6 +189,7 @@ type (
 // =============================================================================
 
 type (
+	// HintRepository provides persistence operations for hints and team hint unlocks.
 	HintRepository interface {
 		Create(ctx context.Context, hint *domain.Hint) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Hint, error)
@@ -206,6 +210,7 @@ type (
 		DeleteUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error
 		SoftBanUnlocksByTeamID(ctx context.Context, teamID uuid.UUID) error
 		RestoreUnlocksByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
+		AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
 	}
 )
 
@@ -214,6 +219,7 @@ type (
 // =============================================================================
 
 type (
+	// FileRepository provides persistence operations for challenge and page file metadata.
 	FileRepository interface {
 		Create(ctx context.Context, file *domain.File) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.File, error)
@@ -221,6 +227,7 @@ type (
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error)
 		GetAllByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.File, error)
 		GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*domain.File, error)
+		GetByPageID(ctx context.Context, pageID uuid.UUID) ([]*domain.File, error)
 		GetAll(ctx context.Context) ([]*domain.File, error)
 		ListLocations(ctx context.Context, limit, offset int) ([]string, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
@@ -238,6 +245,7 @@ type (
 	// FirstBloodEntry is an alias for domain.FirstBloodEntry.
 	FirstBloodEntry = domain.FirstBloodEntry
 
+	// SolveRepository provides persistence operations for correct solves and scoreboard queries.
 	SolveRepository interface {
 		Create(ctx context.Context, solve *domain.Solve) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Solve, error)
@@ -245,19 +253,14 @@ type (
 		GetSolvedChallengeIDsByTeam(ctx context.Context, teamID uuid.UUID, challengeIDs []uuid.UUID) ([]uuid.UUID, error)
 		GetByTeamAndChallengeForUpdate(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Solve, error)
 		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Solve, error)
-		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error)
-		GetByChallengeIDFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) ([]*domain.SolveWithDetails, error)
-		GetSolveCountsFrozen(ctx context.Context, freezeTime time.Time) (map[uuid.UUID]int, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) ([]*domain.SolveWithDetails, error)
+		GetSolveCounts(ctx context.Context, freezeTime *time.Time) (map[uuid.UUID]int, error)
 		GetByUserIDWithDetails(ctx context.Context, userID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetAll(ctx context.Context) ([]*domain.Solve, error)
 		GetAllForBackup(ctx context.Context) ([]*domain.Solve, error)
-		GetScoreboard(ctx context.Context) ([]*ScoreboardEntry, error)
-		GetScoreboardFrozen(ctx context.Context, freezeTime time.Time) ([]*ScoreboardEntry, error)
-		GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID) ([]*ScoreboardEntry, error)
-		GetScoreboardByBracketFrozen(ctx context.Context, freezeTime time.Time, bracketID *uuid.UUID) ([]*ScoreboardEntry, error)
-		GetFirstBlood(ctx context.Context, challengeID uuid.UUID) (*FirstBloodEntry, error)
-		GetFirstBloodFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*FirstBloodEntry, error)
+		GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*ScoreboardEntry, error)
+		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*FirstBloodEntry, error)
 		GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, error)
 		DeleteByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
@@ -275,6 +278,7 @@ type (
 // =============================================================================
 
 type (
+	// AwardRepository provides persistence operations for team bonus point awards.
 	AwardRepository interface {
 		Create(ctx context.Context, award *domain.Award) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, error)
@@ -294,6 +298,7 @@ type (
 // =============================================================================
 
 type (
+	// CompetitionRepository provides persistence operations for the singleton competition record.
 	CompetitionRepository interface {
 		Get(ctx context.Context) (*domain.Competition, error)
 		GetForUpdate(ctx context.Context) (*domain.Competition, error)
@@ -306,6 +311,7 @@ type (
 // =============================================================================
 
 type (
+	// SettingsRepository provides persistence operations for the singleton application settings record.
 	SettingsRepository interface {
 		Get(ctx context.Context) (*domain.Settings, error)
 		GetForUpdate(ctx context.Context) (*domain.Settings, error)
@@ -319,6 +325,7 @@ type (
 // =============================================================================
 
 type (
+	// CompetitionParamRepository provides persistence operations for dynamic competition key-value parameters.
 	CompetitionParamRepository interface {
 		GetAll(ctx context.Context) ([]*domain.CompetitionParam, error)
 		GetByCategory(ctx context.Context, category string) ([]*domain.CompetitionParam, error)
@@ -334,37 +341,31 @@ type (
 // =============================================================================
 
 type (
+	// SubmissionRepository provides persistence operations for flag submission records.
 	SubmissionRepository interface {
 		Create(ctx context.Context, sub *domain.Submission) error
 		CreateBatch(ctx context.Context, subs []*domain.Submission) error
 		GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*domain.Submission, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error)
-		GetByChallenge(ctx context.Context, challengeID uuid.UUID, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetByTeam(ctx context.Context, teamID uuid.UUID, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetAll(ctx context.Context, limit, offset int) ([]*domain.SubmissionWithDetails, error)
-		GetAllFrozen(ctx context.Context, freezeTime time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
+		GetByChallenge(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
+		GetByUser(ctx context.Context, userID uuid.UUID, freezeTime *time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
+		GetByTeam(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
+		GetAll(ctx context.Context, freezeTime *time.Time, limit, offset int) ([]*domain.SubmissionWithDetails, error)
 		GetFailsByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.SubmissionWithDetails, error)
 		CountFailsByUser(ctx context.Context, userID uuid.UUID) (int64, error)
 		GetFailsByTeam(ctx context.Context, teamID uuid.UUID, limit, offset int) ([]*domain.SubmissionWithDetails, error)
 		CountFailsByTeam(ctx context.Context, teamID uuid.UUID) (int64, error)
-		CountByChallenge(ctx context.Context, challengeID uuid.UUID) (int64, error)
-		CountByChallengeFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (int64, error)
-		CountByUser(ctx context.Context, userID uuid.UUID) (int64, error)
-		CountByUserFrozen(ctx context.Context, userID uuid.UUID, freezeTime time.Time) (int64, error)
-		CountByTeam(ctx context.Context, teamID uuid.UUID) (int64, error)
-		CountByTeamFrozen(ctx context.Context, teamID uuid.UUID, freezeTime time.Time) (int64, error)
+		CountByChallenge(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (int64, error)
+		CountByUser(ctx context.Context, userID uuid.UUID, freezeTime *time.Time) (int64, error)
+		CountByTeam(ctx context.Context, teamID uuid.UUID, freezeTime *time.Time) (int64, error)
 		CountSubmissionsByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (int64, error)
+		CountSubmissionsByTeamAndChallengeInWindow(ctx context.Context, teamID, challengeID uuid.UUID, windowStart time.Time) (int64, error)
 		AcquireAdvisoryLockForSubmit(ctx context.Context, teamID, challengeID uuid.UUID) error
-		CountAll(ctx context.Context) (int64, error)
-		CountAllFrozen(ctx context.Context, freezeTime time.Time) (int64, error)
+		CountAll(ctx context.Context, freezeTime *time.Time) (int64, error)
 		CountFailedByIP(ctx context.Context, ip string, since time.Time) (int64, error)
-		GetStats(ctx context.Context, challengeID uuid.UUID) (*domain.SubmissionStats, error)
-		GetStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*domain.SubmissionStats, error)
+		GetStats(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.SubmissionStats, error)
 		Update(ctx context.Context, ID uuid.UUID, isCorrect bool) error
+		Discard(ctx context.Context, ID uuid.UUID) error
 		Delete(ctx context.Context, ID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
 		SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error
@@ -379,27 +380,19 @@ type (
 // =============================================================================
 
 type (
+	// StatisticsRepository provides read-only aggregate queries for competition statistics, scoreboards, and solve matrices.
 	StatisticsRepository interface {
-		GetGeneralStats(ctx context.Context) (*domain.GeneralStats, error)
-		GetGeneralStatsFrozen(ctx context.Context, freezeTime time.Time) (*domain.GeneralStats, error)
-		GetChallengeStats(ctx context.Context) ([]*domain.ChallengeStats, error)
-		GetChallengeStatsFrozen(ctx context.Context, freezeTime time.Time) ([]*domain.ChallengeStats, error)
-		GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID) (*domain.ChallengeDetailStats, error)
-		GetChallengeDetailStatsFrozen(ctx context.Context, challengeID uuid.UUID, freezeTime time.Time) (*domain.ChallengeDetailStats, error)
-		GetScoreboardHistory(ctx context.Context, limit int) ([]*domain.ScoreboardHistoryEntry, error)
-		GetScoreboardHistoryFrozen(ctx context.Context, freezeTime time.Time, limit int) ([]*domain.ScoreboardHistoryEntry, error)
-		GetChallengeSolvePercentages(ctx context.Context) ([]*domain.ChallengeSolvePercentage, error)
-		GetChallengeSolvePercentagesFrozen(ctx context.Context, freezeTime time.Time) ([]*domain.ChallengeSolvePercentage, error)
-		GetScoreDistribution(ctx context.Context) ([]*domain.ScoreDistributionBucket, error)
-		GetScoreDistributionFrozen(ctx context.Context, freezeTime time.Time) ([]*domain.ScoreDistributionBucket, error)
-		GetSubmissionTimeSeries(ctx context.Context) (*domain.SubmissionTimeSeriesStats, error)
-		GetSubmissionTimeSeriesFrozen(ctx context.Context, freezeTime time.Time) (*domain.SubmissionTimeSeriesStats, error)
-		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect bool) ([]*domain.RegistrationTimePoint, error)
-		GetSubmissionTimeSeriesByTypeFrozen(ctx context.Context, isCorrect bool, freezeTime time.Time) ([]*domain.RegistrationTimePoint, error)
+		GetGeneralStats(ctx context.Context, freezeTime *time.Time) (*domain.GeneralStats, error)
+		GetChallengeStats(ctx context.Context, freezeTime *time.Time) ([]*domain.ChallengeStats, error)
+		GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.ChallengeDetailStats, error)
+		GetScoreboardHistory(ctx context.Context, limit int, freezeTime *time.Time) ([]*domain.ScoreboardHistoryEntry, error)
+		GetChallengeSolvePercentages(ctx context.Context, freezeTime *time.Time) ([]*domain.ChallengeSolvePercentage, error)
+		GetScoreDistribution(ctx context.Context, freezeTime *time.Time) ([]*domain.ScoreDistributionBucket, error)
+		GetSubmissionTimeSeries(ctx context.Context, freezeTime *time.Time) (*domain.SubmissionTimeSeriesStats, error)
+		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect bool, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)
 		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
 		GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
-		GetSolveMatrix(ctx context.Context) ([]*domain.SolveMatrixRow, error)
-		GetSolveMatrixFrozen(ctx context.Context, freezeTime time.Time) ([]*domain.SolveMatrixRow, error)
+		GetSolveMatrix(ctx context.Context, freezeTime *time.Time) ([]*domain.SolveMatrixRow, error)
 	}
 )
 
@@ -408,6 +401,7 @@ type (
 // =============================================================================
 
 type (
+	// VerificationTokenRepository manages one-time email verification and password-reset tokens.
 	VerificationTokenRepository interface {
 		Create(ctx context.Context, token *domain.VerificationToken) error
 		GetByToken(ctx context.Context, token string) (*domain.VerificationToken, error)
@@ -422,6 +416,7 @@ type (
 // =============================================================================
 
 type (
+	// AuditLogRepository records admin audit events for compliance and traceability.
 	AuditLogRepository interface {
 		Create(ctx context.Context, log *domain.AuditLog) error
 	}
@@ -432,6 +427,7 @@ type (
 // =============================================================================
 
 type (
+	// TrackingRepository provides persistence operations for user activity and challenge open events.
 	TrackingRepository interface {
 		Create(ctx context.Context, entry *domain.TrackingEntry) error
 		GetByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.TrackingEntry, error)
@@ -449,10 +445,12 @@ type (
 // =============================================================================
 
 type (
+	// NotificationRepository provides persistence operations for global and user-targeted notifications.
 	NotificationRepository interface {
 		Create(ctx context.Context, notif *domain.Notification) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Notification, error)
 		GetAll(ctx context.Context, limit, offset int) ([]*domain.Notification, error)
+		CountAll(ctx context.Context) (int, error)
 		Update(ctx context.Context, notif *domain.Notification) error
 		Delete(ctx context.Context, ID uuid.UUID) error
 		CreateUserNotification(ctx context.Context, userNotif *domain.UserNotification) error
@@ -469,6 +467,7 @@ type (
 // =============================================================================
 
 type (
+	// PageRepository provides persistence operations for static content pages.
 	PageRepository interface {
 		Create(ctx context.Context, page *domain.Page) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, error)
@@ -485,6 +484,7 @@ type (
 // =============================================================================
 
 type (
+	// BracketRepository provides persistence operations for competition brackets.
 	BracketRepository interface {
 		Create(ctx context.Context, bracket *domain.Bracket) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Bracket, error)
@@ -501,6 +501,7 @@ type (
 // =============================================================================
 
 type (
+	// FieldRepository provides persistence operations for custom entity fields.
 	FieldRepository interface {
 		Create(ctx context.Context, field *domain.Field) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Field, error)
@@ -510,6 +511,7 @@ type (
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
 
+	// FieldValueRepository provides persistence operations for dynamic custom field values attached to entities.
 	FieldValueRepository interface {
 		GetByEntityID(ctx context.Context, entityID uuid.UUID) ([]*domain.FieldValue, error)
 		GetAll(ctx context.Context) ([]*domain.FieldValue, error)
@@ -523,6 +525,7 @@ type (
 // =============================================================================
 
 type (
+	// APITokenRepository provides persistence operations for user API tokens.
 	APITokenRepository interface {
 		Create(ctx context.Context, token *domain.APIToken) error
 		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error)
@@ -537,6 +540,7 @@ type (
 // =============================================================================
 
 type (
+	// CommentRepository provides persistence operations for challenge comments.
 	CommentRepository interface {
 		Create(ctx context.Context, comment *domain.Comment) error
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Comment, error)
@@ -552,11 +556,13 @@ type (
 // =============================================================================
 
 type (
+	// RatingRepository provides persistence operations for challenge difficulty ratings.
 	RatingRepository interface {
 		Upsert(ctx context.Context, rating *domain.Rating) error
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error)
 		GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Rating, error)
 		GetAll(ctx context.Context) ([]*domain.Rating, error)
+		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
 	}
 )
 
@@ -565,6 +571,7 @@ type (
 // =============================================================================
 
 type (
+	// OAuthAccountRepository provides persistence operations for linked OAuth provider accounts.
 	OAuthAccountRepository interface {
 		Create(ctx context.Context, acc *domain.OAuthAccount) error
 		Upsert(ctx context.Context, acc *domain.OAuthAccount) error
@@ -578,6 +585,7 @@ type (
 // =============================================================================
 
 type (
+	// BackupRepository provides bulk import/export and erase operations used by the backup subsystem.
 	BackupRepository interface {
 		EraseAllTables(ctx context.Context) error
 		EraseTables(ctx context.Context, tables []string) error

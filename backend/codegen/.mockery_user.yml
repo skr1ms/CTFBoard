@@ -28,13 +28,6 @@ packages:
           pkgname: "mock"
           structname: "MockSolveRepository"
 
-      VerificationTokenRepository:
-        config:
-          dir: "internal/usecase/user/mock"
-          filename: "VerificationTokenRepository.go"
-          pkgname: "mock"
-          structname: "MockVerificationTokenRepository"
-
       APITokenRepository:
         config:
           dir: "internal/usecase/user/mock"
