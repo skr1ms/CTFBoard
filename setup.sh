@@ -34,6 +34,10 @@ compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
+vault_cli() {
+  docker exec -e VAULT_ADDR=http://127.0.0.1:8200 vault vault "$@"
+}
+
 bold()   { printf '\033[1m%s\033[0m' "$*"; }
 green()  { printf '\033[1;32m%s\033[0m' "$*"; }
 red()    { printf '\033[1;31m%s\033[0m' "$*"; }
@@ -699,11 +703,11 @@ wait_for_vault() {
 
   # Wait for Vault process to respond (up to 60s)
   for i in $(seq 1 30); do
-    if docker exec vault vault status >/dev/null 2>&1; then
+    if vault_cli status >/dev/null 2>&1; then
       return 0
     fi
     # Vault returns exit code 2 when sealed but running
-    if docker exec vault vault status 2>&1 | grep -q "Sealed"; then
+    if vault_cli status 2>&1 | grep -q "Sealed"; then
       return 0
     fi
     sleep 2
@@ -717,7 +721,7 @@ vault_init_and_unseal() {
   wait_for_vault
 
   local status
-  status="$(docker exec vault vault status -format=json 2>/dev/null || echo '{}')"
+  status="$(vault_cli status -format=json 2>/dev/null || echo '{}')"
   local initialized
   initialized="$(echo "$status" | jq -r '.initialized // false')"
 
@@ -731,7 +735,7 @@ vault_init_and_unseal() {
 
     echo "  Initializing Vault (key-shares=1, key-threshold=1)..."
     local init_json
-    init_json="$(docker exec vault vault operator init \
+    init_json="$(vault_cli operator init \
       -key-shares=1 -key-threshold=1 -format=json)"
 
     local unseal_key root_token
@@ -772,10 +776,10 @@ VKEOF
     "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
 
   local sealed
-  sealed="$(docker exec vault vault status -format=json 2>/dev/null | jq -r '.sealed // true')"
+  sealed="$(vault_cli status -format=json 2>/dev/null | jq -r '.sealed // true')"
   if [ "$sealed" = "true" ]; then
     echo "  Unsealing Vault..."
-    docker exec vault vault operator unseal "$UNSEAL_KEY" >/dev/null
+    vault_cli operator unseal "$UNSEAL_KEY" >/dev/null
     green "  Vault unsealed"
     echo ""
   else
@@ -955,10 +959,10 @@ do_start() {
     # shellcheck source=/dev/null
     source "$VAULT_KEYS_FILE"
     local sealed
-    sealed="$(docker exec vault vault status -format=json 2>/dev/null | jq -r '.sealed // true')"
+    sealed="$(vault_cli status -format=json 2>/dev/null | jq -r '.sealed // true')"
     if [ "$sealed" = "true" ]; then
       echo "  Unsealing Vault..."
-      docker exec vault vault operator unseal "$UNSEAL_KEY" >/dev/null
+      vault_cli operator unseal "$UNSEAL_KEY" >/dev/null
       green "  Vault unsealed\n"
       echo ""
     fi
