@@ -43,6 +43,8 @@ A production-ready self-hosted platform for running CTF (Capture The Flag) cyber
 
 ## Quick deploy
 
+You can pre-fill `.env.example` before deploy and then copy it to `.env`. If `.env` already contains your real values, `./setup.sh start` will use them directly without prompting. If you later run `./setup.sh reconfigure`, those values will be shown back as defaults.
+
 ```bash
 git clone https://github.com/TakuyaYagam1/AstroCTFb.git
 cd AstroCTFb

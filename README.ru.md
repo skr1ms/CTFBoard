@@ -43,6 +43,8 @@ Production-ready self-hosted платформа для проведения CTF-
 
 ## Быстрый деплой
 
+Перед деплоем можно заранее заполнить `.env.example`, а потом скопировать его в `.env`. Если в `.env` уже лежат твои реальные значения, `./setup.sh start` возьмёт их напрямую без дополнительных вопросов. Если позже запустить `./setup.sh reconfigure`, эти же значения будут подставлены в визарде как дефолтные.
+
 ```bash
 git clone https://github.com/TakuyaYagam1/AstroCTFb.git
 cd AstroCTFb

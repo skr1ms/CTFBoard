@@ -321,11 +321,12 @@ check_dns_preflight() {
 
   if [ "$all_ok" -eq 0 ]; then
     echo ""
-    yellow "  One or more DNS records are not ready. Certbot will fail issuance.\n"
-    yellow "  Point all five subdomains to ${server_ip:-your server IP} and wait for propagation,\n"
-    yellow "  then run: ./setup.sh start\n"
+    yellow "  One or more DNS records are not ready for Let's Encrypt issuance.\n"
+    yellow "  Point all five names to ${server_ip:-your server IP} and wait for propagation.\n"
+    yellow "  You can continue now: HAProxy will use a temporary self-signed certificate.\n"
+    yellow "  Once DNS is correct, run: ./setup.sh start\n"
     echo ""
-    printf "  Continue anyway (self-signed cert until DNS is ready)? [y/N]: "
+    printf "  Continue anyway (temporary self-signed cert until DNS is ready)? [y/N]: "
     read -r dns_confirm
     case "$dns_confirm" in
       [yY]*) ;;
@@ -353,9 +354,12 @@ run_wizard() {
     echo ""
   fi
 
+  dim "  For prompts with [value], press Enter to keep the shown default/current value."
+  echo ""
+
   section "1/8" "Platform Identity"
   while true; do
-    read_required "CTF platform name (1-80 chars, e.g. AlphaCTF, VKCTF)" CTF_NAME
+    read_default "CTF platform name (1-80 chars, e.g. AlphaCTF, VKCTF)" "$(env_get_default APP_NAME "")" CTF_NAME
     CTF_NAME="$(echo "$CTF_NAME" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     if [ -z "$CTF_NAME" ]; then
       red "  CTF name cannot be empty."
@@ -380,7 +384,11 @@ run_wizard() {
   RESEND_FROM_NAME="$CTF_NAME"
 
   section "2/8" "Domain & URLs"
-  read_required "Enter your domain (e.g. example.com)" DOMAIN
+  if [ -n "$(env_get_default DOMAIN "")" ]; then
+    read_default "Enter your domain (e.g. example.com)" "$(env_get_default DOMAIN "")" DOMAIN
+  else
+    read_required "Enter your domain (e.g. example.com)" DOMAIN
+  fi
   # Strip protocol/trailing slash if user accidentally added them
   DOMAIN="$(echo "$DOMAIN" | sed 's|^https\?://||; s|/$||')"
 
@@ -400,16 +408,20 @@ run_wizard() {
   echo "    TLS:      $(cyan "HAProxy + Let's Encrypt (certbot)")"
   echo ""
 
-  read_required "Server public IP (for Vault admin whitelist)" VAULT_ADMIN_IP
+  if [ -n "$(env_get_default VAULT_ADMIN_IP "")" ]; then
+    read_default "Server public IP (for Vault admin whitelist)" "$(env_get_default VAULT_ADMIN_IP "")" VAULT_ADMIN_IP
+  else
+    read_required "Server public IP (for Vault admin whitelist)" VAULT_ADMIN_IP
+  fi
 
   echo ""
   dim "  All four subdomains below are required for the TLS certificate."
   dim "  Certbot requests them as a single multi-SAN cert - missing DNS = failed issuance."
   echo ""
-  read_default "Grafana subdomain" "grafana.${DOMAIN}" GRAFANA_DOMAIN
-  read_default "S3 UI subdomain  " "s3.${DOMAIN}" S3_DOMAIN
-  read_default "Vault subdomain  " "vault.${DOMAIN}" VAULT_DOMAIN
-  read_default "API subdomain    " "api.${DOMAIN}" API_DOMAIN
+  read_default "Grafana subdomain" "$(env_get_default GRAFANA_DOMAIN "grafana.${DOMAIN}")" GRAFANA_DOMAIN
+  read_default "S3 UI subdomain  " "$(env_get_default S3_DOMAIN "s3.${DOMAIN}")" S3_DOMAIN
+  read_default "Vault subdomain  " "$(env_get_default VAULT_DOMAIN "vault.${DOMAIN}")" VAULT_DOMAIN
+  read_default "API subdomain    " "$(env_get_default API_DOMAIN "api.${DOMAIN}")" API_DOMAIN
 
   # Compute all subdomain-dependent URLs from the finalized domain values.
   API_BASE_URL="https://${API_DOMAIN}"
@@ -448,8 +460,12 @@ run_wizard() {
 
   section "5/8" "Admin Account (CTF platform)"
   echo "  $(dim "Stored in Vault (ctf-platform/admin). Not written to .env.")"
-  read_default "Admin username" "admin" ADMIN_USERNAME
-  read_required "Admin email" ADMIN_EMAIL
+  read_default "Admin username" "$(env_get_default ADMIN_USERNAME "admin")" ADMIN_USERNAME
+  if [ -n "$(env_get_default ADMIN_EMAIL "")" ]; then
+    read_default "Admin email" "$(env_get_default ADMIN_EMAIL "")" ADMIN_EMAIL
+  else
+    read_required "Admin email" ADMIN_EMAIL
+  fi
   ADMIN_PASSWORD=""
   # On reconfigure (Vault already exists), allow skipping password re-entry.
   local _vault_exists=0
@@ -494,37 +510,40 @@ run_wizard() {
 
   section "6/8" "Object Storage (SeaweedFS S3)"
   echo "  $(dim "Written to .env and s3.json. Also seeded into Vault: ctf-platform/storage.")"
+  echo "  $(dim "Access key = S3 login/username. Secret key = S3 password.")"
   local _s3ak_existing
   _s3ak_existing="$(env_get_default SEAWEED_S3_ACCESS_KEY "")"
   if [ -n "$_s3ak_existing" ]; then
-    read_password_or_keep "S3 access key (min 12 chars)" 12 SEAWEED_S3_ACCESS_KEY "$_s3ak_existing"
+    read_password_or_keep "S3 login / access key (min 12 chars)" 12 SEAWEED_S3_ACCESS_KEY "$_s3ak_existing"
   else
     echo "  $(dim "Press Enter to auto-generate secure credentials.")"
-    printf "  S3 access key (min 12 chars, Enter to auto-generate): "
+    printf "  S3 login / access key (min 12 chars, Enter to auto-generate): "
     read -rs SEAWEED_S3_ACCESS_KEY
     echo ""
     if [ -z "$SEAWEED_S3_ACCESS_KEY" ]; then
       SEAWEED_S3_ACCESS_KEY="$(gen_alphanum 16 20)"
-      green "  S3 access key auto-generated."
+      green "  S3 login / access key auto-generated."
       echo ""
     fi
   fi
   local _s3sk_existing
   _s3sk_existing="$(env_get_default SEAWEED_S3_SECRET_KEY "")"
   if [ -n "$_s3sk_existing" ]; then
-    read_password_or_keep "S3 secret key (min 16 chars)" 16 SEAWEED_S3_SECRET_KEY "$_s3sk_existing"
+    read_password_or_keep "S3 password / secret key (min 16 chars)" 16 SEAWEED_S3_SECRET_KEY "$_s3sk_existing"
   else
-    printf "  S3 secret key (min 16 chars, Enter to auto-generate): "
+    printf "  S3 password / secret key (min 16 chars, Enter to auto-generate): "
     read -rs SEAWEED_S3_SECRET_KEY
     echo ""
     if [ -z "$SEAWEED_S3_SECRET_KEY" ]; then
       SEAWEED_S3_SECRET_KEY="$(gen_alphanum 32 40)"
-      green "  S3 secret key auto-generated."
+      green "  S3 password / secret key auto-generated."
       echo ""
     fi
   fi
 
   section "7/8" "Monitoring"
+  echo "  $(dim "These credentials are for Grafana, not for the main CTF admin account.")"
+  read_default "Grafana admin login" "$(env_get_default GRAFANA_ADMIN_USER "admin")" GRAFANA_ADMIN_USER
   read_password_or_keep "Grafana admin password (min 12 chars)" 12 GRAFANA_ADMIN_PASSWORD "$(env_get_default GRAFANA_ADMIN_PASSWORD "")"
 
   TELEGRAM_BOT_TOKEN="$(env_get_default TELEGRAM_BOT_TOKEN "")"
@@ -577,31 +596,27 @@ run_wizard() {
     OAUTH_STATE_SECRET="$(gen_alphanum 48 64)"
   fi
 
+  section "Summary" "Configuration Summary"
+  printf "  %-12s %s\n" "Platform:" "$APP_NAME (v$APP_VERSION)"
+  printf "  %-12s %s\n" "Domain:" "$DOMAIN"
+  printf "  %-12s %s\n" "URL:" "https://${DOMAIN}"
+  printf "  %-12s %s\n" "TLS:" "$([ "$USE_LE_STAGING" = "true" ] && echo "HAProxy + LE Staging" || echo "HAProxy + LE Production")"
   echo ""
-  echo "┌──────────────────────────────────────────────────┐"
-  echo "│  Configuration Summary                           │"
-  echo "├──────────────────────────────────────────────────┤"
-  printf "│  Platform:   %-35s│\n" "$APP_NAME (v$APP_VERSION)"
-  printf "│  Domain:     %-35s│\n" "$DOMAIN"
-  printf "│  URL:        %-35s│\n" "https://${DOMAIN}"
-  printf "│  TLS:        %-35s│\n" "$([ "$USE_LE_STAGING" = "true" ] && echo "HAProxy + LE Staging" || echo "HAProxy + LE Production")"
-  echo "│                                                  │"
-  printf "│  Grafana:    %-35s│\n" "${GRAFANA_DOMAIN:-internal only}"
-  printf "│  S3 UI:      %-35s│\n" "${S3_DOMAIN:-internal only}"
-  printf "│  Vault:      %-35s│\n" "${VAULT_DOMAIN:-internal only}"
-  printf "│  API:        %-35s│\n" "${API_DOMAIN:-api.${DOMAIN}}"
-  echo "│                                                  │"
-  printf "│  PostgreSQL: %-35s│\n" "${POSTGRES_USER}@${POSTGRES_DB}"
-  printf "│  Admin:      %-35s│\n" "${ADMIN_USERNAME} / ${ADMIN_EMAIL}"
-  printf "│  Grafana:    %-35s│\n" "admin / ********"
-  echo "│                                                  │"
-  printf "│  Email:      %-35s│\n" "$([ "$RESEND_ENABLED" = "true" ] && echo "enabled" || echo "disabled")"
-  printf "│  GitHub:     %-35s│\n" "$([ -n "$OAUTH_GITHUB_CLIENT_ID" ] && echo "enabled" || echo "disabled")"
-  printf "│  Google:     %-35s│\n" "$([ -n "$OAUTH_GOOGLE_CLIENT_ID" ] && echo "enabled" || echo "disabled")"
-  printf "│  Telegram:   %-35s│\n" "$([ "$ENABLE_TELEGRAM" = "yes" ] && echo "enabled" || echo "disabled")"
-  echo "│                                                  │"
-  printf "│  Vault IP:   %-35s│\n" "$VAULT_ADMIN_IP"
-  echo "└──────────────────────────────────────────────────┘"
+  printf "  %-12s %s\n" "Grafana:" "${GRAFANA_DOMAIN:-internal only}"
+  printf "  %-12s %s\n" "S3 UI:" "${S3_DOMAIN:-internal only}"
+  printf "  %-12s %s\n" "Vault:" "${VAULT_DOMAIN:-internal only}"
+  printf "  %-12s %s\n" "API:" "${API_DOMAIN:-api.${DOMAIN}}"
+  echo ""
+  printf "  %-12s %s\n" "PostgreSQL:" "${POSTGRES_USER}@${POSTGRES_DB}"
+  printf "  %-12s %s\n" "Admin:" "${ADMIN_USERNAME} / ${ADMIN_EMAIL}"
+  printf "  %-12s %s\n" "Grafana:" "${GRAFANA_ADMIN_USER} / ********"
+  echo ""
+  printf "  %-12s %s\n" "Email:" "$([ "$RESEND_ENABLED" = "true" ] && echo "enabled" || echo "disabled")"
+  printf "  %-12s %s\n" "GitHub:" "$([ -n "$OAUTH_GITHUB_CLIENT_ID" ] && echo "enabled" || echo "disabled")"
+  printf "  %-12s %s\n" "Google:" "$([ -n "$OAUTH_GOOGLE_CLIENT_ID" ] && echo "enabled" || echo "disabled")"
+  printf "  %-12s %s\n" "Telegram:" "$([ "$ENABLE_TELEGRAM" = "yes" ] && echo "enabled" || echo "disabled")"
+  echo ""
+  printf "  %-12s %s\n" "Vault IP:" "$VAULT_ADMIN_IP"
   echo ""
 
   printf "  Proceed with deployment? [Y/n]: "
@@ -644,6 +659,7 @@ apply_env() {
   env_set REDIS_PASSWORD       "$REDIS_PASSWORD"
   env_set SEAWEED_S3_ACCESS_KEY "$SEAWEED_S3_ACCESS_KEY"
   env_set SEAWEED_S3_SECRET_KEY "$SEAWEED_S3_SECRET_KEY"
+  env_set GRAFANA_ADMIN_USER   "$GRAFANA_ADMIN_USER"
   env_set GRAFANA_ADMIN_PASSWORD "$GRAFANA_ADMIN_PASSWORD"
   env_set HAPROXY_STATS_PASSWORD "$HAPROXY_STATS_PASSWORD"
 
@@ -1348,45 +1364,42 @@ print_success() {
   s3_domain="$(grep '^S3_DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
   api_domain="${api_domain:-api.${domain}}"
 
-  echo ""
-  echo "┌──────────────────────────────────────────────────┐"
-  printf "│  ✓ %-45s│\n" "${app_name} is running!"
-  echo "│                                                  │"
-  printf "│  Platform:  %-37s│\n" "https://${domain}"
-  printf "│  API:       %-37s│\n" "https://${api_domain}/api/v1"
+  section "Done" "${app_name} is running"
+  printf "  %-12s %s\n" "Platform:" "https://${domain}"
+  printf "  %-12s %s\n" "API:" "https://${api_domain}/api/v1"
   if [ -n "$grafana_domain" ]; then
-    printf "│  Grafana:   %-37s│\n" "https://${grafana_domain}"
+    printf "  %-12s %s\n" "Grafana:" "https://${grafana_domain}"
   else
-    printf "│  Grafana:   %-37s│\n" "SSH tunnel -> localhost:3000"
+    printf "  %-12s %s\n" "Grafana:" "SSH tunnel -> localhost:3000"
   fi
   if [ -n "$s3_domain" ]; then
-    printf "│  S3 UI:     %-37s│\n" "https://${s3_domain}"
+    printf "  %-12s %s\n" "S3 UI:" "https://${s3_domain}"
   fi
-  printf "│  Vault:     %-37s│\n" "SSH tunnel -> localhost:8200"
-  printf "│  HAProxy:   %-37s│\n" "SSH tunnel -> localhost:8405/stats"
-  echo "│                                                  │"
-  echo "│  Credentials saved in .env (chmod 600)           │"
-  echo "│  Vault keys saved in .vault-keys (keep safe!)    │"
-  echo "│                                                  │"
-  echo "│  Commands:                                       │"
-  echo "│    ./setup.sh stop            stop all services    │"
-  echo "│    ./setup.sh restart         restart services     │"
-  echo "│    ./setup.sh status          service status       │"
-  echo "│    ./setup.sh logs            backend logs         │"
-  echo "│    ./setup.sh reconfigure     re-run wizard        │"
-  echo "│    ./setup.sh secrets edit    edit Vault secrets   │"
-  echo "│                                                  │"
-  echo "│  To change non-secret config:                    │"
-  echo "│    edit .env  ->  ./setup.sh restart                │"
-  echo "│  To change passwords / API keys:                 │"
-  echo "│    ./setup.sh secrets edit  ->  ./setup.sh restart    │"
-  echo "└──────────────────────────────────────────────────┘"
+  printf "  %-12s %s\n" "Vault:" "SSH tunnel -> localhost:8200"
+  printf "  %-12s %s\n" "HAProxy:" "SSH tunnel -> localhost:8405/stats"
+  echo ""
+  echo "  Credentials saved in .env (chmod 600)"
+  echo "  Vault keys saved in .vault-keys (keep safe!)"
+  echo ""
+  echo "  Commands:"
+  echo "    ./setup.sh stop"
+  echo "    ./setup.sh restart"
+  echo "    ./setup.sh status"
+  echo "    ./setup.sh logs"
+  echo "    ./setup.sh reconfigure"
+  echo "    ./setup.sh secrets edit"
+  echo ""
+  echo "  To change non-secret config: edit .env -> ./setup.sh restart"
+  echo "  To change passwords / API keys: ./setup.sh secrets edit -> ./setup.sh restart"
   echo ""
 }
 
 _remove_generated_files() {
+  local keep_vault_keys="${1:-no}"
   rm -f "$ENV_FILE" "$ENV_FILE".bak.* "$ENV_FILE".tmp
-  rm -f "$VAULT_KEYS_FILE"
+  if [ "$keep_vault_keys" != "yes" ]; then
+    rm -f "$VAULT_KEYS_FILE"
+  fi
   rm -f "$S3_JSON_FILE" "$SCRIPT_DIR/deployment/seaweedfs/s3.local.json"
   rm -f "$ALERTMANAGER_CONF"
   rm -f "$SCRIPT_DIR/deploy.log"
@@ -1411,9 +1424,10 @@ do_reset_config() {
   [ "$confirm" = "yes" ] || { echo "Cancelled."; return; }
 
   safe_compose_down --remove-orphans
-  _remove_generated_files
+  _remove_generated_files yes
   echo ""
-  green "  Config wiped. Run ./setup.sh to re-install.\n"
+  green "  Config wiped. Vault data and .vault-keys were preserved.\n"
+  cyan "  Run ./setup.sh to re-install.\n"
 }
 
 do_reset_data() {
