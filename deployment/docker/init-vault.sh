@@ -11,7 +11,9 @@ until vault status > /dev/null 2>&1; do
 done
 echo "Vault is ready."
 
-vault secrets enable -path=secret kv-v2 2>/dev/null || true
+if ! vault secrets list -format=json 2>/dev/null | grep -q '"secret/"'; then
+  vault secrets enable -path=secret kv-v2 >/dev/null
+fi
 
 echo ""
 echo "Seeding Vault secrets..."

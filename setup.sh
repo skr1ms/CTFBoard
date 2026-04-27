@@ -632,6 +632,31 @@ generate_s3_json() {
   echo ""
 }
 
+s3_json_matches_env() {
+  [ -f "$S3_JSON_FILE" ] || return 1
+
+  local env_ak env_sk file_ak file_sk
+  env_ak="$(env_get_default SEAWEED_S3_ACCESS_KEY "")"
+  env_sk="$(env_get_default SEAWEED_S3_SECRET_KEY "")"
+  file_ak="$(jq -r '.identities[0].credentials[0].accessKey // ""' "$S3_JSON_FILE" 2>/dev/null || true)"
+  file_sk="$(jq -r '.identities[0].credentials[0].secretKey // ""' "$S3_JSON_FILE" 2>/dev/null || true)"
+
+  [ -n "$env_ak" ] || return 1
+  [ -n "$env_sk" ] || return 1
+  [ "$file_ak" = "$env_ak" ] && [ "$file_sk" = "$env_sk" ]
+}
+
+ensure_s3_json_current() {
+  S3_JSON_REGENERATED=0
+  if [ ! -f "$S3_JSON_FILE" ] || grep -q 'REPLACE_' "$S3_JSON_FILE" 2>/dev/null || ! s3_json_matches_env; then
+    yellow "  s3.json missing, has placeholders, or differs from .env - regenerating...\n"
+    SEAWEED_S3_ACCESS_KEY="$(env_get SEAWEED_S3_ACCESS_KEY)"
+    SEAWEED_S3_SECRET_KEY="$(env_get SEAWEED_S3_SECRET_KEY)"
+    generate_s3_json
+    S3_JSON_REGENERATED=1
+  fi
+}
+
 generate_alertmanager_conf() {
   if [ ! -f "$ALERTMANAGER_TEMPLATE" ]; then
     red "  WARNING: $ALERTMANAGER_TEMPLATE not found, skipping alertmanager.yml generation."
@@ -875,6 +900,7 @@ wait_for_healthy() {
 
 deploy_fresh() {
   echo ""
+  ensure_s3_json_current
   bold "  [1/4] Starting infrastructure (vault, postgres, redis, seaweedfs)..."
   echo ""
   compose up -d vault postgres redis seaweedfs 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
@@ -978,13 +1004,7 @@ do_start() {
     vault_seed_secrets
   fi
 
-  # Regenerate s3.json if missing or if it still has placeholder credentials.
-  if [ ! -f "$S3_JSON_FILE" ] || grep -q 'REPLACE_' "$S3_JSON_FILE" 2>/dev/null; then
-    yellow "  s3.json missing or has placeholders - regenerating from .env...\n"
-    SEAWEED_S3_ACCESS_KEY="$(env_get SEAWEED_S3_ACCESS_KEY)"
-    SEAWEED_S3_SECRET_KEY="$(env_get SEAWEED_S3_SECRET_KEY)"
-    generate_s3_json
-  fi
+  ensure_s3_json_current
 
   # Generate alertmanager.yml if missing or if it still contains repository
   # placeholders instead of concrete credentials / null-receiver config.
@@ -1011,6 +1031,10 @@ do_start() {
   fi
 
   compose up -d --build 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
+  if [ "${S3_JSON_REGENERATED:-0}" = "1" ]; then
+    yellow "  Restarting seaweedfs and backend to apply updated S3 credentials...\n"
+    compose restart seaweedfs backend >/dev/null
+  fi
   install_cron
 
   if ! wait_for_healthy backend 90; then
