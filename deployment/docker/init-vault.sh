@@ -43,9 +43,9 @@ gen_hex()   { tr -dc 'a-f0-9'    </dev/urandom 2>/dev/null | head -c "$1"; }
 # ---------------------------------------------------------------------------
 
 vault kv put secret/ctf-platform/database \
-  user="${POSTGRES_USER:?POSTGRES_USER is required}" \
+  user="${POSTGRES_USER:-admin}" \
   password="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}" \
-  dbname="${POSTGRES_DB:?POSTGRES_DB is required}" >/dev/null
+  dbname="${POSTGRES_DB:-board}" >/dev/null
 echo "  [seeded from env]    secret/ctf-platform/database"
 
 vault kv put secret/ctf-platform/redis \
