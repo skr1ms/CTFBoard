@@ -68,6 +68,22 @@ ssh -L 8200:127.0.0.1:8200 root@your-server-ip
 
 Потом открой `http://127.0.0.1:8200` в браузере на своём ноуте.
 
+## Ошибся при настройке?
+
+Для большинства ошибок полный wipe не нужен.
+
+- Ошибка в не-секретной конфигурации `.env` (домен, URL, порты, логин Grafana, feature toggle'ы): поправь `.env` и запусти `./setup.sh restart`
+- Хочешь ещё раз пройти визард, но сохранить данные и Vault keys: запусти `./setup.sh reconfigure`
+- Хочешь выбросить только сгенерированные конфиги и заново пройти установку, но сохранить Docker volume'ы: запусти `./setup.sh reset config`
+- Ошибка в секрете, который уже живёт в Vault после первого init (admin password, Resend key, OAuth client secret): запусти `./setup.sh secrets edit`, потом `./setup.sh restart`
+- Ошибка в S3-кредах после первого init: запусти `./setup.sh secrets rotate-s3`
+- `./setup.sh reset data` используй только если действительно хочешь полный clean slate и готов удалить БД, Vault, загрузки, Grafana data и сертификаты
+
+Практическое правило:
+
+- Если стек уже поднялся и ты просто опечатался в конфиге, не надо панически всё сносить. Исправь `.env` или нужный секрет и перезапусти стек.
+- Если это ещё ранний неудачный first deploy и реальных данных нет, `reset config` - нормальная кнопка “попробовать заново”, а `reset data` - уже ядерный вариант.
+
 Полный гайд: [`docs/ru/DEPLOYMENT.md`](docs/ru/DEPLOYMENT.md) · справка по env: [`docs/ru/ENVIRONMENT.md`](docs/ru/ENVIRONMENT.md) · архитектура: [`docs/ru/ARCHITECTURE.md`](docs/ru/ARCHITECTURE.md).
 
 ## Стек
