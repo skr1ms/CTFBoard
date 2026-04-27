@@ -243,8 +243,8 @@ test:backend:
     POSTGRES_PORT: "5432"
     REDIS_HOST: redis-test
     REDIS_PORT: "6379"
-    JWT_ACCESS_SECRET: test-access-secret-key-for-ci
-    JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
+    JWT_ACCESS_SECRET: test-access-secret-key-for-ci-padding-32plus
+    JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-padding-32plus
     APP_NAME: CTF Platform
     APP_VERSION: 1.0.0
     LOG_LEVEL: info
@@ -318,7 +318,7 @@ deploy:backend:
 
       echo "Waiting for backend..."
       for i in {1..30}; do
-        if curl -sf http://localhost:8090/health > /dev/null 2>&1; then
+        if docker exec backend wget --spider -q http://localhost:8080/api/v1/healthcheck > /dev/null 2>&1; then
           echo "Backend is healthy!"
           break
         fi
