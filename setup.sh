@@ -212,8 +212,23 @@ gen_hex() {
 }
 
 # Safe .env value reader: handles values containing #, spaces, multiple =.
-# Skips comment lines. Usage: env_get KEY
-env_get() { awk -v k="$1" -F= '/^[^#]/{if ($1==k) {v=substr($0, index($0,"=")+1); print v; exit}}' "$ENV_FILE"; }
+# Tolerates leading indentation from manual copy/paste.
+# Skips blank/comment lines. Usage: env_get KEY
+env_get() {
+  awk -v k="$1" '
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      key = line
+      sub(/=.*/, "", key)
+      if (key == k) {
+        print substr(line, index(line, "=") + 1)
+        exit
+      }
+    }
+  ' "$ENV_FILE"
+}
 
 # In-place .env key updater - preserves comments and structure.
 # Usage: env_set KEY VALUE
@@ -221,8 +236,8 @@ env_set() {
   local key="$1" val="$2"
   local esc_val
   esc_val=$(printf '%s\n' "$val" | sed 's/[&\\/]/\\&/g')
-  if grep -qE "^${key}=" "$ENV_FILE" 2>/dev/null; then
-    sed -i -E "s|^${key}=.*|${key}=${esc_val}|" "$ENV_FILE"
+  if grep -qE "^[[:space:]]*${key}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i -E "s|^[[:space:]]*${key}=.*|${key}=${esc_val}|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
   fi
