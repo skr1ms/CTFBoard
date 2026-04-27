@@ -68,6 +68,22 @@ ssh -L 8200:127.0.0.1:8200 root@your-server-ip
 
 Then open `http://127.0.0.1:8200` in your local browser.
 
+## Made a mistake during setup?
+
+You do not need a full wipe for most config mistakes.
+
+- Wrong non-secret config in `.env` (domain, URLs, ports, Grafana login, feature toggles): edit `.env` and run `./setup.sh restart`
+- Want to walk through the wizard again but keep data and Vault keys: run `./setup.sh reconfigure`
+- Want to discard generated config files and restart the wizard from scratch, but keep Docker volumes: run `./setup.sh reset config`
+- Wrong Vault-managed secret after first init (admin password, Resend key, OAuth client secret): run `./setup.sh secrets edit`, then `./setup.sh restart`
+- Wrong S3 credentials after first init: run `./setup.sh secrets rotate-s3`
+- Only use `./setup.sh reset data` if you really want a clean slate and are fine deleting DB, Vault, uploads, Grafana data, and certificates
+
+Practical rule:
+
+- If the stack is already up and you only mistyped config, stop editing through panic. Fix `.env` or use `secrets edit`, then restart.
+- If this is still an early broken first deploy and no real data exists yet, `reset config` is the safe redo button; `reset data` is the nuclear one.
+
 Full guide: [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md) · env reference: [`docs/en/ENVIRONMENT.md`](docs/en/ENVIRONMENT.md) · architecture: [`docs/en/ARCHITECTURE.md`](docs/en/ARCHITECTURE.md).
 
 ## Tech stack
