@@ -1000,6 +1000,30 @@ wait_for_healthy() {
   return 1
 }
 
+report_tls_status() {
+  local domain cert_issuer
+  domain="$(awk -F= '/^DOMAIN=/{print $2; exit}' "$ENV_FILE")"
+
+  echo ""
+  bold "  TLS / Certbot status"
+  echo ""
+  show_services_status "TLS services snapshot:" haproxy certbot
+  echo "  Recent certbot logs:"
+  compose logs certbot --tail 20 2>&1 | sed 's/^/    /'
+  echo ""
+
+  cert_issuer="$(docker compose exec -T haproxy openssl x509 \
+    -in "/etc/haproxy/certs/${domain}.pem" -noout -issuer 2>/dev/null || echo "unknown")"
+  if echo "$cert_issuer" | grep -qi "let.s encrypt\|letsencrypt\|r3\|e1\|r10\|r11"; then
+    green "  TLS: Let's Encrypt certificate active\n"
+  elif [ "$cert_issuer" = "unknown" ] || echo "$cert_issuer" | grep -qi "self"; then
+    yellow "  TLS: Self-signed bootstrap certificate active (certbot may still be issuing / retrying)\n"
+  else
+    yellow "  TLS: Certificate active (issuer: ${cert_issuer})\n"
+  fi
+  echo ""
+}
+
 deploy_fresh() {
   echo ""
   ensure_s3_json_current
@@ -1038,21 +1062,7 @@ deploy_fresh() {
   fi
   wait_for_healthy grafana 60 || true
 
-  # TLS cert status check
-  local domain
-  domain="$(awk -F= '/^DOMAIN=/{print $2; exit}' "$ENV_FILE")"
-  local cert_issuer
-  cert_issuer="$(docker compose exec -T haproxy openssl x509 \
-    -in "/etc/haproxy/certs/${domain}.pem" -noout -issuer 2>/dev/null || echo "unknown")"
-  echo ""
-  if echo "$cert_issuer" | grep -qi "let.s encrypt\|letsencrypt\|r3\|e1\|r10\|r11"; then
-    green "  TLS: Let's Encrypt certificate active\n"
-  elif [ "$cert_issuer" = "unknown" ] || echo "$cert_issuer" | grep -qi "self"; then
-    yellow "  TLS: Self-signed bootstrap certificate active (Let's Encrypt will swap in ~60s once certbot runs)\n"
-  else
-    yellow "  TLS: Certificate active (issuer: ${cert_issuer})\n"
-  fi
-  echo ""
+  report_tls_status
 
   print_success
 }
@@ -1125,6 +1135,7 @@ do_start() {
   fi
   wait_for_healthy frontend 60 || true
   wait_for_healthy haproxy 60 || true
+  report_tls_status
 
   print_success
 }
