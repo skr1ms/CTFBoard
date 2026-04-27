@@ -49,7 +49,7 @@ Production-ready self-hosted платформа для проведения CTF-
 git clone https://github.com/TakuyaYagam1/AstroCTFb.git
 cd AstroCTFb
 cp .env.example .env && chmod 600 .env
-# Заполнить REQUIRED-блок наверху .env (домен, IP сервера, пароли).
+# Заполнить REQUIRED-блок наверху .env (домен, пароли, optional интеграции).
 # Нужны 5 DNS A-записей, все на IP сервера:
 #   example.com, api.example.com, grafana.example.com,
 #   vault.example.com, s3.example.com
@@ -57,6 +57,16 @@ cp .env.example .env && chmod 600 .env
 ```
 
 Альтернатива - интерактивный визард: просто запусти `./setup.sh`, когда `.env` ещё нет.
+
+Важно: UI Vault предполагается открывать только через SSH tunnel. В production compose Vault привязывается к `127.0.0.1:8200` на самом сервере и не рассчитан на публичный доступ из браузера.
+
+Пример:
+
+```bash
+ssh -L 8200:127.0.0.1:8200 root@your-server-ip
+```
+
+Потом открой `http://127.0.0.1:8200` в браузере на своём ноуте.
 
 Полный гайд: [`docs/ru/DEPLOYMENT.md`](docs/ru/DEPLOYMENT.md) · справка по env: [`docs/ru/ENVIRONMENT.md`](docs/ru/ENVIRONMENT.md) · архитектура: [`docs/ru/ARCHITECTURE.md`](docs/ru/ARCHITECTURE.md).
 

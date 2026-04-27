@@ -49,7 +49,7 @@ You can pre-fill `.env.example` before deploy and then copy it to `.env`. If `.e
 git clone https://github.com/TakuyaYagam1/AstroCTFb.git
 cd AstroCTFb
 cp .env.example .env && chmod 600 .env
-# Fill the REQUIRED block at the top of .env (domain, server IP, passwords).
+# Fill the REQUIRED block at the top of .env (domain, passwords, optional integrations).
 # Five DNS A-records must point to your server:
 #   example.com, api.example.com, grafana.example.com,
 #   vault.example.com, s3.example.com
@@ -57,6 +57,16 @@ cp .env.example .env && chmod 600 .env
 ```
 
 Or run the interactive wizard with `./setup.sh` (when `.env` does not exist yet).
+
+Important: Vault UI is intended to be accessed only via SSH tunnel. Production compose binds Vault to `127.0.0.1:8200` on the server host and does not rely on public browser access.
+
+Example:
+
+```bash
+ssh -L 8200:127.0.0.1:8200 root@your-server-ip
+```
+
+Then open `http://127.0.0.1:8200` in your local browser.
 
 Full guide: [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md) · env reference: [`docs/en/ENVIRONMENT.md`](docs/en/ENVIRONMENT.md) · architecture: [`docs/en/ARCHITECTURE.md`](docs/en/ARCHITECTURE.md).
 

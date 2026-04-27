@@ -296,7 +296,7 @@ preflight_system() {
   [ "$warned" -eq 0 ] || echo ""
 }
 
-# DNS preflight: check that all required subdomains resolve to VAULT_ADMIN_IP.
+# DNS preflight: check that all required names resolve to the expected server IP.
 # Non-fatal: warns and lets operator decide.
 check_dns_preflight() {
   local domain="$1" api_domain="$2" grafana_domain="$3" vault_domain="$4" s3_domain="$5" server_ip="$6"
@@ -408,11 +408,10 @@ run_wizard() {
   echo "    TLS:      $(cyan "HAProxy + Let's Encrypt (certbot)")"
   echo ""
 
-  if [ -n "$(env_get_default VAULT_ADMIN_IP "")" ]; then
-    read_default "Server public IP (for Vault admin whitelist)" "$(env_get_default VAULT_ADMIN_IP "")" VAULT_ADMIN_IP
-  else
-    read_required "Server public IP (for Vault admin whitelist)" VAULT_ADMIN_IP
-  fi
+  local SERVER_PUBLIC_IP=""
+  read_required "Server public IP (for DNS preflight only; not written to .env)" SERVER_PUBLIC_IP
+
+  VAULT_ADMIN_IP="127.0.0.1/32"
 
   echo ""
   dim "  All four subdomains below are required for the TLS certificate."
@@ -448,7 +447,7 @@ run_wizard() {
   echo ""
 
   # DNS check after domain is finalized (uses the actual subdomain values, not hardcoded prefixes)
-  check_dns_preflight "$DOMAIN" "$API_DOMAIN" "$GRAFANA_DOMAIN" "$VAULT_DOMAIN" "$S3_DOMAIN" "$VAULT_ADMIN_IP"
+  check_dns_preflight "$DOMAIN" "$API_DOMAIN" "$GRAFANA_DOMAIN" "$VAULT_DOMAIN" "$S3_DOMAIN" "$SERVER_PUBLIC_IP"
 
   section "3/8" "Database Credentials"
   read_default "PostgreSQL username" "$(env_get_default POSTGRES_USER "admin")" POSTGRES_USER
@@ -616,7 +615,7 @@ run_wizard() {
   printf "  %-12s %s\n" "Google:" "$([ -n "$OAUTH_GOOGLE_CLIENT_ID" ] && echo "enabled" || echo "disabled")"
   printf "  %-12s %s\n" "Telegram:" "$([ "$ENABLE_TELEGRAM" = "yes" ] && echo "enabled" || echo "disabled")"
   echo ""
-  printf "  %-12s %s\n" "Vault IP:" "$VAULT_ADMIN_IP"
+  printf "  %-12s %s\n" "Vault UI:" "SSH tunnel -> localhost:8200"
   echo ""
 
   printf "  Proceed with deployment? [Y/n]: "
