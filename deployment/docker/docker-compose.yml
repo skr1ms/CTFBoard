@@ -12,6 +12,7 @@ services:
     command: ["vault", "server", "-config=/vault/config/vault.hcl"]
     environment:
       VAULT_LOG_LEVEL: "info"
+      SKIP_SETCAP: true
     cap_drop:
       - ALL
     cap_add:
