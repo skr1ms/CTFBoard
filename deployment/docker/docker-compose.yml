@@ -299,7 +299,7 @@ services:
       [
         "sh",
         "-c",
-        "mkdir -p /var/www/certbot/.well-known/acme-challenge && exec httpd -f -p 8089 -h /var/www/certbot",
+        "exec httpd -f -p 8089 -h /var/www/certbot",
       ]
     expose:
       - "8089"
