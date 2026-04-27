@@ -411,21 +411,17 @@ services:
     entrypoint: >
       sh -c "
         STAGING_FLAG='';
+        EMAIL_ARGS='--register-unsafely-without-email';
+        if [ -n \"$$ACME_EMAIL\" ]; then
+          EMAIL_ARGS=\"--email $$ACME_EMAIL\";
+        fi;
         if [ \"$$USE_LE_STAGING\" = 'true' ]; then
           STAGING_FLAG='--staging';
           echo '[certbot] STAGING mode - cert will not be trusted by browsers';
         fi;
         ISSUED=0;
         for attempt in 1 2 3; do
-          if certbot certonly --webroot -w /var/www/certbot \
-            --preferred-challenges http \
-            $$STAGING_FLAG \
-            -d $$DOMAIN \
-            -d $$API_DOMAIN \
-            -d $$GRAFANA_DOMAIN \
-            -d $$VAULT_DOMAIN \
-            -d $$S3_DOMAIN \
-            --email $$ACME_EMAIL --agree-tos --non-interactive; then
+          if certbot certonly --webroot -w /var/www/certbot --preferred-challenges http $$STAGING_FLAG -d $$DOMAIN -d $$API_DOMAIN -d $$GRAFANA_DOMAIN -d $$VAULT_DOMAIN -d $$S3_DOMAIN $$EMAIL_ARGS --agree-tos --non-interactive; then
             ISSUED=1;
             break;
           fi;
