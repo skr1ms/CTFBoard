@@ -50,6 +50,27 @@ show_services_status() {
   echo ""
 }
 
+safe_compose_down() {
+  local output=""
+  if output="$(compose down "$@" 2>&1)"; then
+    if [ -n "$output" ]; then
+      printf '%s\n' "$output" | tee -a "$SCRIPT_DIR/deploy.log" | sed 's/^/    /'
+      echo ""
+    fi
+    return 0
+  fi
+
+  yellow "  WARNING: docker compose down failed; continuing cleanup.\n"
+  if printf '%s' "$output" | grep -q "required variable .* is missing"; then
+    yellow "  .env is incomplete, so compose could not be rendered for shutdown.\n"
+    yellow "  Existing containers may need manual stop/removal.\n"
+  else
+    printf '%s\n' "$output" | tee -a "$SCRIPT_DIR/deploy.log" | sed 's/^/    /'
+  fi
+  echo ""
+  return 0
+}
+
 vault_cli() {
   docker exec -e VAULT_ADDR=http://127.0.0.1:8200 vault vault "$@"
 }
@@ -58,18 +79,18 @@ vault_http_ready() {
   docker exec vault wget -qO- http://127.0.0.1:8200/v1/sys/seal-status >/dev/null 2>&1
 }
 
-bold()   { printf '\033[1m%s\033[0m' "$*"; }
-green()  { printf '\033[1;32m%s\033[0m' "$*"; }
-red()    { printf '\033[1;31m%s\033[0m' "$*"; }
-yellow() { printf '\033[1;33m%s\033[0m' "$*"; }
-cyan()  { printf '\033[1;36m%s\033[0m' "$*"; }
-dim()   { printf '\033[2m%s\033[0m' "$*"; }
+bold()   { printf '\033[1m%b\033[0m' "$*"; }
+green()  { printf '\033[1;32m%b\033[0m' "$*"; }
+red()    { printf '\033[1;31m%b\033[0m' "$*"; }
+yellow() { printf '\033[1;33m%b\033[0m' "$*"; }
+cyan()   { printf '\033[1;36m%b\033[0m' "$*"; }
+dim()    { printf '\033[2m%b\033[0m' "$*"; }
 
 header() {
   local title="${1:-CTF Platform - Setup Wizard}"
   local width=40
   local len="${#title}"
-  local pad_left pad_right
+  local pad_left pad_right border
 
   if [ "$len" -gt "$width" ]; then
     title="${title:0:$width}"
@@ -78,20 +99,23 @@ header() {
 
   pad_left=$(( (width - len) / 2 ))
   pad_right=$(( width - len - pad_left ))
+  border="+$(printf '%*s' $((width + 2)) '' | tr ' ' '-')+"
 
   echo ""
-  echo "╔══════════════════════════════════════════╗"
-  printf "║%*s%s%*s║\n" "$pad_left" "" "$title" "$pad_right" ""
-  echo "╚══════════════════════════════════════════╝"
+  echo "$border"
+  printf "| %*s%s%*s |\n" "$pad_left" "" "$title" "$pad_right" ""
+  echo "$border"
   echo ""
 }
 
 section() {
+  local line
+  line="$(printf '%*s' 42 '' | tr ' ' '-')"
   echo ""
-  echo "──────────────────────────────────────────"
+  echo "$line"
   bold "  [$1] $2"
   echo ""
-  echo "──────────────────────────────────────────"
+  echo "$line"
 }
 
 # Read with default value: read_default "prompt" "default" VARNAME
@@ -1386,7 +1410,7 @@ do_reset_config() {
   read_yn "Continue?" confirm
   [ "$confirm" = "yes" ] || { echo "Cancelled."; return; }
 
-  compose down --remove-orphans || true
+  safe_compose_down --remove-orphans
   _remove_generated_files
   echo ""
   green "  Config wiped. Run ./setup.sh to re-install.\n"
@@ -1409,7 +1433,7 @@ do_reset_data() {
     return
   fi
 
-  compose down -v --remove-orphans || true
+  safe_compose_down -v --remove-orphans
   _remove_generated_files
   echo ""
   green "  Data and configs wiped. Run ./setup.sh to re-install from scratch.\n"
@@ -1437,7 +1461,7 @@ do_uninstall() {
   local rmi_flag="local"
   [ "$all_images" = "--all-images" ] && rmi_flag="all"
 
-  compose down -v --rmi "$rmi_flag" --remove-orphans || true
+  safe_compose_down -v --rmi "$rmi_flag" --remove-orphans
   _remove_generated_files
   _remove_cron
   echo ""
