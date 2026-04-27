@@ -146,12 +146,8 @@ services:
       - "5000"
     networks:
       - ctf_platform_network
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/metrics"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5000/metrics"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -290,7 +286,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000"]
       interval: 10s
       timeout: 5s
       retries: 3
