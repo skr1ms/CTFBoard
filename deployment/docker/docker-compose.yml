@@ -348,7 +348,7 @@ services:
     networks:
       - ctf_platform_network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8405/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8405/health"]
       interval: 10s
       timeout: 5s
       retries: 5

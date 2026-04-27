@@ -1,7 +1,7 @@
 FROM haproxy:3.2-alpine
 
 USER root
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl wget
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh && \
