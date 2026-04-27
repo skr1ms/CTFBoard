@@ -474,7 +474,7 @@ Tests: Vitest + `@testing-library/react` (~17 files), Playwright e2e (`e2e/specs
 | ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | **HAProxy**      | `haproxy:3.2-alpine`                                       | TLS termination, L7 DDoS (4 stick tables), edge cache (3 caches), routing by path + Host                     |
 | **Vault**        | `hashicorp/vault:latest`                                   | Secret store (8 KV-v2 paths), file storage `/vault/file`, TLS off (intra-net only), `IPC_LOCK` cap for mlock |
-| **Postgres**     | `postgres:alpine`                                          | `max_connections=400`, `shared_buffers=256MB`, `effective_cache_size=1GB`                                    |
+| **Postgres**     | `postgres:18-alpine`                                       | `max_connections=400`, `shared_buffers=256MB`, `effective_cache_size=1GB`                                    |
 | **Redis**        | `redis:alpine`                                             | `requirepass`, persistence enabled                                                                           |
 | **SeaweedFS**    | `chrislusf/seaweedfs:latest`                               | S3 gateway `:8333`, filer `:8888`, master `:9333`                                                            |
 | **SeaweedFS UI** | built locally                                              | management UI                                                                                                |
