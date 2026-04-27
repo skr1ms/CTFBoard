@@ -34,6 +34,10 @@ VAULT_DOMAIN="${VAULT_DOMAIN:-vault.${DOMAIN}}"
 S3_DOMAIN="${S3_DOMAIN:-s3.${DOMAIN}}"
 HAPROXY_STATS_USER="${HAPROXY_STATS_USER:-admin}"
 HAPROXY_STATS_PASSWORD="${HAPROXY_STATS_PASSWORD:?HAPROXY_STATS_PASSWORD is required}"
+HAPROXY_EDGE_REQ_RATE_PER_MINUTE="${HAPROXY_EDGE_REQ_RATE_PER_MINUTE:-3000}"
+HAPROXY_EDGE_CONN_RATE_PER_10S="${HAPROXY_EDGE_CONN_RATE_PER_10S:-100}"
+HAPROXY_EDGE_ERR_RATE_PER_30S="${HAPROXY_EDGE_ERR_RATE_PER_30S:-120}"
+HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE="${HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE:-120}"
 
 CERT_FILE="/etc/haproxy/certs/${DOMAIN}.pem"
 
@@ -105,10 +109,10 @@ frontend fe_main
     http-request track-sc3 hdr(X-Forwarded-For,1) table st_submit_abuse if is_submit_path from_cdn
     http-request track-sc3 src                     table st_submit_abuse if is_submit_path !from_cdn
 
-    http-request deny deny_status 429 if { sc_conn_rate(1,st_per_ip_conn) gt 20 }
-    http-request deny deny_status 429 if { sc_http_req_rate(0,st_per_ip_rate) gt 300 }
-    http-request deny deny_status 403 if { sc_http_err_rate(2,st_per_ip_err) gt 30 }
-    http-request deny deny_status 429 if is_submit_path { sc_http_req_rate(3,st_submit_abuse) gt 30 }
+    http-request deny deny_status 429 if { sc_conn_rate(1,st_per_ip_conn) gt ${HAPROXY_EDGE_CONN_RATE_PER_10S} }
+    http-request deny deny_status 429 if { sc_http_req_rate(0,st_per_ip_rate) gt ${HAPROXY_EDGE_REQ_RATE_PER_MINUTE} }
+    http-request deny deny_status 403 if { sc_http_err_rate(2,st_per_ip_err) gt ${HAPROXY_EDGE_ERR_RATE_PER_30S} }
+    http-request deny deny_status 429 if is_submit_path { sc_http_req_rate(3,st_submit_abuse) gt ${HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE} }
 
     http-request del-header X-Real-IP
     http-request del-header X-Forwarded-For if !from_cdn
@@ -156,7 +160,7 @@ frontend fe_main
     # Edge cache lookups - GET/HEAD only on public cacheable paths.
     # Placed after access-control denies so blocked paths never hit cache.
     acl is_cacheable_api_get  method GET HEAD
-    acl is_public_api         path_beg /api/v1/competition/status /api/v1/tags /api/v1/brackets /api/v1/fields /api/v1/pages /api/v1/challenges/types /api/v1/notifications /api/v1/robots.txt
+    acl is_public_api         path_beg /api/v1/competition/status /api/v1/tags /api/v1/brackets /api/v1/fields /api/v1/pages /api/v1/challenges/types /api/v1/notifications /api/v1/robots.txt /api/v1/tos /api/v1/privacy /api/v1/configs/public /api/v1/statistics/ /api/v1/scoreboard/graph
     acl is_avatar             path_beg /avatars/
     acl is_scoreboard         path /api/v1/scoreboard
 

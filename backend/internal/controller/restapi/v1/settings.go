@@ -80,6 +80,7 @@ func (h *Server) GetConfigsPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheShort, false)
 	httputil.RenderOK(w, r, response.FromConfigListToPublicMap(list))
 }
 
