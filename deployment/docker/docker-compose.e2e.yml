@@ -25,7 +25,7 @@ services:
   redis:
     image: redis:alpine
     container_name: e2e-redis
-    command: redis-server --requirepass 12345
+    command: redis-server --requirepass 12345 --save "" --appendonly no --stop-writes-on-bgsave-error no
     ports:
       - "6379:6379"
     healthcheck:
