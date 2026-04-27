@@ -25,6 +25,7 @@ RUN npm run build
 
 FROM nginx:alpine
 
+USER root
 RUN apk add --no-cache wget
 
 COPY --from=build /app/dist /usr/share/nginx/html
