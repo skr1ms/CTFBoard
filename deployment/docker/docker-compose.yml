@@ -417,17 +417,18 @@ services:
         fi;
         ISSUED=0;
         for attempt in 1 2 3; do
-          certbot certonly --webroot -w /var/www/certbot
-            --preferred-challenges http
-            $$STAGING_FLAG
-            -d $$DOMAIN
-            -d $$API_DOMAIN
-            -d $$GRAFANA_DOMAIN
-            -d $$VAULT_DOMAIN
-            -d $$S3_DOMAIN
-            --email $$ACME_EMAIL --agree-tos --non-interactive
-          && ISSUED=1 && break
-          || true;
+          if certbot certonly --webroot -w /var/www/certbot \
+            --preferred-challenges http \
+            $$STAGING_FLAG \
+            -d $$DOMAIN \
+            -d $$API_DOMAIN \
+            -d $$GRAFANA_DOMAIN \
+            -d $$VAULT_DOMAIN \
+            -d $$S3_DOMAIN \
+            --email $$ACME_EMAIL --agree-tos --non-interactive; then
+            ISSUED=1;
+            break;
+          fi;
           if [ \"$$attempt\" -lt 3 ]; then
             echo \"[certbot] Attempt $$attempt failed. Retrying in 60s...\";
             sleep 60;
