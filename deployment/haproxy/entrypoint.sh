@@ -145,18 +145,13 @@ frontend fe_main
 
     acl is_ws         path /api/v1/ws
     acl is_ws_upgrade hdr(Upgrade) -i websocket
-    acl is_websocket  is_ws is_ws_upgrade
 
     acl is_sse path /api/v1/sse
     acl is_api path_beg /api/
 
-    # ACME webroot challenge: serve token files directly from the shared certbot_webroot volume.
-    # certbot writes challenge files here; HAProxy reads and returns them without proxying.
-    http-request return status 200 content-type "text/plain" lf-file /var/www/certbot/.well-known/acme-challenge/%[path,regsub(^.*/,,)] if is_acme
-
-    http-request deny deny_status 403 if is_grafana !admin_ok
-    http-request deny deny_status 403 if is_vault   !vault_ok
-    http-request deny deny_status 403 if is_s3      !admin_ok
+    http-request deny deny_status 403 if is_grafana !admin_ok !is_acme
+    http-request deny deny_status 403 if is_vault   !vault_ok !is_acme
+    http-request deny deny_status 403 if is_s3      !admin_ok !is_acme
 
     # Edge cache lookups - GET/HEAD only on public cacheable paths.
     # Placed after access-control denies so blocked paths never hit cache.
@@ -174,6 +169,7 @@ frontend fe_main
     http-request  cache-use scoreboard_cache  if is_cacheable_api_get is_scoreboard
     http-response cache-store scoreboard_cache if is_cacheable_api_get is_scoreboard
 
+    use_backend bk_acme if is_acme
     use_backend bk_seaweedfs_filer  if is_s3 is_s3_filer
     use_backend bk_seaweedfs_master if is_s3 is_s3_master
     use_backend bk_s3_ui            if is_s3
@@ -181,12 +177,12 @@ frontend fe_main
     use_backend bk_vault            if is_vault
 
     # api.DOMAIN host-based routing (before path-based catch-all)
-    use_backend bk_websocket if is_api_host is_websocket
+    use_backend bk_websocket if is_api_host is_ws is_ws_upgrade
     use_backend bk_sse       if is_api_host is_sse
     use_backend bk_api       if is_api_host
 
     # WS/SSE must come before the generic /api/ catch-all
-    use_backend bk_websocket if is_websocket
+    use_backend bk_websocket if is_ws is_ws_upgrade
     use_backend bk_sse       if is_sse
 
     use_backend bk_api if is_api
