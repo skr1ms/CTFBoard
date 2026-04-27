@@ -986,11 +986,12 @@ do_start() {
     generate_s3_json
   fi
 
-  # Generate alertmanager.yml if missing.
+  # Generate alertmanager.yml if missing or if it still contains repository
+  # placeholders instead of concrete credentials / null-receiver config.
   # If Telegram creds are already in .env -> use them silently.
   # Otherwise prompt operator: enable Telegram alerts? -> creds, or null-receiver stub.
-  if [ ! -f "$ALERTMANAGER_CONF" ]; then
-    yellow "  alertmanager.yml missing - generating...\n"
+  if [ ! -f "$ALERTMANAGER_CONF" ] || grep -q '\${TELEGRAM_' "$ALERTMANAGER_CONF" 2>/dev/null; then
+    yellow "  alertmanager.yml missing or contains placeholders - generating...\n"
     TELEGRAM_BOT_TOKEN="$(env_get TELEGRAM_BOT_TOKEN)"
     TELEGRAM_CHAT_ID="$(env_get TELEGRAM_CHAT_ID)"
     if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
