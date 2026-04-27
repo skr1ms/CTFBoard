@@ -62,10 +62,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -125,10 +121,6 @@ services:
       - seaweed_data:/data
     networks:
       - ctf_platform_network
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     healthcheck:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://0.0.0.0:9333/cluster/status"]
       interval: 30s
@@ -508,14 +500,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    environment:
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     volumes:
       - ../../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
-      - "--config.expand-env=true"
     expose:
       - "9093"
     healthcheck:
