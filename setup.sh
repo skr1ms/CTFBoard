@@ -1014,7 +1014,7 @@ report_tls_status() {
 
   cert_issuer="$(docker compose exec -T haproxy openssl x509 \
     -in "/etc/haproxy/certs/${domain}.pem" -noout -issuer 2>/dev/null || echo "unknown")"
-  if echo "$cert_issuer" | grep -qi "let.s encrypt\|letsencrypt\|r3\|e1\|r10\|r11"; then
+  if echo "$cert_issuer" | grep -qi "let.s encrypt\|letsencrypt\|r3\|e1\|r10\|r11\|pretend\|staging"; then
     green "  TLS: Let's Encrypt certificate active\n"
   elif [ "$cert_issuer" = "unknown" ] || echo "$cert_issuer" | grep -qi "self"; then
     yellow "  TLS: Self-signed bootstrap certificate active (certbot may still be issuing / retrying)\n"
