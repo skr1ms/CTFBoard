@@ -66,9 +66,22 @@ cyan()  { printf '\033[1;36m%s\033[0m' "$*"; }
 dim()   { printf '\033[2m%s\033[0m' "$*"; }
 
 header() {
+  local title="${1:-CTF Platform - Setup Wizard}"
+  local width=40
+  local len="${#title}"
+  local pad_left pad_right
+
+  if [ "$len" -gt "$width" ]; then
+    title="${title:0:$width}"
+    len="$width"
+  fi
+
+  pad_left=$(( (width - len) / 2 ))
+  pad_right=$(( width - len - pad_left ))
+
   echo ""
   echo "╔══════════════════════════════════════════╗"
-  echo "║        CTF Platform - Setup Wizard       ║"
+  printf "║%*s%s%*s║\n" "$pad_left" "" "$title" "$pad_right" ""
   echo "╚══════════════════════════════════════════╝"
   echo ""
 }
@@ -197,6 +210,21 @@ env_get_default() {
   local val
   val="$(env_get "$key" 2>/dev/null || true)"
   printf '%s' "${val:-$fallback}"
+}
+
+load_env_app_secrets() {
+  JWT_ACCESS_SECRET="$(env_get JWT_ACCESS_SECRET)"
+  JWT_REFRESH_SECRET="$(env_get JWT_REFRESH_SECRET)"
+  FLAG_ENCRYPTION_KEY="$(env_get FLAG_ENCRYPTION_KEY)"
+  RESEND_API_KEY="$(env_get RESEND_API_KEY)"
+  ADMIN_USERNAME="$(env_get ADMIN_USERNAME)"
+  ADMIN_EMAIL="$(env_get ADMIN_EMAIL)"
+  ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
+  OAUTH_STATE_SECRET="$(env_get OAUTH_STATE_SECRET)"
+  OAUTH_GITHUB_CLIENT_ID="$(env_get OAUTH_GITHUB_CLIENT_ID)"
+  OAUTH_GITHUB_CLIENT_SECRET="$(env_get OAUTH_GITHUB_CLIENT_SECRET)"
+  OAUTH_GOOGLE_CLIENT_ID="$(env_get OAUTH_GOOGLE_CLIENT_ID)"
+  OAUTH_GOOGLE_CLIENT_SECRET="$(env_get OAUTH_GOOGLE_CLIENT_SECRET)"
 }
 
 check_deps() {
@@ -772,11 +800,14 @@ vault_init_and_unseal() {
   initialized="$(echo "$status" | jq -r '.initialized // false')"
 
   if [ "$initialized" = "false" ]; then
-    if [ -f "$VAULT_KEYS_FILE" ] && grep -q "UNSEAL_KEY=" "$VAULT_KEYS_FILE"; then
-      red "  ERROR: .vault-keys already exists but Vault reports uninitialized."
-      red "  This likely means the vault_data volume was wiped without removing .vault-keys."
-      echo "  If you intentionally re-initialized Vault, delete .vault-keys and re-run."
-      exit 1
+    if [ -f "$VAULT_KEYS_FILE" ]; then
+      local stale_backup
+      stale_backup="${VAULT_KEYS_FILE}.stale.$(date +%Y%m%dT%H%M%S)"
+      yellow "  Vault reports uninitialized, but .vault-keys exists."
+      yellow "  This usually means the vault_data volume was wiped or recreated."
+      echo "  Backing up stale keys to: $stale_backup"
+      mv "$VAULT_KEYS_FILE" "$stale_backup"
+      echo ""
     fi
 
     echo "  Initializing Vault (key-shares=1, key-threshold=1)..."
@@ -1000,44 +1031,17 @@ do_start() {
   compose_logged "compose up -d vault" up -d vault
   show_services_status "Vault status snapshot:" vault
 
-  if [ ! -f "$VAULT_KEYS_FILE" ]; then
-    # Fresh deployment: .env was copied from another server without .vault-keys.
-    # Read app-level secrets from .env so Vault is seeded with the operator's values
-    # rather than freshly-generated random ones (the wizard path sets these via shell
-    # vars; do_start must explicitly source them from .env for the copy-deploy flow).
-    # Vault's "set-if-absent" semantics ensure these are applied only on first init -
-    # subsequent restarts leave existing Vault values untouched.
-    JWT_ACCESS_SECRET="$(env_get JWT_ACCESS_SECRET)"
-    JWT_REFRESH_SECRET="$(env_get JWT_REFRESH_SECRET)"
-    FLAG_ENCRYPTION_KEY="$(env_get FLAG_ENCRYPTION_KEY)"
-    RESEND_API_KEY="$(env_get RESEND_API_KEY)"
-    ADMIN_USERNAME="$(env_get ADMIN_USERNAME)"
-    ADMIN_EMAIL="$(env_get ADMIN_EMAIL)"
-    ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
-    OAUTH_STATE_SECRET="$(env_get OAUTH_STATE_SECRET)"
-    OAUTH_GITHUB_CLIENT_ID="$(env_get OAUTH_GITHUB_CLIENT_ID)"
-    OAUTH_GITHUB_CLIENT_SECRET="$(env_get OAUTH_GITHUB_CLIENT_SECRET)"
-    OAUTH_GOOGLE_CLIENT_ID="$(env_get OAUTH_GOOGLE_CLIENT_ID)"
-    OAUTH_GOOGLE_CLIENT_SECRET="$(env_get OAUTH_GOOGLE_CLIENT_SECRET)"
-    yellow "  .vault-keys not found - performing initial Vault setup...\n"
+  wait_for_vault
+  local status initialized
+  status="$(vault_cli status -format=json 2>/dev/null || true)"
+  [ -n "$status" ] || status='{}'
+  initialized="$(printf '%s\n' "$status" | jq -r '.initialized // false')"
+  if [ "$initialized" = "false" ]; then
+    yellow "  Vault is uninitialized - performing initial Vault setup...\n"
     echo ""
-    vault_init_and_unseal
-  else
-    wait_for_vault
-    # shellcheck source=/dev/null
-    source "$VAULT_KEYS_FILE"
-    local sealed
-    sealed="$(vault_cli status -format=json 2>/dev/null || true)"
-    [ -n "$sealed" ] || sealed='{}'
-    sealed="$(printf '%s\n' "$sealed" | jq -r '.sealed // true')"
-    if [ "$sealed" = "true" ]; then
-      echo "  Unsealing Vault..."
-      vault_cli operator unseal "$UNSEAL_KEY" >/dev/null
-      green "  Vault unsealed\n"
-      echo ""
-    fi
-    vault_seed_secrets
+    load_env_app_secrets
   fi
+  vault_init_and_unseal
 
   ensure_s3_json_current
 
@@ -1444,9 +1448,7 @@ show_menu() {
   local app_name
   app_name="$(grep '^APP_NAME=' "$ENV_FILE" | cut -d= -f2- || echo "CTF Platform")"
 
-  echo ""
-  bold "$app_name Management"
-  echo "========================="
+  header "$app_name Management"
   echo "  [1] Start / Restart services"
   echo "  [2] Stop services"
   echo "  [3] Show status"
