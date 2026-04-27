@@ -20,7 +20,6 @@ import (
 
 const (
 	buildDownloadURLsConcurrency = 10
-	maxLogoutBodySize            = 4096
 	maxSearchQueryLen            = 100
 )
 

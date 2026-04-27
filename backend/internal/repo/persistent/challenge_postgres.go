@@ -844,6 +844,18 @@ func (r *ChallengeRepo) RecalculateSolveCounts(ctx context.Context, ids []uuid.U
 	return nil
 }
 
+// GetAllDynamicIDs returns the IDs of all challenges that use dynamic scoring
+// (initial_value > 0 and decay > 0). Used by admin recalc to rebuild points for
+// every dynamic challenge in one pass.
+func (r *ChallengeRepo) GetAllDynamicIDs(ctx context.Context) ([]uuid.UUID, error) {
+	ids, err := r.Q(ctx).GetAllDynamicChallengeIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetAllDynamicIDs: %w", err)
+	}
+
+	return ids, nil
+}
+
 // SetTags replaces the tag set for a challenge: deletes all existing tag
 // associations, then inserts tagIDs with ON CONFLICT DO NOTHING.
 func (r *ChallengeRepo) SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error {

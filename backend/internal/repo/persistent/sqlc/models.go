@@ -77,6 +77,16 @@ type Award struct {
 	BannedTeamID *uuid.UUID         `json:"banned_team_id"`
 }
 
+type BanAppeal struct {
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	Message       string             `json:"message"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ReviewedAt    pgtype.Timestamptz `json:"reviewed_at"`
+	AdminResponse *string            `json:"admin_response"`
+	Decision      string             `json:"decision"`
+}
+
 type Bracket struct {
 	ID          uuid.UUID          `json:"id"`
 	Name        string             `json:"name"`

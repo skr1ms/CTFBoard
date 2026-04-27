@@ -84,15 +84,7 @@
   post:
     operationId: PostAuthRefresh
     security: []
-    description: Refreshes access and refresh tokens using a valid refresh token
-    parameters:
-      - name: Authorization
-        in: header
-        required: true
-        description: Bearer refresh token
-        schema:
-          type: string
-          example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    description: Refreshes access token using the httpOnly refresh cookie set at login
     responses:
       "200":
         description: OK
@@ -189,21 +181,7 @@
 /auth/logout:
   post:
     operationId: PostAuthLogout
-    description: Invalidates refresh token (if provided). Client should discard tokens.
-    parameters:
-      - name: Authorization
-        in: header
-        required: false
-        description: Optional Bearer refresh token to invalidate
-        schema:
-          type: string
-    requestBody:
-      required: false
-      description: Optional body carrying refresh token if not provided in the Authorization header
-      content:
-        application/json:
-          schema:
-            $ref: '../components/schemas.yml#/LogoutRequest'
+    description: Invalidates the refresh cookie. Client should discard the access token.
     responses:
       "204":
         description: No Content

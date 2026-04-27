@@ -30,14 +30,17 @@ type TeamDeps struct {
 }
 
 type UserDeps struct {
-	UserUC        usecase.UserUseCase
-	EmailUC       usecase.EmailUseCase
-	APITokenUC    usecase.APITokenUseCase
-	TrackingUC    usecase.TrackingUseCase
-	OAuthUC       usecase.OAuthUseCase
-	AvatarUC      usecase.AvatarUseCase
-	FrontendURL   string
-	SecureCookies bool
+	UserUC             usecase.UserUseCase
+	EmailUC            usecase.EmailUseCase
+	APITokenUC         usecase.APITokenUseCase
+	TrackingUC         usecase.TrackingUseCase
+	OAuthUC            usecase.OAuthUseCase
+	AvatarUC           usecase.AvatarUseCase
+	AppealUC           usecase.BanAppealUseCase
+	FrontendURL        string
+	SecureCookies      bool
+	OAuthGitHubEnabled bool
+	OAuthGoogleEnabled bool
 }
 
 type CompetitionDeps struct {

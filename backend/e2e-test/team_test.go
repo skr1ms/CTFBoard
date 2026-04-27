@@ -775,9 +775,11 @@ func TestTeam_GetSolves_NotFound(t *testing.T) {
 	suffix := helper.UID()
 	_, _, tokenUser := h.RegisterUserAndLogin("id_solves_404_" + suffix)
 
+	// A random team-id that does not exist returns 404 TEAM_NOT_FOUND; the existence check
+	// runs before the membership/authorization check so that non-members cannot enumerate teams.
 	resp, err := h.Client().GetTeamsIDSolvesWithResponse(context.Background(), uuid.New().String(), helper.WithBearerToken(tokenUser))
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusForbidden, resp.StatusCode(), resp.Body, "get team id solves not own team")
+	helper.RequireStatus(t, http.StatusNotFound, resp.StatusCode(), resp.Body, "get team id solves unknown team")
 }
 
 // GET /teams/me/fails: authed gets own team fails.

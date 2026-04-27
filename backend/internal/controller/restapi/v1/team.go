@@ -3,30 +3,14 @@ package v1
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
-
-// requireOwnTeamOrAdmin writes ErrAccessDenied and returns false when the authenticated
-// user is neither a member of the given team nor an admin. Pass the handler and step
-// names for consistent error logging.
-func (h *Server) requireOwnTeamOrAdmin(w http.ResponseWriter, r *http.Request, user *domain.User, teamID uuid.UUID, handler, step string) bool {
-	isOwnTeam := user.TeamID != nil && *user.TeamID == teamID
-	if isOwnTeam || helper.IsAdmin(user) {
-		return true
-	}
-
-	h.OnError(w, r, apperr.ErrAccessDenied, handler, step)
-
-	return false
-}
 
 // (POST /teams).
 func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
@@ -360,15 +344,6 @@ func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !h.requireOwnTeamOrAdmin(w, r, user, teamIDParsed, "GetTeamsIDSolves", "AccessCheck") {
-		return
-	}
-
 	solves, err := h.team.TeamUC.GetTeamSolves(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetTeamsIDSolves", "GetTeamSolves") {
 		return
@@ -396,22 +371,13 @@ func (h *Server) GetTeamsMeFails(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	httputil.RenderOK(w, r, response.FromFailListSelf(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // (GET /teams/{ID}/fails).
 func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetTeamsIDFailsParams) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
-		return
-	}
-
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !h.requireOwnTeamOrAdmin(w, r, user, teamIDParsed, "GetTeamsIDFails", "AccessCheck") {
 		return
 	}
 
@@ -449,15 +415,6 @@ func (h *Server) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
-		return
-	}
-
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !h.requireOwnTeamOrAdmin(w, r, user, teamIDParsed, "GetTeamsIDAwards", "AccessCheck") {
 		return
 	}
 

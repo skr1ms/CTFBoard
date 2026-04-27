@@ -2,7 +2,6 @@ package wire
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
@@ -27,7 +25,6 @@ import (
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
-	"golang.org/x/text/language"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
@@ -53,6 +50,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/setup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	iws "github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
@@ -73,10 +71,10 @@ const (
 
 	httpReadTimeout  = 15 * time.Second
 	httpWriteTimeout = 100 * time.Second
-	httpIdleTimeout  = 60 * time.Second
+	httpIdleTimeout  = time.Minute
 
 	loginLockoutMaxAttempts      = 5
-	loginLockoutTTL              = 15 * time.Minute
+	loginLockoutTTL              = time.Minute
 	forgotPasswordRateLimit      = 10
 	resendVerificationRateLimit  = 10
 	resetPasswordTokenRateLimit  = 5
@@ -180,6 +178,18 @@ func ProvideRatingRepo(pool *pgxpool.Pool) *persistent.RatingRepo {
 
 func ProvideSettingsRepo(pool *pgxpool.Pool) *persistent.SettingsRepo {
 	return persistent.NewSettingsRepo(pool)
+}
+
+func ProvideBanAppealRepo(pool *pgxpool.Pool) *persistent.BanAppealRepo {
+	return persistent.NewBanAppealRepo(pool)
+}
+
+func ProvideBanAppealUseCase(
+	appealRepo repo.BanAppealRepository,
+	userRepo repo.UserRepository,
+	tm repo.TransactionManager,
+) *user.BanAppealUseCase {
+	return user.NewBanAppealUseCase(appealRepo, userRepo, tm)
 }
 
 func ProvideCompetitionParamRepo(pool *pgxpool.Pool) *persistent.CompetitionParamRepo {
@@ -815,6 +825,7 @@ func ProvideServerDeps(
 	trackingUC *user.TrackingUseCase,
 	oauthUC *user.OAuthUseCase,
 	avatarUC *avatar.AvatarUseCase,
+	appealUC *user.BanAppealUseCase,
 	jwtService *jwtkit.JWTService,
 	redisClient *redis.Client,
 	storageProvider storage.Provider,
@@ -855,14 +866,17 @@ func ProvideServerDeps(
 			AwardUC: awardUC,
 		},
 		User: helper.UserDeps{
-			UserUC:        userUC,
-			EmailUC:       emailUC,
-			APITokenUC:    apiTokenUC,
-			TrackingUC:    trackingUC,
-			OAuthUC:       oauthUC,
-			AvatarUC:      avatarUC,
-			FrontendURL:   cfg.FrontendURL,
-			SecureCookies: cfg.SecureCookies,
+			UserUC:             userUC,
+			EmailUC:            emailUC,
+			APITokenUC:         apiTokenUC,
+			TrackingUC:         trackingUC,
+			OAuthUC:            oauthUC,
+			AvatarUC:           avatarUC,
+			AppealUC:           appealUC,
+			FrontendURL:        cfg.FrontendURL,
+			SecureCookies:      cfg.SecureCookies,
+			OAuthGitHubEnabled: cfg.GitHub.ClientID != "",
+			OAuthGoogleEnabled: cfg.Google.ClientID != "",
 		},
 		Comp: helper.CompetitionDeps{
 			CompetitionUC:     competitionUC,
@@ -920,13 +934,28 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 	router.Use(kitMiddleware.Metrics(prometheus.DefaultRegisterer, httputil.ChiPathFromRequest))
 	router.Use(kitMiddleware.Recoverer(l))
 
+	// CORS must be registered before any rate-limit middleware so that 429
+	// responses (short-circuited by httprate.WithLimitHandler) still carry
+	// Access-Control-Allow-Origin headers and the browser doesn't report a
+	// spurious CORS error instead of a rate-limit error.
+	if len(cfg.CORSOrigins) > 0 {
+		router.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   cfg.CORSOrigins,
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			ExposedHeaders:   []string{"Link"},
+			AllowCredentials: true,
+			MaxAge:           300,
+		}))
+	}
+
 	timeoutMW := kitMiddleware.Timeout(requestTimeout)
 
 	router.Use(func(next http.Handler) http.Handler {
 		withTimeout := timeoutMW(next)
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/ws") {
+			if strings.HasSuffix(r.URL.Path, "/ws") || strings.HasSuffix(r.URL.Path, "/sse") {
 				next.ServeHTTP(w, r)
 
 				return
@@ -965,18 +994,6 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 		l,
 	)
 	router.Use(generalIPLimitMiddleware)
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   cfg.CORSOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
-
-	i18nBundle := goi18n.NewBundle(language.English)
-	i18nBundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-	router.Use(kitMiddleware.I18n(i18nBundle))
 
 	healthHandler := httputil.HealthHandler(map[string]httputil.Checker{
 		"db": healthCheckerFunc(func(ctx context.Context) error {
@@ -1015,12 +1032,42 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 
 	deps.Infra.ScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache()
 
+	setupUC := setup.NewSetupUseCase(setup.SetupDeps{
+		UserUC:      deps.User.UserUC,
+		CompUC:      deps.Comp.CompetitionUC,
+		CompParamUC: deps.Admin.CompetitionParamUC,
+		SettingsUC:  deps.Admin.SettingsUC,
+		JWTService:  deps.Infra.JWTService,
+	})
+	setupHandler := v1.NewSetupHandler(setupUC, l)
+
+	// Paths that remain accessible before setup is complete.
+	setupAllowedPaths := []string{
+		"/api/v1/setup",
+		"/api/v1/configs/public",
+		"/api/v1/health",
+		"/api/v1/healthcheck",
+		"/health",
+		"/metrics",
+		"/avatars/",
+	}
+	setupRequiredMW := restapimiddleware.SetupRequired(setupUC, setupAllowedPaths)
+
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", healthHandler)
 		r.Handle("/metrics", metricsHandler)
 		r.Get("/openapi.json", openapiJSONHandler)
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/api/v1/openapi.json")))
-		v1.NewRouter(ctx, r, deps, cfg.VerifyEmails, deps.Infra.RateLimitConfigCache)
+
+		// Setup endpoints - always accessible, outside the SetupRequired gate.
+		r.Get("/setup/status", setupHandler.GetSetupStatus)
+		r.Post("/setup", setupHandler.PostSetup)
+
+		// All other API routes gated by setup completion.
+		r.Group(func(gated chi.Router) {
+			gated.Use(setupRequiredMW)
+			v1.NewRouter(ctx, gated, deps, cfg.VerifyEmails, deps.Infra.RateLimitConfigCache)
+		})
 	})
 
 	return router

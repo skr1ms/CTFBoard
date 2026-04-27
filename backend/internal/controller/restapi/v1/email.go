@@ -66,6 +66,42 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 	httputil.RenderOK(w, r, response.Message("if an account exists with this email, a password reset link has been sent"))
 }
 
+// PostAuthResendVerificationByEmail handles public resend-verification requests by
+// email address. It applies a per-email daily rate limit on top of the IP-level
+// rate limit applied at the router layer. Errors from ResendVerificationByEmail
+// are deliberately swallowed so the response gives no hint about whether an
+// account exists for the given email.
+// (POST /auth/resend-verification-by-email).
+func (h *Server) PostAuthResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
+	req, ok := httputil.DecodeAndValidate[openapi.ResendVerificationByEmailRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	email := request.ResendVerificationByEmailRequestToParams(&req)
+
+	// Rate Limit: per-email daily limit (prevents targeting a specific account)
+	allowed, err := h.infra.ResendVerificationRateLimiter.Check(r.Context(), email)
+	if h.OnError(w, r, err, "PostAuthResendVerificationByEmail", "CheckRateLimit") {
+		return
+	}
+
+	if !allowed {
+		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResendVerificationByEmail", "RateLimit")
+
+		return
+	}
+
+	if err := h.user.EmailUC.ResendVerificationByEmail(r.Context(), email); err != nil {
+		h.infra.Logger.WithError(err).Warn("restapi - v1 - PostAuthResendVerificationByEmail - ResendVerificationByEmail")
+		// Do not return error to client (avoid email enumeration)
+	}
+
+	httputil.RenderOK(w, r, response.Message("if the account exists and is unverified, a verification email has been sent"))
+}
+
 // PostAuthResetPassword applies a per-token rate limit keyed by the SHA-256 hash
 // of the reset token to prevent brute-force guessing of short-lived tokens.
 // (POST /auth/reset-password).

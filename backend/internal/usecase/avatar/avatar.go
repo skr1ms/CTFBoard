@@ -284,6 +284,29 @@ func (uc *AvatarUseCase) GetTeamAvatarURLBatch(ctx context.Context, teamIDs []uu
 	return result, nil
 }
 
+// GetTeamAvatarStoragePathBatch returns the raw storage paths for a batch of
+// teams without generating presigned URLs. Used by the scoreboard so that the
+// frontend can build same-origin proxy URLs (/api/v1/avatars/<path>).
+func (uc *AvatarUseCase) GetTeamAvatarStoragePathBatch(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID]string, error) {
+	if len(teamIDs) == 0 {
+		return nil, nil
+	}
+
+	teams, err := uc.deps.TeamRepo.GetByIDs(ctx, teamIDs)
+	if err != nil {
+		return nil, fmt.Errorf("AvatarUseCase - GetTeamAvatarStoragePathBatch - GetByIDs: %w", err)
+	}
+
+	result := make(map[uuid.UUID]string, len(teams))
+	for teamID, team := range teams {
+		if team.AvatarURL != nil && *team.AvatarURL != "" {
+			result[teamID] = *team.AvatarURL
+		}
+	}
+
+	return result, nil
+}
+
 func (uc *AvatarUseCase) AdminUploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {

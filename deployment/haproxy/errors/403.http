@@ -1,0 +1,5 @@
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+Cache-Control: no-store
+
+{"error":"forbidden","message":"Access denied. Your IP address has been blocked due to suspicious activity."}

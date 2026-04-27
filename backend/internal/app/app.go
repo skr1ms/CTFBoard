@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/run"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
@@ -83,6 +84,8 @@ func Run(cfg *config.Config, l logkit.Logger) {
 
 		return
 	}
+
+	reconcileSettings(ctx, cfg, pool, l)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -166,10 +169,10 @@ func Run(cfg *config.Config, l logkit.Logger) {
 			return "", fmt.Errorf("SetUserRoleLookup - GetByID: %w", err)
 		}
 
-		if u.IsBanned {
-			return "", apperr.ErrUserBanned
-		}
-
+		// Banned users are still allowed to refresh so the frontend can load
+		// /auth/me, read ban_status, and redirect to /banned with the ban reason.
+		// The AuthGuard redirects all banned users to /banned; individual usecases
+		// enforce the ban for CTF operations (submit, hint unlock, team ops, etc.).
 		if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
 			return "", apperr.ErrUserBanned
 		}
@@ -185,7 +188,10 @@ func Run(cfg *config.Config, l logkit.Logger) {
 		defer app.SolveUseCase.StopLocalScoreboardCache()
 	}
 
-	runSeed(cfg, app, l)
+	// Skip the legacy seed on fresh deploys - the setup wizard handles admin creation.
+	if isSetupComplete(ctx, pool, l) {
+		runSeed(cfg, app, l)
+	}
 
 	var g run.Group
 	g.Add(func() error {
@@ -244,6 +250,22 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	}
 }
 
+// isSetupComplete queries the configs table to check whether the setup wizard
+// has been completed. Returns true on any DB error (fail-open to avoid blocking
+// an already-deployed platform due to a transient query failure).
+func isSetupComplete(ctx context.Context, pool *pgxpool.Pool, l logkit.Logger) bool {
+	var value string
+
+	err := pool.QueryRow(ctx, "SELECT value FROM configs WHERE key = 'setup_complete' LIMIT 1").Scan(&value)
+	if err != nil {
+		l.WithError(err).Warn("app: could not read setup_complete from DB, assuming complete (fail-open)")
+
+		return true
+	}
+
+	return value == "true"
+}
+
 // runSeed creates the default admin account when all three credentials
 // (username, email, password) are set in cfg. A missing credential is treated
 // as intentional and logged as info rather than an error.
@@ -296,4 +318,51 @@ func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (s
 	l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})
 
 	return fsProvider, nil
+}
+
+// reconcileSettings syncs brand-related env vars (APP_NAME, RESEND_FROM_NAME,
+// RESEND_FROM_EMAIL) into the DB settings rows, but only when the DB still holds
+// the generic migration defaults. This allows a fresh fork install to display the
+// operator's custom CTF name without manual admin-UI intervention, while
+// preserving any admin edits made after first boot.
+func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, l logkit.Logger) {
+	const (
+		defaultAppName   = "CTF Platform"
+		defaultFromEmail = "noreply@ctf-platform.local"
+	)
+
+	appName := cfg.Name
+	fromName := cfg.FromName
+	fromEmail := cfg.FromEmail
+
+	if appName == "" {
+		appName = defaultAppName
+	}
+
+	if fromName == "" {
+		fromName = defaultAppName
+	}
+
+	if fromEmail == "" {
+		fromEmail = defaultFromEmail
+	}
+
+	_, err := pool.Exec(ctx,
+		`UPDATE app_settings
+		    SET app_name=$1, resend_from_name=$2, resend_from_email=$3
+		  WHERE id=1
+		    AND app_name=$4`,
+		appName, fromName, fromEmail, defaultAppName,
+	)
+	if err != nil {
+		l.WithError(err).Warn("reconcileSettings - app_settings update skipped")
+	}
+
+	_, err = pool.Exec(ctx,
+		`UPDATE configs SET value=$1 WHERE key='ctf_name' AND value=$2`,
+		appName, defaultAppName,
+	)
+	if err != nil {
+		l.WithError(err).Warn("reconcileSettings - configs update skipped")
+	}
 }

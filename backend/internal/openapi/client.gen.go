@@ -90,6 +90,14 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetAdminAppeals request
+	GetAdminAppeals(ctx context.Context, params *GetAdminAppealsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchAdminAppealsIDWithBody request with any body
+	PatchAdminAppealsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PatchAdminAppealsID(ctx context.Context, id string, body PatchAdminAppealsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminAwards request
 	GetAdminAwards(ctx context.Context, params *GetAdminAwardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -127,6 +135,9 @@ type ClientInterface interface {
 	PostAdminChallengesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostAdminChallenges(ctx context.Context, body PostAdminChallengesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminChallengesRecalcPoints request
+	PostAdminChallengesRecalcPoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAdminChallengesID request
 	DeleteAdminChallengesID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -285,6 +296,12 @@ type ClientInterface interface {
 	// GetAdminStatisticsSolveMatrix request
 	GetAdminStatisticsSolveMatrix(ctx context.Context, params *GetAdminStatisticsSolveMatrixParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetAdminStorage request
+	GetAdminStorage(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminStoragePath request
+	DeleteAdminStoragePath(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminSubmissions request
 	GetAdminSubmissions(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -417,6 +434,14 @@ type ClientInterface interface {
 	// GetAdminUsersIDTracking request
 	GetAdminUsersIDTracking(ctx context.Context, id string, params *GetAdminUsersIDTrackingParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostAppealsWithBody request with any body
+	PostAppealsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAppeals(ctx context.Context, body PostAppealsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAppealsMe request
+	GetAppealsMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostAuthForgotPasswordWithBody request with any body
 	PostAuthForgotPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -427,10 +452,8 @@ type ClientInterface interface {
 
 	PostAuthLogin(ctx context.Context, body PostAuthLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostAuthLogoutWithBody request with any body
-	PostAuthLogoutWithBody(ctx context.Context, params *PostAuthLogoutParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PostAuthLogout(ctx context.Context, params *PostAuthLogoutParams, body PostAuthLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostAuthLogout request
+	PostAuthLogout(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAuthMe request
 	GetAuthMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -440,6 +463,11 @@ type ClientInterface interface {
 
 	PatchAuthMe(ctx context.Context, body PatchAuthMeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostAuthOauthExchangeWithBody request with any body
+	PostAuthOauthExchangeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAuthOauthExchange(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAuthOauthProvider request
 	GetAuthOauthProvider(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -447,7 +475,7 @@ type ClientInterface interface {
 	GetAuthOauthProviderCallback(ctx context.Context, provider string, params *GetAuthOauthProviderCallbackParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostAuthRefresh request
-	PostAuthRefresh(ctx context.Context, params *PostAuthRefreshParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostAuthRefresh(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostAuthRegisterWithBody request with any body
 	PostAuthRegisterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -456,6 +484,11 @@ type ClientInterface interface {
 
 	// PostAuthResendVerification request
 	PostAuthResendVerification(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAuthResendVerificationByEmailWithBody request with any body
+	PostAuthResendVerificationByEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAuthResendVerificationByEmail(ctx context.Context, body PostAuthResendVerificationByEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostAuthResetPasswordWithBody request with any body
 	PostAuthResetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -753,6 +786,42 @@ type ClientInterface interface {
 	GetWs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
+func (c *Client) GetAdminAppeals(ctx context.Context, params *GetAdminAppealsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminAppealsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminAppealsIDWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminAppealsIDRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminAppealsID(ctx context.Context, id string, body PatchAdminAppealsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminAppealsIDRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAdminAwards(ctx context.Context, params *GetAdminAwardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminAwardsRequest(c.Server, params)
 	if err != nil {
@@ -911,6 +980,18 @@ func (c *Client) PostAdminChallengesWithBody(ctx context.Context, contentType st
 
 func (c *Client) PostAdminChallenges(ctx context.Context, body PostAdminChallengesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAdminChallengesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminChallengesRecalcPoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminChallengesRecalcPointsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1617,6 +1698,30 @@ func (c *Client) GetAdminStatisticsSolveMatrix(ctx context.Context, params *GetA
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetAdminStorage(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminStorageRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminStoragePath(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminStoragePathRequest(c.Server, path)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAdminSubmissions(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminSubmissionsRequest(c.Server, params)
 	if err != nil {
@@ -2193,6 +2298,42 @@ func (c *Client) GetAdminUsersIDTracking(ctx context.Context, id string, params 
 	return c.Client.Do(req)
 }
 
+func (c *Client) PostAppealsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAppealsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAppeals(ctx context.Context, body PostAppealsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAppealsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAppealsMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAppealsMeRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PostAuthForgotPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAuthForgotPasswordRequestWithBody(c.Server, contentType, body)
 	if err != nil {
@@ -2241,20 +2382,8 @@ func (c *Client) PostAuthLogin(ctx context.Context, body PostAuthLoginJSONReques
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostAuthLogoutWithBody(ctx context.Context, params *PostAuthLogoutParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAuthLogoutRequestWithBody(c.Server, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostAuthLogout(ctx context.Context, params *PostAuthLogoutParams, body PostAuthLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAuthLogoutRequest(c.Server, params, body)
+func (c *Client) PostAuthLogout(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthLogoutRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -2301,6 +2430,30 @@ func (c *Client) PatchAuthMe(ctx context.Context, body PatchAuthMeJSONRequestBod
 	return c.Client.Do(req)
 }
 
+func (c *Client) PostAuthOauthExchangeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthOauthExchangeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthOauthExchange(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthOauthExchangeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAuthOauthProvider(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAuthOauthProviderRequest(c.Server, provider)
 	if err != nil {
@@ -2325,8 +2478,8 @@ func (c *Client) GetAuthOauthProviderCallback(ctx context.Context, provider stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostAuthRefresh(ctx context.Context, params *PostAuthRefreshParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAuthRefreshRequest(c.Server, params)
+func (c *Client) PostAuthRefresh(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthRefreshRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -2363,6 +2516,30 @@ func (c *Client) PostAuthRegister(ctx context.Context, body PostAuthRegisterJSON
 
 func (c *Client) PostAuthResendVerification(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAuthResendVerificationRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthResendVerificationByEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthResendVerificationByEmailRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthResendVerificationByEmail(ctx context.Context, body PostAuthResendVerificationByEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthResendVerificationByEmailRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3597,6 +3774,134 @@ func (c *Client) GetWs(ctx context.Context, reqEditors ...RequestEditorFn) (*htt
 	return c.Client.Do(req)
 }
 
+// NewGetAdminAppealsRequest generates requests for GetAdminAppeals
+func NewGetAdminAppealsRequest(server string, params *GetAdminAppealsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/appeals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Decision != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "decision", runtime.ParamLocationQuery, *params.Decision); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPatchAdminAppealsIDRequest calls the generic PatchAdminAppealsID builder with application/json body
+func NewPatchAdminAppealsIDRequest(server string, id string, body PatchAdminAppealsIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchAdminAppealsIDRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPatchAdminAppealsIDRequestWithBody generates requests for PatchAdminAppealsID with any type of body
+func NewPatchAdminAppealsIDRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ID", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/appeals/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetAdminAwardsRequest generates requests for GetAdminAwards
 func NewGetAdminAwardsRequest(server string, params *GetAdminAwardsParams) (*http.Request, error) {
 	var err error
@@ -3979,6 +4284,33 @@ func NewPostAdminChallengesRequestWithBody(server string, contentType string, bo
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminChallengesRecalcPointsRequest generates requests for PostAdminChallengesRecalcPoints
+func NewPostAdminChallengesRecalcPointsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/challenges/recalc-points")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -5619,6 +5951,89 @@ func NewGetAdminStatisticsSolveMatrixRequest(server string, params *GetAdminStat
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminStorageRequest generates requests for GetAdminStorage
+func NewGetAdminStorageRequest(server string, params *GetAdminStorageParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/storage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Prefix != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "prefix", runtime.ParamLocationQuery, *params.Prefix); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteAdminStoragePathRequest generates requests for DeleteAdminStoragePath
+func NewDeleteAdminStoragePathRequest(server string, path string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "path", runtime.ParamLocationPath, path)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/storage/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7406,6 +7821,73 @@ func NewGetAdminUsersIDTrackingRequest(server string, id string, params *GetAdmi
 	return req, nil
 }
 
+// NewPostAppealsRequest calls the generic PostAppeals builder with application/json body
+func NewPostAppealsRequest(server string, body PostAppealsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAppealsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAppealsRequestWithBody generates requests for PostAppeals with any type of body
+func NewPostAppealsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/appeals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAppealsMeRequest generates requests for GetAppealsMe
+func NewGetAppealsMeRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/appeals/me")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPostAuthForgotPasswordRequest calls the generic PostAuthForgotPassword builder with application/json body
 func NewPostAuthForgotPasswordRequest(server string, body PostAuthForgotPasswordJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -7486,19 +7968,8 @@ func NewPostAuthLoginRequestWithBody(server string, contentType string, body io.
 	return req, nil
 }
 
-// NewPostAuthLogoutRequest calls the generic PostAuthLogout builder with application/json body
-func NewPostAuthLogoutRequest(server string, params *PostAuthLogoutParams, body PostAuthLogoutJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostAuthLogoutRequestWithBody(server, params, "application/json", bodyReader)
-}
-
-// NewPostAuthLogoutRequestWithBody generates requests for PostAuthLogout with any type of body
-func NewPostAuthLogoutRequestWithBody(server string, params *PostAuthLogoutParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewPostAuthLogoutRequest generates requests for PostAuthLogout
+func NewPostAuthLogoutRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -7516,26 +7987,9 @@ func NewPostAuthLogoutRequestWithBody(server string, params *PostAuthLogoutParam
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), body)
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		if params.Authorization != nil {
-			var headerParam0 string
-
-			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("Authorization", headerParam0)
-		}
-
 	}
 
 	return req, nil
@@ -7599,6 +8053,46 @@ func NewPatchAuthMeRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAuthOauthExchangeRequest calls the generic PostAuthOauthExchange builder with application/json body
+func NewPostAuthOauthExchangeRequest(server string, body PostAuthOauthExchangeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAuthOauthExchangeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAuthOauthExchangeRequestWithBody generates requests for PostAuthOauthExchange with any type of body
+func NewPostAuthOauthExchangeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/oauth/exchange")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -7715,7 +8209,7 @@ func NewGetAuthOauthProviderCallbackRequest(server string, provider string, para
 }
 
 // NewPostAuthRefreshRequest generates requests for PostAuthRefresh
-func NewPostAuthRefreshRequest(server string, params *PostAuthRefreshParams) (*http.Request, error) {
+func NewPostAuthRefreshRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -7736,19 +8230,6 @@ func NewPostAuthRefreshRequest(server string, params *PostAuthRefreshParams) (*h
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
-	}
-
-	if params != nil {
-
-		var headerParam0 string
-
-		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, params.Authorization)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("Authorization", headerParam0)
-
 	}
 
 	return req, nil
@@ -7817,6 +8298,46 @@ func NewPostAuthResendVerificationRequest(server string) (*http.Request, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPostAuthResendVerificationByEmailRequest calls the generic PostAuthResendVerificationByEmail builder with application/json body
+func NewPostAuthResendVerificationByEmailRequest(server string, body PostAuthResendVerificationByEmailJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAuthResendVerificationByEmailRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAuthResendVerificationByEmailRequestWithBody generates requests for PostAuthResendVerificationByEmail with any type of body
+func NewPostAuthResendVerificationByEmailRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/resend-verification-by-email")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -11447,6 +11968,14 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetAdminAppealsWithResponse request
+	GetAdminAppealsWithResponse(ctx context.Context, params *GetAdminAppealsParams, reqEditors ...RequestEditorFn) (*GetAdminAppealsResponse, error)
+
+	// PatchAdminAppealsIDWithBodyWithResponse request with any body
+	PatchAdminAppealsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminAppealsIDResponse, error)
+
+	PatchAdminAppealsIDWithResponse(ctx context.Context, id string, body PatchAdminAppealsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminAppealsIDResponse, error)
+
 	// GetAdminAwardsWithResponse request
 	GetAdminAwardsWithResponse(ctx context.Context, params *GetAdminAwardsParams, reqEditors ...RequestEditorFn) (*GetAdminAwardsResponse, error)
 
@@ -11484,6 +12013,9 @@ type ClientWithResponsesInterface interface {
 	PostAdminChallengesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminChallengesResponse, error)
 
 	PostAdminChallengesWithResponse(ctx context.Context, body PostAdminChallengesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminChallengesResponse, error)
+
+	// PostAdminChallengesRecalcPointsWithResponse request
+	PostAdminChallengesRecalcPointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAdminChallengesRecalcPointsResponse, error)
 
 	// DeleteAdminChallengesIDWithResponse request
 	DeleteAdminChallengesIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminChallengesIDResponse, error)
@@ -11642,6 +12174,12 @@ type ClientWithResponsesInterface interface {
 	// GetAdminStatisticsSolveMatrixWithResponse request
 	GetAdminStatisticsSolveMatrixWithResponse(ctx context.Context, params *GetAdminStatisticsSolveMatrixParams, reqEditors ...RequestEditorFn) (*GetAdminStatisticsSolveMatrixResponse, error)
 
+	// GetAdminStorageWithResponse request
+	GetAdminStorageWithResponse(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*GetAdminStorageResponse, error)
+
+	// DeleteAdminStoragePathWithResponse request
+	DeleteAdminStoragePathWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteAdminStoragePathResponse, error)
+
 	// GetAdminSubmissionsWithResponse request
 	GetAdminSubmissionsWithResponse(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsResponse, error)
 
@@ -11774,6 +12312,14 @@ type ClientWithResponsesInterface interface {
 	// GetAdminUsersIDTrackingWithResponse request
 	GetAdminUsersIDTrackingWithResponse(ctx context.Context, id string, params *GetAdminUsersIDTrackingParams, reqEditors ...RequestEditorFn) (*GetAdminUsersIDTrackingResponse, error)
 
+	// PostAppealsWithBodyWithResponse request with any body
+	PostAppealsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAppealsResponse, error)
+
+	PostAppealsWithResponse(ctx context.Context, body PostAppealsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAppealsResponse, error)
+
+	// GetAppealsMeWithResponse request
+	GetAppealsMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAppealsMeResponse, error)
+
 	// PostAuthForgotPasswordWithBodyWithResponse request with any body
 	PostAuthForgotPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthForgotPasswordResponse, error)
 
@@ -11784,10 +12330,8 @@ type ClientWithResponsesInterface interface {
 
 	PostAuthLoginWithResponse(ctx context.Context, body PostAuthLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthLoginResponse, error)
 
-	// PostAuthLogoutWithBodyWithResponse request with any body
-	PostAuthLogoutWithBodyWithResponse(ctx context.Context, params *PostAuthLogoutParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error)
-
-	PostAuthLogoutWithResponse(ctx context.Context, params *PostAuthLogoutParams, body PostAuthLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error)
+	// PostAuthLogoutWithResponse request
+	PostAuthLogoutWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error)
 
 	// GetAuthMeWithResponse request
 	GetAuthMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAuthMeResponse, error)
@@ -11797,6 +12341,11 @@ type ClientWithResponsesInterface interface {
 
 	PatchAuthMeWithResponse(ctx context.Context, body PatchAuthMeJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAuthMeResponse, error)
 
+	// PostAuthOauthExchangeWithBodyWithResponse request with any body
+	PostAuthOauthExchangeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthOauthExchangeResponse, error)
+
+	PostAuthOauthExchangeWithResponse(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthOauthExchangeResponse, error)
+
 	// GetAuthOauthProviderWithResponse request
 	GetAuthOauthProviderWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*GetAuthOauthProviderResponse, error)
 
@@ -11804,7 +12353,7 @@ type ClientWithResponsesInterface interface {
 	GetAuthOauthProviderCallbackWithResponse(ctx context.Context, provider string, params *GetAuthOauthProviderCallbackParams, reqEditors ...RequestEditorFn) (*GetAuthOauthProviderCallbackResponse, error)
 
 	// PostAuthRefreshWithResponse request
-	PostAuthRefreshWithResponse(ctx context.Context, params *PostAuthRefreshParams, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
+	PostAuthRefreshWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
 
 	// PostAuthRegisterWithBodyWithResponse request with any body
 	PostAuthRegisterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRegisterResponse, error)
@@ -11813,6 +12362,11 @@ type ClientWithResponsesInterface interface {
 
 	// PostAuthResendVerificationWithResponse request
 	PostAuthResendVerificationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthResendVerificationResponse, error)
+
+	// PostAuthResendVerificationByEmailWithBodyWithResponse request with any body
+	PostAuthResendVerificationByEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthResendVerificationByEmailResponse, error)
+
+	PostAuthResendVerificationByEmailWithResponse(ctx context.Context, body PostAuthResendVerificationByEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthResendVerificationByEmailResponse, error)
 
 	// PostAuthResetPasswordWithBodyWithResponse request with any body
 	PostAuthResetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthResetPasswordResponse, error)
@@ -12110,6 +12664,56 @@ type ClientWithResponsesInterface interface {
 	GetWsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWsResponse, error)
 }
 
+type GetAdminAppealsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BanAppealListResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminAppealsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminAppealsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PatchAdminAppealsIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BanAppealResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchAdminAppealsIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchAdminAppealsIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminAwardsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12355,6 +12959,30 @@ func (r PostAdminChallengesResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostAdminChallengesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminChallengesRecalcPointsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminChallengesRecalcPointsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminChallengesRecalcPointsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -13378,6 +14006,54 @@ func (r GetAdminStatisticsSolveMatrixResponse) StatusCode() int {
 	return 0
 }
 
+type GetAdminStorageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageListResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminStorageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminStorageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminStoragePathResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminStoragePathResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminStoragePathResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminSubmissionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -14280,6 +14956,54 @@ func (r GetAdminUsersIDTrackingResponse) StatusCode() int {
 	return 0
 }
 
+type PostAppealsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BanAppealResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON429      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAppealsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAppealsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAppealsMeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BanAppealListResponse
+	JSON401      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAppealsMeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAppealsMeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PostAuthForgotPasswordResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -14401,6 +15125,31 @@ func (r PatchAuthMeResponse) StatusCode() int {
 	return 0
 }
 
+type PostAuthOauthExchangeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TokenPair
+	JSON400      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON429      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAuthOauthExchangeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAuthOauthExchangeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAuthOauthProviderResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -14516,6 +15265,30 @@ func (r PostAuthResendVerificationResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostAuthResendVerificationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAuthResendVerificationByEmailResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON400      *ErrorResponse
+	JSON429      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAuthResendVerificationByEmailResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAuthResendVerificationByEmailResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -16717,6 +17490,32 @@ func (r GetWsResponse) StatusCode() int {
 	return 0
 }
 
+// GetAdminAppealsWithResponse request returning *GetAdminAppealsResponse
+func (c *ClientWithResponses) GetAdminAppealsWithResponse(ctx context.Context, params *GetAdminAppealsParams, reqEditors ...RequestEditorFn) (*GetAdminAppealsResponse, error) {
+	rsp, err := c.GetAdminAppeals(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminAppealsResponse(rsp)
+}
+
+// PatchAdminAppealsIDWithBodyWithResponse request with arbitrary body returning *PatchAdminAppealsIDResponse
+func (c *ClientWithResponses) PatchAdminAppealsIDWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminAppealsIDResponse, error) {
+	rsp, err := c.PatchAdminAppealsIDWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminAppealsIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PatchAdminAppealsIDWithResponse(ctx context.Context, id string, body PatchAdminAppealsIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminAppealsIDResponse, error) {
+	rsp, err := c.PatchAdminAppealsID(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminAppealsIDResponse(rsp)
+}
+
 // GetAdminAwardsWithResponse request returning *GetAdminAwardsResponse
 func (c *ClientWithResponses) GetAdminAwardsWithResponse(ctx context.Context, params *GetAdminAwardsParams, reqEditors ...RequestEditorFn) (*GetAdminAwardsResponse, error) {
 	rsp, err := c.GetAdminAwards(ctx, params, reqEditors...)
@@ -16837,6 +17636,15 @@ func (c *ClientWithResponses) PostAdminChallengesWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParsePostAdminChallengesResponse(rsp)
+}
+
+// PostAdminChallengesRecalcPointsWithResponse request returning *PostAdminChallengesRecalcPointsResponse
+func (c *ClientWithResponses) PostAdminChallengesRecalcPointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAdminChallengesRecalcPointsResponse, error) {
+	rsp, err := c.PostAdminChallengesRecalcPoints(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminChallengesRecalcPointsResponse(rsp)
 }
 
 // DeleteAdminChallengesIDWithResponse request returning *DeleteAdminChallengesIDResponse
@@ -17344,6 +18152,24 @@ func (c *ClientWithResponses) GetAdminStatisticsSolveMatrixWithResponse(ctx cont
 	return ParseGetAdminStatisticsSolveMatrixResponse(rsp)
 }
 
+// GetAdminStorageWithResponse request returning *GetAdminStorageResponse
+func (c *ClientWithResponses) GetAdminStorageWithResponse(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*GetAdminStorageResponse, error) {
+	rsp, err := c.GetAdminStorage(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminStorageResponse(rsp)
+}
+
+// DeleteAdminStoragePathWithResponse request returning *DeleteAdminStoragePathResponse
+func (c *ClientWithResponses) DeleteAdminStoragePathWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteAdminStoragePathResponse, error) {
+	rsp, err := c.DeleteAdminStoragePath(ctx, path, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminStoragePathResponse(rsp)
+}
+
 // GetAdminSubmissionsWithResponse request returning *GetAdminSubmissionsResponse
 func (c *ClientWithResponses) GetAdminSubmissionsWithResponse(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsResponse, error) {
 	rsp, err := c.GetAdminSubmissions(ctx, params, reqEditors...)
@@ -17764,6 +18590,32 @@ func (c *ClientWithResponses) GetAdminUsersIDTrackingWithResponse(ctx context.Co
 	return ParseGetAdminUsersIDTrackingResponse(rsp)
 }
 
+// PostAppealsWithBodyWithResponse request with arbitrary body returning *PostAppealsResponse
+func (c *ClientWithResponses) PostAppealsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAppealsResponse, error) {
+	rsp, err := c.PostAppealsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAppealsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAppealsWithResponse(ctx context.Context, body PostAppealsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAppealsResponse, error) {
+	rsp, err := c.PostAppeals(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAppealsResponse(rsp)
+}
+
+// GetAppealsMeWithResponse request returning *GetAppealsMeResponse
+func (c *ClientWithResponses) GetAppealsMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAppealsMeResponse, error) {
+	rsp, err := c.GetAppealsMe(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAppealsMeResponse(rsp)
+}
+
 // PostAuthForgotPasswordWithBodyWithResponse request with arbitrary body returning *PostAuthForgotPasswordResponse
 func (c *ClientWithResponses) PostAuthForgotPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthForgotPasswordResponse, error) {
 	rsp, err := c.PostAuthForgotPasswordWithBody(ctx, contentType, body, reqEditors...)
@@ -17798,17 +18650,9 @@ func (c *ClientWithResponses) PostAuthLoginWithResponse(ctx context.Context, bod
 	return ParsePostAuthLoginResponse(rsp)
 }
 
-// PostAuthLogoutWithBodyWithResponse request with arbitrary body returning *PostAuthLogoutResponse
-func (c *ClientWithResponses) PostAuthLogoutWithBodyWithResponse(ctx context.Context, params *PostAuthLogoutParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error) {
-	rsp, err := c.PostAuthLogoutWithBody(ctx, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostAuthLogoutResponse(rsp)
-}
-
-func (c *ClientWithResponses) PostAuthLogoutWithResponse(ctx context.Context, params *PostAuthLogoutParams, body PostAuthLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error) {
-	rsp, err := c.PostAuthLogout(ctx, params, body, reqEditors...)
+// PostAuthLogoutWithResponse request returning *PostAuthLogoutResponse
+func (c *ClientWithResponses) PostAuthLogoutWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error) {
+	rsp, err := c.PostAuthLogout(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -17841,6 +18685,23 @@ func (c *ClientWithResponses) PatchAuthMeWithResponse(ctx context.Context, body 
 	return ParsePatchAuthMeResponse(rsp)
 }
 
+// PostAuthOauthExchangeWithBodyWithResponse request with arbitrary body returning *PostAuthOauthExchangeResponse
+func (c *ClientWithResponses) PostAuthOauthExchangeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthOauthExchangeResponse, error) {
+	rsp, err := c.PostAuthOauthExchangeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthOauthExchangeResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAuthOauthExchangeWithResponse(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthOauthExchangeResponse, error) {
+	rsp, err := c.PostAuthOauthExchange(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthOauthExchangeResponse(rsp)
+}
+
 // GetAuthOauthProviderWithResponse request returning *GetAuthOauthProviderResponse
 func (c *ClientWithResponses) GetAuthOauthProviderWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*GetAuthOauthProviderResponse, error) {
 	rsp, err := c.GetAuthOauthProvider(ctx, provider, reqEditors...)
@@ -17860,8 +18721,8 @@ func (c *ClientWithResponses) GetAuthOauthProviderCallbackWithResponse(ctx conte
 }
 
 // PostAuthRefreshWithResponse request returning *PostAuthRefreshResponse
-func (c *ClientWithResponses) PostAuthRefreshWithResponse(ctx context.Context, params *PostAuthRefreshParams, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error) {
-	rsp, err := c.PostAuthRefresh(ctx, params, reqEditors...)
+func (c *ClientWithResponses) PostAuthRefreshWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error) {
+	rsp, err := c.PostAuthRefresh(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -17892,6 +18753,23 @@ func (c *ClientWithResponses) PostAuthResendVerificationWithResponse(ctx context
 		return nil, err
 	}
 	return ParsePostAuthResendVerificationResponse(rsp)
+}
+
+// PostAuthResendVerificationByEmailWithBodyWithResponse request with arbitrary body returning *PostAuthResendVerificationByEmailResponse
+func (c *ClientWithResponses) PostAuthResendVerificationByEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthResendVerificationByEmailResponse, error) {
+	rsp, err := c.PostAuthResendVerificationByEmailWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthResendVerificationByEmailResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAuthResendVerificationByEmailWithResponse(ctx context.Context, body PostAuthResendVerificationByEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthResendVerificationByEmailResponse, error) {
+	rsp, err := c.PostAuthResendVerificationByEmail(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthResendVerificationByEmailResponse(rsp)
 }
 
 // PostAuthResetPasswordWithBodyWithResponse request with arbitrary body returning *PostAuthResetPasswordResponse
@@ -18801,6 +19679,100 @@ func (c *ClientWithResponses) GetWsWithResponse(ctx context.Context, reqEditors 
 	return ParseGetWsResponse(rsp)
 }
 
+// ParseGetAdminAppealsResponse parses an HTTP response from a GetAdminAppealsWithResponse call
+func ParseGetAdminAppealsResponse(rsp *http.Response) (*GetAdminAppealsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminAppealsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BanAppealListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchAdminAppealsIDResponse parses an HTTP response from a PatchAdminAppealsIDWithResponse call
+func ParsePatchAdminAppealsIDResponse(rsp *http.Response) (*PatchAdminAppealsIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchAdminAppealsIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BanAppealResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAdminAwardsResponse parses an HTTP response from a GetAdminAwardsWithResponse call
 func ParseGetAdminAwardsResponse(rsp *http.Response) (*GetAdminAwardsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19272,6 +20244,46 @@ func ParsePostAdminChallengesResponse(rsp *http.Response) (*PostAdminChallengesR
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminChallengesRecalcPointsResponse parses an HTTP response from a PostAdminChallengesRecalcPointsWithResponse call
+func ParsePostAdminChallengesRecalcPointsResponse(rsp *http.Response) (*PostAdminChallengesRecalcPointsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminChallengesRecalcPointsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
@@ -21149,6 +22161,86 @@ func ParseGetAdminStatisticsSolveMatrixResponse(rsp *http.Response) (*GetAdminSt
 	return response, nil
 }
 
+// ParseGetAdminStorageResponse parses an HTTP response from a GetAdminStorageWithResponse call
+func ParseGetAdminStorageResponse(rsp *http.Response) (*GetAdminStorageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminStorageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminStoragePathResponse parses an HTTP response from a DeleteAdminStoragePathWithResponse call
+func ParseDeleteAdminStoragePathResponse(rsp *http.Response) (*DeleteAdminStoragePathResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminStoragePathResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAdminSubmissionsResponse parses an HTTP response from a GetAdminSubmissionsWithResponse call
 func ParseGetAdminSubmissionsResponse(rsp *http.Response) (*GetAdminSubmissionsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22855,6 +23947,86 @@ func ParseGetAdminUsersIDTrackingResponse(rsp *http.Response) (*GetAdminUsersIDT
 	return response, nil
 }
 
+// ParsePostAppealsResponse parses an HTTP response from a PostAppealsWithResponse call
+func ParsePostAppealsResponse(rsp *http.Response) (*PostAppealsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAppealsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BanAppealResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAppealsMeResponse parses an HTTP response from a GetAppealsMeWithResponse call
+func ParseGetAppealsMeResponse(rsp *http.Response) (*GetAppealsMeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAppealsMeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BanAppealListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePostAuthForgotPasswordResponse parses an HTTP response from a PostAuthForgotPasswordWithResponse call
 func ParsePostAuthForgotPasswordResponse(rsp *http.Response) (*PostAuthForgotPasswordResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23062,6 +24234,53 @@ func ParsePatchAuthMeResponse(rsp *http.Response) (*PatchAuthMeResponse, error) 
 	return response, nil
 }
 
+// ParsePostAuthOauthExchangeResponse parses an HTTP response from a PostAuthOauthExchangeWithResponse call
+func ParsePostAuthOauthExchangeResponse(rsp *http.Response) (*PostAuthOauthExchangeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAuthOauthExchangeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TokenPair
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAuthOauthProviderResponse parses an HTTP response from a GetAuthOauthProviderWithResponse call
 func ParseGetAuthOauthProviderResponse(rsp *http.Response) (*GetAuthOauthProviderResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23256,6 +24475,46 @@ func ParsePostAuthResendVerificationResponse(rsp *http.Response) (*PostAuthResen
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAuthResendVerificationByEmailResponse parses an HTTP response from a PostAuthResendVerificationByEmailWithResponse call
+func ParsePostAuthResendVerificationByEmailResponse(rsp *http.Response) (*PostAuthResendVerificationByEmailResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAuthResendVerificationByEmailResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
 		var dest ErrorResponse

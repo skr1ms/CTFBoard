@@ -36,9 +36,10 @@ func TestEncryptedRegex_Challenge(t *testing.T) {
 	resp200 := h.SubmitFlag(tokenUser, challID, "CTF{1234}", http.StatusOK)
 	require.Contains(t, string(resp200.Body), "flag accepted")
 
-	resp409 := h.SubmitFlag(tokenUser, challID, "CTF{5678}", http.StatusConflict)
-	require.NotNil(t, resp409.JSON409)
-	require.Equal(t, "ALREADY_SOLVED", resp409.JSON409.Code)
+	// Submitting a second matching flag after the team already solved is idempotent:
+	// the handler swallows ErrAlreadySolved and returns 200 "flag accepted" again.
+	resp200dup := h.SubmitFlag(tokenUser, challID, "CTF{5678}", http.StatusOK)
+	require.Contains(t, string(resp200dup.Body), "flag accepted")
 }
 
 // POST /challenges/{ID}/submit with is_regex: flag not matching pattern returns 400 invalid flag format.

@@ -154,12 +154,16 @@ func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 	resp := h.GetConfigsPublic(http.StatusOK)
 	require.NotNil(t, resp.JSON200)
 
+	// Whitelist mirrors publicConfigKeys in internal/usecase/competition/competition_params.go.
+	// Visibility keys are exposed publicly so the frontend can render guest-facing sections
+	// (scoreboard, challenges, accounts, registration) before the user authenticates.
 	allowed := map[string]bool{
 		"ctf_name": true, "ctf_description": true, "ctf_logo": true,
 		"tos_url": true, "privacy_url": true,
 		"theme_color_primary": true, "theme_color_secondary": true, "theme_header_html": true,
 		"theme_footer_html": true, "theme_dark_mode": true,
 		"social_github": true, "social_discord": true, "social_twitter": true, "social_website": true,
+		"challenge_visibility": true, "score_visibility": true, "account_visibility": true, "registration_visibility": true,
 	}
 
 	for key := range *resp.JSON200 {

@@ -133,3 +133,31 @@ func TestNotification_Delete_Forbidden(t *testing.T) {
 
 	h.DeleteNotification(tokenUser, *createResp.JSON201.ID, http.StatusForbidden)
 }
+
+// PUT /admin/notifications/{id}: admin updates title, content, type and pinned status.
+func TestNotification_Update_Success(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_notif_upd_ok")
+	suffix := helper.UID()
+
+	createResp := h.CreateNotification(tokenAdmin, "Original "+suffix, "original content", "info", false, http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+	require.NotNil(t, createResp.JSON201.ID)
+
+	updatedTitle := "Updated " + suffix
+	updatedContent := "updated content"
+
+	updateResp := h.UpdateNotification(tokenAdmin, *createResp.JSON201.ID, updatedTitle, updatedContent, "warning", true, http.StatusOK)
+	require.NotNil(t, updateResp.JSON200)
+	require.NotNil(t, updateResp.JSON200.Title)
+	require.NotNil(t, updateResp.JSON200.Content)
+	require.NotNil(t, updateResp.JSON200.IsPinned)
+	require.NotNil(t, updateResp.JSON200.Type)
+
+	require.Equal(t, updatedTitle, *updateResp.JSON200.Title)
+	require.Equal(t, updatedContent, *updateResp.JSON200.Content)
+	require.Equal(t, "warning", *updateResp.JSON200.Type)
+	require.True(t, *updateResp.JSON200.IsPinned)
+}

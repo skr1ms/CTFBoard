@@ -61,6 +61,7 @@ type TestFixture struct {
 	APITokenRepo          *persistent.APITokenRepo
 	OAuthRepo             *persistent.OAuthRepo
 	RatingRepo            *persistent.RatingRepo
+	BanAppealRepo         *persistent.BanAppealRepo
 }
 
 func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
@@ -94,6 +95,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		APITokenRepo:          persistent.NewAPITokenRepo(Pool),
 		OAuthRepo:             persistent.NewOAuthRepo(Pool, itestCryptoService()),
 		RatingRepo:            persistent.NewRatingRepo(Pool),
+		BanAppealRepo:         persistent.NewBanAppealRepo(Pool),
 	}
 }
 
@@ -457,13 +459,13 @@ func (f *TestFixture) ResetAppSettings(t *testing.T) {
 	ctx := context.Background()
 	_, err := f.Pool.Exec(ctx, `
 		UPDATE app_settings SET
-			app_name = 'AstroCTFb',
+			app_name = 'CTF Platform',
 			verify_emails = TRUE,
 			frontend_url = 'http://localhost:3000',
 			cors_origins = 'http://localhost:3000,http://localhost:5173',
 			resend_enabled = FALSE,
-			resend_from_email = 'noreply@astroctfb.local',
-			resend_from_name = 'AstroCTFb',
+			resend_from_email = 'noreply@ctf-platform.local',
+			resend_from_name = 'CTF Platform',
 			verify_ttl_hours = 24,
 			reset_ttl_hours = 1,
 			submit_limit_per_user = 10,

@@ -1,7 +1,6 @@
 openapi: 3.0.0
 info:
   contact:
-    email: skr1ms13666@gmail.com
     name: API Support
   description: |
     REST API for managing CTF competition.
@@ -19,17 +18,12 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  termsOfService: https://ctfleague.ru/terms
-  title: AstroCTFb API
+  title: CTF Platform API
   version: 1.0.0
 
 servers:
-  - url: https://api.ctfleague.ru/api/v1
-  - url: http://api.ctfleague.ru/api/v1
-  - url: https://api.ctfleague.ru
-    description: Infrastructure (health, metrics, docs)
-  - url: http://api.ctfleague.ru
-    description: Infrastructure (health, metrics, docs)
+  - url: /api/v1
+    description: CTF Platform API
 
 security:
   - BearerAuth: []
@@ -120,6 +114,8 @@ paths:
     $ref: './routes/oauth.yml#/~1auth~1oauth~1{provider}'
   /auth/oauth/{provider}/callback:
     $ref: './routes/oauth.yml#/~1auth~1oauth~1{provider}~1callback'
+  /auth/oauth/exchange:
+    $ref: './routes/oauth.yml#/~1auth~1oauth~1exchange'
 
   # Email (email.go)
   /auth/verify-email:
@@ -130,6 +126,8 @@ paths:
     $ref: './routes/email.yml#/~1auth~1reset-password'
   /auth/resend-verification:
     $ref: './routes/email.yml#/~1auth~1resend-verification'
+  /auth/resend-verification-by-email:
+    $ref: './routes/email.yml#/~1auth~1resend-verification-by-email'
 
   # User admin (user.go)
   /admin/users:
@@ -432,6 +430,8 @@ paths:
     $ref: './routes/notification.yml#/~1admin~1notifications~1{ID}'
 
   # Challenge (challenge.go) admin
+  /admin/challenges/recalc-points:
+    $ref: './routes/challenge.yml#/~1admin~1challenges~1recalc-points'
   /admin/challenges:
     $ref: './routes/challenge.yml#/~1admin~1challenges'
   /admin/challenges/{ID}:
@@ -454,6 +454,22 @@ paths:
   # Settings (settings.go)
   /admin/settings:
     $ref: './routes/settings.yml#/~1admin~1settings'
+
+  # Appeals (appeal.go)
+  /appeals:
+    $ref: './routes/appeal.yml#/~1appeals'
+  /appeals/me:
+    $ref: './routes/appeal.yml#/~1appeals~1me'
+  /admin/appeals:
+    $ref: './routes/appeal.yml#/~1admin~1appeals'
+  /admin/appeals/{ID}:
+    $ref: './routes/appeal.yml#/~1admin~1appeals~1{ID}'
+
+  # Storage management (storage.go)
+  /admin/storage:
+    $ref: './routes/storage.yml#/~1admin~1storage'
+  /admin/storage/{path}:
+    $ref: './routes/storage.yml#/~1admin~1storage~1{path}'
 
   # Config (request/config.go)
   /admin/configs:

@@ -1,10 +1,10 @@
-# /etc/cron.d/astroctfb-cleanup
+# /etc/cron.d/ctf-platform-cleanup
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Run cleanup (deleted teams + orphaned task files + orphaned avatar files) every day at 02:00 AM
-0 2 * * * root /usr/bin/docker exec backend /usr/local/bin/astroctfb-cleanup >> /var/log/astroctfb-cleanup.log 2>&1
+0 2 * * * root /usr/bin/docker exec backend /usr/local/bin/ctf-platform-cleanup >> /var/log/ctf-platform-cleanup.log 2>&1
 
-# Run docker system prune every day at 03:00 AM
-0 3 * * * root docker system prune -f --volumes >> /var/log/docker-prune.log 2>&1
+# Remove dangling images older than 7 days (never touch named volumes)
+0 3 * * * root docker image prune -f --filter "until=168h" >> /var/log/docker-prune.log 2>&1
 

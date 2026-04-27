@@ -43,6 +43,7 @@ var RepoSet = wire.NewSet(
 	ProvideVerificationTokenRepo,
 	ProvideTrackingRepo,
 	ProvideOAuthRepo,
+	ProvideBanAppealRepo,
 	wire.Bind(new(repo.UserRepository), new(*persistent.UserRepo)),
 	wire.Bind(new(repo.TeamRepository), new(*persistent.TeamRepo)),
 	wire.Bind(new(repo.SolveRepository), new(*persistent.SolveRepo)),
@@ -70,6 +71,7 @@ var RepoSet = wire.NewSet(
 	wire.Bind(new(repo.VerificationTokenRepository), new(*persistent.VerificationTokenRepo)),
 	wire.Bind(new(repo.TrackingRepository), new(*persistent.TrackingRepo)),
 	wire.Bind(new(repo.OAuthAccountRepository), new(*persistent.OAuthRepo)),
+	wire.Bind(new(repo.BanAppealRepository), new(*persistent.BanAppealRepo)),
 )
 
 var UseCaseSet = wire.NewSet(
@@ -104,6 +106,7 @@ var UseCaseSet = wire.NewSet(
 	ProvideTrackingUseCase,
 	ProvideOAuthUseCase,
 	ProvideAvatarUseCase,
+	ProvideBanAppealUseCase,
 	ProvideOAuthProviders,
 	ProvideOAuthConfig,
 	wire.Bind(new(usecase.BackupUseCase), new(*backup.BackupUseCase)),

@@ -91,10 +91,10 @@ func ValidateStrongPasswordField(fl validator.FieldLevel) bool {
 }
 
 // ValidatePassword reports whether password satisfies the strength policy
-// length 6–72, characters from the allowed set, and at least one lowercase letter,
+// length 8–72, characters from the allowed set, and at least one lowercase letter,
 // one uppercase letter, and one digit.
 func ValidatePassword(password string) bool {
-	if len(password) < 6 || len(password) > 72 {
+	if len(password) < 8 || len(password) > 72 {
 		return false
 	}
 

@@ -56,13 +56,13 @@ func (d *settingsTestDeps) createSettingsUseCase(t *testing.T) (*SettingsUseCase
 func newTestAppSettings() *domain.Settings {
 	return &domain.Settings{
 		ID:                               1,
-		AppName:                          "AstroCTFb",
+		AppName:                          "CTF Platform",
 		VerifyEmails:                     true,
 		FrontendURL:                      "http://localhost:3000",
 		CORSOrigins:                      "http://localhost:3000",
 		ResendEnabled:                    false,
-		ResendFromEmail:                  "noreply@astroctfb.local",
-		ResendFromName:                   "AstroCTFb",
+		ResendFromEmail:                  "noreply@ctf-platform.local",
+		ResendFromName:                   "CTF Platform",
 		VerifyTTLHours:                   24,
 		ResetTTLHours:                    1,
 		SubmitLimitPerUser:               10,

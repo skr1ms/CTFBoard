@@ -2,7 +2,6 @@ package v1
 
 import (
 	"errors"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -19,9 +18,27 @@ import (
 )
 
 const (
+	refreshCookieName    = "ctf_refresh"
+	refreshCookieMaxAge  = 72 * 60 * 60 // 72 h - matches jwtkit RefreshTTL
 	defaultUserSortField = "username"
 	sortFieldIP          = "ip"
 )
+
+func (h *Server) setRefreshCookie(w http.ResponseWriter, token string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshCookieName,
+		Value:    token,
+		Path:     "/api/v1/auth",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   h.user.SecureCookies,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+func (h *Server) clearRefreshCookie(w http.ResponseWriter) {
+	h.setRefreshCookie(w, "", -1)
+}
 
 // requireOwnUserOrAdmin writes ErrAccessDenied and returns false when the authenticated
 // user is neither the target user nor an admin. Pass the handler and step names for
@@ -52,6 +69,7 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.setRefreshCookie(w, tokenPair.RefreshToken, refreshCookieMaxAge)
 	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
@@ -88,28 +106,35 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromUserForMe(user))
-}
+	resp := response.FromUserForMe(user)
 
-// PostAuthRefresh issues a new token pair from a refresh token supplied in the
-// Authorization header. Error mapping is intentional: ErrUserBanned is preserved
-// so clients can display a ban message; all other JWTService errors (expired,
-// revoked, invalid) are mapped to ErrNotAuthenticated to avoid leaking token
-// state to the caller.
-// (POST /auth/refresh).
-func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params openapi.PostAuthRefreshParams) {
-	refreshToken := params.Authorization
-	if t, ok := strings.CutPrefix(refreshToken, "Bearer "); ok {
-		refreshToken = t
+	if user.IsBanned && resp.BanStatus != nil {
+		canAppeal, hasPending, err := h.user.AppealUC.CanAppeal(r.Context(), user.ID)
+		if h.OnError(w, r, err, "GetAuthMe", "CanAppeal") {
+			return
+		}
+
+		resp.BanStatus.CanAppeal = &canAppeal
+		resp.BanStatus.HasPendingAppeal = &hasPending
 	}
 
-	if refreshToken == "" {
-		h.OnError(w, r, apperr.ErrNotAuthenticated, "PostAuthRefresh", "MissingToken")
+	httputil.RenderOK(w, r, resp)
+}
+
+// PostAuthRefresh issues a new token pair from the httpOnly refresh cookie.
+// Error mapping is intentional: ErrUserBanned is preserved so clients can
+// display a ban message; all other JWTService errors are mapped to
+// ErrNotAuthenticated to avoid leaking token state to the caller.
+// (POST /auth/refresh).
+func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(refreshCookieName)
+	if err != nil || cookie.Value == "" {
+		h.OnError(w, r, apperr.ErrNotAuthenticated, "PostAuthRefresh", "MissingRefreshCookie")
 
 		return
 	}
 
-	tokenPair, err := h.infra.JWTService.RefreshTokens(r.Context(), refreshToken)
+	tokenPair, err := h.infra.JWTService.RefreshTokens(r.Context(), cookie.Value)
 	if err != nil {
 		var mapped = apperr.ErrNotAuthenticated
 
@@ -122,6 +147,7 @@ func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
+	h.setRefreshCookie(w, tokenPair.RefreshToken, refreshCookieMaxAge)
 	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
@@ -140,58 +166,32 @@ func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 	httputil.RenderOK(w, r, response.FromUserProfile(profile))
 }
 
-// PostAuthLogout revokes both the refresh token and the current access token.
-// The refresh token is extracted from either the Authorization header or the
-// request body (dual-source extraction). The access token is read from the
-// Authorization header independently; RevokeAccessToken errors are logged but
-// not returned so that body-only clients can still log out successfully.
+// PostAuthLogout revokes the refresh token from the httpOnly cookie and
+// optionally revokes the current access token from the Authorization header.
 // (POST /auth/logout).
-func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request, params openapi.PostAuthLogoutParams) {
-	var refreshToken string
-
-	if params.Authorization != nil {
-		if t, ok := strings.CutPrefix(*params.Authorization, "Bearer "); ok {
-			refreshToken = t
-		}
-	}
-
-	if refreshToken == "" && r.Body != nil && r.ContentLength != 0 {
-		r.Body = io.NopCloser(io.LimitReader(r.Body, maxLogoutBodySize))
-
-		req, ok := httputil.DecodeAndValidate[openapi.LogoutRequest](
-			w, r, h.infra.Validator,
-		)
-		if !ok {
-			return
-		}
-
-		if req.RefreshToken != nil {
-			refreshToken = *req.RefreshToken
-		}
-	}
-
-	if refreshToken == "" {
-		h.OnError(w, r, apperr.ErrNotAuthenticated, "PostAuthLogout", "MissingToken")
+func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(refreshCookieName)
+	if err != nil || cookie.Value == "" {
+		h.OnError(w, r, apperr.ErrNotAuthenticated, "PostAuthLogout", "MissingRefreshCookie")
 
 		return
 	}
 
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		if accessToken, ok := strings.CutPrefix(authHeader, "Bearer "); ok && accessToken != "" {
-			err := h.infra.JWTService.RevokeAccessToken(r.Context(), accessToken)
-			if err != nil {
-				h.infra.Logger.WithError(err).Warn("restapi - v1 - PostAuthLogout - RevokeAccessToken")
+			if revokeErr := h.infra.JWTService.RevokeAccessToken(r.Context(), accessToken); revokeErr != nil {
+				h.infra.Logger.WithError(revokeErr).Warn("restapi - v1 - PostAuthLogout - RevokeAccessToken")
 			}
 		}
 	}
 
-	err := h.infra.JWTService.RevokeRefreshToken(r.Context(), refreshToken)
-	if err != nil {
+	if err := h.infra.JWTService.RevokeRefreshToken(r.Context(), cookie.Value); err != nil {
 		h.OnError(w, r, apperr.ErrNotAuthenticated, "PostAuthLogout", "RevokeRefreshToken")
 
 		return
 	}
 
+	h.clearRefreshCookie(w)
 	httputil.RenderNoContent(w, r)
 }
 
@@ -265,7 +265,7 @@ func (h *Server) GetUsersMeFails(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromFailListPublic(fails.Data, fails.Total, fails.Page, fails.PerPage))
+	httputil.RenderOK(w, r, response.FromFailListSelf(fails.Data, fails.Total, fails.Page, fails.PerPage))
 }
 
 // (GET /users/{ID}/fails).

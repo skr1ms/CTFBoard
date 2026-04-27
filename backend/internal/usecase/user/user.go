@@ -116,7 +116,7 @@ func NewUserUseCase(deps UserDeps) *UserUseCase {
 		deps.Logger = logkit.Noop()
 	}
 
-	dummy, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-pad-astroctfb"), deps.bcryptCost())
+	dummy, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-pad-ctf-platform"), deps.bcryptCost())
 	if err != nil {
 		deps.Logger.Warn("UserUseCase - dummy bcrypt hash failed, using fallback")
 
@@ -361,12 +361,6 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*jwtk
 		}
 
 		return nil, fmt.Errorf("UserUseCase - Login - UserRepo.GetByEmail: %w", err)
-	}
-
-	if user.IsBanned {
-		uc.recordFailedLogin(ctx, email)
-
-		return nil, apperr.ErrInvalidCredentials
 	}
 
 	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {

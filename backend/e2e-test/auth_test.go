@@ -196,7 +196,7 @@ func TestAuth_ResetPassword_InvalidToken(t *testing.T) {
 	h.ResetPasswordExpectStatus("invalid-token", "NewValid1", http.StatusNotFound)
 }
 
-// POST /auth/refresh: valid refresh token returns new token pair.
+// POST /auth/refresh: valid refresh cookie returns new access token.
 func TestAuth_Refresh_Success(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -204,15 +204,11 @@ func TestAuth_Refresh_Success(t *testing.T) {
 
 	username := "refresh_" + helper.UID()
 	_, _, accessToken := h.RegisterUserAndLogin(username)
-	loginResp := h.Login(username+"@example.com", "ValidPass1", http.StatusOK)
-	require.NotNil(t, loginResp.JSON200)
-	require.NotNil(t, loginResp.JSON200.RefreshToken)
-	refreshToken := *loginResp.JSON200.RefreshToken
+	h.Login(username+"@example.com", "ValidPass1", http.StatusOK) // sets cookie in jar
 
-	refreshResp := h.Refresh(refreshToken, http.StatusOK)
-	newAccess, newRefresh := helper.RequireRefreshOK(t, refreshResp)
+	refreshResp := h.Refresh(http.StatusOK)
+	newAccess := helper.RequireRefreshOK(t, refreshResp)
 	assert.NotEmpty(t, newAccess)
-	assert.NotEmpty(t, newRefresh)
 	assert.NotEqual(t, accessToken, newAccess)
 
 	me := helper.RequireMeOK(t, h.MeWithClient(ctx, h.Client(), newAccess))
@@ -224,11 +220,11 @@ func TestAuth_Refresh_InvalidToken(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	resp, err := h.Client().PostAuthRefreshWithResponse(context.Background(), nil)
+	resp, err := h.Client().PostAuthRefreshWithResponse(context.Background())
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "refresh without token")
 
-	h.Refresh("invalid-refresh-token", http.StatusUnauthorized)
+	h.Refresh(http.StatusUnauthorized, helper.WithRefreshCookie("invalid-refresh-token"))
 }
 
 // POST /auth/refresh: admin with WasInBannedTeam can refresh tokens (policy allows admins).
@@ -263,12 +259,9 @@ func TestAuth_Refresh_AdminWasInBannedTeam_Success(t *testing.T) {
 		}
 	}
 
-	loginResp := h.Login(email, password, http.StatusOK)
-	require.NotNil(t, loginResp.JSON200)
-	require.NotNil(t, loginResp.JSON200.RefreshToken)
-	refreshToken := "Bearer " + *loginResp.JSON200.RefreshToken
+	h.Login(email, password, http.StatusOK) // sets cookie in jar
 
-	refreshResp := h.Refresh(refreshToken, http.StatusOK)
+	refreshResp := h.Refresh(http.StatusOK)
 	helper.RequireRefreshOK(t, refreshResp)
 }
 
@@ -300,23 +293,47 @@ func TestAuth_Logout_Success(t *testing.T) {
 
 	username := "logout_" + helper.UID()
 	email, password := h.RegisterUser(username)
-	loginResp := h.Login(email, password, http.StatusOK)
-	require.NotNil(t, loginResp.JSON200)
-	require.NotNil(t, loginResp.JSON200.RefreshToken)
-	refreshToken := *loginResp.JSON200.RefreshToken
+	h.Login(email, password, http.StatusOK) // sets cookie in jar
 
-	authHeader := "Bearer " + refreshToken
-	resp, err := h.Client().PostAuthLogoutWithResponse(context.Background(), &openapi.PostAuthLogoutParams{Authorization: &authHeader}, openapi.PostAuthLogoutJSONRequestBody{})
+	resp, err := h.Client().PostAuthLogoutWithResponse(context.Background())
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusNoContent, resp.StatusCode(), resp.Body, "logout")
 }
 
-// POST /auth/logout: no Authorization header returns 401 (token required).
+// POST /auth/logout: no refresh cookie returns 401.
 func TestAuth_Logout_NoAuth(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
 
-	resp, err := h.Client().PostAuthLogoutWithResponse(context.Background(), nil, openapi.PostAuthLogoutJSONRequestBody{})
+	resp, err := h.Client().PostAuthLogoutWithResponse(context.Background())
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "logout no auth")
+}
+
+// POST /auth/resend-verification-by-email: registered unverified user gets 200.
+func TestAuth_ResendVerificationByEmail_Success(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := helper.UID()
+	email := "resend_byemail_" + suffix + "@example.com"
+	h.Register("resend_byemail_"+suffix, email, "ValidPass1!")
+
+	h.ResendVerificationByEmail(email, http.StatusOK)
+}
+
+// POST /auth/resend-verification-by-email: non-existent email returns 200 (no enumeration).
+func TestAuth_ResendVerificationByEmail_NonExistentEmail(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	h.ResendVerificationByEmail("nosuchuser@example.com", http.StatusOK)
+}
+
+// POST /auth/resend-verification-by-email: malformed email returns 400.
+func TestAuth_ResendVerificationByEmail_InvalidEmail(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	h.ResendVerificationByEmail("not-an-email", http.StatusBadRequest)
 }

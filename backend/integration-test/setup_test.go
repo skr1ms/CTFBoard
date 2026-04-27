@@ -163,6 +163,7 @@ func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 		"users",
 		"teams",
 		"competition",
+		"ban_appeals",
 	}
 
 	for _, table := range tables {
@@ -184,7 +185,7 @@ const (
 	seaweedS3Port    = "8333"
 	seaweedAccessKey = "admin"
 	seaweedSecretKey = "admin"
-	seaweedBucket    = "astroctfb"
+	seaweedBucket    = "ctf-platform"
 )
 
 var (

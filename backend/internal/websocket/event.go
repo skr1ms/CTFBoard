@@ -1,4 +1,4 @@
-// Package websocket holds AstroCTFb-specific WebSocket payloads and event name constants
+// Package websocket holds CTF Platform WebSocket payloads and event name constants
 // The wire format envelope (type, payload, timestamp) is go-wskit.Event (module github.com/wahrwelt-kit/go-wskit)
 // hub, client lifecycle, Redis pub/sub and ping keep-alive are provided by go-wskit on top of coder/websocket
 //

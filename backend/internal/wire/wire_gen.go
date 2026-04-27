@@ -8,14 +8,16 @@ package wire
 
 import (
 	"context"
-	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
 // Injectors from wire.go:
@@ -89,12 +91,14 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	oAuthConfig := ProvideOAuthConfig(cfg)
 	oAuthUseCase := ProvideOAuthUseCase(userRepo, oAuthRepo, transactionManager, settingsRepo, jwtService, v, oAuthConfig, competitionRepo, teamUseCase, l)
 	avatarUseCase := ProvideAvatarUseCase(userRepo, teamRepo, storageProvider, keyValueStore, transactionManager, auditLogRepo, l)
+	banAppealRepo := ProvideBanAppealRepo(pool)
+	banAppealUseCase := ProvideBanAppealUseCase(banAppealRepo, userRepo, transactionManager)
 	controller := ProvideWsController(wsHub, l, cfg)
 	validator, err := ProvideValidator()
 	if err != nil {
 		return nil, err
 	}
-	serverDeps, err := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, submissionBatcher, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, avatarUseCase, jwtService, redisClient, storageProvider, controller, wsHub, validator, l)
+	serverDeps, err := ProvideServerDeps(cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, submissionBatcher, tagUseCase, fieldUseCase, pageUseCase, bracketUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, avatarUseCase, banAppealUseCase, jwtService, redisClient, storageProvider, controller, wsHub, validator, l)
 	if err != nil {
 		return nil, err
 	}

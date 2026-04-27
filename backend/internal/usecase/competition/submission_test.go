@@ -71,8 +71,8 @@ func TestSubmissionUseCase_GetByChallenge_Error(t *testing.T) {
 	challengeID := uuid.New()
 	page, perPage := 1, 20
 
+	// httputil.FetchPage runs fetchFn then countFn sequentially; a fetch error short-circuits the count call.
 	d.submissionRepo.EXPECT().GetByChallenge(mock.Anything, challengeID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByChallenge(mock.Anything, challengeID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByChallenge(ctx, challengeID, page, perPage, false)
@@ -110,8 +110,8 @@ func TestSubmissionUseCase_GetByUser_Error(t *testing.T) {
 	userID := uuid.New()
 	page, perPage := 1, 20
 
+	// httputil.FetchPage runs fetchFn then countFn sequentially; a fetch error short-circuits the count call.
 	d.submissionRepo.EXPECT().GetByUser(mock.Anything, userID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByUser(mock.Anything, userID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByUser(ctx, userID, page, perPage, false)
@@ -149,8 +149,8 @@ func TestSubmissionUseCase_GetByTeam_Error(t *testing.T) {
 	teamID := uuid.New()
 	page, perPage := 1, 20
 
+	// httputil.FetchPage runs fetchFn then countFn sequentially; a fetch error short-circuits the count call.
 	d.submissionRepo.EXPECT().GetByTeam(mock.Anything, teamID, mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountByTeam(mock.Anything, teamID, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetByTeam(ctx, teamID, page, perPage, false)
@@ -186,8 +186,8 @@ func TestSubmissionUseCase_GetAll_Error(t *testing.T) {
 	ctx := context.Background()
 	page, perPage := 1, 20
 
+	// httputil.FetchPage runs fetchFn then countFn sequentially; a fetch error short-circuits the count call.
 	d.submissionRepo.EXPECT().GetAll(mock.Anything, mock.Anything, perPage, 0).Return(nil, assert.AnError)
-	d.submissionRepo.EXPECT().CountAll(mock.Anything, mock.Anything).Return(int64(0), nil)
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetAll(ctx, page, perPage, false)
@@ -223,6 +223,49 @@ func TestSubmissionUseCase_GetStats_Error(t *testing.T) {
 
 	uc := d.createSubmissionUseCase()
 	got, err := uc.GetStats(ctx, challengeID, false)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestSubmissionUseCase_AdminCreate_Success(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, challengeID := uuid.New(), uuid.New()
+
+	expected := &domain.SubmissionWithDetails{
+		Submission: domain.Submission{
+			UserID: userID, ChallengeID: challengeID,
+			SubmittedFlag: "wrong_flag", IsCorrect: false,
+		},
+	}
+
+	d.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+	d.submissionRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(expected, nil)
+
+	uc := d.createSubmissionUseCase()
+	got, err := uc.AdminCreate(ctx, userID, nil, challengeID, "wrong_flag", false, "127.0.0.1")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, expected.SubmittedFlag, got.SubmittedFlag)
+}
+
+func TestSubmissionUseCase_AdminCreate_UserBanned(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, challengeID := uuid.New(), uuid.New()
+
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{ID: userID, IsBanned: true}, nil)
+
+	uc := NewSubmissionUseCase(SubmissionDeps{
+		SubmissionRepo: d.submissionRepo,
+		UserRepo:       d.userRepo,
+		Logger:         d.logger,
+	})
+	got, err := uc.AdminCreate(ctx, userID, nil, challengeID, "flag", false, "127.0.0.1")
 
 	assert.Error(t, err)
 	assert.Nil(t, got)

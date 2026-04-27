@@ -34,6 +34,8 @@ SCHEMA_FILES = [
     "avatar_schemas.yml",
     "statistics_schemas.yml",
     "scoreboard_schemas.yml",
+    "ban_appeal_schemas.yml",
+    "storage_schemas.yml",
 ]
 
 

@@ -1,0 +1,71 @@
+/admin/storage:
+  get:
+    operationId: GetAdminStorage
+    summary: List storage objects
+    description: List all objects in storage with an optional prefix filter. Admin only.
+    parameters:
+      - name: prefix
+        in: query
+        required: false
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/StorageListResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    tags:
+      - Admin
+
+/admin/storage/{path}:
+  delete:
+    operationId: DeleteAdminStoragePath
+    summary: Delete a storage object
+    description: Permanently delete a file from storage. Creates an audit log entry. Admin only.
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: Deleted
+      "400":
+        description: Bad Request (invalid path)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+    tags:
+      - Admin

@@ -53,6 +53,16 @@ func FromSubmissionPublic(s *domain.SubmissionWithDetails) openapi.SubmissionRes
 	return res
 }
 
+// FromSubmissionSelf maps a submission for the requester's own data
+// (/users/me/fails, /teams/me/fails). Includes SubmittedFlag (no flag-leak
+// risk on own data) but omits IP (PII-adjacent; not useful to the user).
+func FromSubmissionSelf(s *domain.SubmissionWithDetails) openapi.SubmissionResponse {
+	res := FromSubmissionPublic(s)
+	res.SubmittedFlag = new(s.SubmittedFlag)
+
+	return res
+}
+
 func FromSubmissionListPublic(items []*domain.SubmissionWithDetails, total int64, page, perPage int) openapi.SubmissionListResponse {
 	data, meta := BuildListResponse(items, FromSubmissionPublic, total, page, perPage)
 

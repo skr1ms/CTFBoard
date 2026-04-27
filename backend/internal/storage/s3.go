@@ -74,7 +74,7 @@ func (p *S3Provider) Upload(ctx context.Context, path string, reader io.Reader, 
 	_, err := p.client.PutObject(ctx, p.bucket, path, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 		UserMetadata: map[string]string{
-			"uploaded-by": "astroctfb",
+			"uploaded-by": "ctf-platform",
 		},
 	})
 	if err != nil {

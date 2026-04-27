@@ -1,0 +1,120 @@
+# Minimal stack for e2e tests (no Vault, no SeaweedFS, no monitoring).
+# Usage:
+#   docker compose -f deployment/docker/docker-compose.e2e.yml up --build -d
+#   make test-e2e
+#   docker compose -f deployment/docker/docker-compose.e2e.yml down -v
+
+services:
+  postgres:
+    image: postgres:alpine
+    container_name: e2e-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: board
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d board"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql
+
+  redis:
+    image: redis:alpine
+    container_name: e2e-redis
+    command: redis-server --requirepass 12345
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a 12345 ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /data
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: e2e-backend
+    ports:
+      - "8090:8080"
+    environment:
+      APP_NAME: ctf-platform-e2e
+      APP_VERSION: "1.0.0"
+      STRUCTURED_LOGGER: "false"
+      DEBUG_ENABLED: "false"
+      SECURE_COOKIES: "false"
+      LOG_LEVEL: warn
+      BACKEND_PORT: "8080"
+      API_BASE_URL: http://localhost:8090
+      MIGRATIONS_PATH: migrations
+      VERIFY_EMAILS: "false"
+      COMPETITION_MODE: flexible
+      ALLOW_TEAM_SWITCH: "true"
+      MIN_TEAM_SIZE: "1"
+      MAX_TEAM_SIZE: "10"
+      HTTP_SHUTDOWN_TIMEOUT: "5"
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: board
+      POSTGRES_MAX_CONNS: "20"
+      POSTGRES_MIN_CONNS: "2"
+      POSTGRES_SSL_MODE: disable
+
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: 12345
+      REDIS_POOL_SIZE: "10"
+      REDIS_MIN_IDLE: "2"
+
+      # No Vault - secrets provided directly
+      VAULT_ADDR: ""
+      VAULT_TOKEN: ""
+
+      # this keys just for testing
+      FLAG_ENCRYPTION_KEY: "b59bcc4169843f07bb99c6ca0abf5dd904742a5234589b4d563a6b8cefb31695"
+      JWT_ACCESS_SECRET: "c6c81b1ebf8c75741f751f65a0c9e70adb0ea7d2a8e6719ddc0d7364dec617c8"
+      JWT_REFRESH_SECRET: "30d08c2d236ffe4d8e48ee68c590d0f139570639066b77fcaf886e9747ba4e6f"
+      JWT_ACCESS_TTL_MINUTES: "60"
+      JWT_REFRESH_TTL_HOURS: "72"
+      JWT_ISSUER: ctf-platform-e2e
+
+      RESEND_ENABLED: "false"
+      RESEND_FROM_EMAIL: noreply@e2e.local
+      RESEND_FROM_NAME: E2E
+
+      STORAGE_PROVIDER: filesystem
+      STORAGE_LOCAL_PATH: /tmp/e2e-uploads
+
+      ADMIN_USERNAME: admin
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: password
+
+      FRONTEND_URL: http://localhost:4173
+      CORS_ORIGINS: http://localhost:4173
+
+      RATE_LIMIT_SUBMIT_FLAG: "100"
+      RATE_LIMIT_SUBMIT_FLAG_DURATION: "1"
+
+      STORAGE_S3_ACCESS_KEY: ""
+      STORAGE_S3_SECRET_KEY: ""
+      OAUTH_STATE_SECRET: "5aa4f5d8c210418e088b913b9f4587194c41dc191bdedd0078935bf740330532"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

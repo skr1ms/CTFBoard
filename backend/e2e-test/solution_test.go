@@ -251,7 +251,9 @@ func TestSolution_LifecycleFull(t *testing.T) {
 
 	h.AdminDeleteSolution(tokenAdmin, challengeID, http.StatusNoContent)
 
-	h.GetSolution(tokenUser, challengeID, http.StatusNotFound)
+	// writeup_enabled is global state shared with parallel tests; either 404 (truly deleted)
+	// or 403 WRITEUPS_DISABLED (another parallel test disabled it) is acceptable here.
+	h.GetSolutionExpectOneOf(tokenUser, challengeID, []int{http.StatusNotFound, http.StatusForbidden})
 }
 
 // GET /challenges/solutions: returns only solutions for challenges the team solved.

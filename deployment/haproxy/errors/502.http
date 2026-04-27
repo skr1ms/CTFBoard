@@ -1,0 +1,5 @@
+HTTP/1.1 502 Bad Gateway
+Content-Type: application/json
+Cache-Control: no-store
+
+{"error":"bad_gateway","message":"The server is temporarily unavailable. Please try again in a moment."}

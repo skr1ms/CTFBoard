@@ -34,15 +34,28 @@ func FromUserForMe(u *domain.User) openapi.MeResponse {
 		teamIDStr = new(u.TeamID.String())
 	}
 
-	return openapi.MeResponse{
-		ID:        new(u.ID.String()),
-		Username:  new(u.Username),
-		Email:     new(u.Email),
-		Role:      new(string(u.Role)),
-		TeamID:    teamIDStr,
-		CreatedAt: timePtr(&u.CreatedAt),
-		AvatarURL: u.AvatarURL,
+	hasPassword := u.PasswordHash != "" && u.PasswordHash != domain.OAuthOnlyPasswordSentinel
+
+	resp := openapi.MeResponse{
+		ID:          new(u.ID.String()),
+		Username:    new(u.Username),
+		Email:       new(u.Email),
+		Role:        new(string(u.Role)),
+		TeamID:      teamIDStr,
+		CreatedAt:   timePtr(&u.CreatedAt),
+		AvatarURL:   u.AvatarURL,
+		HasPassword: &hasPassword,
 	}
+
+	if u.IsBanned {
+		resp.BanStatus = &openapi.BanStatus{
+			IsBanned: &u.IsBanned,
+			Reason:   u.BannedReason,
+			BannedAt: timePtr(u.BannedAt),
+		}
+	}
+
+	return resp
 }
 
 func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
@@ -101,10 +114,8 @@ func FromSolve(s *domain.Solve) openapi.SolveResponse {
 
 func FromTokenPair(p *jwtkit.TokenPair) openapi.TokenPair {
 	return openapi.TokenPair{
-		AccessToken:      new(p.AccessToken),
-		AccessExpiresAt:  new(int(p.AccessExpiresAt)),
-		RefreshToken:     new(p.RefreshToken),
-		RefreshExpiresAt: new(int(p.RefreshExpiresAt)),
+		AccessToken:     new(p.AccessToken),
+		AccessExpiresAt: new(int(p.AccessExpiresAt)),
 	}
 }
 
@@ -174,6 +185,12 @@ func FromSolveWithDetailsList(solves []*domain.SolveWithDetails) []openapi.Solve
 
 func FromFailListPublic(fails []*domain.SubmissionWithDetails, total int64, page, perPage int) openapi.FailListResponse {
 	data, meta := BuildListResponse(fails, FromSubmissionPublic, total, page, perPage)
+
+	return openapi.FailListResponse{Data: &data, Meta: meta}
+}
+
+func FromFailListSelf(fails []*domain.SubmissionWithDetails, total int64, page, perPage int) openapi.FailListResponse {
+	data, meta := BuildListResponse(fails, FromSubmissionSelf, total, page, perPage)
 
 	return openapi.FailListResponse{Data: &data, Meta: meta}
 }

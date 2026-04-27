@@ -1,3 +1,43 @@
+"/auth/oauth/exchange":
+  post:
+    operationId: PostAuthOauthExchange
+    security: []
+    description: Exchanges a one-time OAuth code (set by the server as a query parameter after a successful OAuth callback) for tokens. The refresh token is returned as an httpOnly cookie.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/OAuthExchangeRequest'
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/TokenPair'
+      "400":
+        description: Bad Request (missing or malformed code)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (code expired or already used)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: OAuth code exchange
+    tags:
+      - Authentication
+
 "/auth/oauth/{provider}":
   get:
     operationId: GetAuthOauthProvider

@@ -5,10 +5,6 @@ schemas:
         type: integer
       access_token:
         type: string
-      refresh_expires_at:
-        type: integer
-      refresh_token:
-        type: string
     type: object
   request.LoginRequest:
     properties:
@@ -53,6 +49,19 @@ schemas:
       - username
       - password
     type: object
+  response.BanStatus:
+    type: object
+    properties:
+      is_banned:
+        type: boolean
+      reason:
+        type: string
+      banned_at:
+        type: string
+      can_appeal:
+        type: boolean
+      has_pending_appeal:
+        type: boolean
   response.MeResponse:
     properties:
       created_at:
@@ -70,6 +79,11 @@ schemas:
         type: string
       avatar_url:
         type: string
+      has_password:
+        type: boolean
+        description: true when the account has a local password set (false for OAuth-only accounts)
+      ban_status:
+        $ref: '#/schemas/response.BanStatus'
     type: object
   response.RegisterResponse:
     properties:
@@ -82,9 +96,12 @@ schemas:
       username:
         type: string
     type: object
-  request.LogoutRequest:
-    description: Optional body for logout. The refresh token can also be passed via Authorization header.
-    properties:
-      refresh_token:
-        type: string
+
+  OAuthExchangeRequest:
     type: object
+    required:
+      - code
+    properties:
+      code:
+        type: string
+        description: One-time exchange code from the OAuth callback query parameter

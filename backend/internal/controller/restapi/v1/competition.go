@@ -19,6 +19,7 @@ func (h *Server) GetCompetitionStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheShort, false)
 	httputil.RenderOK(w, r, response.FromCompetitionStatus(comp))
 }
 

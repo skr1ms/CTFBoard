@@ -30,7 +30,7 @@ const (
 	avatarFullSize                   = 256
 	avatarThumbSize                  = 64
 	avatarWebPQuality                = 80
-	avatarMaxDimension               = 4096
+	avatarMaxDimension               = 2048
 	avatarMinDimension               = 64
 	avatarPresignedTTL time.Duration = 24 * time.Hour
 	avatarCacheTTL     time.Duration = 23 * time.Hour

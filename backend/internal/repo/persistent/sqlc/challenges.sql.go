@@ -156,6 +156,30 @@ func (q *Queries) GetAllChallengeRequirements(ctx context.Context) ([]ChallengeR
 	return items, nil
 }
 
+const getAllDynamicChallengeIDs = `-- name: GetAllDynamicChallengeIDs :many
+SELECT id FROM challenges WHERE initial_value > 0 AND decay > 0
+`
+
+func (q *Queries) GetAllDynamicChallengeIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, getAllDynamicChallengeIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getChallengeByID = `-- name: GetChallengeByID :one
 SELECT id, title, description, category, points, initial_value, min_value, decay, solve_count, flag_hash, connection_info, max_attempts, max_attempts_window, position, state, is_regex, is_case_insensitive, flag_regex, flag_format_regex, created_at, updated_at
 FROM challenges

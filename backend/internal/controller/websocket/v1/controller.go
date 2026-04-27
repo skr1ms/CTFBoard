@@ -54,6 +54,9 @@ func (c *Controller) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	opts := &websocket.AcceptOptions{
 		OriginPatterns: c.allowedOrigins,
+		// Accept "bearer" so the browser's Sec-WebSocket-Protocol: bearer, <token>
+		// is echoed back as the negotiated subprotocol.
+		Subprotocols: []string{"bearer"},
 	}
 
 	if len(c.allowedOrigins) == 0 {

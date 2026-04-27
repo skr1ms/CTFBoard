@@ -270,3 +270,43 @@ func TestEmailUseCase_ResendVerification_UserNotFound(t *testing.T) {
 	err := d.createUseCase().ResendVerification(context.Background(), uuid.Nil)
 	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
+
+func TestEmailUseCase_ResendVerificationByEmail_Success(t *testing.T) {
+	t.Parallel()
+	d := newEmailTestDeps(t)
+
+	user := newTestUser(uuid.New(), "testuser", "test@example.com")
+	user.IsVerified = false
+
+	d.setupTxRun()
+	d.userRepo.On("GetByEmail", mock.Anything, user.Email).Return(user, nil)
+	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, user.ID, domain.TokenTypeEmailVerification).Return(nil)
+	d.tokenRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+	d.mailer.On("Send", mock.Anything, mock.Anything).Return(nil)
+
+	err := d.createUseCase().ResendVerificationByEmail(context.Background(), user.Email)
+	assert.NoError(t, err)
+}
+
+func TestEmailUseCase_ResendVerificationByEmail_UserNotFound(t *testing.T) {
+	t.Parallel()
+	d := newEmailTestDeps(t)
+
+	d.userRepo.On("GetByEmail", mock.Anything, "unknown@example.com").Return(nil, apperr.ErrUserNotFound)
+
+	err := d.createUseCase().ResendVerificationByEmail(context.Background(), "unknown@example.com")
+	assert.NoError(t, err, "must return nil to prevent user enumeration")
+}
+
+func TestEmailUseCase_ResendVerificationByEmail_AlreadyVerified(t *testing.T) {
+	t.Parallel()
+	d := newEmailTestDeps(t)
+
+	user := newTestUser(uuid.New(), "testuser", "verified@example.com")
+	user.IsVerified = true
+
+	d.userRepo.On("GetByEmail", mock.Anything, user.Email).Return(user, nil)
+
+	err := d.createUseCase().ResendVerificationByEmail(context.Background(), user.Email)
+	assert.NoError(t, err, "must return nil without sending when already verified")
+}

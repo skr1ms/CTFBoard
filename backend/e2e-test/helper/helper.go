@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"net/http"
+	"net/http/cookiejar"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,7 +31,14 @@ func (h *E2EHelper) Redis() *redis.Client {
 func NewE2EHelper(t *testing.T, _ any, pool *pgxpool.Pool, redisClient *redis.Client, baseURL string) *E2EHelper {
 	t.Helper()
 
-	client, err := openapi.NewClientWithResponses(baseURL + "/api/v1")
+	// Cookie jar is required so the httpOnly ctf_refresh cookie set by login/refresh
+	// is automatically sent to refresh and logout endpoints.
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	httpClient := &http.Client{Jar: jar}
+
+	client, err := openapi.NewClientWithResponses(baseURL+"/api/v1", openapi.WithHTTPClient(httpClient))
 	require.NoError(t, err)
 
 	return &E2EHelper{

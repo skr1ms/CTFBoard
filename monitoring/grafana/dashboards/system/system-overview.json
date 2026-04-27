@@ -625,7 +625,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(restapi_requests_total{job=\"backend\"}[1m]))",
+          "expr": "sum(rate(http_requests_total{job=\"backend\"}[1m]))",
           "refId": "A",
           "legendFormat": "Requests/s"
         }

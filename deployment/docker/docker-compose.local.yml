@@ -1,19 +1,23 @@
-# run with: docker compose --env-file .env.local -f deployment/docker/docker-compose.local.yml up --build -d 
+# run with: docker compose --env-file .env.local -f deployment/docker/docker-compose.local.yml up --build -d
 
 services:
   vault:
     image: hashicorp/vault:latest
     container_name: vault
+    command: server -dev
     ports:
       - "8200:8200"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
       VAULT_LOG_LEVEL: "debug"
+      SKIP_SETCAP: true
     cap_add:
       - IPC_LOCK
+    security_opt:
+      - no-new-privileges:false
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
 
   vault-init:
@@ -21,20 +25,33 @@ services:
     container_name: vault-init
     env_file:
       - ../../.env.local
+    environment:
+      SKIP_SETCAP: true
     volumes:
-      - ./init-vault.sh:/init-vault.sh
+      - ./init-vault.sh:/init-vault.sh:ro
     entrypoint: /bin/sh
-    command: -c "chmod +x /init-vault.sh && /init-vault.sh"
+    command: -c "/init-vault.sh"
     depends_on:
       - vault
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: "no"
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:alpine
     container_name: postgres
-    command: ["postgres", "-c", "max_connections=400", "-c", "shared_buffers=256MB", "-c", "work_mem=4MB", "-c", "effective_cache_size=1GB"]
+    command:
+      [
+        "postgres",
+        "-c",
+        "max_connections=400",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "work_mem=4MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
@@ -52,10 +69,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
-  
+
   redis:
     image: redis:alpine
     container_name: redis
@@ -65,13 +83,15 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis} ping | grep PONG"]
+      test:
+        ["CMD-SHELL", "REDISCLI_AUTH=${REDIS_PASSWORD:-redis} redis-cli ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   seaweedfs:
     image: chrislusf/seaweedfs:latest
@@ -92,12 +112,12 @@ services:
       - "8888:8888"
       - "9324:9324"
     volumes:
-      - ../seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - ../seaweedfs/s3.local.json:/etc/seaweedfs/s3.json:ro
       - seaweed_data:/data
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9333/cluster/status"]
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://0.0.0.0:9333/cluster/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -115,12 +135,12 @@ services:
         VITE_MASTER_PORT: ${VITE_MASTER_PORT:-9333}
         VITE_MASTER_PROXY_PATH: ${VITE_MASTER_PROXY_PATH:-master}
         VITE_FILER_PROXY_PATH: ${VITE_FILER_PROXY_PATH:-filer}
-    image: ${SEAWEEDFS_UI_IMAGE:-astroctfb-seaweedfs-ui}
+    image: ${SEAWEEDFS_UI_IMAGE:-ctf-platform-seaweedfs-ui}
     container_name: seaweedfs-ui
     ports:
       - "${SEAWEEDFS_UI_PORT:-5000}:5000"
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/metrics"]
       interval: 10s
@@ -129,17 +149,17 @@ services:
       start_period: 5s
     restart: unless-stopped
     depends_on:
-      - seaweedfs
+      seaweedfs:
+        condition: service_healthy
 
   backend:
     build:
       context: ../../backend
       dockerfile: Dockerfile
-    image: ${BACKEND_IMAGE:-astroctfb-backend-local}
+    image: ${BACKEND_IMAGE:-ctf-platform-backend-local}
     container_name: backend
     environment:
-      # Application
-      APP_NAME: ${APP_NAME:-AstroCTFb}
+      APP_NAME: ${APP_NAME:-CTF Platform}
       APP_VERSION: ${APP_VERSION:-1.0.0}
       STRUCTURED_LOGGER: ${STRUCTURED_LOGGER:-true}
       DEBUG_ENABLED: ${DEBUG_ENABLED:-false}
@@ -155,36 +175,36 @@ services:
       MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-10}
       HTTP_SHUTDOWN_TIMEOUT: ${HTTP_SHUTDOWN_TIMEOUT:-15}
 
-      # Database - host/port only; credentials come from Vault: astroctfb/database
+      # Database - host/port only; credentials come from Vault: ctf-platform/database
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_MAX_CONNS: ${POSTGRES_MAX_CONNS:-100}
       POSTGRES_MIN_CONNS: ${POSTGRES_MIN_CONNS:-10}
       POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-disable}
 
-      # Redis - host/port only; password comes from Vault: astroctfb/redis
+      # Redis - host/port only; password comes from Vault: ctf-platform/redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_POOL_SIZE: ${REDIS_POOL_SIZE:-50}
       REDIS_MIN_IDLE: ${REDIS_MIN_IDLE:-10}
-      JWT_ISSUER: ${JWT_ISSUER:-astroctfb}
+      JWT_ISSUER: ${JWT_ISSUER:-ctf-platform}
 
       # Vault - required; all secrets below are fetched from here at startup
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_TOKEN:-root}
 
-      # JWT TTLs - non-secret; actual signing keys come from Vault: astroctfb/jwt
+      # JWT TTLs - non-secret; actual signing keys come from Vault: ctf-platform/jwt
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
       JWT_REFRESH_TTL_HOURS: ${JWT_REFRESH_TTL_HOURS:-72}
 
-      # Email / Resend - non-secret config; API key comes from Vault: astroctfb/resend
+      # Email / Resend - non-secret config; API key comes from Vault: ctf-platform/resend
       RESEND_ENABLED: ${RESEND_ENABLED:-false}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@astroctfb.local}
-      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-AstroCTFb}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@ctf-platform.local}
+      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-CTF Platform}
       RESEND_VERIFY_TTL_HOURS: ${RESEND_VERIFY_TTL_HOURS:-24}
       RESEND_RESET_TTL_HOURS: ${RESEND_RESET_TTL_HOURS:-1}
 
-      # Storage - non-secret config; access/secret keys come from Vault: astroctfb/storage
+      # Storage - non-secret config; access/secret keys come from Vault: ctf-platform/storage
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
       STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-./uploads}
       STORAGE_S3_ENDPOINT: seaweedfs:8333
@@ -194,25 +214,23 @@ services:
       STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-false}
       STORAGE_PRESIGNED_EXPIRY_MINUTES: ${STORAGE_PRESIGNED_EXPIRY_MINUTES:-60}
 
-      # Frontend
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000,http://localhost:5173,http://localhost:5000}
 
-      # Proxy / metrics
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
       METRICS_ALLOWED_IPS: ${METRICS_ALLOWED_IPS:-}
 
-      # Rate limiting
       RATE_LIMIT_SUBMIT_FLAG: ${RATE_LIMIT_SUBMIT_FLAG:-1000}
       RATE_LIMIT_SUBMIT_FLAG_DURATION: ${RATE_LIMIT_SUBMIT_FLAG_DURATION:-1}
 
-      # OAuth redirect URLs - non-secret; client credentials come from Vault: astroctfb/oauth
+      # OAuth redirect URLs - non-secret; client credentials come from Vault: ctf-platform/oauth
       OAUTH_GITHUB_REDIRECT_URL: ${OAUTH_GITHUB_REDIRECT_URL:-http://localhost:8090/api/v1/auth/oauth/github/callback}
       OAUTH_GOOGLE_REDIRECT_URL: ${OAUTH_GOOGLE_REDIRECT_URL:-http://localhost:8090/api/v1/auth/oauth/google/callback}
     ports:
       - "${BACKEND_PORT:-8090}:8080"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthcheck"]
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -227,18 +245,44 @@ services:
       seaweedfs:
         condition: service_healthy
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../frontend/board
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-CTF Platform}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/api/v1/ws}
+        VITE_SSE_URL: ${VITE_SSE_URL:-http://localhost:8000/api/v1/sse}
+    image: ${FRONTEND_IMAGE:-ctf-platform-frontend}
+    container_name: frontend
+    ports:
+      - "${FRONTEND_PORT:-8000}:8000"
+    networks:
+      - ctf_platform_network
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
     ports:
       - "9091:9090"
     depends_on:
@@ -249,16 +293,27 @@ services:
       - ../../monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:latest
+    build:
+      context: .
+      dockerfile: loki.Dockerfile
+    image: astroctfb-loki:latest
     container_name: loki
     command: -config.file=/etc/loki/loki-config.yml
     expose:
@@ -266,17 +321,23 @@ services:
     volumes:
       - ../../monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
 
   alertmanager:
     image: prom/alertmanager:latest
     container_name: alertmanager
     volumes:
-      - ../../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ../../monitoring/alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
     expose:
       - "9093"
     healthcheck:
@@ -285,7 +346,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
 
   promtail:
@@ -298,10 +359,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - promtail_data:/data
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     depends_on:
-      - loki
+      loki:
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:latest
@@ -322,12 +384,20 @@ services:
       - ../../monitoring/grafana/dashboards/vault:/var/lib/grafana/dashboards/vault:ro
       - ../../monitoring/grafana/dashboards/seaweedfs:/var/lib/grafana/dashboards/seaweedfs:ro
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     depends_on:
       prometheus:
@@ -341,7 +411,7 @@ services:
     expose:
       - "9187"
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -356,7 +426,7 @@ services:
     expose:
       - "9121"
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     depends_on:
       redis:
@@ -366,9 +436,9 @@ services:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
     command:
-      - '-port=8180'
-      - '--housekeeping_interval=10s'
-      - '--docker_only=true'
+      - "-port=8180"
+      - "--housekeeping_interval=10s"
+      - "--docker_only=true"
     expose:
       - "8180"
     volumes:
@@ -378,7 +448,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
     privileged: true
     devices:
@@ -393,10 +463,10 @@ services:
     image: prom/node-exporter:latest
     container_name: node-exporter
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     expose:
       - "9100"
     volumes:
@@ -404,20 +474,7 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     networks:
-      - astroctfb_network
-    restart: unless-stopped
-
-  nginx-exporter:
-    image: nginx/nginx-prometheus-exporter:latest
-    container_name: nginx-exporter
-    command:
-      - "-nginx.scrape-uri=http://host.docker.internal:8080/stub_status"
-    expose:
-      - "9113"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - astroctfb_network
+      - ctf_platform_network
     restart: unless-stopped
 
 volumes:
@@ -431,5 +488,5 @@ volumes:
   seaweed_data:
 
 networks:
-  astroctfb_network:
+  ctf_platform_network:
     driver: bridge

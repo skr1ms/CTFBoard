@@ -63,6 +63,13 @@ packages:
           pkgname: "mock"
           structname: "MockTrackingRepository"
 
+      BanAppealRepository:
+        config:
+          dir: "internal/usecase/user/mock"
+          filename: "BanAppealRepository.go"
+          pkgname: "mock"
+          structname: "MockBanAppealRepository"
+
   github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi:
     interfaces:
       OAuthProviderAPI:

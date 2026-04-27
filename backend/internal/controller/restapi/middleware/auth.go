@@ -103,6 +103,23 @@ func Auth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC UserByIDG
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
+
+			// Browser WebSocket API cannot set custom headers during the HTTP->WS
+			// upgrade, so the JWT is passed via Sec-WebSocket-Protocol: bearer, <token>.
+			// Extract the non-"bearer" part of the subprotocol list as the credential.
+			if authHeader == "" {
+				if wsProto := r.Header.Get("Sec-WebSocket-Protocol"); wsProto != "" {
+					for part := range strings.SplitSeq(wsProto, ",") {
+						part = strings.TrimSpace(part)
+						if part != "" && !strings.EqualFold(part, "bearer") {
+							authHeader = "Bearer " + part
+
+							break
+						}
+					}
+				}
+			}
+
 			if authHeader == "" {
 				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrAuthorizationHeaderRequired))
 
@@ -123,7 +140,7 @@ func Auth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC UserByIDG
 
 			switch {
 			case strings.EqualFold(parts[0], "Bearer"):
-				ctx, ok = authBearer(jwtService, r, jwtkit.ExtractRaw(r))
+				ctx, ok = authBearer(jwtService, r, parts[1])
 			case strings.EqualFold(parts[0], "Token"):
 				ctx, ok = authAPIToken(apiTokenUC, userUC, log, r, parts[1])
 			default:

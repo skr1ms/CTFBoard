@@ -107,6 +107,9 @@ WHERE id = ANY($1::uuid[])
       AND s.banned_user_id IS NULL
   );
 
+-- name: GetAllDynamicChallengeIDs :many
+SELECT id FROM challenges WHERE initial_value > 0 AND decay > 0;
+
 -- name: GetChallengeFlags :one
 SELECT flag_hash, is_regex, is_case_insensitive, flag_regex, flag_format_regex
 FROM challenges

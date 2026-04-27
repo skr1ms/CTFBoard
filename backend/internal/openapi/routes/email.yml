@@ -114,6 +114,40 @@
     tags:
       - Authentication
 
+/auth/resend-verification-by-email:
+  post:
+    operationId: PostAuthResendVerificationByEmail
+    security: []
+    description: Resends verification email by email address. Always returns success to prevent user enumeration.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ResendVerificationByEmailRequest'
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/MessageResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Resend verification email by email address
+    tags:
+      - Authentication
+
 /auth/resend-verification:
   post:
     operationId: PostAuthResendVerification

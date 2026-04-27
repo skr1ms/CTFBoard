@@ -24,6 +24,7 @@ func (h *Server) GetFields(w http.ResponseWriter, r *http.Request, params openap
 		return
 	}
 
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderOK(w, r, response.FromFieldList(list))
 }
 

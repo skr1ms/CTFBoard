@@ -74,7 +74,8 @@ func TestStatistics_Scoreboard(t *testing.T) {
 	require.GreaterOrEqual(t, len(*resp.JSON200), 0)
 }
 
-// GET /statistics/scoreboard: no auth returns 401.
+// GET /statistics/scoreboard: VisibilityGuard(score_visibility) lets guests through when
+// the default value "public" is in effect; the endpoint responds 200 without auth.
 func TestStatistics_Scoreboard_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -82,7 +83,7 @@ func TestStatistics_Scoreboard_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsScoreboardWithResponse(context.Background(), nil)
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get scoreboard no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get scoreboard no auth (score_visibility=public)")
 }
 
 // GET /scoreboard/graph: returns range and teams with timelines; optional top query; public.
@@ -105,7 +106,8 @@ func TestStatistics_ScoreboardGraph(t *testing.T) {
 	require.GreaterOrEqual(t, len(*resp.JSON200.Teams), 0)
 }
 
-// GET /scoreboard/graph: no auth returns 401.
+// GET /scoreboard/graph: VisibilityGuard(score_visibility) lets guests through on the
+// default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_ScoreboardGraph_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -113,7 +115,7 @@ func TestStatistics_ScoreboardGraph_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetScoreboardGraphWithResponse(context.Background(), &openapi.GetScoreboardGraphParams{})
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get scoreboard graph no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get scoreboard graph no auth (score_visibility=public)")
 }
 
 // GET /statistics/challenges/{id}: returns challenge detail stats (id, title, category, points, solve_count, first_blood, solves); public.
@@ -199,7 +201,8 @@ func TestStatistics_SolvesPercentages(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get solves percentages")
 }
 
-// GET /statistics/challenges/solves/percentages: no auth returns 401.
+// GET /statistics/challenges/solves/percentages: VisibilityGuard(score_visibility) lets
+// guests through on the default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_SolvesPercentages_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -207,7 +210,7 @@ func TestStatistics_SolvesPercentages_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsChallengesSolvesPercentagesWithResponse(context.Background(), nil)
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get solves percentages no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get solves percentages no auth (score_visibility=public)")
 }
 
 // GET /statistics/scores/distribution: returns distribution; no auth returns 401.
@@ -223,7 +226,8 @@ func TestStatistics_ScoresDistribution(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get scores distribution")
 }
 
-// GET /statistics/scores/distribution: no auth returns 401.
+// GET /statistics/scores/distribution: VisibilityGuard(score_visibility) lets guests
+// through on the default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_ScoresDistribution_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -231,7 +235,7 @@ func TestStatistics_ScoresDistribution_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsScoresDistributionWithResponse(context.Background(), nil)
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get scores distribution no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get scores distribution no auth (score_visibility=public)")
 }
 
 // GET /statistics/submissions: returns time series stats; no auth returns 401.
@@ -246,7 +250,8 @@ func TestStatistics_Submissions(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics submissions")
 }
 
-// GET /statistics/submissions: no auth returns 401.
+// GET /statistics/submissions: VisibilityGuard(score_visibility) lets guests through on
+// the default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_Submissions_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -254,7 +259,7 @@ func TestStatistics_Submissions_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsSubmissionsWithResponse(context.Background(), nil)
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get statistics submissions no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics submissions no auth (score_visibility=public)")
 }
 
 // GET /statistics/submissions/{type}: type=correct -> filtered series.
@@ -293,7 +298,8 @@ func TestStatistics_Teams(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics teams")
 }
 
-// GET /statistics/teams: no auth returns 401.
+// GET /statistics/teams: VisibilityGuard(score_visibility) lets guests through on the
+// default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_Teams_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -301,7 +307,7 @@ func TestStatistics_Teams_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsTeamsWithResponse(context.Background())
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get statistics teams no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics teams no auth (score_visibility=public)")
 }
 
 // GET /statistics/users: returns user registration series; no auth returns 401.
@@ -316,7 +322,8 @@ func TestStatistics_Users(t *testing.T) {
 	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics users")
 }
 
-// GET /statistics/users: no auth returns 401.
+// GET /statistics/users: VisibilityGuard(score_visibility) lets guests through on the
+// default value "public"; the endpoint responds 200 without auth.
 func TestStatistics_Users_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -324,7 +331,7 @@ func TestStatistics_Users_Unauthorized(t *testing.T) {
 
 	resp, err := h.Client().GetStatisticsUsersWithResponse(context.Background())
 	require.NoError(t, err)
-	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "get statistics users no auth")
+	helper.RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "get statistics users no auth (score_visibility=public)")
 }
 
 // GET /admin/statistics/solve-matrix: admin gets solve matrix; non-admin returns 403.

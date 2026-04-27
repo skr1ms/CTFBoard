@@ -225,7 +225,7 @@ func TestValidateTeamSwitchState_Active_AllowSwitch(t *testing.T) {
 func TestValidateTeamSwitchState_NotStarted_AllowSwitch(t *testing.T) {
 	t.Parallel()
 
-	// StartTime in future → not started
+	// StartTime in future -> not started
 	start := time.Now().Add(time.Hour)
 	comp := &domain.Competition{StartTime: &start, AllowTeamSwitch: true}
 

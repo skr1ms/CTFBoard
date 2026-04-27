@@ -87,11 +87,11 @@ type Challenge struct {
 	Decay             int           `json:"decay"`
 	SolveCount        int           `json:"solve_count"`
 	FlagHash          string        `json:"-"`
-	ConnectionInfo    string        `json:"-"`
-	MaxAttempts       int           `json:"-"`
-	MaxAttemptsWindow time.Duration `json:"-"`
-	Position          int           `json:"-"`
-	State             string        `json:"-"`
+	ConnectionInfo    string        `json:"connection_info"`
+	MaxAttempts       int           `json:"max_attempts"`
+	MaxAttemptsWindow time.Duration `json:"max_attempts_window"`
+	Position          int           `json:"position"`
+	State             string        `json:"state"`
 	IsRegex           bool          `json:"is_regex"`
 	IsCaseInsensitive bool          `json:"is_case_insensitive"`
 	FlagRegex         *string       `json:"-"`
