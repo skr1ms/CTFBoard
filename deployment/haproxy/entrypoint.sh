@@ -10,19 +10,22 @@ set -e
 
 mkdir -p /var/run/haproxy /var/lib/haproxy /etc/haproxy/maps /etc/haproxy/certs
 
+write_map_file() {
+    value="$1"
+    target="$2"
+    printf '%s\n' "$value" | tr ', ' '\n\n' | awk 'NF' > "$target"
+}
+
 # Admin IP allow-list: space/comma-separated CIDRs.
 # Default covers all RFC-1918 ranges + loopback.
-printf '%s\n' "${ADMIN_ALLOWED_IPS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1/32}" \
-    | tr ', ' '\n\n' | grep -v '^$' > /etc/haproxy/maps/admin_ips.txt
+write_map_file "${ADMIN_ALLOWED_IPS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1/32}" /etc/haproxy/maps/admin_ips.txt
 
 # Vault admin IP(s) - defaults to loopback only.
-printf '%s\n' "${VAULT_ADMIN_IP:-127.0.0.1}" \
-    | tr ', ' '\n\n' | grep -v '^$' > /etc/haproxy/maps/vault_ips.txt
+write_map_file "${VAULT_ADMIN_IP:-127.0.0.1}" /etc/haproxy/maps/vault_ips.txt
 
 # Trusted CDN CIDRs (DDoS-Guard, Cloudflare, etc.).
 # Empty = direct mode (track src). Non-empty = CDN mode (track XFF).
-printf '%s\n' "${TRUSTED_CDN_CIDRS:-}" \
-    | tr ', ' '\n\n' | grep -v '^$' > /etc/haproxy/maps/cdn_cidrs.txt
+write_map_file "${TRUSTED_CDN_CIDRS:-}" /etc/haproxy/maps/cdn_cidrs.txt
 
 DOMAIN="${DOMAIN:-localhost}"
 API_DOMAIN="${API_DOMAIN:-api.${DOMAIN}}"
