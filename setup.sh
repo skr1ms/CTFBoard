@@ -38,6 +38,10 @@ vault_cli() {
   docker exec -e VAULT_ADDR=http://127.0.0.1:8200 vault vault "$@"
 }
 
+vault_http_ready() {
+  docker exec vault wget -qO- http://127.0.0.1:8200/v1/sys/seal-status >/dev/null 2>&1
+}
+
 bold()   { printf '\033[1m%s\033[0m' "$*"; }
 green()  { printf '\033[1;32m%s\033[0m' "$*"; }
 red()    { printf '\033[1;31m%s\033[0m' "$*"; }
@@ -701,13 +705,13 @@ wait_for_vault() {
     sleep 2
   done
 
-  # Wait for Vault process to respond (up to 60s)
+  # Wait for Vault HTTP API to respond (up to 60s).
+  #
+  # /v1/sys/seal-status is unauthenticated and available even when Vault is
+  # uninitialized or sealed, which makes it a more reliable readiness signal
+  # than parsing `vault status` CLI output across Vault versions.
   for i in $(seq 1 30); do
-    if vault_cli status >/dev/null 2>&1; then
-      return 0
-    fi
-    # Vault returns exit code 2 when sealed but running
-    if vault_cli status 2>&1 | grep -q "Sealed"; then
+    if vault_http_ready; then
       return 0
     fi
     sleep 2
@@ -721,7 +725,8 @@ vault_init_and_unseal() {
   wait_for_vault
 
   local status
-  status="$(vault_cli status -format=json 2>/dev/null || echo '{}')"
+  status="$(vault_cli status -format=json 2>/dev/null || true)"
+  [ -n "$status" ] || status='{}'
   local initialized
   initialized="$(echo "$status" | jq -r '.initialized // false')"
 
@@ -776,7 +781,9 @@ VKEOF
     "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
 
   local sealed
-  sealed="$(vault_cli status -format=json 2>/dev/null | jq -r '.sealed // true')"
+  sealed="$(vault_cli status -format=json 2>/dev/null || true)"
+  [ -n "$sealed" ] || sealed='{}'
+  sealed="$(printf '%s\n' "$sealed" | jq -r '.sealed // true')"
   if [ "$sealed" = "true" ]; then
     echo "  Unsealing Vault..."
     vault_cli operator unseal "$UNSEAL_KEY" >/dev/null
@@ -959,7 +966,9 @@ do_start() {
     # shellcheck source=/dev/null
     source "$VAULT_KEYS_FILE"
     local sealed
-    sealed="$(vault_cli status -format=json 2>/dev/null | jq -r '.sealed // true')"
+    sealed="$(vault_cli status -format=json 2>/dev/null || true)"
+    [ -n "$sealed" ] || sealed='{}'
+    sealed="$(printf '%s\n' "$sealed" | jq -r '.sealed // true')"
     if [ "$sealed" = "true" ]; then
       echo "  Unsealing Vault..."
       vault_cli operator unseal "$UNSEAL_KEY" >/dev/null
