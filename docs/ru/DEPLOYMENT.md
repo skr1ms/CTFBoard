@@ -133,7 +133,7 @@ cd AstroCTFb
 | Step | What it asks                                                                |
 | ---- | --------------------------------------------------------------------------- |
 | 1/8  | Имя CTF-платформы (1–80 chars, обязателен ASCII letter/digit) + version     |
-| 2/8  | Домен, IP сервера (`VAULT_ADMIN_IP`), 4 admin-сабдомена, LE staging y/N     |
+| 2/8  | Домен, ожидаемый public IP сервера для DNS-проверки, allowlist Vault UI (`VAULT_ADMIN_IP`, по умолчанию `127.0.0.1/32`), 4 admin-сабдомена, LE staging y/N |
 | 3/8  | Postgres user / password (≥12 chars) / db name                              |
 | 4/8  | Redis password (≥12 chars)                                                  |
 | 5/8  | Admin username / email / password (≥12 chars, upper + lower + digit)        |

@@ -6,6 +6,8 @@ services:
     container_name: vault
     expose:
       - "8200"
+    ports:
+      - "127.0.0.1:8200:8200"
     volumes:
       - ../vault/config:/vault/config
       - vault_data:/vault/file

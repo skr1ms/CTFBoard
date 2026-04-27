@@ -125,7 +125,7 @@ When `.env` does not exist, the script enters the 8-step wizard:
 | Step | What it asks                                                                  |
 | ---- | ----------------------------------------------------------------------------- |
 | 1/8  | CTF platform name (1–80 chars, ASCII letter/digit required) + version         |
-| 2/8  | Domain, server IP (`VAULT_ADMIN_IP`), 4 admin subdomains, LE staging y/N      |
+| 2/8  | Domain, expected server public IP for DNS check, Vault UI allowlist (`VAULT_ADMIN_IP`, default `127.0.0.1/32`), 4 admin subdomains, LE staging y/N |
 | 3/8  | Postgres user / password (≥12 chars) / db name                                |
 | 4/8  | Redis password (≥12 chars)                                                    |
 | 5/8  | Admin username / email / password (≥12 chars, upper + lower + digit)          |
