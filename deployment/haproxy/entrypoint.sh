@@ -160,14 +160,18 @@ frontend fe_main
     acl is_avatar             path_beg /avatars/
     acl is_scoreboard         path /api/v1/scoreboard
 
+    http-request set-var(txn.cache_avatar)     str(1) if is_cacheable_api_get is_avatar
+    http-request set-var(txn.cache_public_api) str(1) if is_cacheable_api_get is_public_api
+    http-request set-var(txn.cache_scoreboard) str(1) if is_cacheable_api_get is_scoreboard
+
     http-request  cache-use avatar_cache     if is_cacheable_api_get is_avatar
-    http-response cache-store avatar_cache   if is_cacheable_api_get is_avatar
+    http-response cache-store avatar_cache   if { var(txn.cache_avatar) -m str 1 }
 
     http-request  cache-use short_cache      if is_cacheable_api_get is_public_api
-    http-response cache-store short_cache    if is_cacheable_api_get is_public_api
+    http-response cache-store short_cache    if { var(txn.cache_public_api) -m str 1 }
 
     http-request  cache-use scoreboard_cache  if is_cacheable_api_get is_scoreboard
-    http-response cache-store scoreboard_cache if is_cacheable_api_get is_scoreboard
+    http-response cache-store scoreboard_cache if { var(txn.cache_scoreboard) -m str 1 }
 
     use_backend bk_acme if is_acme
     use_backend bk_seaweedfs_filer  if is_s3 is_s3_filer
