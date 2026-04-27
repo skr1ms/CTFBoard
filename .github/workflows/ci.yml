@@ -63,7 +63,7 @@ jobs:
         with:
           fail_on_error: true
           reporter: github-pr-review
-          hadolint_flags: "backend/Dockerfile frontend/board/Dockerfile"
+          hadolint_flags: "backend/Dockerfile frontend/board/Dockerfile frontend/seaweedfs-ui/Dockerfile deployment/haproxy/Dockerfile deployment/certbot/Dockerfile deployment/docker/loki.Dockerfile"
 
   dotenv-linter:
     name: runner / dotenv-linter
