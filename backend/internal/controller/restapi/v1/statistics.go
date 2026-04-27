@@ -21,6 +21,7 @@ func (h *Server) GetStatisticsGeneral(w http.ResponseWriter, r *http.Request, pa
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromGeneralStats(stats))
 }
 
@@ -33,6 +34,7 @@ func (h *Server) GetStatisticsChallenges(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromChallengeStatsList(stats))
 }
 
@@ -45,6 +47,7 @@ func (h *Server) GetStatisticsChallengesID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromChallengeDetailStats(stats))
 }
 
@@ -58,6 +61,7 @@ func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromScoreboardHistoryList(stats))
 }
 
@@ -70,6 +74,7 @@ func (h *Server) GetStatisticsChallengesSolvesPercentages(w http.ResponseWriter,
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromChallengeSolvePercentages(data))
 }
 
@@ -82,6 +87,7 @@ func (h *Server) GetStatisticsScoresDistribution(w http.ResponseWriter, r *http.
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromScoreDistribution(data))
 }
 
@@ -94,6 +100,7 @@ func (h *Server) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromSubmissionTimeSeries(data))
 }
 
@@ -113,6 +120,7 @@ func (h *Server) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
@@ -123,6 +131,7 @@ func (h *Server) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
@@ -133,6 +142,7 @@ func (h *Server) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromRegistrationTimeSeries(data))
 }
 
@@ -146,6 +156,7 @@ func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, para
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromScoreboardGraph(graph))
 }
 

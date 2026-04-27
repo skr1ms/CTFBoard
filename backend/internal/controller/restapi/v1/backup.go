@@ -63,16 +63,19 @@ func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
 Disallow: /api/
 Allow: /
 `
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
 }
 
 // (GET /tos).
 func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosHTML)
 }
 
 // (GET /privacy).
 func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyHTML)
 }
 
