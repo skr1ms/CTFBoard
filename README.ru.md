@@ -23,6 +23,24 @@ Production-ready self-hosted платформа для проведения CTF-
 - Встроенный мониторинг - Prometheus + Grafana + Loki + Alertmanager -> Telegram
 - HashiCorp Vault для секретов (auto-init, unseal, seed)
 
+## Команды `setup.sh`
+
+- `./setup.sh` - запускает визард при первом старте, а если `.env` уже есть, открывает меню управления
+- `./setup.sh start` - поднимает стек, автоматически unseal'ит Vault, загружает секреты и при необходимости регенерирует производные конфиги
+- `./setup.sh stop` - останавливает все сервисы
+- `./setup.sh restart` - перезапускает весь стек
+- `./setup.sh status` - показывает текущий статус сервисов Docker Compose
+- `./setup.sh logs` - стримит логи backend
+- `./setup.sh reconfigure` - заново запускает инсталляционный визард и передеплоивает стек с обновлённой конфигурацией
+- `./setup.sh secrets edit` - интерактивно редактирует выбранные секреты в Vault
+- `./setup.sh secrets rotate` - ротирует JWT и OAuth state secrets; инвалидирует все активные сессии
+- `./setup.sh secrets rotate-flag` - ротирует `FLAG_ENCRYPTION_KEY`; destructive для уже зашифрованных флагов
+- `./setup.sh secrets rotate-s3` - ротирует S3-креды SeaweedFS и перезапускает storage/backend
+- `./setup.sh reset config` - удаляет сгенерированные конфиги и останавливает контейнеры, но сохраняет Docker volume'ы и образы
+- `./setup.sh reset data` - удаляет сгенерированные конфиги и Docker volume'ы; destructive
+- `./setup.sh reset all [--all-images]` - alias полного cleanup: стирает данные, конфиги, локальные образы и cron; опциональный `--all-images` удаляет и pull-нутые образы
+- `./setup.sh uninstall [--all-images]` - отдельная команда полного cleanup, по смыслу эквивалентна `reset all`
+
 ## Быстрый деплой
 
 ```bash

@@ -34,6 +34,22 @@ compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
+compose_logged() {
+  local label="$1"
+  shift
+  echo "  ${label}..."
+  compose "$@" 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | sed 's/^/    /'
+  echo ""
+}
+
+show_services_status() {
+  local label="$1"
+  shift
+  echo "  ${label}"
+  compose ps "$@" 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | sed 's/^/    /'
+  echo ""
+}
+
 vault_cli() {
   docker exec -e VAULT_ADDR=http://127.0.0.1:8200 vault vault "$@"
 }
@@ -880,14 +896,30 @@ vault_seed_secrets() {
 
 wait_for_healthy() {
   local service="$1" timeout="$2"
+  local state health current last=""
   echo "  Waiting for $service to be healthy..."
   for i in $(seq 1 "$timeout"); do
-    local health
-    health="$(docker inspect --format='{{.State.Health.Status}}' "$service" 2>/dev/null || echo "missing")"
+    state="$(docker inspect --format='{{.State.Status}}' "$service" 2>/dev/null || echo "missing")"
+    health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$service" 2>/dev/null || echo "missing")"
+    current="state=${state} health=${health}"
+    if [ "$current" != "$last" ]; then
+      echo "    $service -> $current"
+      last="$current"
+    fi
     if [ "$health" = "healthy" ]; then
       green "  $service is healthy"
       echo ""
       return 0
+    fi
+    if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+      red "  $service exited before becoming healthy"
+      echo ""
+      echo "  Logs:"
+      docker logs "$service" --tail 40 2>&1 | sed 's/^/    /'
+      return 1
+    fi
+    if [ $((i % 15)) -eq 0 ]; then
+      echo "    still waiting..."
     fi
     sleep 1
   done
@@ -903,7 +935,8 @@ deploy_fresh() {
   ensure_s3_json_current
   bold "  [1/4] Starting infrastructure (vault, postgres, redis, seaweedfs)..."
   echo ""
-  compose up -d vault postgres redis seaweedfs 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
+  compose_logged "compose up -d vault postgres redis seaweedfs" up -d vault postgres redis seaweedfs
+  show_services_status "Infrastructure status snapshot:" vault postgres redis seaweedfs
 
   bold "  [2/4] Initializing Vault..."
   echo ""
@@ -911,7 +944,8 @@ deploy_fresh() {
 
   bold "  [3/4] Starting all services..."
   echo ""
-  compose up -d --build 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
+  compose_logged "compose up -d --build" up -d --build
+  show_services_status "Stack status snapshot:" 
   install_cron
 
   bold "  [4/4] Waiting for services..."
@@ -963,7 +997,8 @@ do_start() {
   bold "Starting services..."
   echo ""
 
-  compose up -d vault 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
+  compose_logged "compose up -d vault" up -d vault
+  show_services_status "Vault status snapshot:" vault
 
   if [ ! -f "$VAULT_KEYS_FILE" ]; then
     # Fresh deployment: .env was copied from another server without .vault-keys.
@@ -1030,10 +1065,12 @@ do_start() {
     generate_alertmanager_conf
   fi
 
-  compose up -d --build 2>&1 | tee -a "$SCRIPT_DIR/deploy.log" | grep -E "error|Error|ERROR|warn|Warn" || true
+  compose_logged "compose up -d --build" up -d --build
+  show_services_status "Stack status snapshot:" 
   if [ "${S3_JSON_REGENERATED:-0}" = "1" ]; then
     yellow "  Restarting seaweedfs and backend to apply updated S3 credentials...\n"
-    compose restart seaweedfs backend >/dev/null
+    compose_logged "compose restart seaweedfs backend" restart seaweedfs backend
+    show_services_status "Post-restart service status:" seaweedfs backend
   fi
   install_cron
 

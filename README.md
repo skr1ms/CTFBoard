@@ -23,6 +23,24 @@ A production-ready self-hosted platform for running CTF (Capture The Flag) cyber
 - Built-in monitoring - Prometheus + Grafana + Loki + Alertmanager -> Telegram
 - HashiCorp Vault for secrets (auto-init, unseal, seed)
 
+## `setup.sh` commands
+
+- `./setup.sh` - start the first-run wizard when `.env` is missing, otherwise open the management menu
+- `./setup.sh start` - start the stack, auto-unseal Vault, seed secrets, regenerate derived configs if needed
+- `./setup.sh stop` - stop all services
+- `./setup.sh restart` - restart the whole stack
+- `./setup.sh status` - show current Docker Compose service status
+- `./setup.sh logs` - follow backend logs
+- `./setup.sh reconfigure` - re-run the installer wizard and redeploy with updated config
+- `./setup.sh secrets edit` - edit selected Vault secrets interactively
+- `./setup.sh secrets rotate` - rotate JWT and OAuth state secrets; invalidates all active sessions
+- `./setup.sh secrets rotate-flag` - rotate `FLAG_ENCRYPTION_KEY`; destructive for existing encrypted flags
+- `./setup.sh secrets rotate-s3` - rotate SeaweedFS S3 credentials and restart storage/backend
+- `./setup.sh reset config` - remove generated configs and stop containers, but keep Docker volumes and images
+- `./setup.sh reset data` - wipe generated configs and Docker volumes; destructive
+- `./setup.sh reset all [--all-images]` - full cleanup alias: wipe data, generated configs, local images, cron; optional `--all-images` also removes pulled images
+- `./setup.sh uninstall [--all-images]` - full cleanup command, same behavior as `reset all`
+
 ## Quick deploy
 
 ```bash
