@@ -510,7 +510,7 @@ Theme: только dark (cosmic palette). Tailwind v4 через блок `@the
 | ---------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | **HAProxy**      | `haproxy:3.2-alpine`                                       | TLS termination, L7 DDoS (4 stick table), edge cache (3 cache), routing по path + Host                           |
 | **Vault**        | `hashicorp/vault:latest`                                   | Secret store (8 KV-v2 paths), file storage `/vault/file`, TLS off (только внутренняя сеть), `IPC_LOCK` для mlock |
-| **Postgres**     | `postgres:alpine`                                          | `max_connections=400`, `shared_buffers=256MB`, `effective_cache_size=1GB`                                        |
+| **Postgres**     | `postgres:18-alpine`                                       | `max_connections=400`, `shared_buffers=256MB`, `effective_cache_size=1GB`                                        |
 | **Redis**        | `redis:alpine`                                             | `requirepass`, persistence включён                                                                               |
 | **SeaweedFS**    | `chrislusf/seaweedfs:latest`                               | S3 gateway `:8333`, filer `:8888`, master `:9333`                                                                |
 | **SeaweedFS UI** | собирается локально                                        | интерфейс управления                                                                                             |

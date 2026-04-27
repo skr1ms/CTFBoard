@@ -38,7 +38,7 @@ services:
     restart: "no"
 
   postgres:
-    image: postgres:alpine
+    image: postgres:18-alpine
     container_name: postgres
     command:
       [
