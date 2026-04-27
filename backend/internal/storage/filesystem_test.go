@@ -18,7 +18,7 @@ import (
 func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
 	t.Parallel()
 
-	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-test")
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-test")
 	require.NoError(t, err)
 
 	defer func() { _ = os.RemoveAll(tmpDir) }()
@@ -75,7 +75,7 @@ func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
 func TestFilesystemProvider_PathTraversal(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-traversal-test")
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-traversal-test")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
@@ -127,7 +127,7 @@ func TestGenerateStoragePath_RejectsDotDot(t *testing.T) {
 func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-nested")
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-nested")
 	require.NoError(t, err)
 
 	defer func() { _ = os.RemoveAll(tmpDir) }()
@@ -160,7 +160,7 @@ func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
 func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
 	t.Parallel()
 
-	tmpFile, err := os.CreateTemp(t.TempDir(), "astroctfb-file-*")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "ctf-platform-file-*")
 	require.NoError(t, err)
 
 	tmpPath := tmpFile.Name()
@@ -175,7 +175,7 @@ func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
 func TestFilesystemProvider_Download_NotFound(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := os.MkdirTemp("", "astroctfb-storage-download-test")
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-download-test")
 	require.NoError(t, err)
 
 	defer func() { _ = os.RemoveAll(tmpDir) }()

@@ -136,7 +136,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitCheckCompetitionTime: %w", err)
 	}
 
-	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: strings.TrimSpace(flag), userID: userID, teamID: *teamID, clientIP: clientIP, comp: comp}
+	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: crypto.NormalizeFlagInput(strings.TrimSpace(flag)), userID: userID, teamID: *teamID, clientIP: clientIP, comp: comp}
 	if sc.flag == "" {
 		return false, apperr.ErrInvalidFlagFormat
 	}

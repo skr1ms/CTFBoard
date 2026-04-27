@@ -6,7 +6,7 @@ include ../.env.local.example
 export
 endif
 
-POSTGRES_DSN ?= postgres://user:password@localhost:5432/astroctfb?sslmode=disable
+POSTGRES_DSN ?= postgres://user:password@localhost:5432/ctf_platform?sslmode=disable
 BASE_STACK = docker compose -f ../deployment/docker/docker-compose.local.yml --env-file ../.env.local
 
 # HELP =================================================================================================================
@@ -199,8 +199,8 @@ build: ## Build the binary (run 'make generate' first if spec/sql changed)
 
 build-cleanup: ## Build cleanup binary (for CI: GOOS=linux GOARCH=amd64)
 	@echo "Building cleanup binary..."
-	@GOOS=linux GOARCH=amd64 go build -o bin/astroctfb-cleanup ./cmd/cleanup
-	@echo "Binary built: bin/astroctfb-cleanup"
+	@GOOS=linux GOARCH=amd64 go build -o bin/ctf-platform-cleanup ./cmd/cleanup
+	@echo "Binary built: bin/ctf-platform-cleanup"
 
 run: generate ## Run the application locally (depends on generate so codegen is up to date)
 	@echo "Running application..."

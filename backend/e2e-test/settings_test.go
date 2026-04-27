@@ -33,13 +33,13 @@ func TestSettings_Admin_Put(t *testing.T) {
 	_, tokenAdmin := h.SetupCompetition("admin_settings_put")
 
 	body := map[string]any{
-		"app_name":                  "AstroCTFb Test",
+		"app_name":                  "CTF Platform Test",
 		"verify_emails":             true,
 		"frontend_url":              "https://test.example.com",
 		"cors_origins":              "https://test.example.com",
 		"resend_enabled":            false,
 		"resend_from_email":         "noreply@test.local",
-		"resend_from_name":          "AstroCTFb",
+		"resend_from_name":          "CTF Platform",
 		"verify_ttl_hours":          24,
 		"reset_ttl_hours":           1,
 		"submit_limit_per_user":     20,
@@ -51,7 +51,7 @@ func TestSettings_Admin_Put(t *testing.T) {
 
 	resp := h.GetAdminSettings(tokenAdmin)
 	require.NotNil(t, resp.JSON200)
-	require.Equal(t, "AstroCTFb Test", *resp.JSON200.AppName)
+	require.Equal(t, "CTF Platform Test", *resp.JSON200.AppName)
 	require.Equal(t, "https://test.example.com", *resp.JSON200.FrontendURL)
 	require.NotNil(t, resp.JSON200.SubmitLimitPerUser)
 	require.Equal(t, 20, *resp.JSON200.SubmitLimitPerUser)

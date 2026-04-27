@@ -27,6 +27,9 @@ var table = map[error]mapping{
 	apperr.ErrAccessDenied:                {http.StatusForbidden, "ACCESS_DENIED"},
 	apperr.ErrUserBanned:                  {http.StatusForbidden, "USER_BANNED"},
 	apperr.ErrCaptainCannotBeDeleted:      {http.StatusConflict, "CAPTAIN_CANNOT_BE_DELETED"},
+	apperr.ErrAppealNotFound:              {http.StatusNotFound, "APPEAL_NOT_FOUND"},
+	apperr.ErrAppealRateLimited:           {http.StatusTooManyRequests, "APPEAL_RATE_LIMITED"},
+	apperr.ErrAnimatedImageNotAllowed:     {http.StatusUnprocessableEntity, "ANIMATED_IMAGE_NOT_ALLOWED"},
 
 	// team
 	apperr.ErrTeamNotFound:            {http.StatusNotFound, "TEAM_NOT_FOUND"},
@@ -79,6 +82,7 @@ var table = map[error]mapping{
 	apperr.ErrCompetitionActiveCannotUpdate: {http.StatusForbidden, "COMPETITION_ACTIVE_CANNOT_UPDATE"},
 
 	// misc
+	apperr.ErrVisibilityForbidden:               {http.StatusNotFound, "NOT_FOUND"},
 	apperr.ErrDebugNotEnabled:                   {http.StatusNotFound, "NOT_FOUND"},
 	apperr.ErrScoreboardHidden:                  {http.StatusForbidden, "SCOREBOARD_HIDDEN"},
 	apperr.ErrScoreboardAdminsOnly:              {http.StatusForbidden, "SCOREBOARD_ADMINS_ONLY"},
@@ -181,6 +185,10 @@ var table = map[error]mapping{
 	apperr.ErrAwardNotFound:          {http.StatusNotFound, "AWARD_NOT_FOUND"},
 	apperr.ErrAwardTeamIDRequired:    {http.StatusBadRequest, "AWARD_TEAM_ID_REQUIRED"},
 	apperr.ErrAwardValueCannotBeZero: {http.StatusBadRequest, "AWARD_VALUE_CANNOT_BE_ZERO"},
+
+	// setup wizard
+	apperr.ErrSetupAlreadyComplete: {http.StatusConflict, "SETUP_ALREADY_COMPLETE"},
+	apperr.ErrSetupRequired:        {http.StatusServiceUnavailable, "SETUP_REQUIRED"},
 
 	// auth / rate-limit - domain sentinels returned by usecase (e.g. login lockout)
 	apperr.ErrNotAuthenticated: {http.StatusUnauthorized, "NOT_AUTHENTICATED"},

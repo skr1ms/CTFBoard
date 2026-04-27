@@ -817,7 +817,7 @@ func (uc *ChallengeUseCase) challengeCreateComputeFlagHash(flag string, isRegex,
 		return domain.FlagHashRegexSentinel, encrypted, nil
 	}
 
-	userInput := strings.TrimSpace(flag)
+	userInput := crypto.NormalizeFlagInput(strings.TrimSpace(flag))
 
 	if isCaseInsensitive {
 		userInput = strings.ToLower(userInput)
@@ -1023,7 +1023,7 @@ func (uc *ChallengeUseCase) challengeUpdateApplyFlag(c *domain.Challenge, flag s
 		return nil
 	}
 
-	userInput := strings.TrimSpace(flag)
+	userInput := crypto.NormalizeFlagInput(strings.TrimSpace(flag))
 
 	if isCaseInsensitive {
 		userInput = strings.ToLower(userInput)

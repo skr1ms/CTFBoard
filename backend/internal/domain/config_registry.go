@@ -16,7 +16,7 @@ var configRegistryMu sync.RWMutex
 
 var configRegistry = map[string]ConfigDef{
 	"ctf_name": {
-		Key: "ctf_name", DefaultValue: "AstroCTFb", ValueType: CompetitionParamTypeString,
+		Key: "ctf_name", DefaultValue: "CTF Platform", ValueType: CompetitionParamTypeString,
 		Category: "general", Description: "CTF competition name",
 	},
 	"ctf_description": {
@@ -57,7 +57,11 @@ var configRegistry = map[string]ConfigDef{
 	},
 	"score_visibility": {
 		Key: "score_visibility", DefaultValue: "public", ValueType: CompetitionParamTypeString,
-		Category: "visibility", Description: "Scoreboard visibility: public, hidden, admins",
+		Category: "visibility", Description: "Scoreboard visibility: public, private, hidden, admins",
+	},
+	"account_visibility": {
+		Key: "account_visibility", DefaultValue: "public", ValueType: CompetitionParamTypeString,
+		Category: "visibility", Description: "User/team account visibility: public, private, admins",
 	},
 	"registration_visibility": {
 		Key: "registration_visibility", DefaultValue: "public", ValueType: CompetitionParamTypeString,
@@ -154,6 +158,18 @@ var configRegistry = map[string]ConfigDef{
 	"password_min_length": {
 		Key: "password_min_length", DefaultValue: "8", ValueType: CompetitionParamTypeInt,
 		Category: "advanced", Description: "Minimum password length",
+	},
+	"setup_complete": {
+		Key: "setup_complete", DefaultValue: "false", ValueType: CompetitionParamTypeBool,
+		Category: "general", Description: "Whether the initial setup wizard has been completed",
+	},
+	"email_verification_required": {
+		Key: "email_verification_required", DefaultValue: "false", ValueType: CompetitionParamTypeBool,
+		Category: "general", Description: "Require email verification on signup",
+	},
+	"timezone": {
+		Key: "timezone", DefaultValue: "UTC", ValueType: CompetitionParamTypeString,
+		Category: "general", Description: "Display timezone for competition times",
 	},
 }
 

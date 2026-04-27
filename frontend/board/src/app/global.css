@@ -1,0 +1,265 @@
+@import 'tailwindcss';
+
+/* Tailwind theme tokens */
+@theme {
+  /* Colors */
+  --color-deep-space: #0a0a1a;
+  --color-space-dark: #0d0d2b;
+  --color-space-card: #111128;
+  --color-space-card-hover: #161635;
+  --color-space-border: #1e1e3f;
+  --color-space-border-bright: #2d2d5e;
+  --color-cosmic-blue: #58a6ff;
+  --color-cosmic-blue-dim: #1f4e7a;
+  --color-nebula-purple: #a78bfa;
+  --color-nebula-purple-dim: #4c3a7a;
+  --color-stellar-green: #3fb950;
+  --color-stellar-green-dim: #1a4d22;
+  --color-nova-red: #f85149;
+  --color-nova-red-dim: #6b1f1c;
+  --color-solar-yellow: #d29922;
+  --color-solar-yellow-dim: #5a3f0a;
+  --color-aurora-cyan: #39c5cf;
+  --color-aurora-cyan-dim: #1a5a5e;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #484f58;
+
+  /* Typography */
+  --font-sans: 'Inter', 'Space Grotesk', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+/* CSS custom properties */
+:root {
+  /* Box-shadow glow effects */
+  --glow-blue: 0 0 12px rgba(88, 166, 255, 0.4), 0 0 32px rgba(88, 166, 255, 0.15);
+  --glow-blue-sm: 0 0 8px rgba(88, 166, 255, 0.35);
+  --glow-purple: 0 0 12px rgba(167, 139, 250, 0.4), 0 0 32px rgba(167, 139, 250, 0.15);
+  --glow-purple-sm: 0 0 8px rgba(167, 139, 250, 0.35);
+  --glow-green: 0 0 12px rgba(63, 185, 80, 0.4), 0 0 32px rgba(63, 185, 80, 0.15);
+  --glow-green-sm: 0 0 8px rgba(63, 185, 80, 0.35);
+  --glow-red: 0 0 12px rgba(248, 81, 73, 0.4), 0 0 32px rgba(248, 81, 73, 0.15);
+  --glow-red-sm: 0 0 8px rgba(248, 81, 73, 0.35);
+  --glow-yellow: 0 0 12px rgba(210, 153, 34, 0.4), 0 0 32px rgba(210, 153, 34, 0.15);
+  --glow-cyan: 0 0 12px rgba(57, 197, 207, 0.4), 0 0 32px rgba(57, 197, 207, 0.15);
+
+  /* Gradients */
+  --gradient-cosmic: linear-gradient(135deg, #58a6ff 0%, #a78bfa 100%);
+  --gradient-nebula: linear-gradient(135deg, #a78bfa 0%, #39c5cf 100%);
+  --gradient-stellar: linear-gradient(135deg, #3fb950 0%, #39c5cf 100%);
+  --gradient-nova: linear-gradient(135deg, #f85149 0%, #d29922 100%);
+  --gradient-card: linear-gradient(135deg, #111128 0%, #0d0d2b 100%);
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+/* Reset & base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #0a0a1a;
+  color: #e6edf3;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Star-field background (3 independent layers) */
+
+/* Layer 1 - tiny fast stars */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 5% 8%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 20% 55%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 27% 38%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 35% 72%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 42% 14%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 88%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 57% 31%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 63% 60%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 45%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 78% 18%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 78%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 35%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 98% 92%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 8% 68%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 92%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 32% 5%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 47% 48%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 68% 82%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 58%, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+  animation: twinkle-fast 6s ease-in-out infinite alternate;
+}
+
+/* Layer 2 - medium stars with slow twinkle */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 10% 15%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 25% 70%, rgba(255, 255, 255, 0.25) 0%, transparent 100%),
+    radial-gradient(2px 2px at 40% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(2px 2px at 55% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 70% 20%, rgba(255, 255, 255, 0.25) 0%, transparent 100%),
+    radial-gradient(2px 2px at 85% 65%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(2px 2px at 95% 10%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 3% 50%, rgba(255, 255, 255, 0.25) 0%, transparent 100%),
+    radial-gradient(2px 2px at 60% 5%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(2px 2px at 18% 40%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    /* Slight blue-tinted larger stars */
+    radial-gradient(3px 3px at 33% 90%, rgba(88, 166, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(3px 3px at 75% 45%, rgba(167, 139, 250, 0.15) 0%, transparent 100%),
+    radial-gradient(3px 3px at 50% 55%, rgba(57, 197, 207, 0.15) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+  animation: twinkle-slow 12s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle-fast {
+  0% {
+    opacity: 0.6;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes twinkle-slow {
+  0% {
+    opacity: 0.5;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Global scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e1e3f;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2d2d5e;
+}
+
+/* Utility classes */
+.glow-blue {
+  box-shadow: var(--glow-blue);
+}
+.glow-purple {
+  box-shadow: var(--glow-purple);
+}
+.glow-green {
+  box-shadow: var(--glow-green);
+}
+.glow-red {
+  box-shadow: var(--glow-red);
+}
+
+.gradient-cosmic {
+  background: var(--gradient-cosmic);
+}
+.gradient-nebula {
+  background: var(--gradient-nebula);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Card with cosmic glow on hover */
+.card-cosmic {
+  background: var(--gradient-card);
+  border: 1px solid #1e1e3f;
+  border-radius: var(--radius-md);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.card-cosmic:hover {
+  border-color: rgba(88, 166, 255, 0.4);
+  box-shadow: var(--glow-blue-sm);
+}
+
+/* Mobile tap targets */
+/* Ensure all interactive elements meet the 44×44px minimum touch target */
+@media (pointer: coarse) {
+  button,
+  [role='button'],
+  a,
+  input[type='checkbox'],
+  input[type='radio'],
+  select,
+  label[for] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Inline/icon buttons that can't grow - expand hit area via padding */
+  button:not(.btn-full) {
+    padding-block: max(0.5rem, calc((44px - 1lh) / 2));
+  }
+}
+
+/* Safe-area insets (notch phones) */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

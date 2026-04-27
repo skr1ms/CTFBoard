@@ -667,7 +667,7 @@ func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *domain.BackupData
 		return fmt.Errorf("BackupUseCase - ExportZIP - create README.md: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(readme, "# AstroCTFb Backup\n\ncreated: %s\nVersion: %s", data.ExportedAt.Format(time.RFC3339), data.Version); err != nil {
+	if _, err := fmt.Fprintf(readme, "# CTF Platform Backup\n\ncreated: %s\nVersion: %s", data.ExportedAt.Format(time.RFC3339), data.Version); err != nil {
 		return fmt.Errorf("BackupUseCase - ExportZIP - write README: %w", err)
 	}
 

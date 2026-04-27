@@ -32,7 +32,7 @@ func TestOAuthRepo_Create_Success(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, acc.ID)
 }
 
-func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
+func TestOAuthRepo_Create_Duplicate_Upserts(t *testing.T) {
 	t.Parallel()
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)
@@ -55,8 +55,12 @@ func TestOAuthRepo_Create_Error_Duplicate(t *testing.T) {
 		ProviderUserID: providerUserID,
 		AccessToken:    "token2",
 	}
-	err := oauthRepo.Create(ctx, acc2)
-	assert.Error(t, err)
+	// Create uses upsert internally - duplicate silently updates tokens.
+	require.NoError(t, oauthRepo.Create(ctx, acc2))
+
+	got, err := oauthRepo.GetByProvider(ctx, "github", providerUserID)
+	require.NoError(t, err)
+	assert.Equal(t, "token2", got.AccessToken)
 }
 
 func TestOAuthRepo_Upsert_Success(t *testing.T) {

@@ -23,7 +23,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (path) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
+          "expr": "sum by (path) (rate(http_requests_total{job=\"backend\"}[1m]))",
           "refId": "A",
           "legendFormat": "{{path}}"
         }
@@ -46,7 +46,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(restapi_requests_total{job=\"backend\"}[1m]))",
+          "expr": "sum by (status) (rate(http_requests_total{job=\"backend\"}[1m]))",
           "refId": "A",
           "legendFormat": "{{status}}"
         }
@@ -69,7 +69,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
           "refId": "A",
           "legendFormat": "P95 {{path}}"
         }
@@ -92,7 +92,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(restapi_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le, path))",
           "refId": "A",
           "legendFormat": "P99 {{path}}"
         }
@@ -115,7 +115,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(restapi_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(restapi_request_duration_seconds_count{job=\"backend\"}[5m]))",
+          "expr": "sum(rate(http_request_duration_seconds_sum{job=\"backend\"}[5m])) / sum(rate(http_request_duration_seconds_count{job=\"backend\"}[5m]))",
           "refId": "A",
           "legendFormat": "Avg Latency"
         }

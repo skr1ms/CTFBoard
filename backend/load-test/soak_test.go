@@ -75,8 +75,8 @@ func TestSoak_MixedTraffic_Extended(t *testing.T) {
 
 	heapGrowthMB := float64(int64(memAfter.HeapInuse)-int64(memBefore.HeapInuse)) / 1024 / 1024
 
-	fmt.Printf("\n[soak] Goroutine delta: %+d (%d → %d)\n", goroutineDelta, goroutinesBefore, goroutinesAfter)
-	fmt.Printf("[soak] Heap growth: %.1f MB (%d → %d bytes in-use)\n", heapGrowthMB, memBefore.HeapInuse, memAfter.HeapInuse)
+	fmt.Printf("\n[soak] Goroutine delta: %+d (%d -> %d)\n", goroutineDelta, goroutinesBefore, goroutinesAfter)
+	fmt.Printf("[soak] Heap growth: %.1f MB (%d -> %d bytes in-use)\n", heapGrowthMB, memBefore.HeapInuse, memAfter.HeapInuse)
 
 	require.Less(t, goroutineDelta, 100,
 		"goroutine leak: grew by %d goroutines over the soak period", goroutineDelta)

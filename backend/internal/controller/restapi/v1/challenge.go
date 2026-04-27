@@ -38,6 +38,21 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 		tagID = &id
 	}
 
+	// Non-admin users see an empty list before the competition starts so the
+	// frontend can render a countdown banner instead of a 403 error.
+	if !helper.IsAdmin(user) {
+		comp, err := h.comp.CompetitionUC.Get(r.Context())
+		if h.OnError(w, r, err, "GetChallenges", "GetCompetition") {
+			return
+		}
+
+		if comp.GetStatus() == domain.CompetitionStatusNotStarted {
+			httputil.RenderOK(w, r, response.FromChallengeList(nil))
+
+			return
+		}
+	}
+
 	challenges, err := h.challenge.ChallengeUC.GetAll(r.Context(), user.TeamID, tagID)
 	if h.OnError(w, r, err, "GetChallenges", "GetAll") {
 		return
@@ -88,6 +103,15 @@ func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.
 	}
 
 	httputil.RenderOK(w, r, response.FromSubmitFlag(true, "flag accepted"))
+}
+
+// (POST /admin/challenges/recalc-points).
+func (h *Server) PostAdminChallengesRecalcPoints(w http.ResponseWriter, r *http.Request) {
+	if err := h.challenge.ChallengeUC.RecalcAllDynamicPoints(r.Context()); h.OnError(w, r, err, "PostAdminChallengesRecalcPoints", "RecalcAllDynamicPoints") {
+		return
+	}
+
+	httputil.RenderNoContent(w, r)
 }
 
 // (POST /admin/challenges).
@@ -255,6 +279,7 @@ func (h *Server) GetChallengesTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderOK(w, r, response.FromChallengeTypes(types))
 }
 

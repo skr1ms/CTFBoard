@@ -14,4 +14,7 @@ var (
 	ErrAccessDenied                = errors.New("access denied")
 	ErrUserBanned                  = errors.New("user is banned")
 	ErrCaptainCannotBeDeleted      = errors.New("transfer captain first, then delete user")
+	ErrAppealNotFound              = errors.New("appeal not found")
+	ErrAppealRateLimited           = errors.New("appeal rate limited: only one appeal per 7 days")
+	ErrAnimatedImageNotAllowed     = errors.New("animated images are not allowed")
 )

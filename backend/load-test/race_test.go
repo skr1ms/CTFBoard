@@ -396,7 +396,7 @@ func TestRace_ConcurrentTeamJoin(t *testing.T) {
 		"concurrent team join must produce no 500 errors (got %d)", errors500.Load())
 
 	require.Positive(t, successes.Load(),
-		"at least one join must succeed (got 0 — confirm_reset missing or all rejected?)")
+		"at least one join must succeed (got 0 - confirm_reset missing or all rejected?)")
 
 	// Membership is stored as team_id on the users table.
 	// Verify that all joiners that reported success share the same team_id (no split-brain).

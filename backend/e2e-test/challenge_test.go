@@ -46,7 +46,9 @@ func TestChallenge_Lifecycle(t *testing.T) {
 	solveCount1 := 1
 	helper.RequireChallengeFields(t, challengeAfterSolve, "", &solvedTrue, &solveCount1, nil)
 
-	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusConflict)
+	// Re-submitting a correct flag is idempotent: the handler swallows ErrAlreadySolved
+	// and returns 200 "flag accepted" again instead of 409.
+	h.SubmitFlag(tokenUser, challengeID, "FLAG{test}", http.StatusOK)
 }
 
 // POST /admin/challenges + POST /challenges/{ID}/submit: dynamic scoring; first solver gets initial points, second gets min_value.

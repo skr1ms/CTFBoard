@@ -59,6 +59,23 @@ type (
 )
 
 // =============================================================================
+// BanAppeal
+// =============================================================================
+
+type (
+	// BanAppealUseCase handles creation and review of ban appeals.
+	BanAppealUseCase interface {
+		CreateAppeal(ctx context.Context, userID uuid.UUID, message string) (*domain.BanAppeal, error)
+		GetAppealsByUser(ctx context.Context, userID uuid.UUID) ([]*domain.BanAppeal, error)
+		ListAppeals(ctx context.Context, decision *domain.AppealDecision, page, perPage int) (*Paginated[*domain.BanAppeal], error)
+		ReviewAppeal(ctx context.Context, appealID uuid.UUID, decision domain.AppealDecision, adminResponse *string, actorID uuid.UUID) (*domain.BanAppeal, error)
+		// CanAppeal reports whether a banned user is eligible to submit a new appeal
+		// (no pending appeal and outside the cooldown window).
+		CanAppeal(ctx context.Context, userID uuid.UUID) (canAppeal bool, hasPending bool, err error)
+	}
+)
+
+// =============================================================================
 // Team
 // =============================================================================
 
@@ -167,6 +184,7 @@ type (
 		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
 		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
 		AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error
+		RecalcAllDynamicPoints(ctx context.Context) error
 	}
 )
 
@@ -330,6 +348,7 @@ type (
 		SendPasswordResetEmail(ctx context.Context, email string) error
 		ResetPassword(ctx context.Context, tokenStr, newPassword string) error
 		ResendVerification(ctx context.Context, userID uuid.UUID) error
+		ResendVerificationByEmail(ctx context.Context, email string) error
 	}
 )
 
@@ -563,6 +582,7 @@ type AvatarUseCase interface {
 	DeleteTeamAvatar(ctx context.Context, teamID, callerID uuid.UUID) error
 	GetTeamAvatarURL(ctx context.Context, teamID uuid.UUID) (fullURL, thumbURL *string, err error)
 	GetTeamAvatarURLBatch(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID]string, error)
+	GetTeamAvatarStoragePathBatch(ctx context.Context, teamIDs []uuid.UUID) (map[uuid.UUID]string, error)
 
 	AdminUploadUserAvatar(ctx context.Context, userID uuid.UUID, file io.Reader, filename string, size int64) (fullURL, thumbURL string, err error)
 	AdminDeleteUserAvatar(ctx context.Context, userID uuid.UUID) error

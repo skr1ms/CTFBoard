@@ -1,0 +1,5 @@
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+Cache-Control: no-store
+
+{"error":"internal_error","message":"An internal server error occurred. Please try again later."}

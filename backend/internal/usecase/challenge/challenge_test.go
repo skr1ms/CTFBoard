@@ -1361,3 +1361,75 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, valid)
 }
+
+func TestChallengeUseCase_GetFlags_Success(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	expected := &domain.ChallengeFlags{
+		FlagHash:          "abc123hash",
+		IsRegex:           false,
+		IsCaseInsensitive: true,
+	}
+
+	d.challengeRepo.EXPECT().GetFlags(mock.Anything, challengeID).Return(expected, nil)
+
+	result, err := uc.GetFlags(context.Background(), challengeID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestChallengeUseCase_GetFlags_Error(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	expectedErr := errors.New("db error")
+
+	d.challengeRepo.EXPECT().GetFlags(mock.Anything, challengeID).Return(nil, expectedErr)
+
+	result, err := uc.GetFlags(context.Background(), challengeID)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorContains(t, err, "GetFlags")
+}
+
+func TestChallengeUseCase_GetMissingChallengesByTeamID_Success(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	teamID := uuid.New()
+	expected := []*domain.Challenge{
+		newTestChallenge(uuid.New(), "Missing Challenge", "Web", 100, "flaghash"),
+	}
+
+	d.challengeRepo.EXPECT().GetMissingChallengesByTeamID(mock.Anything, teamID).Return(expected, nil)
+
+	result, err := uc.GetMissingChallengesByTeamID(context.Background(), teamID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestChallengeUseCase_GetMissingChallengesByTeamID_Error(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	teamID := uuid.New()
+	expectedErr := errors.New("db error")
+
+	d.challengeRepo.EXPECT().GetMissingChallengesByTeamID(mock.Anything, teamID).Return(nil, expectedErr)
+
+	result, err := uc.GetMissingChallengesByTeamID(context.Background(), teamID)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorContains(t, err, "GetMissingChallengesByTeamID")
+}

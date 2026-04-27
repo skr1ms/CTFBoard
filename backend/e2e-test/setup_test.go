@@ -165,7 +165,7 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 			field_values, fields, brackets, pages, user_notifications, notifications,
 			submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
 			solutions, files, verification_tokens, awards, hint_unlocks, hints, solves,
-			ratings, challenges, teams, users, competition
+			ratings, challenges, teams, users, competition, ban_appeals
 			RESTART IDentity CASCADE`)
 		if err != nil {
 			return err
@@ -190,8 +190,8 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
 				updated_at
 			) VALUES (
-				1, 'AstroCTFb', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
-				FALSE, 'noreply@astroctfb.local', 'AstroCTFb',
+				1, 'CTF Platform', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
+				FALSE, 'noreply@ctf-platform.local', 'CTF Platform',
 				24, 1, 500000, 1,
 				'public', TRUE,
 				10000, 10000,
@@ -340,29 +340,6 @@ func setAppSettingsRegistrationOpen(open bool) {
 
 	if TestRedis != nil {
 		_ = TestRedis.Del(ctx, "app_settings")
-	}
-
-	if testRateLimitCache != nil {
-		testRateLimitCache.Invalidate()
-	}
-}
-
-// setAppSettingsScoreboardVisible sets scoreboard_visible directly in DB, bypassing the
-// API restriction that prevents changing it while the competition is active.
-func setAppSettingsScoreboardVisible(v string) {
-	ctx := context.Background()
-
-	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET scoreboard_visible = $1, updated_at = NOW() WHERE id = 1`, v)
-	if err != nil {
-		panic("setAppSettingsScoreboardVisible: " + err.Error())
-	}
-
-	if TestRedis != nil {
-		_ = TestRedis.Del(ctx, "app_settings")
-	}
-
-	if testScoreboardVisibilityCache != nil {
-		testScoreboardVisibilityCache.Invalidate()
 	}
 
 	if testRateLimitCache != nil {
@@ -653,6 +630,7 @@ type testRepos struct {
 	teamRepo         *persistent.TeamRepo
 	tokenRepo        *persistent.VerificationTokenRepo
 	trackingRepo     *persistent.TrackingRepo
+	banAppealRepo    *persistent.BanAppealRepo
 	tm               repo.TransactionManager
 	userRepo         *persistent.UserRepo
 }
@@ -684,6 +662,7 @@ type testUseCases struct {
 	competitionParamUC *competition.CompetitionParamUseCase
 	commentUC          *challenge.CommentUseCase
 	trackingUC         *user.TrackingUseCase
+	appealUC           *user.BanAppealUseCase
 	SettingsRepo       repo.SettingsRepository
 }
 
@@ -830,11 +809,12 @@ func initTestRepos() *testRepos {
 		paramRepo:        persistent.NewCompetitionParamRepo(TestPool),
 		commentRepo:      persistent.NewCommentRepo(TestPool),
 		trackingRepo:     persistent.NewTrackingRepo(TestPool),
+		banAppealRepo:    persistent.NewBanAppealRepo(TestPool),
 	}
 }
 
 func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
-	tempStorageDir, err := os.MkdirTemp("", "astroctfb-e2e-storage")
+	tempStorageDir, err := os.MkdirTemp("", "ctf-platform-e2e-storage")
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("failed to create temp storage dir: %w", err)
 	}
@@ -847,7 +827,7 @@ func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 	ctx := context.Background()
 
 	hub := wskit.NewHub(
-		wskit.WithRedis(TestRedis, "astroctfb:events"),
+		wskit.WithRedis(TestRedis, "ctf-platform:events"),
 		wskit.WithOnConnect(func(sub wskit.Subscriber) {
 			c, ok := sub.(*wskit.Client)
 			if !ok {
@@ -1006,6 +986,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	})
 	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
 	trackingUC := user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: repos.trackingRepo})
+	appealUC := user.NewBanAppealUseCase(repos.banAppealRepo, repos.userRepo, repos.tm)
 	ws := wsV1.NewController(hub, deps.logger, []string{"localhost:*"})
 	fileUC := challenge.NewFileUseCase(challenge.FileDeps{
 		FileRepo:       repos.fileRepo,
@@ -1022,7 +1003,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
 		pageUC: pageUC, ratingUC: ratingUC, avatarUC: avatarUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
-		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC,
+		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC, appealUC: appealUC,
 		SettingsRepo: repos.SettingsRepo,
 	}
 }
@@ -1087,7 +1068,7 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 			ChallengeUC: uc.challenge, HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC, RatingUC: uc.ratingUC,
 		},
 		Team:  helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
-		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC, AvatarUC: uc.avatarUC},
+		User:  helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC, AvatarUC: uc.avatarUC, AppealUC: uc.appealUC},
 		Comp:  helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC},
 		Admin: helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
 		Infra: helper.InfraDeps{

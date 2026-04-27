@@ -17,6 +17,7 @@ func (h *Server) GetTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderOK(w, r, response.FromTagList(tags))
 }
 

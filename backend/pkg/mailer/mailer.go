@@ -3,6 +3,7 @@ package mailer
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -52,7 +53,7 @@ func New(cfg Config) *ResendMailer {
 func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 	from := m.cfg.FromEmail
 	if m.cfg.FromName != "" {
-		from = fmt.Sprintf("%s <%s>", m.cfg.FromName, m.cfg.FromEmail)
+		from = (&mail.Address{Name: m.cfg.FromName, Address: m.cfg.FromEmail}).String()
 	}
 
 	params := &resend.SendEmailRequest{

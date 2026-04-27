@@ -33,6 +33,7 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
+	setPublicCache(w, cacheMicro, true)
 	httputil.RenderOK(w, r, response.FromScoreboardListWithAvatars(entries, thumbURLs))
 }
 
@@ -63,5 +64,5 @@ func resolveTeamAvatarThumbs(ctx context.Context, entries []*domain.ScoreboardEn
 		teamIDs[i] = e.TeamID
 	}
 
-	return h.user.AvatarUC.GetTeamAvatarURLBatch(ctx, teamIDs)
+	return h.user.AvatarUC.GetTeamAvatarStoragePathBatch(ctx, teamIDs)
 }

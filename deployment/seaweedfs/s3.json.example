@@ -1,5 +1,5 @@
 {
-  "_comment": "Template - run.sh generates s3.json with real credentials",
+  "_comment": "Template - setup.sh generates s3.json with real credentials",
   "identities": [
     {
       "name": "app",

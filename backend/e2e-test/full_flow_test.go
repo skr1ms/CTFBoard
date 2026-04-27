@@ -145,7 +145,8 @@ func TestFullCTFFlow(t *testing.T) {
 
 	require.Eventually(t, func() bool { return h.FirstBloodAvailable(tokenAlphaCap, challEasy) }, 2*time.Second, 50*time.Millisecond)
 	h.SubmitFlag(tokenBetaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
-	h.SubmitFlag(tokenAlphaCap, challEasy, "flag{easy_peasy}", http.StatusConflict)
+	// Alpha already solved; re-submit is idempotent (handler swallows ErrAlreadySolved -> 200).
+	h.SubmitFlag(tokenAlphaCap, challEasy, "flag{easy_peasy}", http.StatusOK)
 	h.SubmitFlag(tokenAlphaMem, challMedium, "flag{wrong}", http.StatusOK)
 
 	hintObj := h.UnlockHint(tokenAlphaCap, challMedium, hintID, http.StatusOK)
@@ -384,9 +385,9 @@ func TestSettingsValidationErrors(t *testing.T) {
 	}, []int{http.StatusBadRequest, http.StatusForbidden, http.StatusConflict})
 
 	resp := h.PutAdminSettingsExpectOneOf(tokenAdmin, map[string]any{
-		"app_name": "Valid AstroCTFb", "verify_emails": true,
+		"app_name": "Valid CTF Platform", "verify_emails": true,
 		"frontend_url": "http://localhost:3000", "cors_origins": "http://localhost:3000",
-		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "AstroCTFb",
+		"resend_enabled": false, "resend_from_email": "noreply@test.local", "resend_from_name": "CTF Platform",
 		"verify_ttl_hours": 48, "reset_ttl_hours": 2,
 		"submit_limit_per_user": 15, "submit_limit_duration_min": 2,
 		"scoreboard_visible": "hidden", "registration_open": false,
@@ -395,7 +396,7 @@ func TestSettingsValidationErrors(t *testing.T) {
 	if resp.StatusCode() == http.StatusOK {
 		settings := h.GetAdminSettings(tokenAdmin)
 		require.NotNil(t, settings.JSON200)
-		require.Equal(t, "Valid AstroCTFb", *settings.JSON200.AppName)
+		require.Equal(t, "Valid CTF Platform", *settings.JSON200.AppName)
 		require.NotNil(t, settings.JSON200.VerifyTTLHours)
 		require.Equal(t, 48, *settings.JSON200.VerifyTTLHours)
 		require.Equal(t, "hidden", *settings.JSON200.ScoreboardVisible)
@@ -466,6 +467,13 @@ func TestBannedTeamBehavior(t *testing.T) {
 func TestBannedTeamNotInScoreboard(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	// Competition state is global. SetupCompetition's StartCompetition is idempotent
+	// and will reuse whatever times another parallel test left behind - which may have
+	// been set close to now and caused "competition has ended" by the time we create a
+	// team. Force a safely active window before the test proceeds.
+	now := time.Now().UTC()
+	setCompetitionTimes(now.Add(-1*time.Hour), now.Add(24*time.Hour), nil)
 
 	_, tokenAdmin := h.SetupCompetition("admin_ban_sb")
 

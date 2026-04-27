@@ -15,6 +15,12 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List all appeals (admin)
+	// (GET /admin/appeals)
+	GetAdminAppeals(w http.ResponseWriter, r *http.Request, params GetAdminAppealsParams)
+	// Review a ban appeal (admin)
+	// (PATCH /admin/appeals/{ID})
+	PatchAdminAppealsID(w http.ResponseWriter, r *http.Request, id string)
 	// List all awards
 	// (GET /admin/awards)
 	GetAdminAwards(w http.ResponseWriter, r *http.Request, params GetAdminAwardsParams)
@@ -45,6 +51,9 @@ type ServerInterface interface {
 	// Create challenge
 	// (POST /admin/challenges)
 	PostAdminChallenges(w http.ResponseWriter, r *http.Request)
+	// Recalculate dynamic challenge points
+	// (POST /admin/challenges/recalc-points)
+	PostAdminChallengesRecalcPoints(w http.ResponseWriter, r *http.Request)
 	// Delete challenge
 	// (DELETE /admin/challenges/{ID})
 	DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request, id string)
@@ -168,6 +177,12 @@ type ServerInterface interface {
 	// Get solve matrix
 	// (GET /admin/statistics/solve-matrix)
 	GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsSolveMatrixParams)
+	// List storage objects
+	// (GET /admin/storage)
+	GetAdminStorage(w http.ResponseWriter, r *http.Request, params GetAdminStorageParams)
+	// Delete a storage object
+	// (DELETE /admin/storage/{path})
+	DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string)
 	// Get all submissions
 	// (GET /admin/submissions)
 	GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params GetAdminSubmissionsParams)
@@ -276,6 +291,12 @@ type ServerInterface interface {
 	// Get user tracking (admin)
 	// (GET /admin/users/{ID}/tracking)
 	GetAdminUsersIDTracking(w http.ResponseWriter, r *http.Request, id string, params GetAdminUsersIDTrackingParams)
+	// Create a ban appeal
+	// (POST /appeals)
+	PostAppeals(w http.ResponseWriter, r *http.Request)
+	// Get own appeals
+	// (GET /appeals/me)
+	GetAppealsMe(w http.ResponseWriter, r *http.Request)
 	// Request password reset
 	// (POST /auth/forgot-password)
 	PostAuthForgotPassword(w http.ResponseWriter, r *http.Request)
@@ -284,13 +305,16 @@ type ServerInterface interface {
 	PostAuthLogin(w http.ResponseWriter, r *http.Request)
 	// Logout
 	// (POST /auth/logout)
-	PostAuthLogout(w http.ResponseWriter, r *http.Request, params PostAuthLogoutParams)
+	PostAuthLogout(w http.ResponseWriter, r *http.Request)
 	// Get current user info
 	// (GET /auth/me)
 	GetAuthMe(w http.ResponseWriter, r *http.Request)
 	// Update current user profile
 	// (PATCH /auth/me)
 	PatchAuthMe(w http.ResponseWriter, r *http.Request)
+	// OAuth code exchange
+	// (POST /auth/oauth/exchange)
+	PostAuthOauthExchange(w http.ResponseWriter, r *http.Request)
 	// OAuth redirect
 	// (GET /auth/oauth/{provider})
 	GetAuthOauthProvider(w http.ResponseWriter, r *http.Request, provider string)
@@ -299,13 +323,16 @@ type ServerInterface interface {
 	GetAuthOauthProviderCallback(w http.ResponseWriter, r *http.Request, provider string, params GetAuthOauthProviderCallbackParams)
 	// Refresh tokens
 	// (POST /auth/refresh)
-	PostAuthRefresh(w http.ResponseWriter, r *http.Request, params PostAuthRefreshParams)
+	PostAuthRefresh(w http.ResponseWriter, r *http.Request)
 	// Register new user
 	// (POST /auth/register)
 	PostAuthRegister(w http.ResponseWriter, r *http.Request)
 	// Resend verification email
 	// (POST /auth/resend-verification)
 	PostAuthResendVerification(w http.ResponseWriter, r *http.Request)
+	// Resend verification email by email address
+	// (POST /auth/resend-verification-by-email)
+	PostAuthResendVerificationByEmail(w http.ResponseWriter, r *http.Request)
 	// Reset password
 	// (POST /auth/reset-password)
 	PostAuthResetPassword(w http.ResponseWriter, r *http.Request)
@@ -585,6 +612,18 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// List all appeals (admin)
+// (GET /admin/appeals)
+func (_ Unimplemented) GetAdminAppeals(w http.ResponseWriter, r *http.Request, params GetAdminAppealsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Review a ban appeal (admin)
+// (PATCH /admin/appeals/{ID})
+func (_ Unimplemented) PatchAdminAppealsID(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // List all awards
 // (GET /admin/awards)
 func (_ Unimplemented) GetAdminAwards(w http.ResponseWriter, r *http.Request, params GetAdminAwardsParams) {
@@ -642,6 +681,12 @@ func (_ Unimplemented) PutAdminBracketsID(w http.ResponseWriter, r *http.Request
 // Create challenge
 // (POST /admin/challenges)
 func (_ Unimplemented) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Recalculate dynamic challenge points
+// (POST /admin/challenges/recalc-points)
+func (_ Unimplemented) PostAdminChallengesRecalcPoints(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -891,6 +936,18 @@ func (_ Unimplemented) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *h
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// List storage objects
+// (GET /admin/storage)
+func (_ Unimplemented) GetAdminStorage(w http.ResponseWriter, r *http.Request, params GetAdminStorageParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete a storage object
+// (DELETE /admin/storage/{path})
+func (_ Unimplemented) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get all submissions
 // (GET /admin/submissions)
 func (_ Unimplemented) GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params GetAdminSubmissionsParams) {
@@ -1107,6 +1164,18 @@ func (_ Unimplemented) GetAdminUsersIDTracking(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Create a ban appeal
+// (POST /appeals)
+func (_ Unimplemented) PostAppeals(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get own appeals
+// (GET /appeals/me)
+func (_ Unimplemented) GetAppealsMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Request password reset
 // (POST /auth/forgot-password)
 func (_ Unimplemented) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -1121,7 +1190,7 @@ func (_ Unimplemented) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 // Logout
 // (POST /auth/logout)
-func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request, params PostAuthLogoutParams) {
+func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1134,6 +1203,12 @@ func (_ Unimplemented) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 // Update current user profile
 // (PATCH /auth/me)
 func (_ Unimplemented) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// OAuth code exchange
+// (POST /auth/oauth/exchange)
+func (_ Unimplemented) PostAuthOauthExchange(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1151,7 +1226,7 @@ func (_ Unimplemented) GetAuthOauthProviderCallback(w http.ResponseWriter, r *ht
 
 // Refresh tokens
 // (POST /auth/refresh)
-func (_ Unimplemented) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params PostAuthRefreshParams) {
+func (_ Unimplemented) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1164,6 +1239,12 @@ func (_ Unimplemented) PostAuthRegister(w http.ResponseWriter, r *http.Request) 
 // Resend verification email
 // (POST /auth/resend-verification)
 func (_ Unimplemented) PostAuthResendVerification(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Resend verification email by email address
+// (POST /auth/resend-verification-by-email)
+func (_ Unimplemented) PostAuthResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1722,6 +1803,90 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// GetAdminAppeals operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminAppeals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminAppealsParams
+
+	// ------------- Optional query parameter "decision" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "decision", r.URL.Query(), &params.Decision)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "decision", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "per_page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminAppeals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchAdminAppealsID operation middleware
+func (siw *ServerInterfaceWrapper) PatchAdminAppealsID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchAdminAppealsID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAdminAwards operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminAwards(w http.ResponseWriter, r *http.Request) {
 
@@ -2012,6 +2177,28 @@ func (siw *ServerInterfaceWrapper) PostAdminChallenges(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAdminChallenges(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminChallengesRecalcPoints operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminChallengesRecalcPoints(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminChallengesRecalcPoints(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3258,6 +3445,70 @@ func (siw *ServerInterfaceWrapper) GetAdminStatisticsSolveMatrix(w http.Response
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminStatisticsSolveMatrix(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminStorage operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminStorage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminStorageParams
+
+	// ------------- Optional query parameter "prefix" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "prefix", r.URL.Query(), &params.Prefix)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "prefix", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminStorage(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminStoragePath operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", chi.URLParam(r, "path"), &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminStoragePath(w, r, path)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4614,6 +4865,50 @@ func (siw *ServerInterfaceWrapper) GetAdminUsersIDTracking(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// PostAppeals operation middleware
+func (siw *ServerInterfaceWrapper) PostAppeals(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAppeals(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppealsMe operation middleware
+func (siw *ServerInterfaceWrapper) GetAppealsMe(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppealsMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostAuthForgotPassword operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
 
@@ -4645,34 +4940,8 @@ func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.
 // PostAuthLogout operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PostAuthLogoutParams
-
-	headers := r.Header
-
-	// ------------- Optional header parameter "Authorization" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
-		var Authorization string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Authorization", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Authorization", valueList[0], &Authorization, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Authorization", Err: err})
-			return
-		}
-
-		params.Authorization = &Authorization
-
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostAuthLogout(w, r, params)
+		siw.Handler.PostAuthLogout(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4717,6 +4986,20 @@ func (siw *ServerInterfaceWrapper) PatchAuthMe(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchAuthMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthOauthExchange operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthOauthExchange(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthOauthExchange(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4798,38 +5081,8 @@ func (siw *ServerInterfaceWrapper) GetAuthOauthProviderCallback(w http.ResponseW
 // PostAuthRefresh operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
 
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PostAuthRefreshParams
-
-	headers := r.Header
-
-	// ------------- Required header parameter "Authorization" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
-		var Authorization string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Authorization", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Authorization", valueList[0], &Authorization, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Authorization", Err: err})
-			return
-		}
-
-		params.Authorization = Authorization
-
-	} else {
-		err := fmt.Errorf("Header parameter Authorization is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Authorization", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostAuthRefresh(w, r, params)
+		siw.Handler.PostAuthRefresh(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4866,6 +5119,20 @@ func (siw *ServerInterfaceWrapper) PostAuthResendVerification(w http.ResponseWri
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAuthResendVerification(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthResendVerificationByEmail operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthResendVerificationByEmail(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7609,6 +7876,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/appeals", wrapper.GetAdminAppeals)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/admin/appeals/{ID}", wrapper.PatchAdminAppealsID)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/awards", wrapper.GetAdminAwards)
 	})
 	r.Group(func(r chi.Router) {
@@ -7637,6 +7910,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/challenges", wrapper.PostAdminChallenges)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/challenges/recalc-points", wrapper.PostAdminChallengesRecalcPoints)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/challenges/{ID}", wrapper.DeleteAdminChallengesID)
@@ -7762,6 +8038,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/storage", wrapper.GetAdminStorage)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/storage/{path}", wrapper.DeleteAdminStoragePath)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/submissions", wrapper.GetAdminSubmissions)
 	})
 	r.Group(func(r chi.Router) {
@@ -7870,6 +8152,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/users/{ID}/tracking", wrapper.GetAdminUsersIDTracking)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/appeals", wrapper.PostAppeals)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/appeals/me", wrapper.GetAppealsMe)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/forgot-password", wrapper.PostAuthForgotPassword)
 	})
 	r.Group(func(r chi.Router) {
@@ -7885,6 +8173,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Patch(options.BaseURL+"/auth/me", wrapper.PatchAuthMe)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/oauth/exchange", wrapper.PostAuthOauthExchange)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/oauth/{provider}", wrapper.GetAuthOauthProvider)
 	})
 	r.Group(func(r chi.Router) {
@@ -7898,6 +8189,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/resend-verification", wrapper.PostAuthResendVerification)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/resend-verification-by-email", wrapper.PostAuthResendVerificationByEmail)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/reset-password", wrapper.PostAuthResetPassword)

@@ -17,6 +17,7 @@ func (h *Server) GetPages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderOK(w, r, response.FromPageList(list))
 }
 
@@ -27,6 +28,7 @@ func (h *Server) GetPagesSlug(w http.ResponseWriter, r *http.Request, slug strin
 		return
 	}
 
+	setPublicCache(w, cacheStatic, false)
 	httputil.RenderOK(w, r, response.FromPage(page))
 }
 

@@ -10,12 +10,13 @@ import (
 func TestValidatePassword_Success(t *testing.T) {
 	t.Parallel()
 	assert.True(t, ValidatePassword("ValidPass1!"))
-	assert.True(t, ValidatePassword("Abc123"))
+	assert.True(t, ValidatePassword("Abcd1234"))
 }
 
 func TestValidatePassword_Error(t *testing.T) {
 	t.Parallel()
 	assert.False(t, ValidatePassword("short"))
+	assert.False(t, ValidatePassword("Abc123"), "7 chars - too short")
 	assert.False(t, ValidatePassword("ab"))
 	assert.False(t, ValidatePassword(""))
 	assert.False(t, ValidatePassword("abc123"), "no uppercase")

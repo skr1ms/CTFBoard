@@ -1,0 +1,51 @@
+schemas:
+  request.CreateAppealRequest:
+    type: object
+    required:
+      - message
+    properties:
+      message:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=10,max=2000"
+  request.ReviewAppealRequest:
+    type: object
+    required:
+      - decision
+    properties:
+      decision:
+        type: string
+        enum: [resolved, rejected]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=resolved rejected"
+      admin_response:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=2000"
+  response.BanAppealResponse:
+    type: object
+    properties:
+      id:
+        type: string
+      user_id:
+        type: string
+      message:
+        type: string
+      created_at:
+        type: string
+      reviewed_at:
+        type: string
+      admin_response:
+        type: string
+      decision:
+        type: string
+        description: "pending, resolved, or rejected"
+  response.BanAppealListResponse:
+    type: object
+    properties:
+      appeals:
+        type: array
+        items:
+          $ref: '#/schemas/response.BanAppealResponse'
+      meta:
+        $ref: '#/schemas/response.PaginationMeta'

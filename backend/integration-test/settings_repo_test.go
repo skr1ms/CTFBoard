@@ -21,7 +21,7 @@ func TestSettingsRepo_Get_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 1, settings.ID)
-	assert.Equal(t, "AstroCTFb", settings.AppName)
+	assert.Equal(t, "CTF Platform", settings.AppName)
 	assert.True(t, settings.VerifyEmails)
 	assert.Equal(t, "http://localhost:3000", settings.FrontendURL)
 	assert.Equal(t, 24, settings.VerifyTTLHours)
@@ -42,7 +42,7 @@ func TestSettingsRepo_Update_Success(t *testing.T) {
 	settings, err := f.SettingsRepo.Get(ctx)
 	require.NoError(t, err)
 
-	settings.AppName = "Updated AstroCTFb"
+	settings.AppName = "Updated CTF Platform"
 	settings.VerifyEmails = false
 	settings.FrontendURL = "https://ctf.example.com"
 	settings.VerifyTTLHours = 48
@@ -58,7 +58,7 @@ func TestSettingsRepo_Update_Success(t *testing.T) {
 	updated, err := f.SettingsRepo.Get(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Updated AstroCTFb", updated.AppName)
+	assert.Equal(t, "Updated CTF Platform", updated.AppName)
 	assert.False(t, updated.VerifyEmails)
 	assert.Equal(t, "https://ctf.example.com", updated.FrontendURL)
 	assert.Equal(t, 48, updated.VerifyTTLHours)

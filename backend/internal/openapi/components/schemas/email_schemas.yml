@@ -19,6 +19,16 @@ schemas:
     required:
       - email
     type: object
+  request.ResendVerificationByEmailRequest:
+    properties:
+      email:
+        example: player1@example.com
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_email"
+    required:
+      - email
+    type: object
   request.ResetPasswordRequest:
     properties:
       new_password:

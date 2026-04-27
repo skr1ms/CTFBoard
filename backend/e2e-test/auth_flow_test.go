@@ -10,7 +10,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
 // TestAuthFlow_FullLifecycle covers the full authentication lifecycle:
@@ -46,13 +45,11 @@ func TestAuthFlow_FullLifecycle(t *testing.T) {
 	// 4. Verify that same token is now invalid (one-time use)
 	h.VerifyEmailExpectStatus(rawVerifyToken, http.StatusNotFound)
 
-	// 5. Get new tokens after verification
+	// 5. Get new access token after verification; Login sets the httpOnly refresh cookie in the jar
 	loginResp2 := h.Login(email, password, http.StatusOK)
 	require.NotNil(t, loginResp2.JSON200)
 	require.NotNil(t, loginResp2.JSON200.AccessToken)
-	require.NotNil(t, loginResp2.JSON200.RefreshToken)
 	newAccess := "Bearer " + *loginResp2.JSON200.AccessToken
-	refreshToken := *loginResp2.JSON200.RefreshToken
 
 	// 6. Access protected endpoint with new access token
 	me := h.GetMe(newAccess, http.StatusOK)
@@ -60,12 +57,10 @@ func TestAuthFlow_FullLifecycle(t *testing.T) {
 	assert.Equal(t, username, *me.JSON200.Username)
 	assert.Equal(t, email, *me.JSON200.Email)
 
-	// 7. Refresh token - get new pair
-	refreshBearer := "Bearer " + refreshToken
-	refreshResp := h.Refresh(refreshBearer, http.StatusOK)
-	newAccessToken, newRefreshToken := helper.RequireRefreshOK(t, refreshResp)
+	// 7. Refresh via cookie - get new access token
+	refreshResp := h.Refresh(http.StatusOK)
+	newAccessToken := helper.RequireRefreshOK(t, refreshResp)
 	assert.NotEmpty(t, newAccessToken)
-	assert.NotEmpty(t, newRefreshToken)
 	assert.NotEqual(t, *loginResp2.JSON200.AccessToken, newAccessToken)
 
 	// 8. Old access token still valid (not revoked by refresh)
@@ -76,19 +71,13 @@ func TestAuthFlow_FullLifecycle(t *testing.T) {
 	require.NotNil(t, me2.JSON200)
 	assert.Equal(t, username, *me2.JSON200.Username)
 
-	// 10. Logout with the new refresh token
-	newRefreshBearer := "Bearer " + newRefreshToken
-	logoutResp, err := h.Client().PostAuthLogoutWithResponse(ctx,
-		&openapi.PostAuthLogoutParams{Authorization: &newRefreshBearer},
-		openapi.PostAuthLogoutJSONRequestBody{})
+	// 10. Logout via cookie - server clears the httpOnly cookie
+	logoutResp, err := h.Client().PostAuthLogoutWithResponse(ctx)
 	require.NoError(t, err)
 	helper.RequireStatus(t, http.StatusNoContent, logoutResp.StatusCode(), logoutResp.Body, "logout")
 
-	// 11. After logout, refresh with the revoked refresh token returns 401
-	h.Refresh(newRefreshBearer, http.StatusUnauthorized)
-
-	// 12. Old refresh token (used in step 7) was consumed - also unusable
-	h.Refresh(refreshBearer, http.StatusUnauthorized)
+	// 11. After logout the cookie is cleared - refresh returns 401
+	h.Refresh(http.StatusUnauthorized)
 }
 
 // TestAuthFlow_PasswordReset_InvalidatesOldCredentials verifies that after a password reset

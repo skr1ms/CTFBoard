@@ -20,6 +20,7 @@ func (h *Server) GetNotifications(w http.ResponseWriter, r *http.Request, params
 		return
 	}
 
+	setPublicCache(w, cacheMedium, false)
 	httputil.RenderOK(w, r, response.FromNotificationList(notifs))
 }
 

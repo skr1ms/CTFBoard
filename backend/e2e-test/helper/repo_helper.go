@@ -59,3 +59,16 @@ func (h *E2EHelper) hashToken(token string) string {
 
 	return hex.EncodeToString(hash[:])
 }
+
+// BanUserDirectly sets is_banned=true in the DB without going through the usecase,
+// so existing JWTs remain valid. Use this in tests where you need a banned user
+// but want to keep using the original token (avoids the 1-second iat/revokedAt race).
+func (h *E2EHelper) BanUserDirectly(userID string) {
+	h.t.Helper()
+
+	_, err := h.pool.Exec(context.Background(),
+		"UPDATE users SET is_banned = true, banned_reason = 'test ban', banned_at = now() WHERE id = $1", userID)
+	require.NoError(h.t, err, "BanUserDirectly: SQL update failed")
+
+	h.InvalidateUserCache(userID)
+}

@@ -32,7 +32,7 @@ RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 
 COPY --from=builder /app/bin/backend .
-COPY --from=builder /app/bin/cleanup /usr/local/bin/astroctfb-cleanup
+COPY --from=builder /app/bin/cleanup /usr/local/bin/ctf-platform-cleanup
 COPY --from=builder /app/migrations ./migrations
 
 RUN chown -R app:app /app

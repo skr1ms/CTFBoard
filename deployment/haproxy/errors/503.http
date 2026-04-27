@@ -1,0 +1,5 @@
+HTTP/1.1 503 Service Unavailable
+Content-Type: application/json
+Cache-Control: no-store
+
+{"error":"service_unavailable","message":"The service is temporarily unavailable. Please try again in a moment."}

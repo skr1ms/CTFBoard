@@ -50,15 +50,15 @@ const (
 	rlKeyWebSocketIP       = "websocket:ip"
 	rlKeyAvatarUploadUser  = "avatar:upload:user"
 	defaultRLWindow        = time.Minute
-	avatarUploadLimit      = 5
+	avatarUploadLimit      = 2
 	avatarUploadWindow     = time.Minute
-	teamOpRateLimit        = 5
+	teamOpRateLimit        = 2
 	teamOpRateLimitWindow  = time.Minute
 	adminExportZipLimit    = 3
-	adminExportZipWindow   = 5 * time.Minute
+	adminExportZipWindow   = time.Minute
 	adminDestructiveLimit  = 3
-	adminDestructiveWindow = 5 * time.Minute
-	adminGeneralLimit      = 120
+	adminDestructiveWindow = time.Minute
+	adminGeneralLimit      = 600
 	adminGeneralWindow     = time.Minute
 )
 
@@ -97,7 +97,7 @@ func userIDKeyFunc(r *http.Request) (string, error) {
 
 // protectedMiddlewareStack returns the shared middleware chain used by all
 // authenticated route groups that require IP tracking:
-// Auth → InjectUser → ipTracking → notUserBanned.
+// Auth -> InjectUser -> ipTracking -> notUserBanned.
 func protectedMiddlewareStack(
 	deps *helper.ServerDeps,
 	sharedCache *cachekit.Cache,
@@ -113,12 +113,7 @@ func protectedMiddlewareStack(
 }
 
 func scoreboardVisibilityMiddleware(deps *helper.ServerDeps) func(http.Handler) http.Handler {
-	getter := deps.Admin.SettingsUC
-	if deps.Infra.ScoreboardVisibilityCache != nil {
-		return deps.Infra.ScoreboardVisibilityCache.Middleware(getter)
-	}
-
-	return restapimiddleware.ScoreboardVisibility(getter)
+	return restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "score_visibility")
 }
 
 // NewRouter wires the entire HTTP route tree onto router. It creates the Server
@@ -167,6 +162,7 @@ func NewRouter(
 	notUserBanned := restapimiddleware.RequireUserNotBanned()
 	scoreboardVis := scoreboardVisibilityMiddleware(deps)
 	setupPublicRoutes(router, wrapper, deps, deps.Infra.RedisClient, deps.Infra.Logger, rateLimitCache)
+	router.Get("/auth/oauth/providers", server.GetAuthOauthProviders)
 	setupAuthOnlyRoutes(router, deps, wrapper, sharedCache, rateLimitCache, notUserBanned)
 	setupProtectedRoutes(router, server, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notUserBanned, scoreboardVis)
 }
@@ -198,6 +194,7 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 		r.With(loginLimit).Post("/auth/login", wrapper.PostAuthLogin)
 		r.With(registerLimit).Post("/auth/register", wrapper.PostAuthRegister)
 		r.With(verifyEmailLimit).Post("/auth/verify-email", wrapper.PostAuthVerifyEmail)
+		r.With(verifyEmailLimit).Post("/auth/resend-verification-by-email", wrapper.PostAuthResendVerificationByEmail)
 		r.With(forgotPasswordLimit).Post("/auth/forgot-password", wrapper.PostAuthForgotPassword)
 		r.With(resetPasswordLimit).Post("/auth/reset-password", wrapper.PostAuthResetPassword)
 		r.With(refreshLimit).Post("/auth/refresh", wrapper.PostAuthRefresh)
@@ -207,15 +204,20 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 		r.With(oauthRedirectLimit).Get("/auth/oauth/{provider}", wrapper.GetAuthOauthProvider)
 		r.With(oauthCallbackLimit).Get("/auth/oauth/{provider}/callback", wrapper.GetAuthOauthProviderCallback)
 
-		// Public endpoints (rate limited to mitigate DoS)
-		r.With(publicReadLimit).Get("/competition/status", wrapper.GetCompetitionStatus)
-		r.With(publicReadLimit).Get("/tags", wrapper.GetTags)
-		r.With(publicReadLimit).Get("/fields", wrapper.GetFields)
-		r.With(publicReadLimit).Get("/brackets", wrapper.GetBrackets)
-		r.With(publicReadLimit).Get("/pages", wrapper.GetPages)
-		r.With(publicReadLimit).Get("/pages/{slug}", wrapper.GetPagesSlug)
-		r.With(publicReadLimit).Get("/notifications", wrapper.GetNotifications)
-		r.With(publicReadLimit).Get("/challenges/types", wrapper.GetChallengesTypes)
+		// Public cacheable endpoints: rate-limited + ETag conditional GET support.
+		r.Group(func(pub chi.Router) {
+			pub.Use(publicReadLimit, restapimiddleware.ETag)
+			pub.Get("/competition/status", wrapper.GetCompetitionStatus)
+			pub.Get("/tags", wrapper.GetTags)
+			pub.Get("/fields", wrapper.GetFields)
+			pub.Get("/brackets", wrapper.GetBrackets)
+			pub.Get("/pages", wrapper.GetPages)
+			pub.Get("/pages/{slug}", wrapper.GetPagesSlug)
+			pub.Get("/notifications", wrapper.GetNotifications)
+			pub.Get("/challenges/types", wrapper.GetChallengesTypes)
+		})
+
+		// Non-cacheable public endpoints (no ETag, still rate-limited).
 		r.With(publicReadLimit).Get("/healthcheck", wrapper.GetHealthcheck)
 		r.With(publicReadLimit).Get("/robots.txt", wrapper.GetRobotsTxt)
 		r.With(publicReadLimit).Get("/tos", wrapper.GetTos)
@@ -238,9 +240,9 @@ func setupAuthOnlyRoutes(router chi.Router, deps *helper.ServerDeps, wrapper ope
 }
 
 // setupProtectedRoutes creates the RequireTeamNotBanned middleware (shared across
-// all authenticated route groups so the team cache is consulted only once per
-// request) and then delegates to the five sub-group setup functions:
-// setupBasicAuthRoutes, setupScoreboardRoutes, setupFirstBloodRoute,
+// all route groups so the team cache is consulted only once per request) and then
+// delegates to the sub-group setup functions: setupConditionalPublicRoutes
+// (optionally-public routes gated by visibility config), setupBasicAuthRoutes,
 // setupWebSocketRoute, and setupFileDownloadRoute.
 func setupProtectedRoutes(
 	router chi.Router,
@@ -255,19 +257,38 @@ func setupProtectedRoutes(
 	scoreboardVis func(http.Handler) http.Handler,
 ) {
 	notBanned := restapimiddleware.RequireTeamNotBanned(deps.Team.TeamUC, sharedCache)
-	setupBasicAuthRoutes(router, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
-	setupScoreboardRoutes(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
-	setupFirstBloodRoute(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
+	setupConditionalPublicRoutes(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned)
+	setupBannedAccessibleRoutes(router, deps, wrapper, sharedCache, ipTracking)
+	setupBasicAuthRoutes(router, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned)
 	setupWebSocketRoute(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned, scoreboardVis)
 	setupFileDownloadRoute(router, server, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, notBanned, notUserBanned, ipTracking)
 }
 
-// setupBasicAuthRoutes registers all authenticated non-scoreboard routes:
-// profile read/update, user/team reads (behind scoreboard visibility), per-user
-// solves/fails/awards (behind notBanned), notifications, API tokens, avatar
-// upload/delete with per-user rate limit, and delegates to setupTeamRoutes and
-// setupChallengeRoutes. All routes share the Auth + InjectUser + IP-tracking +
-// notUserBanned middleware stack defined in this group.
+// setupBannedAccessibleRoutes registers routes accessible to banned users:
+// GET /auth/me (so banned users can see their ban status) and the appeals endpoints.
+// Uses Auth + InjectUser middleware WITHOUT RequireUserNotBanned.
+func setupBannedAccessibleRoutes(
+	router chi.Router,
+	deps *helper.ServerDeps,
+	wrapper openapi.ServerInterfaceWrapper,
+	sharedCache *cachekit.Cache,
+	ipTracking func(http.Handler) http.Handler,
+) {
+	router.Group(func(r chi.Router) {
+		r.Use(restapimiddleware.Auth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
+		r.Use(restapimiddleware.InjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
+		r.Use(ipTracking)
+
+		r.Get("/auth/me", wrapper.GetAuthMe)
+		r.Post("/appeals", wrapper.PostAppeals)
+		r.Get("/appeals/me", wrapper.GetAppealsMe)
+	})
+}
+
+// setupBasicAuthRoutes registers all routes that always require authentication:
+// profile read/update, per-user solves/fails/awards, notifications, API tokens,
+// avatar upload/delete, team management, challenge write operations (submit,
+// hint-unlock, comments, ratings), and admin routes.
 func setupBasicAuthRoutes(
 	router chi.Router,
 	deps *helper.ServerDeps,
@@ -278,7 +299,6 @@ func setupBasicAuthRoutes(
 	ipTracking func(http.Handler) http.Handler,
 	notBanned func(http.Handler) http.Handler,
 	notUserBanned func(http.Handler) http.Handler,
-	scoreboardVis func(http.Handler) http.Handler,
 ) {
 	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
 	keyFunc := ipKeyFunc()
@@ -287,20 +307,12 @@ func setupBasicAuthRoutes(
 	profileUpdateLimit := rl(rlKeyProfileUpdateIP, defaultRLWindow, generalIP, keyFunc)
 	apiTokenLimit := rl(rlKeyAPITokenIP, defaultRLWindow, generalIP, keyFunc)
 	notificationLimit := rl(rlKeyNotificationIP, defaultRLWindow, generalIP, keyFunc)
-	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
 
 	router.Group(func(r chi.Router) {
 		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 
-		r.Get("/auth/me", wrapper.GetAuthMe)
 		r.With(profileUpdateLimit).Patch("/auth/me", wrapper.PatchAuthMe)
-		r.With(protectedReadLimit).Get("/users", wrapper.GetUsers)
-		r.Group(func(r2 chi.Router) {
-			r2.Use(protectedReadLimit)
-			r2.Use(scoreboardVis)
-			r2.Get("/users/{ID}", wrapper.GetUsersID)
-			r2.Get("/teams/{ID}", wrapper.GetTeamsID)
-		})
+
 		r.Group(func(me chi.Router) {
 			me.Use(notBanned)
 			me.Get("/users/me/solves", wrapper.GetUsersMeSolves)
@@ -326,7 +338,7 @@ func setupBasicAuthRoutes(
 		verified.With(avatarUploadLimitMw).Put("/teams/me/avatar", wrapper.PutTeamsMeAvatar)
 		verified.Delete("/teams/me/avatar", wrapper.DeleteTeamsMeAvatar)
 
-		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned, scoreboardVis)
+		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned)
 		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, verifyEmails, sharedCache, notBanned)
 
 		fileDownloadLimit := rl(rlKeyFileDownloadIP, defaultRLWindow, generalIP, ipKeyFunc())
@@ -336,49 +348,92 @@ func setupBasicAuthRoutes(
 	})
 }
 
-func setupScoreboardRoutes(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
+// setupConditionalPublicRoutes registers routes whose accessibility depends on
+// visibility config keys. An optional auth stack (OptionalAuth + OptionalInjectUser)
+// authenticates requests when credentials are present but lets guests through.
+// VisibilityGuard then enforces the per-section config key:
+//
+//	score_visibility    -> /scoreboard, /statistics, per-user/team solves/fails/awards
+//	account_visibility  -> /users, /teams (public read)
+//	challenge_visibility -> /challenges (read-only + first-blood)
+func setupConditionalPublicRoutes(
+	router chi.Router,
+	deps *helper.ServerDeps,
+	wrapper openapi.ServerInterfaceWrapper,
+	rateLimitCache *restapimiddleware.RateLimitConfigCache,
+	sharedCache *cachekit.Cache,
+	ipTracking func(http.Handler) http.Handler,
+	notBanned func(http.Handler) http.Handler,
+	notUserBanned func(http.Handler) http.Handler,
+) {
 	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
-	scoreboardLimit := rl(rlKeyScoreboardIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) }, ipKeyFunc())
+	keyFunc := ipKeyFunc()
+	generalIP := func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }
+
+	scoreboardLimit := rl(rlKeyScoreboardIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) }, keyFunc)
+	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
+	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, generalIP, keyFunc)
+
+	compParamUC := deps.Admin.CompetitionParamUC
 
 	router.Group(func(r chi.Router) {
-		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
-		r.Use(notBanned)
-		r.Use(scoreboardVis)
-		r.Use(scoreboardLimit)
+		r.Use(restapimiddleware.OptionalAuth(deps.Infra.JWTService, deps.User.APITokenUC, deps.User.UserUC, deps.Infra.Logger))
+		r.Use(restapimiddleware.OptionalInjectUser(deps.User.UserUC, sharedCache, deps.Infra.Logger))
+		r.Use(ipTracking)
+		r.Use(notUserBanned)
 
-		r.Get("/scoreboard", wrapper.GetScoreboard)
-		r.Get("/scoreboard/graph", wrapper.GetScoreboardGraph)
-		r.Get("/users/{ID}/solves", wrapper.GetUsersIDSolves)
-		r.Get("/users/{ID}/awards", wrapper.GetUsersIDAwards)
-		r.Get("/teams/solves/{teamID}", wrapper.GetTeamsIDSolves)
-		r.Get("/teams/awards/{teamID}", wrapper.GetTeamsIDAwards)
-		r.Get("/users/{ID}/fails", wrapper.GetUsersIDFails)
-		r.Get("/teams/fails/{teamID}", wrapper.GetTeamsIDFails)
-		r.Get("/statistics/general", wrapper.GetStatisticsGeneral)
-		r.Get("/statistics/challenges", wrapper.GetStatisticsChallenges)
-		r.Get("/statistics/challenges/{ID}", wrapper.GetStatisticsChallengesID)
-		r.Get("/statistics/challenges/solves/percentages", wrapper.GetStatisticsChallengesSolvesPercentages)
-		r.Get("/statistics/scores/distribution", wrapper.GetStatisticsScoresDistribution)
-		r.Get("/statistics/submissions", wrapper.GetStatisticsSubmissions)
-		r.Get("/statistics/submissions/{type}", wrapper.GetStatisticsSubmissionsType)
-		r.Get("/statistics/teams", wrapper.GetStatisticsTeams)
-		r.Get("/statistics/users", wrapper.GetStatisticsUsers)
-		r.Get("/statistics/scoreboard", wrapper.GetStatisticsScoreboard)
-	})
-}
+		// Scoreboard & statistics gated by score_visibility
+		r.Group(func(sb chi.Router) {
+			sb.Use(notBanned)
+			sb.Use(restapimiddleware.VisibilityGuard(compParamUC, "score_visibility"))
+			sb.Use(scoreboardLimit)
+			sb.Get("/scoreboard", wrapper.GetScoreboard)
+			sb.Get("/scoreboard/graph", wrapper.GetScoreboardGraph)
+			sb.Get("/users/{ID}/solves", wrapper.GetUsersIDSolves)
+			sb.Get("/users/{ID}/fails", wrapper.GetUsersIDFails)
+			sb.Get("/users/{ID}/awards", wrapper.GetUsersIDAwards)
+			sb.Get("/teams/solves/{teamID}", wrapper.GetTeamsIDSolves)
+			sb.Get("/teams/fails/{teamID}", wrapper.GetTeamsIDFails)
+			sb.Get("/teams/awards/{teamID}", wrapper.GetTeamsIDAwards)
+			sb.Get("/statistics/general", wrapper.GetStatisticsGeneral)
+			sb.Get("/statistics/challenges", wrapper.GetStatisticsChallenges)
+			sb.Get("/statistics/challenges/{ID}", wrapper.GetStatisticsChallengesID)
+			sb.Get("/statistics/challenges/solves/percentages", wrapper.GetStatisticsChallengesSolvesPercentages)
+			sb.Get("/statistics/scores/distribution", wrapper.GetStatisticsScoresDistribution)
+			sb.Get("/statistics/submissions", wrapper.GetStatisticsSubmissions)
+			sb.Get("/statistics/submissions/{type}", wrapper.GetStatisticsSubmissionsType)
+			sb.Get("/statistics/teams", wrapper.GetStatisticsTeams)
+			sb.Get("/statistics/users", wrapper.GetStatisticsUsers)
+			sb.Get("/statistics/scoreboard", wrapper.GetStatisticsScoreboard)
+		})
 
-func setupFirstBloodRoute(router chi.Router, deps *helper.ServerDeps, wrapper openapi.ServerInterfaceWrapper, rateLimitCache *restapimiddleware.RateLimitConfigCache, sharedCache *cachekit.Cache, ipTracking, notBanned, notUserBanned, scoreboardVis func(http.Handler) http.Handler) {
-	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
-	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, ipKeyFunc())
+		// User and team profiles gated by account_visibility
+		r.Group(func(acc chi.Router) {
+			acc.Use(notBanned)
+			acc.Use(restapimiddleware.VisibilityGuard(compParamUC, "account_visibility"))
+			acc.Use(protectedReadLimit)
+			acc.Get("/users", wrapper.GetUsers)
+			acc.Get("/users/{ID}", wrapper.GetUsersID)
+			acc.Get("/teams", wrapper.GetTeams)
+			acc.Get("/teams/{ID}", wrapper.GetTeamsID)
+		})
 
-	router.Group(func(r chi.Router) {
-		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
-		r.Use(notBanned)
-		r.Use(scoreboardVis)
-		r.Use(restapimiddleware.ChallengeVisibility(deps.Comp.CompetitionUC))
-		r.Use(challengeReadLimit)
-
-		r.Get("/challenges/{challengeID}/first-blood", wrapper.GetChallengesChallengeIDFirstBlood)
+		// Challenge read-only endpoints gated by challenge_visibility
+		r.Group(func(ch chi.Router) {
+			ch.Use(notBanned)
+			ch.Use(restapimiddleware.VisibilityGuard(compParamUC, "challenge_visibility"))
+			ch.Use(challengeReadLimit)
+			ch.Get("/challenges", wrapper.GetChallenges)
+			ch.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
+			ch.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
+			ch.Get("/challenges/{challengeID}/solves", wrapper.GetChallengesChallengeIDSolves)
+			ch.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
+			ch.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
+			ch.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
+			ch.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
+			ch.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
+			ch.Get("/challenges/{challengeID}/first-blood", wrapper.GetChallengesChallengeIDFirstBlood)
+		})
 	})
 }
 
@@ -430,16 +485,8 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 	})
 }
 
-func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verifyEmails bool, redisClient *redis.Client, log logkit.Logger, notBanned, scoreboardVisibility func(http.Handler) http.Handler) {
-	r.Group(func(sv chi.Router) {
-		sv.Use(notBanned)
-		sv.Use(scoreboardVisibility)
-		sv.Get("/teams", wrapper.GetTeams)
-	})
-	r.Group(func(sv chi.Router) {
-		sv.Use(scoreboardVisibility)
-		sv.Get("/teams/my", wrapper.GetTeamsMy)
-	})
+func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verifyEmails bool, redisClient *redis.Client, log logkit.Logger, notBanned func(http.Handler) http.Handler) {
+	r.Get("/teams/my", wrapper.GetTeamsMy)
 
 	r.Group(func(me chi.Router) {
 		me.Use(restapimiddleware.RequireTeam())
@@ -464,11 +511,11 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verif
 	verified.With(teamOpLimit).Post("/teams/solo", wrapper.PostTeamsSolo)
 }
 
-// setupChallengeRoutes wires three distinct middleware stacks onto challenge routes:
-// (1) read endpoints behind ChallengeVisibility + notBanned + challenge-read rate limit;
-// (2) comment/rating endpoints additionally gated by CompetitionEnded / RequireVerified;
-// (3) submit and hint-unlock endpoints behind CompetitionActive + RequireTeam +
+// setupChallengeRoutes wires auth-required challenge routes:
+// (1) comment/rating endpoints gated by CompetitionEnded / RequireVerified;
+// (2) submit and hint-unlock behind CompetitionActive + RequireTeam +
 // SubmitRateLimitWithAudit (dual IP+user rate limit with async audit log on excess).
+// Read-only challenge endpoints live in setupConditionalPublicRoutes.
 func setupChallengeRoutes(
 	r chi.Router,
 	wrapper openapi.ServerInterfaceWrapper,
@@ -482,22 +529,6 @@ func setupChallengeRoutes(
 	log := deps.Infra.Logger
 	getter := deps.Admin.SettingsUC
 	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, getter, log)
-	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }, ipKeyFunc())
-
-	r.Group(func(challenges chi.Router) {
-		challenges.Use(challengeReadLimit)
-		challenges.Use(restapimiddleware.ChallengeVisibility(competitionUC))
-		challenges.Use(notBanned)
-		challenges.Get("/challenges", wrapper.GetChallenges)
-		challenges.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
-		challenges.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
-		challenges.Get("/challenges/{challengeID}/solves", wrapper.GetChallengesChallengeIDSolves)
-		challenges.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
-		challenges.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
-		challenges.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
-		challenges.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
-		challenges.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
-	})
 
 	commentLimit := rl(rlKeyCommentUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.CommentPerMinute) }, userIDKeyFunc)
 	ratingLimit := rl(rlKeyRatingUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) }, userIDKeyFunc)
@@ -576,8 +607,20 @@ func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redi
 		setupAdminPageRoutes(adm, wrapper)
 		setupAdminNotificationRoutes(adm, wrapper)
 		setupAdminSubmissionRoutes(adm, wrapper)
+		setupAdminAppealRoutes(adm, wrapper)
+		setupAdminStorageRoutes(adm, wrapper)
 		setupAdminUtilityRoutes(adm, wrapper, redisClient, log)
 	})
+}
+
+func setupAdminAppealRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
+	adm.Get("/admin/appeals", wrapper.GetAdminAppeals)
+	adm.Patch("/admin/appeals/{ID}", wrapper.PatchAdminAppealsID)
+}
+
+func setupAdminStorageRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
+	adm.Get("/admin/storage", wrapper.GetAdminStorage)
+	adm.Delete("/admin/storage/{path}", wrapper.DeleteAdminStoragePath)
 }
 
 func setupAdminConfigRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
@@ -604,6 +647,7 @@ func setupAdminChallengeRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWr
 	adm.Put("/admin/challenges/{challengeID}/requirements", wrapper.PutAdminChallengesChallengeIDRequirements)
 	adm.Post("/admin/challenges/{challengeID}/solution", wrapper.PostAdminChallengesChallengeIDSolution)
 	adm.Delete("/admin/challenges/{challengeID}/solution", wrapper.DeleteAdminChallengesChallengeIDSolution)
+	adm.Post("/admin/challenges/recalc-points", wrapper.PostAdminChallengesRecalcPoints)
 }
 
 func setupAdminAwardRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {

@@ -94,6 +94,12 @@ const (
 	FieldResponseFieldTypeText    FieldResponseFieldType = "text"
 )
 
+// Defines values for ReviewAppealRequestDecision.
+const (
+	ReviewAppealRequestDecisionRejected ReviewAppealRequestDecision = "rejected"
+	ReviewAppealRequestDecisionResolved ReviewAppealRequestDecision = "resolved"
+)
+
 // Defines values for SetConfigRequestValueType.
 const (
 	SetConfigRequestValueTypeBool   SetConfigRequestValueType = "bool"
@@ -130,6 +136,13 @@ const (
 	Info    UpdateNotificationRequestType = "info"
 	Success UpdateNotificationRequestType = "success"
 	Warning UpdateNotificationRequestType = "warning"
+)
+
+// Defines values for GetAdminAppealsParamsDecision.
+const (
+	GetAdminAppealsParamsDecisionPending  GetAdminAppealsParamsDecision = "pending"
+	GetAdminAppealsParamsDecisionRejected GetAdminAppealsParamsDecision = "rejected"
+	GetAdminAppealsParamsDecisionResolved GetAdminAppealsParamsDecision = "resolved"
 )
 
 // Defines values for PostAdminChallengesChallengeIDFilesMultipartBodyType.
@@ -408,6 +421,34 @@ type BackupData struct {
 	Version     *string            `json:"version,omitempty"`
 }
 
+// BanAppealListResponse defines model for BanAppealListResponse.
+type BanAppealListResponse struct {
+	Appeals *[]BanAppealResponse `json:"appeals,omitempty"`
+	Meta    *PaginationMeta      `json:"meta,omitempty"`
+}
+
+// BanAppealResponse defines model for BanAppealResponse.
+type BanAppealResponse struct {
+	AdminResponse *string `json:"admin_response,omitempty"`
+	CreatedAt     *string `json:"created_at,omitempty"`
+
+	// Decision pending, resolved, or rejected
+	Decision   *string `json:"decision,omitempty"`
+	ID         *string `json:"id,omitempty"`
+	Message    *string `json:"message,omitempty"`
+	ReviewedAt *string `json:"reviewed_at,omitempty"`
+	UserID     *string `json:"user_id,omitempty"`
+}
+
+// BanStatus defines model for BanStatus.
+type BanStatus struct {
+	BannedAt         *string `json:"banned_at,omitempty"`
+	CanAppeal        *bool   `json:"can_appeal,omitempty"`
+	HasPendingAppeal *bool   `json:"has_pending_appeal,omitempty"`
+	IsBanned         *bool   `json:"is_banned,omitempty"`
+	Reason           *string `json:"reason,omitempty"`
+}
+
 // BanTeamRequest defines model for BanTeamRequest.
 type BanTeamRequest struct {
 	// BanMembers If true, ban each team member as a user (they cannot create/join teams or participate in solo).
@@ -671,6 +712,11 @@ type ConfirmationRequired struct {
 type CreateAPITokenRequest struct {
 	Description *string    `json:"description,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
+
+// CreateAppealRequest defines model for CreateAppealRequest.
+type CreateAppealRequest struct {
+	Message string `json:"message" validate:"required,min=10,max=2000"`
 }
 
 // CreateAwardRequest defines model for CreateAwardRequest.
@@ -973,17 +1019,16 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
-// LogoutRequest Optional body for logout. The refresh token can also be passed via Authorization header.
-type LogoutRequest struct {
-	RefreshToken *string `json:"refresh_token,omitempty"`
-}
-
 // MeResponse defines model for MeResponse.
 type MeResponse struct {
-	AvatarURL *string `json:"avatar_url,omitempty"`
-	CreatedAt *string `json:"created_at,omitempty"`
-	Email     *string `json:"email,omitempty"`
-	ID        *string `json:"id,omitempty"`
+	AvatarURL *string    `json:"avatar_url,omitempty"`
+	BanStatus *BanStatus `json:"ban_status,omitempty"`
+	CreatedAt *string    `json:"created_at,omitempty"`
+	Email     *string    `json:"email,omitempty"`
+
+	// HasPassword true when the account has a local password set (false for OAuth-only accounts)
+	HasPassword *bool   `json:"has_password,omitempty"`
+	ID          *string `json:"id,omitempty"`
 
 	// Role user role (admin, user)
 	Role     *string `json:"role,omitempty"`
@@ -1004,6 +1049,12 @@ type NotificationResponse struct {
 	IsPinned  *bool   `json:"is_pinned,omitempty"`
 	Title     *string `json:"title,omitempty"`
 	Type      *string `json:"type,omitempty"`
+}
+
+// OAuthExchangeRequest defines model for OAuthExchangeRequest.
+type OAuthExchangeRequest struct {
+	// Code One-time exchange code from the OAuth callback query parameter
+	Code string `json:"code"`
 }
 
 // PageListItemResponse defines model for PageListItemResponse.
@@ -1078,11 +1129,25 @@ type RegistrationTimePoint struct {
 	Date  *openapi_types.Date `json:"date,omitempty"`
 }
 
+// ResendVerificationByEmailRequest defines model for ResendVerificationByEmailRequest.
+type ResendVerificationByEmailRequest struct {
+	Email string `json:"email" validate:"required,custom_email"`
+}
+
 // ResetPasswordRequest defines model for ResetPasswordRequest.
 type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,strong_password"`
 	Token       string `json:"token"`
 }
+
+// ReviewAppealRequest defines model for ReviewAppealRequest.
+type ReviewAppealRequest struct {
+	AdminResponse *string                     `json:"admin_response,omitempty" validate:"omitempty,max=2000"`
+	Decision      ReviewAppealRequestDecision `json:"decision" validate:"required,oneof=resolved rejected"`
+}
+
+// ReviewAppealRequestDecision defines model for ReviewAppealRequest.Decision.
+type ReviewAppealRequestDecision string
 
 // ScoreDistributionBucket defines model for ScoreDistributionBucket.
 type ScoreDistributionBucket struct {
@@ -1186,6 +1251,19 @@ type SolveWithDetailsResponse struct {
 	TeamName          *string    `json:"team_name,omitempty"`
 	UserID            *string    `json:"user_id,omitempty"`
 	Username          *string    `json:"username,omitempty"`
+}
+
+// StorageListResponse defines model for StorageListResponse.
+type StorageListResponse struct {
+	Objects *[]StorageObjectResponse `json:"objects,omitempty"`
+	Total   *int                     `json:"total,omitempty"`
+}
+
+// StorageObjectResponse defines model for StorageObjectResponse.
+type StorageObjectResponse struct {
+	LastModified *time.Time `json:"last_modified,omitempty"`
+	Path         *string    `json:"path,omitempty"`
+	Size         *int64     `json:"size,omitempty"`
 }
 
 // SubmissionListResponse defines model for SubmissionListResponse.
@@ -1315,10 +1393,8 @@ type TimeRange struct {
 
 // TokenPair defines model for TokenPair.
 type TokenPair struct {
-	AccessExpiresAt  *int    `json:"access_expires_at,omitempty"`
-	AccessToken      *string `json:"access_token,omitempty"`
-	RefreshExpiresAt *int    `json:"refresh_expires_at,omitempty"`
-	RefreshToken     *string `json:"refresh_token,omitempty"`
+	AccessExpiresAt *int    `json:"access_expires_at,omitempty"`
+	AccessToken     *string `json:"access_token,omitempty"`
 }
 
 // TrackingEntry defines model for TrackingEntry.
@@ -1581,6 +1657,16 @@ type VerifyEmailRequest struct {
 	Token string `json:"token" validate:"required"`
 }
 
+// GetAdminAppealsParams defines parameters for GetAdminAppeals.
+type GetAdminAppealsParams struct {
+	Decision *GetAdminAppealsParamsDecision `form:"decision,omitempty" json:"decision,omitempty"`
+	Page     *int                           `form:"page,omitempty" json:"page,omitempty"`
+	PerPage  *int                           `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// GetAdminAppealsParamsDecision defines parameters for GetAdminAppeals.
+type GetAdminAppealsParamsDecision string
+
 // GetAdminAwardsParams defines parameters for GetAdminAwards.
 type GetAdminAwardsParams struct {
 	// TeamID Filter by team ID
@@ -1659,6 +1745,11 @@ type PostAdminImportCsvMultipartBodyTable string
 type GetAdminStatisticsSolveMatrixParams struct {
 	// Live If true, return live data during freeze (admin only).
 	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetAdminStorageParams defines parameters for GetAdminStorage.
+type GetAdminStorageParams struct {
+	Prefix *string `form:"prefix,omitempty" json:"prefix,omitempty"`
 }
 
 // GetAdminSubmissionsParams defines parameters for GetAdminSubmissions.
@@ -1749,12 +1840,6 @@ type GetAdminUsersIDTrackingParams struct {
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
-// PostAuthLogoutParams defines parameters for PostAuthLogout.
-type PostAuthLogoutParams struct {
-	// Authorization Optional Bearer refresh token to invalidate
-	Authorization *string `json:"Authorization,omitempty"`
-}
-
 // GetAuthOauthProviderCallbackParams defines parameters for GetAuthOauthProviderCallback.
 type GetAuthOauthProviderCallbackParams struct {
 	// Code Authorization code returned by the OAuth provider
@@ -1762,12 +1847,6 @@ type GetAuthOauthProviderCallbackParams struct {
 
 	// State State parameter for CSRF protection
 	State *string `form:"state,omitempty" json:"state,omitempty"`
-}
-
-// PostAuthRefreshParams defines parameters for PostAuthRefresh.
-type PostAuthRefreshParams struct {
-	// Authorization Bearer refresh token
-	Authorization string `json:"Authorization"`
 }
 
 // GetChallengesParams defines parameters for GetChallenges.
@@ -1946,6 +2025,9 @@ type GetUsersIDFailsParams struct {
 	PerPage *int `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
+// PatchAdminAppealsIDJSONRequestBody defines body for PatchAdminAppealsID for application/json ContentType.
+type PatchAdminAppealsIDJSONRequestBody = ReviewAppealRequest
+
 // PostAdminAwardsJSONRequestBody defines body for PostAdminAwards for application/json ContentType.
 type PostAdminAwardsJSONRequestBody = CreateAwardRequest
 
@@ -2060,20 +2142,26 @@ type PutAdminUsersIDAvatarMultipartRequestBody PutAdminUsersIDAvatarMultipartBod
 // PostAdminUsersIDBanJSONRequestBody defines body for PostAdminUsersIDBan for application/json ContentType.
 type PostAdminUsersIDBanJSONRequestBody = BanUserRequest
 
+// PostAppealsJSONRequestBody defines body for PostAppeals for application/json ContentType.
+type PostAppealsJSONRequestBody = CreateAppealRequest
+
 // PostAuthForgotPasswordJSONRequestBody defines body for PostAuthForgotPassword for application/json ContentType.
 type PostAuthForgotPasswordJSONRequestBody = ForgotPasswordRequest
 
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
 
-// PostAuthLogoutJSONRequestBody defines body for PostAuthLogout for application/json ContentType.
-type PostAuthLogoutJSONRequestBody = LogoutRequest
-
 // PatchAuthMeJSONRequestBody defines body for PatchAuthMe for application/json ContentType.
 type PatchAuthMeJSONRequestBody = UpdateProfileRequest
 
+// PostAuthOauthExchangeJSONRequestBody defines body for PostAuthOauthExchange for application/json ContentType.
+type PostAuthOauthExchangeJSONRequestBody = OAuthExchangeRequest
+
 // PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
 type PostAuthRegisterJSONRequestBody = RegisterRequest
+
+// PostAuthResendVerificationByEmailJSONRequestBody defines body for PostAuthResendVerificationByEmail for application/json ContentType.
+type PostAuthResendVerificationByEmailJSONRequestBody = ResendVerificationByEmailRequest
 
 // PostAuthResetPasswordJSONRequestBody defines body for PostAuthResetPassword for application/json ContentType.
 type PostAuthResetPasswordJSONRequestBody = ResetPasswordRequest

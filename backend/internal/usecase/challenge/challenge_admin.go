@@ -159,6 +159,51 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 	return nil
 }
 
+// RecalcAllDynamicPoints recalculates solve counts and points for every challenge that
+// uses dynamic scoring (initial_value > 0 and decay > 0). Safe to run at any time:
+// it reads the current solve table and derives the correct point values from scratch.
+// Useful to heal inconsistent state left by old code or manual data imports.
+func (uc *ChallengeUseCase) RecalcAllDynamicPoints(ctx context.Context) error {
+	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		ids, err := uc.deps.ChallengeRepo.GetAllDynamicIDs(ctx)
+		if err != nil {
+			return fmt.Errorf("ChallengeUseCase - RecalcAllDynamicPoints - ChallengeRepo.GetAllDynamicIDs: %w", err)
+		}
+
+		if len(ids) == 0 {
+			return nil
+		}
+
+		var (
+			getSolves   func(context.Context, []uuid.UUID) ([]*scoring.SolveRowForPointsRecalc, error)
+			batchUpdate func(context.Context, []uuid.UUID, []int) error
+		)
+
+		if uc.deps.SolveRepo != nil {
+			getSolves = scoring.MapSolvesForRecalcFn(
+				uc.deps.SolveRepo.GetSolvesForPointsRecalc,
+				scoring.DefaultSolveMapper,
+				"ChallengeUseCase - RecalcAllDynamicPoints",
+			)
+			batchUpdate = uc.deps.SolveRepo.BatchUpdateSolvePoints
+		}
+
+		return scoring.AdjustDynamicScores(
+			ctx, ids, uc.deps.ChallengeRepo,
+			getSolves, batchUpdate,
+			scoring.GetDecayFn(ctx, uc.deps.CompParamUC),
+		)
+	})
+	if err != nil {
+		return fmt.Errorf("ChallengeUseCase - RecalcAllDynamicPoints - TM.Run: %w", err)
+	}
+
+	uc.InvalidateChallengeListCache(ctx)
+	uc.InvalidateScoreboardCache(ctx)
+
+	return nil
+}
+
 // AdminDeleteSolve removes a solve record inside a SERIALIZABLE transaction. It reads the
 // solve with FOR UPDATE to lock it, then deletes it and decrements the challenge's
 // solve count. If the challenge uses dynamic scoring (InitialValue > 0 and Decay > 0) it

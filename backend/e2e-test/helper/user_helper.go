@@ -88,6 +88,15 @@ func (h *E2EHelper) ForgotPassword(email string, expectStatus int) {
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "forgot-password")
 }
 
+func (h *E2EHelper) ResendVerificationByEmail(email string, expectStatus int) {
+	h.t.Helper()
+	resp, err := h.client.PostAuthResendVerificationByEmailWithResponse(context.Background(), openapi.PostAuthResendVerificationByEmailJSONRequestBody{
+		Email: email,
+	})
+	require.NoError(h.t, err)
+	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "resend-verification-by-email")
+}
+
 func (h *E2EHelper) ResetPassword(token, newPassword string) {
 	h.t.Helper()
 	h.ResetPasswordExpectStatus(token, newPassword, http.StatusOK)
@@ -122,15 +131,25 @@ func (h *E2EHelper) ResendVerification(token string, expectStatus int) {
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "resend-verification")
 }
 
-func (h *E2EHelper) Refresh(refreshToken string, expectStatus int) *openapi.PostAuthRefreshResponse {
+// Refresh calls POST /auth/refresh relying on the cookie jar (populated by Login).
+func (h *E2EHelper) Refresh(expectStatus int, reqEditors ...openapi.RequestEditorFn) *openapi.PostAuthRefreshResponse {
 	h.t.Helper()
 
-	params := &openapi.PostAuthRefreshParams{Authorization: refreshToken}
-	resp, err := h.client.PostAuthRefreshWithResponse(context.Background(), params)
+	resp, err := h.client.PostAuthRefreshWithResponse(context.Background(), reqEditors...)
 	require.NoError(h.t, err)
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "refresh")
 
 	return resp
+}
+
+// WithRefreshCookie returns a RequestEditorFn that injects the given value as
+// the ctf_refresh cookie - useful for testing invalid or expired tokens.
+func WithRefreshCookie(token string) openapi.RequestEditorFn {
+	return func(_ context.Context, req *http.Request) error {
+		req.AddCookie(&http.Cookie{Name: "ctf_refresh", Value: token})
+
+		return nil
+	}
 }
 
 func (h *E2EHelper) GetPublicProfile(userID string, expectStatus int) *openapi.GetUsersIDResponse {

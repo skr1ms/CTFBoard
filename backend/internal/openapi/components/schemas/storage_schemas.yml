@@ -1,0 +1,21 @@
+schemas:
+  response.StorageObjectResponse:
+    type: object
+    properties:
+      path:
+        type: string
+      size:
+        type: integer
+        format: int64
+      last_modified:
+        type: string
+        format: date-time
+  response.StorageListResponse:
+    type: object
+    properties:
+      objects:
+        type: array
+        items:
+          $ref: '#/schemas/response.StorageObjectResponse'
+      total:
+        type: integer

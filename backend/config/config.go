@@ -144,7 +144,7 @@ type (
 )
 
 type rawConfig struct {
-	AppName                     string `env:"APP_NAME"                         env-default:"AstroCTFb"`
+	AppName                     string `env:"APP_NAME"                         env-default:"CTF Platform"`
 	AppVersion                  string `env:"APP_VERSION"                      env-default:"1.0.0"`
 	StructuredLogger            bool   `env:"STRUCTURED_LOGGER"                env-default:"true"`
 	SecureCookies               bool   `env:"SECURE_COOKIES"                   env-default:"false"`
@@ -178,7 +178,7 @@ type rawConfig struct {
 	JWTRefreshKeysStr           string `env:"JWT_REFRESH_KEYS"                 env-default:""`
 	JWTAccessTTLMin             int    `env:"JWT_ACCESS_TTL_MINUTES"           env-default:"15"`
 	JWTRefreshTTLHrs            int    `env:"JWT_REFRESH_TTL_HOURS"            env-default:"72"`
-	JWTIssuer                   string `env:"JWT_ISSUER"                       env-default:"astroctfb"`
+	JWTIssuer                   string `env:"JWT_ISSUER"                       env-default:"ctf-platform"`
 	ResendAPIKey                string `env:"RESEND_API_KEY"`
 	S3AccessKey                 string `env:"STORAGE_S3_ACCESS_KEY"`
 	S3SecretKey                 string `env:"STORAGE_S3_SECRET_KEY"`
@@ -187,8 +187,8 @@ type rawConfig struct {
 	AdminPassword               string `env:"ADMIN_PASSWORD"`
 	RateLimitSubmitFlag         int    `env:"RATE_LIMIT_SUBMIT_FLAG"           env-default:"10"`
 	RateLimitSubmitFlagDuration int    `env:"RATE_LIMIT_SUBMIT_FLAG_DURATION"  env-default:"1"`
-	ResendFromEmail             string `env:"RESEND_FROM_EMAIL"                env-default:"noreply@astroctfb.local"`
-	ResendFromName              string `env:"RESEND_FROM_NAME"                 env-default:"AstroCTFb"`
+	ResendFromEmail             string `env:"RESEND_FROM_EMAIL"                env-default:"noreply@ctf-platform.local"`
+	ResendFromName              string `env:"RESEND_FROM_NAME"                 env-default:"CTF Platform"`
 	ResendEnabled               bool   `env:"RESEND_ENABLED"                   env-default:"false"`
 	ResendVerifyTTLHrs          int    `env:"RESEND_VERIFY_TTL_HOURS"          env-default:"24"`
 	ResendResetTTLHrs           int    `env:"RESEND_RESET_TTL_HOURS"           env-default:"1"`
@@ -294,7 +294,7 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 		}
 	}
 	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/database", "database", "using env", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/database", "database", "using env", apply(func(s map[string]any) {
 		if u, ok := s[string(domain.RoleUser)].(string); ok && u != "" {
 			raw.PostgresUser = u
 		}
@@ -307,12 +307,12 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 			raw.PostgresDB = db
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/redis", "redis", "using env", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/redis", "redis", "using env", apply(func(s map[string]any) {
 		if p, ok := s["password"].(string); ok && p != "" {
 			raw.RedisPassword = p
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/jwt", "jwt", "using env", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/jwt", "jwt", "using env", apply(func(s map[string]any) {
 		if access, ok := s["access_secret"].(string); ok && access != "" {
 			raw.JWTAccessSecret = access
 		}
@@ -325,12 +325,12 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 			raw.JWTDownloadSecret = download
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/resend", "Resend", "using env (or not configured)", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/resend", "Resend", "using env (or not configured)", apply(func(s map[string]any) {
 		if k, ok := s["api_key"].(string); ok && k != "" {
 			raw.ResendAPIKey = k
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/storage", "Storage", "(optional)", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/storage", "Storage", "(optional)", apply(func(s map[string]any) {
 		if k, ok := s["access_key"].(string); ok && k != "" {
 			raw.S3AccessKey = k
 		}
@@ -339,12 +339,12 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 			raw.S3SecretKey = sec
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/app", "app", "using env", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/app", "app", "using env", apply(func(s map[string]any) {
 		if key, ok := s["flag_encryption_key"].(string); ok && key != "" {
 			raw.FlagEncryptionKey = key
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/admin", "admin", "using env (optional)", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/admin", "admin", "using env (optional)", apply(func(s map[string]any) {
 		if u, ok := s["username"].(string); ok && u != "" {
 			raw.AdminUsername = u
 		}
@@ -357,7 +357,7 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 			raw.AdminPassword = p
 		}
 	})))
-	g.Go(vaultFetch(gCtx, vaultClient, l, "astroctfb/oauth", "OAuth", "using env (optional)", apply(func(s map[string]any) {
+	g.Go(vaultFetch(gCtx, vaultClient, l, "ctf-platform/oauth", "OAuth", "using env (optional)", apply(func(s map[string]any) {
 		if v, ok := s["state_secret"].(string); ok && v != "" {
 			raw.OAuthStateSecret = v
 		}

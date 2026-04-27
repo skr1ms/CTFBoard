@@ -1,0 +1,168 @@
+/appeals:
+  post:
+    operationId: PostAppeals
+    description: Create a ban appeal. Rate limited to one per 7 days.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateAppealRequest'
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BanAppealResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests (rate limited)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Create a ban appeal
+    tags:
+      - Appeals
+
+/appeals/me:
+  get:
+    operationId: GetAppealsMe
+    description: Returns the authenticated user's ban appeals.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BanAppealListResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get own appeals
+    tags:
+      - Appeals
+
+/admin/appeals:
+  get:
+    operationId: GetAdminAppeals
+    description: Returns all ban appeals (admin only). Filter by decision status.
+    parameters:
+      - name: decision
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [pending, resolved, rejected]
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BanAppealListResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: List all appeals (admin)
+    tags:
+      - Admin
+
+/admin/appeals/{ID}:
+  patch:
+    operationId: PatchAdminAppealsID
+    description: Review a ban appeal (admin only). Set decision to resolved (auto-unban) or rejected.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ReviewAppealRequest'
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BanAppealResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Review a ban appeal (admin)
+    tags:
+      - Admin

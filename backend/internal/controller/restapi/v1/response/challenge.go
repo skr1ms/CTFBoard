@@ -125,7 +125,7 @@ func FromScoreboardList(items []*domain.ScoreboardEntry) []openapi.ScoreboardEnt
 }
 
 // FromScoreboardListWithAvatars builds the scoreboard response, attaching
-// pre-resolved thumbnail URLs from the provided map (teamID → thumbURL).
+// pre-resolved thumbnail URLs from the provided map (teamID -> thumbURL).
 // Pass a nil map when avatars are disabled.
 func FromScoreboardListWithAvatars(items []*domain.ScoreboardEntry, thumbURLs map[uuid.UUID]string) []openapi.ScoreboardEntryResponse {
 	result := make([]openapi.ScoreboardEntryResponse, len(items))

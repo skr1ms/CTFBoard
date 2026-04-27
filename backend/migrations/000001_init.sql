@@ -37,13 +37,13 @@ CREATE TABLE competition (
 -- App settings (singleton, id = 1)
 CREATE TABLE app_settings (
     id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_app_settings_singleton CHECK (id = 1),
-    app_name VARCHAR(100) NOT NULL DEFAULT 'AstroCTFb',
+    app_name VARCHAR(100) NOT NULL DEFAULT 'CTF Platform',
     verify_emails BOOLEAN NOT NULL DEFAULT TRUE,
     frontend_url VARCHAR(512) NOT NULL DEFAULT 'http://localhost:3000',
     cors_origins TEXT NOT NULL DEFAULT 'http://localhost:3000,http://localhost:5173',
     resend_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    resend_from_email VARCHAR(255) NOT NULL DEFAULT 'noreply@astroctfb.local',
-    resend_from_name VARCHAR(100) NOT NULL DEFAULT 'AstroCTFb',
+    resend_from_email VARCHAR(255) NOT NULL DEFAULT 'noreply@ctf-platform.local',
+    resend_from_name VARCHAR(100) NOT NULL DEFAULT 'CTF Platform',
     verify_ttl_hours INT NOT NULL DEFAULT 24,
     reset_ttl_hours INT NOT NULL DEFAULT 1,
     submit_limit_per_user INT NOT NULL DEFAULT 10,
@@ -408,6 +408,21 @@ CREATE TABLE audit_logs (
 CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
 CREATE INDEX idx_audit_logs_entity_type ON audit_logs (entity_type);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
+
+-- Ban appeals (user appeals against bans)
+CREATE TABLE ban_appeals (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message     TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ,
+    admin_response TEXT,
+    decision    TEXT        NOT NULL DEFAULT 'pending'
+        CHECK (decision IN ('pending', 'resolved', 'rejected'))
+);
+
+CREATE INDEX ban_appeals_user_id_idx  ON ban_appeals(user_id);
+CREATE INDEX ban_appeals_decision_idx ON ban_appeals(decision) WHERE decision = 'pending';
 
 -- =============================================================================
 -- Content

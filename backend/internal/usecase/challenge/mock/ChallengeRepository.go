@@ -7,10 +7,11 @@ package mock
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 // NewMockChallengeRepository creates a new instance of MockChallengeRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -524,6 +525,68 @@ func (_c *MockChallengeRepository_GetAll_Call) Return(vs []*repo.ChallengeWithSo
 }
 
 func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllDynamicIDs provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetAllDynamicIDs(ctx context.Context) ([]uuid.UUID, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllDynamicIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []uuid.UUID); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetAllDynamicIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllDynamicIDs'
+type MockChallengeRepository_GetAllDynamicIDs_Call struct {
+	*mock.Call
+}
+
+// GetAllDynamicIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockChallengeRepository_Expecter) GetAllDynamicIDs(ctx interface{}) *MockChallengeRepository_GetAllDynamicIDs_Call {
+	return &MockChallengeRepository_GetAllDynamicIDs_Call{Call: _e.mock.On("GetAllDynamicIDs", ctx)}
+}
+
+func (_c *MockChallengeRepository_GetAllDynamicIDs_Call) Run(run func(ctx context.Context)) *MockChallengeRepository_GetAllDynamicIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllDynamicIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockChallengeRepository_GetAllDynamicIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetAllDynamicIDs_Call) RunAndReturn(run func(ctx context.Context) ([]uuid.UUID, error)) *MockChallengeRepository_GetAllDynamicIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

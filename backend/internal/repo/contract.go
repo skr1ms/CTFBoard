@@ -73,6 +73,22 @@ type (
 )
 
 // =============================================================================
+// BanAppeal
+// =============================================================================
+
+type (
+	// BanAppealRepository provides persistence for ban appeal records.
+	BanAppealRepository interface {
+		Create(ctx context.Context, appeal *domain.BanAppeal) error
+		GetByID(ctx context.Context, id uuid.UUID) (*domain.BanAppeal, error)
+		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.BanAppeal, error)
+		GetLatestByUserID(ctx context.Context, userID uuid.UUID) (*domain.BanAppeal, error)
+		List(ctx context.Context, decision *domain.AppealDecision, limit, offset int) ([]*domain.BanAppeal, int64, error)
+		Update(ctx context.Context, appeal *domain.BanAppeal) error
+	}
+)
+
+// =============================================================================
 // Team
 // =============================================================================
 
@@ -163,6 +179,7 @@ type (
 		DeleteSolution(ctx context.Context, challengeID uuid.UUID) error
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
+		GetAllDynamicIDs(ctx context.Context) ([]uuid.UUID, error)
 	}
 )
 

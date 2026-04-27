@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
@@ -246,8 +247,23 @@ func (h *Server) GetAvatarByPath(w http.ResponseWriter, r *http.Request, path st
 
 	defer func() { _ = reader.Close() }()
 
+	// Extract content hash from path: (users|teams)/<uuid>/<hash>_(full|thumb).webp
+	// validAvatarPath already guaranteed this structure, so no bounds check needed.
+	parts := strings.Split(path, "/")
+	fileName := parts[2]
+	hash := fileName[:strings.IndexByte(fileName, '_')]
+
+	etag := `"` + hash + `"`
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+
+		return
+	}
+
 	w.Header().Set("Content-Type", "image/webp")
 	w.Header().Set("Cache-Control", avatarCacheControl)
+	w.Header().Set("Vary", "Accept-Encoding")
+	w.Header().Set("ETag", etag)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'")
 

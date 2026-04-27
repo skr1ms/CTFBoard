@@ -35,7 +35,7 @@ func TestNewTracker_Defaults(t *testing.T) {
 
 	t.Cleanup(cleanup)
 
-	// passing zeros → defaults
+	// passing zeros -> defaults
 	tr := NewTracker(client, 0, 0)
 
 	assert.Equal(t, defaultMax, tr.max)

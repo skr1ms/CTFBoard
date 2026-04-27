@@ -106,14 +106,13 @@ func RequireLoginOK(t *testing.T, resp *openapi.PostAuthLoginResponse) string {
 	return *resp.JSON200.AccessToken
 }
 
-func RequireRefreshOK(t *testing.T, resp *openapi.PostAuthRefreshResponse) (accessToken, refreshToken string) {
+func RequireRefreshOK(t *testing.T, resp *openapi.PostAuthRefreshResponse) string {
 	t.Helper()
 	RequireStatus(t, http.StatusOK, resp.StatusCode(), resp.Body, "refresh")
 	require.NotNil(t, resp.JSON200)
 	require.NotNil(t, resp.JSON200.AccessToken)
-	require.NotNil(t, resp.JSON200.RefreshToken)
 
-	return *resp.JSON200.AccessToken, *resp.JSON200.RefreshToken
+	return *resp.JSON200.AccessToken
 }
 
 func RequireMeOK(t *testing.T, resp *openapi.GetAuthMeResponse) *openapi.MeResponse {

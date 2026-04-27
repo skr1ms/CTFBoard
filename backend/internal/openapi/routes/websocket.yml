@@ -130,7 +130,7 @@
       - ApiTokenAuth: []
     summary: SSE connection
     description: |
-      Server-Sent Events transport — alternative to WebSocket for environments that
+      Server-Sent Events transport - alternative to WebSocket for environments that
       do not support WebSocket upgrades. Emits the same event types as /ws.
     tags:
       - Events

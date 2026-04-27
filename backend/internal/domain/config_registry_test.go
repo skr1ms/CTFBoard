@@ -11,7 +11,7 @@ func TestGetConfigDefault_KnownKey(t *testing.T) {
 
 	val, ok := GetConfigDefault("ctf_name")
 	assert.True(t, ok)
-	assert.Equal(t, "AstroCTFb", val)
+	assert.Equal(t, "CTF Platform", val)
 	val, ok = GetConfigDefault("scoring_type")
 	assert.True(t, ok)
 	assert.Equal(t, "dynamic", val)

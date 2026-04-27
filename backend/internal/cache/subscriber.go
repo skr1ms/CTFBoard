@@ -16,7 +16,7 @@ const (
 
 // SubscribeInvalidation runs a blocking loop that subscribes to a Redis PubSub channel
 // and calls onMessage for each received event. It reconnects with exponential backoff
-// (1s → 30s, unlimited retries) and exits cleanly when stopCtx is cancelled.
+// (1s -> 30s, unlimited retries) and exits cleanly when stopCtx is cancelled.
 // Intended to run inside a goroutine - the caller is responsible for go SubscribeInvalidation(...).
 func SubscribeInvalidation(
 	stopCtx context.Context,
