@@ -36,6 +36,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Lint
         working-directory: backend
         run: |
@@ -82,6 +83,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: govulncheck
         working-directory: backend
         run: |
@@ -96,6 +98,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Tests
         working-directory: backend
         run: |
@@ -110,6 +113,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Install tools and generate
         working-directory: backend
         run: |
@@ -128,6 +132,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Build backend
         working-directory: backend
         run: |
@@ -149,6 +154,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Build cleanup tool
         working-directory: backend
         run: |
@@ -245,6 +251,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: backend/go.sum
       - name: Run load tests
         working-directory: backend
         env:
