@@ -44,7 +44,7 @@ compose-ps: ## List compose services status
 # APP ==================================================================================================================
 
 OAPI_CODEGEN_VERSION ?= v2.6.0
-SQLC_VERSION ?= v1.28.0
+SQLC_VERSION ?= v1.31.1
 MOCKERY_VERSION ?= v3.5.5
 WIRE_VERSION ?= v0.7.0
 GOLANGCI_LINT_VERSION ?= v2.11.4
