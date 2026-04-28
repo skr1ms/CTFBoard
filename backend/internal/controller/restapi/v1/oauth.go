@@ -230,12 +230,23 @@ func sanitizeOAuthError(raw string) string {
 
 // GetAuthOauthProviders returns which OAuth providers are configured on the server.
 // GET /auth/oauth/providers - public, no auth required.
-func (h *Server) GetAuthOauthProviders(w http.ResponseWriter, _ *http.Request) {
+func (h *Server) GetAuthOauthProviders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	githubEnabled := h.user.OAuthGitHubEnabled
+	googleEnabled := h.user.OAuthGoogleEnabled
+
+	settings, err := h.admin.SettingsUC.Get(r.Context())
+	if err != nil {
+		h.infra.Logger.WithError(err).Warn("restapi - v1 - GetAuthOauthProviders - GetSettings failed, using config fallback")
+	} else {
+		githubEnabled = githubEnabled && settings.OAuthGithubEnabled
+		googleEnabled = googleEnabled && settings.OAuthGoogleEnabled
+	}
+
 	_ = json.NewEncoder(w).Encode(map[string]bool{
-		"github": h.user.OAuthGitHubEnabled,
-		"google": h.user.OAuthGoogleEnabled,
+		"github": githubEnabled,
+		"google": googleEnabled,
 	})
 }
 

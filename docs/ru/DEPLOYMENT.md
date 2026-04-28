@@ -92,15 +92,15 @@ Wizard автоматически делает это через `check_dns_pref
 
 ### Resend (транзакционная почта)
 
-Зарегистрируйтесь на [resend.com](https://resend.com), подтвердите свой sender-domain (`noreply@example.com`) и скопируйте API key. Без этого регистрация не отправляет письма подтверждения, а reset password не работает.
+Зарегистрируйтесь на [resend.com](https://resend.com), подтвердите свой sender-domain (`noreply@example.com`) и скопируйте API key. `RESEND_FROM_EMAIL` должен принадлежать именно этому verified domain, иначе Resend вернёт ошибку вида `domain is not verified`. Без этого регистрация не отправляет письма подтверждения, а reset password не работает.
 
 ### GitHub OAuth App
 
-[https://github.com/settings/developers](https://github.com/settings/developers) -> **New OAuth App**. Authorization callback URL: `https://api.example.com/api/v1/auth/oauth/github/callback`. Скопируйте `Client ID` и `Client Secret`.
+[https://github.com/settings/developers](https://github.com/settings/developers) -> **New OAuth App**. Authorization callback URL: `https://api.example.com/api/v1/auth/oauth/github/callback`. URL должен совпадать с `OAUTH_GITHUB_REDIRECT_URL` byte-for-byte. Скопируйте `Client ID` и `Client Secret`.
 
 ### Google OAuth
 
-[Google Cloud Console](https://console.cloud.google.com/) -> **APIs & Services** -> **Credentials** -> **OAuth 2.0 Client IDs**. Authorized redirect URI: `https://api.example.com/api/v1/auth/oauth/google/callback`. Скопируйте `Client ID` и `Client Secret`.
+[Google Cloud Console](https://console.cloud.google.com/) -> **APIs & Services** -> **Credentials** -> **OAuth 2.0 Client IDs**. Authorized redirect URI: `https://api.example.com/api/v1/auth/oauth/google/callback`. URI должен совпадать с `OAUTH_GOOGLE_REDIRECT_URL` byte-for-byte, иначе получите `redirect_uri_mismatch`. Если OAuth consent screen находится в режиме **Testing**, добавьте свои аккаунты в **Test users**, иначе Google тоже завернёт логин. Скопируйте `Client ID` и `Client Secret`.
 
 ### Telegram bot (alerts)
 
