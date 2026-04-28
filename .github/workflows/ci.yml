@@ -137,7 +137,7 @@ jobs:
           go mod download
           make build
       - name: Upload backend binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-binary
           path: backend/bin/backend
@@ -212,7 +212,7 @@ jobs:
           go mod download
           make build-cleanup
       - name: Upload cleanup binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cleanup-binary
           path: backend/bin/ctf-platform-cleanup
@@ -284,7 +284,7 @@ jobs:
           fi
       - name: Upload load test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: load-test-reports-${{ github.run_id }}
           path: backend/load-test/reports/
