@@ -29,4 +29,3 @@ packages:
           filename: "TrackingRepository.go"
           pkgname: "mock"
           structname: "MockTrackingRepository"
-

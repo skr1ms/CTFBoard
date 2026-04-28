@@ -352,6 +352,9 @@ func TestChallenge_GetSolution_AfterCompetitionEnd(t *testing.T) {
 
 	_ = TestRedis.Del(ctx, "competition")
 
+	// Bypass API to avoid race with parallel tests that toggle writeup_enabled.
+	h.EnableWriteupsDirectly()
+
 	resp := h.GetSolution(tokenUser, challengeID, http.StatusOK)
 	require.NotNil(t, resp.JSON200)
 	require.Equal(t, "## Writeup", *resp.JSON200.Content)

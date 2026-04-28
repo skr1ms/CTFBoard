@@ -505,7 +505,7 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	downloadSecret := raw.JWTDownloadSecret
 	if downloadSecret == "" {
 		h := hmac.New(sha256.New, []byte(raw.JWTAccessSecret))
-		h.Write([]byte("download-url-signing"))
+		h.Write([]byte("download-url-signing")) //nolint:revive // hash.Write never returns error
 		downloadSecret = hex.EncodeToString(h.Sum(nil))
 	}
 

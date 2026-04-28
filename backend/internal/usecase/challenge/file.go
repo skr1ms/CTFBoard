@@ -263,16 +263,16 @@ func (uc *FileUseCase) GetByChallengeIDWithAccess(ctx context.Context, challenge
 // GenerateDownloadToken produces a base64-encoded HMAC-SHA256 signed download token
 // encoding fileID, optional teamID, and expiry Unix timestamp.
 func (uc *FileUseCase) GenerateDownloadToken(fileID uuid.UUID, teamID *uuid.UUID, expiry time.Time) string {
-	expiryUnix := expiry.Unix()
+	expirySec := expiry.Unix()
 	teamStr := ""
 
 	if teamID != nil {
 		teamStr = teamID.String()
 	}
 
-	message := fmt.Sprintf("%s:%s:%d", fileID.String(), teamStr, expiryUnix)
+	message := fmt.Sprintf("%s:%s:%d", fileID.String(), teamStr, expirySec)
 	signature := crypto.HMACSign([]byte(uc.deps.DownloadSecret), []byte(message))
-	token := fmt.Sprintf("%s:%s:%d:%s", fileID.String(), teamStr, expiryUnix, base64.URLEncoding.EncodeToString(signature))
+	token := fmt.Sprintf("%s:%s:%d:%s", fileID.String(), teamStr, expirySec, base64.URLEncoding.EncodeToString(signature))
 
 	return base64.URLEncoding.EncodeToString([]byte(token))
 }
@@ -301,12 +301,12 @@ func (uc *FileUseCase) VerifyDownloadToken(token string, teamID *uuid.UUID) (uui
 
 	tokenTeamStr := parts[1]
 
-	expiryUnix, err := strconv.ParseInt(parts[2], 10, 64)
+	expirySec, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		return uuid.Nil, apperr.ErrFileInvalidToken
 	}
 
-	if time.Now().Unix() > expiryUnix {
+	if time.Now().Unix() > expirySec {
 		return uuid.Nil, apperr.ErrFileTokenExpired
 	}
 
@@ -325,7 +325,7 @@ func (uc *FileUseCase) VerifyDownloadToken(token string, teamID *uuid.UUID) (uui
 		return uuid.Nil, apperr.ErrFileInvalidToken
 	}
 
-	message := fmt.Sprintf("%s:%s:%d", fileID.String(), tokenTeamStr, expiryUnix)
+	message := fmt.Sprintf("%s:%s:%d", fileID.String(), tokenTeamStr, expirySec)
 	if !crypto.HMACVerify([]byte(uc.deps.DownloadSecret), []byte(message), signature) {
 		return uuid.Nil, apperr.ErrFileInvalidToken
 	}

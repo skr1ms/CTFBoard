@@ -108,9 +108,13 @@ linters:
           disabled: true
         - name: unhandled-error
           arguments:
-            - "^fmt.Print.*"
+            - "^fmt\\.(F|S)?Print.*"
             - "strings.Builder.Write.*"
             - "bytes.Buffer.Write.*"
+            - "io.PipeWriter.CloseWithError"
+            - "os.Setenv"
+            - "os.Unsetenv"
+            - "io.Closer.Close"
         - name: var-naming
           disabled: true
         - name: nested-structs

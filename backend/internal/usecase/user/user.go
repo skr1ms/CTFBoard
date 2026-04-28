@@ -33,8 +33,8 @@ func normalizeEmail(email string) string {
 // registrations for the same username or email and prevent TOCTOU races.
 func registrationAdvisoryKey(prefix, value string) int64 {
 	h := fnv.New64a()
-	h.Write([]byte(prefix))
-	h.Write([]byte(value))
+	h.Write([]byte(prefix)) //nolint:revive // hash.Write never returns error
+	h.Write([]byte(value))  //nolint:revive // hash.Write never returns error
 
 	u := min(h.Sum64(), 1<<63-1)
 
