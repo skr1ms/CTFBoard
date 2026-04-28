@@ -136,14 +136,19 @@ func TestBanAppealRepo_GetLatestByUserID_NotFound(t *testing.T) {
 func TestBanAppealRepo_List_NoFilter_Pagination(t *testing.T) {
 	t.Parallel()
 	f := SetupTestFixture(t)
+	ctx := context.Background()
+	sameCreatedAt := time.Now().UTC().Add(-time.Hour)
 
 	// Create 5 appeals from different users
 	for range 5 {
 		u := f.CreateUser(t, "appeal_list_nof")
-		createAppealFixture(t, f, u.ID, 0)
+		appeal := createAppealFixture(t, f, u.ID, 0)
+		_, err := f.Pool.Exec(ctx,
+			"UPDATE ban_appeals SET created_at = $1 WHERE id = $2",
+			sameCreatedAt, appeal.ID,
+		)
+		require.NoError(t, err)
 	}
-
-	ctx := context.Background()
 
 	// page 1, limit=2, offset=0 -> 2 items
 	page1, total, err := f.BanAppealRepo.List(ctx, nil, 2, 0)
