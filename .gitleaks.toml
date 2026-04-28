@@ -1,4 +1,5 @@
-[allowlist]
+[[allowlists]]
+  description = "Local dev environment files with fake credentials"
   paths = [
     '''\.env\.local''',
     '''\.env\.example''',
