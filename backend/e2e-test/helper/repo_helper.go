@@ -80,7 +80,7 @@ func (h *E2EHelper) EnableWriteupsDirectly() {
 	h.t.Helper()
 
 	_, err := h.pool.Exec(context.Background(),
-		"UPDATE settings SET writeup_enabled = true WHERE id = 1")
+		"UPDATE app_settings SET writeup_enabled = true WHERE id = 1")
 	require.NoError(h.t, err, "EnableWriteupsDirectly: SQL update failed")
 
 	if h.redis != nil {
