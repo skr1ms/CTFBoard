@@ -72,3 +72,18 @@ func (h *E2EHelper) BanUserDirectly(userID string) {
 
 	h.InvalidateUserCache(userID)
 }
+
+// EnableWriteupsDirectly sets writeup_enabled=true via direct SQL + cache
+// invalidation. Use instead of EnableWriteups in tests where the API-based
+// approach can be raced by parallel tests that toggle the same settings row.
+func (h *E2EHelper) EnableWriteupsDirectly() {
+	h.t.Helper()
+
+	_, err := h.pool.Exec(context.Background(),
+		"UPDATE settings SET writeup_enabled = true WHERE id = 1")
+	require.NoError(h.t, err, "EnableWriteupsDirectly: SQL update failed")
+
+	if h.redis != nil {
+		_ = h.redis.Del(context.Background(), "app_settings")
+	}
+}

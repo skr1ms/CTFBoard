@@ -99,7 +99,7 @@ func (uc *OAuthUseCase) GetAuthURL(ctx context.Context, provider string) (authUR
 	}
 
 	mac := hmac.New(sha256.New, uc.stateSecret)
-	mac.Write(nonce)
+	mac.Write(nonce) //nolint:revive // hash.Write never returns error
 	sig := hex.EncodeToString(mac.Sum(nil))
 	state = nonceHex + "." + sig
 
@@ -126,7 +126,7 @@ func (uc *OAuthUseCase) ValidateState(cookieState, queryState string) bool {
 	}
 
 	mac := hmac.New(sha256.New, uc.stateSecret)
-	mac.Write(nonce)
+	mac.Write(nonce) //nolint:revive // hash.Write never returns error
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
 
 	return hmac.Equal([]byte(parts[1]), []byte(expectedSig))

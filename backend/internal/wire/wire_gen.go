@@ -8,16 +8,14 @@ package wire
 
 import (
 	"context"
-
+	"github.com/TakuyaYagam1/AstroCTFb/config"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
-
-	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
 // Injectors from wire.go:

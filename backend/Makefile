@@ -45,7 +45,7 @@ compose-ps: ## List compose services status
 
 OAPI_CODEGEN_VERSION ?= v2.6.0
 SQLC_VERSION ?= v1.28.0
-MOCKERY_VERSION ?= v2.53.6
+MOCKERY_VERSION ?= v3.5.5
 WIRE_VERSION ?= v0.7.0
 GOLANGCI_LINT_VERSION ?= v2.11.4
 REDOCLY_VERSION ?= 1.26.0
@@ -59,7 +59,7 @@ install-tools: ## Install development tools (versions pinned for reproducible bu
 	@go install github.com/google/wire/cmd/wire@$(WIRE_VERSION)
 	@go install github.com/pressly/goose/v3/cmd/goose@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
-	@go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
+	@go install github.com/vektra/mockery/v3@$(MOCKERY_VERSION)
 	@echo "Tools installed"
 
 OPENAPI_SRC = internal/openapi/openapi.yml
@@ -129,6 +129,7 @@ wire: ## Generate Wire DI code
 
 mockery: ## Generate all mocks (one config per usecase so same interface can output to different mocks dirs; single-file config would require one dir per interface and break tests)
 	@echo "Generating mocks..."
+	@mockery version | grep -Eq '^v3\.' || (echo "Error: mockery v3.x is required. Run 'make install-tools' or ensure PATH points to github.com/vektra/mockery/v3."; exit 1)
 	@mockery --config codegen/.mockery_user.yml
 	@mockery --config codegen/.mockery_team.yml
 	@mockery --config codegen/.mockery_challenge.yml
