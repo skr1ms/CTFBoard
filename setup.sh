@@ -576,6 +576,7 @@ run_wizard() {
   read_yn "Enable email verification?" ENABLE_EMAIL
   if [ "$ENABLE_EMAIL" = "yes" ]; then
     RESEND_ENABLED="true"
+    yellow "  NOTE: Sender email must use a domain already VERIFIED in Resend."
     read_required "Resend API key" RESEND_API_KEY
     read_default "Sender email" "noreply@${DOMAIN}" RESEND_FROM_EMAIL
   fi
@@ -584,6 +585,7 @@ run_wizard() {
   OAUTH_GITHUB_CLIENT_SECRET=""
   read_yn "Enable GitHub OAuth?" ENABLE_GITHUB
   if [ "$ENABLE_GITHUB" = "yes" ]; then
+    yellow "  NOTE: GitHub Authorization callback URL must be EXACTLY: ${OAUTH_GITHUB_REDIRECT_URL}"
     read_required "GitHub Client ID" OAUTH_GITHUB_CLIENT_ID
     read_required "GitHub Client Secret" OAUTH_GITHUB_CLIENT_SECRET
   fi
@@ -592,6 +594,8 @@ run_wizard() {
   OAUTH_GOOGLE_CLIENT_SECRET=""
   read_yn "Enable Google OAuth?" ENABLE_GOOGLE
   if [ "$ENABLE_GOOGLE" = "yes" ]; then
+    yellow "  NOTE: Google Authorized redirect URI must be EXACTLY: ${OAUTH_GOOGLE_REDIRECT_URL}"
+    yellow "  NOTE: If the Google OAuth app is in Testing, add your account under OAuth consent screen -> Test users."
     read_required "Google Client ID" OAUTH_GOOGLE_CLIENT_ID
     read_required "Google Client Secret" OAUTH_GOOGLE_CLIENT_SECRET
   fi

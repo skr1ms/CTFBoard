@@ -86,15 +86,15 @@ These are optional but typically wanted in production.
 
 ### Resend (transactional email)
 
-Sign up at [resend.com](https://resend.com), verify your sender domain (`noreply@example.com`), copy the API key. Without it, registrations don't send verification emails and password reset doesn't work.
+Sign up at [resend.com](https://resend.com), verify your sender domain (`noreply@example.com`), copy the API key. `RESEND_FROM_EMAIL` must belong to that verified domain, otherwise Resend returns a `domain is not verified` error. Without it, registrations don't send verification emails and password reset doesn't work.
 
 ### GitHub OAuth App
 
-[https://github.com/settings/developers](https://github.com/settings/developers) -> **New OAuth App**. Authorization callback URL: `https://api.example.com/api/v1/auth/oauth/github/callback`. Copy `Client ID` and `Client Secret`.
+[https://github.com/settings/developers](https://github.com/settings/developers) -> **New OAuth App**. Authorization callback URL: `https://api.example.com/api/v1/auth/oauth/github/callback`. The URL must match `OAUTH_GITHUB_REDIRECT_URL` byte-for-byte. Copy `Client ID` and `Client Secret`.
 
 ### Google OAuth
 
-[Google Cloud Console](https://console.cloud.google.com/) -> **APIs & Services** -> **Credentials** -> **OAuth 2.0 Client IDs**. Authorized redirect URIs: `https://api.example.com/api/v1/auth/oauth/google/callback`. Copy `Client ID` and `Client Secret`.
+[Google Cloud Console](https://console.cloud.google.com/) -> **APIs & Services** -> **Credentials** -> **OAuth 2.0 Client IDs**. Authorized redirect URIs: `https://api.example.com/api/v1/auth/oauth/google/callback`. The URI must match `OAUTH_GOOGLE_REDIRECT_URL` byte-for-byte or you'll get `redirect_uri_mismatch`. If the OAuth consent screen is in **Testing**, add your accounts under **Test users** or Google will block login. Copy `Client ID` and `Client Secret`.
 
 ### Telegram bot (alerts)
 

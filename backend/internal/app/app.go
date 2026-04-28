@@ -334,6 +334,9 @@ func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Po
 	appName := cfg.Name
 	fromName := cfg.FromName
 	fromEmail := cfg.FromEmail
+	resendEnabled := cfg.Resend.Enabled && cfg.Resend.APIKey != ""
+	githubEnabled := cfg.GitHub.ClientID != "" && cfg.GitHub.ClientSecret != "" && cfg.GitHub.RedirectURL != ""
+	googleEnabled := cfg.Google.ClientID != "" && cfg.Google.ClientSecret != "" && cfg.Google.RedirectURL != ""
 
 	if appName == "" {
 		appName = defaultAppName
@@ -349,10 +352,15 @@ func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Po
 
 	_, err := pool.Exec(ctx,
 		`UPDATE app_settings
-		    SET app_name=$1, resend_from_name=$2, resend_from_email=$3
+		    SET app_name=$1,
+		        resend_from_name=$2,
+		        resend_from_email=$3,
+		        resend_enabled=$4,
+		        oauth_github_enabled=$5,
+		        oauth_google_enabled=$6
 		  WHERE id=1
-		    AND app_name=$4`,
-		appName, fromName, fromEmail, defaultAppName,
+		    AND app_name=$7`,
+		appName, fromName, fromEmail, resendEnabled, githubEnabled, googleEnabled, defaultAppName,
 	)
 	if err != nil {
 		l.WithError(err).Warn("reconcileSettings - app_settings update skipped")
