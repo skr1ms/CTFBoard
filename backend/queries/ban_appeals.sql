@@ -12,26 +12,26 @@ WHERE id = $1;
 SELECT id, user_id, message, created_at, reviewed_at, admin_response, decision
 FROM ban_appeals
 WHERE user_id = $1
-ORDER BY created_at DESC;
+ORDER BY created_at DESC, id DESC;
 
 -- name: GetLatestBanAppealByUserID :one
 SELECT id, user_id, message, created_at, reviewed_at, admin_response, decision
 FROM ban_appeals
 WHERE user_id = $1
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT 1;
 
 -- name: ListBanAppeals :many
 SELECT id, user_id, message, created_at, reviewed_at, admin_response, decision
 FROM ban_appeals
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT $1 OFFSET $2;
 
 -- name: ListBanAppealsByDecision :many
 SELECT id, user_id, message, created_at, reviewed_at, admin_response, decision
 FROM ban_appeals
 WHERE decision = $1
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountBanAppeals :one
