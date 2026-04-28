@@ -676,6 +676,7 @@ type CompetitionStatusResponse struct {
 	EndTime                      *string `json:"end_time,omitempty"`
 	FreezeTime                   *string `json:"freeze_time,omitempty"`
 	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
+	Mode                         *string `json:"mode,omitempty"`
 	Name                         *string `json:"name,omitempty"`
 	PausedAt                     *string `json:"paused_at,omitempty"`
 	StartTime                    *string `json:"start_time,omitempty"`

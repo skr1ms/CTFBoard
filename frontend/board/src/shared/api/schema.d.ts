@@ -3008,6 +3008,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/challenges/recalc-points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recalculate dynamic challenge points
+         * @description Recalculates solve counts and dynamic points for all dynamic-scoring challenges. Heals inconsistent state (e.g. points not updated after disband). Admin only.
+         */
+        post: operations["PostAdminChallengesRecalcPoints"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/challenges": {
         parameters: {
             query?: never;
@@ -3990,6 +4010,7 @@ export interface components {
             end_time?: string;
             freeze_time?: string;
             keep_scoreboard_frozen_after_end?: boolean;
+            mode?: string;
             name?: string;
             paused_at?: string;
             start_time?: string;
@@ -12830,6 +12851,51 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminChallengesRecalcPoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recalculation complete */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

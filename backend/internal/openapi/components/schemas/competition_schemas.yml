@@ -40,6 +40,8 @@ schemas:
         type: string
       keep_scoreboard_frozen_after_end:
         type: boolean
+      mode:
+        type: string
       name:
         type: string
       paused_at:
