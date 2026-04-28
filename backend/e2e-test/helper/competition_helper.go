@@ -118,15 +118,22 @@ func (h *E2EHelper) SetCompetitionRegex(token, regex string) {
 func (h *E2EHelper) StartCompetition(adminToken string) {
 	h.t.Helper()
 
+	now := time.Now().UTC()
+
 	statusResp := h.GetCompetitionStatus()
 	if statusResp.JSON200 != nil && statusResp.JSON200.Status != nil {
 		switch *statusResp.JSON200.Status {
 		case "active", "paused", "frozen":
 			return
+		case "ended":
+			// A parallel test may have ended the competition via direct SQL.
+			// The API rejects updates to ended competitions, so reset via DB.
+			h.ResetCompetitionToActive()
+
+			return
 		}
 	}
 
-	now := time.Now().UTC()
 	h.UpdateCompetition(adminToken, map[string]any{
 		"name":              "Test CTF",
 		"start_time":        now.Add(-1 * time.Hour).Format(time.RFC3339),
@@ -169,6 +176,19 @@ func (h *E2EHelper) GetAdminCompetitionExpectStatus(token string, expectStatus i
 	RequireStatus(h.t, expectStatus, resp.StatusCode(), resp.Body, "admin competition")
 
 	return resp
+}
+
+func (h *E2EHelper) ResetCompetitionToActive() {
+	h.t.Helper()
+
+	now := time.Now().UTC()
+
+	_, err := h.pool.Exec(context.Background(),
+		`UPDATE competition SET is_paused = FALSE, start_time = $1, end_time = $2, freeze_time = NULL, updated_at = now() WHERE id = 1`,
+		now.Add(-1*time.Hour), now.Add(24*time.Hour))
+	require.NoError(h.t, err, "ResetCompetitionToActive: DB update")
+
+	_ = h.redis.Del(context.Background(), "competition")
 }
 
 func (h *E2EHelper) PollCompetitionStatus(expectedStatus string, timeout time.Duration) bool {
