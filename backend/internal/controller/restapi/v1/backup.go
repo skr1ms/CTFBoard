@@ -63,6 +63,7 @@ func (h *Server) GetRobotsTxt(w http.ResponseWriter, r *http.Request) {
 Disallow: /api/
 Allow: /
 `
+
 	setPublicCache(w, cacheStatic, false)
 	httputil.RenderText(w, r, http.StatusOK, "text/plain; charset=utf-8", robotsTxt)
 }

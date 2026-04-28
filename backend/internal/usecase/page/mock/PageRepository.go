@@ -7,9 +7,10 @@ package mock
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 // NewMockPageRepository creates a new instance of MockPageRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
