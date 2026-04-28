@@ -203,6 +203,7 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 		// OAuth endpoints
 		r.With(oauthRedirectLimit).Get("/auth/oauth/{provider}", wrapper.GetAuthOauthProvider)
 		r.With(oauthCallbackLimit).Get("/auth/oauth/{provider}/callback", wrapper.GetAuthOauthProviderCallback)
+		r.With(oauthCallbackLimit).Post("/auth/oauth/exchange", wrapper.PostAuthOauthExchange)
 
 		// Public cacheable endpoints: rate-limited + ETag conditional GET support.
 		r.Group(func(pub chi.Router) {
