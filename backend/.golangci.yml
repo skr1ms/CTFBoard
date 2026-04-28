@@ -108,7 +108,7 @@ linters:
           disabled: true
         - name: unhandled-error
           arguments:
-            - "^fmt\\.(F|S)?Print.*"
+            - "^fmt\\.(Print|Printf|Println|Fprint|Fprintf|Fprintln|Sprint|Sprintf|Sprintln)$"
             - "strings.Builder.Write.*"
             - "bytes.Buffer.Write.*"
             - "io.PipeWriter.CloseWithError"

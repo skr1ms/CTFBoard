@@ -49,6 +49,14 @@ MOCKERY_VERSION ?= v3.5.5
 WIRE_VERSION ?= v0.7.0
 GOLANGCI_LINT_VERSION ?= v2.11.4
 REDOCLY_VERSION ?= 1.26.0
+GO_BIN_DIR := $(shell sh -c 'gobin=$$(go env GOBIN); if [ -n "$$gobin" ]; then printf "%s" "$$gobin"; else printf "%s/bin" "$$(go env GOPATH)"; fi')
+OAPI_CODEGEN := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/oapi-codegen" ]; then printf "%s" "$(GO_BIN_DIR)/oapi-codegen"; else command -v oapi-codegen 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/oapi-codegen"; fi')
+GOVULNCHECK := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/govulncheck" ]; then printf "%s" "$(GO_BIN_DIR)/govulncheck"; else command -v govulncheck 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/govulncheck"; fi')
+GOLANGCI_LINT := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/golangci-lint" ]; then printf "%s" "$(GO_BIN_DIR)/golangci-lint"; else command -v golangci-lint 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/golangci-lint"; fi')
+SQLC := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/sqlc" ]; then printf "%s" "$(GO_BIN_DIR)/sqlc"; else command -v sqlc 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/sqlc"; fi')
+GOOSE := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/goose" ]; then printf "%s" "$(GO_BIN_DIR)/goose"; else command -v goose 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/goose"; fi')
+GOIMPORTS := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/goimports" ]; then printf "%s" "$(GO_BIN_DIR)/goimports"; else command -v goimports 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/goimports"; fi')
+MOCKERY := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/mockery" ]; then printf "%s" "$(GO_BIN_DIR)/mockery"; else command -v mockery 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/mockery"; fi')
 
 install-tools: ## Install development tools (versions pinned for reproducible builds)
 	@echo "Installing tools..."
@@ -61,6 +69,18 @@ install-tools: ## Install development tools (versions pinned for reproducible bu
 	@go install golang.org/x/tools/cmd/goimports@latest
 	@go install github.com/vektra/mockery/v3@$(MOCKERY_VERSION)
 	@echo "Tools installed"
+
+install-tools-latest: ## Install latest tool versions to $(GO_BIN_DIR) for local use (not for CI/reproducible codegen)
+	@echo "Installing latest tools to $(GO_BIN_DIR)..."
+	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	@go install github.com/google/wire/cmd/wire@latest
+	@go install github.com/pressly/goose/v3/cmd/goose@latest
+	@go install golang.org/x/tools/cmd/goimports@latest
+	@go install github.com/vektra/mockery/v3@latest
+	@echo "Latest tools installed"
 
 OPENAPI_SRC = internal/openapi/openapi.yml
 OPENAPI_BUNDLE = internal/openapi/openapi.yaml
@@ -83,21 +103,21 @@ openapi: oapi-codegen ## Alias for OpenAPI bundle + codegen
 
 oapi-codegen: openapi-bundle ## Generate OpenAPI code from spec (bundles openapi.yml then runs codegen)
 	@echo "Generating OpenAPI code..."
-	@oapi-codegen -config codegen/oapi-codegen-types.yml $(OPENAPI_BUNDLE)
-	@oapi-codegen -config codegen/oapi-codegen-server.yml $(OPENAPI_BUNDLE)
-	@oapi-codegen -config codegen/oapi-codegen-spec.yml $(OPENAPI_BUNDLE)
-	@oapi-codegen -config codegen/oapi-codegen-client.yml $(OPENAPI_BUNDLE)
+	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-types.yml $(OPENAPI_BUNDLE)
+	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-server.yml $(OPENAPI_BUNDLE)
+	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-spec.yml $(OPENAPI_BUNDLE)
+	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-client.yml $(OPENAPI_BUNDLE)
 	@rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS)
 	@echo "OpenAPI code generated"
 
 sqlc: sqlc-verify ## Generate sqlc code from queries and schema
 	@echo "Generating sqlc code..."
-	@sqlc -f codegen/sqlc.yaml generate
+	@$(SQLC) -f codegen/sqlc.yaml generate
 	@echo "sqlc code generated"
 
 sqlc-verify: ## Verify sqlc schema and queries compile without generating code
 	@echo "Verifying sqlc..."
-	@sqlc -f codegen/sqlc.yaml compile
+	@$(SQLC) -f codegen/sqlc.yaml compile
 	@echo "sqlc verification OK"
 
 validate-openapi: openapi-bundle ## Validate OpenAPI spec (bundles then lints with minimal ruleset)
@@ -108,19 +128,19 @@ validate-openapi: openapi-bundle ## Validate OpenAPI spec (bundles then lints wi
 
 migrate-up: ## Run database migrations up
 	@echo "Running migrations..."
-	@goose -dir migrations postgres "$(POSTGRES_DSN)" up
+	@$(GOOSE) -dir migrations postgres "$(POSTGRES_DSN)" up
 	@echo "Migrations applied"
 
 migrate-down: ## Run database migrations down (last batch)
 	@echo "Reverting migrations..."
-	@goose -dir migrations postgres "$(POSTGRES_DSN)" down
+	@$(GOOSE) -dir migrations postgres "$(POSTGRES_DSN)" down
 	@echo "Migrations reverted"
 
 migrate-status: ## Show migration status
-	@goose -dir migrations postgres "$(POSTGRES_DSN)" status
+	@$(GOOSE) -dir migrations postgres "$(POSTGRES_DSN)" status
 
 migrate-create: ## Create new migration (usage: make migrate-create name=create_something)
-	@goose -dir migrations create $(name) sql
+	@$(GOOSE) -dir migrations create $(name) sql
 
 wire: ## Generate Wire DI code
 	@echo "Generating Wire code..."
@@ -129,66 +149,66 @@ wire: ## Generate Wire DI code
 
 mockery: ## Generate all mocks (one config per usecase so same interface can output to different mocks dirs; single-file config would require one dir per interface and break tests)
 	@echo "Generating mocks..."
-	@mockery version | grep -Eq '^v3\.' || (echo "Error: mockery v3.x is required. Run 'make install-tools' or ensure PATH points to github.com/vektra/mockery/v3."; exit 1)
-	@mockery --config codegen/.mockery_user.yml
-	@mockery --config codegen/.mockery_team.yml
-	@mockery --config codegen/.mockery_challenge.yml
-	@mockery --config codegen/.mockery_competition.yml
-	@mockery --config codegen/.mockery_email.yml
-	@mockery --config codegen/.mockery_settings.yml
-	@mockery --config codegen/.mockery_notification.yml
-	@mockery --config codegen/.mockery_page.yml
-	@mockery --config codegen/.mockery_pkg.yml
-	@mockery --config codegen/.mockery_seed.yml
-	@mockery --config codegen/.mockery_backup.yml
-	@mockery --config codegen/.mockery_middleware.yml
-	@mockery --config codegen/.mockery_cache.yml
-	@mockery --config codegen/.mockery_usecase.yml
-	@mockery --config codegen/.mockery_avatar.yml
-	@mockery --config codegen/.mockery_config.yml
+	@$(MOCKERY) version | grep -Eq '^v3\.' || (echo "Error: mockery v3.x is required. Run 'make install-tools' or ensure PATH points to github.com/vektra/mockery/v3."; exit 1)
+	@$(MOCKERY) --config codegen/.mockery_user.yml
+	@$(MOCKERY) --config codegen/.mockery_team.yml
+	@$(MOCKERY) --config codegen/.mockery_challenge.yml
+	@$(MOCKERY) --config codegen/.mockery_competition.yml
+	@$(MOCKERY) --config codegen/.mockery_email.yml
+	@$(MOCKERY) --config codegen/.mockery_settings.yml
+	@$(MOCKERY) --config codegen/.mockery_notification.yml
+	@$(MOCKERY) --config codegen/.mockery_page.yml
+	@$(MOCKERY) --config codegen/.mockery_pkg.yml
+	@$(MOCKERY) --config codegen/.mockery_seed.yml
+	@$(MOCKERY) --config codegen/.mockery_backup.yml
+	@$(MOCKERY) --config codegen/.mockery_middleware.yml
+	@$(MOCKERY) --config codegen/.mockery_cache.yml
+	@$(MOCKERY) --config codegen/.mockery_usecase.yml
+	@$(MOCKERY) --config codegen/.mockery_avatar.yml
+	@$(MOCKERY) --config codegen/.mockery_config.yml
 	@echo "All mocks generated"
 
 generate-mocks-user: ## Generate mocks for user package
-	@mockery --config codegen/.mockery_user.yml
+	@$(MOCKERY) --config codegen/.mockery_user.yml
 
 generate-mocks-team: ## Generate mocks for team package
-	@mockery --config codegen/.mockery_team.yml
+	@$(MOCKERY) --config codegen/.mockery_team.yml
 
 generate-mocks-challenge: ## Generate mocks for challenge package
-	@mockery --config codegen/.mockery_challenge.yml
+	@$(MOCKERY) --config codegen/.mockery_challenge.yml
 
 generate-mocks-competition: ## Generate mocks for competition package
-	@mockery --config codegen/.mockery_competition.yml
+	@$(MOCKERY) --config codegen/.mockery_competition.yml
 
 generate-mocks-email: ## Generate mocks for email package
-	@mockery --config codegen/.mockery_email.yml
+	@$(MOCKERY) --config codegen/.mockery_email.yml
 
 generate-mocks-pkg: ## Generate mocks for pkg interfaces used in pkg tests (mailer)
-	@mockery --config codegen/.mockery_pkg.yml
+	@$(MOCKERY) --config codegen/.mockery_pkg.yml
 
 generate-mocks-settings: ## Generate mocks for settings package
-	@mockery --config codegen/.mockery_settings.yml
+	@$(MOCKERY) --config codegen/.mockery_settings.yml
 
 generate-mocks-notification: ## Generate mocks for notification package
-	@mockery --config codegen/.mockery_notification.yml
+	@$(MOCKERY) --config codegen/.mockery_notification.yml
 
 generate-mocks-page: ## Generate mocks for page package
-	@mockery --config codegen/.mockery_page.yml
+	@$(MOCKERY) --config codegen/.mockery_page.yml
 
 generate-mocks-seed: ## Generate mocks for seed package
-	@mockery --config codegen/.mockery_seed.yml
+	@$(MOCKERY) --config codegen/.mockery_seed.yml
 
 generate-mocks-backup: ## Generate mocks for backup package
-	@mockery --config codegen/.mockery_backup.yml
+	@$(MOCKERY) --config codegen/.mockery_backup.yml
 
 generate-mocks-middleware: ## Generate mocks for middleware interfaces (APITokenAuther, UserByIDGetter)
-	@mockery --config codegen/.mockery_middleware.yml
+	@$(MOCKERY) --config codegen/.mockery_middleware.yml
 
 generate-mocks-cache: ## Generate mocks for cache interfaces (TeamBracketIDGetter)
-	@mockery --config codegen/.mockery_cache.yml
+	@$(MOCKERY) --config codegen/.mockery_cache.yml
 
 generate-mocks-config: ## Generate mocks for config interfaces (vaultSecretGetter)
-	@mockery --config codegen/.mockery_config.yml
+	@$(MOCKERY) --config codegen/.mockery_config.yml
 
 generate: validate-openapi oapi-codegen sqlc mockery wire ## Run all code generation (validate OpenAPI, then OpenAPI, sqlc, mocks)
 	@echo "All code generation completed"
@@ -377,21 +397,21 @@ LINT_TIMEOUT ?= 5m
 
 lint: ## Run golangci-lint (LINT_TIMEOUT for CI, e.g. 10m)
 	@echo "Running linter..."
-	@golangci-lint run -v --timeout $(LINT_TIMEOUT) ./...
+	@$(GOLANGCI_LINT) run -v --timeout $(LINT_TIMEOUT) ./...
 
 lint-fix: ## Run golangci-lint with auto-fix
 	@echo "Running linter with auto-fix..."
-	@golangci-lint run -v --fix --timeout $(LINT_TIMEOUT) ./...
+	@$(GOLANGCI_LINT) run -v --fix --timeout $(LINT_TIMEOUT) ./...
 
 deps-audit: ## Check dependencies for vulnerabilities
 	@echo "Checking dependencies..."
-	@govulncheck ./...
+	@$(GOVULNCHECK) ./...
 
 fmt: ## Format code with gofmt and goimports
 	@echo "Formatting code..."
-	@command -v goimports >/dev/null 2>&1 || (echo "goimports not found, run: make install-tools"; exit 1)
+	@test -x "$(GOIMPORTS)" || (echo "goimports not found at $(GOIMPORTS), run: make install-tools"; exit 1)
 	@gofmt -w .
-	@goimports -w -local github.com/TakuyaYagam1/AstroCTFb .
+	@$(GOIMPORTS) -w -local github.com/TakuyaYagam1/AstroCTFb .
 	@echo "Done"
 
 mod-tidy: ## Tidy go modules
