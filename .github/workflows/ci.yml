@@ -1,4 +1,6 @@
 name: CI
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 on:
   push:
     branches: [main, master]
@@ -16,24 +18,80 @@ on:
           - "true"
           - "false"
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Stage 1: preflight
   gitleaks:
     name: runner / gitleaks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  yamllint:
+    name: runner / yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: reviewdog/action-yamllint@v1
+        with:
+          fail_level: error
+          reporter: github-pr-review
+          yamllint_flags: '-d "{extends: default, rules: {truthy: disable}}" .'
+
+  hadolint:
+    name: runner / hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: reviewdog/action-hadolint@v1
+        with:
+          fail_level: error
+          reporter: github-pr-review
+          hadolint_flags: "backend/Dockerfile frontend/board/Dockerfile frontend/seaweedfs-ui/Dockerfile deployment/haproxy/Dockerfile deployment/certbot/Dockerfile deployment/docker/loki.Dockerfile"
+
+  dotenv-linter:
+    name: runner / dotenv-linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dotenv-linter/action-dotenv-linter@v2
+        with:
+          reporter: github-pr-review
+
+  # Stage 2: checks
+  check-dependencies:
+    name: runner / check-dependencies
+    runs-on: ubuntu-latest
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: backend/go.sum
+      - name: govulncheck
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
   golangci-lint:
     name: runner / golangci-lint
     runs-on: ubuntu-latest
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -44,73 +102,13 @@ jobs:
           make install-tools
           make lint LINT_TIMEOUT=15m
 
-  yamllint:
-    name: runner / yamllint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: reviewdog/action-yamllint@v1
-        with:
-          fail_on_error: true
-          reporter: github-pr-review
-          yamllint_flags: '-d "{extends: default, rules: {truthy: disable}}" .'
-
-  hadolint:
-    name: runner / hadolint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: reviewdog/action-hadolint@v1
-        with:
-          fail_on_error: true
-          reporter: github-pr-review
-          hadolint_flags: "backend/Dockerfile frontend/board/Dockerfile frontend/seaweedfs-ui/Dockerfile deployment/haproxy/Dockerfile deployment/certbot/Dockerfile deployment/docker/loki.Dockerfile"
-
-  dotenv-linter:
-    name: runner / dotenv-linter
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dotenv-linter/action-dotenv-linter@v2
-        with:
-          reporter: github-pr-review
-
-  check-dependencies:
-    name: runner / check-dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26"
-          cache-dependency-path: backend/go.sum
-      - name: govulncheck
-        working-directory: backend
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-
-  test:
-    name: runner / tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26"
-          cache-dependency-path: backend/go.sum
-      - name: Tests
-        working-directory: backend
-        run: |
-          go mod download
-          make test-race
-
   codegen-verify:
     name: runner / codegen-verify
     runs-on: ubuntu-latest
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -126,10 +124,10 @@ jobs:
   backend-build:
     name: runner / backend-build
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test, codegen-verify]
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -145,13 +143,66 @@ jobs:
           path: backend/bin/backend
           retention-days: 7
 
+  frontend-lint:
+    name: runner / frontend-lint
+    runs-on: ubuntu-latest
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        working-directory: frontend/board
+        run: bun install --frozen-lockfile
+      - name: Type-check
+        working-directory: frontend/board
+        run: bun run type-check
+      - name: Lint
+        working-directory: frontend/board
+        run: bun run lint
+
+  # Stage 3: tests
+  test:
+    name: runner / tests
+    runs-on: ubuntu-latest
+    needs: [check-dependencies, golangci-lint, codegen-verify, backend-build]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: backend/go.sum
+      - name: Tests
+        working-directory: backend
+        run: |
+          go mod download
+          make test-race
+
+  frontend-test:
+    name: runner / frontend-test
+    runs-on: ubuntu-latest
+    needs: [frontend-lint]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        working-directory: frontend/board
+        run: bun install --frozen-lockfile
+      - name: Test
+        working-directory: frontend/board
+        run: bun run test
+
+  # Stage 4: package
   backend-build-cleanup:
     name: runner / backend-build-cleanup
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test, codegen-verify]
+    needs: [test]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -170,13 +221,13 @@ jobs:
   backend-docker-build:
     name: runner / backend-docker-build
     runs-on: ubuntu-latest
-    needs: [golangci-lint, test, codegen-verify]
+    needs: [test]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           file: ./backend/Dockerfile
@@ -185,49 +236,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  frontend-lint:
-    name: runner / frontend-lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        working-directory: frontend/board
-        run: bun install --frozen-lockfile
-      - name: Type-check
-        working-directory: frontend/board
-        run: bun run type-check
-      - name: Lint
-        working-directory: frontend/board
-        run: bun run lint
-
-  frontend-test:
-    name: runner / frontend-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        working-directory: frontend/board
-        run: bun install --frozen-lockfile
-      - name: Test
-        working-directory: frontend/board
-        run: bun run test
-
   frontend-docker-build:
     name: runner / frontend-docker-build
     runs-on: ubuntu-latest
     needs: [frontend-lint, frontend-test]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend/board
           file: ./frontend/board/Dockerfile
@@ -247,8 +265,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
