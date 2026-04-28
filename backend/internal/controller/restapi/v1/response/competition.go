@@ -29,6 +29,7 @@ func FromCompetitionStatus(c *domain.Competition) openapi.CompetitionStatusRespo
 	return openapi.CompetitionStatusResponse{
 		Status:                       new(string(c.GetStatus())),
 		Name:                         new(c.Name),
+		Mode:                         new(string(c.Mode)),
 		StartTime:                    timePtr(c.StartTime),
 		EndTime:                      timePtr(c.EndTime),
 		FreezeTime:                   timePtr(c.FreezeTime),

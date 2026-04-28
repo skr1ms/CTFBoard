@@ -7,9 +7,8 @@ package mock
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockMailer creates a new instance of MockMailer. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

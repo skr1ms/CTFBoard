@@ -1,0 +1,2572 @@
+HealthResponse:
+  type: object
+  description: Health check result; keys are component names (e.g. db, redis, storage), values are "ok" or "error".
+  additionalProperties:
+    type: string
+    enum:
+    - ok
+    - error
+PaginationMeta:
+  properties:
+    page:
+      type: integer
+    per_page:
+      type: integer
+    total:
+      type: integer
+    total_pages:
+      type: integer
+  type: object
+ErrorResponse:
+  required:
+  - code
+  - message
+  properties:
+    code:
+      type: string
+    message:
+      type: string
+  type: object
+ValidationErrorItem:
+  required:
+  - field
+  - message
+  properties:
+    field:
+      type: string
+    message:
+      type: string
+  type: object
+ValidationErrorResponse:
+  required:
+  - code
+  - message
+  properties:
+    code:
+      type: string
+      example: VALIDATION_ERROR
+    message:
+      type: string
+    errors:
+      type: array
+      items:
+        $ref: '#/ValidationErrorItem'
+  type: object
+MessageResponse:
+  type: object
+  required:
+  - message
+  properties:
+    message:
+      type: string
+TokenPair:
+  properties:
+    access_expires_at:
+      type: integer
+    access_token:
+      type: string
+  type: object
+LoginRequest:
+  properties:
+    email:
+      example: player1@example.com
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_email
+    password:
+      example: SecurePassword123!
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required
+  required:
+  - email
+  - password
+  type: object
+RegisterRequest:
+  properties:
+    email:
+      example: player1@example.com
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_email
+    password:
+      example: SecurePassword123!
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,strong_password
+    username:
+      example: player1
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_username
+    custom_fields:
+      description: Custom field values (field_id -> value)
+      additionalProperties:
+        type: string
+      type: object
+  required:
+  - email
+  - username
+  - password
+  type: object
+BanStatus:
+  type: object
+  properties:
+    is_banned:
+      type: boolean
+    reason:
+      type: string
+    banned_at:
+      type: string
+    can_appeal:
+      type: boolean
+    has_pending_appeal:
+      type: boolean
+MeResponse:
+  properties:
+    created_at:
+      type: string
+    email:
+      type: string
+    id:
+      type: string
+    role:
+      type: string
+      description: user role (admin, user)
+    team_id:
+      type: string
+    username:
+      type: string
+    avatar_url:
+      type: string
+    has_password:
+      type: boolean
+      description: true when the account has a local password set (false for OAuth-only accounts)
+    ban_status:
+      $ref: '#/BanStatus'
+  type: object
+RegisterResponse:
+  properties:
+    created_at:
+      type: string
+    email:
+      type: string
+    id:
+      type: string
+    username:
+      type: string
+  type: object
+OAuthExchangeRequest:
+  type: object
+  required:
+  - code
+  properties:
+    code:
+      type: string
+      description: One-time exchange code from the OAuth callback query parameter
+VerifyEmailRequest:
+  properties:
+    token:
+      type: string
+      description: Verification token (from email link or copy-paste)
+      x-oapi-codegen-extra-tags:
+        validate: required
+  required:
+  - token
+  type: object
+ForgotPasswordRequest:
+  properties:
+    email:
+      example: player1@example.com
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_email
+  required:
+  - email
+  type: object
+ResendVerificationByEmailRequest:
+  properties:
+    email:
+      example: player1@example.com
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_email
+  required:
+  - email
+  type: object
+ResetPasswordRequest:
+  properties:
+    new_password:
+      example: NewSecurePassword123!
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,strong_password
+    token:
+      type: string
+  required:
+  - token
+  - new_password
+  type: object
+BanUserRequest:
+  properties:
+    reason:
+      type: string
+      example: Violation of rules
+      maxLength: 500
+      x-oapi-codegen-extra-tags:
+        validate: required,min=1,max=500
+  required:
+  - reason
+  type: object
+AdminUserResponse:
+  properties:
+    id:
+      type: string
+    username:
+      type: string
+    email:
+      type: string
+    role:
+      type: string
+    team_id:
+      type: string
+    is_verified:
+      type: boolean
+    is_banned:
+      type: boolean
+    banned_at:
+      type: string
+      format: date-time
+    banned_reason:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    avatar_url:
+      type: string
+  type: object
+AdminUserListResponse:
+  properties:
+    data:
+      items:
+        $ref: '#/AdminUserResponse'
+      type: array
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+AdminCreateUserRequest:
+  properties:
+    username:
+      type: string
+      example: newuser
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_username
+    email:
+      type: string
+      example: user@example.com
+      x-oapi-codegen-extra-tags:
+        validate: required,custom_email
+    password:
+      type: string
+      example: password123
+      x-oapi-codegen-extra-tags:
+        validate: required,strong_password
+    role:
+      type: string
+      example: user
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,oneof=user admin
+  required:
+  - username
+  - email
+  - password
+  type: object
+AdminUpdateUserRequest:
+  properties:
+    username:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,custom_username
+    email:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,custom_email
+    role:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,oneof=user admin
+    is_verified:
+      type: boolean
+    password:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,strong_password
+  type: object
+UpdateProfileRequest:
+  properties:
+    username:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,custom_username
+    email:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,custom_email
+    password:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,strong_password
+    current_password:
+      type: string
+      maxLength: 72
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,max=72
+  type: object
+UserResponse:
+  properties:
+    id:
+      type: string
+    role:
+      type: string
+    team_id:
+      type: string
+    username:
+      type: string
+    avatar_url:
+      type: string
+  type: object
+UserListResponse:
+  properties:
+    data:
+      items:
+        $ref: '#/UserResponse'
+      type: array
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+UserProfileResponse:
+  properties:
+    created_at:
+      type: string
+    id:
+      type: string
+    solves:
+      items:
+        $ref: '#/SolveResponse'
+      type: array
+    team_id:
+      type: string
+    username:
+      type: string
+    avatar_url:
+      type: string
+  type: object
+SolveResponse:
+  properties:
+    id:
+      type: string
+    challenge_id:
+      type: string
+    solved_at:
+      type: string
+      format: date-time
+  type: object
+SolveWithDetailsResponse:
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    team_id:
+      type: string
+    challenge_id:
+      type: string
+    solved_at:
+      type: string
+      format: date-time
+    username:
+      type: string
+    team_name:
+      type: string
+    challenge_title:
+      type: string
+    challenge_category:
+      type: string
+    challenge_points:
+      type: integer
+  type: object
+UserExport:
+  properties:
+    id:
+      type: string
+    username:
+      type: string
+    email:
+      type: string
+    role:
+      type: string
+    team_id:
+      type: string
+  type: object
+TrackingEntry:
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    ip:
+      type: string
+    user_agent:
+      type: string
+    tracked_at:
+      type: string
+      format: date-time
+  type: object
+TrackingListResponse:
+  properties:
+    data:
+      type: array
+      items:
+        $ref: '#/TrackingEntry'
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+TeamResponse:
+  properties:
+    captain_id:
+      type: string
+    created_at:
+      type: string
+    id:
+      type: string
+    invite_token:
+      type: string
+      nullable: true
+    name:
+      type: string
+    avatar_url:
+      type: string
+  type: object
+TeamWithMembersResponse:
+  properties:
+    captain_id:
+      type: string
+    created_at:
+      type: string
+    id:
+      type: string
+    invite_token:
+      type: string
+      nullable: true
+    members:
+      items:
+        $ref: '#/UserResponse'
+      type: array
+    name:
+      type: string
+    is_banned:
+      type: boolean
+    banned_at:
+      type: string
+    banned_reason:
+      type: string
+    min_team_size:
+      description: Minimum team size required to submit flags (0 means not enforced).
+      type: integer
+      minimum: 0
+    meets_min_size:
+      description: True if the team has at least min_team_size members (or min is not set).
+      type: boolean
+    avatar_url:
+      type: string
+  type: object
+TeamListResponse:
+  properties:
+    data:
+      items:
+        $ref: '#/TeamResponse'
+      type: array
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+CreateTeamRequest:
+  properties:
+    confirm_reset:
+      type: boolean
+    name:
+      example: Team A
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,team_name
+  required:
+  - name
+  type: object
+CreateSoloTeamRequest:
+  properties:
+    confirm_reset:
+      type: boolean
+  type: object
+JoinTeamRequest:
+  properties:
+    confirm_reset:
+      type: boolean
+    invite_token:
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,uuid
+  required:
+  - invite_token
+  type: object
+TransferCaptainRequest:
+  properties:
+    new_captain_id:
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+      type: string
+  required:
+  - new_captain_id
+  type: object
+BanTeamRequest:
+  properties:
+    ban_members:
+      default: false
+      description: If true, ban each team member as a user (they cannot create/join teams or participate in solo).
+      type: boolean
+    reason:
+      example: Violation of rules
+      type: string
+      minLength: 1
+      maxLength: 500
+      x-oapi-codegen-extra-tags:
+        validate: required,min=1,max=500
+  required:
+  - reason
+  type: object
+ConfirmationRequired:
+  properties:
+    reason:
+      type: string
+    affected_data:
+      $ref: '#/AffectedData'
+  required:
+  - reason
+  type: object
+AffectedData:
+  properties:
+    solve_count:
+      type: integer
+    points:
+      type: integer
+    hint_unlock_count:
+      type: integer
+    awards_total:
+      type: integer
+  type: object
+HiddenStatus:
+  properties:
+    hidden:
+      type: boolean
+  required:
+  - hidden
+  type: object
+SetHiddenRequest:
+  properties:
+    hidden:
+      type: boolean
+  required:
+  - hidden
+  type: object
+AdminTeamResponse:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    captain_id:
+      type: string
+    bracket_id:
+      type: string
+    is_solo:
+      type: boolean
+    is_banned:
+      type: boolean
+    banned_reason:
+      type: string
+    banned_at:
+      type: string
+      format: date-time
+    is_hidden:
+      type: boolean
+    member_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+    avatar_url:
+      type: string
+  type: object
+AdminTeamListResponse:
+  properties:
+    data:
+      items:
+        $ref: '#/AdminTeamResponse'
+      type: array
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+AdminUpdateTeamRequest:
+  properties:
+    name:
+      type: string
+      minLength: 1
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,team_name
+    captain_id:
+      type: string
+      format: uuid
+    bracket_id:
+      type: string
+      format: uuid
+    is_hidden:
+      type: boolean
+  type: object
+AdminAddMemberRequest:
+  properties:
+    user_id:
+      type: string
+      format: uuid
+      x-oapi-codegen-extra-tags:
+        validate: required,uuid
+  required:
+  - user_id
+  type: object
+UpdateTeamRequest:
+  properties:
+    name:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,team_name
+  required:
+  - name
+  type: object
+TeamInviteResponse:
+  properties:
+    invite_token:
+      type: string
+  type: object
+TeamExport:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    captain_id:
+      type: string
+    is_banned:
+      type: boolean
+    member_ids:
+      type: array
+      items:
+        type: string
+  type: object
+ChallengeExport:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    description:
+      type: string
+    category:
+      type: string
+    points:
+      type: integer
+    flag_hash:
+      type: string
+    state:
+      type: string
+      enum:
+      - visible
+      - hidden
+      - locked
+    connection_info:
+      type: string
+    max_attempts:
+      type: integer
+    position:
+      type: integer
+    hints:
+      type: array
+      items:
+        $ref: '#/Hint'
+  type: object
+Hint:
+  properties:
+    id:
+      type: string
+    challenge_id:
+      type: string
+    content:
+      type: string
+    title:
+      type: string
+    cost:
+      type: integer
+    order_index:
+      type: integer
+  type: object
+Solve:
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    team_id:
+      type: string
+    challenge_id:
+      type: string
+    solved_at:
+      type: string
+  type: object
+CreateChallengeRequest:
+  properties:
+    category:
+      example: Web
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_category
+    decay:
+      example: 20
+      minimum: 0
+      type: integer
+    connection_info:
+      description: Connection info (e.g. SSH, URL) for the challenge
+      example: ''
+      type: string
+    max_attempts:
+      description: Max submission attempts per team (0 = unlimited)
+      example: 0
+      minimum: 0
+      type: integer
+    max_attempts_window:
+      description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+      example: 0
+      minimum: 0
+      type: integer
+    position:
+      description: Display order (lower = first)
+      example: 0
+      minimum: 0
+      type: integer
+    description:
+      example: Challenge description
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_description
+    flag:
+      example: CTF{flag_here}
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_flag
+    flag_format_regex:
+      description: Optional regex for flag format validation for this challenge; overrides competition default
+      example: ^CTF\{[a-zA-Z0-9_]+\}$
+      maxLength: 1024
+      type: string
+    initial_value:
+      example: 500
+      minimum: 0
+      type: integer
+    is_case_insensitive:
+      example: false
+      type: boolean
+    is_regex:
+      example: false
+      type: boolean
+    min_value:
+      example: 100
+      minimum: 0
+      type: integer
+    points:
+      example: 100
+      minimum: 0
+      type: integer
+    state:
+      description: Challenge visibility and submit policy
+      enum:
+      - visible
+      - hidden
+      - locked
+      example: visible
+      type: string
+    tag_ids:
+      description: Tag IDs for the challenge
+      items:
+        type: string
+      type: array
+    title:
+      example: Challenge 1
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_title
+  required:
+  - category
+  - description
+  - flag
+  - points
+  - title
+  type: object
+UpdateChallengeRequest:
+  properties:
+    category:
+      example: Web
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_category
+    decay:
+      example: 20
+      minimum: 0
+      type: integer
+    description:
+      example: Updated description
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_description
+    flag:
+      example: CTF{new_flag}
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,challenge_flag
+    flag_format_regex:
+      description: Optional regex for flag format validation for this challenge; overrides competition default
+      example: ^CTF\{[a-zA-Z0-9_]+\}$
+      maxLength: 1024
+      type: string
+    initial_value:
+      example: 500
+      minimum: 0
+      type: integer
+    is_case_insensitive:
+      example: false
+      type: boolean
+    is_regex:
+      example: false
+      type: boolean
+    min_value:
+      example: 100
+      minimum: 0
+      type: integer
+    points:
+      example: 150
+      minimum: 0
+      type: integer
+    connection_info:
+      description: Connection info (e.g. SSH, URL) for the challenge
+      example: ''
+      type: string
+    max_attempts:
+      description: Max submission attempts per team (0 = unlimited)
+      example: 0
+      minimum: 0
+      type: integer
+    max_attempts_window:
+      description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
+      example: 0
+      minimum: 0
+      type: integer
+    position:
+      description: Display order (lower = first)
+      example: 0
+      minimum: 0
+      type: integer
+    state:
+      description: Challenge visibility and submit policy
+      enum:
+      - visible
+      - hidden
+      - locked
+      example: visible
+      type: string
+    tag_ids:
+      description: Tag IDs for the challenge
+      items:
+        type: string
+      type: array
+    title:
+      example: Updated title
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_title
+  required:
+  - category
+  - description
+  - points
+  - title
+  type: object
+SubmitFlagRequest:
+  properties:
+    flag:
+      example: CTF{flag_here}
+      maxLength: 200
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,challenge_flag
+  required:
+  - flag
+  type: object
+CreateHintRequest:
+  properties:
+    title:
+      example: ''
+      type: string
+    content:
+      example: This is a hint
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,hint_content
+    cost:
+      example: 50
+      minimum: 0
+      type: integer
+    order_index:
+      example: 0
+      minimum: 0
+      type: integer
+  required:
+  - content
+  type: object
+UpdateHintRequest:
+  properties:
+    title:
+      example: ''
+      type: string
+    content:
+      example: Updated hint content
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,hint_content
+    cost:
+      example: 100
+      minimum: 0
+      type: integer
+    order_index:
+      example: 1
+      minimum: 0
+      type: integer
+  required:
+  - content
+  type: object
+CreateCommentRequest:
+  properties:
+    content:
+      type: string
+      maxLength: 2000
+      x-oapi-codegen-extra-tags:
+        validate: required,not_empty,max=2000
+  required:
+  - content
+  type: object
+ChallengeResponse:
+  properties:
+    category:
+      type: string
+    connection_info:
+      type: string
+    max_attempts:
+      type: integer
+    max_attempts_window:
+      type: integer
+    position:
+      type: integer
+    description:
+      type: string
+    id:
+      type: string
+    state:
+      type: string
+      enum:
+      - visible
+      - hidden
+      - locked
+    points:
+      type: integer
+    solve_count:
+      type: integer
+    solved:
+      type: boolean
+    tags:
+      items:
+        $ref: '#/TagResponse'
+      type: array
+    title:
+      type: string
+  type: object
+ChallengeDetailResponse:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    description:
+      type: string
+    category:
+      type: string
+    connection_info:
+      type: string
+    max_attempts:
+      type: integer
+    max_attempts_window:
+      type: integer
+    position:
+      type: integer
+    state:
+      type: string
+      enum:
+      - visible
+      - hidden
+      - locked
+    points:
+      type: integer
+    solve_count:
+      type: integer
+    solved_by_me:
+      type: boolean
+    tags:
+      items:
+        $ref: '#/TagResponse'
+      type: array
+    files:
+      items:
+        $ref: '#/FileItem'
+      type: array
+    hints:
+      items:
+        $ref: '#/HintItem'
+      type: array
+    first_blood:
+      $ref: '#/FirstBloodResponse'
+  type: object
+HintResponse:
+  properties:
+    title:
+      type: string
+    content:
+      type: string
+    cost:
+      type: integer
+    id:
+      type: string
+    order_index:
+      type: integer
+    unlocked:
+      type: boolean
+  type: object
+HintAdminResponse:
+  properties:
+    challenge_id:
+      type: string
+    title:
+      type: string
+    content:
+      type: string
+    cost:
+      type: integer
+    id:
+      type: string
+    order_index:
+      type: integer
+  type: object
+HintItem:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    cost:
+      type: integer
+    order_index:
+      type: integer
+    unlocked:
+      type: boolean
+    content:
+      type: string
+  type: object
+FirstBloodResponse:
+  properties:
+    solved_at:
+      type: string
+    team_id:
+      type: string
+    team_name:
+      type: string
+    user_id:
+      type: string
+    username:
+      type: string
+  type: object
+CommentResponse:
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    username:
+      type: string
+    challenge_id:
+      type: string
+    content:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  type: object
+PutChallengeRatingRequest:
+  properties:
+    value:
+      description: Rating value (e.g. 1-5)
+      minimum: 1
+      maximum: 5
+      type: integer
+      x-oapi-codegen-extra-tags:
+        validate: required,min=1,max=5
+    review:
+      description: Optional review text
+      maxLength: 2000
+      type: string
+  required:
+  - value
+  type: object
+RatingResponse:
+  properties:
+    id:
+      type: string
+    challenge_id:
+      type: string
+    user_id:
+      type: string
+    team_id:
+      type: string
+    value:
+      type: integer
+    review:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  type: object
+HintUnlockResponse:
+  properties:
+    id:
+      type: string
+    hint_id:
+      type: string
+    team_id:
+      type: string
+    unlocked_at:
+      type: string
+      format: date-time
+    challenge_id:
+      type: string
+    hint_cost:
+      type: integer
+  type: object
+HintUnlockListResponse:
+  properties:
+    data:
+      type: array
+      items:
+        $ref: '#/HintUnlockResponse'
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+ChallengeRequirementResponse:
+  properties:
+    challenge_id:
+      type: string
+    challenge_title:
+      type: string
+    challenge_category:
+      type: string
+  type: object
+SetChallengeRequirementsRequest:
+  properties:
+    requirement_ids:
+      description: List of challenge IDs that must be solved before this challenge
+      items:
+        type: string
+      type: array
+  type: object
+AdminUpsertSolutionRequest:
+  properties:
+    content:
+      description: Markdown writeup content
+      maxLength: 524288
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,max=524288
+  required:
+  - content
+  type: object
+ChallengeSolutionResponse:
+  properties:
+    challenge_id:
+      type: string
+    content:
+      type: string
+    files:
+      items:
+        $ref: '#/FileItem'
+      type: array
+  type: object
+ChallengeSolutionEntry:
+  properties:
+    challenge_id:
+      type: string
+    challenge_title:
+      type: string
+    challenge_category:
+      type: string
+    content:
+      type: string
+    files:
+      items:
+        $ref: '#/FileItem'
+      type: array
+  type: object
+ChallengeFlagsResponse:
+  properties:
+    flags:
+      description: Hashes of challenge flags (not plaintext); used for admin verification
+      items:
+        type: string
+      type: array
+    is_regex:
+      type: boolean
+    is_case_insensitive:
+      type: boolean
+    flag_regex:
+      type: string
+    flag_format_regex:
+      maxLength: 1024
+      type: string
+  type: object
+SubmitFlagResponse:
+  properties:
+    correct:
+      type: boolean
+    message:
+      type: string
+  required:
+  - correct
+  - message
+  type: object
+AdminUpdateSubmissionRequest:
+  properties:
+    is_correct:
+      type: boolean
+    discard:
+      type: boolean
+      description: Mark submission as discarded (admin cleanup). Overrides is_correct.
+  required:
+  - is_correct
+  type: object
+AdminCreateSubmissionRequest:
+  properties:
+    user_id:
+      type: string
+      format: uuid
+    team_id:
+      type: string
+      format: uuid
+    challenge_id:
+      type: string
+      format: uuid
+    submitted_flag:
+      type: string
+      maxLength: 200
+      x-oapi-codegen-extra-tags:
+        validate: required,max=200
+    is_correct:
+      type: boolean
+    ip:
+      type: string
+  required:
+  - user_id
+  - challenge_id
+  - submitted_flag
+  - is_correct
+  type: object
+SubmissionResponse:
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    team_id:
+      type: string
+    challenge_id:
+      type: string
+    submitted_flag:
+      type: string
+    is_correct:
+      type: boolean
+    submission_type:
+      type: string
+    ip:
+      type: string
+    created_at:
+      type: string
+    username:
+      type: string
+    team_name:
+      type: string
+    challenge_title:
+      type: string
+    challenge_category:
+      type: string
+  type: object
+SubmissionListResponse:
+  properties:
+    data:
+      type: array
+      items:
+        $ref: '#/SubmissionResponse'
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+SubmissionStatsResponse:
+  properties:
+    total:
+      type: integer
+    correct:
+      type: integer
+    incorrect:
+      type: integer
+  type: object
+FailListResponse:
+  properties:
+    data:
+      type: array
+      items:
+        $ref: '#/SubmissionResponse'
+    meta:
+      $ref: '#/PaginationMeta'
+  type: object
+AppSettingsResponse:
+  properties:
+    app_name:
+      type: string
+    cors_origins:
+      type: string
+    csv_export_max_rows:
+      type: integer
+    default_per_page:
+      type: integer
+    frontend_url:
+      type: string
+    max_per_page:
+      type: integer
+    max_teams:
+      type: integer
+      description: Maximum number of teams allowed (0 = unlimited)
+    rate_limit_forgot_password_per_minute:
+      type: integer
+    rate_limit_general_ip_per_minute:
+      type: integer
+    rate_limit_login_per_minute:
+      type: integer
+    rate_limit_logout_per_minute:
+      type: integer
+    rate_limit_refresh_per_minute:
+      type: integer
+    rate_limit_register_per_minute:
+      type: integer
+    rate_limit_reset_password_per_minute:
+      type: integer
+    rate_limit_scoreboard_per_minute:
+      type: integer
+    rate_limit_verify_email_per_minute:
+      type: integer
+    rate_limit_oauth_callback_per_minute:
+      type: integer
+    rate_limit_oauth_redirect_per_minute:
+      type: integer
+    rate_limit_comment_per_minute:
+      type: integer
+    registration_open:
+      type: boolean
+    reset_ttl_hours:
+      type: integer
+    resend_enabled:
+      type: boolean
+    resend_from_email:
+      type: string
+    resend_from_name:
+      type: string
+    scoreboard_visible:
+      type: string
+    submit_limit_duration_min:
+      type: integer
+    submit_limit_per_user:
+      type: integer
+    updated_at:
+      type: string
+    verify_emails:
+      type: boolean
+    verify_ttl_hours:
+      type: integer
+    writeup_enabled:
+      type: boolean
+      description: Whether writeups/solutions are shown to teams after solving a challenge
+    oauth_github_enabled:
+      type: boolean
+      description: Allow users to sign in via GitHub OAuth
+    oauth_google_enabled:
+      type: boolean
+      description: Allow users to sign in via Google OAuth
+  type: object
+UpdateAppSettingsRequest:
+  properties:
+    app_name:
+      maxLength: 100
+      type: string
+    cors_origins:
+      type: string
+      maxLength: 2048
+    csv_export_max_rows:
+      minimum: 1
+      type: integer
+    default_per_page:
+      minimum: 1
+      maximum: 1000
+      type: integer
+    frontend_url:
+      maxLength: 512
+      type: string
+    max_per_page:
+      minimum: 1
+      maximum: 1000
+      type: integer
+    max_teams:
+      minimum: 0
+      type: integer
+      description: Maximum number of teams allowed (0 = unlimited)
+    rate_limit_forgot_password_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_general_ip_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_login_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_logout_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_refresh_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_register_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_reset_password_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_scoreboard_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_verify_email_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_oauth_callback_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_oauth_redirect_per_minute:
+      minimum: 1
+      type: integer
+    rate_limit_comment_per_minute:
+      minimum: 1
+      type: integer
+    registration_open:
+      type: boolean
+    reset_ttl_hours:
+      maximum: 168
+      minimum: 1
+      type: integer
+    resend_enabled:
+      type: boolean
+    resend_from_email:
+      maxLength: 255
+      type: string
+    resend_from_name:
+      maxLength: 100
+      type: string
+    scoreboard_visible:
+      enum:
+      - public
+      - hidden
+      - admins_only
+      type: string
+    submit_limit_duration_min:
+      minimum: 1
+      type: integer
+    submit_limit_per_user:
+      minimum: 1
+      type: integer
+    verify_emails:
+      type: boolean
+    verify_ttl_hours:
+      maximum: 168
+      minimum: 1
+      type: integer
+    writeup_enabled:
+      type: boolean
+      description: Whether writeups/solutions are shown to teams after solving a challenge
+    oauth_github_enabled:
+      type: boolean
+      description: Allow users to sign in via GitHub OAuth
+    oauth_google_enabled:
+      type: boolean
+      description: Allow users to sign in via Google OAuth
+  type: object
+HealthcheckResponse:
+  properties:
+    status:
+      type: string
+    database:
+      type: string
+  type: object
+BackupData:
+  properties:
+    version:
+      type: string
+    exported_at:
+      type: string
+    competition:
+      $ref: '#/Competition'
+    challenges:
+      type: array
+      items:
+        $ref: '#/ChallengeExport'
+    teams:
+      type: array
+      items:
+        $ref: '#/TeamExport'
+    users:
+      type: array
+      items:
+        $ref: '#/UserExport'
+    awards:
+      type: array
+      items:
+        $ref: '#/AwardResponse'
+    solves:
+      type: array
+      items:
+        $ref: '#/Solve'
+    files:
+      type: array
+      items:
+        $ref: '#/File'
+  type: object
+AdminResetRequest:
+  properties:
+    pages:
+      type: boolean
+      description: Reset pages
+    notifications:
+      type: boolean
+      description: Reset notifications
+    challenges:
+      type: boolean
+      description: Reset challenges, hints, files
+    accounts:
+      type: boolean
+      description: Reset users and teams
+    submissions:
+      type: boolean
+      description: Reset submissions and solves
+  type: object
+ImportResult:
+  properties:
+    success:
+      type: boolean
+    errors:
+      type: array
+      items:
+        type: string
+    skipped_count:
+      type: integer
+  type: object
+CSVImportResult:
+  properties:
+    success:
+      type: boolean
+    imported_count:
+      type: integer
+    errors:
+      type: array
+      items:
+        type: string
+    skipped_count:
+      type: integer
+  type: object
+ConfigResponse:
+  properties:
+    key:
+      type: string
+    value:
+      type: string
+    value_type:
+      type: string
+    category:
+      type: string
+    description:
+      type: string
+    updated_at:
+      type: string
+      format: date-time
+  required:
+  - key
+  - value
+  - value_type
+  type: object
+ConfigCategoryItem:
+  type: object
+  required:
+  - name
+  - count
+  properties:
+    name:
+      type: string
+    count:
+      type: integer
+ConfigPublicResponse:
+  type: object
+  additionalProperties: true
+  description: Public config as flat key-value map; values are typed (string, number, boolean).
+SetConfigRequest:
+  properties:
+    value:
+      type: string
+      maxLength: 10000
+    value_type:
+      enum:
+      - string
+      - int
+      - bool
+      - json
+      type: string
+      default: string
+    description:
+      type: string
+    category:
+      type: string
+      description: optional category for non-registry keys
+  required:
+  - value
+  type: object
+BatchSetConfigRequest:
+  properties:
+    configs:
+      type: array
+      maxItems: 50
+      items:
+        $ref: '#/BatchSetConfigItem'
+  required:
+  - configs
+  type: object
+BatchSetConfigItem:
+  properties:
+    key:
+      type: string
+    value:
+      type: string
+    value_type:
+      enum:
+      - string
+      - int
+      - bool
+      - json
+      type: string
+      default: string
+    description:
+      type: string
+    category:
+      type: string
+      description: optional category for non-registry keys
+  required:
+  - key
+  - value
+  type: object
+UploadFileResponse:
+  properties:
+    id:
+      type: string
+    filename:
+      type: string
+    size:
+      type: integer
+      format: int64
+    sha256:
+      type: string
+  required:
+  - id
+  - filename
+  - size
+  - sha256
+  type: object
+FileDownloadURLResponse:
+  properties:
+    url:
+      type: string
+  required:
+  - url
+  type: object
+FileItem:
+  properties:
+    id:
+      type: string
+    filename:
+      type: string
+    size:
+      type: integer
+    sha256:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    url:
+      type: string
+      description: Presigned download URL (only present when explicitly generated)
+  type: object
+File:
+  properties:
+    id:
+      type: string
+    type:
+      type: string
+    challenge_id:
+      type: string
+    location:
+      type: string
+    filename:
+      type: string
+    size:
+      type: integer
+    sha256:
+      type: string
+    created_at:
+      type: string
+  type: object
+CompetitionResponse:
+  properties:
+    end_time:
+      type: string
+    freeze_time:
+      type: string
+    id:
+      type: integer
+    is_paused:
+      type: boolean
+    is_public:
+      type: boolean
+    keep_scoreboard_frozen_after_end:
+      type: boolean
+    mode:
+      type: string
+    name:
+      type: string
+    paused_at:
+      type: string
+    start_time:
+      type: string
+    status:
+      type: string
+    allow_team_switch:
+      type: boolean
+    min_team_size:
+      type: integer
+    max_team_size:
+      type: integer
+    flag_regex:
+      type: string
+  type: object
+CompetitionStatusResponse:
+  properties:
+    end_time:
+      type: string
+    freeze_time:
+      type: string
+    keep_scoreboard_frozen_after_end:
+      type: boolean
+    mode:
+      type: string
+    name:
+      type: string
+    paused_at:
+      type: string
+    start_time:
+      type: string
+    status:
+      type: string
+    submission_allowed:
+      type: boolean
+  type: object
+Competition:
+  properties:
+    id:
+      type: integer
+    name:
+      type: string
+    start_time:
+      type: string
+    end_time:
+      type: string
+    freeze_time:
+      type: string
+    is_paused:
+      type: boolean
+    mode:
+      type: string
+  type: object
+UpdateCompetitionRequest:
+  properties:
+    allow_team_switch:
+      type: boolean
+    clear_end_time:
+      type: boolean
+    clear_freeze_time:
+      type: boolean
+    end_time:
+      format: date-time
+      type: string
+    flag_regex:
+      type: string
+    freeze_time:
+      format: date-time
+      type: string
+    is_paused:
+      type: boolean
+    is_public:
+      type: boolean
+    keep_scoreboard_frozen_after_end:
+      type: boolean
+    max_team_size:
+      type: integer
+      minimum: 0
+    min_team_size:
+      type: integer
+      minimum: 0
+    mode:
+      type: string
+    name:
+      type: string
+    start_time:
+      format: date-time
+      type: string
+  required:
+  - name
+  type: object
+APITokenResponse:
+  properties:
+    id:
+      type: string
+    description:
+      type: string
+    expires_at:
+      type: string
+      format: date-time
+    last_used_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+  type: object
+APITokenCreatedResponse:
+  properties:
+    id:
+      type: string
+    token:
+      type: string
+      description: Plaintext token (shown once)
+    description:
+      type: string
+    expires_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+  required:
+  - token
+  type: object
+CreateAPITokenRequest:
+  properties:
+    description:
+      type: string
+      maxLength: 255
+    expires_at:
+      type: string
+      format: date-time
+  type: object
+NotificationResponse:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    content:
+      type: string
+    type:
+      type: string
+    is_pinned:
+      type: boolean
+    created_at:
+      type: string
+  type: object
+UserNotificationResponse:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    content:
+      type: string
+    type:
+      type: string
+    is_read:
+      type: boolean
+    created_at:
+      type: string
+  type: object
+CreateNotificationRequest:
+  properties:
+    title:
+      type: string
+      maxLength: 200
+      x-oapi-codegen-extra-tags:
+        validate: required,max=200
+    content:
+      type: string
+      maxLength: 5000
+      x-oapi-codegen-extra-tags:
+        validate: required,max=5000
+    type:
+      type: string
+      enum:
+      - info
+      - warning
+      - success
+      - error
+      default: info
+    is_pinned:
+      type: boolean
+      default: false
+  required:
+  - title
+  - content
+  type: object
+CreateUserNotificationRequest:
+  properties:
+    title:
+      type: string
+      maxLength: 200
+      x-oapi-codegen-extra-tags:
+        validate: required,max=200
+    content:
+      type: string
+      maxLength: 5000
+      x-oapi-codegen-extra-tags:
+        validate: required,max=5000
+    type:
+      type: string
+      enum:
+      - info
+      - warning
+      - success
+      - error
+      default: info
+  required:
+  - title
+  - content
+  type: object
+UpdateNotificationRequest:
+  properties:
+    title:
+      type: string
+      maxLength: 200
+      x-oapi-codegen-extra-tags:
+        validate: required,max=200
+    content:
+      type: string
+      maxLength: 5000
+      x-oapi-codegen-extra-tags:
+        validate: required,max=5000
+    type:
+      type: string
+      enum:
+      - info
+      - warning
+      - success
+      - error
+    is_pinned:
+      type: boolean
+  required:
+  - title
+  - content
+  type: object
+PageResponse:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    slug:
+      type: string
+    content:
+      type: string
+    is_draft:
+      type: boolean
+    order_index:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  type: object
+PageListItemResponse:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    slug:
+      type: string
+    order_index:
+      type: integer
+  type: object
+CreatePageRequest:
+  properties:
+    title:
+      type: string
+      maxLength: 200
+    slug:
+      type: string
+      maxLength: 100
+      pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+    content:
+      type: string
+      maxLength: 50000
+    is_draft:
+      type: boolean
+      default: true
+    order_index:
+      type: integer
+      default: 0
+  required:
+  - title
+  - slug
+  type: object
+UpdatePageRequest:
+  properties:
+    title:
+      type: string
+      maxLength: 200
+    slug:
+      type: string
+      maxLength: 100
+      pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+    content:
+      type: string
+      maxLength: 50000
+    is_draft:
+      type: boolean
+    order_index:
+      type: integer
+  required:
+  - title
+  - slug
+  type: object
+BracketResponse:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    is_default:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+  type: object
+CreateBracketRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 200
+    description:
+      type: string
+      maxLength: 500
+    is_default:
+      type: boolean
+      default: false
+  required:
+  - name
+  type: object
+UpdateBracketRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 200
+    description:
+      type: string
+      maxLength: 500
+    is_default:
+      type: boolean
+  required:
+  - name
+  type: object
+SetTeamBracketRequest:
+  properties:
+    bracket_id:
+      type: string
+      format: uuid
+      nullable: true
+  type: object
+FieldResponse:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    field_type:
+      type: string
+      enum:
+      - text
+      - number
+      - select
+      - boolean
+    entity_type:
+      type: string
+      enum:
+      - user
+      - team
+    required:
+      type: boolean
+    options:
+      items:
+        type: string
+      type: array
+    order_index:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+  type: object
+CreateFieldRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 100
+    field_type:
+      type: string
+      enum:
+      - text
+      - number
+      - select
+      - boolean
+    entity_type:
+      type: string
+      enum:
+      - user
+      - team
+    required:
+      type: boolean
+      default: false
+    options:
+      description: Options for select type
+      items:
+        type: string
+      type: array
+    order_index:
+      type: integer
+      default: 0
+  required:
+  - name
+  - field_type
+  - entity_type
+  type: object
+UpdateFieldRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 100
+    field_type:
+      type: string
+      enum:
+      - text
+      - number
+      - select
+      - boolean
+    required:
+      type: boolean
+    options:
+      items:
+        type: string
+      type: array
+    order_index:
+      type: integer
+  required:
+  - name
+  - field_type
+  type: object
+TagResponse:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    color:
+      type: string
+  type: object
+CreateTagRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 50
+      x-oapi-codegen-extra-tags:
+        validate: required,max=50
+    color:
+      type: string
+      default: '#6b7280'
+  required:
+  - name
+  type: object
+UpdateTagRequest:
+  properties:
+    name:
+      type: string
+      maxLength: 50
+      x-oapi-codegen-extra-tags:
+        validate: required,max=50
+    color:
+      type: string
+  required:
+  - name
+  type: object
+AwardResponse:
+  properties:
+    id:
+      type: string
+    team_id:
+      type: string
+    value:
+      type: integer
+    description:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    created_by:
+      type: string
+      nullable: true
+  type: object
+CreateAwardRequest:
+  properties:
+    team_id:
+      type: string
+    value:
+      type: integer
+    description:
+      type: string
+      maxLength: 500
+      x-oapi-codegen-extra-tags:
+        validate: required,max=500
+  required:
+  - team_id
+  - value
+  - description
+  type: object
+AvatarUploadResponse:
+  type: object
+  required:
+  - full_url
+  - thumb_url
+  properties:
+    full_url:
+      type: string
+      format: uri
+      description: Presigned URL for full-size avatar (512x512 WebP)
+    thumb_url:
+      type: string
+      format: uri
+      description: Presigned URL for thumbnail avatar (128x128 WebP)
+GeneralStats:
+  properties:
+    challenge_count:
+      type: integer
+    solve_count:
+      type: integer
+    team_count:
+      type: integer
+    user_count:
+      type: integer
+  type: object
+ChallengeStats:
+  properties:
+    category:
+      type: string
+    id:
+      type: string
+    points:
+      type: integer
+    solve_count:
+      type: integer
+    title:
+      type: string
+  type: object
+ChallengeSolveEntry:
+  properties:
+    team_id:
+      type: string
+    team_name:
+      type: string
+    solved_at:
+      type: string
+      format: date-time
+  type: object
+ChallengeDetailStats:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    category:
+      type: string
+    points:
+      type: integer
+    solve_count:
+      type: integer
+    total_teams:
+      type: integer
+    percentage_solved:
+      type: number
+    first_blood:
+      $ref: '#/ChallengeSolveEntry'
+    solves:
+      type: array
+      items:
+        $ref: '#/ChallengeSolveEntry'
+  type: object
+ChallengeSolvePercentage:
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+    category:
+      type: string
+    solve_count:
+      type: integer
+    total_teams:
+      type: integer
+    percentage:
+      type: number
+  type: object
+ScoreDistributionBucket:
+  properties:
+    bucket:
+      type: string
+    count:
+      type: integer
+  type: object
+SubmissionTimeSeries:
+  properties:
+    date:
+      type: string
+      format: date
+    correct:
+      type: integer
+    incorrect:
+      type: integer
+  type: object
+SubmissionTimeSeriesResponse:
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SubmissionTimeSeries'
+    total_correct:
+      type: integer
+    total_incorrect:
+      type: integer
+  type: object
+RegistrationTimePoint:
+  properties:
+    date:
+      type: string
+      format: date
+    count:
+      type: integer
+  type: object
+SolveMatrixRow:
+  properties:
+    team_id:
+      type: string
+      format: uuid
+    team_name:
+      type: string
+    challenge_id:
+      type: string
+      format: uuid
+    challenge_title:
+      type: string
+    challenge_category:
+      type: string
+    solved:
+      type: boolean
+    solved_at:
+      type: string
+      format: date-time
+      nullable: true
+  type: object
+ScoreboardHistoryEntry:
+  properties:
+    points:
+      type: integer
+    team_id:
+      type: string
+    team_name:
+      type: string
+    timestamp:
+      type: string
+  type: object
+ScorePoint:
+  properties:
+    timestamp:
+      type: string
+    score:
+      type: integer
+  type: object
+TeamTimeline:
+  properties:
+    team_id:
+      type: string
+    team_name:
+      type: string
+    timeline:
+      type: array
+      items:
+        $ref: '#/ScorePoint'
+  type: object
+TimeRange:
+  properties:
+    start:
+      type: string
+    end:
+      type: string
+  type: object
+ScoreboardGraph:
+  properties:
+    range:
+      $ref: '#/TimeRange'
+    teams:
+      type: array
+      items:
+        $ref: '#/TeamTimeline'
+  type: object
+ScoreboardEntryResponse:
+  properties:
+    last_solved:
+      type: string
+    points:
+      type: integer
+    team_id:
+      type: string
+    team_name:
+      type: string
+    team_avatar_thumbnail_url:
+      type: string
+  type: object
+CreateAppealRequest:
+  type: object
+  required:
+  - message
+  properties:
+    message:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: required,min=10,max=2000
+ReviewAppealRequest:
+  type: object
+  required:
+  - decision
+  properties:
+    decision:
+      type: string
+      enum:
+      - resolved
+      - rejected
+      x-oapi-codegen-extra-tags:
+        validate: required,oneof=resolved rejected
+    admin_response:
+      type: string
+      x-oapi-codegen-extra-tags:
+        validate: omitempty,max=2000
+BanAppealResponse:
+  type: object
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    message:
+      type: string
+    created_at:
+      type: string
+    reviewed_at:
+      type: string
+    admin_response:
+      type: string
+    decision:
+      type: string
+      description: pending, resolved, or rejected
+BanAppealListResponse:
+  type: object
+  properties:
+    appeals:
+      type: array
+      items:
+        $ref: '#/BanAppealResponse'
+    meta:
+      $ref: '#/PaginationMeta'
+StorageObjectResponse:
+  type: object
+  properties:
+    path:
+      type: string
+    size:
+      type: integer
+      format: int64
+    last_modified:
+      type: string
+      format: date-time
+StorageListResponse:
+  type: object
+  properties:
+    objects:
+      type: array
+      items:
+        $ref: '#/StorageObjectResponse'
+    total:
+      type: integer
