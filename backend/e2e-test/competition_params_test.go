@@ -164,6 +164,7 @@ func TestConfig_Public_NoToken_WhitelistKeys(t *testing.T) {
 		"theme_footer_html": true, "theme_dark_mode": true,
 		"social_github": true, "social_discord": true, "social_twitter": true, "social_website": true,
 		"challenge_visibility": true, "score_visibility": true, "account_visibility": true, "registration_visibility": true,
+		"setup_complete": true, "email_verification_required": true, "timezone": true,
 	}
 
 	for key := range *resp.JSON200 {

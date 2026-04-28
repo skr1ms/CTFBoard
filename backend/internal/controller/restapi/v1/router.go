@@ -52,7 +52,7 @@ const (
 	defaultRLWindow        = time.Minute
 	avatarUploadLimit      = 2
 	avatarUploadWindow     = time.Minute
-	teamOpRateLimit        = 2
+	teamOpRateLimit        = 5
 	teamOpRateLimitWindow  = time.Minute
 	adminExportZipLimit    = 3
 	adminExportZipWindow   = time.Minute

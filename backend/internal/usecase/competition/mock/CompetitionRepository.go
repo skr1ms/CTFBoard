@@ -7,8 +7,9 @@ package mock
 import (
 	"context"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 // NewMockCompetitionRepository creates a new instance of MockCompetitionRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
