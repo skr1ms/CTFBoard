@@ -154,8 +154,6 @@ github.com/golang-jwt/jwt/v5 v5.3.1/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArs
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-github.com/google/subcommands v1.2.0 h1:vWQspBTo2nEqTUFita5/KeEWlUL8kQObDFbub/EN9oE=
-github.com/google/subcommands v1.2.0/go.mod h1:ZjhPrFU+Olkh9WazFPsl27BQ4UPiG37m3yTrtFlrHVk=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/wire v0.7.0 h1:JxUKI6+CVBgCO2WToKy/nQk0sS+amI9z9EjVmdaocj4=
@@ -293,6 +291,8 @@ github.com/perimeterx/marshmallow v1.1.5 h1:a2LALqQ1BlHM8PZblsDdidgv1mWi1DgC2UmX
 github.com/perimeterx/marshmallow v1.1.5/go.mod h1:dsXbUu8CRzfYP5a87xpp0xq9S3u0Vchtcl8we9tYaXw=
 github.com/philhofer/fwd v1.2.0 h1:e6DnBTl7vGY+Gz322/ASL4Gyp1FspeMvx1RNDoToZuM=
 github.com/philhofer/fwd v1.2.0/go.mod h1:RqIHx9QI14HlwKwm98g9Re5prTQ6LdeRQn+gXJFxsJM=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -381,8 +381,8 @@ github.com/wahrwelt-kit/go-httpkit v0.5.1 h1:yl0MXZmjLcbZZcP95K2wKvkM2RVZPC1GvEY
 github.com/wahrwelt-kit/go-httpkit v0.5.1/go.mod h1:JdCQnukIHu404c/YbfTEactuvZAOMiEt/2d7CI3GYmk=
 github.com/wahrwelt-kit/go-jwtkit v0.4.1 h1:8YiNcKY+YkvETLQV55d4zudK/BS/b8R5V2z0bOWi9hU=
 github.com/wahrwelt-kit/go-jwtkit v0.4.1/go.mod h1:ah9c6hoHwlP08uEmONNlvKYPzwpcxigQdC5bnw41LzI=
-github.com/wahrwelt-kit/go-logkit v0.4.1 h1:q3iarzsqKicWYQ2MCmE0Z0AfN1u1u5c64soY3Fnv1lU=
-github.com/wahrwelt-kit/go-logkit v0.4.1/go.mod h1:Sjv3R9aA/wC6sE+L/OV9sQTrUe/TWhdel7LlfXIM09w=
+github.com/wahrwelt-kit/go-logkit v0.5.0 h1:nG83DWR6dXYXcT7PJkyODx9zre+S9I9zRKF/R8uLs3o=
+github.com/wahrwelt-kit/go-logkit v0.5.0/go.mod h1:BKC5A1T7HJ0qJvXoN1c6f7FKWNxEIzXELFSKL0orcoY=
 github.com/wahrwelt-kit/go-pgkit v1.3.1 h1:cL0DRRJ3uoqnlhmXvVjKvue/om3mrrCO+7tZhxvRvFE=
 github.com/wahrwelt-kit/go-pgkit v1.3.1/go.mod h1:jpYa1+x+FzfwAnMxcl0Myt811qFkW9HQznheuLRBToU=
 github.com/wahrwelt-kit/go-wskit v0.3.0 h1:rzNcWjg1/nCiw9sjtRhLt8/UeAEVH/EBsKW12tnDy80=
