@@ -39,9 +39,9 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/redis v0.42.0
 	github.com/tsenart/vegeta/v12 v12.13.0
 	github.com/wahrwelt-kit/go-cachekit v0.5.0
-	github.com/wahrwelt-kit/go-httpkit v0.5.1
+	github.com/wahrwelt-kit/go-httpkit v0.5.2
 	github.com/wahrwelt-kit/go-jwtkit v0.4.1
-	github.com/wahrwelt-kit/go-logkit v0.4.1
+	github.com/wahrwelt-kit/go-logkit v0.5.0
 	github.com/wahrwelt-kit/go-pgkit v1.3.1
 	github.com/wahrwelt-kit/go-wskit v0.3.0
 	golang.org/x/crypto v0.50.0
@@ -136,6 +136,7 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nicksnyder/go-i18n/v2 v2.6.1 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/oasdiff/yaml v0.0.9 // indirect
 	github.com/oasdiff/yaml3 v0.0.12 // indirect
@@ -143,6 +144,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pressly/goose/v3 v3.27.1 // indirect
