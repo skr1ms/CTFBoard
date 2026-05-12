@@ -8,7 +8,7 @@ require (
 	github.com/chai2010/webp v1.4.0
 	github.com/coder/websocket v1.8.14
 	github.com/disintegration/imaging v1.6.2
-	github.com/getkin/kin-openapi v0.137.0
+	github.com/getkin/kin-openapi v0.138.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/go-chi/httprate v0.15.0
