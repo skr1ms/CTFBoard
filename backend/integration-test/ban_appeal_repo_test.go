@@ -134,7 +134,6 @@ func TestBanAppealRepo_GetLatestByUserID_NotFound(t *testing.T) {
 }
 
 func TestBanAppealRepo_List_NoFilter_Pagination(t *testing.T) {
-	t.Parallel()
 	f := SetupTestFixture(t)
 	ctx := context.Background()
 	sameCreatedAt := time.Now().UTC().Add(-time.Hour)
