@@ -23,7 +23,8 @@ func visibilityGuardStatus(value string, user *domain.User) int {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+
 	if user != nil {
 		req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
 	}

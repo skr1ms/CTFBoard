@@ -185,8 +185,8 @@ func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
 
 	cfg, err := New()
 	require.NoError(t, err)
-	assert.False(t, cfg.Resend.Enabled)
-	assert.Empty(t, cfg.Resend.APIKey)
+	assert.False(t, cfg.Enabled)
+	assert.Empty(t, cfg.APIKey)
 	assert.False(t, cfg.VerifyEmails)
 }
 
@@ -207,8 +207,8 @@ func TestNew_ResendPlaceholder_DisablesEmail(t *testing.T) {
 
 	cfg, err := New()
 	require.NoError(t, err)
-	assert.False(t, cfg.Resend.Enabled)
-	assert.Equal(t, "placeholder", cfg.Resend.APIKey)
+	assert.False(t, cfg.Enabled)
+	assert.Equal(t, "placeholder", cfg.APIKey)
 }
 
 func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {

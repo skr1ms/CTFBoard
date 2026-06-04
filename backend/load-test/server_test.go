@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -347,7 +346,13 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 
 func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCases, val validator.Validator, jwtSvc *jwtkit.JWTService, storageDir string, redisClient *redis.Client) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(kitMiddleware.RequestID(), chimiddleware.RealIP, kitMiddleware.Recoverer(l))
+
+	clientIP, err := kitMiddleware.ClientIP(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	r.Use(kitMiddleware.RequestID(), clientIP, kitMiddleware.Recoverer(l))
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/ws") {

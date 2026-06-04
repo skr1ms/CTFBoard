@@ -399,7 +399,7 @@ func TestCompetitionParamUseCase_SetBatch_InvalidVisibility_ReturnsError(t *test
 	d := newCompetitionTestDeps(t)
 	ctx := context.Background()
 	params := []*domain.CompetitionParam{
-		{Key: "challenge_visibility", Value: "privte", ValueType: domain.CompetitionParamTypeString, Category: "visibility"},
+		{Key: "challenge_visibility", Value: "invalid-private", ValueType: domain.CompetitionParamTypeString, Category: "visibility"},
 	}
 
 	uc := d.createCompetitionParamUseCase()

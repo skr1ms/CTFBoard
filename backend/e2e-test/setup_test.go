@@ -16,7 +16,6 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1027,7 +1026,12 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 	r := chi.NewRouter()
 	timeoutMW := kitMiddleware.Timeout(60 * time.Second)
 
-	r.Use(kitMiddleware.RequestID(), middleware.RealIP, kitMiddleware.Recoverer(l))
+	clientIP, err := kitMiddleware.ClientIP(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	r.Use(kitMiddleware.RequestID(), clientIP, kitMiddleware.Recoverer(l))
 	r.Use(func(next http.Handler) http.Handler {
 		withTimeout := timeoutMW(next)
 
