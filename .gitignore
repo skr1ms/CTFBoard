@@ -69,6 +69,7 @@ CTFd/
 .claude/
 .codex
 backend/bin/
+backend/.venv-codegen/
 backend/openapi/components/schemas.yml
 PRD/
 .vault-keys

@@ -83,7 +83,25 @@ jobs:
         working-directory: backend
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          make deps-audit
+
+  check-dependencies-full:
+    name: runner / check-dependencies-full
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    needs: [gitleaks, yamllint, hadolint, dotenv-linter]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: backend/go.sum
+      - name: govulncheck all packages
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          make deps-audit-all
 
   golangci-lint:
     name: runner / golangci-lint
@@ -252,10 +270,10 @@ jobs:
           push: false
           tags: ctf-platform-frontend:${{ github.sha }}
           build-args: |
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'http://localhost:8090/api/v1' }}
-            VITE_WS_URL=${{ vars.VITE_WS_URL || 'ws://localhost:8090/api/v1/ws' }}
-            VITE_SSE_URL=${{ vars.VITE_SSE_URL || 'http://localhost:8090/api/v1/sse' }}
-            VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'CTF Platform' }}
+            VITE_API_BASE_URL=http://localhost:8090/api/v1
+            VITE_WS_URL=ws://localhost:8090/api/v1/ws
+            VITE_SSE_URL=http://localhost:8090/api/v1/sse
+            VITE_APP_NAME=CTF Platform
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

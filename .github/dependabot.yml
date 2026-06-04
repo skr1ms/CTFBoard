@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "ci"
@@ -12,6 +16,17 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    groups:
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
+      backend-openapi:
+        patterns:
+          - "github.com/getkin/kin-openapi"
+          - "github.com/oapi-codegen/runtime"
+      backend-mail:
+        patterns:
+          - "github.com/resend/resend-go/v3"
     labels:
       - "dependencies"
       - "go"
@@ -20,6 +35,10 @@ updates:
     directory: "/frontend/board"
     schedule:
       interval: "weekly"
+    groups:
+      frontend:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "frontend"
@@ -28,6 +47,10 @@ updates:
     directory: "/deployment/docker"
     schedule:
       interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "docker"
