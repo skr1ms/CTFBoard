@@ -354,9 +354,9 @@ func setupBasicAuthRoutes(
 // authenticates requests when credentials are present but lets guests through.
 // VisibilityGuard then enforces the per-section config key:
 //
-//	score_visibility    -> /scoreboard, /statistics, per-user/team solves/fails/awards
+//	score_visibility    -> /scoreboard, /statistics, per-user/team/challenge solves/fails/awards
 //	account_visibility  -> /users, /teams (public read)
-//	challenge_visibility -> /challenges (read-only + first-blood)
+//	challenge_visibility -> /challenges (read-only metadata and files)
 func setupConditionalPublicRoutes(
 	router chi.Router,
 	deps *helper.ServerDeps,
@@ -396,6 +396,8 @@ func setupConditionalPublicRoutes(
 			sb.Get("/teams/solves/{teamID}", wrapper.GetTeamsIDSolves)
 			sb.Get("/teams/fails/{teamID}", wrapper.GetTeamsIDFails)
 			sb.Get("/teams/awards/{teamID}", wrapper.GetTeamsIDAwards)
+			sb.Get("/challenges/{challengeID}/solves", wrapper.GetChallengesChallengeIDSolves)
+			sb.Get("/challenges/{challengeID}/first-blood", wrapper.GetChallengesChallengeIDFirstBlood)
 			sb.Get("/statistics/general", wrapper.GetStatisticsGeneral)
 			sb.Get("/statistics/challenges", wrapper.GetStatisticsChallenges)
 			sb.Get("/statistics/challenges/{ID}", wrapper.GetStatisticsChallengesID)
@@ -427,13 +429,11 @@ func setupConditionalPublicRoutes(
 			ch.Get("/challenges", wrapper.GetChallenges)
 			ch.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
 			ch.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
-			ch.Get("/challenges/{challengeID}/solves", wrapper.GetChallengesChallengeIDSolves)
 			ch.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
 			ch.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
 			ch.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
 			ch.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
 			ch.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
-			ch.Get("/challenges/{challengeID}/first-blood", wrapper.GetChallengesChallengeIDFirstBlood)
 		})
 	})
 }

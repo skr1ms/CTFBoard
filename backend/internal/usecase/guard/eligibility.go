@@ -27,7 +27,7 @@ type TeamMemberCounter interface {
 
 // ValidateSubmissionEligibility checks whether a user/team is allowed to submit or unlock hints
 // given the current competition settings. It enforces:
-//   - user not banned
+//   - user not banned and not marked as a former member of a banned team
 //   - team not banned
 //   - competition mode (solo-only / team-only)
 //   - minimum team size
@@ -36,6 +36,10 @@ type TeamMemberCounter interface {
 func ValidateSubmissionEligibility(ctx context.Context, user *domain.User, team *domain.Team, comp *domain.Competition, teamRepo TeamMemberCounter) error {
 	if user != nil && user.IsBanned {
 		return apperr.ErrUserBanned
+	}
+
+	if user != nil && user.WasInBannedTeam && user.Role != domain.RoleAdmin {
+		return apperr.ErrUserWasInBannedTeam
 	}
 
 	if team == nil {

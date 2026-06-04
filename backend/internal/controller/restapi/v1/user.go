@@ -18,26 +18,35 @@ import (
 )
 
 const (
-	refreshCookieName    = "ctf_refresh"
-	refreshCookieMaxAge  = 72 * 60 * 60 // 72 h - matches jwtkit RefreshTTL
-	defaultUserSortField = "username"
-	sortFieldIP          = "ip"
+	refreshCookieName          = "ctf_refresh"
+	defaultRefreshCookieMaxAge = 72 * 60 * 60
+	defaultUserSortField       = "username"
+	sortFieldIP                = "ip"
 )
 
-func (h *Server) setRefreshCookie(w http.ResponseWriter, token string, maxAge int) {
+func setRefreshCookie(w http.ResponseWriter, token string, maxAge int, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    token,
 		Path:     "/api/v1/auth",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   h.user.SecureCookies,
+		Secure:   secure,
 		SameSite: http.SameSiteStrictMode,
 	})
 }
 
+func (h *Server) setRefreshCookie(w http.ResponseWriter, token string) {
+	maxAge := h.user.RefreshCookieMaxAge
+	if maxAge <= 0 {
+		maxAge = defaultRefreshCookieMaxAge
+	}
+
+	setRefreshCookie(w, token, maxAge, h.user.SecureCookies)
+}
+
 func (h *Server) clearRefreshCookie(w http.ResponseWriter) {
-	h.setRefreshCookie(w, "", -1)
+	setRefreshCookie(w, "", -1, h.user.SecureCookies)
 }
 
 // requireOwnUserOrAdmin writes ErrAccessDenied and returns false when the authenticated
@@ -69,7 +78,7 @@ func (h *Server) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.setRefreshCookie(w, tokenPair.RefreshToken, refreshCookieMaxAge)
+	h.setRefreshCookie(w, tokenPair.RefreshToken)
 	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 
@@ -147,7 +156,7 @@ func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.setRefreshCookie(w, tokenPair.RefreshToken, refreshCookieMaxAge)
+	h.setRefreshCookie(w, tokenPair.RefreshToken)
 	httputil.RenderOK(w, r, response.FromTokenPair(tokenPair))
 }
 

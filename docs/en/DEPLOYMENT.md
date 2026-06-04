@@ -157,7 +157,7 @@ $EDITOR .env  # fill the REQUIRED block (see ENVIRONMENT.md)
 
 > **Required fields for Path B:** see the [REQUIRED block in ENVIRONMENT.md](ENVIRONMENT.md#required--fill-before-first-start). Missing any of them causes `setup.sh start` to fail (Postgres/Grafana/HAProxy enforce passwords with `:?` in compose).
 
-If you prefer auto-generated cryptographic secrets, leave `FLAG_ENCRYPTION_KEY`, `JWT_*_SECRET`, `OAUTH_STATE_SECRET`, `ADMIN_PASSWORD` empty in `.env` - `init-vault.sh` will generate them and log per-path source markers (`[seeded from env]` vs `[auto-generated]`).
+If you prefer auto-generated cryptographic secrets, leave `FLAG_ENCRYPTION_KEY`, `JWT_*_SECRET`, `OAUTH_STATE_SECRET`, `ADMIN_PASSWORD` empty in `.env` - `init-vault.sh` will generate them and log per-path source markers (`[seeded from env]` vs `[auto-generated]`). `SETUP_TOKEN` is stored only in `.env`; `setup.sh start` generates it automatically when empty. Paste that value into the browser setup wizard's Setup token field.
 
 ---
 

@@ -36,6 +36,10 @@ type OAuthProviderConfig struct {
 	RedirectURL  string
 }
 
+func (c OAuthProviderConfig) IsConfigured() bool {
+	return c.ClientID != "" && c.ClientSecret != "" && c.RedirectURL != ""
+}
+
 // OAuthConfig holds the shared state secret and per-provider credentials.
 type OAuthConfig struct {
 	StateSecret string
@@ -451,7 +455,7 @@ func (uc *OAuthUseCase) oauthConfig(ctx context.Context, provider string) (*oaut
 
 	switch provider {
 	case "github":
-		if !settings.OAuthGithubEnabled {
+		if !settings.OAuthGithubEnabled || !uc.deps.Cfg.GitHub.IsConfigured() {
 			return nil, apperr.ErrOAuthProviderDisabled
 		}
 
@@ -464,7 +468,7 @@ func (uc *OAuthUseCase) oauthConfig(ctx context.Context, provider string) (*oaut
 		}, nil
 
 	case "google":
-		if !settings.OAuthGoogleEnabled {
+		if !settings.OAuthGoogleEnabled || !uc.deps.Cfg.Google.IsConfigured() {
 			return nil, apperr.ErrOAuthProviderDisabled
 		}
 

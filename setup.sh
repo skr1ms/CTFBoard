@@ -251,11 +251,50 @@ env_get_default() {
   printf '%s' "${val:-$fallback}"
 }
 
+ensure_setup_token() {
+  local token
+  token="$(env_get SETUP_TOKEN 2>/dev/null || true)"
+  if [ -z "$token" ]; then
+    token="$(gen_alphanum 48 64)"
+    env_set SETUP_TOKEN "$token"
+    chmod 600 "$ENV_FILE"
+    green "  SETUP_TOKEN generated and saved to .env."
+    echo ""
+    return 0
+  fi
+
+  if [ "${#token}" -lt 32 ]; then
+    red "  SETUP_TOKEN must be at least 32 characters."
+    echo "  Generate a new one:"
+    echo "    openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64"
+    exit 1
+  fi
+}
+
+validate_required_env() {
+  local missing=()
+  local key val
+  for key in POSTGRES_PASSWORD REDIS_PASSWORD GRAFANA_ADMIN_PASSWORD HAPROXY_STATS_PASSWORD SEAWEED_S3_ACCESS_KEY SEAWEED_S3_SECRET_KEY; do
+    val="$(env_get "$key" 2>/dev/null || true)"
+    [ -n "$val" ] || missing+=("$key")
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    red "  Required .env values are missing: ${missing[*]}"
+    echo ""
+    echo "  Fill them manually or run ./setup.sh to use the interactive wizard."
+    exit 1
+  fi
+
+  ensure_setup_token
+}
+
 load_env_app_secrets() {
   JWT_ACCESS_SECRET="$(env_get JWT_ACCESS_SECRET)"
   JWT_REFRESH_SECRET="$(env_get JWT_REFRESH_SECRET)"
   FLAG_ENCRYPTION_KEY="$(env_get FLAG_ENCRYPTION_KEY)"
   RESEND_API_KEY="$(env_get RESEND_API_KEY)"
+  SETUP_TOKEN="$(env_get SETUP_TOKEN)"
   ADMIN_USERNAME="$(env_get ADMIN_USERNAME)"
   ADMIN_EMAIL="$(env_get ADMIN_EMAIL)"
   ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
@@ -614,6 +653,11 @@ run_wizard() {
     OAUTH_STATE_SECRET="$(gen_alphanum 48 64)"
   fi
 
+  SETUP_TOKEN="$(env_get_default SETUP_TOKEN "")"
+  if [ -z "$SETUP_TOKEN" ]; then
+    SETUP_TOKEN="$(gen_alphanum 48 64)"
+  fi
+
   section "Summary" "Configuration Summary"
   printf "  %-12s %s\n" "Platform:" "$APP_NAME (v$APP_VERSION)"
   printf "  %-12s %s\n" "Domain:" "$DOMAIN"
@@ -680,6 +724,7 @@ apply_env() {
   env_set GRAFANA_ADMIN_USER   "$GRAFANA_ADMIN_USER"
   env_set GRAFANA_ADMIN_PASSWORD "$GRAFANA_ADMIN_PASSWORD"
   env_set HAPROXY_STATS_PASSWORD "$HAPROXY_STATS_PASSWORD"
+  env_set SETUP_TOKEN          "$SETUP_TOKEN"
 
   # URLs
   env_set API_BASE_URL         "$API_BASE_URL"
@@ -1045,6 +1090,7 @@ report_tls_status() {
 
 deploy_fresh() {
   echo ""
+  validate_required_env
   ensure_s3_json_current
   bold "  [1/4] Starting infrastructure (vault, postgres, redis, seaweedfs)..."
   echo ""
@@ -1091,6 +1137,8 @@ do_start() {
     red "No .env found. Run ./setup.sh to configure first."
     exit 1
   fi
+
+  validate_required_env
 
   echo ""
   bold "Starting services..."

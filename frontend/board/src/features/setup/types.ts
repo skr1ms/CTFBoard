@@ -18,6 +18,7 @@ export interface SetupFormData {
   email_verification_required: boolean
 
   // Administration
+  setup_token: string
   admin_username: string
   admin_email: string
   admin_password: string
@@ -41,6 +42,7 @@ export const SETUP_DEFAULTS: SetupFormData = {
   account_visibility: 'public',
   registration_visibility: 'public',
   email_verification_required: false,
+  setup_token: '',
   admin_username: '',
   admin_email: '',
   admin_password: '',

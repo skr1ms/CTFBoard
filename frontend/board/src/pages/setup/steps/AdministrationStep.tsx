@@ -11,6 +11,14 @@ interface AdministrationStepProps {
 export function AdministrationStep({ data, errors, onChange }: AdministrationStepProps) {
   return (
     <div className="flex flex-col gap-5">
+      <PasswordInput
+        label="Setup token"
+        value={data.setup_token}
+        onChange={(e) => onChange({ setup_token: e.target.value })}
+        error={errors.setup_token}
+        hint="Paste SETUP_TOKEN from the server .env file."
+        autoComplete="off"
+      />
       <Input
         label="Admin username"
         value={data.admin_username}

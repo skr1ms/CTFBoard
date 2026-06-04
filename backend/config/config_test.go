@@ -167,7 +167,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 	assert.Equal(t, 30*time.Second, cfg.ShutdownTimeout)
 }
 
-func TestNew_Error_ResendEnabledNoAPIKey(t *testing.T) {
+func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
 	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
@@ -180,12 +180,35 @@ func TestNew_Error_ResendEnabledNoAPIKey(t *testing.T) {
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
 		"RESEND_ENABLED":      "true",
 		"RESEND_API_KEY":      "",
+		"VERIFY_EMAILS":       "true",
 	})
 
-	_, err := New()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "RESEND_API_KEY")
-	assert.Contains(t, err.Error(), "RESEND_ENABLED")
+	cfg, err := New()
+	require.NoError(t, err)
+	assert.False(t, cfg.Resend.Enabled)
+	assert.Empty(t, cfg.Resend.APIKey)
+	assert.False(t, cfg.VerifyEmails)
+}
+
+func TestNew_ResendPlaceholder_DisablesEmail(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":       "u",
+		"POSTGRES_PASSWORD":   "p",
+		"POSTGRES_DB":         "d",
+		"JWT_ACCESS_SECRET":   jwtSecret32,
+		"JWT_REFRESH_SECRET":  jwtSecret32,
+		"REDIS_PASSWORD":      "redis_pwd",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"RESEND_ENABLED":      "true",
+		"RESEND_API_KEY":      "placeholder",
+	})
+
+	cfg, err := New()
+	require.NoError(t, err)
+	assert.False(t, cfg.Resend.Enabled)
+	assert.Equal(t, "placeholder", cfg.Resend.APIKey)
 }
 
 func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
@@ -210,4 +233,84 @@ func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
 	assert.Contains(t, err.Error(), "S3_ENDPOINT")
 	assert.Contains(t, err.Error(), "S3_BUCKET")
 	assert.Contains(t, err.Error(), "STORAGE_PROVIDER")
+}
+
+func TestNew_Error_SetupTokenTooShort(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":       "u",
+		"POSTGRES_PASSWORD":   "p",
+		"POSTGRES_DB":         "d",
+		"JWT_ACCESS_SECRET":   jwtSecret32,
+		"JWT_REFRESH_SECRET":  jwtSecret32,
+		"REDIS_PASSWORD":      "redis_pwd",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         "short",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SETUP_TOKEN")
+}
+
+func TestNew_Error_OAuthPartialConfig(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":              "u",
+		"POSTGRES_PASSWORD":          "p",
+		"POSTGRES_DB":                "d",
+		"JWT_ACCESS_SECRET":          jwtSecret32,
+		"JWT_REFRESH_SECRET":         jwtSecret32,
+		"REDIS_PASSWORD":             "redis_pwd",
+		"FLAG_ENCRYPTION_KEY":        flagKey64Hex,
+		"OAUTH_STATE_SECRET":         jwtSecret32,
+		"OAUTH_GITHUB_CLIENT_ID":     "client",
+		"OAUTH_GITHUB_CLIENT_SECRET": "",
+		"OAUTH_GITHUB_REDIRECT_URL":  "http://localhost/callback",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OAUTH_GITHUB_CLIENT_ID")
+	assert.Contains(t, err.Error(), "OAUTH_GITHUB_CLIENT_SECRET")
+}
+
+func TestNew_OAuthRedirectOnlyDoesNotEnableProvider(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":             "u",
+		"POSTGRES_PASSWORD":         "p",
+		"POSTGRES_DB":               "d",
+		"JWT_ACCESS_SECRET":         jwtSecret32,
+		"JWT_REFRESH_SECRET":        jwtSecret32,
+		"REDIS_PASSWORD":            "redis_pwd",
+		"FLAG_ENCRYPTION_KEY":       flagKey64Hex,
+		"OAUTH_GITHUB_REDIRECT_URL": "http://localhost/callback",
+	})
+
+	cfg, err := New()
+	require.NoError(t, err)
+	assert.False(t, cfg.GitHub.IsConfigured())
+}
+
+func TestNew_Error_InvalidRefreshTTL(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":         "u",
+		"POSTGRES_PASSWORD":     "p",
+		"POSTGRES_DB":           "d",
+		"JWT_ACCESS_SECRET":     jwtSecret32,
+		"JWT_REFRESH_SECRET":    jwtSecret32,
+		"REDIS_PASSWORD":        "redis_pwd",
+		"FLAG_ENCRYPTION_KEY":   flagKey64Hex,
+		"JWT_REFRESH_TTL_HOURS": "0",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "JWT_REFRESH_TTL_HOURS")
 }

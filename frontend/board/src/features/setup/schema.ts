@@ -42,6 +42,9 @@ export function validateStep(step: SetupStep, data: SetupFormData): ValidationEr
       break // all have defaults, nothing mandatory
 
     case 3: // Administration
+      if (data.setup_token.length < 32) {
+        errors.setup_token = 'Setup token must be at least 32 characters'
+      }
       if (!data.admin_username.trim()) errors.admin_username = 'Username is required'
       else if (data.admin_username.length < 3)
         errors.admin_username = 'Username must be at least 3 characters'

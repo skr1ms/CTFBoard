@@ -27,7 +27,7 @@ type VisibilityConfigGetter interface {
 //	"public"         -> always pass through
 //	"private"        -> require authenticated user (401 for guests)
 //	"hidden"/"admins" -> 404 for non-admins (prevents endpoint existence leak)
-//	anything else    -> pass through (fail-open)
+//	anything else    -> 404 for non-admins (fail-closed)
 //
 // Admin users always bypass the check regardless of the configured value.
 func VisibilityGuard(getter VisibilityConfigGetter, configKey string) func(http.Handler) http.Handler {
@@ -64,12 +64,14 @@ func VisibilityGuard(getter VisibilityConfigGetter, configKey string) func(http.
 				}
 
 				next.ServeHTTP(w, r)
-			case "hidden", "admins":
+			case "hidden", "admins", "admins_only":
 				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrVisibilityForbidden))
 
 				return
 			default:
-				next.ServeHTTP(w, r)
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrVisibilityForbidden))
+
+				return
 			}
 		})
 	}

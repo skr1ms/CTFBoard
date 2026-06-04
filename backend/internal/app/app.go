@@ -334,9 +334,9 @@ func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Po
 	appName := cfg.Name
 	fromName := cfg.FromName
 	fromEmail := cfg.FromEmail
-	resendEnabled := cfg.Enabled && cfg.APIKey != ""
-	githubEnabled := cfg.GitHub.ClientID != "" && cfg.GitHub.ClientSecret != "" && cfg.GitHub.RedirectURL != ""
-	googleEnabled := cfg.Google.ClientID != "" && cfg.Google.ClientSecret != "" && cfg.Google.RedirectURL != ""
+	resendEnabled := cfg.Enabled
+	githubEnabled := cfg.GitHub.IsConfigured()
+	googleEnabled := cfg.Google.IsConfigured()
 
 	if appName == "" {
 		appName = defaultAppName

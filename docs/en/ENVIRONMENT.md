@@ -86,6 +86,7 @@ Without these, `setup.sh start` will fail or the platform will start in a broken
 | `JWT_ACCESS_SECRET`   | 64 alphanumeric chars                            | `secret/ctf-platform/jwt` -> `access_secret`       | Backend signs access tokens with this                                  |
 | `JWT_REFRESH_SECRET`  | 64 alphanumeric chars                            | `secret/ctf-platform/jwt` -> `refresh_secret`      | Backend signs refresh tokens                                           |
 | `OAUTH_STATE_SECRET`  | 64 alphanumeric chars                            | `secret/ctf-platform/oauth` -> `state_secret`      | HMAC key for OAuth state nonce                                         |
+| `SETUP_TOKEN`         | 64 alphanumeric chars                            | `.env` only                                        | Required by the browser setup wizard and `X-Setup-Token` for `POST /setup` |
 | `ADMIN_USERNAME`      | `admin`                                          | `secret/ctf-platform/admin` -> `username`          | Default seed admin username                                            |
 | `ADMIN_PASSWORD`      | 16 alphanumeric chars (printed once)             | `secret/ctf-platform/admin` -> `password`          | If empty, `init-vault.sh` prints to stdout - write it down immediately |
 | `VAULT_TOKEN`         | filled by `setup.sh` after `vault operator init` | `.env` line `VAULT_TOKEN=`                         | Operator should not edit; backed up in `.vault-keys`                   |
@@ -103,12 +104,12 @@ These activate optional features. Empty values disable the integration cleanly.
 | Variable                  | Default               | Effect when empty                                              | Read by                                        |
 | ------------------------- | --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
 | `RESEND_API_KEY`          | `""`                  | Vault stores `placeholder`; outgoing email disabled at runtime | `init-vault.sh:116` -> backend `config.go:183` |
-| `RESEND_ENABLED`          | `true`                | If `false`, backend skips email sending entirely               | `config.go:192`                                |
+| `RESEND_ENABLED`          | `true`                | If `false`, backend skips email sending; if `true` with an empty/`placeholder` key, email is also disabled | `config.go:192`                                |
 | `RESEND_FROM_EMAIL`       | `noreply@example.com` | -                                                              | `config.go:190`                                |
 | `RESEND_FROM_NAME`        | `CTF Platform`        | -                                                              | `config.go:191`                                |
 | `RESEND_VERIFY_TTL_HOURS` | `24`                  | Email verification token TTL                                   | `config.go:193`                                |
 | `RESEND_RESET_TTL_HOURS`  | `1`                   | Password reset token TTL                                       | `config.go:194`                                |
-| `VERIFY_EMAILS`           | `true`                | If `false`, registrations skip email verification              | `config.go:154`                                |
+| `VERIFY_EMAILS`           | `true`                | If `false`, registrations skip email verification; when Resend is disabled, backend forces this to `false` | `config.go:154`                                |
 
 ### OAuth providers
 

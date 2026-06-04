@@ -266,6 +266,6 @@ func (h *Server) PostAuthOauthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.setRefreshCookie(w, pair.RefreshToken, refreshCookieMaxAge)
+	h.setRefreshCookie(w, pair.RefreshToken)
 	httputil.RenderOK(w, r, response.FromTokenPair(pair))
 }

@@ -3,14 +3,53 @@ package v1
 import (
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
+
+func teamStatsVisibleToViewer(team *domain.Team, viewer *domain.User) bool {
+	if team == nil {
+		return false
+	}
+
+	if !team.IsHidden {
+		return true
+	}
+
+	if viewer == nil {
+		return false
+	}
+
+	if helper.IsAdmin(viewer) {
+		return true
+	}
+
+	return viewer.TeamID != nil && *viewer.TeamID == team.ID
+}
+
+func (h *Server) requirePublicTeamStatsVisible(w http.ResponseWriter, r *http.Request, teamID uuid.UUID, op string) bool {
+	team, err := h.team.TeamUC.GetByID(r.Context(), teamID)
+	if h.OnError(w, r, err, op, "GetByID") {
+		return false
+	}
+
+	viewer, _ := restapimiddleware.GetUser(r.Context())
+	if !teamStatsVisibleToViewer(team, viewer) {
+		h.OnError(w, r, apperr.ErrTeamNotFound, op, "HiddenTeam")
+
+		return false
+	}
+
+	return true
+}
 
 // (POST /teams).
 func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
@@ -344,6 +383,10 @@ func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
+	if !h.requirePublicTeamStatsVisible(w, r, teamIDParsed, "GetTeamsIDSolves") {
+		return
+	}
+
 	solves, err := h.team.TeamUC.GetTeamSolves(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetTeamsIDSolves", "GetTeamSolves") {
 		return
@@ -381,6 +424,10 @@ func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
+	if !h.requirePublicTeamStatsVisible(w, r, teamIDParsed, "GetTeamsIDFails") {
+		return
+	}
+
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
 	fails, err := h.team.TeamUC.GetTeamFails(r.Context(), teamIDParsed, page, perPage)
@@ -415,6 +462,10 @@ func (h *Server) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID string) {
 	teamIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
+		return
+	}
+
+	if !h.requirePublicTeamStatsVisible(w, r, teamIDParsed, "GetTeamsIDAwards") {
 		return
 	}
 

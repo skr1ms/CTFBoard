@@ -165,7 +165,7 @@ $EDITOR .env  # заполнить REQUIRED-блок, см. ENVIRONMENT.md
 
 > **Обязательные поля для Path B:** см. [REQUIRED-блок в ENVIRONMENT.md](ENVIRONMENT.md#required--fill-before-first-start). Если пропустить хотя бы одно, `setup.sh start` упадёт: Postgres, Grafana и HAProxy жёстко требуют пароли через `:?` в compose.
 
-Если хотите автогенерацию криптографических секретов, оставьте пустыми `FLAG_ENCRYPTION_KEY`, `JWT_*_SECRET`, `OAUTH_STATE_SECRET`, `ADMIN_PASSWORD` в `.env`: `init-vault.sh` сгенерирует их и залогирует источник по каждому пути (`[seeded from env]` против `[auto-generated]`).
+Если хотите автогенерацию криптографических секретов, оставьте пустыми `FLAG_ENCRYPTION_KEY`, `JWT_*_SECRET`, `OAUTH_STATE_SECRET`, `ADMIN_PASSWORD` в `.env`: `init-vault.sh` сгенерирует их и залогирует источник по каждому пути (`[seeded from env]` против `[auto-generated]`). `SETUP_TOKEN` хранится только в `.env`; `setup.sh start` сгенерирует его автоматически, если поле пустое. При прохождении browser setup вставьте это значение в поле Setup token.
 
 ---
 

@@ -208,8 +208,14 @@ func (uc *SolveUseCase) solveCreateResolveTeamID(ctx context.Context, solve *dom
 		if err := guard.ValidateSubmissionEligibility(ctx, user, team, comp, uc.deps.TeamRepo); err != nil {
 			return err
 		}
-	} else if user.IsBanned {
-		return apperr.ErrUserBanned
+	} else {
+		if user.IsBanned {
+			return apperr.ErrUserBanned
+		}
+
+		if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
+			return apperr.ErrUserWasInBannedTeam
+		}
 	}
 
 	return nil

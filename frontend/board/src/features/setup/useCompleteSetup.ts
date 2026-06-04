@@ -37,7 +37,7 @@ async function submitSetup(data: SetupFormData): Promise<SetupResponse> {
 
   const res = await fetch(`${env.apiBaseUrl}/setup`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Setup-Token': data.setup_token },
     credentials: 'include',
     body: JSON.stringify(body),
   })

@@ -43,6 +43,7 @@ type (
 		Version           string
 		StructuredLogger  bool
 		SecureCookies     bool
+		SetupToken        string
 		LogLevel          string
 		FlagEncryptionKey string
 		VerifyEmails      bool
@@ -143,11 +144,16 @@ type (
 	}
 )
 
+func (p OAuthProvider) IsConfigured() bool {
+	return p.ClientID != "" && p.ClientSecret != "" && p.RedirectURL != ""
+}
+
 type rawConfig struct {
 	AppName                     string `env:"APP_NAME"                         env-default:"CTF Platform"`
 	AppVersion                  string `env:"APP_VERSION"                      env-default:"1.0.0"`
 	StructuredLogger            bool   `env:"STRUCTURED_LOGGER"                env-default:"true"`
 	SecureCookies               bool   `env:"SECURE_COOKIES"                   env-default:"false"`
+	SetupToken                  string `env:"SETUP_TOKEN"`
 	DebugEnabled                bool   `env:"DEBUG_ENABLED"                    env-default:"false"`
 	LogLevel                    string `env:"LOG_LEVEL"                        env-default:"info"`
 	FlagEncryptionKey           string `env:"FLAG_ENCRYPTION_KEY"`
@@ -387,9 +393,9 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 // validate performs cross-field validation of rawConfig after env + Vault loading.
 // It checks: required Postgres/JWT/Redis credentials are present; JWT secrets meet
 // the minimum length required by go-jwtkit; FLAG_ENCRYPTION_KEY is exactly 64 hex
-// chars (32 bytes AES-256); OAUTH_STATE_SECRET is set whenever any OAuth client ID
-// is configured; COMPETITION_MODE is a recognized value; MIN/MAX_TEAM_SIZE range is
-// valid; STORAGE_PROVIDER is one of filesystem or s3; RATE_LIMIT_SUBMIT_FLAG is positive.
+// chars (32 bytes AES-256); partial OAuth provider configuration fails fast;
+// COMPETITION_MODE is a recognized value; MIN/MAX_TEAM_SIZE range is valid;
+// STORAGE_PROVIDER is one of filesystem or s3; TTLs and rate limits are positive.
 func validate(raw *rawConfig) error {
 	if raw.PostgresUser == "" || raw.PostgresPassword == "" || raw.PostgresDB == "" {
 		return fmt.Errorf("required database configuration is missing (env or vault)")
@@ -423,7 +429,19 @@ func validate(raw *rawConfig) error {
 		return fmt.Errorf("FLAG_ENCRYPTION_KEY contains invalid hex characters: %w", err)
 	}
 
-	if (raw.OAuthGitHubClientID != "" || raw.OAuthGoogleClientID != "") && raw.OAuthStateSecret == "" {
+	if raw.SetupToken != "" && len(raw.SetupToken) < 32 {
+		return fmt.Errorf("SETUP_TOKEN must be at least 32 characters when set")
+	}
+
+	if err := validateOAuthProvider("github", raw.OAuthGitHubClientID, raw.OAuthGitHubClientSecret, raw.OAuthGitHubRedirectURL); err != nil {
+		return err
+	}
+
+	if err := validateOAuthProvider("google", raw.OAuthGoogleClientID, raw.OAuthGoogleClientSecret, raw.OAuthGoogleRedirectURL); err != nil {
+		return err
+	}
+
+	if (raw.OAuthGitHubClientID != "" || raw.OAuthGitHubClientSecret != "" || raw.OAuthGoogleClientID != "" || raw.OAuthGoogleClientSecret != "") && raw.OAuthStateSecret == "" {
 		return fmt.Errorf("OAUTH_STATE_SECRET is required when OAuth clients are configured")
 	}
 
@@ -445,7 +463,50 @@ func validate(raw *rawConfig) error {
 		return fmt.Errorf("RATE_LIMIT_SUBMIT_FLAG must be a positive integer, got %d", raw.RateLimitSubmitFlag)
 	}
 
+	if raw.RateLimitSubmitFlagDuration <= 0 {
+		return fmt.Errorf("RATE_LIMIT_SUBMIT_FLAG_DURATION must be a positive integer, got %d", raw.RateLimitSubmitFlagDuration)
+	}
+
+	if raw.JWTAccessTTLMin <= 0 {
+		return fmt.Errorf("JWT_ACCESS_TTL_MINUTES must be a positive integer, got %d", raw.JWTAccessTTLMin)
+	}
+
+	if raw.JWTRefreshTTLHrs <= 0 {
+		return fmt.Errorf("JWT_REFRESH_TTL_HOURS must be a positive integer, got %d", raw.JWTRefreshTTLHrs)
+	}
+
+	if raw.ResendVerifyTTLHrs <= 0 {
+		return fmt.Errorf("RESEND_VERIFY_TTL_HOURS must be a positive integer, got %d", raw.ResendVerifyTTLHrs)
+	}
+
+	if raw.ResendResetTTLHrs <= 0 {
+		return fmt.Errorf("RESEND_RESET_TTL_HOURS must be a positive integer, got %d", raw.ResendResetTTLHrs)
+	}
+
+	if raw.StoragePresignedExpiryMin <= 0 {
+		return fmt.Errorf("STORAGE_PRESIGNED_EXPIRY_MINUTES must be a positive integer, got %d", raw.StoragePresignedExpiryMin)
+	}
+
 	return nil
+}
+
+func validateOAuthProvider(name, clientID, clientSecret, redirectURL string) error {
+	if clientID == "" && clientSecret == "" {
+		return nil
+	}
+
+	if clientID == "" || clientSecret == "" || redirectURL == "" {
+		return fmt.Errorf("OAUTH_%s_CLIENT_ID, OAUTH_%s_CLIENT_SECRET and OAUTH_%s_REDIRECT_URL must all be set to enable %s OAuth",
+			strings.ToUpper(name), strings.ToUpper(name), strings.ToUpper(name), name)
+	}
+
+	return nil
+}
+
+func isUsableResendAPIKey(apiKey string) bool {
+	apiKey = strings.TrimSpace(apiKey)
+
+	return apiKey != "" && apiKey != "placeholder"
 }
 
 // buildConfig assembles the final Config from a validated rawConfig. Key steps:
@@ -517,15 +578,19 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 		RawQuery: "sslmode=" + url.QueryEscape(raw.DBSSLMode),
 	}).String()
 
+	resendAPIKey := strings.TrimSpace(raw.ResendAPIKey)
+	resendEnabled := raw.ResendEnabled && isUsableResendAPIKey(resendAPIKey)
+
 	cfg := &Config{
 		App: App{
 			Name:              raw.AppName,
 			Version:           raw.AppVersion,
 			StructuredLogger:  raw.StructuredLogger,
 			SecureCookies:     raw.SecureCookies || strings.HasPrefix(raw.APIBaseURL, "https://"),
+			SetupToken:        raw.SetupToken,
 			LogLevel:          raw.LogLevel,
 			FlagEncryptionKey: raw.FlagEncryptionKey,
-			VerifyEmails:      raw.VerifyEmails,
+			VerifyEmails:      raw.VerifyEmails && resendEnabled,
 			DebugEnabled:      raw.DebugEnabled,
 		},
 		Admin: Admin{
@@ -569,10 +634,10 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 			SubmitFlagDuration: time.Duration(raw.RateLimitSubmitFlagDuration) * time.Minute,
 		},
 		Resend: Resend{
-			APIKey:      raw.ResendAPIKey,
+			APIKey:      resendAPIKey,
 			FromEmail:   raw.ResendFromEmail,
 			FromName:    raw.ResendFromName,
-			Enabled:     raw.ResendEnabled,
+			Enabled:     resendEnabled,
 			VerifyTTL:   time.Duration(raw.ResendVerifyTTLHrs) * time.Hour,
 			ResetTTL:    time.Duration(raw.ResendResetTTLHrs) * time.Hour,
 			FrontendURL: raw.FrontendURL,
@@ -613,10 +678,6 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 		if cfg.S3Endpoint == "" || cfg.S3Bucket == "" {
 			return nil, fmt.Errorf("config: S3_ENDPOINT and S3_BUCKET are required when STORAGE_PROVIDER=s3")
 		}
-	}
-
-	if cfg.Enabled && cfg.APIKey == "" {
-		return nil, fmt.Errorf("config: RESEND_API_KEY is required when RESEND_ENABLED=true")
 	}
 
 	if cfg.Mode == string(domain.ModeSoloOnly) && cfg.MinTeamSize > 1 {

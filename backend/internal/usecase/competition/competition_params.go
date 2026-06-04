@@ -53,6 +53,13 @@ var allowedCategories = map[string]struct{}{
 	"email": {}, "social": {}, "legal": {}, "advanced": {},
 }
 
+var allowedVisibilityValues = map[string][]string{
+	"challenge_visibility":    {"public", "private", "hidden", "admins"},
+	"score_visibility":        {"public", "private", "hidden", "admins", "admins_only"},
+	"account_visibility":      {"public", "private", "hidden", "admins"},
+	"registration_visibility": {"public", "private"},
+}
+
 func validateCategory(category string) error {
 	if category == "" {
 		return apperr.NewValidationErrorf("category is required")
@@ -63,6 +70,19 @@ func validateCategory(category string) error {
 	}
 
 	return nil
+}
+
+func validateRegisteredParamValue(key, value string) error {
+	allowed, ok := allowedVisibilityValues[key]
+	if !ok {
+		return nil
+	}
+
+	if slices.Contains(allowed, value) {
+		return nil
+	}
+
+	return apperr.NewValidationErrorf("invalid %s %q: must be one of %s", key, value, strings.Join(allowed, ", "))
 }
 
 type CompetitionParamUseCase struct {
@@ -446,6 +466,10 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 			return fmt.Errorf("CompetitionParamUseCase - SetBatch - validateValueType key %q: %w", p.Key, err)
 		}
 
+		if err := validateRegisteredParamValue(p.Key, p.Value); err != nil {
+			return fmt.Errorf("CompetitionParamUseCase - SetBatch - key %q: %w", p.Key, err)
+		}
+
 		if err := validateCategory(p.Category); err != nil {
 			return fmt.Errorf("CompetitionParamUseCase - SetBatch - key %q: %w", p.Key, err)
 		}
@@ -529,6 +553,10 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 
 	if err := uc.validateValueType(vt, value); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - validateValueType: %w", err)
+	}
+
+	if err := validateRegisteredParamValue(key, value); err != nil {
+		return fmt.Errorf("CompetitionParamUseCase - Set - validateRegisteredParamValue: %w", err)
 	}
 
 	p := &domain.CompetitionParam{

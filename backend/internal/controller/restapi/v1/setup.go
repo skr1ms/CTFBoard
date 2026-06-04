@@ -1,8 +1,11 @@
 package v1
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
@@ -10,20 +13,32 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/setup"
 )
 
+const setupTokenHeader = "X-Setup-Token"
+
 // SetupHandler handles the first-run setup wizard endpoints.
 type SetupHandler struct {
-	uc     *setup.SetupUseCase
-	logger logkit.Logger
+	uc                  *setup.SetupUseCase
+	logger              logkit.Logger
+	setupToken          string
+	secureCookies       bool
+	refreshCookieMaxAge int
 }
 
 // NewSetupHandler constructs a SetupHandler.
-func NewSetupHandler(uc *setup.SetupUseCase, logger logkit.Logger) *SetupHandler {
-	return &SetupHandler{uc: uc, logger: logger}
+func NewSetupHandler(uc *setup.SetupUseCase, logger logkit.Logger, setupToken string, secureCookies bool, refreshCookieMaxAge int) *SetupHandler {
+	return &SetupHandler{
+		uc:                  uc,
+		logger:              logger,
+		setupToken:          setupToken,
+		secureCookies:       secureCookies,
+		refreshCookieMaxAge: refreshCookieMaxAge,
+	}
 }
 
 type setupStatusResponse struct {
@@ -63,7 +78,39 @@ func (req *setupRequest) validate() string {
 		return "mode must be one of: teams_only, solo_only, flexible"
 	}
 
+	if msg := validateVisibilityValue("challenge_visibility", req.ChallengeVisibility, []string{"public", "private", "hidden", "admins"}); msg != "" {
+		return msg
+	}
+
+	if msg := validateVisibilityValue("score_visibility", req.ScoreVisibility, []string{"public", "private", "hidden", "admins"}); msg != "" {
+		return msg
+	}
+
+	if msg := validateVisibilityValue("account_visibility", req.AccountVisibility, []string{"public", "private", "hidden", "admins"}); msg != "" {
+		return msg
+	}
+
+	if msg := validateVisibilityValue("registration_visibility", req.RegistrationVisibility, []string{"public", "private"}); msg != "" {
+		return msg
+	}
+
 	return ""
+}
+
+func validateVisibilityValue(key, value string, allowed []string) string {
+	if !slices.Contains(allowed, value) {
+		return key + " must be one of: " + strings.Join(allowed, ", ")
+	}
+
+	return ""
+}
+
+func (h *SetupHandler) validSetupToken(provided string) bool {
+	if h.setupToken == "" || provided == "" || len(provided) != len(h.setupToken) {
+		return false
+	}
+
+	return subtle.ConstantTimeCompare([]byte(provided), []byte(h.setupToken)) == 1
 }
 
 // GetSetupStatus returns whether the platform setup has been completed.
@@ -83,6 +130,25 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 // Returns 409 if setup has already been completed.
 // On success returns the new admin's JWT access token and profile.
 func (h *SetupHandler) PostSetup(w http.ResponseWriter, r *http.Request) {
+	complete, err := h.uc.IsComplete(r.Context())
+	if err != nil {
+		h.onError(w, r, err)
+
+		return
+	}
+
+	if complete {
+		h.onError(w, r, apperr.ErrSetupAlreadyComplete)
+
+		return
+	}
+
+	if !h.validSetupToken(r.Header.Get(setupTokenHeader)) {
+		h.onError(w, r, apperr.ErrAccessDenied)
+
+		return
+	}
+
 	var req setupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"INVALID_JSON","message":"invalid request body"}`, http.StatusBadRequest)
@@ -123,6 +189,12 @@ func (h *SetupHandler) PostSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	refreshMaxAge := h.refreshCookieMaxAge
+	if refreshMaxAge <= 0 {
+		refreshMaxAge = defaultRefreshCookieMaxAge
+	}
+
+	setRefreshCookie(w, result.TokenPair.RefreshToken, refreshMaxAge, h.secureCookies)
 	httputil.RenderOK(w, r, map[string]any{
 		"token": result.TokenPair.AccessToken,
 		"user":  response.FromUser(result.User),

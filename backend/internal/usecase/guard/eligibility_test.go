@@ -66,6 +66,28 @@ func TestValidateSubmissionEligibility_BannedUser(t *testing.T) {
 	require.ErrorIs(t, err, apperr.ErrUserBanned)
 }
 
+func TestValidateSubmissionEligibility_UserWasInBannedTeam(t *testing.T) {
+	t.Parallel()
+
+	user := &domain.User{WasInBannedTeam: true, Role: domain.RoleUser}
+	team := &domain.Team{ID: uuid.New(), IsSolo: true}
+
+	err := ValidateSubmissionEligibility(context.Background(), user, team, activeComp(), nil)
+
+	require.ErrorIs(t, err, apperr.ErrUserWasInBannedTeam)
+}
+
+func TestValidateSubmissionEligibility_AdminWasInBannedTeamAllowed(t *testing.T) {
+	t.Parallel()
+
+	user := &domain.User{WasInBannedTeam: true, Role: domain.RoleAdmin}
+	team := &domain.Team{ID: uuid.New(), IsSolo: true}
+
+	err := ValidateSubmissionEligibility(context.Background(), user, team, activeComp(), nil)
+
+	require.NoError(t, err)
+}
+
 func TestValidateSubmissionEligibility_BannedTeam(t *testing.T) {
 	t.Parallel()
 

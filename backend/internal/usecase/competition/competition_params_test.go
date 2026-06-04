@@ -199,6 +199,20 @@ func TestCompetitionParamUseCase_Set_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCompetitionParamUseCase_Set_InvalidVisibility_ReturnsError(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+
+	uc := d.createCompetitionParamUseCase()
+	err := uc.Set(ctx, "score_visibility", "garbage", "", domain.CompetitionParamTypeString, "", uuid.New(), "")
+
+	assert.Error(t, err)
+
+	var ve *apperr.ValidationError
+	assert.ErrorAs(t, err, &ve)
+}
+
 func TestCompetitionParamUseCase_Delete_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
@@ -378,6 +392,23 @@ func TestCompetitionParamUseCase_SetBatch_InvalidCategory_ReturnsError(t *testin
 
 	var ve2 *apperr.ValidationError
 	assert.ErrorAs(t, err, &ve2)
+}
+
+func TestCompetitionParamUseCase_SetBatch_InvalidVisibility_ReturnsError(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	params := []*domain.CompetitionParam{
+		{Key: "challenge_visibility", Value: "privte", ValueType: domain.CompetitionParamTypeString, Category: "visibility"},
+	}
+
+	uc := d.createCompetitionParamUseCase()
+	err := uc.SetBatch(ctx, params, uuid.New(), "")
+
+	assert.Error(t, err)
+
+	var ve *apperr.ValidationError
+	assert.ErrorAs(t, err, &ve)
 }
 
 func TestCompetitionParamUseCase_GetAfterSet_ReturnsValue(t *testing.T) {

@@ -543,7 +543,10 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 	)
 
 	err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
-		var comp *domain.Competition
+		var (
+			comp      *domain.Competition
+			freshUser *domain.User
+		)
 
 		if uc.deps.CompRepo != nil {
 			c, err := uc.deps.CompRepo.GetForUpdate(ctx)
@@ -578,6 +581,10 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 			if freshUser.IsBanned {
 				return apperr.ErrUserBanned
 			}
+
+			if freshUser.WasInBannedTeam && freshUser.Role != domain.RoleAdmin {
+				return apperr.ErrUserWasInBannedTeam
+			}
 		}
 
 		if uc.deps.TeamRepo != nil {
@@ -590,7 +597,7 @@ func (uc *ChallengeUseCase) submitRecordSolve(sc *submitContext, _ *domain.Chall
 				return fmt.Errorf("ChallengeUseCase - submitRecordSolve - TeamRepo.GetByID: %w", err)
 			}
 
-			if err := guard.ValidateSubmissionEligibility(ctx, nil, freshTeam, comp, uc.deps.TeamRepo); err != nil {
+			if err := guard.ValidateSubmissionEligibility(ctx, freshUser, freshTeam, comp, uc.deps.TeamRepo); err != nil {
 				return err
 			}
 		}
