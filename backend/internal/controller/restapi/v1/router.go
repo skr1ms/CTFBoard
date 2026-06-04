@@ -308,6 +308,11 @@ func setupBasicAuthRoutes(
 	profileUpdateLimit := rl(rlKeyProfileUpdateIP, defaultRLWindow, generalIP, keyFunc)
 	apiTokenLimit := rl(rlKeyAPITokenIP, defaultRLWindow, generalIP, keyFunc)
 	notificationLimit := rl(rlKeyNotificationIP, defaultRLWindow, generalIP, keyFunc)
+	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
+	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, generalIP, keyFunc)
+	requireVerified := restapimiddleware.RequireVerifiedFromSettings(verifyEmails, deps.Admin.SettingsUC, deps.Infra.Logger)
+	accountVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "account_visibility")
+	challengeVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "challenge_visibility")
 
 	router.Group(func(r chi.Router) {
 		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
@@ -326,37 +331,63 @@ func setupBasicAuthRoutes(
 		r.With(notificationLimit).Patch("/user/notifications/{ID}/read", wrapper.PatchUserNotificationsIDRead)
 
 		r.Group(func(tokens chi.Router) {
-			tokens.Use(restapimiddleware.RequireVerified(verifyEmails))
+			tokens.Use(restapimiddleware.RequireBearerAuth())
+			tokens.Use(requireVerified)
 			tokens.Get("/user/tokens", wrapper.GetUserTokens)
 			tokens.With(apiTokenLimit).Post("/user/tokens", wrapper.PostUserTokens)
 			tokens.With(apiTokenLimit).Delete("/user/tokens/{ID}", wrapper.DeleteUserTokensID)
 		})
 
 		avatarUploadLimitMw := restapimiddleware.RateLimit(deps.Infra.RedisClient, rlKeyAvatarUploadUser, avatarUploadLimit, avatarUploadWindow, userIDKeyFunc, deps.Infra.Logger)
-		verified := r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned)
+		verified := r.With(requireVerified, notBanned)
 		verified.With(avatarUploadLimitMw).Put("/users/me/avatar", wrapper.PutUsersMeAvatar)
 		verified.Delete("/users/me/avatar", wrapper.DeleteUsersMeAvatar)
 		verified.With(avatarUploadLimitMw).Put("/teams/me/avatar", wrapper.PutTeamsMeAvatar)
 		verified.Delete("/teams/me/avatar", wrapper.DeleteTeamsMeAvatar)
 
-		setupTeamRoutes(r, wrapper, verifyEmails, deps.Infra.RedisClient, deps.Infra.Logger, notBanned)
-		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, verifyEmails, sharedCache, notBanned)
+		r.Group(func(acc chi.Router) {
+			acc.Use(notBanned)
+			acc.Use(accountVisibility)
+			acc.Use(protectedReadLimit)
+			acc.Get("/users", wrapper.GetUsers)
+			acc.Get("/users/{ID}", wrapper.GetUsersID)
+			acc.Get("/teams", wrapper.GetTeams)
+			acc.Get("/teams/{ID}", wrapper.GetTeamsID)
+		})
+
+		r.Group(func(ch chi.Router) {
+			ch.Use(notBanned)
+			ch.Use(challengeVisibility)
+			ch.Use(challengeReadLimit)
+			ch.Get("/challenges", wrapper.GetChallenges)
+			ch.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
+			ch.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
+			ch.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
+			ch.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
+			ch.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
+			ch.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
+			ch.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
+		})
+
+		setupTeamRoutes(r, wrapper, requireVerified, deps.Infra.RedisClient, deps.Infra.Logger, notBanned)
+		setupChallengeRoutes(r, wrapper, deps, rateLimitCache, requireVerified, sharedCache, notBanned)
 
 		fileDownloadLimit := rl(rlKeyFileDownloadIP, defaultRLWindow, generalIP, ipKeyFunc())
-		r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned, fileDownloadLimit).Get("/files/by-id/{ID}/download", wrapper.GetFilesIDDownload)
+		r.With(requireVerified, challengeVisibility, notBanned, fileDownloadLimit).Get("/files/by-id/{ID}/download", wrapper.GetFilesIDDownload)
 
 		setupAdminRoutes(r, wrapper, deps.Infra.RedisClient, deps.Infra.Logger)
 	})
 }
 
-// setupConditionalPublicRoutes registers routes whose accessibility depends on
-// visibility config keys. An optional auth stack (OptionalAuth + OptionalInjectUser)
-// authenticates requests when credentials are present but lets guests through.
-// VisibilityGuard then enforces the per-section config key:
+// setupConditionalPublicRoutes registers routes that may be visible to guests.
+// OptionalAuth authenticates requests when credentials are present but lets
+// guests through. VisibilityGuard then enforces score_visibility:
 //
 //	score_visibility    -> /scoreboard, /statistics, per-user/team/challenge solves/fails/awards
-//	account_visibility  -> /users, /teams (public read)
-//	challenge_visibility -> /challenges (read-only metadata and files)
+//
+// Account and challenge read routes are intentionally auth-only and are wired in
+// setupBasicAuthRoutes, where account_visibility/challenge_visibility still gate
+// authenticated non-admin users.
 func setupConditionalPublicRoutes(
 	router chi.Router,
 	deps *helper.ServerDeps,
@@ -369,11 +400,8 @@ func setupConditionalPublicRoutes(
 ) {
 	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
 	keyFunc := ipKeyFunc()
-	generalIP := func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }
 
 	scoreboardLimit := rl(rlKeyScoreboardIP, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.ScoreboardPerMinute) }, keyFunc)
-	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
-	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, generalIP, keyFunc)
 
 	compParamUC := deps.Admin.CompetitionParamUC
 
@@ -409,32 +437,6 @@ func setupConditionalPublicRoutes(
 			sb.Get("/statistics/users", wrapper.GetStatisticsUsers)
 			sb.Get("/statistics/scoreboard", wrapper.GetStatisticsScoreboard)
 		})
-
-		// User and team profiles gated by account_visibility
-		r.Group(func(acc chi.Router) {
-			acc.Use(notBanned)
-			acc.Use(restapimiddleware.VisibilityGuard(compParamUC, "account_visibility"))
-			acc.Use(protectedReadLimit)
-			acc.Get("/users", wrapper.GetUsers)
-			acc.Get("/users/{ID}", wrapper.GetUsersID)
-			acc.Get("/teams", wrapper.GetTeams)
-			acc.Get("/teams/{ID}", wrapper.GetTeamsID)
-		})
-
-		// Challenge read-only endpoints gated by challenge_visibility
-		r.Group(func(ch chi.Router) {
-			ch.Use(notBanned)
-			ch.Use(restapimiddleware.VisibilityGuard(compParamUC, "challenge_visibility"))
-			ch.Use(challengeReadLimit)
-			ch.Get("/challenges", wrapper.GetChallenges)
-			ch.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
-			ch.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
-			ch.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
-			ch.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
-			ch.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
-			ch.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
-			ch.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
-		})
 	})
 }
 
@@ -466,11 +468,14 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 	rl := newDynamicRL(deps.Infra.RedisClient, rateLimitCache, deps.Admin.SettingsUC, deps.Infra.Logger)
 	generalIP := func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.GeneralIPPerMinute) }
 	fileDownloadLimit := rl(rlKeyFileDownloadIP, defaultRLWindow, generalIP, ipKeyFunc())
+	requireVerified := restapimiddleware.RequireVerifiedFromSettings(verifyEmails, deps.Admin.SettingsUC, deps.Infra.Logger)
+	challengeVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "challenge_visibility")
 
 	router.Group(func(r chi.Router) {
 		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
-		r.Use(restapimiddleware.RequireVerified(verifyEmails))
+		r.Use(requireVerified)
 		r.Use(restapimiddleware.ChallengeVisibility(deps.Comp.CompetitionUC))
+		r.Use(challengeVisibility)
 		r.Use(notBanned)
 		r.Use(fileDownloadLimit)
 		r.Get("/files/download/*", func(w http.ResponseWriter, req *http.Request) {
@@ -486,7 +491,7 @@ func setupFileDownloadRoute(router chi.Router, server *Server, deps *helper.Serv
 	})
 }
 
-func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verifyEmails bool, redisClient *redis.Client, log logkit.Logger, notBanned func(http.Handler) http.Handler) {
+func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, requireVerified func(http.Handler) http.Handler, redisClient *redis.Client, log logkit.Logger, notBanned func(http.Handler) http.Handler) {
 	r.Get("/teams/my", wrapper.GetTeamsMy)
 
 	r.Group(func(me chi.Router) {
@@ -499,7 +504,7 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, verif
 		me.Post("/teams/me/invite", wrapper.PostTeamsMeInvite)
 	})
 
-	verified := r.With(restapimiddleware.RequireVerified(verifyEmails), notBanned)
+	verified := r.With(requireVerified, notBanned)
 	verified.Patch("/teams/me", wrapper.PatchTeamsMe)
 	verified.Post("/teams/leave", wrapper.PostTeamsLeave)
 	verified.Delete("/teams/me", wrapper.DeleteTeamsMe)
@@ -522,7 +527,7 @@ func setupChallengeRoutes(
 	wrapper openapi.ServerInterfaceWrapper,
 	deps *helper.ServerDeps,
 	rateLimitCache *restapimiddleware.RateLimitConfigCache,
-	verifyEmails bool,
+	requireVerified func(http.Handler) http.Handler,
 	_ *cachekit.Cache,
 	notBanned func(http.Handler) http.Handler,
 ) {
@@ -533,10 +538,12 @@ func setupChallengeRoutes(
 
 	commentLimit := rl(rlKeyCommentUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.CommentPerMinute) }, userIDKeyFunc)
 	ratingLimit := rl(rlKeyRatingUser, defaultRLWindow, func(c *restapimiddleware.RateLimitConfig) int64 { return int64(c.RatingPerMinute) }, userIDKeyFunc)
+	challengeVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "challenge_visibility")
 
 	r.Group(func(comments chi.Router) {
 		comments.Use(restapimiddleware.CompetitionEnded(competitionUC))
-		comments.Use(restapimiddleware.RequireVerified(verifyEmails))
+		comments.Use(challengeVisibility)
+		comments.Use(requireVerified)
 		comments.Use(notBanned)
 		comments.Use(commentLimit)
 		comments.Get("/challenges/{challengeID}/comments", wrapper.GetChallengesChallengeIDComments)
@@ -546,7 +553,8 @@ func setupChallengeRoutes(
 
 	r.Group(func(ratings chi.Router) {
 		ratings.Use(restapimiddleware.ChallengeVisibility(competitionUC))
-		ratings.Use(restapimiddleware.RequireVerified(verifyEmails))
+		ratings.Use(challengeVisibility)
+		ratings.Use(requireVerified)
 		ratings.Use(notBanned)
 		ratings.Use(ratingLimit)
 		ratings.Get("/challenges/{challengeID}/ratings", wrapper.GetChallengesChallengeIDRatings)
@@ -566,7 +574,8 @@ func setupChallengeRoutes(
 
 	r.Group(func(sub chi.Router) {
 		sub.Use(restapimiddleware.CompetitionActive(competitionUC))
-		sub.Use(restapimiddleware.RequireVerified(verifyEmails))
+		sub.Use(challengeVisibility)
+		sub.Use(requireVerified)
 		sub.Use(restapimiddleware.RequireTeam())
 		sub.Use(notBanned)
 		sub.Use(submitLimitWithAudit)
@@ -576,7 +585,8 @@ func setupChallengeRoutes(
 	// Unlock Hints
 	r.Group(func(sub chi.Router) {
 		sub.Use(restapimiddleware.CompetitionActive(competitionUC))
-		sub.Use(restapimiddleware.RequireVerified(verifyEmails))
+		sub.Use(challengeVisibility)
+		sub.Use(requireVerified)
 		sub.Use(restapimiddleware.RequireTeam())
 		sub.Use(notBanned)
 		sub.Use(hintUnlockUserLimit)

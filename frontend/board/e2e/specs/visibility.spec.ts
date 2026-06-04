@@ -8,12 +8,15 @@ import { setConfig } from '../helpers/api'
 test.describe('Visibility: challenge_visibility', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('public - guests can see challenge list', async ({ guestPage: page }) => {
+  test('public - guests still see sign-in card because challenges are auth-only', async ({
+    guestPage: page,
+  }) => {
     await setConfig('challenge_visibility', 'public')
     await page.goto('/challenges')
-    await expect(page.locator('[data-testid="challenge-card"]').first()).toBeVisible({
-      timeout: 15_000,
-    })
+    await expect(
+      page.getByText(/sign in|login|register/i).first(),
+    ).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-testid="challenge-card"]')).toHaveCount(0)
   })
 
   test('private - guests see sign-in card, not challenges', async ({ guestPage: page }) => {

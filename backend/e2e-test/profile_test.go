@@ -44,8 +44,8 @@ func TestProfile_GetPublicProfile(t *testing.T) {
 	require.Equal(t, username, *userProfile.JSON200.Username)
 }
 
-// GET /users/{ID}: VisibilityGuard(account_visibility) lets guests through on the default
-// value "public"; the endpoint responds 200 without auth.
+// GET /users/{ID}: account profile reads are auth-only even when account_visibility
+// is "public"; guests get 401 before the visibility guard is evaluated.
 func TestProfile_GetUsersID_Unauthorized(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
@@ -55,7 +55,7 @@ func TestProfile_GetUsersID_Unauthorized(t *testing.T) {
 	me := helper.RequireMeOK(t, meResp)
 	require.NotNil(t, me.ID)
 
-	h.GetPublicProfile(*me.ID, http.StatusOK)
+	h.GetPublicProfile(*me.ID, http.StatusUnauthorized)
 }
 
 // GET /users/{ID}: non-existent user returns 404.

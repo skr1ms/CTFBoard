@@ -16,7 +16,7 @@ func validSetupRequest() setupRequest {
 		RegistrationVisibility: "public",
 		AdminUsername:          "admin",
 		AdminEmail:             "admin@example.com",
-		AdminPassword:          "password123",
+		AdminPassword:          "Password12345",
 		Timezone:               "UTC",
 	}
 }
@@ -36,6 +36,24 @@ func TestSetupRequestValidate_ValidVisibility(t *testing.T) {
 	req := validSetupRequest()
 
 	assert.Empty(t, req.validate())
+}
+
+func TestSetupRequestValidate_WeakAdminPassword(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"password12345",
+		"PASSWORD12345",
+		"PasswordOnly",
+		"Pass123",
+	}
+
+	for _, password := range cases {
+		req := validSetupRequest()
+		req.AdminPassword = password
+
+		assert.Contains(t, req.validate(), "admin_password")
+	}
 }
 
 func TestSetupHandlerValidSetupToken(t *testing.T) {

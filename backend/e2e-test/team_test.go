@@ -436,6 +436,25 @@ func TestTeam_GetByID(t *testing.T) {
 	require.NotNil(t, got.JSON200.CaptainID)
 }
 
+// GET /teams/{ID}: team reads are auth-only; guests receive 401 even when
+// account_visibility is public.
+func TestTeam_GetByID_GuestUnauthorized(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := helper.UID()
+	_, _, token := h.RegisterUserAndLogin("guest_getteam_" + suffix)
+	h.CreateSoloTeam(token, http.StatusCreated)
+
+	team := h.GetMyTeam(token, http.StatusOK)
+	require.NotNil(t, team.JSON200)
+	teamID := *team.JSON200.ID
+
+	resp, err := h.Client().GetTeamsIDWithResponse(context.Background(), teamID)
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "guest get team by id")
+}
+
 // DELETE /teams/me: captain disbands team; GET /teams/my returns 404 for all former members.
 func TestTeam_Disband(t *testing.T) {
 	t.Parallel()

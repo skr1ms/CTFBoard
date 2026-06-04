@@ -286,6 +286,71 @@ func TestAuth_Register_InvalidCustomFieldKey_Returns400(t *testing.T) {
 	helper.RequireStatus(t, http.StatusBadRequest, resp.StatusCode(), resp.Body, "register invalid custom field key")
 }
 
+// POST /auth/register: dynamic required custom_fields use field UUID keys and persist values.
+func TestAuth_Register_WithRequiredCustomField_Success(t *testing.T) {
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_reg_cf_success")
+	suffix := helper.UID()
+	createResp := h.CreateField(tokenAdmin, "reg_cf_"+suffix, "text", "user", true, http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+	require.NotNil(t, createResp.JSON201.ID)
+
+	fieldID := *createResp.JSON201.ID
+	defer h.DeleteField(tokenAdmin, fieldID, http.StatusNoContent)
+
+	username := "reg_cf_" + suffix
+	email := username + "@example.com"
+	password := "ValidPass1"
+	value := "Astro University"
+
+	req := openapi.PostAuthRegisterJSONRequestBody{
+		Username:     username,
+		Email:        email,
+		Password:     password,
+		CustomFields: &map[string]string{fieldID: " " + value + " "},
+	}
+
+	resp, err := h.Client().PostAuthRegisterWithResponse(context.Background(), req)
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusCreated, resp.StatusCode(), resp.Body, "register with required custom field")
+	require.NotNil(t, resp.JSON201)
+	require.NotNil(t, resp.JSON201.ID)
+
+	var storedValue string
+	err = h.Pool().QueryRow(
+		context.Background(),
+		"SELECT value FROM field_values WHERE entity_id = $1 AND field_id = $2",
+		*resp.JSON201.ID,
+		fieldID,
+	).Scan(&storedValue)
+	require.NoError(t, err)
+	assert.Equal(t, value, storedValue)
+}
+
+// POST /auth/register: required dynamic custom_fields are enforced by the usecase validator.
+func TestAuth_Register_RequiredCustomFieldMissing_Returns400(t *testing.T) {
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("admin_reg_cf_missing")
+	suffix := helper.UID()
+	createResp := h.CreateField(tokenAdmin, "reg_cf_missing_"+suffix, "text", "user", true, http.StatusCreated)
+	require.NotNil(t, createResp.JSON201)
+	require.NotNil(t, createResp.JSON201.ID)
+
+	fieldID := *createResp.JSON201.ID
+	defer h.DeleteField(tokenAdmin, fieldID, http.StatusNoContent)
+
+	req := openapi.PostAuthRegisterJSONRequestBody{
+		Username: "reg_cf_missing_" + suffix,
+		Email:    "reg_cf_missing_" + suffix + "@example.com",
+		Password: "ValidPass1",
+	}
+	resp, err := h.Client().PostAuthRegisterWithResponse(context.Background(), req)
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusBadRequest, resp.StatusCode(), resp.Body, "register missing required custom field")
+}
+
 // POST /auth/logout: valid refresh token returns 204 NoContent.
 func TestAuth_Logout_Success(t *testing.T) {
 	t.Parallel()

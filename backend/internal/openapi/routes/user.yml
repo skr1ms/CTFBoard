@@ -286,7 +286,7 @@
 /users:
   get:
     operationId: GetUsers
-    description: Returns paginated list of users (admin or public depending on settings)
+    description: Returns paginated list of users for authenticated users. account_visibility gates authenticated non-admin users.
     parameters:
       - name: q
         in: query
@@ -326,7 +326,7 @@
 "/users/{ID}":
   get:
     operationId: GetUsersID
-    description: Returns public information about user and their solved challenges. Requires authentication (scoreboard visibility applies).
+    description: Returns public information about a user and their solved challenges. Requires authentication; account_visibility gates authenticated non-admin users.
     parameters:
       - description: User ID
         in: path
@@ -348,7 +348,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
-        description: Forbidden (scoreboard visibility)
+        description: Forbidden (account visibility)
         content:
           application/json:
             schema:

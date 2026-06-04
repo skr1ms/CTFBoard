@@ -3,16 +3,12 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"time"
 
-	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 )
-
-const visibilityGuardTTL = 30 * time.Second
 
 // VisibilityConfigGetter is the minimal interface for reading a visibility config key.
 type VisibilityConfigGetter interface {
@@ -20,7 +16,8 @@ type VisibilityConfigGetter interface {
 }
 
 // VisibilityGuard returns middleware that enforces a visibility config key read from
-// the competition parameter store with a 30 s CachedValue TTL.
+// the competition parameter store. The getter owns caching/invalidation, so this
+// middleware reads through it on every request and does not add a stale TTL layer.
 //
 // Value semantics:
 //
@@ -31,12 +28,6 @@ type VisibilityConfigGetter interface {
 //
 // Admin users always bypass the check regardless of the configured value.
 func VisibilityGuard(getter VisibilityConfigGetter, configKey string) func(http.Handler) http.Handler {
-	cv := cachekit.NewCachedValue[string](context.Background(), configKey, visibilityGuardTTL)
-
-	load := func(ctx context.Context) (string, error) {
-		return getter.GetString(ctx, configKey, "public"), nil
-	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isAdmin(r.Context()) {
@@ -45,13 +36,7 @@ func VisibilityGuard(getter VisibilityConfigGetter, configKey string) func(http.
 				return
 			}
 
-			visibility, err := cv.Get(r.Context(), load)
-			if err != nil {
-				httputil.HandleError(w, r, errmap.MapAppError(err))
-
-				return
-			}
-
+			visibility := getter.GetString(r.Context(), configKey, "public")
 			switch visibility {
 			case "public":
 				next.ServeHTTP(w, r)

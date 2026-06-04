@@ -19,7 +19,6 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
-      - ApiTokenAuth: []
     summary: List my API tokens
     tags:
       - User
@@ -53,7 +52,6 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
-      - ApiTokenAuth: []
     summary: Create API token
     tags:
       - User
@@ -85,7 +83,6 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
-      - ApiTokenAuth: []
     summary: Revoke API token
     tags:
       - User

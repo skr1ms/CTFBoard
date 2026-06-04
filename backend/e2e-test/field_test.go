@@ -61,7 +61,7 @@ func TestField_Update_Success(t *testing.T) {
 	require.NotNil(t, createResp.JSON201)
 	require.NotNil(t, createResp.JSON201.ID)
 
-	h.UpdateField(tokenAdmin, *createResp.JSON201.ID, "field_updated_"+suffix, "text", true, http.StatusOK)
+	h.UpdateField(tokenAdmin, *createResp.JSON201.ID, "field_updated_"+suffix, "text", false, http.StatusOK)
 	listResp := h.GetFields("user", http.StatusOK)
 	require.NotNil(t, listResp.JSON200)
 

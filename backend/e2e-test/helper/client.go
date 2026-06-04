@@ -93,6 +93,14 @@ func WithBearerToken(token string) openapi.RequestEditorFn {
 	}
 }
 
+func WithAPIToken(token string) openapi.RequestEditorFn {
+	return func(_ context.Context, req *http.Request) error {
+		req.Header.Set("Authorization", "Token "+token)
+
+		return nil
+	}
+}
+
 func RequireStatus(t *testing.T, expect, actual int, body []byte, label string) {
 	t.Helper()
 	require.Equal(t, expect, actual, "%s: %s", label, body)

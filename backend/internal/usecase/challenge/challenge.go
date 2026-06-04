@@ -152,19 +152,24 @@ func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID
 		return nil, fmt.Errorf("ChallengeUseCase - GetAll - GetSolvedChallengeIDsByTeam: %w", err)
 	}
 
-	if len(solvedIDs) == 0 {
-		return uc.applyFrozenSolveCounts(ctx, comp, base)
-	}
-
 	solvedSet := make(map[uuid.UUID]struct{}, len(solvedIDs))
 	for _, id := range solvedIDs {
 		solvedSet[id] = struct{}{}
+	}
+	reqMetMap := uc.computeRequirementsMetMap(ctx, teamID, ids)
+
+	if len(solvedSet) == 0 && len(reqMetMap) == 0 {
+		return uc.applyFrozenSolveCounts(ctx, comp, base)
 	}
 
 	out := make([]*usecase.ChallengeWithTags, len(base))
 	for i, c := range base {
 		_, solved := solvedSet[c.Challenge.ID]
-		if solved == c.Solved {
+
+		reqMet, hasReqMet := reqMetMap[c.Challenge.ID]
+		reqMetChanged := hasReqMet && (c.RequirementsMet == nil || *c.RequirementsMet != reqMet)
+
+		if solved == c.Solved && !reqMetChanged {
 			out[i] = c
 
 			continue
@@ -177,6 +182,12 @@ func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID
 			},
 			Tags: c.Tags,
 		}
+		if hasReqMet {
+			copied.RequirementsMet = &reqMet
+		} else {
+			copied.RequirementsMet = c.RequirementsMet
+		}
+
 		out[i] = copied
 	}
 

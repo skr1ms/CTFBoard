@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
@@ -31,6 +33,36 @@ func TestHiddenChallenge_SubmitReturnsNotFound(t *testing.T) {
 
 	// Hidden challenge is not found for regular users.
 	h.SubmitFlag(tokenUser, challID, flag, http.StatusNotFound)
+}
+
+// TestChallengeVisibilityHidden_BlocksDirectActions verifies that global
+// challenge_visibility=hidden protects direct actions even when a challenge row
+// itself is visible and the client already knows its IDs.
+func TestChallengeVisibilityHidden_BlocksDirectActions(t *testing.T) {
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := helper.UID()
+	_, tokenAdmin := h.SetupCompetition("global_hidden_" + suffix)
+	h.PutAdminConfig(tokenAdmin, "challenge_visibility", "hidden", "string", "desc", http.StatusOK)
+	defer h.PutAdminConfig(tokenAdmin, "challenge_visibility", "private", "string", "desc", http.StatusOK)
+
+	flag := "flag{global_hidden_" + suffix + "}"
+	challID := h.CreateChallenge(tokenAdmin, map[string]any{
+		"title":       "GlobalHidden_" + suffix,
+		"description": "global challenge_visibility hidden test",
+		"flag":        flag,
+		"points":      100,
+		"category":    "misc",
+		"state":       "visible",
+	})
+	hintID := h.CreateHint(tokenAdmin, challID, "global hidden hint", 0)
+	require.NotEmpty(t, hintID)
+
+	_, _, tokenUser := h.RegisterUserAndLogin("global_hidden_user_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	h.SubmitFlag(tokenUser, challID, flag, http.StatusNotFound)
+	h.UnlockHint(tokenUser, challID, hintID, http.StatusNotFound)
 }
 
 // TestHiddenChallenge_AdminReveals_ThenSubmitSucceeds verifies that once a hidden challenge

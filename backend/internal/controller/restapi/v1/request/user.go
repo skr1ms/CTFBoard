@@ -3,7 +3,6 @@ package request
 import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 func BanUserRequestToParams(req *openapi.BanUserRequest) string {
@@ -50,10 +49,6 @@ func RegisterRequestToParams(req *openapi.RegisterRequest) (username, email, pas
 	password = req.Password
 
 	if req.CustomFields != nil {
-		if err := validator.ValidateCustomFields(*req.CustomFields); err != nil {
-			return "", "", "", nil, apperr.NewValidationErrorf("custom fields validation failed: %s", err.Error())
-		}
-
 		customFields = *req.CustomFields
 	}
 

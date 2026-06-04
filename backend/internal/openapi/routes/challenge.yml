@@ -1,7 +1,7 @@
 /challenges:
   get:
     operationId: GetChallenges
-    description: Returns list of all challenges with solved status for user's team
+    description: Returns list of all challenges with solved status for the authenticated user's team. Requires authentication; challenge_visibility gates authenticated non-admin users.
     parameters:
       - name: tag
         in: query
@@ -24,7 +24,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
-        description: Forbidden (scoreboard visibility or team banned)
+        description: Forbidden (challenge visibility or team banned)
         content:
           application/json:
             schema:
@@ -39,7 +39,7 @@
 /challenges/{challengeID}:
   get:
     operationId: GetChallengesChallengeID
-    description: Returns single challenge with details (files, hints, first blood)
+    description: Returns a single challenge with details for the authenticated user (files, hints, first blood). Requires authentication; challenge_visibility gates authenticated non-admin users.
     parameters:
       - description: Challenge ID
         in: path

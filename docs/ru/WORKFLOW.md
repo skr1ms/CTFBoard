@@ -34,6 +34,8 @@
 
 Все API-маршруты смонтированы под `/api/v1`. Колонка Auth: **public** = без аутентификации, **user** = Bearer JWT, **admin** = Bearer JWT + роль admin. Rate limit применяется и на edge в HAProxy (stick tables), и в backend (`middleware/ratelimit.go`).
 
+`challenge_visibility` и `account_visibility` не делают страницы задач, пользователей или команд доступными гостям: эти read-only endpoint'ы всегда требуют `user` auth, а visibility-настройки ограничивают уже аутентифицированных non-admin пользователей. `score_visibility` - отдельный публично-настраиваемый флоу: scoreboard/statistics могут быть доступны гостям при значении `public`.
+
 ### Auth
 
 | Method | Path                              | Auth                            | Backing usecase                                 |
@@ -409,7 +411,7 @@ SPA -> POST /teams {name}
 
 ### Просмотр задач
 
-`GET /challenges` возвращает задачи, видимые конкретному пользователю, сгруппированные по категориям и отсортированные по position. Видимость определяется через `comp.IsSubmissionAllowed()`, brackets и состояние самой задачи (`hidden`, `visible`, `locked`).
+`GET /challenges` требует Bearer/API-token auth и возвращает задачи, видимые конкретному пользователю, сгруппированные по категориям и отсортированные по position. Видимость определяется через `challenge_visibility`, `comp.IsSubmissionAllowed()`, brackets и состояние самой задачи (`hidden`, `visible`, `locked`).
 
 L1 cache: in-process ttlcache (TTL 2 с). L2 cache: Redis (TTL 15 с, freeze-aware suffix в ключе). Singleflight не даёт thundering herd на cache miss.
 
@@ -590,7 +592,7 @@ Appeal flow:
 
 ### Dynamic settings
 
-`GET /admin/settings` отдаёт строку `app_settings`. Изменяемые поля включают rate limit для endpoint'ов (login, register, forgot, reset, scoreboard, submit, hint и т.д.), а также `score_visibility`, `account_visibility`, `registration_open`. Изменения вступают в силу в пределах TTL `RateLimitConfigCache` (30 с) и не требуют рестарта.
+`GET /admin/settings` отдаёт строку `app_settings`. Изменяемые поля включают rate limit для endpoint'ов (login, register, forgot, reset, scoreboard, submit, hint и т.д.), а также `score_visibility`, `account_visibility`, `registration_open`. `account_visibility` и `challenge_visibility` применяются после auth, а не открывают guest-доступ. Изменения вступают в силу в пределах TTL `RateLimitConfigCache` (30 с) и не требуют рестарта.
 
 ---
 

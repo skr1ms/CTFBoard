@@ -32,6 +32,8 @@ This document describes user-facing flows (registration, OAuth, team formation, 
 
 All API routes are mounted under `/api/v1`. Auth column: **public** = no auth, **user** = Bearer JWT, **admin** = Bearer JWT + admin role. Rate limits are enforced both at HAProxy edge (stick tables) and in the backend (`middleware/ratelimit.go`).
 
+`challenge_visibility` and `account_visibility` do not make challenge, user, or team pages available to guests: these read-only endpoints always require `user` auth, and visibility settings restrict already-authenticated non-admin users. `score_visibility` is the separate public-facing flow: scoreboard/statistics may be visible to guests when set to `public`.
+
 ### Auth
 
 | Method | Path                              | Auth                            | Backing usecase                               |
@@ -387,7 +389,7 @@ SPA -> POST /teams {name}
 
 ### Browse
 
-`GET /challenges` returns visible-to-user challenges grouped by category, sorted by position. Visibility is determined by `comp.IsSubmissionAllowed()` + brackets + per-challenge state (`hidden` vs `visible` vs `locked`).
+`GET /challenges` requires Bearer/API-token auth and returns visible-to-user challenges grouped by category, sorted by position. Visibility is determined by `challenge_visibility`, `comp.IsSubmissionAllowed()` + brackets + per-challenge state (`hidden` vs `visible` vs `locked`).
 
 L1 cache: in-process ttlcache (TTL 2 s). L2 cache: Redis (TTL 15 s, freeze-aware key suffix). Singleflight prevents thundering herd on cache miss.
 
@@ -557,7 +559,7 @@ Every admin mutation persists a row in `audit_logs` (admin user, action, target 
 
 ### Dynamic settings
 
-`GET /admin/settings` exposes the `app_settings` row. Mutable fields include rate limit per endpoint (login, register, forgot, reset, scoreboard, submit, hint, etc.), `score_visibility`, `account_visibility`, `registration_open`. Updates take effect within `RateLimitConfigCache` TTL (30 s) without restart.
+`GET /admin/settings` exposes the `app_settings` row. Mutable fields include rate limit per endpoint (login, register, forgot, reset, scoreboard, submit, hint, etc.), `score_visibility`, `account_visibility`, `registration_open`. `account_visibility` and `challenge_visibility` are applied after auth; they do not grant guest access. Updates take effect within `RateLimitConfigCache` TTL (30 s) without restart.
 
 ---
 

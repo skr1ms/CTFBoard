@@ -273,14 +273,14 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 
 // registerValidateCustomFields parses the string-keyed custom field map into
 // uuid.UUID-keyed values (returning ErrValidation on a malformed key) and then
-// delegates value validation to FieldValidator. No-ops when customFields is
-// empty or FieldValidator is not wired.
+// delegates value validation to FieldValidator. It still calls FieldValidator
+// for an empty map so required fields are enforced.
 func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customFields map[string]string) error {
-	if len(customFields) == 0 || uc.deps.FieldValidator == nil {
+	if uc.deps.FieldValidator == nil {
 		return nil
 	}
 
-	fieldValues := make(map[uuid.UUID]string)
+	fieldValues := make(map[uuid.UUID]string, len(customFields))
 
 	for k, v := range customFields {
 		id, err := uuid.Parse(k)

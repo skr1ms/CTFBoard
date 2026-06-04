@@ -409,7 +409,7 @@ export interface paths {
         };
         /**
          * List users
-         * @description Returns paginated list of users (admin or public depending on settings)
+         * @description Returns paginated list of users for authenticated users. account_visibility gates authenticated non-admin users.
          */
         get: operations["GetUsers"];
         put?: never;
@@ -429,7 +429,7 @@ export interface paths {
         };
         /**
          * Get user profile
-         * @description Returns public information about user and their solved challenges. Requires authentication (scoreboard visibility applies).
+         * @description Returns public information about a user and their solved challenges. Requires authentication; account_visibility gates authenticated non-admin users.
          */
         get: operations["GetUsersID"];
         put?: never;
@@ -853,7 +853,7 @@ export interface paths {
         };
         /**
          * List teams
-         * @description Returns paginated list of teams
+         * @description Returns paginated list of teams for authenticated users. account_visibility gates authenticated non-admin users.
          */
         get: operations["GetTeams"];
         put?: never;
@@ -877,7 +877,7 @@ export interface paths {
         };
         /**
          * Get team by ID
-         * @description Returns team information by ID
+         * @description Returns team information by ID for authenticated users. account_visibility gates authenticated non-admin users.
          */
         get: operations["GetTeamsID"];
         put?: never;
@@ -1185,7 +1185,7 @@ export interface paths {
         };
         /**
          * Get challenges list
-         * @description Returns list of all challenges with solved status for user's team
+         * @description Returns list of all challenges with solved status for the authenticated user's team. Requires authentication; challenge_visibility gates authenticated non-admin users.
          */
         get: operations["GetChallenges"];
         put?: never;
@@ -1225,7 +1225,7 @@ export interface paths {
         };
         /**
          * Get challenge by ID
-         * @description Returns single challenge with details (files, hints, first blood)
+         * @description Returns a single challenge with details for the authenticated user (files, hints, first blood). Requires authentication; challenge_visibility gates authenticated non-admin users.
          */
         get: operations["GetChallengesChallengeID"];
         put?: never;
@@ -5782,7 +5782,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (scoreboard visibility) */
+            /** @description Forbidden (account visibility) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7076,7 +7076,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (scoreboard visibility) */
+            /** @description Forbidden (account visibility) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7906,7 +7906,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (scoreboard visibility or team banned) */
+            /** @description Forbidden (challenge visibility or team banned) */
             403: {
                 headers: {
                     [name: string]: unknown;

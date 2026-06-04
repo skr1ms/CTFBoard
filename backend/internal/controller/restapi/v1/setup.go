@@ -72,8 +72,8 @@ func (req *setupRequest) validate() string {
 		return "admin_username is required"
 	case req.AdminEmail == "":
 		return "admin_email is required"
-	case len(req.AdminPassword) < 8:
-		return "admin_password must be at least 8 characters"
+	case !validSetupAdminPassword(req.AdminPassword):
+		return "admin_password must be at least 12 characters and include lowercase, uppercase, and digit characters"
 	case req.Mode == "" || (req.Mode != "teams_only" && req.Mode != "solo_only" && req.Mode != "flexible"):
 		return "mode must be one of: teams_only, solo_only, flexible"
 	}
@@ -95,6 +95,27 @@ func (req *setupRequest) validate() string {
 	}
 
 	return ""
+}
+
+func validSetupAdminPassword(password string) bool {
+	if len(password) < 12 {
+		return false
+	}
+
+	var hasLower, hasUpper, hasDigit bool
+
+	for _, r := range password {
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		}
+	}
+
+	return hasLower && hasUpper && hasDigit
 }
 
 func validateVisibilityValue(key, value string, allowed []string) string {

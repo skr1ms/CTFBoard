@@ -11,6 +11,17 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
+// GET /challenges: challenge reads are auth-only; guests receive 401 even when
+// challenge_visibility is public.
+func TestChallenge_List_GuestUnauthorized(t *testing.T) {
+	t.Parallel()
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	resp, err := h.Client().GetChallengesWithResponse(context.Background(), nil)
+	require.NoError(t, err)
+	helper.RequireStatus(t, http.StatusUnauthorized, resp.StatusCode(), resp.Body, "guest get challenges")
+}
+
 // GET /challenges + POST /challenges/{ID}/submit: create challenge, submit correct flag, verify solved state; duplicate submit returns 409.
 func TestChallenge_Lifecycle(t *testing.T) {
 	t.Parallel()
@@ -538,6 +549,33 @@ func TestChallenge_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	resp := h.SubmitFlag(tokenUser, mainID, "flag{main}", http.StatusOK)
 	require.NotNil(t, resp.JSON200)
 	require.True(t, resp.JSON200.Correct)
+}
+
+// GET /challenges: cached challenge list recalculates requirement visibility after prerequisite solve.
+func TestChallenge_ListCache_RequirementsMetAfterPrerequisiteSolve(t *testing.T) {
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	_, tokenAdmin := h.SetupCompetition("list_reqs_cache_admin")
+	h.PutAdminConfig(tokenAdmin, "challenge_prerequisite_anonymize", "true", "bool", "desc", http.StatusOK)
+	defer h.PutAdminConfig(tokenAdmin, "challenge_prerequisite_anonymize", "false", "bool", "desc", http.StatusOK)
+
+	suffix := helper.UID()
+	prereqID := h.CreateBasicChallenge(tokenAdmin, "Prereq Cache "+suffix, "flag{cache_prereq_"+suffix+"}", 50)
+	mainID := h.CreateBasicChallenge(tokenAdmin, "Main Cache "+suffix, "flag{cache_main_"+suffix+"}", 100)
+	h.SetChallengeRequirements(tokenAdmin, mainID, []string{prereqID})
+
+	_, _, tokenUser := h.RegisterUserAndLogin("list_reqs_cache_user_" + suffix)
+	h.CreateSoloTeam(tokenUser, http.StatusCreated)
+
+	before := h.FindChallengeInList(tokenUser, mainID)
+	require.NotNil(t, before.Title)
+	require.Equal(t, "???", *before.Title)
+
+	h.SubmitFlag(tokenUser, prereqID, "flag{cache_prereq_"+suffix+"}", http.StatusOK)
+
+	after := h.FindChallengeInList(tokenUser, mainID)
+	require.NotNil(t, after.Title)
+	require.Equal(t, "Main Cache "+suffix, *after.Title)
 }
 
 // POST /challenges/{ID}/submit: main challenge with two requirements; solve both prereqs then main (batch requirement check).
