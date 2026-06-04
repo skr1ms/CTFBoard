@@ -231,8 +231,6 @@ func sanitizeOAuthError(raw string) string {
 // GetAuthOauthProviders returns which OAuth providers are configured on the server.
 // GET /auth/oauth/providers - public, no auth required.
 func (h *Server) GetAuthOauthProviders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	githubEnabled := h.user.OAuthGitHubEnabled
 	googleEnabled := h.user.OAuthGoogleEnabled
 
@@ -244,7 +242,7 @@ func (h *Server) GetAuthOauthProviders(w http.ResponseWriter, r *http.Request) {
 		googleEnabled = googleEnabled && settings.OAuthGoogleEnabled
 	}
 
-	_ = json.NewEncoder(w).Encode(map[string]bool{
+	httputil.RenderOK(w, r, map[string]bool{
 		"github": githubEnabled,
 		"google": googleEnabled,
 	})

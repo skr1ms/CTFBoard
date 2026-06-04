@@ -450,6 +450,12 @@ type ServerInterface interface {
 	// Get scoreboard graph
 	// (GET /scoreboard/graph)
 	GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams)
+	// Complete first-run setup
+	// (POST /setup)
+	PostSetup(w http.ResponseWriter, r *http.Request, params PostSetupParams)
+	// Get first-run setup status
+	// (GET /setup/status)
+	GetSetupStatus(w http.ResponseWriter, r *http.Request)
 	// SSE connection
 	// (GET /sse)
 	GetSse(w http.ResponseWriter, r *http.Request)
@@ -1479,6 +1485,18 @@ func (_ Unimplemented) GetScoreboard(w http.ResponseWriter, r *http.Request, par
 // Get scoreboard graph
 // (GET /scoreboard/graph)
 func (_ Unimplemented) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params GetScoreboardGraphParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Complete first-run setup
+// (POST /setup)
+func (_ Unimplemented) PostSetup(w http.ResponseWriter, r *http.Request, params PostSetupParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get first-run setup status
+// (GET /setup/status)
+func (_ Unimplemented) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6211,6 +6229,64 @@ func (siw *ServerInterfaceWrapper) GetScoreboardGraph(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// PostSetup operation middleware
+func (siw *ServerInterfaceWrapper) PostSetup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostSetupParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Setup-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Setup-Token")]; found {
+		var XSetupToken string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Setup-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Setup-Token", valueList[0], &XSetupToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Setup-Token", Err: err})
+			return
+		}
+
+		params.XSetupToken = XSetupToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Setup-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Setup-Token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSetup(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSetupStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSetupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSse operation middleware
 func (siw *ServerInterfaceWrapper) GetSse(w http.ResponseWriter, r *http.Request) {
 
@@ -7294,8 +7370,6 @@ func (siw *ServerInterfaceWrapper) GetUserTokens(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
-	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
-
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -7315,8 +7389,6 @@ func (siw *ServerInterfaceWrapper) PostUserTokens(w http.ResponseWriter, r *http
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -7348,8 +7420,6 @@ func (siw *ServerInterfaceWrapper) DeleteUserTokensID(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -8309,6 +8379,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/scoreboard/graph", wrapper.GetScoreboardGraph)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/setup", wrapper.PostSetup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/setup/status", wrapper.GetSetupStatus)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/sse", wrapper.GetSse)

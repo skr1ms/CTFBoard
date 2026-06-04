@@ -296,6 +296,120 @@ func (e SetConfigRequestValueType) Valid() bool {
 	}
 }
 
+// Defines values for SetupRequestAccountVisibility.
+const (
+	SetupRequestAccountVisibilityAdmins  SetupRequestAccountVisibility = "admins"
+	SetupRequestAccountVisibilityHidden  SetupRequestAccountVisibility = "hidden"
+	SetupRequestAccountVisibilityPrivate SetupRequestAccountVisibility = "private"
+	SetupRequestAccountVisibilityPublic  SetupRequestAccountVisibility = "public"
+)
+
+// Valid indicates whether the value is a known member of the SetupRequestAccountVisibility enum.
+func (e SetupRequestAccountVisibility) Valid() bool {
+	switch e {
+	case SetupRequestAccountVisibilityAdmins:
+		return true
+	case SetupRequestAccountVisibilityHidden:
+		return true
+	case SetupRequestAccountVisibilityPrivate:
+		return true
+	case SetupRequestAccountVisibilityPublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetupRequestChallengeVisibility.
+const (
+	SetupRequestChallengeVisibilityAdmins  SetupRequestChallengeVisibility = "admins"
+	SetupRequestChallengeVisibilityHidden  SetupRequestChallengeVisibility = "hidden"
+	SetupRequestChallengeVisibilityPrivate SetupRequestChallengeVisibility = "private"
+	SetupRequestChallengeVisibilityPublic  SetupRequestChallengeVisibility = "public"
+)
+
+// Valid indicates whether the value is a known member of the SetupRequestChallengeVisibility enum.
+func (e SetupRequestChallengeVisibility) Valid() bool {
+	switch e {
+	case SetupRequestChallengeVisibilityAdmins:
+		return true
+	case SetupRequestChallengeVisibilityHidden:
+		return true
+	case SetupRequestChallengeVisibilityPrivate:
+		return true
+	case SetupRequestChallengeVisibilityPublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetupRequestMode.
+const (
+	Flexible  SetupRequestMode = "flexible"
+	SoloOnly  SetupRequestMode = "solo_only"
+	TeamsOnly SetupRequestMode = "teams_only"
+)
+
+// Valid indicates whether the value is a known member of the SetupRequestMode enum.
+func (e SetupRequestMode) Valid() bool {
+	switch e {
+	case Flexible:
+		return true
+	case SoloOnly:
+		return true
+	case TeamsOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetupRequestRegistrationVisibility.
+const (
+	SetupRequestRegistrationVisibilityPrivate SetupRequestRegistrationVisibility = "private"
+	SetupRequestRegistrationVisibilityPublic  SetupRequestRegistrationVisibility = "public"
+)
+
+// Valid indicates whether the value is a known member of the SetupRequestRegistrationVisibility enum.
+func (e SetupRequestRegistrationVisibility) Valid() bool {
+	switch e {
+	case SetupRequestRegistrationVisibilityPrivate:
+		return true
+	case SetupRequestRegistrationVisibilityPublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetupRequestScoreVisibility.
+const (
+	SetupRequestScoreVisibilityAdmins     SetupRequestScoreVisibility = "admins"
+	SetupRequestScoreVisibilityAdminsOnly SetupRequestScoreVisibility = "admins_only"
+	SetupRequestScoreVisibilityHidden     SetupRequestScoreVisibility = "hidden"
+	SetupRequestScoreVisibilityPrivate    SetupRequestScoreVisibility = "private"
+	SetupRequestScoreVisibilityPublic     SetupRequestScoreVisibility = "public"
+)
+
+// Valid indicates whether the value is a known member of the SetupRequestScoreVisibility enum.
+func (e SetupRequestScoreVisibility) Valid() bool {
+	switch e {
+	case SetupRequestScoreVisibilityAdmins:
+		return true
+	case SetupRequestScoreVisibilityAdminsOnly:
+		return true
+	case SetupRequestScoreVisibilityHidden:
+		return true
+	case SetupRequestScoreVisibilityPrivate:
+		return true
+	case SetupRequestScoreVisibilityPublic:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateAppSettingsRequestScoreboardVisible.
 const (
 	UpdateAppSettingsRequestScoreboardVisibleAdminsOnly UpdateAppSettingsRequestScoreboardVisible = "admins_only"
@@ -1589,6 +1703,52 @@ type SetTeamBracketRequest struct {
 	BracketID *openapi_types.UUID `json:"bracket_id,omitempty"`
 }
 
+// SetupCompleteResponse defines model for SetupCompleteResponse.
+type SetupCompleteResponse struct {
+	Token string       `json:"token"`
+	User  UserResponse `json:"user"`
+}
+
+// SetupRequest defines model for SetupRequest.
+type SetupRequest struct {
+	AccountVisibility         SetupRequestAccountVisibility      `json:"account_visibility" validate:"required,oneof=public private hidden admins"`
+	AdminEmail                string                             `json:"admin_email" validate:"required,custom_email"`
+	AdminPassword             string                             `json:"admin_password" validate:"required,min=12,strong_password"`
+	AdminUsername             string                             `json:"admin_username" validate:"required,custom_username"`
+	ChallengeVisibility       SetupRequestChallengeVisibility    `json:"challenge_visibility" validate:"required,oneof=public private hidden admins"`
+	CtfDescription            *string                            `json:"ctf_description,omitempty" validate:"omitempty,max=5000"`
+	CtfName                   string                             `json:"ctf_name" validate:"required,max=100"`
+	EmailVerificationRequired *bool                              `json:"email_verification_required,omitempty"`
+	EndTime                   *time.Time                         `json:"end_time,omitempty"`
+	FreezeTime                *time.Time                         `json:"freeze_time,omitempty"`
+	MaxTeamSize               *int                               `json:"max_team_size,omitempty" validate:"omitempty,min=0"`
+	Mode                      SetupRequestMode                   `json:"mode" validate:"required,oneof=teams_only solo_only flexible"`
+	RegistrationVisibility    SetupRequestRegistrationVisibility `json:"registration_visibility" validate:"required,oneof=public private"`
+	ScoreVisibility           SetupRequestScoreVisibility        `json:"score_visibility" validate:"required,oneof=public private hidden admins admins_only"`
+	StartTime                 *time.Time                         `json:"start_time,omitempty"`
+	Timezone                  *string                            `json:"timezone,omitempty" validate:"omitempty,max=128"`
+}
+
+// SetupRequestAccountVisibility defines model for SetupRequest.AccountVisibility.
+type SetupRequestAccountVisibility string
+
+// SetupRequestChallengeVisibility defines model for SetupRequest.ChallengeVisibility.
+type SetupRequestChallengeVisibility string
+
+// SetupRequestMode defines model for SetupRequest.Mode.
+type SetupRequestMode string
+
+// SetupRequestRegistrationVisibility defines model for SetupRequest.RegistrationVisibility.
+type SetupRequestRegistrationVisibility string
+
+// SetupRequestScoreVisibility defines model for SetupRequest.ScoreVisibility.
+type SetupRequestScoreVisibility string
+
+// SetupStatusResponse defines model for SetupStatusResponse.
+type SetupStatusResponse struct {
+	Complete bool `json:"complete"`
+}
+
 // Solve defines model for Solve.
 type Solve struct {
 	ChallengeID *string `json:"challenge_id,omitempty"`
@@ -2284,6 +2444,12 @@ type GetScoreboardGraphParams struct {
 	Live *bool `form:"live,omitempty" json:"live,omitempty"`
 }
 
+// PostSetupParams defines parameters for PostSetup.
+type PostSetupParams struct {
+	// XSetupToken One-time setup token from server configuration.
+	XSetupToken string `json:"X-Setup-Token"`
+}
+
 // GetStatisticsChallengesParams defines parameters for GetStatisticsChallenges.
 type GetStatisticsChallengesParams struct {
 	// Live If true and requester is admin, return live data during freeze.
@@ -2554,6 +2720,9 @@ type PutChallengesChallengeIDRatingJSONRequestBody = PutChallengeRatingRequest
 
 // PostChallengesChallengeIDSubmitJSONRequestBody defines body for PostChallengesChallengeIDSubmit for application/json ContentType.
 type PostChallengesChallengeIDSubmitJSONRequestBody = SubmitFlagRequest
+
+// PostSetupJSONRequestBody defines body for PostSetup for application/json ContentType.
+type PostSetupJSONRequestBody = SetupRequest
 
 // PostTeamsJSONRequestBody defines body for PostTeams for application/json ContentType.
 type PostTeamsJSONRequestBody = CreateTeamRequest

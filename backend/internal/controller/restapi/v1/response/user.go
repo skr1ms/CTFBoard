@@ -104,6 +104,13 @@ func FromUser(u *domain.User) openapi.UserResponse {
 	}
 }
 
+func FromSetupComplete(accessToken string, u *domain.User) openapi.SetupCompleteResponse {
+	return openapi.SetupCompleteResponse{
+		Token: accessToken,
+		User:  FromUser(u),
+	}
+}
+
 func FromSolve(s *domain.Solve) openapi.SolveResponse {
 	return openapi.SolveResponse{
 		ID:          new(s.ID.String()),

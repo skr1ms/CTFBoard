@@ -318,6 +318,7 @@ func TestAuth_Register_WithRequiredCustomField_Success(t *testing.T) {
 	require.NotNil(t, resp.JSON201.ID)
 
 	var storedValue string
+
 	err = h.Pool().QueryRow(
 		context.Background(),
 		"SELECT value FROM field_values WHERE entity_id = $1 AND field_id = $2",

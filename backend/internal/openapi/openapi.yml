@@ -97,6 +97,12 @@ paths:
         '400':
           description: Bad Request
 
+  # Setup (setup.go)
+  /setup/status:
+    $ref: './routes/setup.yml#/~1setup~1status'
+  /setup:
+    $ref: './routes/setup.yml#/~1setup'
+
   # Auth (auth.go)
   /auth/login:
     $ref: './routes/auth.yml#/~1auth~1login'

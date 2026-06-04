@@ -36,6 +36,7 @@ SCHEMA_FILES = [
     "scoreboard_schemas.yml",
     "ban_appeal_schemas.yml",
     "storage_schemas.yml",
+    "setup_schemas.yml",
 ]
 
 

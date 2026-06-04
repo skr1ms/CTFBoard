@@ -4,41 +4,65 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
-func validSetupRequest() setupRequest {
-	return setupRequest{
-		CTFName:                "Astro CTF",
-		Mode:                   "flexible",
-		ChallengeVisibility:    "private",
-		ScoreVisibility:        "public",
-		AccountVisibility:      "public",
-		RegistrationVisibility: "public",
+func validSetupRequest() openapi.SetupRequest {
+	timezone := "UTC"
+
+	return openapi.SetupRequest{
+		CtfName:                "Astro CTF",
+		Mode:                   openapi.Flexible,
+		ChallengeVisibility:    openapi.SetupRequestChallengeVisibilityPrivate,
+		ScoreVisibility:        openapi.SetupRequestScoreVisibilityPublic,
+		AccountVisibility:      openapi.SetupRequestAccountVisibilityPublic,
+		RegistrationVisibility: openapi.SetupRequestRegistrationVisibilityPublic,
 		AdminUsername:          "admin",
 		AdminEmail:             "admin@example.com",
 		AdminPassword:          "Password12345",
-		Timezone:               "UTC",
+		Timezone:               &timezone,
 	}
 }
 
-func TestSetupRequestValidate_InvalidVisibility(t *testing.T) {
+func validateSetupRequest(t *testing.T, req openapi.SetupRequest) error {
+	t.Helper()
+
+	v, err := validator.New()
+	require.NoError(t, err)
+
+	return v.Validate(req)
+}
+
+func TestSetupRequestValidation_InvalidVisibility(t *testing.T) {
 	t.Parallel()
 
 	req := validSetupRequest()
 	req.ScoreVisibility = "garbage"
 
-	assert.Contains(t, req.validate(), "score_visibility")
+	assert.Error(t, validateSetupRequest(t, req))
 }
 
-func TestSetupRequestValidate_ValidVisibility(t *testing.T) {
+func TestSetupRequestValidation_ValidVisibility(t *testing.T) {
 	t.Parallel()
 
 	req := validSetupRequest()
 
-	assert.Empty(t, req.validate())
+	assert.NoError(t, validateSetupRequest(t, req))
 }
 
-func TestSetupRequestValidate_WeakAdminPassword(t *testing.T) {
+func TestSetupRequestValidation_ScoreVisibilityAdminsOnly(t *testing.T) {
+	t.Parallel()
+
+	req := validSetupRequest()
+	req.ScoreVisibility = openapi.SetupRequestScoreVisibilityAdminsOnly
+
+	assert.NoError(t, validateSetupRequest(t, req))
+}
+
+func TestSetupRequestValidation_WeakAdminPassword(t *testing.T) {
 	t.Parallel()
 
 	cases := []string{
@@ -52,17 +76,17 @@ func TestSetupRequestValidate_WeakAdminPassword(t *testing.T) {
 		req := validSetupRequest()
 		req.AdminPassword = password
 
-		assert.Contains(t, req.validate(), "admin_password")
+		assert.Error(t, validateSetupRequest(t, req))
 	}
 }
 
 func TestSetupHandlerValidSetupToken(t *testing.T) {
 	t.Parallel()
 
-	h := NewSetupHandler(nil, nil, "12345678901234567890123456789012", false, 0)
+	h := NewSetupHandler(nil, nil, nil, "12345678901234567890123456789012", false, 0)
 
 	assert.True(t, h.validSetupToken("12345678901234567890123456789012"))
 	assert.False(t, h.validSetupToken("wrong"))
 	assert.False(t, h.validSetupToken(""))
-	assert.False(t, NewSetupHandler(nil, nil, "", false, 0).validSetupToken("12345678901234567890123456789012"))
+	assert.False(t, NewSetupHandler(nil, nil, nil, "", false, 0).validSetupToken("12345678901234567890123456789012"))
 }

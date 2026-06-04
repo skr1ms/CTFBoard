@@ -131,7 +131,7 @@ func (uc *SetupUseCase) applyConfigs(ctx context.Context, req *SetupRequest, adm
 		{Key: "ctf_description", Value: req.CTFDescription, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "CTF competition description (Markdown)"},
 		{Key: "user_mode", Value: req.Mode, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "Participation mode: teams or users"},
 		{Key: "challenge_visibility", Value: req.ChallengeVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Challenge visibility: public, private, admins"},
-		{Key: "score_visibility", Value: req.ScoreVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Scoreboard visibility: public, private, hidden, admins"},
+		{Key: "score_visibility", Value: req.ScoreVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Scoreboard visibility: public, private, hidden, admins, admins_only"},
 		{Key: "account_visibility", Value: req.AccountVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "User/team account visibility: public, private, admins"},
 		{Key: "registration_visibility", Value: req.RegistrationVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Registration visibility: public, private"},
 		{Key: "email_verification_required", Value: strconv.FormatBool(req.EmailVerificationRequired), ValueType: domain.CompetitionParamTypeBool, Category: "general", Description: "Require email verification on signup"},

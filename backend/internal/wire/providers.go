@@ -1038,7 +1038,7 @@ func ProvideRouter(ctx context.Context, cfg *config.Config, l logkit.Logger, dep
 		SettingsUC:  deps.Admin.SettingsUC,
 		JWTService:  deps.Infra.JWTService,
 	})
-	setupHandler := v1.NewSetupHandler(setupUC, l, cfg.SetupToken, cfg.SecureCookies, int(cfg.RefreshTTL.Seconds()))
+	setupHandler := v1.NewSetupHandler(setupUC, l, deps.Infra.Validator, cfg.SetupToken, cfg.SecureCookies, int(cfg.RefreshTTL.Seconds()))
 
 	// Paths that remain accessible before setup is complete.
 	setupAllowedPaths := []string{

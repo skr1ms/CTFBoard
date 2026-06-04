@@ -14,7 +14,7 @@ type SetupRequest struct {
 
 	// Settings step
 	ChallengeVisibility       string // "public" | "private" | "admins"
-	ScoreVisibility           string // "public" | "private" | "hidden" | "admins"
+	ScoreVisibility           string // "public" | "private" | "hidden" | "admins" | "admins_only"
 	AccountVisibility         string // "public" | "private" | "admins"
 	RegistrationVisibility    string // "public" | "private"
 	EmailVerificationRequired bool

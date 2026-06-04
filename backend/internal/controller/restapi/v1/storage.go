@@ -51,7 +51,7 @@ func (h *Server) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httputil.RenderNoContent(w, r)
 }
 
 // isValidStoragePath returns true when path is a safe, non-traversal storage key.

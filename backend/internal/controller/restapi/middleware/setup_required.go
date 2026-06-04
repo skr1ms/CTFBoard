@@ -2,11 +2,15 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 )
 
 const setupCheckTTL = 5 * time.Second
@@ -104,14 +108,5 @@ func isAllowed(path string, prefixes []string) bool {
 }
 
 func writeSetupRequired(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusServiceUnavailable)
-
-	body, _ := json.Marshal(map[string]string{
-		"error":     "SETUP_REQUIRED",
-		"message":   "platform setup has not been completed",
-		"setup_url": "/setup",
-	})
-
-	_, _ = w.Write(body)
+	httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrSetupRequired))
 }

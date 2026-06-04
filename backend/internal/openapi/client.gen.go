@@ -617,6 +617,14 @@ type ClientInterface interface {
 	// GetScoreboardGraph request
 	GetScoreboardGraph(ctx context.Context, params *GetScoreboardGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostSetupWithBody request with any body
+	PostSetupWithBody(ctx context.Context, params *PostSetupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostSetup(ctx context.Context, params *PostSetupParams, body PostSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSetupStatus request
+	GetSetupStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSse request
 	GetSse(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3068,6 +3076,42 @@ func (c *Client) GetScoreboard(ctx context.Context, params *GetScoreboardParams,
 
 func (c *Client) GetScoreboardGraph(ctx context.Context, params *GetScoreboardGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetScoreboardGraphRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostSetupWithBody(ctx context.Context, params *PostSetupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSetupRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostSetup(ctx context.Context, params *PostSetupParams, body PostSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSetupRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSetupStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSetupStatusRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -9820,6 +9864,86 @@ func NewGetScoreboardGraphRequest(server string, params *GetScoreboardGraphParam
 	return req, nil
 }
 
+// NewPostSetupRequest calls the generic PostSetup builder with application/json body
+func NewPostSetupRequest(server string, params *PostSetupParams, body PostSetupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostSetupRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewPostSetupRequestWithBody generates requests for PostSetup with any type of body
+func NewPostSetupRequestWithBody(server string, params *PostSetupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/setup")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Setup-Token", params.XSetupToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Setup-Token", headerParam0)
+
+	}
+
+	return req, nil
+}
+
+// NewGetSetupStatusRequest generates requests for GetSetupStatus
+func NewGetSetupStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/setup/status")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetSseRequest generates requests for GetSse
 func NewGetSseRequest(server string) (*http.Request, error) {
 	var err error
@@ -12494,6 +12618,14 @@ type ClientWithResponsesInterface interface {
 
 	// GetScoreboardGraphWithResponse request
 	GetScoreboardGraphWithResponse(ctx context.Context, params *GetScoreboardGraphParams, reqEditors ...RequestEditorFn) (*GetScoreboardGraphResponse, error)
+
+	// PostSetupWithBodyWithResponse request with any body
+	PostSetupWithBodyWithResponse(ctx context.Context, params *PostSetupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSetupResponse, error)
+
+	PostSetupWithResponse(ctx context.Context, params *PostSetupParams, body PostSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSetupResponse, error)
+
+	// GetSetupStatusWithResponse request
+	GetSetupStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSetupStatusResponse, error)
 
 	// GetSseWithResponse request
 	GetSseWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSseResponse, error)
@@ -16228,6 +16360,56 @@ func (r GetScoreboardGraphResponse) StatusCode() int {
 	return 0
 }
 
+type PostSetupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SetupCompleteResponse
+	JSON400      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON409      *ErrorResponse
+	JSON429      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostSetupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostSetupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSetupStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SetupStatusResponse
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSetupStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSetupStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetSseResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -19161,6 +19343,32 @@ func (c *ClientWithResponses) GetScoreboardGraphWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseGetScoreboardGraphResponse(rsp)
+}
+
+// PostSetupWithBodyWithResponse request with arbitrary body returning *PostSetupResponse
+func (c *ClientWithResponses) PostSetupWithBodyWithResponse(ctx context.Context, params *PostSetupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSetupResponse, error) {
+	rsp, err := c.PostSetupWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSetupResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostSetupWithResponse(ctx context.Context, params *PostSetupParams, body PostSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSetupResponse, error) {
+	rsp, err := c.PostSetup(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSetupResponse(rsp)
+}
+
+// GetSetupStatusWithResponse request returning *GetSetupStatusResponse
+func (c *ClientWithResponses) GetSetupStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSetupStatusResponse, error) {
+	rsp, err := c.GetSetupStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSetupStatusResponse(rsp)
 }
 
 // GetSseWithResponse request returning *GetSseResponse
@@ -26048,6 +26256,100 @@ func ParseGetScoreboardGraphResponse(rsp *http.Response) (*GetScoreboardGraphRes
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostSetupResponse parses an HTTP response from a PostSetupWithResponse call
+func ParsePostSetupResponse(rsp *http.Response) (*PostSetupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostSetupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SetupCompleteResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSetupStatusResponse parses an HTTP response from a GetSetupStatusWithResponse call
+func ParseGetSetupStatusResponse(rsp *http.Response) (*GetSetupStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSetupStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SetupStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ErrorResponse

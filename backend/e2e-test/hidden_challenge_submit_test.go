@@ -44,6 +44,7 @@ func TestChallengeVisibilityHidden_BlocksDirectActions(t *testing.T) {
 	suffix := helper.UID()
 	_, tokenAdmin := h.SetupCompetition("global_hidden_" + suffix)
 	h.PutAdminConfig(tokenAdmin, "challenge_visibility", "hidden", "string", "desc", http.StatusOK)
+
 	defer h.PutAdminConfig(tokenAdmin, "challenge_visibility", "private", "string", "desc", http.StatusOK)
 
 	flag := "flag{global_hidden_" + suffix + "}"

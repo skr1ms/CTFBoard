@@ -557,6 +557,7 @@ func TestChallenge_ListCache_RequirementsMetAfterPrerequisiteSolve(t *testing.T)
 
 	_, tokenAdmin := h.SetupCompetition("list_reqs_cache_admin")
 	h.PutAdminConfig(tokenAdmin, "challenge_prerequisite_anonymize", "true", "bool", "desc", http.StatusOK)
+
 	defer h.PutAdminConfig(tokenAdmin, "challenge_prerequisite_anonymize", "false", "bool", "desc", http.StatusOK)
 
 	suffix := helper.UID()

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/TakuyaYagam1/AstroCTFb/e2e-test/helper"
 )
 
@@ -41,14 +43,47 @@ func TestSettings_RegistrationClosed_BlocksNewUser(t *testing.T) {
 	)
 }
 
-// TestSettings_ScoreboardHidden_BlocksNonAdmin was wired against the legacy
-// app_settings.scoreboard_visible column. The scoreboard route now uses
-// middleware.VisibilityGuard(score_visibility) reading from the configs table via
-// CompetitionParamUseCase, which internally holds a closure-local 30s cachekit.CachedValue
-// that cannot be invalidated from tests. A dedicated test for the new route belongs in
-// competition_params_test.go and should toggle configs.score_visibility via the API.
-func TestSettings_ScoreboardHidden_BlocksNonAdmin(t *testing.T) {
-	t.Skip("legacy app_settings.scoreboard_visible is no longer wired; superseded by VisibilityGuard(score_visibility) on configs")
+// TestSettings_ScoreVisibility_EnforcesModes verifies the active scoreboard
+// visibility path: configs.score_visibility -> CompetitionParamUseCase cache ->
+// VisibilityGuard. Mutates global configs, so it must not run in parallel.
+func TestSettings_ScoreVisibility_EnforcesModes(t *testing.T) {
+	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())
+
+	suffix := helper.UID()
+	_, tokenAdmin := h.SetupCompetition("score_visibility_" + suffix)
+	_, _, tokenUser := h.RegisterUserAndLogin("scorevis_user_" + suffix)
+
+	t.Cleanup(func() {
+		h.PutAdminConfig(tokenAdmin, "score_visibility", "public", "string", "reset score visibility", http.StatusOK)
+	})
+
+	respGuestPublic := h.GetScoreboard("")
+	helper.RequireStatus(t, http.StatusOK, respGuestPublic.StatusCode(), respGuestPublic.Body, "scoreboard public guest")
+	require.NotNil(t, respGuestPublic.JSON200)
+
+	h.PutAdminConfig(tokenAdmin, "score_visibility", "private", "string", "private score visibility", http.StatusOK)
+	respGuestPrivate := h.GetScoreboard("")
+	helper.RequireStatus(t, http.StatusUnauthorized, respGuestPrivate.StatusCode(), respGuestPrivate.Body, "scoreboard private guest")
+
+	respUserPrivate := h.GetScoreboard(tokenUser)
+	helper.RequireStatus(t, http.StatusOK, respUserPrivate.StatusCode(), respUserPrivate.Body, "scoreboard private user")
+
+	h.PutAdminConfig(tokenAdmin, "score_visibility", "hidden", "string", "hidden score visibility", http.StatusOK)
+	respUserHidden := h.GetScoreboard(tokenUser)
+	helper.RequireStatus(t, http.StatusNotFound, respUserHidden.StatusCode(), respUserHidden.Body, "scoreboard hidden user")
+
+	respAdminHidden := h.GetScoreboard(tokenAdmin)
+	helper.RequireStatus(t, http.StatusOK, respAdminHidden.StatusCode(), respAdminHidden.Body, "scoreboard hidden admin")
+
+	h.PutAdminConfig(tokenAdmin, "score_visibility", "admins_only", "string", "admin-only score visibility", http.StatusOK)
+	respGuestAdminsOnly := h.GetScoreboard("")
+	helper.RequireStatus(t, http.StatusNotFound, respGuestAdminsOnly.StatusCode(), respGuestAdminsOnly.Body, "scoreboard admins_only guest")
+
+	respUserAdminsOnly := h.GetScoreboard(tokenUser)
+	helper.RequireStatus(t, http.StatusNotFound, respUserAdminsOnly.StatusCode(), respUserAdminsOnly.Body, "scoreboard admins_only user")
+
+	respAdminAdminsOnly := h.GetScoreboard(tokenAdmin)
+	helper.RequireStatus(t, http.StatusOK, respAdminAdminsOnly.StatusCode(), respAdminAdminsOnly.Body, "scoreboard admins_only admin")
 }
 
 // TestSettings_MaxTeams_EnforcesLimit verifies that once the team count reaches max_teams,

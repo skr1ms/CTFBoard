@@ -1,0 +1,80 @@
+"/setup/status":
+  get:
+    operationId: GetSetupStatus
+    security: []
+    summary: Get first-run setup status
+    description: Returns whether the platform setup wizard has already been completed.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SetupStatusResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    tags:
+      - Setup
+
+"/setup":
+  post:
+    operationId: PostSetup
+    security: []
+    summary: Complete first-run setup
+    description: Creates the initial admin, applies competition settings, and returns an access token.
+    parameters:
+      - name: X-Setup-Token
+        in: header
+        required: true
+        schema:
+          type: string
+        description: One-time setup token from server configuration.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/SetupRequest'
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/SetupCompleteResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Setup already complete
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    tags:
+      - Setup

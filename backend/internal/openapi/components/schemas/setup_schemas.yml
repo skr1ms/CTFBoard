@@ -1,0 +1,103 @@
+schemas:
+  request.SetupRequest:
+    type: object
+    required:
+      - ctf_name
+      - mode
+      - challenge_visibility
+      - score_visibility
+      - account_visibility
+      - registration_visibility
+      - admin_username
+      - admin_email
+      - admin_password
+    properties:
+      ctf_name:
+        type: string
+        maxLength: 100
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=100"
+      ctf_description:
+        type: string
+        maxLength: 5000
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=5000"
+      mode:
+        type: string
+        enum: [teams_only, solo_only, flexible]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=teams_only solo_only flexible"
+      max_team_size:
+        type: integer
+        minimum: 0
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
+      challenge_visibility:
+        type: string
+        enum: [public, private, hidden, admins]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=public private hidden admins"
+      score_visibility:
+        type: string
+        enum: [public, private, hidden, admins, admins_only]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=public private hidden admins admins_only"
+      account_visibility:
+        type: string
+        enum: [public, private, hidden, admins]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=public private hidden admins"
+      registration_visibility:
+        type: string
+        enum: [public, private]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=public private"
+      email_verification_required:
+        type: boolean
+      admin_username:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_username"
+      admin_email:
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,custom_email"
+      admin_password:
+        type: string
+        minLength: 12
+        maxLength: 72
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=12,strong_password"
+      start_time:
+        type: string
+        format: date-time
+      end_time:
+        type: string
+        format: date-time
+      freeze_time:
+        type: string
+        format: date-time
+      timezone:
+        type: string
+        maxLength: 128
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=128"
+
+  response.SetupStatusResponse:
+    type: object
+    required:
+      - complete
+    properties:
+      complete:
+        type: boolean
+
+  response.SetupCompleteResponse:
+    type: object
+    required:
+      - token
+      - user
+    properties:
+      token:
+        type: string
+      user:
+        $ref: "#/schemas/response.UserResponse"

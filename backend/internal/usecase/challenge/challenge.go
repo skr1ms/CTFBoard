@@ -156,6 +156,7 @@ func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID
 	for _, id := range solvedIDs {
 		solvedSet[id] = struct{}{}
 	}
+
 	reqMetMap := uc.computeRequirementsMetMap(ctx, teamID, ids)
 
 	if len(solvedSet) == 0 && len(reqMetMap) == 0 {
@@ -182,6 +183,7 @@ func (uc *ChallengeUseCase) GetAll(ctx context.Context, teamID, tagID *uuid.UUID
 			},
 			Tags: c.Tags,
 		}
+
 		if hasReqMet {
 			copied.RequirementsMet = &reqMet
 		} else {

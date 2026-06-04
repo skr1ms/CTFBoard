@@ -47,6 +47,7 @@ func RequireVerifiedFromSettings(fallback bool, getter VerificationSettingsGette
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			verifyEmails := fallback
+
 			settings, err := getter.Get(r.Context())
 			if err != nil {
 				log.WithError(err).Warn("middleware - RequireVerifiedFromSettings - Settings.Get: using fallback")
