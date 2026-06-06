@@ -15,6 +15,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
@@ -30,5 +31,10 @@ func InitializeApp(
 	mailer mailer.Mailer,
 ) (*App, error) {
 	wire.Build(RepoSet, UseCaseSet, InfraSet, HTTPSet)
+	return nil, nil
+}
+
+func InitializeCleanup(pool *pgxpool.Pool, storageProvider storage.Provider) (usecase.Cleaner, error) {
+	wire.Build(CleanupSet)
 	return nil, nil
 }
