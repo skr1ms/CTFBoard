@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
 
 	"github.com/wahrwelt-kit/go-logkit"
 
@@ -10,14 +11,15 @@ import (
 )
 
 func main() {
-	cfg, err := config.New()
-	if err != nil {
-		log.Fatalf("Config initialization failed: %v", err)
-	}
-
 	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	if err != nil {
-		log.Fatalf("Logger initialization failed: %v", err)
+		fmt.Fprintf(os.Stderr, "Logger initialization failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.New()
+	if err != nil {
+		l.WithError(err).Fatal("Config initialization failed")
 	}
 
 	l.Info("Configuration loaded successfully")

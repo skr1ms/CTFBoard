@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/run"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
@@ -23,8 +22,8 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/seed"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/wire"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
@@ -51,7 +50,8 @@ func Run(cfg *config.Config, l logkit.Logger) {
 		"version":           cfg.Version,
 	})
 
-	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	pool, err := postgres.New(ctx, &postgres.Config{
 		URL:      cfg.URL,
@@ -85,12 +85,12 @@ func Run(cfg *config.Config, l logkit.Logger) {
 		return
 	}
 
-	reconcileSettings(ctx, cfg, pool, l)
+	settingsRepo := persistent.NewSettingsRepo(pool)
+	paramRepo := persistent.NewCompetitionParamRepo(pool)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	reconcileSettings(ctx, cfg, settingsRepo, paramRepo, l)
 
-	storageProvider, err := provideStorage(ctx, cfg, l)
+	storageProvider, err := wire.ProvideStorage(ctx, cfg, l)
 	if err != nil {
 		l.WithError(err).Error("failed to create storage provider")
 
@@ -151,7 +151,7 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	go wsHub.SubscribeToRedis(ctx)
 
 	resendMailer := mailer.New(mailer.Config{APIKey: cfg.APIKey, FromEmail: cfg.FromEmail, FromName: cfg.FromName})
-	asyncMailer := mailer.NewAsyncMailer(resendMailer, asyncMailerQueueSize, asyncMailerWorkers, l)
+	asyncMailer := mailer.NewAsyncMailer(ctx, resendMailer, asyncMailerQueueSize, asyncMailerWorkers, l)
 
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
@@ -180,17 +180,13 @@ func Run(cfg *config.Config, l logkit.Logger) {
 		return string(u.Role), nil
 	})
 
-	if app.SubmissionBatcher != nil {
-		defer app.SubmissionBatcher.Stop()
-	}
-
 	if app.SolveUseCase != nil {
 		defer app.SolveUseCase.StopLocalScoreboardCache()
 	}
 
 	// Skip the legacy seed on fresh deploys - the setup wizard handles admin creation.
-	if isSetupComplete(ctx, pool, l) {
-		runSeed(cfg, app, l)
+	if isSetupComplete(ctx, paramRepo, l) {
+		runSeed(ctx, cfg, app, l)
 	}
 
 	var g run.Group
@@ -250,26 +246,28 @@ func Run(cfg *config.Config, l logkit.Logger) {
 	}
 }
 
-// isSetupComplete queries the configs table to check whether the setup wizard
-// has been completed. Returns true on any DB error (fail-open to avoid blocking
-// an already-deployed platform due to a transient query failure).
-func isSetupComplete(ctx context.Context, pool *pgxpool.Pool, l logkit.Logger) bool {
-	var value string
+type setupCompleteReader interface {
+	IsSetupComplete(ctx context.Context) (bool, error)
+}
 
-	err := pool.QueryRow(ctx, "SELECT value FROM configs WHERE key = 'setup_complete' LIMIT 1").Scan(&value)
+// isSetupComplete checks whether the setup wizard has been completed. Returns
+// true on any DB error (fail-open to avoid blocking an already-deployed platform
+// due to a transient query failure).
+func isSetupComplete(ctx context.Context, reader setupCompleteReader, l logkit.Logger) bool {
+	complete, err := reader.IsSetupComplete(ctx)
 	if err != nil {
 		l.WithError(err).Warn("app: could not read setup_complete from DB, assuming complete (fail-open)")
 
 		return true
 	}
 
-	return value == "true"
+	return complete
 }
 
 // runSeed creates the default admin account when all three credentials
 // (username, email, password) are set in cfg. A missing credential is treated
 // as intentional and logged as info rather than an error.
-func runSeed(cfg *config.Config, app *wire.App, l logkit.Logger) {
+func runSeed(ctx context.Context, cfg *config.Config, app *wire.App, l logkit.Logger) {
 	adminUsername, adminEmail, adminPassword := cfg.Username, cfg.Email, cfg.Admin.Password
 	if adminUsername == "" || adminEmail == "" || adminPassword == "" {
 		l.Info("Admin credentials not provided, skipping default admin creation")
@@ -277,47 +275,27 @@ func runSeed(cfg *config.Config, app *wire.App, l logkit.Logger) {
 		return
 	}
 
-	err := seed.CreateDefaultAdmin(context.Background(), app.UserRepo, adminUsername, adminEmail, adminPassword, l, 0)
+	err := seed.CreateDefaultAdmin(ctx, app.UserRepo, adminUsername, adminEmail, adminPassword, l, 0)
 	if err != nil {
 		l.WithError(err).Error("Failed to seed default admin")
 	}
 }
 
-// provideStorage constructs the appropriate storage.Provider based on
-// cfg.Provider: "s3" initialises an S3-compatible backend (minio-go) and
-// ensures the bucket exists; any other value uses the local filesystem backend.
-func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (storage.Provider, error) {
-	if cfg.Provider == "s3" {
-		s3Provider, err := storage.NewS3Provider(
-			cfg.S3Endpoint,
-			cfg.S3PublicEndpoint,
-			cfg.S3AccessKey,
-			cfg.S3SecretKey,
-			cfg.S3Bucket,
-			cfg.S3Region,
-			cfg.S3UseSSL,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("provideStorage - NewS3Provider: %w", err)
-		}
+type startupSettingsReconciler interface {
+	ReconcileStartupDefaults(
+		ctx context.Context,
+		appName string,
+		fromName string,
+		fromEmail string,
+		resendEnabled bool,
+		githubEnabled bool,
+		googleEnabled bool,
+		defaultAppName string,
+	) error
+}
 
-		if err := s3Provider.EnsureBucket(ctx); err != nil {
-			return nil, fmt.Errorf("provideStorage - EnsureBucket: %w", err)
-		}
-
-		l.Info("Using S3 storage provider", map[string]any{"endpoint": cfg.S3Endpoint, "bucket": cfg.S3Bucket})
-
-		return s3Provider, nil
-	}
-
-	fsProvider, err := storage.NewFilesystemProvider(cfg.LocalPath)
-	if err != nil {
-		return nil, fmt.Errorf("provideStorage - NewFilesystemProvider: %w", err)
-	}
-
-	l.Info("Using filesystem storage provider", map[string]any{"path": cfg.LocalPath})
-
-	return fsProvider, nil
+type ctfNameDefaultReconciler interface {
+	ReconcileCTFNameDefault(ctx context.Context, appName, defaultAppName string) error
 }
 
 // reconcileSettings syncs brand-related env vars (APP_NAME, RESEND_FROM_NAME,
@@ -325,7 +303,13 @@ func provideStorage(ctx context.Context, cfg *config.Config, l logkit.Logger) (s
 // the generic migration defaults. This allows a fresh fork install to display the
 // operator's custom CTF name without manual admin-UI intervention, while
 // preserving any admin edits made after first boot.
-func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, l logkit.Logger) {
+func reconcileSettings(
+	ctx context.Context,
+	cfg *config.Config,
+	settingsRepo startupSettingsReconciler,
+	paramRepo ctfNameDefaultReconciler,
+	l logkit.Logger,
+) {
 	const (
 		defaultAppName   = "CTF Platform"
 		defaultFromEmail = "noreply@ctf-platform.local"
@@ -350,26 +334,14 @@ func reconcileSettings(ctx context.Context, cfg *config.Config, pool *pgxpool.Po
 		fromEmail = defaultFromEmail
 	}
 
-	_, err := pool.Exec(ctx,
-		`UPDATE app_settings
-		    SET app_name=$1,
-		        resend_from_name=$2,
-		        resend_from_email=$3,
-		        resend_enabled=$4,
-		        oauth_github_enabled=$5,
-		        oauth_google_enabled=$6
-		  WHERE id=1
-		    AND app_name=$7`,
+	err := settingsRepo.ReconcileStartupDefaults(ctx,
 		appName, fromName, fromEmail, resendEnabled, githubEnabled, googleEnabled, defaultAppName,
 	)
 	if err != nil {
 		l.WithError(err).Warn("reconcileSettings - app_settings update skipped")
 	}
 
-	_, err = pool.Exec(ctx,
-		`UPDATE configs SET value=$1 WHERE key='ctf_name' AND value=$2`,
-		appName, defaultAppName,
-	)
+	err = paramRepo.ReconcileCTFNameDefault(ctx, appName, defaultAppName)
 	if err != nil {
 		l.WithError(err).Warn("reconcileSettings - configs update skipped")
 	}
