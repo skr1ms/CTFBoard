@@ -19,7 +19,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
 
@@ -454,8 +453,8 @@ func sanitizeFileLocation(location string) string {
 	cleaned := filepath.ToSlash(filepath.Clean("/" + location))
 
 	cleaned = strings.TrimPrefix(cleaned, "/")
-	if !strings.HasPrefix(cleaned, storage.PrefixFiles) {
-		cleaned = storage.PrefixFiles + filepath.Base(cleaned)
+	if !strings.HasPrefix(cleaned, backupFilesPrefix) {
+		cleaned = backupFilesPrefix + filepath.Base(cleaned)
 	}
 
 	return cleaned

@@ -34,7 +34,7 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 	t.Parallel()
 	compRepo := backupMock.NewMockCompetitionRepository(t)
 	challRepo := backupMock.NewMockChallengeRepository(t)
-	storage := backupMock.NewMockStorageProvider(t)
+	storage := backupMock.NewMockBackupStorage(t)
 	log := logMock.NewMockLogger(t)
 
 	comp := &domain.Competition{Name: "Test", Mode: "flexible"}
@@ -83,7 +83,7 @@ func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
-	storage := backupMock.NewMockStorageProvider(t)
+	storage := backupMock.NewMockBackupStorage(t)
 
 	deps := BackupDeps{
 		CompetitionRepo: compRepo,
@@ -103,7 +103,7 @@ func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 	t.Parallel()
 	compRepo := backupMock.NewMockCompetitionRepository(t)
 	challRepo := backupMock.NewMockChallengeRepository(t)
-	storage := backupMock.NewMockStorageProvider(t)
+	storage := backupMock.NewMockBackupStorage(t)
 	log := logMock.NewMockLogger(t)
 
 	comp := &domain.Competition{Name: "Test", Mode: "flexible"}
@@ -138,7 +138,7 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	t.Parallel()
 	compRepo := backupMock.NewMockCompetitionRepository(t)
 	challRepo := backupMock.NewMockChallengeRepository(t)
-	storage := backupMock.NewMockStorageProvider(t)
+	storage := backupMock.NewMockBackupStorage(t)
 	log := logMock.NewMockLogger(t)
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
@@ -163,6 +163,55 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	_, err = io.ReadAll(rc)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
+}
+
+func TestBackupUseCase_ExportZIP_CloseCancelsWorker(t *testing.T) {
+	t.Parallel()
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	storage := backupMock.NewMockBackupStorage(t)
+	log := logMock.NewMockLogger(t)
+
+	started := make(chan struct{})
+
+	compRepo.EXPECT().Get(mock.Anything).RunAndReturn(func(ctx context.Context) (*domain.Competition, error) {
+		close(started)
+		<-ctx.Done()
+
+		return nil, ctx.Err()
+	}).Once()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
+
+	uc := NewBackupUseCase(BackupDeps{
+		CompetitionRepo: compRepo,
+		ChallengeRepo:   challRepo,
+		Storage:         storage,
+		Logger:          log,
+	})
+
+	rc, err := uc.ExportZIP(context.Background(), domain.ExportOptions{})
+	require.NoError(t, err)
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("export worker did not start")
+	}
+
+	closed := make(chan error, 1)
+
+	go func() {
+		closed <- rc.Close()
+	}()
+
+	select {
+	case err := <-closed:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("ExportZIP Close did not wait-boundedly for worker shutdown")
+	}
 }
 
 func TestBackupUseCase_ImportZIP_Success(t *testing.T) {

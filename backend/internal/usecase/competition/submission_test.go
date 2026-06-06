@@ -228,6 +228,41 @@ func TestSubmissionUseCase_GetStats_Error(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestSubmissionUseCase_Update_RequiresTransactionalDeps(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+
+	uc := d.createSubmissionUseCase()
+	got, err := uc.Update(context.Background(), uuid.New(), true)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Contains(t, err.Error(), "transaction manager required")
+}
+
+func TestSubmissionUseCase_Discard_RequiresTransactionalDeps(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+
+	uc := d.createSubmissionUseCase()
+	got, err := uc.Discard(context.Background(), uuid.New())
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Contains(t, err.Error(), "transaction manager required")
+}
+
+func TestSubmissionUseCase_Delete_RequiresTransactionalDeps(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+
+	uc := d.createSubmissionUseCase()
+	err := uc.Delete(context.Background(), uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "transaction manager required")
+}
+
 func TestSubmissionUseCase_AdminCreate_Success(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)

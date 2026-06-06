@@ -16,7 +16,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	emailMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email/mock"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 )
 
 type emailTestDeps struct {
@@ -105,7 +104,7 @@ func TestEmailUseCase_SendVerificationEmail_Hashing(t *testing.T) {
 
 	var sentBody string
 
-	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg mailer.Message) bool {
+	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg Message) bool {
 		sentBody = msg.Body
 
 		return msg.To == user.Email
@@ -159,7 +158,7 @@ func TestEmailUseCase_SendPasswordResetEmail_Success(t *testing.T) {
 
 	var sentBody string
 
-	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg mailer.Message) bool {
+	d.mailer.On("Send", mock.Anything, mock.MatchedBy(func(msg Message) bool {
 		sentBody = msg.Body
 
 		return msg.To == user.Email && strings.Contains(msg.Body, "reset-password?token=")
@@ -201,6 +200,18 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 
 	err := d.createUseCase().ResetPassword(context.Background(), rawToken, "new-password")
 	assert.NoError(t, err)
+}
+
+func TestEmailUseCase_ResetPasswordRateLimitKey(t *testing.T) {
+	t.Parallel()
+	d := newEmailTestDeps(t)
+
+	rawToken := "resetTOKEN123"
+
+	got := d.createUseCase().ResetPasswordRateLimitKey(rawToken)
+
+	assert.Equal(t, hashTestToken(rawToken), got)
+	assert.NotEqual(t, rawToken, got)
 }
 
 func TestEmailUseCase_ResetPassword_TokenInvalid(t *testing.T) {

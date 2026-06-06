@@ -9,10 +9,10 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
@@ -31,7 +31,7 @@ type HintDeps struct {
 	TeamRepo        repo.TeamRepository
 	UserRepo        repo.UserRepository
 	ChallengeRepo   repo.ChallengeRepository
-	ScoreboardCache cache.ScoreboardCacheInvalidator
+	ScoreboardCache cacheutil.ScoreboardCacheInvalidator
 	Logger          logkit.Logger
 }
 
@@ -273,7 +273,7 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 
 	comp := computil.Cached(ctx, uc.deps.CompUC, uc.deps.CompRepo)
 	frozen := comp != nil && comp.IsFreezeActive()
-	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
 
 	return hint, nil
 }

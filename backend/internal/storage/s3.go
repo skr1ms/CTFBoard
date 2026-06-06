@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -17,6 +18,14 @@ import (
 const (
 	s3BackoffInitialInterval = 500 * time.Millisecond
 	s3BackoffMaxRetries      = 3
+	s3DialTimeout            = 5 * time.Second
+	s3DialKeepAlive          = 30 * time.Second
+	s3TLSHandshakeTimeout    = 5 * time.Second
+	s3ResponseHeaderTimeout  = 15 * time.Second
+	s3IdleConnTimeout        = 90 * time.Second
+	s3ExpectContinueTimeout  = 1 * time.Second
+	s3MaxIdleConns           = 100
+	s3MaxIdleConnsPerHost    = 10
 )
 
 type S3Provider struct {
@@ -37,6 +46,7 @@ func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket, regio
 		Secure:       useSSL,
 		Region:       region,
 		BucketLookup: minio.BucketLookupPath,
+		Transport:    newS3HTTPTransport(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("S3Provider - NewS3Provider: %w", err)
@@ -47,6 +57,22 @@ func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket, regio
 		bucket:         bucket,
 		publicEndpoint: publicEndpoint,
 	}, nil
+}
+
+func newS3HTTPTransport() *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   s3DialTimeout,
+			KeepAlive: s3DialKeepAlive,
+		}).DialContext,
+		MaxIdleConns:          s3MaxIdleConns,
+		MaxIdleConnsPerHost:   s3MaxIdleConnsPerHost,
+		TLSHandshakeTimeout:   s3TLSHandshakeTimeout,
+		ResponseHeaderTimeout: s3ResponseHeaderTimeout,
+		IdleConnTimeout:       s3IdleConnTimeout,
+		ExpectContinueTimeout: s3ExpectContinueTimeout,
+	}
 }
 
 func (p *S3Provider) EnsureBucket(ctx context.Context) error {

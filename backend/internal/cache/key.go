@@ -1,70 +1,70 @@
 package cache
 
-import "strconv"
+import "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 
 const (
 	// KeyScoreboard is the Redis key for the live overall scoreboard cache.
-	KeyScoreboard = "scoreboard"
+	KeyScoreboard = cacheutil.KeyScoreboard
 	// KeyScoreboardFrozen is the Redis key for the frozen (snapshot) scoreboard cache.
-	KeyScoreboardFrozen = "scoreboard:frozen"
+	KeyScoreboardFrozen = cacheutil.KeyScoreboardFrozen
 	// KeyScoreboardFrozenPrefix is the prefix for time-stamped frozen scoreboard cache keys.
-	KeyScoreboardFrozenPrefix = "scoreboard:frozen:"
+	KeyScoreboardFrozenPrefix = cacheutil.KeyScoreboardFrozenPrefix
 	// KeyScoreboardBracketPrefix is the prefix for per-bracket live scoreboard cache keys.
-	KeyScoreboardBracketPrefix = "scoreboard:bracket:"
+	KeyScoreboardBracketPrefix = cacheutil.KeyScoreboardBracketPrefix
 	// KeyCompetition is the Redis key for the cached competition state.
-	KeyCompetition = "competition"
+	KeyCompetition = cacheutil.KeyCompetition
 	// KeyCompetitionGuard is the Redis key used as a distributed lock/guard for competition transitions.
-	KeyCompetitionGuard = "competition:guard"
+	KeyCompetitionGuard = cacheutil.KeyCompetitionGuard
 	// KeyAppSettings is the Redis key for the cached application settings.
-	KeyAppSettings = "app_settings"
+	KeyAppSettings = cacheutil.KeyAppSettings
 	// KeyFailedLoginPrefix is the prefix for per-identifier failed-login attempt counters.
-	KeyFailedLoginPrefix = "failed_login:"
+	KeyFailedLoginPrefix = cacheutil.KeyFailedLoginPrefix
 	// KeyLimiterPrefix is the prefix for rate-limiter token-bucket keys.
-	KeyLimiterPrefix = "limiter:"
+	KeyLimiterPrefix = cacheutil.KeyLimiterPrefix
 	// PubSubScoreboard is the Redis pub/sub channel name for scoreboard update notifications.
-	PubSubScoreboard = "scoreboard:updates"
+	PubSubScoreboard = cacheutil.PubSubScoreboard
 	// KeyAvatarUserPrefix is the prefix for user avatar cache keys.
-	KeyAvatarUserPrefix = "avatar:user:"
+	KeyAvatarUserPrefix = cacheutil.KeyAvatarUserPrefix
 	// KeyAvatarTeamPrefix is the prefix for team avatar cache keys.
-	KeyAvatarTeamPrefix = "avatar:team:"
+	KeyAvatarTeamPrefix = cacheutil.KeyAvatarTeamPrefix
 )
 
 // KeyUser returns the Redis cache key for a user by their string ID.
 func KeyUser(userID string) string {
-	return "user:" + userID
+	return cacheutil.KeyUser(userID)
 }
 
 // KeyTeam returns the Redis cache key for a team by their string ID.
 func KeyTeam(teamID string) string {
-	return "team:" + teamID
+	return cacheutil.KeyTeam(teamID)
 }
 
 // KeyScoreboardBracket returns the Redis cache key for the live scoreboard of a specific bracket.
 func KeyScoreboardBracket(bracketID string) string {
-	return "scoreboard:bracket:" + bracketID
+	return cacheutil.KeyScoreboardBracket(bracketID)
 }
 
 // KeyScoreboardBracketFrozen returns the Redis cache key for the frozen scoreboard of a specific bracket.
 func KeyScoreboardBracketFrozen(bracketID string) string {
-	return "scoreboard:frozen:bracket:" + bracketID
+	return cacheutil.KeyScoreboardBracketFrozen(bracketID)
 }
 
 // KeyScoreboardFrozenAt returns the Redis cache key for a frozen scoreboard snapshot taken at the given Unix timestamp.
 func KeyScoreboardFrozenAt(freezeUnix int64) string {
-	return KeyScoreboardFrozenPrefix + strconv.FormatInt(freezeUnix, 10)
+	return cacheutil.KeyScoreboardFrozenAt(freezeUnix)
 }
 
 // KeyScoreboardBracketFrozenAt returns the Redis cache key for a bracket's frozen scoreboard snapshot taken at the given Unix timestamp.
 func KeyScoreboardBracketFrozenAt(bracketID string, freezeUnix int64) string {
-	return KeyScoreboardFrozenPrefix + strconv.FormatInt(freezeUnix, 10) + ":bracket:" + bracketID
+	return cacheutil.KeyScoreboardBracketFrozenAt(bracketID, freezeUnix)
 }
 
 // KeyAvatarUser returns the Redis cache key for a user's avatar by their string ID.
 func KeyAvatarUser(userID string) string {
-	return KeyAvatarUserPrefix + userID
+	return cacheutil.KeyAvatarUser(userID)
 }
 
 // KeyAvatarTeam returns the Redis cache key for a team's avatar by their string ID.
 func KeyAvatarTeam(teamID string) string {
-	return KeyAvatarTeamPrefix + teamID
+	return cacheutil.KeyAvatarTeam(teamID)
 }

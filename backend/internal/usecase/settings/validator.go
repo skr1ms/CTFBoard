@@ -11,17 +11,16 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 const maxFieldTextLen = 500
 
 type FieldValidator struct {
-	fieldRepo repo.FieldRepository
+	fieldRepo FieldRepository
 }
 
 func NewFieldValidator(
-	fieldRepo repo.FieldRepository,
+	fieldRepo FieldRepository,
 ) *FieldValidator {
 	return &FieldValidator{fieldRepo: fieldRepo}
 }

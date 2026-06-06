@@ -12,10 +12,9 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
 const (
@@ -32,16 +31,21 @@ type SettingsUseCase struct {
 	sf   singleflight.Group
 }
 
+type RuntimeInvalidator interface {
+	InvalidateRuntimeSettingsCaches()
+}
+
 type SettingsDeps struct {
-	Repo         repo.SettingsRepository
-	AuditLogRepo repo.AuditLogRepository
-	TM           repo.TransactionManager
-	Redis        cachekit.KeyValueStore
-	CompRepo     repo.CompetitionRepository
-	ConfigUC     usecase.CompetitionParamUseCase
-	PubSub       cachekit.PubSubStore
-	StopContext  context.Context
-	Logger       logkit.Logger
+	Repo               SettingsRepository
+	AuditLogRepo       AuditLogRepository
+	TM                 TransactionManager
+	Redis              cachekit.KeyValueStore
+	CompRepo           CompetitionRepository
+	ConfigUC           usecase.CompetitionParamUseCase
+	PubSub             cachekit.PubSubStore
+	StopContext        context.Context
+	RuntimeInvalidator RuntimeInvalidator
+	Logger             logkit.Logger
 }
 
 var _ usecase.SettingsUseCase = (*SettingsUseCase)(nil)
@@ -54,13 +58,14 @@ func NewSettingsUseCase(deps SettingsDeps) *SettingsUseCase {
 	uc := &SettingsUseCase{deps: deps}
 
 	if deps.PubSub != nil {
-		stopCtx := deps.StopContext
-		if stopCtx == nil {
-			stopCtx = context.Background()
+		if deps.StopContext == nil {
+			deps.Logger.Warn("SettingsUseCase: PubSub invalidation disabled: StopContext is nil")
+
+			return uc
 		}
 
-		go cache.SubscribeInvalidation(stopCtx, deps.PubSub, settingsInvChannel, func() {
-			uc.sf.Forget(cache.KeyAppSettings)
+		go cacheutil.SubscribeInvalidation(deps.StopContext, deps.PubSub, settingsInvChannel, func() {
+			uc.sf.Forget(cacheutil.KeyAppSettings)
 		}, deps.Logger, "settings")
 	}
 
@@ -74,7 +79,7 @@ func NewSettingsUseCase(deps SettingsDeps) *SettingsUseCase {
 // key so a PubSub-driven invalidation (sf.Forget) also prevents stale reads.
 func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 	if uc.deps.Redis != nil {
-		val, err := uc.deps.Redis.Get(ctx, cache.KeyAppSettings)
+		val, err := uc.deps.Redis.Get(ctx, cacheutil.KeyAppSettings)
 		if err == nil {
 			var s domain.Settings
 
@@ -85,15 +90,18 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 		}
 	}
 
-	v, err, _ := uc.sf.Do(cache.KeyAppSettings, func() (any, error) {
-		s, err := uc.deps.Repo.Get(context.WithoutCancel(ctx))
+	v, err, _ := uc.sf.Do(cacheutil.KeyAppSettings, func() (any, error) {
+		loadCtx, cancel := cacheutil.LoaderContext(ctx)
+		defer cancel()
+
+		s, err := uc.deps.Repo.Get(loadCtx)
 		if err != nil {
 			return nil, fmt.Errorf("SettingsUseCase - Get - SettingsRepo.Get: %w", err)
 		}
 
 		if uc.deps.Redis != nil {
 			if bytes, err := json.Marshal(s); err == nil {
-				_ = uc.deps.Redis.Set(context.WithoutCancel(ctx), cache.KeyAppSettings, bytes, cacheTTL) //nolint:errcheck // best-effort cache write
+				_ = uc.deps.Redis.Set(loadCtx, cacheutil.KeyAppSettings, bytes, cacheTTL)
 			}
 		}
 
@@ -117,8 +125,8 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 // RegistrationOpen are rejected to preserve competition integrity. UpdateIfCurrent
 // provides optimistic concurrency: it errors with ErrSettingsConflict if the row
 // was modified between the lock and the update. After commit, invalidateCache
-// evicts the singleflight entry, deletes the Redis key, and broadcasts a PubSub
-// invalidation to other instances.
+// evicts the singleflight entry, deletes the Redis key, broadcasts a PubSub
+// invalidation to other instances, and clears runtime caches derived from settings.
 func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actorID uuid.UUID, clientIP string) error {
 	err := uc.validate(s)
 	if err != nil {
@@ -167,19 +175,23 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actor
 		return fmt.Errorf("SettingsUseCase - Update - TM.Run: %w", err)
 	}
 
-	uc.invalidateCache()
+	uc.invalidateCache(ctx)
+
+	if uc.deps.RuntimeInvalidator != nil {
+		uc.deps.RuntimeInvalidator.InvalidateRuntimeSettingsCaches()
+	}
 
 	return nil
 }
 
-func (uc *SettingsUseCase) invalidateCache() {
-	uc.sf.Forget(cache.KeyAppSettings)
+func (uc *SettingsUseCase) invalidateCache(ctx context.Context) {
+	uc.sf.Forget(cacheutil.KeyAppSettings)
 
-	ctx, cancel := context.WithTimeout(context.Background(), invTimeout)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), invTimeout)
 	defer cancel()
 
 	if uc.deps.Redis != nil {
-		_ = uc.deps.Redis.Del(ctx, cache.KeyAppSettings) //nolint:errcheck // best-effort cache invalidation
+		_ = uc.deps.Redis.Del(ctx, cacheutil.KeyAppSettings)
 	}
 
 	if uc.deps.PubSub != nil {

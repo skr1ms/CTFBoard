@@ -11,7 +11,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	slugpkg "github.com/TakuyaYagam1/AstroCTFb/pkg/slug"
 )
@@ -20,8 +19,18 @@ type PageUseCase struct {
 	deps PageDeps
 }
 
+type PageRepository interface {
+	Create(ctx context.Context, page *domain.Page) error
+	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, error)
+	GetBySlug(ctx context.Context, slug string) (*domain.Page, error)
+	GetPublishedList(ctx context.Context) ([]*domain.PageListItem, error)
+	GetAllList(ctx context.Context) ([]*domain.Page, error)
+	Update(ctx context.Context, page *domain.Page) error
+	Delete(ctx context.Context, ID uuid.UUID) error
+}
+
 type PageDeps struct {
-	PageRepo repo.PageRepository
+	PageRepo PageRepository
 	Logger   logkit.Logger
 }
 

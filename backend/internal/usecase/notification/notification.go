@@ -10,7 +10,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -19,12 +18,25 @@ type NotificationBroadcaster interface {
 	NotifyNotification(message, level string)
 }
 
+type NotificationRepository interface {
+	Create(ctx context.Context, notif *domain.Notification) error
+	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Notification, error)
+	GetAll(ctx context.Context, limit, offset int) ([]*domain.Notification, error)
+	Update(ctx context.Context, notif *domain.Notification) error
+	Delete(ctx context.Context, ID uuid.UUID) error
+	CreateUserNotification(ctx context.Context, userNotif *domain.UserNotification) error
+	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.UserNotification, error)
+	GetUserNotificationByID(ctx context.Context, ID, userID uuid.UUID) (*domain.UserNotification, error)
+	MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error
+	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
+}
+
 type NotificationUseCase struct {
 	deps NotificationDeps
 }
 
 type NotificationDeps struct {
-	NotifRepo   repo.NotificationRepository
+	NotifRepo   NotificationRepository
 	Broadcaster NotificationBroadcaster
 	Logger      logkit.Logger
 }

@@ -5,14 +5,19 @@ import (
 	"time"
 )
 
+const (
+	avatarFullSuffix  = "_full.webp"
+	avatarThumbSuffix = "_thumb.webp"
+)
+
 // ThumbPathFromFull derives the thumbnail storage path from a full-size avatar path.
 // Returns an empty string if fullPath does not end with "_full.webp".
 func ThumbPathFromFull(fullPath string) string {
-	if len(fullPath) < 10 || !strings.HasSuffix(fullPath, "_full.webp") {
+	if !strings.HasSuffix(fullPath, avatarFullSuffix) {
 		return ""
 	}
 
-	return fullPath[:len(fullPath)-10] + "_thumb.webp"
+	return strings.TrimSuffix(fullPath, avatarFullSuffix) + avatarThumbSuffix
 }
 
 // AvatarEntityType is a string-backed enum identifying which entity type owns an avatar.

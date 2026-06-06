@@ -147,7 +147,7 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 			TeamID:  teamID,
 			UserID:  nil,
 			Action:  domain.TeamActionDeleted,
-			Details: map[string]any{"reason": "deleted_by_admin"},
+			Details: map[string]any{domain.TeamAuditDetailReason: "deleted_by_admin"},
 		}
 		if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 			return fmt.Errorf("TeamUseCase - AdminDelete - TeamRepo.CreateAuditLog: %w", err)
@@ -264,7 +264,7 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 		TeamID:  teamID,
 		UserID:  &userID,
 		Action:  domain.TeamActionJoined,
-		Details: map[string]any{"reason": "added_by_admin"},
+		Details: map[string]any{domain.TeamAuditDetailReason: "added_by_admin"},
 	}
 	if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		return fmt.Errorf("TeamUseCase - AdminAddMember - TeamRepo.CreateAuditLog: %w", err)
@@ -310,7 +310,7 @@ func (uc *TeamUseCase) AdminRemoveMember(ctx context.Context, teamID, userID uui
 			TeamID:  teamID,
 			UserID:  &userID,
 			Action:  domain.TeamActionMemberKicked,
-			Details: map[string]any{"reason": "removed_by_admin"},
+			Details: map[string]any{domain.TeamAuditDetailReason: "removed_by_admin"},
 		}
 		if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 			return fmt.Errorf("TeamUseCase - AdminRemoveMember - TeamRepo.CreateAuditLog: %w", err)

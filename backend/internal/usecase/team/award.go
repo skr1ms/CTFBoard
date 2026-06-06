@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
 type AwardUseCase struct {
@@ -22,7 +22,7 @@ type AwardDeps struct {
 	AwardRepo       repo.AwardRepository
 	TeamRepo        repo.TeamRepository
 	TM              repo.TransactionManager
-	ScoreboardCache cache.ScoreboardCacheInvalidator
+	ScoreboardCache cacheutil.ScoreboardCacheInvalidator
 	CompRepo        repo.CompetitionRepository
 }
 
@@ -76,7 +76,7 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 	}
 
 	frozen := comp != nil && comp.IsFreezeActive()
-	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
 
 	return award, nil
 }
@@ -109,17 +109,31 @@ func (uc *AwardUseCase) GetAll(ctx context.Context) ([]*domain.Award, error) {
 }
 
 func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
-	award, err := uc.deps.AwardRepo.GetByID(ctx, ID)
-	if err != nil {
-		if errors.Is(err, apperr.ErrAwardNotFound) {
-			return nil
+	var award *domain.Award
+
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		var err error
+
+		award, err = uc.deps.AwardRepo.GetByID(ctx, ID)
+		if err != nil {
+			if errors.Is(err, apperr.ErrAwardNotFound) {
+				return nil
+			}
+
+			return fmt.Errorf("AwardUseCase - Delete - AwardRepo.GetByID: %w", err)
 		}
 
-		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.GetByID: %w", err)
+		if err := uc.deps.AwardRepo.Delete(ctx, ID); err != nil {
+			return fmt.Errorf("AwardUseCase - Delete - AwardRepo.Delete: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("AwardUseCase - Delete - TM.Run: %w", err)
 	}
 
-	if err := uc.deps.AwardRepo.Delete(ctx, ID); err != nil {
-		return fmt.Errorf("AwardUseCase - Delete - AwardRepo.Delete: %w", err)
+	if award == nil {
+		return nil
 	}
 
 	var comp *domain.Competition
@@ -129,7 +143,7 @@ func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	}
 
 	frozen := comp != nil && comp.IsFreezeActive()
-	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, award.TeamID, frozen)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, award.TeamID, frozen)
 
 	return nil
 }

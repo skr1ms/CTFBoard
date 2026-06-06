@@ -5,10 +5,14 @@ import (
 	"encoding/csv"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 var allowedCSVTables = map[string]bool{
@@ -18,6 +22,15 @@ var allowedCSVTables = map[string]bool{
 	"submissions": true,
 	"solves":      true,
 	"awards":      true,
+}
+
+var csvUUIDColumns = map[string]map[string]bool{
+	"users":       {"id": true, "team_id": true},
+	"teams":       {"id": true, "captain_id": true, "invite_token": true, "bracket_id": true},
+	"challenges":  {"id": true},
+	"submissions": {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
+	"solves":      {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
+	"awards":      {"id": true, "team_id": true, "created_by": true, "banned_team_id": true},
 }
 
 func isAllowedCSVTable(table string) bool {
@@ -331,6 +344,52 @@ func csvNormalizeUserRoles(header []string, rows [][]string) [][]string {
 	}
 
 	return out
+}
+
+func csvValidateRows(table string, header []string, rows [][]string) ([][]string, []string) {
+	validRows := make([][]string, 0, len(rows))
+	csvErrors := make([]string, 0)
+
+	for i, row := range rows {
+		if len(row) != len(header) {
+			csvErrors = append(csvErrors, fmt.Sprintf("row %d: expected %d columns, got %d", i+1, len(header), len(row)))
+
+			continue
+		}
+
+		if msg := csvValidateRowValues(table, header, row); msg != "" {
+			csvErrors = append(csvErrors, fmt.Sprintf("row %d: %s", i+1, msg))
+
+			continue
+		}
+
+		validRows = append(validRows, row)
+	}
+
+	return validRows, csvErrors
+}
+
+func csvValidateRowValues(table string, header, row []string) string {
+	uuidCols := csvUUIDColumns[table]
+
+	for j, col := range header {
+		if j >= len(row) {
+			break
+		}
+
+		v := strings.TrimSpace(row[j])
+		if uuidCols[col] && v != "" {
+			if _, err := uuid.Parse(v); err != nil {
+				return fmt.Sprintf("column %q: invalid UUID %q", col, v)
+			}
+		}
+
+		if col == "email" && v != "" && !validator.EmailRegex.MatchString(v) {
+			return fmt.Sprintf("column email: invalid format %q", v)
+		}
+	}
+
+	return ""
 }
 
 func parseCSV(data []byte) ([]string, [][]string, error) {

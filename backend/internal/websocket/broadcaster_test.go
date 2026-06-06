@@ -87,7 +87,7 @@ func TestNewBroadcaster(t *testing.T) {
 	t.Parallel()
 
 	hub := wskit.NewHub()
-	b := NewBroadcaster(hub)
+	b := NewBroadcaster(context.Background(), hub)
 	require.NotNil(t, b)
 }
 
@@ -102,7 +102,7 @@ func TestBroadcaster_NotifySolve_NilBroadcaster(t *testing.T) {
 func TestBroadcaster_NotifySolve_NilHub(t *testing.T) {
 	t.Parallel()
 
-	b := NewBroadcaster(nil)
+	b := NewBroadcaster(context.Background(), nil)
 	b.NotifySolve(uuid.New(), "ch", 100, false)
 	b.NotifySolve(uuid.New(), "ch", 100, true)
 }
@@ -115,7 +115,7 @@ func TestBroadcaster_NotifySolve_WithHub_NoFirstBlood(t *testing.T) {
 	assert.Equal(t, EventTypeConnected, ev0.Type)
 
 	teamID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	b := NewBroadcaster(hub)
+	b := NewBroadcaster(context.Background(), hub)
 	b.NotifySolve(teamID, "Challenge A", 150, false)
 
 	assert.Eventually(t, func() bool {
@@ -155,7 +155,7 @@ func TestBroadcaster_NotifySolve_WithHub_FirstBlood(t *testing.T) {
 	_ = readEvent(t, conn)
 
 	teamID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	b := NewBroadcaster(hub)
+	b := NewBroadcaster(context.Background(), hub)
 	b.NotifySolve(teamID, "Challenge B", 200, true)
 
 	var solveEv, fbEv wskit.Event
@@ -208,7 +208,7 @@ func TestBroadcaster_NotifyNotification_NilBroadcaster(t *testing.T) {
 func TestBroadcaster_NotifyNotification_NilHub(t *testing.T) {
 	t.Parallel()
 
-	b := NewBroadcaster(nil)
+	b := NewBroadcaster(context.Background(), nil)
 	b.NotifyNotification("msg", "warning")
 }
 
@@ -218,7 +218,7 @@ func TestBroadcaster_NotifyNotification_WithHub(t *testing.T) {
 	conn := dialHubClient(t, hub)
 	_ = readEvent(t, conn)
 
-	b := NewBroadcaster(hub)
+	b := NewBroadcaster(context.Background(), hub)
 	b.NotifyNotification("Hello", "success")
 
 	assert.Eventually(t, func() bool {

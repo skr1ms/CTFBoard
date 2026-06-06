@@ -31,6 +31,29 @@ const (
 // to avoid a cyclic constant reference - must stay in sync with domain/avatar.go.
 const avatarMaxDimension = 2048
 
+const (
+	imageMebibyte = 1024 * 1024
+
+	formatMagicMinLen          = 4
+	riffWebPHeaderLen          = 12
+	webpMinAnimatedHeaderLen   = 16
+	webpChunkHeaderLen         = 8
+	webpChunkSizeOffset        = 4
+	gifHeaderLen               = 6
+	gifMinDataLen              = 13
+	gifScreenDescriptorLen     = 7
+	gifPackedFieldOffset       = 4
+	gifImageDescriptorLen      = 9
+	gifLocalPackedFieldOffset  = 8
+	gifColorTableFlag          = 0x80
+	gifColorTableSizeMask      = 0x07
+	gifColorTableBase          = 2
+	gifColorEntryBytes         = 3
+	gifTrailerByte             = 0x3B
+	gifImageDescriptorByte     = 0x2C
+	gifExtensionIntroducerByte = 0x21
+)
+
 var allowedMagicBytes = map[string][]byte{
 	"jpeg": {0xFF, 0xD8, 0xFF},
 	"png":  {0x89, 0x50, 0x4E, 0x47},
@@ -94,7 +117,7 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 	}
 
 	if cfg.Width*cfg.Height > maxPixels {
-		return nil, apperr.NewValidationErrorf("image area too large (max %d Mpx)", maxPixels/(1024*1024))
+		return nil, apperr.NewValidationErrorf("image area too large (max %d Mpx)", maxPixels/imageMebibyte)
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(data))
@@ -127,7 +150,7 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 // detectFormat checks the magic bytes of data and returns the format name
 // ("jpeg", "png", "gif", "webp") and whether it is a recognised format.
 func (p *ImageProcessor) detectFormat(data []byte) (string, bool) {
-	if len(data) < 4 {
+	if len(data) < formatMagicMinLen {
 		return "", false
 	}
 
@@ -137,9 +160,9 @@ func (p *ImageProcessor) detectFormat(data []byte) (string, bool) {
 		}
 	}
 
-	if len(data) >= 12 &&
-		string(data[:4]) == "RIFF" &&
-		string(data[8:12]) == "WEBP" {
+	if len(data) >= riffWebPHeaderLen &&
+		string(data[:formatMagicMinLen]) == "RIFF" &&
+		string(data[webpChunkHeaderLen:riffWebPHeaderLen]) == "WEBP" {
 		return "webp", true
 	}
 
@@ -150,50 +173,50 @@ func (p *ImageProcessor) detectFormat(data []byte) (string, bool) {
 // Descriptor block (i.e., multiple frames). It parses the GIF block structure
 // without decoding pixel data to avoid decompression-bomb amplification.
 func isAnimatedGIF(data []byte) bool {
-	if len(data) < 13 {
+	if len(data) < gifMinDataLen {
 		return false
 	}
 
-	pos := 6 // skip "GIF87a" / "GIF89a" signature
+	pos := gifHeaderLen // skip "GIF87a" / "GIF89a" signature
 
-	if pos+7 > len(data) {
+	if pos+gifScreenDescriptorLen > len(data) {
 		return false
 	}
 
-	globalFlags := data[pos+4]
-	pos += 7
+	globalFlags := data[pos+gifPackedFieldOffset]
+	pos += gifScreenDescriptorLen
 
 	// Skip Global Color Table
-	if globalFlags&0x80 != 0 {
-		colorCount := 2 << (globalFlags & 0x07) // 2^(n+1) colours, 3 bytes each
-		pos += colorCount * 3
+	if globalFlags&gifColorTableFlag != 0 {
+		colorCount := gifColorTableBase << (globalFlags & gifColorTableSizeMask)
+		pos += colorCount * gifColorEntryBytes
 	}
 
 	frameCount := 0
 
 	for pos < len(data) {
 		switch data[pos] {
-		case 0x3B: // GIF Trailer - end of file
+		case gifTrailerByte:
 			return frameCount > 1
 
-		case 0x2C: // Image Descriptor
+		case gifImageDescriptorByte:
 			frameCount++
 			if frameCount > 1 {
 				return true
 			}
 
 			pos++
-			if pos+9 > len(data) {
+			if pos+gifImageDescriptorLen > len(data) {
 				return false
 			}
 
-			localFlags := data[pos+8]
-			pos += 9
+			localFlags := data[pos+gifLocalPackedFieldOffset]
+			pos += gifImageDescriptorLen
 
 			// Skip Local Color Table
-			if localFlags&0x80 != 0 {
-				colorCount := 2 << (localFlags & 0x07)
-				pos += colorCount * 3
+			if localFlags&gifColorTableFlag != 0 {
+				colorCount := gifColorTableBase << (localFlags & gifColorTableSizeMask)
+				pos += colorCount * gifColorEntryBytes
 			}
 
 			// Skip LZW Minimum Code Size byte
@@ -201,7 +224,7 @@ func isAnimatedGIF(data []byte) bool {
 			// Skip sub-blocks
 			pos = skipGIFSubBlocks(data, pos)
 
-		case 0x21: // Extension Introducer
+		case gifExtensionIntroducerByte:
 			pos += 2 // skip introducer + label
 			pos = skipGIFSubBlocks(data, pos)
 
@@ -235,20 +258,20 @@ func skipGIFSubBlocks(data []byte, pos int) int {
 // is the definitive indicator of WebP animation per the WebP spec.
 func isAnimatedWebP(data []byte) bool {
 	// RIFF header: "RIFF"(4) + fileSize(4) + "WEBP"(4) = 12 bytes minimum
-	if len(data) < 16 {
+	if len(data) < webpMinAnimatedHeaderLen {
 		return false
 	}
 
-	pos := 12 // start after RIFF/fileSize/WEBP header
+	pos := riffWebPHeaderLen // start after RIFF/fileSize/WEBP header
 
-	for pos+8 <= len(data) {
-		chunkID := string(data[pos : pos+4])
+	for pos+webpChunkHeaderLen <= len(data) {
+		chunkID := string(data[pos : pos+webpChunkSizeOffset])
 		if chunkID == "ANIM" {
 			return true
 		}
 
-		chunkSize := int(binary.LittleEndian.Uint32(data[pos+4 : pos+8]))
-		pos += 8 + chunkSize
+		chunkSize := int(binary.LittleEndian.Uint32(data[pos+webpChunkSizeOffset : pos+webpChunkHeaderLen]))
+		pos += webpChunkHeaderLen + chunkSize
 
 		// WebP chunks are padded to even byte boundary
 		if chunkSize%2 != 0 {

@@ -16,6 +16,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
+	validation "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 type userTestDeps struct {
@@ -503,19 +504,18 @@ func TestUserUseCase_UnbanUser_Success_ShowsSoloTeamInTx(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSanitizeCustomFieldValue(t *testing.T) {
+func TestSanitizeCustomFieldValues(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "abc", sanitizeCustomFieldValue("abc"))
-	assert.Equal(t, "a  b", sanitizeCustomFieldValue("a \x00\x1b b"))
-	assert.Empty(t, sanitizeCustomFieldValue("\x00\x1f\x7f"))
-	assert.Equal(t, "x", sanitizeCustomFieldValue("  x  "))
-}
-
-func TestSanitizeCustomFields(t *testing.T) {
-	t.Parallel()
-	assert.Nil(t, sanitizeCustomFields(nil))
-	assert.Empty(t, sanitizeCustomFields(map[string]string{}))
-	out := sanitizeCustomFields(map[string]string{"k1": " v1 \x00 ", "k2": "v2"})
+	assert.Nil(t, validation.SanitizeCustomFieldValues(nil))
+	assert.Empty(t, validation.SanitizeCustomFieldValues(map[string]string{}))
+	out := validation.SanitizeCustomFieldValues(map[string]string{
+		"k1": " v1 \x00 ",
+		"k2": "v2",
+		"k3": "a \x00\x1b b",
+		"k4": "\x00\x1f\x7f",
+	})
 	assert.Equal(t, "v1", out["k1"])
 	assert.Equal(t, "v2", out["k2"])
+	assert.Equal(t, "a  b", out["k3"])
+	assert.Empty(t, out["k4"])
 }

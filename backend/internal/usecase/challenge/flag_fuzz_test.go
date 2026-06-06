@@ -20,7 +20,7 @@ func FuzzValidateFlagFormatRegex(f *testing.F) {
 	f.Add("(?:a|b){0,100}")
 
 	f.Fuzz(func(_ *testing.T, pattern string) {
-		_ = validateFlagFormatRegex(&pattern) //nolint:errcheck // fuzz: intentionally ignoring error
+		_ = validateFlagFormatRegex(&pattern)
 	})
 }
 

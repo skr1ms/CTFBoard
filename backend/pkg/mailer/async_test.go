@@ -20,7 +20,7 @@ func TestAsyncMailer(t *testing.T) {
 	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, err)
 
-	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+	asyncMailer := mailer.NewAsyncMailer(context.Background(), mockMailer, 10, 1, l)
 
 	asyncMailer.Start()
 	defer asyncMailer.Stop()
@@ -52,7 +52,7 @@ func TestAsyncMailer_GracefulShutdown(t *testing.T) {
 	l, err := logkit.New(logkit.WithLevel(logkit.InfoLevel), logkit.WithOutput(logkit.ConsoleOutput))
 	require.NoError(t, err)
 
-	asyncMailer := mailer.NewAsyncMailer(mockMailer, 10, 1, l)
+	asyncMailer := mailer.NewAsyncMailer(context.Background(), mockMailer, 10, 1, l)
 
 	asyncMailer.Start()
 	defer asyncMailer.Stop()

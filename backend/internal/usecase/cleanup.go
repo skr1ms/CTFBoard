@@ -8,18 +8,22 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 )
 
 type CleanupUseCase struct {
 	deps CleanupDeps
 }
 
+type CleanupStorage interface {
+	List(ctx context.Context, prefix string) ([]string, error)
+	Delete(ctx context.Context, path string) error
+}
+
 type CleanupDeps struct {
 	UserRepo     repo.UserRepository
 	TeamRepo     repo.TeamRepository
 	FileRepo     repo.FileRepository
-	Storage      storage.Provider
+	Storage      CleanupStorage
 	TrackingRepo repo.TrackingRepository
 }
 
@@ -42,7 +46,11 @@ func (uc *CleanupUseCase) CleanupDeletedTeams(ctx context.Context, olderThan tim
 	return nil
 }
 
-const cleanupLocationsBatchSize = 1000
+const (
+	cleanupLocationsBatchSize = 1000
+	cleanupUsersPrefix        = "users/"
+	cleanupTeamsPrefix        = "teams/"
+)
 
 // CleanupOrphanedStorageFiles removes objects from storage that have no
 // corresponding database record. It pages through all known file locations in
@@ -134,12 +142,12 @@ func (uc *CleanupUseCase) CleanupOrphanedAvatars(ctx context.Context) (int, erro
 		}
 	}
 
-	userFiles, err := uc.deps.Storage.List(ctx, storage.PrefixUsers)
+	userFiles, err := uc.deps.Storage.List(ctx, cleanupUsersPrefix)
 	if err != nil {
 		return 0, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.List(users/): %w", err)
 	}
 
-	teamFiles, err := uc.deps.Storage.List(ctx, storage.PrefixTeams)
+	teamFiles, err := uc.deps.Storage.List(ctx, cleanupTeamsPrefix)
 	if err != nil {
 		return 0, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.List(teams/): %w", err)
 	}

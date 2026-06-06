@@ -1,4 +1,4 @@
-package challenge
+package validator
 
 import (
 	"bytes"
@@ -16,9 +16,8 @@ var forbiddenUploadExtensions = map[string]struct{}{
 }
 
 // ValidateUploadFilename splits the lowercase filename on every "." and checks
-// each resulting extension against forbiddenUploadExtensions. Splitting on all
-// dots (not just the last) blocks double-extension attacks such as "shell.php.txt"
-// where the final extension appears safe but an intermediate one is dangerous.
+// each extension segment. This blocks double-extension uploads such as
+// "shell.php.txt" where the final extension appears safe.
 func ValidateUploadFilename(filename string) bool {
 	lower := strings.ToLower(filename)
 
@@ -41,11 +40,8 @@ var dangerousMagicBytes = [][]byte{
 	[]byte("\xd0\xcf\x11\xe0"),
 }
 
-// ValidateFileMagic checks the first bytes of the uploaded content against known
-// executable/dangerous magic byte sequences (MZ/PE, ELF, shebang, PDF, OLE).
-// Returning false blocks the upload regardless of the declared file extension,
-// preventing extension-spoofing attacks where a binary is renamed to ".pdf".
-// PDF (%PDF) and OLE (0xD0CF11E0) are blocked because they are common exploit carriers.
+// ValidateFileMagic checks the first bytes of uploaded content against known
+// executable or high-risk magic byte signatures.
 func ValidateFileMagic(header []byte) bool {
 	if len(header) == 0 {
 		return true

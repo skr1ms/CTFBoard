@@ -24,7 +24,7 @@ func HashHex(h hash.Hash) string {
 // HMACSign returns the HMAC-SHA256 signature of data using key.
 func HMACSign(key, data []byte) []byte {
 	mac := hmac.New(sha256.New, key)
-	mac.Write(data) //nolint:revive // hash.Write never returns error
+	_, _ = mac.Write(data)
 
 	return mac.Sum(nil)
 }

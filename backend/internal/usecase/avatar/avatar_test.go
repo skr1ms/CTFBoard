@@ -81,7 +81,7 @@ func (f *fakeCache) Del(_ context.Context, keys ...string) error {
 type avatarTestDeps struct {
 	userRepo *avatarMock.MockUserRepository
 	teamRepo *avatarMock.MockTeamRepository
-	storage  *avatarMock.MockStorageProvider
+	storage  *avatarMock.MockAvatarStorage
 	cache    *fakeCache
 	logger   logkit.Logger
 }
@@ -95,7 +95,7 @@ func newAvatarTestDeps(t *testing.T) *avatarTestDeps {
 	return &avatarTestDeps{
 		userRepo: avatarMock.NewMockUserRepository(t),
 		teamRepo: avatarMock.NewMockTeamRepository(t),
-		storage:  avatarMock.NewMockStorageProvider(t),
+		storage:  avatarMock.NewMockAvatarStorage(t),
 		cache:    &fakeCache{},
 		logger:   l,
 	}

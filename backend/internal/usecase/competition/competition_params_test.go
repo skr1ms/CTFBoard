@@ -128,7 +128,7 @@ func TestCompetitionParamUseCase_GetAll_Success(t *testing.T) {
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return(list, nil)
 
 	uc := d.createCompetitionParamUseCase()
-	_, _ = uc.Get(ctx, "k1") //nolint:errcheck // setup call
+	_, _ = uc.Get(ctx, "k1")
 	got, err := uc.GetAll(ctx)
 
 	assert.NoError(t, err)

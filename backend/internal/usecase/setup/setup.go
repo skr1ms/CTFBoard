@@ -13,19 +13,13 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-// SetupResult is returned by Complete on success.
-type SetupResult struct {
-	TokenPair *jwtkit.TokenPair
-	User      *domain.User
-}
-
 // SetupDeps are the external dependencies required by SetupUseCase.
 type SetupDeps struct {
 	UserUC      usecase.UserUseCase
 	CompUC      usecase.CompetitionUseCase
 	CompParamUC usecase.CompetitionParamUseCase
 	SettingsUC  usecase.SettingsUseCase
-	JWTService  *jwtkit.JWTService
+	JWTService  jwtkit.Service
 }
 
 // SetupUseCase orchestrates the first-run setup wizard completion.
@@ -33,6 +27,8 @@ type SetupUseCase struct {
 	deps SetupDeps
 	mu   sync.Mutex
 }
+
+var _ usecase.SetupUseCase = (*SetupUseCase)(nil)
 
 // NewSetupUseCase constructs a SetupUseCase.
 func NewSetupUseCase(deps SetupDeps) *SetupUseCase {
@@ -51,7 +47,7 @@ func (uc *SetupUseCase) IsComplete(ctx context.Context) (bool, error) {
 // Returns apperr.ErrSetupAlreadyComplete (409) if called on an already-configured
 // platform. An application-level mutex serializes concurrent calls so that only
 // one admin is created even under parallel requests.
-func (uc *SetupUseCase) Complete(ctx context.Context, req *SetupRequest) (*SetupResult, error) {
+func (uc *SetupUseCase) Complete(ctx context.Context, req *usecase.SetupRequest) (*usecase.SetupResult, error) {
 	// Fast check without lock.
 	if uc.deps.CompParamUC.GetBool(ctx, "setup_complete", false) {
 		return nil, apperr.ErrSetupAlreadyComplete
@@ -85,7 +81,7 @@ func (uc *SetupUseCase) Complete(ctx context.Context, req *SetupRequest) (*Setup
 	if err := uc.deps.CompParamUC.Set(
 		ctx, "setup_complete", "true",
 		"initial setup wizard completed",
-		domain.CompetitionParamTypeBool, "general",
+		domain.CompetitionParamTypeBool, domain.ConfigCategoryGeneral,
 		adminUser.ID, req.ClientIP,
 	); err != nil {
 		return nil, fmt.Errorf("SetupUseCase - Complete - Set setup_complete: %w", err)
@@ -96,10 +92,18 @@ func (uc *SetupUseCase) Complete(ctx context.Context, req *SetupRequest) (*Setup
 		return nil, fmt.Errorf("SetupUseCase - Complete - GenerateTokenPair: %w", err)
 	}
 
-	return &SetupResult{TokenPair: tokenPair, User: adminUser}, nil
+	return &usecase.SetupResult{
+		TokenPair: &usecase.TokenPair{
+			AccessToken:      tokenPair.AccessToken,
+			RefreshToken:     tokenPair.RefreshToken,
+			AccessExpiresAt:  tokenPair.AccessExpiresAt,
+			RefreshExpiresAt: tokenPair.RefreshExpiresAt,
+		},
+		User: adminUser,
+	}, nil
 }
 
-func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *SetupRequest, adminUser *domain.User) error {
+func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *usecase.SetupRequest, adminUser *domain.User) error {
 	comp, err := uc.deps.CompUC.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("SetupUseCase - applyCompetition - CompUC.Get: %w", err)
@@ -125,17 +129,17 @@ func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *SetupRequest,
 	return nil
 }
 
-func (uc *SetupUseCase) applyConfigs(ctx context.Context, req *SetupRequest, adminUser *domain.User) error {
+func (uc *SetupUseCase) applyConfigs(ctx context.Context, req *usecase.SetupRequest, adminUser *domain.User) error {
 	params := []*domain.CompetitionParam{
-		{Key: "ctf_name", Value: req.CTFName, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "CTF competition name"},
-		{Key: "ctf_description", Value: req.CTFDescription, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "CTF competition description (Markdown)"},
-		{Key: "user_mode", Value: req.Mode, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "Participation mode: teams or users"},
-		{Key: "challenge_visibility", Value: req.ChallengeVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Challenge visibility: public, private, admins"},
-		{Key: "score_visibility", Value: req.ScoreVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Scoreboard visibility: public, private, hidden, admins, admins_only"},
-		{Key: "account_visibility", Value: req.AccountVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "User/team account visibility: public, private, admins"},
-		{Key: "registration_visibility", Value: req.RegistrationVisibility, ValueType: domain.CompetitionParamTypeString, Category: "visibility", Description: "Registration visibility: public, private"},
-		{Key: "email_verification_required", Value: strconv.FormatBool(req.EmailVerificationRequired), ValueType: domain.CompetitionParamTypeBool, Category: "general", Description: "Require email verification on signup"},
-		{Key: "timezone", Value: req.Timezone, ValueType: domain.CompetitionParamTypeString, Category: "general", Description: "Display timezone for competition times"},
+		{Key: "ctf_name", Value: req.CTFName, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "CTF competition name"},
+		{Key: "ctf_description", Value: req.CTFDescription, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "CTF competition description (Markdown)"},
+		{Key: "user_mode", Value: req.Mode, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "Participation mode: teams or users"},
+		{Key: "challenge_visibility", Value: req.ChallengeVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "Challenge visibility: public, private, admins"},
+		{Key: "score_visibility", Value: req.ScoreVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "Scoreboard visibility: public, private, hidden, admins, admins_only"},
+		{Key: "account_visibility", Value: req.AccountVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "User/team account visibility: public, private, admins"},
+		{Key: "registration_visibility", Value: req.RegistrationVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "Registration visibility: public, private"},
+		{Key: "email_verification_required", Value: strconv.FormatBool(req.EmailVerificationRequired), ValueType: domain.CompetitionParamTypeBool, Category: domain.ConfigCategoryGeneral, Description: "Require email verification on signup"},
+		{Key: "timezone", Value: req.Timezone, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "Display timezone for competition times"},
 	}
 
 	if err := uc.deps.CompParamUC.SetBatch(ctx, params, adminUser.ID, req.ClientIP); err != nil {
@@ -148,7 +152,7 @@ func (uc *SetupUseCase) applyConfigs(ctx context.Context, req *SetupRequest, adm
 // applySettings mirrors wizard inputs into the admin-editable app_settings row
 // so /admin/settings reflects what was chosen during setup. Other fields keep
 // their migration defaults.
-func (uc *SetupUseCase) applySettings(ctx context.Context, req *SetupRequest, adminUser *domain.User) error {
+func (uc *SetupUseCase) applySettings(ctx context.Context, req *usecase.SetupRequest, adminUser *domain.User) error {
 	s, err := uc.deps.SettingsUC.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("SetupUseCase - applySettings - SettingsUC.Get: %w", err)

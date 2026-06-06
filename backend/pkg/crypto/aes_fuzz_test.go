@@ -24,7 +24,7 @@ func FuzzDecrypt(f *testing.F) {
 	}
 
 	f.Fuzz(func(_ *testing.T, ciphertext string) {
-		_, _ = svc.Decrypt(ciphertext) //nolint:errcheck // fuzz: testing for panics, not errors
+		_, _ = svc.Decrypt(ciphertext)
 	})
 }
 

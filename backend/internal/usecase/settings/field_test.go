@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	settingsMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mock"
 )
 
@@ -37,6 +38,27 @@ func newTestField(name string, fieldType domain.FieldType, entityType domain.Ent
 		Name:       name,
 		FieldType:  fieldType,
 		EntityType: entityType,
+		Required:   required,
+		Options:    options,
+		OrderIndex: orderIndex,
+	}
+}
+
+func fieldCreateParams(name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) usecase.FieldCreateParams {
+	return usecase.FieldCreateParams{
+		Name:       name,
+		FieldType:  fieldType,
+		EntityType: entityType,
+		Required:   required,
+		Options:    options,
+		OrderIndex: orderIndex,
+	}
+}
+
+func fieldUpdateParams(name string, fieldType domain.FieldType, required bool, options []string, orderIndex int) usecase.FieldUpdateParams {
+	return usecase.FieldUpdateParams{
+		Name:       name,
+		FieldType:  fieldType,
 		Required:   required,
 		Options:    options,
 		OrderIndex: orderIndex,
@@ -96,7 +118,7 @@ func TestFieldUseCase_Create_Success(t *testing.T) {
 	})
 
 	uc := d.createUseCase()
-	got, err := uc.Create(ctx, name, fieldType, entityType, true, options, orderIndex)
+	got, err := uc.Create(ctx, fieldCreateParams(name, fieldType, entityType, true, options, orderIndex))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -111,7 +133,7 @@ func TestFieldUseCase_Create_Error(t *testing.T) {
 	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createUseCase()
-	got, err := uc.Create(ctx, "name", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)
+	got, err := uc.Create(ctx, fieldCreateParams("name", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0))
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -201,7 +223,7 @@ func TestFieldUseCase_Update_Success(t *testing.T) {
 	})
 
 	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, name, fieldType, true, options, orderIndex)
+	got, err := uc.Update(ctx, id, fieldUpdateParams(name, fieldType, true, options, orderIndex))
 
 	assert.NoError(t, err)
 	assert.Equal(t, name, got.Name)
@@ -216,7 +238,7 @@ func TestFieldUseCase_Update_Error(t *testing.T) {
 	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperr.ErrFieldNotFound)
 
 	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, "name", domain.FieldTypeText, false, nil, 0)
+	got, err := uc.Update(ctx, id, fieldUpdateParams("name", domain.FieldTypeText, false, nil, 0))
 
 	assert.ErrorIs(t, err, apperr.ErrFieldNotFound)
 	assert.Nil(t, got)

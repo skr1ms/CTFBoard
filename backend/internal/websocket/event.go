@@ -37,10 +37,11 @@ import "time"
 
 // Event type constants used in wskit.Event.Type (envelope) and in inner payload Type fields.
 const (
-	EventTypeConnected    = "connected"
-	EventTypeSolve        = "solve"
-	EventTypeFirstBlood   = "first_blood"
-	EventTypeNotification = "notification"
+	EventTypeConnected        = "connected"
+	EventTypeScoreboardUpdate = "scoreboard_update"
+	EventTypeSolve            = "solve"
+	EventTypeFirstBlood       = "first_blood"
+	EventTypeNotification     = "notification"
 )
 
 // ScoreboardUpdate is the JSON payload inside a "scoreboard_update" envelope (wskit.Event.Payload)

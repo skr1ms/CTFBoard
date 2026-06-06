@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 
@@ -13,7 +14,7 @@ import (
 // fieldString extracts the underlying string value from a reflect.Value,
 // dereferencing any number of pointer indirections. Returns "" for nil pointers.
 func fieldString(f reflect.Value) string {
-	for f.Kind() == reflect.Ptr {
+	for f.Kind() == reflect.Pointer {
 		if f.IsNil() {
 			return ""
 		}
@@ -94,7 +95,7 @@ func ValidateStrongPasswordField(fl validator.FieldLevel) bool {
 // length 8–72, characters from the allowed set, and at least one lowercase letter,
 // one uppercase letter, and one digit.
 func ValidatePassword(password string) bool {
-	if len(password) < 8 || len(password) > 72 {
+	if len(password) < minPasswordLen || len(password) > maxPasswordLen {
 		return false
 	}
 
@@ -123,8 +124,18 @@ func validateStrongPassword(fl validator.FieldLevel) bool {
 }
 
 const (
-	maxUsernameLen = 50
-	maxEmailLen    = 254
+	minPasswordLen                = 8
+	maxPasswordLen                = 72
+	maxUsernameLen                = 50
+	maxEmailLen                   = 254
+	maxTeamNameLen                = 50
+	maxChallengeTitleLen          = 100
+	maxChallengeDescriptionLen    = 2000
+	maxChallengeCategoryLen       = 50
+	maxChallengeFlagLen           = 200
+	maxHintContentLen             = 500
+	minPersistableCustomFieldRune = 32
+	deleteRune                    = 127
 )
 
 // ValidateUsernameField is the go-playground/validator field-level adapter for ValidateUsername.
@@ -171,7 +182,7 @@ func validateTeamName(fl validator.FieldLevel) bool {
 // ValidateTeamName reports whether name is 1–50 characters containing only alphanumeric characters,
 // spaces, dots, underscores, or hyphens.
 func ValidateTeamName(name string) bool {
-	if len(name) == 0 || len(name) > 50 {
+	if len(name) == 0 || len(name) > maxTeamNameLen {
 		return false
 	}
 
@@ -196,17 +207,17 @@ func validateChallengeFlag(fl validator.FieldLevel) bool {
 
 // ValidateChallengeTitle reports whether title is 1–100 characters.
 func ValidateChallengeTitle(title string) bool {
-	return len(title) > 0 && len(title) <= 100
+	return len(title) > 0 && len(title) <= maxChallengeTitleLen
 }
 
 // ValidateChallengeDescription reports whether desc is 1–2000 characters.
 func ValidateChallengeDescription(desc string) bool {
-	return len(desc) > 0 && len(desc) <= 2000
+	return len(desc) > 0 && len(desc) <= maxChallengeDescriptionLen
 }
 
 // ValidateChallengeCategory reports whether category is 1–50 characters matching the alphanumeric-and-hyphen pattern.
 func ValidateChallengeCategory(category string) bool {
-	if len(category) == 0 || len(category) > 50 {
+	if len(category) == 0 || len(category) > maxChallengeCategoryLen {
 		return false
 	}
 
@@ -215,7 +226,7 @@ func ValidateChallengeCategory(category string) bool {
 
 // ValidateChallengeFlag reports whether flag is 1–200 characters.
 func ValidateChallengeFlag(flag string) bool {
-	return len(flag) > 0 && len(flag) <= 200
+	return len(flag) > 0 && len(flag) <= maxChallengeFlagLen
 }
 
 func validateHintContent(fl validator.FieldLevel) bool {
@@ -224,7 +235,7 @@ func validateHintContent(fl validator.FieldLevel) bool {
 
 // ValidateHintContent reports whether content is 1–500 characters.
 func ValidateHintContent(content string) bool {
-	return len(content) > 0 && len(content) <= 500
+	return len(content) > 0 && len(content) <= maxHintContentLen
 }
 
 func validateNotEmpty(fl validator.FieldLevel) bool {
@@ -247,42 +258,57 @@ func validateHexColor(fl validator.FieldLevel) bool {
 }
 
 const (
+	// MaxCustomFields is the maximum number of custom profile fields accepted per request.
+	MaxCustomFields = 10
 	// MaxCustomFieldKeyLen is the maximum byte length allowed for a custom profile field key.
 	MaxCustomFieldKeyLen = 50
 	// MaxCustomFieldValueLen is the maximum byte length allowed for a custom profile field value.
 	MaxCustomFieldValueLen = 500
 )
 
-// AllowedCustomFields is the set of custom profile field keys that are accepted by the platform.
-var AllowedCustomFields = map[string]bool{
-	"affiliation": true,
-	"country":     true,
-	"discord":     true,
-	"telegram":    true,
-	"twitter":     true,
-	"github":      true,
-}
-
-// ValidateCustomFields checks that every key in fields is in AllowedCustomFields and that neither
-// key nor value exceeds its respective maximum length.
-func ValidateCustomFields(fields map[string]string) error {
-	if fields == nil {
-		return nil
+// ValidateCustomFieldEnvelope checks request-level custom field limits before
+// dynamic schema validation resolves field IDs and per-field rules.
+func ValidateCustomFieldEnvelope(fields map[string]string) error {
+	if len(fields) > MaxCustomFields {
+		return fmt.Errorf("validator.ValidateCustomFieldEnvelope: too many custom fields (max %d)", MaxCustomFields)
 	}
 
 	for k, v := range fields {
-		if !AllowedCustomFields[k] {
-			return fmt.Errorf("validator.ValidateCustomFields: invalid field %s", k)
-		}
-
 		if len(k) > MaxCustomFieldKeyLen {
-			return fmt.Errorf("validator.ValidateCustomFields: custom field key too long: %s", k)
+			return fmt.Errorf("validator.ValidateCustomFieldEnvelope: custom field key too long: %s", k)
 		}
 
 		if len(v) > MaxCustomFieldValueLen {
-			return fmt.Errorf("validator.ValidateCustomFields: custom field value too long for %s", k)
+			return fmt.Errorf("validator.ValidateCustomFieldEnvelope: custom field value too long for %s", k)
 		}
 	}
 
 	return nil
+}
+
+func sanitizeCustomFieldValue(s string) string {
+	var b strings.Builder
+
+	for _, r := range s {
+		if r >= minPersistableCustomFieldRune && r != deleteRune {
+			b.WriteRune(r)
+		}
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
+// SanitizeCustomFieldValues trims values and removes control characters that
+// should not be persisted in dynamic profile fields.
+func SanitizeCustomFieldValues(fields map[string]string) map[string]string {
+	if len(fields) == 0 {
+		return fields
+	}
+
+	out := make(map[string]string, len(fields))
+	for k, v := range fields {
+		out[k] = sanitizeCustomFieldValue(v)
+	}
+
+	return out
 }

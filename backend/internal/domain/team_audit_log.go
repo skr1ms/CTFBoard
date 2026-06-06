@@ -28,6 +28,8 @@ const (
 	TeamActionBanned TeamAuditAction = "banned"
 	// TeamActionUnbanned records that the team's ban was lifted by an admin.
 	TeamActionUnbanned TeamAuditAction = "unbanned"
+
+	TeamAuditDetailReason = "reason"
 )
 
 // TeamAuditLog records a team lifecycle event. The Data field carries an action-specific

@@ -17,6 +17,7 @@ const (
 	defaultPostgresPassword       = "password"
 	defaultPostgresDB             = "test"
 	defaultPostgresStartupTimeout = 60 * time.Second
+	defaultPostgresReadyLogs      = 2
 )
 
 // PostgresOption is a functional option for configuring the test Postgres container.
@@ -75,7 +76,7 @@ func StartPostgres(ctx context.Context, opts ...PostgresOption) (*postgres.Postg
 		postgres.WithPassword(o.password),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
+				WithOccurrence(defaultPostgresReadyLogs).
 				WithStartupTimeout(o.timeout),
 		),
 	}

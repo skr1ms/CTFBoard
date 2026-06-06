@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
 // TeamBracketIDGetter resolves the bracket a team belongs to, used for targeted cache invalidation.
@@ -12,17 +14,9 @@ type TeamBracketIDGetter interface {
 	GetTeamBracketID(ctx context.Context, teamID uuid.UUID) (*uuid.UUID, error)
 }
 
-// ScoreboardCacheInvalidator is implemented by services that can purge scoreboard cache entries.
-type ScoreboardCacheInvalidator interface {
-	InvalidateAll(ctx context.Context)
-	InvalidateForTeam(ctx context.Context, teamID uuid.UUID)
-	InvalidateLiveOnly(ctx context.Context, teamID uuid.UUID)
-}
+type ScoreboardCacheInvalidator = cacheutil.ScoreboardCacheInvalidator
 
-// UserCacheInvalidator is implemented by services that can purge a single user's cache entry.
-type UserCacheInvalidator interface {
-	InvalidateUser(ctx context.Context, userID uuid.UUID)
-}
+type UserCacheInvalidator = cacheutil.UserCacheInvalidator
 
 // UserCacheService manages cache invalidation for individual user records.
 type UserCacheService struct {
@@ -40,16 +34,12 @@ func (s *UserCacheService) InvalidateUser(ctx context.Context, userID uuid.UUID)
 		return
 	}
 
-	_ = s.cache.Del(ctx, KeyUser(userID.String())) //nolint:errcheck // best-effort invalidation
+	_ = s.cache.Del(ctx, cacheutil.KeyUser(userID.String()))
 }
 
-var _ UserCacheInvalidator = (*UserCacheService)(nil)
+var _ cacheutil.UserCacheInvalidator = (*UserCacheService)(nil)
 
-// ChallengeListCacheInvalidator invalidates challenge list cache (e.g. on solve create/delete).
-type ChallengeListCacheInvalidator interface {
-	InvalidateAll(ctx context.Context)
-	InvalidateForTeam(ctx context.Context, teamID uuid.UUID)
-}
+type ChallengeListCacheInvalidator = cacheutil.ChallengeListCacheInvalidator
 
 // ScoreboardCacheService manages invalidation of scoreboard cache entries in both Redis and an
 // optional in-process local cache, with support for bracket-scoped and live-only invalidation.
@@ -88,9 +78,9 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Del(ctx, KeyScoreboard, KeyScoreboardFrozen)    //nolint:errcheck // best-effort invalidation
-		_ = s.cache.DeleteByPrefix(ctx, KeyScoreboardFrozenPrefix)  //nolint:errcheck // best-effort invalidation
-		_ = s.cache.DeleteByPrefix(ctx, KeyScoreboardBracketPrefix) //nolint:errcheck // best-effort invalidation
+		_ = s.cache.Del(ctx, cacheutil.KeyScoreboard, cacheutil.KeyScoreboardFrozen)
+		_ = s.cache.DeleteByPrefix(ctx, cacheutil.KeyScoreboardFrozenPrefix)
+		_ = s.cache.DeleteByPrefix(ctx, cacheutil.KeyScoreboardBracketPrefix)
 	}
 }
 
@@ -111,11 +101,11 @@ func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID 
 		return
 	}
 
-	liveKeys := []string{KeyScoreboard}
+	liveKeys := []string{cacheutil.KeyScoreboard}
 
 	if s.getter != nil {
 		if bracketID, err := s.getter.GetTeamBracketID(ctx, teamID); err == nil && bracketID != nil {
-			liveKeys = append(liveKeys, KeyScoreboardBracket(bracketID.String()))
+			liveKeys = append(liveKeys, cacheutil.KeyScoreboardBracket(bracketID.String()))
 		}
 	}
 
@@ -131,21 +121,11 @@ func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID 
 	}
 }
 
-var _ ScoreboardCacheInvalidator = (*ScoreboardCacheService)(nil)
+var _ cacheutil.ScoreboardCacheInvalidator = (*ScoreboardCacheService)(nil)
 
 // InvalidateWithFreezeAwareness invalidates scoreboard cache entries respecting freeze state.
 // When frozen, only the live scoreboard is invalidated to preserve the frozen snapshot.
 // When not frozen, the full team-scoped invalidation is performed.
 func InvalidateWithFreezeAwareness(ctx context.Context, cache ScoreboardCacheInvalidator, teamID uuid.UUID, frozen bool) {
-	if cache == nil {
-		return
-	}
-
-	if frozen {
-		cache.InvalidateLiveOnly(ctx, teamID)
-
-		return
-	}
-
-	cache.InvalidateForTeam(ctx, teamID)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, cache, teamID, frozen)
 }

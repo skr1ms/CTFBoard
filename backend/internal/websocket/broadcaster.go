@@ -19,6 +19,7 @@ type SolveBroadcaster interface {
 // Broadcaster wraps a wskit.Hub and dispatches real-time events asynchronously.
 // All dispatch goroutines are tracked via an internal WaitGroup; call Wait before shutdown.
 type Broadcaster struct {
+	ctx context.Context
 	hub *wskit.Hub
 	wg  sync.WaitGroup
 }
@@ -26,8 +27,12 @@ type Broadcaster struct {
 const broadcastTimeout = 5 * time.Second
 
 // NewBroadcaster creates a Broadcaster backed by the given wskit.Hub.
-func NewBroadcaster(hub *wskit.Hub) *Broadcaster {
-	return &Broadcaster{hub: hub}
+func NewBroadcaster(ctx context.Context, hub *wskit.Hub) *Broadcaster {
+	if ctx == nil {
+		panic("websocket.NewBroadcaster: nil context")
+	}
+
+	return &Broadcaster{ctx: ctx, hub: hub}
 }
 
 // Wait blocks until all in-flight broadcast goroutines complete.
@@ -51,7 +56,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 
 	now := time.Now()
 	solveEv := wskit.Event{
-		Type: "scoreboard_update",
+		Type: EventTypeScoreboardUpdate,
 		Payload: ScoreboardUpdate{
 			Type:      EventTypeSolve,
 			TeamID:    teamID.String(),
@@ -62,7 +67,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 		Timestamp: now,
 	}
 	firstBloodEv := wskit.Event{
-		Type: "scoreboard_update",
+		Type: EventTypeScoreboardUpdate,
 		Payload: ScoreboardUpdate{
 			Type:      EventTypeFirstBlood,
 			TeamID:    teamID.String(),
@@ -74,7 +79,7 @@ func (b *Broadcaster) NotifySolve(teamID uuid.UUID, challengeTitle string, point
 	}
 
 	b.wg.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), broadcastTimeout)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(b.ctx), broadcastTimeout)
 		defer cancel()
 
 		_ = b.hub.BroadcastEvent(ctx, solveEv)
@@ -105,7 +110,7 @@ func (b *Broadcaster) NotifyNotification(message, level string) {
 	}
 
 	b.wg.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), broadcastTimeout)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(b.ctx), broadcastTimeout)
 		defer cancel()
 
 		_ = b.hub.BroadcastEvent(ctx, ev)

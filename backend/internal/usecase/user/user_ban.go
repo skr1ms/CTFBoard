@@ -8,7 +8,6 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
@@ -123,7 +122,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 						TeamID:  team.ID,
 						UserID:  &userID,
 						Action:  domain.TeamActionMemberBanned,
-						Details: map[string]any{"reason": "user_banned"},
+						Details: map[string]any{domain.TeamAuditDetailReason: "user_banned"},
 					}
 					if err := uc.deps.TeamRepo.CreateAuditLog(ctx, auditLog); err != nil {
 						return fmt.Errorf("UserUseCase - BanUser - TeamRepo.CreateAuditLog: %w", err)
@@ -199,7 +198,7 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 	frozen := comp != nil && comp.IsFreezeActive()
 
 	for _, teamID := range scoreboardInvalidateTeamIDs {
-		cache.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
 		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, teamID)
 		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
 	}
@@ -321,7 +320,7 @@ func (uc *UserUseCase) UnbanUser(ctx context.Context, userID, actorID uuid.UUID)
 	frozen := comp != nil && comp.IsFreezeActive()
 
 	for _, teamID := range scoreboardInvalidateTeamIDs {
-		cache.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateWithFreezeAwareness(postCtx, uc.deps.ScoreboardCache, teamID, frozen)
 		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, teamID)
 		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
 	}

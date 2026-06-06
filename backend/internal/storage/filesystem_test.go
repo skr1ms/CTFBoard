@@ -13,9 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/storagepath"
 )
 
-func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
+func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel // test mutates filesystem state under one temp root
 	t.Parallel()
 
 	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-test")
@@ -31,7 +32,7 @@ func TestFilesystemProvider_Workflow(t *testing.T) { //nolint:tparallel
 	ctx := context.Background()
 	filename := "test-file.txt"
 	content := []byte("hello world")
-	path, err := storage.GenerateStoragePath(filename)
+	path, err := storagepath.Generate(filename)
 	require.NoError(t, err)
 
 	t.Run("Upload", func(t *testing.T) {
@@ -95,33 +96,33 @@ func TestFilesystemProvider_PathTraversal(t *testing.T) {
 	})
 }
 
-func TestGenerateStoragePath_Success(t *testing.T) {
+func TestStoragePathGenerate_Success(t *testing.T) {
 	t.Parallel()
 
-	path, err := storage.GenerateStoragePath("file.txt")
+	path, err := storagepath.Generate("file.txt")
 	require.NoError(t, err)
 	assert.NotEmpty(t, path)
 	assert.Contains(t, path, "file.txt")
 }
 
-func TestGenerateStoragePath_SanitizesFilename(t *testing.T) {
+func TestStoragePathGenerate_SanitizesFilename(t *testing.T) {
 	t.Parallel()
 
-	path, err := storage.GenerateStoragePath("/etc/passwd")
+	path, err := storagepath.Generate("/etc/passwd")
 	require.NoError(t, err)
 	assert.NotContains(t, path, "..")
 	assert.Contains(t, path, "passwd")
 }
 
-func TestGenerateStoragePath_RejectsDotDot(t *testing.T) {
+func TestStoragePathGenerate_RejectsDotDot(t *testing.T) {
 	t.Parallel()
 
-	_, err := storage.GenerateStoragePath("..")
+	_, err := storagepath.Generate("..")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, storage.ErrInvalidStorageFilename)
-	_, err = storage.GenerateStoragePath("a..b")
+	assert.ErrorIs(t, err, storagepath.ErrInvalidFilename)
+	_, err = storagepath.Generate("a..b")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, storage.ErrInvalidStorageFilename)
+	assert.ErrorIs(t, err, storagepath.ErrInvalidFilename)
 }
 
 func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {

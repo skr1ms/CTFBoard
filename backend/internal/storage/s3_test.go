@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/storagepath"
 )
 
 func TestNewS3Provider_EmptyCredentials_Error(t *testing.T) {
@@ -68,7 +69,7 @@ func TestS3Provider_Workflow(t *testing.T) {
 
 	filename := "test-s3-file.txt"
 	content := []byte("hello s3")
-	path, err := storage.GenerateStoragePath(filename)
+	path, err := storagepath.Generate(filename)
 	require.NoError(t, err)
 
 	t.Run("Upload", func(t *testing.T) {

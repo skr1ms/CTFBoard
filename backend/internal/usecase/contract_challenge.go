@@ -1,0 +1,210 @@
+package usecase
+
+import (
+	"context"
+	"io"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+)
+
+// =============================================================================
+// Challenge
+// =============================================================================
+
+type (
+	// ChallengeWithTags is a challenge enriched with its associated tags and whether prerequisites are met.
+	ChallengeWithTags struct {
+		*domain.ChallengeWithSolved
+
+		Tags            []*domain.Tag
+		RequirementsMet *bool
+	}
+
+	// ChallengeDetail is the full challenge detail view used on the challenge detail page.
+	ChallengeDetail struct {
+		Challenge  *domain.Challenge
+		Tags       []*domain.Tag
+		Files      []*domain.File
+		Hints      []*HintWithUnlockStatus
+		FirstBlood *domain.FirstBloodEntry
+		SolvedByMe bool
+		SolveCount int
+	}
+
+	ChallengeCreateParams struct {
+		Title             string
+		Description       string
+		Category          string
+		Points            int
+		InitialValue      int
+		MinValue          int
+		Decay             int
+		Flag              string
+		ConnectionInfo    string
+		MaxAttempts       int
+		MaxAttemptsWindow time.Duration
+		Position          int
+		State             string
+		IsRegex           bool
+		IsCaseInsensitive bool
+		FlagFormatRegex   *string
+		TagIDs            []uuid.UUID
+	}
+
+	ChallengeUpdateParams struct {
+		Title             string
+		Description       string
+		Category          string
+		Points            int
+		InitialValue      *int
+		MinValue          *int
+		Decay             *int
+		Flag              string
+		ConnectionInfo    *string
+		MaxAttempts       *int
+		MaxAttemptsWindow *time.Duration
+		Position          *int
+		State             string
+		IsRegex           *bool
+		IsCaseInsensitive *bool
+		FlagFormatRegex   *string
+		TagIDs            []uuid.UUID
+	}
+
+	// ChallengeUseCase handles challenge CRUD, flag submission, solve management, and scoreboard cache.
+	ChallengeUseCase interface {
+		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
+		GetByID(ctx context.Context, challengeID uuid.UUID) (*domain.Challenge, error)
+		GetDetail(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*ChallengeDetail, error)
+		GetSolves(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error)
+		GetTags(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
+		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
+		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
+		GetSolution(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*domain.ChallengeSolution, error)
+		ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*domain.ChallengeSolutionEntry, error)
+		AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error)
+		AdminDeleteSolution(ctx context.Context, challengeID uuid.UUID) error
+		GetFlags(ctx context.Context, challengeID uuid.UUID) (*domain.ChallengeFlags, error)
+		GetTypes(ctx context.Context) ([]string, error)
+		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
+		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
+		Create(ctx context.Context, params ChallengeCreateParams) (*domain.Challenge, error)
+		Update(ctx context.Context, ID uuid.UUID, params ChallengeUpdateParams) (*domain.Challenge, error)
+		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
+		SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error)
+		InvalidateScoreboardCache(ctx context.Context)
+		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
+		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
+		AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error
+		RecalcAllDynamicPoints(ctx context.Context) error
+	}
+)
+
+// =============================================================================
+// Tag
+// =============================================================================
+
+type (
+	// TagUseCase manages challenge classification tags.
+	TagUseCase interface {
+		Create(ctx context.Context, name, color string) (*domain.Tag, error)
+		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error)
+		GetAll(ctx context.Context) ([]*domain.Tag, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
+		Update(ctx context.Context, ID uuid.UUID, name, color string) (*domain.Tag, error)
+		Delete(ctx context.Context, ID uuid.UUID) error
+	}
+)
+
+// =============================================================================
+// Hint
+// =============================================================================
+
+type (
+	// HintWithUnlockStatus is a hint paired with whether the requesting team has already unlocked it.
+	HintWithUnlockStatus struct {
+		Hint     *domain.Hint
+		Unlocked bool
+	}
+
+	// HintUseCase manages challenge hints and team unlock operations.
+	HintUseCase interface {
+		Create(ctx context.Context, challengeID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error)
+		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Hint, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*HintWithUnlockStatus, error)
+		Update(ctx context.Context, ID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error)
+		Delete(ctx context.Context, ID uuid.UUID) error
+		UnlockHint(ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (*domain.Hint, error)
+		GetAllUnlocks(ctx context.Context, page, perPage int) (*Paginated[*domain.HintUnlockWithDetails], error)
+	}
+)
+
+// =============================================================================
+// File
+// =============================================================================
+
+type (
+	// FileUseCase handles file uploads, downloads, and access-controlled URL generation for challenges and pages.
+	FileUseCase interface {
+		Upload(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
+		UploadPageFile(ctx context.Context, pageID uuid.UUID, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
+		Download(ctx context.Context, path string) (io.ReadCloser, error)
+		GetDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error)
+		GetDownloadURLWithAccess(ctx context.Context, fileID uuid.UUID, teamID *uuid.UUID, isAdmin bool) (string, error)
+		BuildDownloadURLs(ctx context.Context, files []*domain.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error)
+		GetByChallengeIDWithAccess(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, teamID *uuid.UUID, isAdmin bool) ([]*domain.File, error)
+		GetByPageID(ctx context.Context, pageID uuid.UUID) ([]*domain.File, error)
+		VerifyDownloadTokenAndGetFile(ctx context.Context, path, token string, teamID *uuid.UUID) (*domain.File, error)
+		Delete(ctx context.Context, fileID uuid.UUID) error
+	}
+
+	// StorageAdminUseCase handles direct administrative object-storage operations.
+	StorageAdminUseCase interface {
+		List(ctx context.Context, prefix string) ([]string, error)
+		Delete(ctx context.Context, path string) error
+	}
+)
+
+// =============================================================================
+// Award
+// =============================================================================
+
+type (
+	// AwardUseCase manages bonus point awards granted to teams by admins.
+	AwardUseCase interface {
+		Create(ctx context.Context, teamID uuid.UUID, value int, description string, createdBy uuid.UUID) (*domain.Award, error)
+		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Award, error)
+		GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Award, error)
+		GetAll(ctx context.Context) ([]*domain.Award, error)
+		Delete(ctx context.Context, ID uuid.UUID) error
+	}
+)
+
+// =============================================================================
+// Comment
+// =============================================================================
+
+type (
+	// CommentUseCase manages participant comments on challenges.
+	CommentUseCase interface {
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error)
+		Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*domain.Comment, error)
+		Delete(ctx context.Context, ID, userID uuid.UUID, isAdmin bool) error
+	}
+)
+
+// =============================================================================
+// Rating
+// =============================================================================
+
+type (
+	// RatingUseCase manages participant difficulty ratings and reviews for challenges.
+	RatingUseCase interface {
+		PutRating(ctx context.Context, challengeID, userID, teamID uuid.UUID, value int, review string) (*domain.Rating, error)
+		GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error)
+	}
+)

@@ -47,21 +47,11 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 	}
 
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		keyEmail := registrationAdvisoryKey("reg:email:", email)
-
-		keyUsername := registrationAdvisoryKey("reg:username:", username)
-		if keyEmail > keyUsername {
-			keyEmail, keyUsername = keyUsername, keyEmail
-		}
-
-		if err := uc.deps.UserRepo.AcquireAdvisoryLock(ctx, keyEmail); err != nil {
-			return fmt.Errorf("UserUseCase - AdminCreate - AcquireAdvisoryLock(email): %w", err)
-		}
-
-		if keyUsername != keyEmail {
-			if err := uc.deps.UserRepo.AcquireAdvisoryLock(ctx, keyUsername); err != nil {
-				return fmt.Errorf("UserUseCase - AdminCreate - AcquireAdvisoryLock(username): %w", err)
-			}
+		if err := acquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo, "UserUseCase - AdminCreate",
+			registrationAdvisoryLock{label: "email", key: registrationAdvisoryKey("reg:email:", email)},
+			registrationAdvisoryLock{label: "username", key: registrationAdvisoryKey("reg:username:", username)},
+		); err != nil {
+			return err
 		}
 
 		if err := uc.registerCheckUniqueness(ctx, username, email); err != nil {

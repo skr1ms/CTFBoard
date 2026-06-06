@@ -31,7 +31,10 @@ type Config struct {
 	FromName  string
 }
 
-const mailerRetryInitialInterval = 2 * time.Second
+const (
+	mailerRetryInitialInterval = 2 * time.Second
+	mailerMaxRetries           = 3
+)
 
 // ResendMailer sends transactional email via the Resend API with exponential-backoff retry.
 type ResendMailer struct {
@@ -86,7 +89,7 @@ func (m *ResendMailer) Send(ctx context.Context, msg Message) error {
 	bo.InitialInterval = mailerRetryInitialInterval
 	bo.Multiplier = 2
 
-	return backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, 3), ctx))
+	return backoff.Retry(operation, backoff.WithContext(backoff.WithMaxRetries(bo, mailerMaxRetries), ctx))
 }
 
 // isResendPermanentError returns true for HTTP 4xx status codes that should not be retried

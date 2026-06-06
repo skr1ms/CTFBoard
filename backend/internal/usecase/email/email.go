@@ -13,10 +13,9 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/emailtemplate"
 )
 
 // JWTRevoker is the subset of jwtkit.Service used to invalidate all active
@@ -26,8 +25,14 @@ type JWTRevoker interface {
 }
 
 const (
-	emailTokenBytes = 32
-	defaultAppName  = "CTF Platform"
+	emailTokenBytes             = 32
+	defaultAppName              = "CTF Platform"
+	emailPlaceholderCTFName     = "{ctf_name}"
+	emailPlaceholderURL         = "{url}"
+	defaultVerificationSubject  = "Verify your email - " + emailPlaceholderCTFName
+	defaultVerificationBody     = "Follow the link to verify: " + emailPlaceholderURL
+	defaultPasswordResetSubject = "Password reset - " + emailPlaceholderCTFName
+	defaultPasswordResetBody    = "Follow the link to reset password: " + emailPlaceholderURL
 )
 
 func substitute(s string, m map[string]string) string {
@@ -47,10 +52,10 @@ type ConfigGetter interface {
 }
 
 type EmailDeps struct {
-	UserRepo    repo.UserRepository
-	TokenRepo   repo.VerificationTokenRepository
-	TM          repo.TransactionManager
-	Mailer      mailer.Mailer
+	UserRepo    UserRepository
+	TokenRepo   VerificationTokenRepository
+	TM          TransactionManager
+	Mailer      Mailer
 	ConfigUC    ConfigGetter
 	JWTRevoker  JWTRevoker
 	VerifyTTL   time.Duration
@@ -120,12 +125,12 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.
 
 	if uc.deps.ConfigUC != nil {
 		ctfName = uc.deps.ConfigUC.GetString(ctx, "ctf_name", ctfName)
-		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_subject", "Verify your email - {ctf_name}")
-		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_body", "Follow the link to verify: {url}")
-		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
-		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": verifyURL})
+		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_subject", defaultVerificationSubject)
+		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_verification_body", defaultVerificationBody)
+		subject := substitute(subjectTmpl, map[string]string{emailPlaceholderCTFName: ctfName, emailPlaceholderURL: verifyURL})
+		body := substitute(bodyTmpl, map[string]string{emailPlaceholderCTFName: ctfName, emailPlaceholderURL: verifyURL})
 
-		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
+		msg := Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
 
 		err := uc.deps.Mailer.Send(ctx, msg)
 		if err != nil {
@@ -135,7 +140,7 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.
 		return nil
 	}
 
-	body, err := mailer.RenderVerificationEmail(mailer.VerificationData{
+	body, err := emailtemplate.RenderVerificationEmail(emailtemplate.VerificationData{
 		Username:  user.Username,
 		ActionURL: verifyURL,
 		AppName:   defaultAppName,
@@ -144,7 +149,7 @@ func (uc *EmailUseCase) SendVerificationEmail(ctx context.Context, user *domain.
 		return fmt.Errorf("EmailUseCase - SendVerificationEmail - RenderVerificationEmail: %w", err)
 	}
 
-	msg := mailer.Message{
+	msg := Message{
 		To:      user.Email,
 		Subject: "Verify your email - " + defaultAppName,
 		Body:    body,
@@ -259,12 +264,12 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", uc.deps.FrontendURL, token)
 	if uc.deps.ConfigUC != nil {
 		ctfName := uc.deps.ConfigUC.GetString(ctx, "ctf_name", defaultAppName)
-		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_subject", "Password reset - {ctf_name}")
-		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_body", "Follow the link to reset password: {url}")
-		subject := substitute(subjectTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
-		body := substitute(bodyTmpl, map[string]string{"{ctf_name}": ctfName, "{url}": resetURL})
+		subjectTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_subject", defaultPasswordResetSubject)
+		bodyTmpl := uc.deps.ConfigUC.GetString(ctx, "mail_reset_body", defaultPasswordResetBody)
+		subject := substitute(subjectTmpl, map[string]string{emailPlaceholderCTFName: ctfName, emailPlaceholderURL: resetURL})
+		body := substitute(bodyTmpl, map[string]string{emailPlaceholderCTFName: ctfName, emailPlaceholderURL: resetURL})
 
-		msg := mailer.Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
+		msg := Message{To: user.Email, Subject: subject, Body: body, IsHTML: false}
 
 		err := uc.deps.Mailer.Send(ctx, msg)
 		if err != nil {
@@ -274,7 +279,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		return nil
 	}
 
-	body, err := mailer.RenderPasswordResetEmail(mailer.PasswordResetData{
+	body, err := emailtemplate.RenderPasswordResetEmail(emailtemplate.PasswordResetData{
 		Username:  user.Username,
 		ActionURL: resetURL,
 		AppName:   defaultAppName,
@@ -283,7 +288,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		return fmt.Errorf("EmailUseCase - SendPasswordResetEmail - RenderPasswordResetEmail: %w", err)
 	}
 
-	msg := mailer.Message{
+	msg := Message{
 		To:      user.Email,
 		Subject: "Reset your password - " + defaultAppName,
 		Body:    body,
@@ -370,6 +375,12 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 	}
 
 	return nil
+}
+
+// ResetPasswordRateLimitKey returns the non-reversible key used by the transport
+// rate limiter for password-reset token guesses.
+func (uc *EmailUseCase) ResetPasswordRateLimitKey(tokenStr string) string {
+	return hashToken(tokenStr)
 }
 
 // ResendVerificationByEmail looks up a user by email address and resends the

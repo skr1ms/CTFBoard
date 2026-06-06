@@ -13,11 +13,11 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
@@ -43,8 +43,8 @@ type SolveDeps struct {
 	TeamRepo           repo.TeamRepository
 	TM                 repo.TransactionManager
 	Cache              *cachekit.Cache
-	ScoreboardCache    cache.ScoreboardCacheInvalidator
-	ChallengeListCache cache.ChallengeListCacheInvalidator
+	ScoreboardCache    cacheutil.ScoreboardCacheInvalidator
+	ChallengeListCache cacheutil.ChallengeListCacheInvalidator
 	Broadcaster        solveBroadcaster
 	Logger             logkit.Logger
 }
@@ -260,13 +260,14 @@ func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID,
 	}
 
 	v, err, _ := uc.scoreboardSF.Do(cacheKey, func() (any, error) {
-		sfCtx := context.WithoutCancel(ctx)
-
 		if item := uc.localScoreCache.Get(cacheKey); item != nil {
 			return item.Value(), nil
 		}
 
-		entries, err := cachekit.GetOrLoad(uc.deps.Cache, sfCtx, cacheKey, scoreboardRedisTTL, func(context.Context) ([]*domain.ScoreboardEntry, error) {
+		loadCtx, cancel := cacheutil.LoaderContext(ctx)
+		defer cancel()
+
+		entries, err := cachekit.GetOrLoad(uc.deps.Cache, loadCtx, cacheKey, scoreboardRedisTTL, func(loadCtx context.Context) ([]*domain.ScoreboardEntry, error) {
 			var result []*domain.ScoreboardEntry
 
 			var ft *time.Time
@@ -275,7 +276,7 @@ func (uc *SolveUseCase) GetScoreboard(ctx context.Context, bracketID *uuid.UUID,
 				ft = comp.FreezeTime
 			}
 
-			errRO := uc.deps.TM.ReadOnly(sfCtx, func(roCtx context.Context) error {
+			errRO := uc.deps.TM.ReadOnly(loadCtx, func(roCtx context.Context) error {
 				var errSB error
 
 				result, errSB = uc.deps.SolveRepo.GetScoreboardByBracket(roCtx, bracketID, ft)
@@ -318,25 +319,25 @@ func (uc *SolveUseCase) getScoreboardCacheKey(comp *domain.Competition, bracketI
 
 	if bracketID == nil || *bracketID == uuid.Nil {
 		if frozen {
-			return cache.KeyScoreboardFrozenAt(comp.FreezeTime.Unix()), true
+			return cacheutil.KeyScoreboardFrozenAt(comp.FreezeTime.Unix()), true
 		}
 
-		return cache.KeyScoreboard, false
+		return cacheutil.KeyScoreboard, false
 	}
 
 	idStr := bracketID.String()
 
 	if frozen {
-		return cache.KeyScoreboardBracketFrozenAt(idStr, comp.FreezeTime.Unix()), true
+		return cacheutil.KeyScoreboardBracketFrozenAt(idStr, comp.FreezeTime.Unix()), true
 	}
 
-	return cache.KeyScoreboardBracket(idStr), false
+	return cacheutil.KeyScoreboardBracket(idStr), false
 }
 
 func (uc *SolveUseCase) invalidateScoreboardCache(ctx context.Context, teamID uuid.UUID) {
 	comp := computil.Cached(ctx, uc.deps.CompetitionUC, uc.deps.CompetitionRepo)
 	frozen := comp != nil && comp.IsFreezeActive()
-	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
 }
 
 func (uc *SolveUseCase) ClearLocalScoreCache() {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -18,7 +17,7 @@ type FieldUseCase struct {
 }
 
 type FieldDeps struct {
-	FieldRepo repo.FieldRepository
+	FieldRepo FieldRepository
 }
 
 var _ usecase.FieldUseCase = (*FieldUseCase)(nil)
@@ -36,8 +35,8 @@ func (uc *FieldUseCase) GetByEntityType(ctx context.Context, entityType domain.E
 	return list, nil
 }
 
-func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domain.FieldType, entityType domain.EntityType, required bool, options []string, orderIndex int) (*domain.Field, error) {
-	name = strings.TrimSpace(name)
+func (uc *FieldUseCase) Create(ctx context.Context, params usecase.FieldCreateParams) (*domain.Field, error) {
+	name := strings.TrimSpace(params.Name)
 	if name == "" {
 		return nil, apperr.NewValidationErrorf("name is required")
 	}
@@ -45,11 +44,11 @@ func (uc *FieldUseCase) Create(ctx context.Context, name string, fieldType domai
 	field := &domain.Field{
 		ID:         uuid.New(),
 		Name:       name,
-		FieldType:  fieldType,
-		EntityType: entityType,
-		Required:   required,
-		Options:    options,
-		OrderIndex: orderIndex,
+		FieldType:  params.FieldType,
+		EntityType: params.EntityType,
+		Required:   params.Required,
+		Options:    params.Options,
+		OrderIndex: params.OrderIndex,
 	}
 
 	err := uc.deps.FieldRepo.Create(ctx, field)
@@ -78,23 +77,23 @@ func (uc *FieldUseCase) GetAll(ctx context.Context) ([]*domain.Field, error) {
 	return list, nil
 }
 
-func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, name string, fieldType domain.FieldType, required bool, options []string, orderIndex int) (*domain.Field, error) {
+func (uc *FieldUseCase) Update(ctx context.Context, ID uuid.UUID, params usecase.FieldUpdateParams) (*domain.Field, error) {
 	field, err := uc.deps.FieldRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.GetByID: %w", err)
 	}
 
-	name = strings.TrimSpace(name)
+	name := strings.TrimSpace(params.Name)
 	if name == "" {
 		return nil, apperr.NewValidationErrorf("name is required")
 	}
 
 	field.Name = name
-	field.FieldType = fieldType
-	field.Required = required
-	field.Options = options
+	field.FieldType = params.FieldType
+	field.Required = params.Required
+	field.Options = params.Options
 
-	field.OrderIndex = orderIndex
+	field.OrderIndex = params.OrderIndex
 	if err := uc.deps.FieldRepo.Update(ctx, field); err != nil {
 		return nil, fmt.Errorf("FieldUseCase - Update - FieldRepo.Update: %w", err)
 	}

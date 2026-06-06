@@ -19,9 +19,9 @@ func TestCalculateLinearDynamicScore(t *testing.T) {
 	}{
 		{"no solves", 500, 100, 20, 0, 500},
 		{"1 solve (first blood)", 500, 100, 20, 1, 500},
-		{"2 solves", 500, 100, 20, 2, 480},   // 500 - 400/20 * 1 = 500 - 20 = 480
-		{"10 solves", 500, 100, 20, 10, 320}, //nolint:gocritic // math annotation, not commented-out code
-		{"20 solves", 500, 100, 20, 20, 120}, //nolint:gocritic // math annotation, not commented-out code
+		{"2 solves", 500, 100, 20, 2, 480}, // 500 - 400/20 * 1 = 500 - 20 = 480
+		{"10 solves", 500, 100, 20, 10, 320},
+		{"20 solves", 500, 100, 20, 20, 120},
 		{"21 solves (>= decay)", 500, 100, 20, 21, 100},
 		{"100 solves", 500, 100, 20, 100, 100},
 		{"decay zero (fallback)", 500, 100, 0, 2, 100},

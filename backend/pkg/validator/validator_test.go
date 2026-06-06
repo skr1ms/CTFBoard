@@ -215,6 +215,48 @@ func TestCustomValidator_ValidateVar_StrongPassword_Error(t *testing.T) {
 	assert.Error(t, v.ValidateVar("short", "strong_password"))
 }
 
+func TestValidateCustomFieldEnvelope_Success(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateCustomFieldEnvelope(map[string]string{"field_id": "value"})
+	assert.NoError(t, err)
+}
+
+func TestValidateCustomFieldEnvelope_Error(t *testing.T) {
+	t.Parallel()
+
+	longKey := string(make([]byte, MaxCustomFieldKeyLen+1))
+	longValue := string(make([]byte, MaxCustomFieldValueLen+1))
+
+	assert.Error(t, ValidateCustomFieldEnvelope(map[string]string{longKey: "value"}))
+	assert.Error(t, ValidateCustomFieldEnvelope(map[string]string{"field_id": longValue}))
+
+	fields := make(map[string]string, MaxCustomFields+1)
+	for i := range MaxCustomFields + 1 {
+		fields[string(rune('a'+i))] = "value"
+	}
+
+	assert.Error(t, ValidateCustomFieldEnvelope(fields))
+}
+
+func TestSanitizeCustomFieldValues(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, SanitizeCustomFieldValues(nil))
+	assert.Empty(t, SanitizeCustomFieldValues(map[string]string{}))
+
+	out := SanitizeCustomFieldValues(map[string]string{
+		"k1": " v1 \x00 ",
+		"k2": "v2",
+		"k3": "a \x00\x1b b",
+		"k4": "\x00\x1f\x7f",
+	})
+	assert.Equal(t, "v1", out["k1"])
+	assert.Equal(t, "v2", out["k2"])
+	assert.Equal(t, "a  b", out["k3"])
+	assert.Empty(t, out["k4"])
+}
+
 func TestCustomValidator_ValidateVar_CustomEmail_Success(t *testing.T) {
 	t.Parallel()
 

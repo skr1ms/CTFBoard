@@ -2,21 +2,17 @@ package storage
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 const (
-	defaultDirMode  = 0o750
-	filePathHashLen = 16
+	defaultDirMode = 0o750
 
 	PrefixUsers = "users/"
 	PrefixTeams = "teams/"
@@ -97,7 +93,7 @@ func (p *FilesystemProvider) Delete(_ context.Context, path string) error {
 
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
-		_ = p.root.Remove(dir) //nolint:errcheck // best-effort: fails if dir still contains other files
+		_ = p.root.Remove(dir)
 	}
 
 	return nil
@@ -172,26 +168,4 @@ func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ t
 	}
 
 	return fmt.Sprintf("/api/v1/files/download/%s", path), nil
-}
-
-var ErrInvalidStorageFilename = errors.New("invalid storage filename")
-
-// GenerateStoragePath builds a collision-resistant storage path for filename.
-// filepath.Base strips any directory components to prevent path injection.
-// A cryptographically random 8-byte prefix (16 hex chars) is prepended as a
-// subdirectory so files from different uploads never collide on the same path.
-func GenerateStoragePath(filename string) (string, error) {
-	safeName := filepath.Base(filename)
-	if safeName == "" || strings.Contains(safeName, "..") {
-		return "", ErrInvalidStorageFilename
-	}
-
-	var buf [filePathHashLen / 2]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return "", fmt.Errorf("GenerateStoragePath - crypto/rand: %w", err)
-	}
-
-	hash := hex.EncodeToString(buf[:])
-
-	return path.Join("tasks", hash, safeName), nil
 }

@@ -33,7 +33,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		contentType := "text/plain"
 
 		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&domain.Challenge{ID: challengeID}, nil).Once()
-		d.s3Provider.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(nil)
+		d.fileStorage.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(nil)
 		d.fileRepo.On("Create", ctx, mock.MatchedBy(func(f *domain.File) bool {
 			return f.ChallengeID != nil && *f.ChallengeID == challengeID &&
 				f.Filename == filename &&
@@ -48,7 +48,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		assert.Equal(t, filename, file.Filename)
 		assert.Equal(t, challengeID, *file.ChallengeID)
 
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 		d.fileRepo.AssertExpectations(t)
 	})
 
@@ -68,7 +68,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		expectedErr := errors.New("storage error")
 
 		d.challengeRepo.On("GetByID", ctx, challengeID).Return(&domain.Challenge{ID: challengeID}, nil).Once()
-		d.s3Provider.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(expectedErr)
+		d.fileStorage.On("Upload", ctx, mock.AnythingOfType("string"), mock.Anything, size, contentType).Return(expectedErr)
 
 		file, err := uc.Upload(ctx, challengeID, fileType, filename, reader, size, contentType)
 
@@ -77,7 +77,7 @@ func TestFileUseCase_Upload(t *testing.T) {
 		assert.Contains(t, err.Error(), "Storage")
 		assert.Contains(t, err.Error(), expectedErr.Error())
 
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 		d.fileRepo.AssertNotCalled(t, "Create")
 	})
 }
@@ -93,13 +93,13 @@ func TestFileUseCase_Download(t *testing.T) {
 		path := "some/path/file.txt"
 		mockReadCloser := io.NopCloser(bytes.NewReader([]byte("content")))
 
-		d.s3Provider.On("Download", ctx, path).Return(mockReadCloser, nil)
+		d.fileStorage.On("Download", ctx, path).Return(mockReadCloser, nil)
 
 		rc, err := uc.Download(ctx, path)
 		assert.NoError(t, err)
 		assert.NotNil(t, rc)
 
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 	})
 
 	t.Run("Error_StorageFails", func(t *testing.T) {
@@ -111,14 +111,14 @@ func TestFileUseCase_Download(t *testing.T) {
 		path := "some/path/file.txt"
 		expectedErr := errors.New("storage fail")
 
-		d.s3Provider.On("Download", ctx, path).Return(nil, expectedErr)
+		d.fileStorage.On("Download", ctx, path).Return(nil, expectedErr)
 
 		rc, err := uc.Download(ctx, path)
 		assert.Error(t, err)
 		assert.Nil(t, rc)
 		assert.ErrorIs(t, err, expectedErr, "err should wrap expectedErr")
 
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 	})
 }
 
@@ -138,14 +138,14 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 		expectedURL := "http://example.com/file"
 
 		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
-		d.s3Provider.On("GetPresignedURL", ctx, fileentity.Location, time.Hour).Return(expectedURL, nil)
+		d.fileStorage.On("GetPresignedURL", ctx, fileentity.Location, time.Hour).Return(expectedURL, nil)
 
 		url, err := uc.GetDownloadURL(ctx, fileID)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedURL, url)
 
 		d.fileRepo.AssertExpectations(t)
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 	})
 
 	t.Run("Error_FileNotFound", func(t *testing.T) {
@@ -164,7 +164,7 @@ func TestFileUseCase_GetDownloadURL(t *testing.T) {
 		assert.Contains(t, err.Error(), "GetByID")
 
 		d.fileRepo.AssertExpectations(t)
-		d.s3Provider.AssertNotCalled(t, "GetPresignedURL")
+		d.fileStorage.AssertNotCalled(t, "GetPresignedURL")
 	})
 }
 
@@ -224,14 +224,14 @@ func TestFileUseCase_Delete(t *testing.T) {
 		fileentity := &domain.File{ID: fileID, Location: "loc"}
 
 		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
-		d.s3Provider.On("Delete", ctx, fileentity.Location).Return(nil)
+		d.fileStorage.On("Delete", ctx, fileentity.Location).Return(nil)
 		d.fileRepo.On("Delete", ctx, fileID).Return(nil)
 
 		err := uc.Delete(ctx, fileID)
 		assert.NoError(t, err)
 
 		d.fileRepo.AssertExpectations(t)
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 	})
 
 	t.Run("Error_NotFound", func(t *testing.T) {
@@ -249,7 +249,7 @@ func TestFileUseCase_Delete(t *testing.T) {
 		assert.Contains(t, err.Error(), "GetByID")
 
 		d.fileRepo.AssertExpectations(t)
-		d.s3Provider.AssertNotCalled(t, "Delete")
+		d.fileStorage.AssertNotCalled(t, "Delete")
 	})
 
 	t.Run("Error_StorageDeleteFails", func(t *testing.T) {
@@ -264,13 +264,13 @@ func TestFileUseCase_Delete(t *testing.T) {
 
 		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
 		d.fileRepo.On("Delete", ctx, fileID).Return(nil)
-		d.s3Provider.On("Delete", ctx, fileentity.Location).Return(expectedErr)
+		d.fileStorage.On("Delete", ctx, fileentity.Location).Return(expectedErr)
 
 		err := uc.Delete(ctx, fileID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Storage")
 
 		d.fileRepo.AssertExpectations(t)
-		d.s3Provider.AssertExpectations(t)
+		d.fileStorage.AssertExpectations(t)
 	})
 }

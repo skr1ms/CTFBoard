@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
@@ -150,6 +149,6 @@ func (uc *TeamUseCase) invalidateTeamAndMembers(ctx context.Context, teamID uuid
 	}
 
 	cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, teamID)
-	cache.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
 	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 }

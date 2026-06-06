@@ -1,6 +1,7 @@
 package websocket_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -12,7 +13,7 @@ import (
 func BenchmarkNotifySolve(b *testing.B) {
 	hub := wskit.NewHub()
 
-	bc := ws.NewBroadcaster(hub)
+	bc := ws.NewBroadcaster(context.Background(), hub)
 	defer bc.Wait()
 
 	teamID := uuid.New()
@@ -27,7 +28,7 @@ func BenchmarkNotifySolve(b *testing.B) {
 func BenchmarkNotifySolve_FirstBlood(b *testing.B) {
 	hub := wskit.NewHub()
 
-	bc := ws.NewBroadcaster(hub)
+	bc := ws.NewBroadcaster(context.Background(), hub)
 	defer bc.Wait()
 
 	teamID := uuid.New()
@@ -42,7 +43,7 @@ func BenchmarkNotifySolve_FirstBlood(b *testing.B) {
 func BenchmarkNotifyNotification(b *testing.B) {
 	hub := wskit.NewHub()
 
-	bc := ws.NewBroadcaster(hub)
+	bc := ws.NewBroadcaster(context.Background(), hub)
 	defer bc.Wait()
 
 	b.ReportAllocs()

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +82,26 @@ func (uc *APITokenUseCase) GetByTokenHash(ctx context.Context, tokenHash string)
 	token, err := uc.deps.Repo.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
 		return nil, fmt.Errorf("APITokenUseCase - GetByTokenHash - APITokenRepo.GetByTokenHash: %w", err)
+	}
+
+	return token, nil
+}
+
+func (uc *APITokenUseCase) AuthenticatePlaintext(ctx context.Context, plaintext string) (*domain.APIToken, error) {
+	plaintext = strings.TrimSpace(plaintext)
+	if plaintext == "" {
+		return nil, apperr.ErrInvalidToken
+	}
+
+	tokenHash := crypto.SHA256Hex(plaintext)
+
+	token, err := uc.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if !uc.ValidateToken(token) {
+		return nil, apperr.ErrInvalidToken
 	}
 
 	return token, nil

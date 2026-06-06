@@ -55,15 +55,13 @@ type SubmissionDeps struct {
 
 // NewSubmissionUseCase constructs a SubmissionUseCase. It panics at startup
 // when TM, SolveCreator, and SolveDeleter are only partially configured, since
-// the transactional path requires all three together and a partial wiring would
-// silently fall back to the non-transactional degraded path in production.
+// solve-sensitive admin writes require those dependencies together.
 func NewSubmissionUseCase(deps SubmissionDeps) *SubmissionUseCase {
 	if deps.Logger == nil {
 		deps.Logger = logkit.Noop()
 	}
 	// Guard against partial configuration: the transactional path requires all
-	// three deps together. A mismatch means the caller made a wiring mistake
-	// Panic at startup rather than silently running the degraded path in production
+	// three deps together. A mismatch means the caller made a wiring mistake.
 	txDeps := []bool{deps.TM != nil, deps.SolveCreator != nil, deps.SolveDeleter != nil}
 	hasAny := txDeps[0] || txDeps[1] || txDeps[2]
 
@@ -73,6 +71,22 @@ func NewSubmissionUseCase(deps SubmissionDeps) *SubmissionUseCase {
 	}
 
 	return &SubmissionUseCase{deps: deps}
+}
+
+func (uc *SubmissionUseCase) requireTxDeps(op string, needsCreator bool) error {
+	if uc.deps.TM == nil {
+		return fmt.Errorf("SubmissionUseCase - %s: transaction manager required", op)
+	}
+
+	if needsCreator && uc.deps.SolveCreator == nil {
+		return fmt.Errorf("SubmissionUseCase - %s: solve creator required", op)
+	}
+
+	if uc.deps.SolveDeleter == nil {
+		return fmt.Errorf("SubmissionUseCase - %s: solve deleter required", op)
+	}
+
+	return nil
 }
 
 func (uc *SubmissionUseCase) LogSubmission(ctx context.Context, sub *domain.Submission) error {
@@ -207,98 +221,51 @@ func (uc *SubmissionUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain
 	return sub, nil
 }
 
-// Update changes the correctness flag of a submission. When TM, SolveCreator,
-// and SolveDeleter are all wired in, it runs inside a transaction: it
+// Update changes the correctness flag of a submission inside a transaction. It
 // re-reads the row with FOR UPDATE to prevent concurrent admin edits from
-// racing, then creates a solve (triggering dynamic score recalculation) when
-// flipping from incorrect to correct, or removes the existing solve (reversing
-// decay) when flipping from correct to incorrect. If any of those three deps
-// are absent, it falls back to a non-transactional path and logs a warning
-// because submission and solve state may diverge on partial failure
-// Scoreboard cache is invalidated after the update, scoped to the team when
-// the team ID is known.
+// racing, then creates a solve when flipping from incorrect to correct or
+// removes the existing solve when flipping from correct to incorrect.
 func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect bool) (*domain.SubmissionWithDetails, error) {
-	if uc.deps.TM != nil && uc.deps.SolveCreator != nil && uc.deps.SolveDeleter != nil {
-		var locked *domain.Submission
+	if err := uc.requireTxDeps("Update", true); err != nil {
+		return nil, err
+	}
 
-		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-			// Re-read with FOR UPDATE inside the transaction to avoid TOCTOU on concurrent admin edits
-			var err error
+	var locked *domain.Submission
 
-			locked, err = uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
-			if err != nil {
-				return fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByIDForUpdate: %w", err)
-			}
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		// Re-read with FOR UPDATE inside the transaction to avoid TOCTOU on concurrent admin edits.
+		var err error
 
-			if err := uc.deps.SubmissionRepo.Update(ctx, ID, isCorrect); err != nil {
-				return fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.Update: %w", err)
-			}
-
-			switch {
-			case locked.TeamID != nil && !locked.IsCorrect && isCorrect:
-				if err := uc.deps.SolveCreator.AdminCreateSolve(ctx, locked.UserID, *locked.TeamID, locked.ChallengeID, true); err != nil {
-					return fmt.Errorf("SubmissionUseCase - Update - SolveCreator.AdminCreateSolve: %w", err)
-				}
-			case locked.TeamID != nil && locked.IsCorrect && !isCorrect:
-				if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
-					return fmt.Errorf("SubmissionUseCase - Update - SolveDeleter.AdminDeleteSolve: %w", err)
-				}
-			}
-
-			return nil
-		}); err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - Update - TM.Run: %w", err)
-		}
-
-		if uc.deps.CacheInvalidator != nil {
-			if locked != nil && locked.TeamID != nil {
-				uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *locked.TeamID)
-			} else {
-				uc.deps.CacheInvalidator.InvalidateScoreboardCache(ctx)
-			}
-		}
-
-		sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
+		locked, err = uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
 		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByID: %w", err)
+			return fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByIDForUpdate: %w", err)
 		}
 
-		return sub, nil
-	}
+		if err := uc.deps.SubmissionRepo.Update(ctx, ID, isCorrect); err != nil {
+			return fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.Update: %w", err)
+		}
 
-	// Degraded path: TM/SolveCreator/SolveDeleter are nil (NewSubmissionUseCase panics if only some are set)
-	// Non-transactional: concurrent admin updates can desync submission and solve state; log warning below
-	prev, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
-	if err != nil {
-		return nil, fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByID: %w", err)
-	}
-
-	needsCreate := prev.TeamID != nil && !prev.IsCorrect && isCorrect
-
-	needsDelete := prev.TeamID != nil && prev.IsCorrect && !isCorrect
-	if (needsCreate || needsDelete) && (uc.deps.TM == nil || uc.deps.SolveCreator == nil) {
-		uc.deps.Logger.WithFields(logkit.Fields{
-			"submission_id": ID,
-			"tm":            uc.deps.TM != nil,
-			"solve_creator": uc.deps.SolveCreator != nil,
-			"solve_deleter": uc.deps.SolveDeleter != nil,
-		}).Warn("SubmissionUseCase - Update: using non-transactional path; submission/solve state may be inconsistent on partial failure")
-	}
-
-	if err = uc.deps.SubmissionRepo.Update(ctx, ID, isCorrect); err != nil {
-		return nil, fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.Update: %w", err)
-	}
-
-	if prev.TeamID != nil {
 		switch {
-		case needsCreate && uc.deps.SolveCreator != nil:
-			if err = uc.deps.SolveCreator.AdminCreateSolve(ctx, prev.UserID, *prev.TeamID, prev.ChallengeID, true); err != nil {
-				return nil, fmt.Errorf("SubmissionUseCase - Update - SolveCreator.AdminCreateSolve: %w", err)
+		case locked.TeamID != nil && !locked.IsCorrect && isCorrect:
+			if err := uc.deps.SolveCreator.AdminCreateSolve(ctx, locked.UserID, *locked.TeamID, locked.ChallengeID, true); err != nil {
+				return fmt.Errorf("SubmissionUseCase - Update - SolveCreator.AdminCreateSolve: %w", err)
 			}
-		case needsDelete && uc.deps.SolveDeleter != nil:
-			if err = uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *prev.TeamID, prev.ChallengeID); err != nil {
-				return nil, fmt.Errorf("SubmissionUseCase - Update - SolveDeleter.AdminDeleteSolve: %w", err)
+		case locked.TeamID != nil && locked.IsCorrect && !isCorrect:
+			if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
+				return fmt.Errorf("SubmissionUseCase - Update - SolveDeleter.AdminDeleteSolve: %w", err)
 			}
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("SubmissionUseCase - Update - TM.Run: %w", err)
+	}
+
+	if uc.deps.CacheInvalidator != nil {
+		if locked != nil && locked.TeamID != nil {
+			uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *locked.TeamID)
+		} else {
+			uc.deps.CacheInvalidator.InvalidateScoreboardCache(ctx)
 		}
 	}
 
@@ -311,51 +278,35 @@ func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect
 }
 
 // Discard marks a submission as discarded. If the submission was correct it
-// also removes the associated solve and triggers dynamic score recalculation
-// for the affected challenge. When TM and SolveDeleter are available the
-// removal and discard are executed atomically inside a transaction (row locked
-// with FOR UPDATE); otherwise the operations run sequentially without a
-// transaction. Scoreboard cache is invalidated for the affected team if one
-// was present on the submission.
+// also removes the associated solve inside the same transaction.
 func (uc *SubmissionUseCase) Discard(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error) {
+	if err := uc.requireTxDeps("Discard", false); err != nil {
+		return nil, err
+	}
+
 	var teamIDToInvalidate *uuid.UUID
 
-	if uc.deps.TM != nil && uc.deps.SolveDeleter != nil {
-		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-			locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
-			if err != nil {
-				return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByIDForUpdate: %w", err)
-			}
-
-			if locked.IsCorrect && locked.TeamID != nil {
-				if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
-					return fmt.Errorf("SubmissionUseCase - Discard - SolveDeleter.AdminDeleteSolve: %w", err)
-				}
-
-				teamIDToInvalidate = locked.TeamID
-			}
-
-			if err := uc.deps.SubmissionRepo.Discard(ctx, ID); err != nil {
-				return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.Discard: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - Discard - TM.Run: %w", err)
-		}
-	} else {
-		sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
 		if err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByID: %w", err)
+			return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.GetByIDForUpdate: %w", err)
+		}
+
+		if locked.IsCorrect && locked.TeamID != nil {
+			if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
+				return fmt.Errorf("SubmissionUseCase - Discard - SolveDeleter.AdminDeleteSolve: %w", err)
+			}
+
+			teamIDToInvalidate = locked.TeamID
 		}
 
 		if err := uc.deps.SubmissionRepo.Discard(ctx, ID); err != nil {
-			return nil, fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.Discard: %w", err)
+			return fmt.Errorf("SubmissionUseCase - Discard - SubmissionRepo.Discard: %w", err)
 		}
 
-		if sub.IsCorrect && sub.TeamID != nil {
-			teamIDToInvalidate = sub.TeamID
-		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("SubmissionUseCase - Discard - TM.Run: %w", err)
 	}
 
 	if uc.deps.CacheInvalidator != nil && teamIDToInvalidate != nil {
@@ -371,52 +322,37 @@ func (uc *SubmissionUseCase) Discard(ctx context.Context, ID uuid.UUID) (*domain
 }
 
 func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
+	if err := uc.requireTxDeps("Delete", false); err != nil {
+		return err
+	}
+
 	var teamIDToInvalidate *uuid.UUID
 
-	if uc.deps.TM != nil && uc.deps.SolveDeleter != nil {
-		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-			locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
-			if err != nil {
-				if errors.Is(err, apperr.ErrSubmissionNotFound) {
-					return nil
-				}
-
-				return fmt.Errorf("SubmissionUseCase - Delete - SubmissionRepo.GetByIDForUpdate: %w", err)
-			}
-
-			if locked.IsCorrect && locked.TeamID != nil {
-				if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
-					return fmt.Errorf("SubmissionUseCase - Delete - SolveDeleter.AdminDeleteSolve: %w", err)
-				}
-
-				teamIDToInvalidate = locked.TeamID
-			}
-
-			if err := uc.deps.SubmissionRepo.Delete(ctx, ID); err != nil {
-				return fmt.Errorf("SubmissionUseCase - Delete - SubmissionRepo.Delete: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			return fmt.Errorf("SubmissionUseCase - Delete - TM.Run: %w", err)
-		}
-	} else {
-		sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		locked, err := uc.deps.SubmissionRepo.GetByIDForUpdate(ctx, ID)
 		if err != nil {
 			if errors.Is(err, apperr.ErrSubmissionNotFound) {
 				return nil
 			}
 
-			return fmt.Errorf("SubmissionUseCase - Delete - SubmissionRepo.GetByID: %w", err)
+			return fmt.Errorf("SubmissionUseCase - Delete - SubmissionRepo.GetByIDForUpdate: %w", err)
+		}
+
+		if locked.IsCorrect && locked.TeamID != nil {
+			if err := uc.deps.SolveDeleter.AdminDeleteSolve(ctx, *locked.TeamID, locked.ChallengeID); err != nil {
+				return fmt.Errorf("SubmissionUseCase - Delete - SolveDeleter.AdminDeleteSolve: %w", err)
+			}
+
+			teamIDToInvalidate = locked.TeamID
 		}
 
 		if err := uc.deps.SubmissionRepo.Delete(ctx, ID); err != nil {
 			return fmt.Errorf("SubmissionUseCase - Delete - SubmissionRepo.Delete: %w", err)
 		}
 
-		if sub.IsCorrect && sub.TeamID != nil {
-			teamIDToInvalidate = sub.TeamID
-		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("SubmissionUseCase - Delete - TM.Run: %w", err)
 	}
 
 	if uc.deps.CacheInvalidator != nil && teamIDToInvalidate != nil {
@@ -469,6 +405,10 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 	}
 
 	if isCorrect && teamID != nil && uc.deps.TM != nil && uc.deps.SolveCreator != nil {
+		if err := uc.requireTxDeps("AdminCreate", true); err != nil {
+			return nil, err
+		}
+
 		if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 			if err := uc.deps.SubmissionRepo.Create(ctx, sub); err != nil {
 				return fmt.Errorf("SubmissionUseCase - AdminCreate - SubmissionRepo.Create: %w", err)
@@ -487,7 +427,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 			uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamID)
 		}
 	} else {
-		if isCorrect && teamID != nil && (uc.deps.TM == nil || uc.deps.SolveCreator == nil) {
+		if isCorrect && teamID != nil {
 			return nil, fmt.Errorf("SubmissionUseCase - AdminCreate: transaction and solve creator required for correct submission")
 		}
 

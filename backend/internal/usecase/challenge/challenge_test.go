@@ -17,11 +17,48 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 )
 
 func stubSolveRecord(_ context.Context, _ *domain.Solve, _ *domain.Challenge, _ repo.ChallengeRepository, _ repo.SolveRepository, _ ...scoring.DecayFunction) (int, error) {
 	return 1, nil
+}
+
+func challengeCreateParams(title, description, category string, points, initialValue, minValue, decay int, flag string, isRegex bool) usecase.ChallengeCreateParams {
+	return usecase.ChallengeCreateParams{
+		Title:             title,
+		Description:       description,
+		Category:          category,
+		Points:            points,
+		InitialValue:      initialValue,
+		MinValue:          minValue,
+		Decay:             decay,
+		Flag:              flag,
+		State:             "visible",
+		IsRegex:           isRegex,
+		IsCaseInsensitive: false,
+	}
+}
+
+func challengeUpdateParams(title, description, category string, points int, initialValue, minValue, decay *int, flag string, connectionInfo *string, maxAttempts *int, maxAttemptsWindow *time.Duration, position *int, state string, isRegex, isCaseInsensitive *bool) usecase.ChallengeUpdateParams {
+	return usecase.ChallengeUpdateParams{
+		Title:             title,
+		Description:       description,
+		Category:          category,
+		Points:            points,
+		InitialValue:      initialValue,
+		MinValue:          minValue,
+		Decay:             decay,
+		Flag:              flag,
+		ConnectionInfo:    connectionInfo,
+		MaxAttempts:       maxAttempts,
+		MaxAttemptsWindow: maxAttemptsWindow,
+		Position:          position,
+		State:             state,
+		IsRegex:           isRegex,
+		IsCaseInsensitive: isCaseInsensitive,
+	}
 }
 
 type challengeTestDeps struct {
@@ -37,7 +74,7 @@ type challengeTestDeps struct {
 	hintRepo       *challengeMock.MockHintRepository
 	awardRepo      *challengeMock.MockAwardRepository
 	fileRepo       *challengeMock.MockFileRepository
-	s3Provider     *challengeMock.MockS3Provider
+	fileStorage    *challengeMock.MockFileStorage
 	commentRepo    *challengeMock.MockCommentRepository
 	tagRepo        *challengeMock.MockTagRepository
 }
@@ -58,7 +95,7 @@ func newChallengeTestDeps(t *testing.T) *challengeTestDeps {
 		hintRepo:       challengeMock.NewMockHintRepository(t),
 		awardRepo:      challengeMock.NewMockAwardRepository(t),
 		fileRepo:       challengeMock.NewMockFileRepository(t),
-		s3Provider:     challengeMock.NewMockS3Provider(t),
+		fileStorage:    challengeMock.NewMockFileStorage(t),
 		commentRepo:    challengeMock.NewMockCommentRepository(t),
 		tagRepo:        challengeMock.NewMockTagRepository(t),
 	}
@@ -104,7 +141,7 @@ func (d *challengeTestDeps) createChallengeUseCaseWithCompAndCrypto() (*Challeng
 func (d *challengeTestDeps) createFileUseCase() *FileUseCase {
 	return NewFileUseCase(FileDeps{
 		FileRepo: d.fileRepo, ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo,
-		Storage: d.s3Provider, Expiry: time.Hour, DownloadSecret: "test-secret", BaseURL: "http://localhost:8080",
+		Storage: d.fileStorage, Expiry: time.Hour, DownloadSecret: "test-secret", BaseURL: "http://localhost:8080",
 	})
 }
 
@@ -266,7 +303,7 @@ func TestChallengeUseCase_Create_Success(t *testing.T) {
 	})
 	d.challengeRepo.On("SetTags", mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil)
 
-	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", "", 0, 0, 0, "visible", false, false, nil, nil)
+	challenge, err := uc.Create(context.Background(), challengeCreateParams("New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -283,7 +320,7 @@ func TestChallengeUseCase_Create_Error(t *testing.T) {
 	expectedError := assert.AnError
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(expectedError)
 
-	challenge, err := uc.Create(context.Background(), "New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", "", 0, 0, 0, "visible", false, false, nil, nil)
+	challenge, err := uc.Create(context.Background(), challengeCreateParams("New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false))
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -322,7 +359,7 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	iv, mv, dc := 500, 100, 20
 	ci, ma, pos := "", 0, 0
 	ir, ic := false, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -363,7 +400,7 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	iv, mv, dc := 500, 100, 20
 	ci, ma, pos := "", 0, 0
 	ir, ic := false, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "new_flag", &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "new_flag", &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -384,7 +421,7 @@ func TestChallengeUseCase_Update_GetByIDError(t *testing.T) {
 	iv, mv, dc := 500, 100, 20
 	ci, ma, pos := "", 0, 0
 	ir, ic := false, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -406,7 +443,7 @@ func TestChallengeUseCase_Update_UpdateError(t *testing.T) {
 	iv, mv, dc := 500, 100, 20
 	ci, ma, pos := "", 0, 0
 	ir, ic := false, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -426,7 +463,7 @@ func TestChallengeUseCase_Delete_Success(t *testing.T) {
 			return
 		}
 
-		_ = fn(args.Get(0).(context.Context)) //nolint:errcheck
+		_ = fn(args.Get(0).(context.Context))
 	})
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("Delete", mock.Anything, challengeID).Return(nil)
@@ -917,7 +954,7 @@ func TestChallengeUseCase_Create_Regex_Success(t *testing.T) {
 	})
 	d.challengeRepo.On("SetTags", mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil)
 
-	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, "", 0, 0, 0, "visible", true, false, nil, nil)
+	challenge, err := uc.Create(context.Background(), challengeCreateParams("Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, true))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -935,7 +972,7 @@ func TestChallengeUseCase_Create_Regex_EncryptionError(t *testing.T) {
 	expectedError := errors.New("encryption failed")
 	d.crypto.On("Encrypt", flag).Return("", expectedError)
 
-	challenge, err := uc.Create(context.Background(), "Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, "", 0, 0, 0, "visible", true, false, nil, nil)
+	challenge, err := uc.Create(context.Background(), challengeCreateParams("Regex Challenge", "Desc", "Crypto", 100, 0, 0, 0, flag, true))
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -985,7 +1022,7 @@ func TestChallengeUseCase_Update_Regex_Success(t *testing.T) {
 	iv, mv, dc := 0, 0, 0
 	ci, ma, pos := "", 0, 0
 	ir, ic := true, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, &iv, &mv, &dc, flag, &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated", "Desc", "Crypto", 100, &iv, &mv, &dc, flag, &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
@@ -1014,7 +1051,7 @@ func TestChallengeUseCase_Update_Regex_EncryptionError(t *testing.T) {
 	iv, mv, dc := 0, 0, 0
 	ci, ma, pos := "", 0, 0
 	ir, ic := true, false
-	challenge, err := uc.Update(context.Background(), challengeID, "Updated", "Desc", "Crypto", 100, &iv, &mv, &dc, flag, &ci, &ma, nil, &pos, "visible", &ir, &ic, nil, nil)
+	challenge, err := uc.Update(context.Background(), challengeID, challengeUpdateParams("Updated", "Desc", "Crypto", 100, &iv, &mv, &dc, flag, &ci, &ma, nil, &pos, "visible", &ir, &ic))
 
 	assert.Error(t, err)
 	assert.Nil(t, challenge)
@@ -1209,7 +1246,6 @@ func TestChallengeUseCase_SetRequirements_Success(t *testing.T) {
 	}
 
 	d.challengeRepo.On("GetByIDs", mock.Anything, reqIDs).Return(reqChallenges, nil)
-	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		fn, ok := args.Get(1).(func(context.Context) error)
 		assert.True(t, ok)
@@ -1218,6 +1254,7 @@ func TestChallengeUseCase_SetRequirements_Success(t *testing.T) {
 		assert.NoError(t, fn(ctx))
 	}).Return(nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 	d.challengeRepo.On("SetRequirements", mock.Anything, challengeID, reqIDs).Return(nil)
 
 	err := uc.SetRequirements(context.Background(), challengeID, reqIDs)
@@ -1252,6 +1289,14 @@ func TestChallengeUseCase_SetRequirements_Cycle(t *testing.T) {
 
 	reqChallenges := map[uuid.UUID]*domain.Challenge{challengeID: {ID: challengeID}}
 	d.challengeRepo.On("GetByIDs", mock.Anything, reqIDs).Return(reqChallenges, nil)
+	d.tm.On("Run", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn, ok := args.Get(1).(func(context.Context) error)
+		assert.True(t, ok)
+		ctx, ok := args.Get(0).(context.Context)
+		assert.True(t, ok)
+		assert.Error(t, fn(ctx))
+	}).Return(apperr.NewValidationErrorf("requirements contain a cycle"))
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
 	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 
 	err := uc.SetRequirements(context.Background(), challengeID, reqIDs)
@@ -1352,7 +1397,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 			return
 		}
 
-		_ = fn(ctx) //nolint:errcheck
+		_ = fn(ctx)
 	})
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
 

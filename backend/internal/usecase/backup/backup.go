@@ -9,7 +9,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -38,7 +37,7 @@ type BackupDeps struct {
 	FieldRepo       repo.FieldRepository
 	FieldValueRepo  repo.FieldValueRepository
 	RatingRepo      repo.RatingRepository
-	Storage         storage.Provider
+	Storage         BackupStorage
 	TM              repo.TransactionManager
 	Logger          logkit.Logger
 }
@@ -199,21 +198,25 @@ func (uc *BackupUseCase) ImportCSV(ctx context.Context, tableName string, data [
 		rows = csvNormalizeUserRoles(header, rows)
 	}
 
+	validRows, csvErrors := csvValidateRows(tableName, header, rows)
+
 	var (
-		imported  int
-		csvErrors []string
+		imported   int
+		repoErrors []string
 	)
 
 	txErr := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var txErr error
 
-		imported, csvErrors, txErr = uc.deps.BackupRepo.ImportCSV(ctx, tableName, header, rows)
+		imported, repoErrors, txErr = uc.deps.BackupRepo.ImportCSV(ctx, tableName, header, validRows)
 
 		return txErr
 	})
 	if txErr != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportCSV - TM.Run: %w", txErr)
 	}
+
+	csvErrors = append(csvErrors, repoErrors...)
 
 	return &usecase.CSVImportResult{
 		Success:       len(csvErrors) == 0,

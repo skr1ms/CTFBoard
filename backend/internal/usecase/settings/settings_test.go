@@ -17,25 +17,25 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
+	settingsMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings/mock"
 )
 
 type settingsTestDeps struct {
-	SettingsRepo *compMock.MockSettingsRepository
-	auditLogRepo *compMock.MockAuditLogRepository
-	tm           *compMock.MockTransactionManager
+	SettingsRepo *settingsMock.MockSettingsRepository
+	auditLogRepo *settingsMock.MockAuditLogRepository
+	tm           *settingsMock.MockTransactionManager
 }
 
 func newSettingsTestDeps(t *testing.T) *settingsTestDeps {
 	t.Helper()
-	tm := compMock.NewMockTransactionManager(t)
+	tm := settingsMock.NewMockTransactionManager(t)
 	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Maybe()
 
 	return &settingsTestDeps{
-		SettingsRepo: compMock.NewMockSettingsRepository(t),
-		auditLogRepo: compMock.NewMockAuditLogRepository(t),
+		SettingsRepo: settingsMock.NewMockSettingsRepository(t),
+		auditLogRepo: settingsMock.NewMockAuditLogRepository(t),
 		tm:           tm,
 	}
 }
