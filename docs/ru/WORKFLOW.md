@@ -186,7 +186,7 @@
 | GET    | `/openapi.json`       | public                               | spec                  |
 | GET    | `/swagger/*`          | public                               | Swagger UI            |
 
-Исходники OpenAPI spec лежат в `backend/internal/openapi/` (27 route YAML + 27 schema YAML файлов). После изменений запускайте `make openapi-bundle && make generate`, чтобы пересобрать `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`.
+Исходники OpenAPI spec лежат в `backend/internal/openapi/` (27 route YAML + 27 schema YAML файлов). После изменений OpenAPI запускайте `make openapi`, чтобы пересобрать `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`; для проверки без регенерации используйте `make validate-openapi`.
 
 ---
 

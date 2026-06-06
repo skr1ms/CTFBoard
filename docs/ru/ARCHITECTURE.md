@@ -123,7 +123,7 @@ sequenceDiagram
     HAP-->>SPA: response (with cache headers)
 ```
 
-**Порядок middleware chain** (`internal/wire/providers.go:917–1074`):
+**Порядок middleware chain** (`internal/wire/providers_http.go:173–337`):
 
 1. `RequestID` - генерирует уникальный X-Request-ID.
 2. `ClientIP` - вычисляет реальный IP клиента из XFF (доверяет `TRUSTED_PROXY_CIDRS`).
@@ -187,13 +187,13 @@ graph LR
 | `loginlockout/`         | `loginlockout.go`                                                                                                                                                    | Redis-backed трекер неудачных логинов. `IsLocked`, `RecordFailed` (INCR + TTL), `ClearFailed`. По умолчанию: максимум 5 попыток, TTL 1 минута                                                                                                                        |
 | `openapi/`              | `openapi.yml`, `routes/*.yml`, `components/schemas/*.yml`, `*.gen.go`                                                                                                | Исходник OpenAPI 3.0 (27 route files + 27 schema files), собирается через redocly. oapi-codegen генерирует `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`                                                                                           |
 | `repo/persistent/`      | `tx_manager.go`, `helper.go`, `*_postgres.go`, `sqlc/*`                                                                                                              | PostgreSQL repo через pgx + sqlc. `tx_manager.Run` / `RunSerializable` (retry по SQLSTATE 40001), generic `GetOrNotFound[T]`, advisory locks                                                                                                                         |
-| `repo/webapi/`          | `github.go`, `google.go`                                                                                                                                             | HTTP-адаптеры для OAuth provider'ов, реализуют `OAuthProviderAPI.FetchUserProfile`                                                                                                                                                                                   |
+| `repo/webapi/`          | `client*.go`, `*_oauth.go`, `oauth_gateway.go`, `contract.go`                                                                                                        | HTTP-адаптеры для OAuth provider'ов, реализуют OAuth provider ports за явными client timeouts и retry policy                                                                                                                                                           |
 | `scoring/`              | `scoring.go`, `recalc.go`                                                                                                                                            | Алгоритмы dynamic scoring: `CalculateDynamicScore` (logarithmic decay), `CalculateLinearDynamicScore`, `RecalculatePoints`, `FilterSolvesByFreeze`, `DefaultSolveMapper`                                                                                             |
 | `seed/`                 | `admin.go`                                                                                                                                                           | Идемпотентное создание дефолтного администратора при старте                                                                                                                                                                                                          |
 | `storage/`              | `contract.go`, `s3.go`, `filesystem.go`                                                                                                                              | Интерфейс `Provider` для хранилища. `S3Provider` (minio-go, без retry на Upload, но с backoff для `GetPresignedURL`), `FilesystemProvider` для dev                                                                                                                   |
 | `usecase/`              | `user/`, `team/`, `challenge/`, `competition/`, `settings/`, `email/`, `notification/`, `avatar/`, `backup/`, `page/`, `setup/`, `cacheutil/`, `computil/`, `guard/` | Бизнес-логика. Один пакет на домен. Вспомогательные cross-cutting пакеты: `cacheutil` (invalidations), `computil` (вывод состояния соревнования), `guard` (проверки eligibility)                                                                                     |
 | `websocket/`            | `broadcaster.go`, `event.go`                                                                                                                                         | Типы событий и `Broadcaster` (обёртка над `wskit.Hub`). Асинхронная dispatch-логика через `wg.Go(...)` с timeout контекста 5 с. `NotifySolve` шлёт `scoreboard_update` и, при необходимости, `first_blood`                                                           |
-| `wire/`                 | `providers.go`, `wire_gen.go`, `sets.go`, `wire.go`                                                                                                                  | dependency injection через google/wire                                                                                                                                                                                                                               |
+| `wire/`                 | `providers*.go`, `wire_gen.go`, `sets.go`, `wire.go`                                                                                                                 | dependency injection через google/wire, сгруппированный по repo, usecase, HTTP, OAuth, storage, cache и runtime providers                                                                                                                                             |
 
 <a id="pkg-shared-utilities"></a>
 
@@ -205,14 +205,12 @@ graph LR
 | `mailer/`    | Интеграция с Resend (`ResendMailer`) + `AsyncMailer` (buffered channel + worker pool)                                                             |
 | `validator/` | Кастомные теги `go-playground/validator`: `strong_password`, `custom_email`, `team_name`, `challenge_*`, `hint_content`, `hex_color`, `page_slug` |
 | `vault/`     | Обёртка над клиентом Vault, exponential backoff с детекцией permanent-error                                                                       |
-| `i18n/`      | Многоязычные сообщения                                                                                                                            |
-| `jwtkit/`    | Реэкспорт `go-jwtkit`: issue/verify JWT, Redis-backed revocation, rotation ключей по `kid`                                                        |
 
 <a id="dependency-injection-googlewire"></a>
 
 ### Внедрение зависимостей (google/wire)
 
-Compile-time DI graph определён в `internal/wire/`. Сгенерированный `wire_gen.go` по соглашению проекта **редактируется вручную**, если меняются сигнатуры provider'ов.
+Compile-time DI graph определён в `internal/wire/`. Сгенерированный `wire_gen.go` нужно обновлять через `make wire`; вручную generated DI code не редактируется.
 
 ```mermaid
 graph TD
@@ -230,7 +228,8 @@ graph TD
     cache --> sd
     jwt --> sd
     mailer --> sd
-    store --> sd
+    store --> ucs
+    store --> router
     sd --> router[chi Router]
     router --> srv[HTTP Server]
     srv --> app[App]
@@ -239,12 +238,13 @@ graph TD
     style app fill:#e8f5e9
 ```
 
-Три wire set'а в `wire/sets.go`:
+Wire provider groups разделены по ответственности:
 
-- `RepoSet` - 29 provider'ов + interface bindings.
-- `UseCaseSet` - около 33 provider'ов + interface bindings.
-- `InfraSet` - Validator, Crypto, Cache, KeyValueStore, PubSubStore, Broadcaster, WsController.
-- `HTTPSet` - aggregator `ServerDeps`, Router, Server, App.
+- `providers_repo.go` - repository providers и interface bindings.
+- `providers_usecase.go` - usecase constructors и domain-level bindings.
+- `providers_http.go` - router, middleware chain, server и HTTP helpers.
+- `providers_oauth.go`, `providers_storage.go`, `providers_cache.go`, `providers_runtime.go` - infrastructure-specific providers.
+- `sets.go` - Wire sets (`RepoSet`, `UseCaseSet`, `InfraSet`, `HTTPSet`), которые собирают эти providers.
 
 <a id="configuration"></a>
 
@@ -317,13 +317,13 @@ graph TD
 | Concern                                     | Implementation                                                                                                                |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | HTTP RED metrics (rate / errors / duration) | `kitMiddleware.Metrics(prometheus.DefaultRegisterer, ...)` с per-route histogram                                              |
-| Custom counters                             | `rate_limit_redis_errors_total{limiter}`, `submission_batcher_{dropped,flushed,flush_errors}_total`, `tracking_dropped_total` |
+| Custom counters                             | `rate_limit_redis_errors_total{limiter}`, `tracking_dropped_total`                                                            |
 | Structured logging                          | `go-logkit` (обёртка над slog). JSON output при `STRUCTURED_LOGGER=true`, поля через `logkit.Fields{}`                        |
 | Endpoint `/metrics`                         | `promhttp.HandlerFor` с OpenMetrics, закрыт через `METRICS_ALLOWED_IPS`                                                       |
 
-### Submission batcher
+### Submission logging
 
-`usecase/competition/batcher.go` - buffered channel размером 1024. Flush выполняется каждые 100 ms или при накоплении batch ≥ 64. Если канал переполнен, используется синхронный fallback с timeout 5 с. На shutdown выполняется drain очереди и повтор по каждой записи до 3 раз с exponential backoff. Flushes / drops / errors отслеживаются Prometheus-счётчиками.
+Логирование отправок флага остается синхронным через `SubmissionUseCase`, чтобы проверки max-attempt, создание solve и инвалидация scoreboard оставались в одном явном request flow.
 
 ### Cleanup binary
 
@@ -600,8 +600,7 @@ sequenceDiagram
 3. `AvatarUC.Wait()` - дождаться асинхронных avatar-операций.
 4. `Broadcaster.Wait()` - дождаться in-flight WS dispatch.
 5. `asyncMailer.Stop()` - слить email queue.
-6. `SubmissionBatcher.Stop()` - слить очередь сабмитов.
-7. `SolveUseCase.StopLocalScoreboardCache()` - остановить ttlcache.
+6. `SolveUseCase.StopLocalScoreboardCache()` - остановить ttlcache.
 
 За end-user workflow'ами (регистрация, OAuth, отправка флага, scoreboard propagation, действия администратора) см. [WORKFLOW.md](WORKFLOW.md).
 За конфигурационными значениями см. [ENVIRONMENT.md](ENVIRONMENT.md).

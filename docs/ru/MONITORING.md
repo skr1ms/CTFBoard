@@ -96,7 +96,7 @@ graph LR
 | Job                 | Target                   | Path                                | What it exposes                                                                                                                                                                              |
 | ------------------- | ------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `prometheus`        | `localhost:9090`         | `/metrics`                          | Собственные метрики Prometheus                                                                                                                                                               |
-| `backend`           | `backend:8080`           | `/metrics`                          | HTTP RED histogram (`kitMiddleware.Metrics`), custom counters: `rate_limit_redis_errors_total{limiter}`, `submission_batcher_{dropped,flushed,flush_errors}_total`, `tracking_dropped_total` |
+| `backend`           | `backend:8080`           | `/metrics`                          | HTTP RED histogram (`kitMiddleware.Metrics`), custom counters: `rate_limit_redis_errors_total{limiter}`, `tracking_dropped_total`                                                            |
 | `postgres-exporter` | `postgres-exporter:9187` | `/metrics`                          | `pg_up`, `pg_stat_activity_count`, `pg_stat_database_*`, deadlocks                                                                                                                           |
 | `redis-exporter`    | `redis-exporter:9121`    | `/metrics`                          | `redis_up`, память, число ключей, hit ratio, ops/sec                                                                                                                                         |
 | `vault`             | `vault:8200`             | `/v1/sys/metrics?format=prometheus` | `vault_core_unsealed`, audit, KV ops                                                                                                                                                         |
@@ -113,9 +113,6 @@ graph LR
 | Metric                                  | Type      | Labels                | Notes                                                           |
 | --------------------------------------- | --------- | --------------------- | --------------------------------------------------------------- |
 | `rate_limit_redis_errors_total`         | Counter   | `limiter`             | Ошибки Redis при rate-limit проверках (фолбэк идёт в in-memory) |
-| `submission_batcher_dropped_total`      | Counter   | -                     | Сабмиты отброшены из-за переполненного буфера                   |
-| `submission_batcher_flushed_total`      | Counter   | -                     | Сабмиты успешно сброшены                                        |
-| `submission_batcher_flush_errors_total` | Counter   | -                     | Ошибки сброса                                                   |
 | `tracking_dropped_total`                | Counter   | -                     | Tracking-события отброшены под нагрузкой                        |
 | `http_requests_total`                   | Counter   | route, method, status | Стандартная RED-метрика                                         |
 | `http_request_duration_seconds`         | Histogram | route, method, status | Стандартная RED-метрика                                         |

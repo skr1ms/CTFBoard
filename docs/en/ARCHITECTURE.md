@@ -119,7 +119,7 @@ sequenceDiagram
     HAP-->>SPA: response (with cache headers)
 ```
 
-**Middleware chain order** (`internal/wire/providers.go:917–1074`):
+**Middleware chain order** (`internal/wire/providers_http.go:173–337`):
 
 1. `RequestID` - generates unique X-Request-ID
 2. `ClientIP` - resolves real client IP from XFF (trusts `TRUSTED_PROXY_CIDRS`)
@@ -177,13 +177,13 @@ Interfaces are defined on the **consumer side** - usecases declare repo interfac
 | `loginlockout/`         | `loginlockout.go`                                                                                                                                                    | Redis-backed failed-login tracker. `IsLocked`, `RecordFailed` (INCR + TTL), `ClearFailed`. Defaults: max 5 attempts, 1 min TTL.                                                                                                                                  |
 | `openapi/`              | `openapi.yml`, `routes/*.yml`, `components/schemas/*.yml`, `*.gen.go`                                                                                                | OpenAPI 3.0 source (27 route files + 27 schema files), bundled via redocly. oapi-codegen produces `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`.                                                                                               |
 | `repo/persistent/`      | `tx_manager.go`, `helper.go`, `*_postgres.go`, `sqlc/*`                                                                                                              | PostgreSQL repos via pgx + sqlc. `tx_manager.Run` / `RunSerializable` (retry on SQLSTATE 40001), `GetOrNotFound[T]` generic, advisory locks.                                                                                                                     |
-| `repo/webapi/`          | `github.go`, `google.go`                                                                                                                                             | HTTP adapters for OAuth providers, implement `OAuthProviderAPI.FetchUserProfile`.                                                                                                                                                                                |
+| `repo/webapi/`          | `client*.go`, `*_oauth.go`, `oauth_gateway.go`, `contract.go`                                                                                                        | HTTP adapters for OAuth providers, implement OAuth provider ports behind explicit client timeouts and retry policy.                                                                                                                                               |
 | `scoring/`              | `scoring.go`, `recalc.go`                                                                                                                                            | Dynamic scoring algorithms: `CalculateDynamicScore` (logarithmic decay), `CalculateLinearDynamicScore`, `RecalculatePoints`, `FilterSolvesByFreeze`, `DefaultSolveMapper`.                                                                                       |
 | `seed/`                 | `admin.go`                                                                                                                                                           | Idempotent default-admin creation at startup.                                                                                                                                                                                                                    |
 | `storage/`              | `contract.go`, `s3.go`, `filesystem.go`                                                                                                                              | Storage `Provider` interface. `S3Provider` (minio-go, no Upload retry, GetPresignedURL with backoff), `FilesystemProvider` for dev.                                                                                                                              |
 | `usecase/`              | `user/`, `team/`, `challenge/`, `competition/`, `settings/`, `email/`, `notification/`, `avatar/`, `backup/`, `page/`, `setup/`, `cacheutil/`, `computil/`, `guard/` | Business logic. One package per domain. Cross-cutting helpers in `cacheutil` (invalidation), `computil` (competition state resolution), `guard` (eligibility checks).                                                                                            |
 | `websocket/`            | `broadcaster.go`, `event.go`                                                                                                                                         | Event types and `Broadcaster` (wraps `wskit.Hub`). Async dispatch via `wg.Go(...)` with 5s context timeout. `NotifySolve` emits `scoreboard_update` (+ optional `first_blood`).                                                                                  |
-| `wire/`                 | `providers.go`, `wire_gen.go`, `sets.go`, `wire.go`                                                                                                                  | google/wire dependency injection.                                                                                                                                                                                                                                |
+| `wire/`                 | `providers*.go`, `wire_gen.go`, `sets.go`, `wire.go`                                                                                                                 | google/wire dependency injection, grouped by repo, usecase, HTTP, OAuth, storage, cache, and runtime providers.                                                                                                                                                   |
 
 ### `pkg/` shared utilities
 
@@ -193,12 +193,10 @@ Interfaces are defined on the **consumer side** - usecases declare repo interfac
 | `mailer/`    | Resend integration (`ResendMailer`) + `AsyncMailer` (buffered channel + worker pool)                                                           |
 | `validator/` | Custom `go-playground/validator` tags: `strong_password`, `custom_email`, `team_name`, `challenge_*`, `hint_content`, `hex_color`, `page_slug` |
 | `vault/`     | Vault client wrapper, exponential backoff with permanent-error detection                                                                       |
-| `i18n/`      | Multi-language messages                                                                                                                        |
-| `jwtkit/`    | (re-export of `go-jwtkit`) - JWT issue/verify, Redis-backed revocation, kid-based key rotation                                                 |
 
 ### Dependency injection (google/wire)
 
-Compile-time DI graph defined in `internal/wire/`. Generated `wire_gen.go` is **edited by hand** when provider signatures change (per project convention).
+Compile-time DI graph defined in `internal/wire/`. Generated `wire_gen.go` is regenerated with `make wire`; do not hand-edit generated DI code.
 
 ```mermaid
 graph TD
@@ -216,7 +214,8 @@ graph TD
     cache --> sd
     jwt --> sd
     mailer --> sd
-    store --> sd
+    store --> ucs
+    store --> router
     sd --> router[chi Router]
     router --> srv[HTTP Server]
     srv --> app[App]
@@ -225,12 +224,13 @@ graph TD
     style app fill:#e8f5e9
 ```
 
-Three wire sets in `wire/sets.go`:
+Wire provider groups are split by responsibility:
 
-- `RepoSet` - 29 providers + interface bindings.
-- `UseCaseSet` - ~33 providers + interface bindings.
-- `InfraSet` - Validator, Crypto, Cache, KeyValueStore, PubSubStore, Broadcaster, WsController.
-- `HTTPSet` - `ServerDeps` aggregator, Router, Server, App.
+- `providers_repo.go` - repository providers and interface bindings.
+- `providers_usecase.go` - usecase constructors and domain-level bindings.
+- `providers_http.go` - router, middleware chain, server, and HTTP helpers.
+- `providers_oauth.go`, `providers_storage.go`, `providers_cache.go`, `providers_runtime.go` - infrastructure-specific providers.
+- `sets.go` - Wire sets (`RepoSet`, `UseCaseSet`, `InfraSet`, `HTTPSet`) that assemble those providers.
 
 ### Configuration
 
@@ -297,13 +297,13 @@ Migrations: 3 SQL files in `backend/migrations/` driven by goose. `000001_init.s
 | Concern                                     | Implementation                                                                                                                |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | HTTP RED metrics (rate / errors / duration) | `kitMiddleware.Metrics(prometheus.DefaultRegisterer, ...)` per-route histogram                                                |
-| Custom counters                             | `rate_limit_redis_errors_total{limiter}`, `submission_batcher_{dropped,flushed,flush_errors}_total`, `tracking_dropped_total` |
+| Custom counters                             | `rate_limit_redis_errors_total{limiter}`, `tracking_dropped_total`                                                            |
 | Structured logging                          | `go-logkit` (slog wrapper). JSON output when `STRUCTURED_LOGGER=true`, fields via `logkit.Fields{}`                           |
 | `/metrics` endpoint                         | `promhttp.HandlerFor` with OpenMetrics, gated by `METRICS_ALLOWED_IPS`                                                        |
 
-### Submission batcher
+### Submission logging
 
-`usecase/competition/batcher.go` - buffered channel (size 1024). Flushes every 100ms or when batch ≥ 64. Synchronous fallback with 5s timeout when channel full. On shutdown, drains remaining + retries each individual write 3 times with exponential backoff. Prometheus counters track flushes / drops / errors.
+Flag submission logging stays synchronous through `SubmissionUseCase` so max-attempt checks, solve creation, and scoreboard invalidation remain in one explicit request flow.
 
 ### Cleanup binary
 
@@ -562,8 +562,7 @@ Events: `connected`, `scoreboard_update` (subtypes: `solve`, `first_blood`), `no
 3. `AvatarUC.Wait()` - async avatar operations.
 4. `Broadcaster.Wait()` - in-flight WS dispatches.
 5. `asyncMailer.Stop()` - drain email queue.
-6. `SubmissionBatcher.Stop()` - drain submission queue.
-7. `SolveUseCase.StopLocalScoreboardCache()` - stop ttlcache.
+6. `SolveUseCase.StopLocalScoreboardCache()` - stop ttlcache.
 
 For end-user workflows (registration, OAuth, flag submission, scoreboard propagation, admin actions), see [WORKFLOW.md](WORKFLOW.md).
 For configuration values, see [ENVIRONMENT.md](ENVIRONMENT.md).

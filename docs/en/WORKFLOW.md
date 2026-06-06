@@ -184,7 +184,7 @@ All API routes are mounted under `/api/v1`. Auth column: **public** = no auth, *
 | GET    | `/openapi.json`       | public                               | spec                  |
 | GET    | `/swagger/*`          | public                               | Swagger UI            |
 
-The OpenAPI spec source lives in `backend/internal/openapi/` (27 route YAML + 27 schema YAML files). After changes, run `make openapi-bundle && make generate` to regenerate `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`.
+The OpenAPI spec source lives in `backend/internal/openapi/` (27 route YAML + 27 schema YAML files). After API changes, run `make openapi` to regenerate `server.gen.go`, `types.gen.go`, `client.gen.go`, `spec.gen.go`. For validation without regeneration, run `make validate-openapi`.
 
 ---
 

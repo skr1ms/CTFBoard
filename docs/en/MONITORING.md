@@ -92,7 +92,7 @@ graph LR
 | Job                 | Target                   | Path                                | What it exposes                                                                                                                                                                              |
 | ------------------- | ------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `prometheus`        | `localhost:9090`         | `/metrics`                          | Self-metrics                                                                                                                                                                                 |
-| `backend`           | `backend:8080`           | `/metrics`                          | HTTP RED histogram (`kitMiddleware.Metrics`), custom counters: `rate_limit_redis_errors_total{limiter}`, `submission_batcher_{dropped,flushed,flush_errors}_total`, `tracking_dropped_total` |
+| `backend`           | `backend:8080`           | `/metrics`                          | HTTP RED histogram (`kitMiddleware.Metrics`), custom counters: `rate_limit_redis_errors_total{limiter}`, `tracking_dropped_total`                                                            |
 | `postgres-exporter` | `postgres-exporter:9187` | `/metrics`                          | `pg_up`, `pg_stat_activity_count`, `pg_stat_database_*`, deadlocks                                                                                                                           |
 | `redis-exporter`    | `redis-exporter:9121`    | `/metrics`                          | `redis_up`, memory, key counts, hit ratio, ops/sec                                                                                                                                           |
 | `vault`             | `vault:8200`             | `/v1/sys/metrics?format=prometheus` | `vault_core_unsealed`, audit, KV ops                                                                                                                                                         |
@@ -109,9 +109,6 @@ graph LR
 | Metric                                  | Type      | Labels                | Notes                                                           |
 | --------------------------------------- | --------- | --------------------- | --------------------------------------------------------------- |
 | `rate_limit_redis_errors_total`         | Counter   | `limiter`             | Redis failures during rate-limit checks (fallback to in-memory) |
-| `submission_batcher_dropped_total`      | Counter   | -                     | Submissions dropped due to full buffer                          |
-| `submission_batcher_flushed_total`      | Counter   | -                     | Successfully flushed submissions                                |
-| `submission_batcher_flush_errors_total` | Counter   | -                     | Failed flushes                                                  |
 | `tracking_dropped_total`                | Counter   | -                     | Tracking events dropped under load                              |
 | `http_requests_total`                   | Counter   | route, method, status | RED standard                                                    |
 | `http_request_duration_seconds`         | Histogram | route, method, status | RED standard                                                    |
