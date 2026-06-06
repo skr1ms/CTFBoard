@@ -29,7 +29,7 @@ func doWithRetry(ctx context.Context, client *http.Client, mkReq func() (*http.R
 			return err
 		}
 
-		if r.StatusCode >= 500 {
+		if r.StatusCode >= http.StatusInternalServerError {
 			_ = r.Body.Close()
 
 			return fmt.Errorf("OAuthClient - doWithRetry - bad status: oauth API returned %d", r.StatusCode)

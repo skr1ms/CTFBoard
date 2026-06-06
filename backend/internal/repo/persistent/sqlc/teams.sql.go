@@ -363,6 +363,64 @@ func (q *Queries) GetTeamByName(ctx context.Context, name string) (GetTeamByName
 	return i, err
 }
 
+const getTeamsByIDs = `-- name: GetTeamsByIDs :many
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
+FROM teams
+WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+`
+
+type GetTeamsByIDsRow struct {
+	ID                   uuid.UUID          `json:"id"`
+	Name                 string             `json:"name"`
+	InviteToken          uuid.UUID          `json:"invite_token"`
+	InviteTokenExpiresAt pgtype.Timestamptz `json:"invite_token_expires_at"`
+	CaptainID            uuid.UUID          `json:"captain_id"`
+	BracketID            *uuid.UUID         `json:"bracket_id"`
+	IsSolo               bool               `json:"is_solo"`
+	IsAutoCreated        bool               `json:"is_auto_created"`
+	IsBanned             bool               `json:"is_banned"`
+	BannedAt             pgtype.Timestamptz `json:"banned_at"`
+	BannedReason         *string            `json:"banned_reason"`
+	IsHidden             bool               `json:"is_hidden"`
+	AvatarUrl            *string            `json:"avatar_url"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetTeamsByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]GetTeamsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getTeamsByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTeamsByIDsRow
+	for rows.Next() {
+		var i GetTeamsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.InviteToken,
+			&i.InviteTokenExpiresAt,
+			&i.CaptainID,
+			&i.BracketID,
+			&i.IsSolo,
+			&i.IsAutoCreated,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.IsHidden,
+			&i.AvatarUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const hardDeleteTeamsBefore = `-- name: HardDeleteTeamsBefore :exec
 DELETE FROM teams WHERE deleted_at IS NOT NULL AND deleted_at < $1
 `

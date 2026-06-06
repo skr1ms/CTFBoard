@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/wahrwelt-kit/go-pgkit/pgutil"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -16,7 +15,10 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
-const dateFormatISO = time.DateOnly
+const (
+	dateFormatISO      = time.DateOnly
+	percentageScale100 = 100
+)
 
 type StatisticsRepo struct {
 	BaseRepo
@@ -28,65 +30,19 @@ func NewStatisticsRepo(pool *pgxpool.Pool) *StatisticsRepo {
 	return &StatisticsRepo{BaseRepo: BaseRepo{pool: pool}}
 }
 
-// GetGeneralStats returns overall competition statistics (user/team/challenge/
-// solve counts) by running four COUNT queries in parallel via errgroup.
-// When freezeTime is non-nil, counts are scoped to activity up to that timestamp.
+// GetGeneralStats returns overall competition statistics. When freezeTime is
+// non-nil, time-scoped counts are bounded by that timestamp.
 func (r *StatisticsRepo) GetGeneralStats(ctx context.Context, freezeTime *time.Time) (*domain.GeneralStats, error) {
-	ft := pgutil.TimeToTimestamptz(freezeTime)
-
-	var users, teams, challenges, solves int32
-
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		v, err := r.Q(gCtx).CountUsers(gCtx, ft)
-		if err != nil {
-			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountUsers: %w", err)
-		}
-
-		users = v
-
-		return nil
-	})
-	g.Go(func() error {
-		v, err := r.Q(gCtx).CountTeams(gCtx, ft)
-		if err != nil {
-			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountTeams: %w", err)
-		}
-
-		teams = v
-
-		return nil
-	})
-	g.Go(func() error {
-		v, err := r.Q(gCtx).CountChallenges(gCtx)
-		if err != nil {
-			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountChallenges: %w", err)
-		}
-
-		challenges = v
-
-		return nil
-	})
-	g.Go(func() error {
-		v, err := r.Q(gCtx).CountSolves(gCtx, ft)
-		if err != nil {
-			return fmt.Errorf("StatisticsRepo - GetGeneralStats - CountSolves: %w", err)
-		}
-
-		solves = v
-
-		return nil
-	})
-
-	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf("StatisticsRepo - GetGeneralStats - Wait: %w", err)
+	row, err := r.Q(ctx).GetGeneralStats(ctx, pgutil.TimeToTimestamptz(freezeTime))
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetGeneralStats: %w", err)
 	}
 
 	return &domain.GeneralStats{
-		UserCount:      int(users),
-		TeamCount:      int(teams),
-		ChallengeCount: int(challenges),
-		SolveCount:     int(solves),
+		UserCount:      int(row.UserCount),
+		TeamCount:      int(row.TeamCount),
+		ChallengeCount: int(row.ChallengeCount),
+		SolveCount:     int(row.SolveCount),
 	}, nil
 }
 
@@ -131,7 +87,7 @@ func (r *StatisticsRepo) GetChallengeDetailStats(ctx context.Context, challengeI
 	percentageSolved := 0.0
 
 	if chRow.TotalTeams > 0 {
-		percentageSolved = float64(chRow.SolveCount) / float64(chRow.TotalTeams) * 100
+		percentageSolved = float64(chRow.SolveCount) / float64(chRow.TotalTeams) * percentageScale100
 	}
 
 	solveRows, err := r.Q(ctx).GetChallengeDetailSolves(ctx, sqlc.GetChallengeDetailSolvesParams{

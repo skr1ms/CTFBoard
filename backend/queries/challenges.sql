@@ -147,5 +147,10 @@ ORDER BY c.title;
 -- name: DeleteChallengeRequirements :exec
 DELETE FROM challenge_requirements WHERE challenge_id = $1;
 
+-- name: InsertChallengeRequirements :exec
+INSERT INTO challenge_requirements (challenge_id, required_challenge_id)
+SELECT sqlc.arg(challenge_id)::uuid, unnest(sqlc.arg(required_challenge_ids)::uuid[])
+ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING;
+
 -- name: GetAllChallengeRequirements :many
 SELECT challenge_id, required_challenge_id FROM challenge_requirements ORDER BY challenge_id, required_challenge_id;

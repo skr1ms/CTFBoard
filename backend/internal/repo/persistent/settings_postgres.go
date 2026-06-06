@@ -83,6 +83,34 @@ func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*domain.Settings, erro
 	return toDomainAppSettings(s), nil
 }
 
+// ReconcileStartupDefaults syncs environment-derived startup defaults into the
+// singleton app_settings row only while it still contains the migration default
+// app name, preserving later admin edits.
+func (r *SettingsRepo) ReconcileStartupDefaults(
+	ctx context.Context,
+	appName string,
+	fromName string,
+	fromEmail string,
+	resendEnabled bool,
+	githubEnabled bool,
+	googleEnabled bool,
+	defaultAppName string,
+) error {
+	if err := r.Q(ctx).ReconcileAppSettingsStartupDefaults(ctx, sqlc.ReconcileAppSettingsStartupDefaultsParams{
+		AppName:            appName,
+		ResendFromName:     fromName,
+		ResendFromEmail:    fromEmail,
+		ResendEnabled:      resendEnabled,
+		OAuthGithubEnabled: githubEnabled,
+		OAuthGoogleEnabled: googleEnabled,
+		AppName_2:          defaultAppName,
+	}); err != nil {
+		return fmt.Errorf("SettingsRepo - ReconcileStartupDefaults: %w", err)
+	}
+
+	return nil
+}
+
 // settingsIntFields returns all int-typed Settings fields as an ordered slice for
 // batch narrowing via ConvertIntFieldsToInt32. The positional order (vals[0..19])
 // must stay in sync with the index-based destructuring in Update.

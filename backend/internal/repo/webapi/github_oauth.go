@@ -27,7 +27,7 @@ var _ OAuthProviderAPI = (*GitHubAPI)(nil)
 
 func NewGitHubAPI(client *http.Client) *GitHubAPI {
 	if client == nil {
-		client = defaultOAuthClient
+		client = NewOAuthHTTPClient()
 	}
 
 	return &GitHubAPI{client: client, userURL: githubUserURL, emailsURL: githubEmailsURL}

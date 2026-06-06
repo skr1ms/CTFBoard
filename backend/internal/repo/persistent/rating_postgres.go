@@ -32,7 +32,7 @@ func (r *RatingRepo) Upsert(ctx context.Context, rating *domain.Rating) error {
 		ChallengeID: rating.ChallengeID,
 		UserID:      rating.UserID,
 		TeamID:      rating.TeamID,
-		Value:       int32(rating.Value), //nolint:gosec // G115: rating value is bounded by UI/config
+		Value:       int32(rating.Value),
 		Review:      rating.Review,
 		UpdatedAt:   pgutil.TimeToTimestamptz(&now),
 	})

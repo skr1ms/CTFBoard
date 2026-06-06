@@ -14,6 +14,32 @@ SELECT COUNT(*)::int FROM challenges WHERE state IN ('visible', 'locked');
 SELECT COUNT(*)::int FROM solves WHERE banned_team_id IS NULL AND banned_user_id IS NULL
   AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR solved_at <= sqlc.narg('freeze_time'));
 
+-- name: GetGeneralStats :one
+SELECT
+    (
+        SELECT COUNT(*)::int
+        FROM users
+        WHERE is_banned = false
+          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
+    ) AS user_count,
+    (
+        SELECT COUNT(*)::int
+        FROM teams
+        WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
+    ) AS team_count,
+    (
+        SELECT COUNT(*)::int
+        FROM challenges
+        WHERE state IN ('visible', 'locked')
+    ) AS challenge_count,
+    (
+        SELECT COUNT(*)::int
+        FROM solves
+        WHERE banned_team_id IS NULL AND banned_user_id IS NULL
+          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR solved_at <= sqlc.narg('freeze_time'))
+    ) AS solve_count;
+
 -- name: GetChallengeStats :many
 SELECT c.id, c.title, c.category, c.points,
     COUNT(s.id)::int AS solve_count

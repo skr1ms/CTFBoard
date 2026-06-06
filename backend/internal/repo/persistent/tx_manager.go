@@ -32,7 +32,9 @@ func NewTransactionManager(pool *pgxpool.Pool) *TransactionManager {
 	return &TransactionManager{pool: pool}
 }
 
-func (tm *TransactionManager) DB(ctx context.Context) repo.PgxExecer {
+// DB exposes the transaction-aware sqlc executor for persistence integration
+// tests and internal persistent helpers without widening repo.TransactionManager.
+func (tm *TransactionManager) DB(ctx context.Context) sqlc.DBTX {
 	return ExtractDB(ctx, tm.pool)
 }
 
@@ -114,19 +116,19 @@ func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pg
 // business error in all other cases. This guarantees that the first error wins
 // and cleanup errors do not mask application logic failures.
 func (tm *TransactionManager) finishTx(ctx context.Context, op string, p any, committed bool, tx pgx.Tx, retErr error) error {
+	if !committed {
+		err := tx.Rollback(context.WithoutCancel(ctx))
+		if err != nil && retErr == nil {
+			return fmt.Errorf("TransactionManager - %s - Rollback: %w", op, err)
+		}
+	}
+
 	if p != nil {
 		if pErr, ok := p.(error); ok {
 			return fmt.Errorf("TransactionManager - %s - panic: %w", op, pErr)
 		}
 
 		return fmt.Errorf("TransactionManager - %s - panic: %v", op, p)
-	}
-
-	if !committed {
-		err := tx.Rollback(context.WithoutCancel(ctx))
-		if err != nil && retErr == nil {
-			return fmt.Errorf("TransactionManager - %s - Rollback: %w", op, err)
-		}
 	}
 
 	return retErr

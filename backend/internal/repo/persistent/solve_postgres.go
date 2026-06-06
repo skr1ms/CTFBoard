@@ -280,7 +280,7 @@ func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {
 		TeamID:        s.TeamID,
 		ChallengeID:   s.ChallengeID,
 		SolvedAt:      pgutil.TimeToTimestamptz(&s.SolvedAt),
-		PointsAtSolve: int32(s.PointsAtSolve), //nolint:gosec // points are capped by scoring config; no realistic overflow
+		PointsAtSolve: int32(s.PointsAtSolve),
 	})
 	if err != nil {
 		if pgutil.IsPgUniqueViolation(err) {

@@ -8,6 +8,11 @@ SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, 
 FROM teams
 WHERE id = $1 AND deleted_at IS NULL;
 
+-- name: GetTeamsByIDs :many
+SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
+FROM teams
+WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL;
+
 -- name: GetTeamByInviteToken :one
 SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden, avatar_url, created_at
 FROM teams
@@ -117,4 +122,3 @@ UPDATE teams SET avatar_url = NULL WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListAllTeamAvatarURLs :many
 SELECT avatar_url FROM teams WHERE avatar_url IS NOT NULL AND deleted_at IS NULL;
-

@@ -21,7 +21,7 @@ var _ OAuthProviderAPI = (*GoogleAPI)(nil)
 
 func NewGoogleAPI(client *http.Client) *GoogleAPI {
 	if client == nil {
-		client = defaultOAuthClient
+		client = NewOAuthHTTPClient()
 	}
 
 	return &GoogleAPI{client: client, userInfoURL: googleUserInfoURL}

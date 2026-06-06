@@ -258,6 +258,10 @@ const maxFieldValueLength = 65536
 // this inside a transaction (e.g. TransactionManager.Run) to avoid lost updates
 // under concurrent calls for the same entityID.
 func (r *FieldValueRepo) SetValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
+	if err := requireTx(ctx, "FieldValueRepo - SetValues"); err != nil {
+		return err
+	}
+
 	return r.setValuesInner(ctx, entityID, values)
 }
 
@@ -292,7 +296,7 @@ func (r *FieldValueRepo) setValuesInner(ctx context.Context, entityID uuid.UUID,
 	}
 
 	now := time.Now()
-	qb := SB.Insert("field_values").
+	qb := sqlBuilder().Insert("field_values").
 		Columns("id", "field_id", "entity_id", "value", "created_at").
 		Suffix("ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value")
 

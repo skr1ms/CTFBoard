@@ -124,6 +124,23 @@ func (q *Queries) GetConfigsByCategory(ctx context.Context, category string) ([]
 	return items, nil
 }
 
+const reconcileCTFNameDefault = `-- name: ReconcileCTFNameDefault :exec
+UPDATE configs
+SET value = $1
+WHERE key = 'ctf_name'
+  AND value = $2
+`
+
+type ReconcileCTFNameDefaultParams struct {
+	Value   string `json:"value"`
+	Value_2 string `json:"value_2"`
+}
+
+func (q *Queries) ReconcileCTFNameDefault(ctx context.Context, arg ReconcileCTFNameDefaultParams) error {
+	_, err := q.db.Exec(ctx, reconcileCTFNameDefault, arg.Value, arg.Value_2)
+	return err
+}
+
 const upsertConfig = `-- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, category, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6)

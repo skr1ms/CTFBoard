@@ -16,6 +16,12 @@ FROM configs WHERE key = $1;
 SELECT key, value, value_type, description, category, updated_at
 FROM configs WHERE key = $1 FOR UPDATE;
 
+-- name: ReconcileCTFNameDefault :exec
+UPDATE configs
+SET value = $1
+WHERE key = 'ctf_name'
+  AND value = $2;
+
 -- name: UpsertConfig :exec
 INSERT INTO configs (key, value, value_type, description, category, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6)

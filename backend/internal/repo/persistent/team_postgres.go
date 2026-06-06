@@ -103,47 +103,23 @@ func (r *TeamRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID
 		return map[uuid.UUID]*domain.Team{}, nil
 	}
 
-	const q = `
-		SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id,
-		       is_solo, is_auto_created, is_banned, banned_at, banned_reason, is_hidden,
-		       avatar_url, created_at
-		FROM teams
-		WHERE id = ANY($1) AND deleted_at IS NULL`
-
-	rows, err := r.DB(ctx).Query(ctx, q, ids)
+	rows, err := r.Q(ctx).GetTeamsByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("TeamRepo - GetByIDs: %w", err)
 	}
 
-	defer rows.Close()
-
 	out := make(map[uuid.UUID]*domain.Team, len(ids))
 
-	for rows.Next() {
-		var (
-			row     teamRow
-			pgDates [3]pgtype.Timestamptz
-		)
+	for _, row := range rows {
+		team := toDomainTeam(teamRowFromSQLC(
+			row.ID, row.Name, row.InviteToken,
+			row.InviteTokenExpiresAt, row.BannedAt, row.CreatedAt,
+			row.CaptainID, row.BracketID,
+			row.IsSolo, row.IsAutoCreated, row.IsBanned, row.IsHidden,
+			row.BannedReason, row.AvatarUrl,
+		))
 
-		if err = rows.Scan(
-			&row.ID, &row.Name, &row.InviteToken, &pgDates[0],
-			&row.CaptainID, &row.BracketID,
-			&row.IsSolo, &row.IsAutoCreated, &row.IsBanned, &pgDates[1],
-			&row.BannedReason, &row.IsHidden,
-			&row.AvatarURL, &pgDates[2],
-		); err != nil {
-			return nil, fmt.Errorf("TeamRepo - GetByIDs - scan: %w", err)
-		}
-
-		row.InviteTokenExpiresAt = pgutil.TimestamptzToTime(pgDates[0])
-		row.BannedAt = pgutil.TimestamptzToTime(pgDates[1])
-		row.CreatedAt = pgutil.TimestamptzToTime(pgDates[2])
-
-		out[row.ID] = toDomainTeam(row)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("TeamRepo - GetByIDs - rows: %w", err)
+		out[team.ID] = team
 	}
 
 	return out, nil

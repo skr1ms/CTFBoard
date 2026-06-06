@@ -134,6 +134,41 @@ func (q *Queries) GetAppSettingsForUpdate(ctx context.Context) (AppSettings, err
 	return i, err
 }
 
+const reconcileAppSettingsStartupDefaults = `-- name: ReconcileAppSettingsStartupDefaults :exec
+UPDATE app_settings
+SET app_name = $1,
+    resend_from_name = $2,
+    resend_from_email = $3,
+    resend_enabled = $4,
+    oauth_github_enabled = $5,
+    oauth_google_enabled = $6
+WHERE id = 1
+  AND app_name = $7
+`
+
+type ReconcileAppSettingsStartupDefaultsParams struct {
+	AppName            string `json:"app_name"`
+	ResendFromName     string `json:"resend_from_name"`
+	ResendFromEmail    string `json:"resend_from_email"`
+	ResendEnabled      bool   `json:"resend_enabled"`
+	OAuthGithubEnabled bool   `json:"oauth_github_enabled"`
+	OAuthGoogleEnabled bool   `json:"oauth_google_enabled"`
+	AppName_2          string `json:"app_name_2"`
+}
+
+func (q *Queries) ReconcileAppSettingsStartupDefaults(ctx context.Context, arg ReconcileAppSettingsStartupDefaultsParams) error {
+	_, err := q.db.Exec(ctx, reconcileAppSettingsStartupDefaults,
+		arg.AppName,
+		arg.ResendFromName,
+		arg.ResendFromEmail,
+		arg.ResendEnabled,
+		arg.OAuthGithubEnabled,
+		arg.OAuthGoogleEnabled,
+		arg.AppName_2,
+	)
+	return err
+}
+
 const updateAppSettings = `-- name: UpdateAppSettings :exec
 UPDATE app_settings SET
     app_name = $1,

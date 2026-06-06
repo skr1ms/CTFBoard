@@ -33,3 +33,8 @@ ORDER BY ct.challenge_id, t.name;
 
 -- name: DeleteChallengeTags :exec
 DELETE FROM challenge_tags WHERE challenge_id = $1;
+
+-- name: InsertChallengeTags :exec
+INSERT INTO challenge_tags (challenge_id, tag_id)
+SELECT sqlc.arg(challenge_id)::uuid, unnest(sqlc.arg(tag_ids)::uuid[])
+ON CONFLICT (challenge_id, tag_id) DO NOTHING;

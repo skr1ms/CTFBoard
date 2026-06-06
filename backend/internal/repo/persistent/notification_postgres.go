@@ -12,15 +12,15 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	notificationuc "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 )
 
 type NotificationRepo struct {
 	BaseRepo
 }
 
-var _ repo.NotificationRepository = (*NotificationRepo)(nil)
+var _ notificationuc.NotificationRepository = (*NotificationRepo)(nil)
 
 func NewNotificationRepo(pool *pgxpool.Pool) *NotificationRepo {
 	return &NotificationRepo{BaseRepo: BaseRepo{pool: pool}}

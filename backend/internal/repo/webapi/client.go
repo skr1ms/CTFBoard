@@ -7,4 +7,6 @@ import (
 
 const defaultOAuthTimeout = 10 * time.Second
 
-var defaultOAuthClient = &http.Client{Timeout: defaultOAuthTimeout}
+func NewOAuthHTTPClient() *http.Client {
+	return &http.Client{Timeout: defaultOAuthTimeout}
+}

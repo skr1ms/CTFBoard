@@ -84,6 +84,28 @@ func (r *CompetitionParamRepo) GetByKeyForUpdate(ctx context.Context, key string
 	return toDomainCompetitionParam(row), nil
 }
 
+func (r *CompetitionParamRepo) IsSetupComplete(ctx context.Context) (bool, error) {
+	param, err := r.GetByKey(ctx, "setup_complete")
+	if err != nil {
+		return false, err
+	}
+
+	return param.Value == "true", nil
+}
+
+// ReconcileCTFNameDefault syncs the ctf_name config while it still contains the
+// migration default, preserving later admin edits.
+func (r *CompetitionParamRepo) ReconcileCTFNameDefault(ctx context.Context, appName, defaultAppName string) error {
+	if err := r.Q(ctx).ReconcileCTFNameDefault(ctx, sqlc.ReconcileCTFNameDefaultParams{
+		Value:   appName,
+		Value_2: defaultAppName,
+	}); err != nil {
+		return fmt.Errorf("CompetitionParamRepo - ReconcileCTFNameDefault: %w", err)
+	}
+
+	return nil
+}
+
 func (r *CompetitionParamRepo) Upsert(ctx context.Context, p *domain.CompetitionParam) error {
 	desc := lo.EmptyableToPtr(p.Description)
 	now := time.Now()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
@@ -21,9 +22,21 @@ func (b *BaseRepo) DB(ctx context.Context) sqlc.DBTX {
 	return ExtractDB(ctx, b.pool)
 }
 
+func requireTx(ctx context.Context, op string) error {
+	if _, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return nil
+	}
+
+	return fmt.Errorf("%s: transaction required", op)
+}
+
 // AcquireAdvisoryLock acquires a PostgreSQL transaction-scoped advisory lock
 // for lockKey (pg_advisory_xact_lock). Must be called inside a transaction.
 func (b *BaseRepo) AcquireAdvisoryLock(ctx context.Context, lockKey int64) error {
+	if err := requireTx(ctx, "BaseRepo - AcquireAdvisoryLock"); err != nil {
+		return err
+	}
+
 	if _, err := b.DB(ctx).Exec(ctx, "SELECT pg_advisory_xact_lock($1::bigint)", lockKey); err != nil {
 		return fmt.Errorf("BaseRepo - AcquireAdvisoryLock: %w", err)
 	}

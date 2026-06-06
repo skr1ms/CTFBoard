@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/storagepath"
 )
 
 //nolint:tparallel // subtests are sequential S3 operations (upload -> verify -> delete)
@@ -28,7 +29,7 @@ func TestStorageS3_Workflow(t *testing.T) {
 
 	filename := "integration-test-file.txt"
 	content := []byte("hello seaweedfs")
-	path, err := storage.GenerateStoragePath(filename)
+	path, err := storagepath.Generate(filename)
 	require.NoError(t, err)
 
 	t.Run("Upload", func(t *testing.T) {

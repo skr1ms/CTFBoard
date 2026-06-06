@@ -4,4 +4,6 @@ import (
 	"github.com/Masterminds/squirrel"
 )
 
-var SB = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+func sqlBuilder() squirrel.StatementBuilderType {
+	return squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+}

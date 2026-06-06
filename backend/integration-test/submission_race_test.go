@@ -91,7 +91,7 @@ func TestSubmissionRace_ConcurrentSubmissions_MultipleChallenges(t *testing.T) {
 				SubmittedFlag: "flag{multi_race}",
 				IsCorrect:     false,
 			}
-			_ = f.SubmissionRepo.Create(ctx, sub) //nolint:errcheck
+			_ = f.SubmissionRepo.Create(ctx, sub)
 		}()
 	}
 

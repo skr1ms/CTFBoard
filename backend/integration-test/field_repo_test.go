@@ -186,7 +186,9 @@ func TestFieldValueRepo_GetByEntityID_Success(t *testing.T) {
 
 	user := f.CreateUser(t, "fv")
 	field := f.CreateField(t, "fv", domain.EntityTypeUser)
-	err := f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "hello"})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{field.ID.String(): "hello"})
+	})
 	require.NoError(t, err)
 	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
 	require.NoError(t, err)
@@ -213,13 +215,17 @@ func TestFieldValueRepo_SetValues_Success(t *testing.T) {
 
 	user := f.CreateUser(t, "setv")
 	field := f.CreateField(t, "setv", domain.EntityTypeUser)
-	err := f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "value1"})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{field.ID.String(): "value1"})
+	})
 	require.NoError(t, err)
 	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, vals, 1)
 
-	err = f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{field.ID.String(): "value2"})
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{field.ID.String(): "value2"})
+	})
 	require.NoError(t, err)
 	vals, err = f.FieldValueRepo.GetByEntityID(ctx, user.ID)
 	require.NoError(t, err)
@@ -234,6 +240,8 @@ func TestFieldValueRepo_SetValues_Error_InvalidFieldID(t *testing.T) {
 	ctx := context.Background()
 
 	user := f.CreateUser(t, "invf")
-	err := f.FieldValueRepo.SetValues(ctx, user.ID, map[string]string{"not-a-uuid": "x"})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{"not-a-uuid": "x"})
+	})
 	assert.Error(t, err)
 }

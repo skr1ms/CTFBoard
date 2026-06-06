@@ -242,6 +242,52 @@ func (q *Queries) GetChallengeStats(ctx context.Context, freezeTime pgtype.Times
 	return items, nil
 }
 
+const getGeneralStats = `-- name: GetGeneralStats :one
+SELECT
+    (
+        SELECT COUNT(*)::int
+        FROM users
+        WHERE is_banned = false
+          AND ($1::timestamptz IS NULL OR created_at <= $1)
+    ) AS user_count,
+    (
+        SELECT COUNT(*)::int
+        FROM teams
+        WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+          AND ($1::timestamptz IS NULL OR created_at <= $1)
+    ) AS team_count,
+    (
+        SELECT COUNT(*)::int
+        FROM challenges
+        WHERE state IN ('visible', 'locked')
+    ) AS challenge_count,
+    (
+        SELECT COUNT(*)::int
+        FROM solves
+        WHERE banned_team_id IS NULL AND banned_user_id IS NULL
+          AND ($1::timestamptz IS NULL OR solved_at <= $1)
+    ) AS solve_count
+`
+
+type GetGeneralStatsRow struct {
+	UserCount      int32 `json:"user_count"`
+	TeamCount      int32 `json:"team_count"`
+	ChallengeCount int32 `json:"challenge_count"`
+	SolveCount     int32 `json:"solve_count"`
+}
+
+func (q *Queries) GetGeneralStats(ctx context.Context, freezeTime pgtype.Timestamptz) (GetGeneralStatsRow, error) {
+	row := q.db.QueryRow(ctx, getGeneralStats, freezeTime)
+	var i GetGeneralStatsRow
+	err := row.Scan(
+		&i.UserCount,
+		&i.TeamCount,
+		&i.ChallengeCount,
+		&i.SolveCount,
+	)
+	return i, err
+}
+
 const getScoreDistribution = `-- name: GetScoreDistribution :many
 WITH buckets AS (
     SELECT CASE

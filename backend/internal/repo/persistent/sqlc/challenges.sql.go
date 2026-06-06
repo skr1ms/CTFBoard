@@ -985,6 +985,22 @@ func (q *Queries) IncrementChallengeSolveCount(ctx context.Context, id uuid.UUID
 	return solve_count, err
 }
 
+const insertChallengeRequirements = `-- name: InsertChallengeRequirements :exec
+INSERT INTO challenge_requirements (challenge_id, required_challenge_id)
+SELECT $1::uuid, unnest($2::uuid[])
+ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING
+`
+
+type InsertChallengeRequirementsParams struct {
+	ChallengeID          uuid.UUID   `json:"challenge_id"`
+	RequiredChallengeIds []uuid.UUID `json:"required_challenge_ids"`
+}
+
+func (q *Queries) InsertChallengeRequirements(ctx context.Context, arg InsertChallengeRequirementsParams) error {
+	_, err := q.db.Exec(ctx, insertChallengeRequirements, arg.ChallengeID, arg.RequiredChallengeIds)
+	return err
+}
+
 const recalculateChallengeSolveCounts = `-- name: RecalculateChallengeSolveCounts :exec
 UPDATE challenges AS c
 SET solve_count = COALESCE(v.cnt, 0)

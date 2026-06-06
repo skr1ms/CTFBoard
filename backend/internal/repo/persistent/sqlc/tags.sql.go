@@ -159,6 +159,22 @@ func (q *Queries) GetTagsByChallengeIDs(ctx context.Context, dollar_1 []uuid.UUI
 	return items, nil
 }
 
+const insertChallengeTags = `-- name: InsertChallengeTags :exec
+INSERT INTO challenge_tags (challenge_id, tag_id)
+SELECT $1::uuid, unnest($2::uuid[])
+ON CONFLICT (challenge_id, tag_id) DO NOTHING
+`
+
+type InsertChallengeTagsParams struct {
+	ChallengeID uuid.UUID   `json:"challenge_id"`
+	TagIds      []uuid.UUID `json:"tag_ids"`
+}
+
+func (q *Queries) InsertChallengeTags(ctx context.Context, arg InsertChallengeTagsParams) error {
+	_, err := q.db.Exec(ctx, insertChallengeTags, arg.ChallengeID, arg.TagIds)
+	return err
+}
+
 const updateTag = `-- name: UpdateTag :exec
 UPDATE tags SET name = $2, color = $3 WHERE id = $1
 `

@@ -355,7 +355,9 @@ func TestChallengeRepo_GetRequirements_Success(t *testing.T) {
 	mainCh := f.CreateChallenge(t, "main_req", 100)
 	prereqCh := f.CreateChallenge(t, "prereq_req", 50)
 
-	err := f.ChallengeRepo.SetRequirements(ctx, mainCh.ID, []uuid.UUID{prereqCh.ID})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetRequirements(txCtx, mainCh.ID, []uuid.UUID{prereqCh.ID})
+	})
 	require.NoError(t, err)
 
 	got, err := f.ChallengeRepo.GetRequirements(ctx, mainCh.ID)
@@ -403,7 +405,9 @@ func TestChallengeRepo_SetRequirements_Success(t *testing.T) {
 	prereq1 := f.CreateChallenge(t, "prereq1_set", 50)
 	prereq2 := f.CreateChallenge(t, "prereq2_set", 75)
 
-	err := f.ChallengeRepo.SetRequirements(ctx, mainCh.ID, []uuid.UUID{prereq1.ID, prereq2.ID})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetRequirements(txCtx, mainCh.ID, []uuid.UUID{prereq1.ID, prereq2.ID})
+	})
 	require.NoError(t, err)
 
 	got, err := f.ChallengeRepo.GetRequirements(ctx, mainCh.ID)
@@ -423,7 +427,9 @@ func TestChallengeRepo_SetRequirements_InvalidRequiredID(t *testing.T) {
 	mainCh := f.CreateChallenge(t, "main_invalid", 100)
 	nonExistentID := uuid.New()
 
-	err := f.ChallengeRepo.SetRequirements(ctx, mainCh.ID, []uuid.UUID{nonExistentID})
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.ChallengeRepo.SetRequirements(txCtx, mainCh.ID, []uuid.UUID{nonExistentID})
+	})
 
 	assert.Error(t, err)
 }

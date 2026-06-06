@@ -147,10 +147,7 @@ func (r *TrackingRepo) CountChallengeOpensByChallenge(ctx context.Context, chall
 // DeleteOlderThan removes all tracking rows whose tracked_at is before
 // cutoffDate. Used by the cleanup job to bound table growth.
 func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error {
-	db := ExtractDB(ctx, r.pool)
-
-	_, err := db.Exec(ctx, "DELETE FROM tracking WHERE tracked_at < $1", pgutil.TimeToTimestamptz(&cutoffDate))
-	if err != nil {
+	if err := r.Q(ctx).DeleteTrackingOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate)); err != nil {
 		return fmt.Errorf("TrackingRepo - DeleteOlderThan: %w", err)
 	}
 
@@ -160,10 +157,7 @@ func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time
 // DeleteChallengeOpensOlderThan removes challenge_opens rows whose opened_at
 // is before cutoffDate. Used by the cleanup job to bound table growth.
 func (r *TrackingRepo) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error {
-	db := ExtractDB(ctx, r.pool)
-
-	_, err := db.Exec(ctx, "DELETE FROM challenge_opens WHERE opened_at < $1", pgutil.TimeToTimestamptz(&cutoffDate))
-	if err != nil {
+	if err := r.Q(ctx).DeleteChallengeOpensOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate)); err != nil {
 		return fmt.Errorf("TrackingRepo - DeleteChallengeOpensOlderThan: %w", err)
 	}
 
