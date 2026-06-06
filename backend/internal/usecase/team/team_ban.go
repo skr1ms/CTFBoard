@@ -11,6 +11,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 const maxBanRetries = 3
@@ -182,7 +183,8 @@ func (uc *TeamUseCase) BanTeam(ctx context.Context, teamID uuid.UUID, reason str
 		return fmt.Errorf("TeamUseCase - BanTeam - TM.Run: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	if banMembers {
 		for _, id := range memberIDs {

@@ -12,6 +12,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 // unbanTeamMembersByLog unbans the members who were banned as part of the original team
@@ -266,7 +267,8 @@ func (uc *TeamUseCase) UnbanTeam(ctx context.Context, teamID, actorID uuid.UUID)
 		return fmt.Errorf("TeamUseCase - UnbanTeam - TM.Run: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	comp := computil.Cached(postCtx, nil, uc.deps.CompRepo)
 	frozen := comp != nil && comp.IsFreezeActive()

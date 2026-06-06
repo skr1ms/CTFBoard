@@ -12,6 +12,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/emailtemplate"
 )
 
@@ -172,10 +173,12 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 	}
 
 	// Revoke all active JWTs so stolen tokens cannot be used after a password reset.
-	// Uses WithoutCancel so the revocation completes even if the request context is
-	// cancelled immediately after the transaction commits.
+	// The post-commit context survives request cancellation but stays deadline-bound.
 	if uc.deps.JWTRevoker != nil {
-		if err := uc.deps.JWTRevoker.RevokeAllForUser(context.WithoutCancel(ctx), userID); err != nil {
+		postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+		defer postCancel()
+
+		if err := uc.deps.JWTRevoker.RevokeAllForUser(postCtx, userID); err != nil {
 			uc.deps.Logger.WithError(err).Error("EmailUseCase - ResetPassword - RevokeAllForUser")
 		}
 	}

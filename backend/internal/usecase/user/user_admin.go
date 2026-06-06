@@ -12,6 +12,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 // AdminCreate creates a new user account with an optional role.
@@ -140,7 +141,8 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		return nil, fmt.Errorf("UserUseCase - AdminUpdate - UserRepo.GetByID: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	// Revoke JWT when password changed or role demoted (admin -> user)
 	needsRevoke := passwordHash != nil
@@ -165,9 +167,9 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 // transaction: UserRepo.Lock + admin-protect check + captain-guard (captains
 // cannot be deleted while leading a team). banUserRemoveSolvesAndAdjustScores
 // strips solves and recalculates team scores; custom field values are deleted.
-// After the transaction: JWT tokens are revoked, user/scoreboard/team/challenge
-// caches are invalidated via context.WithoutCancel so post-tx work survives
-// request cancellation.
+// After the transaction: JWT tokens are revoked and user/scoreboard/team/challenge
+// caches are invalidated with a bounded post-commit context so cleanup survives
+// request cancellation without becoming unbounded.
 func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUID) error {
 	if userID == actorID {
 		return apperr.ErrAccessDenied
@@ -227,7 +229,8 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 		return fmt.Errorf("UserUseCase - AdminDelete - TM.Run: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	if uc.deps.JWTService != nil {
 		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 // BanUser bans the specified user. The operation refuses to ban the actor
@@ -185,7 +186,8 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 		return fmt.Errorf("UserUseCase - BanUser - TM.Run: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	if uc.deps.JWTService != nil {
 		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
@@ -318,7 +320,8 @@ func (uc *UserUseCase) UnbanUser(ctx context.Context, userID, actorID uuid.UUID)
 		return fmt.Errorf("UserUseCase - UnbanUser - TM.Run: %w", err)
 	}
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
 

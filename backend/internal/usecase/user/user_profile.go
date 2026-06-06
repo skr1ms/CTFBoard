@@ -13,6 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 func (uc *UserUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error) {
@@ -227,7 +228,10 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, userID uuid.UUID, user
 	}
 
 	if newPassword != nil {
-		err := uc.deps.JWTService.RevokeAllForUser(context.WithoutCancel(ctx), userID)
+		postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+		defer postCancel()
+
+		err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID)
 		if err != nil {
 			uc.deps.Logger.WithError(err).Error("UserUseCase - UpdateProfile - RevokeAllForUser")
 		}

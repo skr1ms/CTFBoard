@@ -17,6 +17,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 const (
@@ -148,7 +149,8 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 
 	uc.sf.Forget(cacheutil.KeyCompetition)
 
-	postCtx := context.WithoutCancel(ctx)
+	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
+	defer postCancel()
 
 	if uc.deps.Redis != nil {
 		err := uc.deps.Redis.Del(postCtx, cacheutil.KeyCompetition)
