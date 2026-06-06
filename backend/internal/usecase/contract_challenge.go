@@ -74,6 +74,14 @@ type (
 		TagIDs            []uuid.UUID
 	}
 
+	ChallengeSubmitParams struct {
+		ChallengeID uuid.UUID
+		Flag        string
+		UserID      uuid.UUID
+		TeamID      *uuid.UUID
+		ClientIP    string
+	}
+
 	// ChallengeUseCase handles challenge CRUD, flag submission, solve management, and scoreboard cache.
 	ChallengeUseCase interface {
 		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
@@ -94,7 +102,7 @@ type (
 		Create(ctx context.Context, params ChallengeCreateParams) (*domain.Challenge, error)
 		Update(ctx context.Context, ID uuid.UUID, params ChallengeUpdateParams) (*domain.Challenge, error)
 		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
-		SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error)
+		SubmitFlag(ctx context.Context, params ChallengeSubmitParams) (bool, error)
 		InvalidateScoreboardCache(ctx context.Context)
 		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
 		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error

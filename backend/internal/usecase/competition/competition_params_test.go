@@ -16,7 +16,20 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
+
+func competitionParamSetParams(key, value, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) usecase.CompetitionParamSetParams {
+	return usecase.CompetitionParamSetParams{
+		Key:         key,
+		Value:       value,
+		Description: description,
+		ValueType:   valueType,
+		Category:    category,
+		ActorID:     actorID,
+		ClientIP:    clientIP,
+	}
+}
 
 type fakeKeyValueStore struct {
 	mu    sync.Mutex
@@ -179,7 +192,7 @@ func TestCompetitionParamUseCase_Set_Success(t *testing.T) {
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, desc, valueType, "", actorID, clientIP)
+	err := uc.Set(ctx, competitionParamSetParams(key, value, desc, valueType, "", actorID, clientIP))
 
 	assert.NoError(t, err)
 }
@@ -194,7 +207,7 @@ func TestCompetitionParamUseCase_Set_Error(t *testing.T) {
 	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(assert.AnError)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, "", domain.CompetitionParamTypeString, "", actorID, "")
+	err := uc.Set(ctx, competitionParamSetParams(key, value, "", domain.CompetitionParamTypeString, "", actorID, ""))
 
 	assert.Error(t, err)
 }
@@ -205,7 +218,7 @@ func TestCompetitionParamUseCase_Set_InvalidVisibility_ReturnsError(t *testing.T
 	ctx := context.Background()
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, "score_visibility", "garbage", "", domain.CompetitionParamTypeString, "", uuid.New(), "")
+	err := uc.Set(ctx, competitionParamSetParams("score_visibility", "garbage", "", domain.CompetitionParamTypeString, "", uuid.New(), ""))
 
 	assert.Error(t, err)
 
@@ -424,7 +437,7 @@ func TestCompetitionParamUseCase_GetAfterSet_ReturnsValue(t *testing.T) {
 	d.configRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.CompetitionParam{afterSet}, nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, value, "desc", domain.CompetitionParamTypeString, "", actorID, "")
+	err := uc.Set(ctx, competitionParamSetParams(key, value, "desc", domain.CompetitionParamTypeString, "", actorID, ""))
 	assert.NoError(t, err)
 	got, err := uc.Get(ctx, key)
 	assert.NoError(t, err)
@@ -519,7 +532,7 @@ func TestCompetitionParamUseCase_Set_CallsCacheDelAndPubSubPublish(t *testing.T)
 	pubsub := &fakePubSubStore{}
 
 	uc := d.createCompetitionParamUseCaseWithCache(kv, pubsub)
-	err := uc.Set(ctx, key, value, "", domain.CompetitionParamTypeString, "", actorID, "")
+	err := uc.Set(ctx, competitionParamSetParams(key, value, "", domain.CompetitionParamTypeString, "", actorID, ""))
 
 	assert.NoError(t, err)
 
@@ -560,7 +573,7 @@ func TestCompetitionParamUseCase_Set_JSONValueType_InvalidReturnsError(t *testin
 	actorID := uuid.New()
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, "not valid json", "", domain.CompetitionParamTypeJSON, "", actorID, "")
+	err := uc.Set(ctx, competitionParamSetParams(key, "not valid json", "", domain.CompetitionParamTypeJSON, "", actorID, ""))
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, apperr.ErrCompetitionParamInvalidValueType) ||
@@ -578,7 +591,7 @@ func TestCompetitionParamUseCase_Set_JSONValueType_ValidSucceeds(t *testing.T) {
 	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
 	uc := d.createCompetitionParamUseCase()
-	err := uc.Set(ctx, key, `{"a":1}`, "", domain.CompetitionParamTypeJSON, "", actorID, "")
+	err := uc.Set(ctx, competitionParamSetParams(key, `{"a":1}`, "", domain.CompetitionParamTypeJSON, "", actorID, ""))
 
 	assert.NoError(t, err)
 }

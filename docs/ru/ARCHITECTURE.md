@@ -241,7 +241,7 @@ graph TD
 Wire provider groups разделены по ответственности:
 
 - `providers_repo.go` - repository providers и interface bindings.
-- `providers_usecase.go` - usecase constructors и domain-level bindings.
+- `providers_usecase_{user,team,challenge,competition,content,media}.go` - usecase constructors и domain-level bindings.
 - `providers_http.go` - router, middleware chain, server и HTTP helpers.
 - `providers_oauth.go`, `providers_storage.go`, `providers_cache.go`, `providers_runtime.go` - infrastructure-specific providers.
 - `sets.go` - Wire sets (`RepoSet`, `UseCaseSet`, `InfraSet`, `HTTPSet`), которые собирают эти providers.

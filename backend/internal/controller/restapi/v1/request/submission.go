@@ -7,18 +7,10 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-type AdminCreateSubmissionParams struct {
-	UserID        uuid.UUID
-	TeamID        *uuid.UUID
-	ChallengeID   uuid.UUID
-	SubmittedFlag string
-	IsCorrect     bool
-	IP            string
-}
-
-func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequest) (*AdminCreateSubmissionParams, error) {
+func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequest) (usecase.AdminCreateSubmissionParams, error) {
 	userID := req.UserID
 	challengeID := req.ChallengeID
 
@@ -33,13 +25,13 @@ func AdminCreateSubmissionRequestToParams(req *openapi.AdminCreateSubmissionRequ
 
 	if req.IP != nil {
 		if net.ParseIP(*req.IP) == nil {
-			return nil, apperr.NewValidationErrorf("invalid ip address format")
+			return usecase.AdminCreateSubmissionParams{}, apperr.NewValidationErrorf("invalid ip address format")
 		}
 
 		ip = *req.IP
 	}
 
-	return &AdminCreateSubmissionParams{
+	return usecase.AdminCreateSubmissionParams{
 		UserID:        userID,
 		TeamID:        teamID,
 		ChallengeID:   challengeID,

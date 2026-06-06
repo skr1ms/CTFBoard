@@ -82,12 +82,7 @@ func (h *Server) GetDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	debugInfo := map[string]any{
-		"debug":     true,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	httputil.RenderOK(w, r, debugInfo)
+	httputil.RenderOK(w, r, response.DebugInfo(time.Now()))
 }
 
 // (GET /admin/export).

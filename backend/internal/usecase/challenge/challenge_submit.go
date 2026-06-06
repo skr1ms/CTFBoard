@@ -11,6 +11,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
@@ -51,8 +52,8 @@ type submitContext struct {
 //     invalidates scoreboard/challenge-list caches (freeze-aware) and broadcasts the event
 //
 //nolint:funlen // submission flow: validation, lock, solve check, create, broadcast
-func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) (bool, error) {
-	if teamID == nil {
+func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, params usecase.ChallengeSubmitParams) (bool, error) {
+	if params.TeamID == nil {
 		return false, apperr.ErrUserNotInTeam
 	}
 
@@ -61,7 +62,15 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 		return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitCheckCompetitionTime: %w", err)
 	}
 
-	sc := &submitContext{ctx: ctx, challengeID: challengeID, flag: crypto.NormalizeFlagInput(strings.TrimSpace(flag)), userID: userID, teamID: *teamID, clientIP: clientIP, comp: comp}
+	sc := &submitContext{
+		ctx:         ctx,
+		challengeID: params.ChallengeID,
+		flag:        crypto.NormalizeFlagInput(strings.TrimSpace(params.Flag)),
+		userID:      params.UserID,
+		teamID:      *params.TeamID,
+		clientIP:    params.ClientIP,
+		comp:        comp,
+	}
 	if sc.flag == "" {
 		return false, apperr.ErrInvalidFlagFormat
 	}
@@ -71,7 +80,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, challengeID uuid.UUI
 	}
 
 	if uc.deps.UserRepo != nil {
-		user, err := uc.deps.UserRepo.GetByID(ctx, userID)
+		user, err := uc.deps.UserRepo.GetByID(ctx, params.UserID)
 		if err != nil {
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - UserRepo.GetByID: %w", err)
 		}

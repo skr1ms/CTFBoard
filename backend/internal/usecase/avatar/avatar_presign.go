@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
 // resolvePresignedURLs checks the Redis cache for pre-signed avatar URLs and,
@@ -20,23 +21,26 @@ func (uc *AvatarUseCase) resolvePresignedURLs(ctx context.Context, cacheKey stri
 	thumbPath := domain.ThumbPathFromFull(fullPath)
 
 	result, err, _ := uc.presignSF.Do(cacheKey, func() (any, error) {
-		if fullURL, thumbURL, ok := uc.cachedPresignedURLs(ctx, cacheKey); ok {
+		loadCtx, cancel := cacheutil.LoaderContext(ctx)
+		defer cancel()
+
+		if fullURL, thumbURL, ok := uc.cachedPresignedURLs(loadCtx, cacheKey); ok {
 			return cachedAvatarURLs{FullURL: *fullURL, ThumbURL: *thumbURL}, nil
 		}
 
-		fullPresigned, err := uc.deps.Storage.GetPresignedURL(ctx, fullPath, uc.deps.Config.PresignedTTL)
+		fullPresigned, err := uc.deps.Storage.GetPresignedURL(loadCtx, fullPath, uc.deps.Config.PresignedTTL)
 		if err != nil {
 			return nil, fmt.Errorf("AvatarUseCase - resolvePresignedURLs - GetPresignedURL full: %w", err)
 		}
 
-		thumbPresigned, err := uc.deps.Storage.GetPresignedURL(ctx, thumbPath, uc.deps.Config.PresignedTTL)
+		thumbPresigned, err := uc.deps.Storage.GetPresignedURL(loadCtx, thumbPath, uc.deps.Config.PresignedTTL)
 		if err != nil {
 			return nil, fmt.Errorf("AvatarUseCase - resolvePresignedURLs - GetPresignedURL thumb: %w", err)
 		}
 
 		cached := cachedAvatarURLs{FullURL: fullPresigned, ThumbURL: thumbPresigned}
 		if cacheBytes, _ := json.Marshal(cached); cacheBytes != nil {
-			_ = uc.deps.Cache.Set(ctx, cacheKey, cacheBytes, uc.deps.Config.CacheTTL)
+			_ = uc.deps.Cache.Set(loadCtx, cacheKey, cacheBytes, uc.deps.Config.CacheTTL)
 		}
 
 		return cached, nil

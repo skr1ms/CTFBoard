@@ -1,10 +1,12 @@
 package request
 
 import (
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func validNotificationType(s string) (domain.NotificationType, bool) {
@@ -16,8 +18,8 @@ func validNotificationType(s string) (domain.NotificationType, bool) {
 	}
 }
 
-func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
-	notifType = domain.NotificationInfo
+func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (usecase.NotificationCreateGlobalParams, error) {
+	notifType := domain.NotificationInfo
 
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
@@ -25,11 +27,16 @@ func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (
 		}
 	}
 
-	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
+	return usecase.NotificationCreateGlobalParams{
+		Title:    req.Title,
+		Content:  req.Content,
+		Type:     notifType,
+		IsPinned: lo.FromPtrOr(req.IsPinned, false),
+	}, nil
 }
 
-func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRequest) (title, content string, notifType domain.NotificationType, err error) {
-	notifType = domain.NotificationInfo
+func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRequest, userID uuid.UUID) (usecase.NotificationCreatePersonalParams, error) {
+	notifType := domain.NotificationInfo
 
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
@@ -37,11 +44,16 @@ func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRe
 		}
 	}
 
-	return req.Title, req.Content, notifType, nil
+	return usecase.NotificationCreatePersonalParams{
+		UserID:  userID,
+		Title:   req.Title,
+		Content: req.Content,
+		Type:    notifType,
+	}, nil
 }
 
-func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {
-	notifType = domain.NotificationInfo
+func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest, ID uuid.UUID) (usecase.NotificationUpdateParams, error) {
+	notifType := domain.NotificationInfo
 
 	if req.Type != nil {
 		if t, ok := validNotificationType(string(*req.Type)); ok {
@@ -49,5 +61,11 @@ func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest) (
 		}
 	}
 
-	return req.Title, req.Content, notifType, lo.FromPtrOr(req.IsPinned, false), nil
+	return usecase.NotificationUpdateParams{
+		ID:       ID,
+		Title:    req.Title,
+		Content:  req.Content,
+		Type:     notifType,
+		IsPinned: lo.FromPtrOr(req.IsPinned, false),
+	}, nil
 }

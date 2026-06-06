@@ -110,7 +110,11 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 		return
 	}
 
-	if h.OnError(w, r, h.admin.CompetitionParamUC.Set(r.Context(), key, params.Value, params.Description, params.ValueType, params.Category, user.ID, clientIP), "PutAdminConfigsKey", "Set") {
+	params.Key = key
+	params.ActorID = user.ID
+	params.ClientIP = clientIP
+
+	if h.OnError(w, r, h.admin.CompetitionParamUC.Set(r.Context(), params), "PutAdminConfigsKey", "Set") {
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // SetBatch validates and upserts a batch of competition parameters in a single
@@ -100,40 +101,40 @@ func (uc *CompetitionParamUseCase) SetBatch(ctx context.Context, params []*domai
 // otherwise the caller-supplied values are used. After the transaction commits,
 // invalidate broadcasts a cache-bust message over PubSub and clears both the
 // local in-memory map and the Redis entry.
-func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error {
-	key = strings.TrimSpace(key)
+func (uc *CompetitionParamUseCase) Set(ctx context.Context, params usecase.CompetitionParamSetParams) error {
+	key := strings.TrimSpace(params.Key)
 	if err := validateCompetitionParamKey(key); err != nil {
 		return err
 	}
 
 	cat := domain.ConfigCategoryGeneral
-	vt := valueType
+	vt := params.ValueType
 
 	if def, ok := domain.GetConfigDef(key); ok {
 		cat = def.Category
 		vt = def.ValueType
-	} else if category != "" {
-		if err := validateCategory(category); err != nil {
+	} else if params.Category != "" {
+		if err := validateCategory(params.Category); err != nil {
 			return err
 		}
 
-		cat = category
+		cat = params.Category
 	}
 
-	if err := uc.validateValueType(vt, value); err != nil {
+	if err := uc.validateValueType(vt, params.Value); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - validateValueType: %w", err)
 	}
 
-	if err := validateRegisteredParamValue(key, value); err != nil {
+	if err := validateRegisteredParamValue(key, params.Value); err != nil {
 		return fmt.Errorf("CompetitionParamUseCase - Set - validateRegisteredParamValue: %w", err)
 	}
 
 	p := &domain.CompetitionParam{
 		Key:         key,
-		Value:       value,
+		Value:       params.Value,
 		ValueType:   vt,
 		Category:    cat,
-		Description: description,
+		Description: params.Description,
 	}
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
@@ -142,11 +143,11 @@ func (uc *CompetitionParamUseCase) Set(ctx context.Context, key, value, descript
 		}
 
 		auditLog := &domain.AuditLog{
-			UserID:     &actorID,
+			UserID:     &params.ActorID,
 			Action:     domain.AuditActionUpdate,
 			EntityType: "competition_param",
 			EntityID:   key,
-			IP:         clientIP,
+			IP:         params.ClientIP,
 			Details: map[string]any{
 				"message": "competition param updated",
 				"key":     key,

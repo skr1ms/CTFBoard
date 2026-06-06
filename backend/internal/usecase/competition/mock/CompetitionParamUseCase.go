@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -558,16 +559,16 @@ func (_c *MockCompetitionParamUseCase_GetString_Call) RunAndReturn(run func(ctx 
 }
 
 // Set provides a mock function for the type MockCompetitionParamUseCase
-func (_mock *MockCompetitionParamUseCase) Set(ctx context.Context, key string, value string, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error {
-	ret := _mock.Called(ctx, key, value, description, valueType, category, actorID, clientIP)
+func (_mock *MockCompetitionParamUseCase) Set(ctx context.Context, params usecase.CompetitionParamSetParams) error {
+	ret := _mock.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Set")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, domain.CompetitionParamValueType, string, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, key, value, description, valueType, category, actorID, clientIP)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, usecase.CompetitionParamSetParams) error); ok {
+		r0 = returnFunc(ctx, params)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -581,60 +582,24 @@ type MockCompetitionParamUseCase_Set_Call struct {
 
 // Set is a helper method to define mock.On call
 //   - ctx context.Context
-//   - key string
-//   - value string
-//   - description string
-//   - valueType domain.CompetitionParamValueType
-//   - category string
-//   - actorID uuid.UUID
-//   - clientIP string
-func (_e *MockCompetitionParamUseCase_Expecter) Set(ctx interface{}, key interface{}, value interface{}, description interface{}, valueType interface{}, category interface{}, actorID interface{}, clientIP interface{}) *MockCompetitionParamUseCase_Set_Call {
-	return &MockCompetitionParamUseCase_Set_Call{Call: _e.mock.On("Set", ctx, key, value, description, valueType, category, actorID, clientIP)}
+//   - params usecase.CompetitionParamSetParams
+func (_e *MockCompetitionParamUseCase_Expecter) Set(ctx interface{}, params interface{}) *MockCompetitionParamUseCase_Set_Call {
+	return &MockCompetitionParamUseCase_Set_Call{Call: _e.mock.On("Set", ctx, params)}
 }
 
-func (_c *MockCompetitionParamUseCase_Set_Call) Run(run func(ctx context.Context, key string, value string, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string)) *MockCompetitionParamUseCase_Set_Call {
+func (_c *MockCompetitionParamUseCase_Set_Call) Run(run func(ctx context.Context, params usecase.CompetitionParamSetParams)) *MockCompetitionParamUseCase_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 usecase.CompetitionParamSetParams
 		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 domain.CompetitionParamValueType
-		if args[4] != nil {
-			arg4 = args[4].(domain.CompetitionParamValueType)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 uuid.UUID
-		if args[6] != nil {
-			arg6 = args[6].(uuid.UUID)
-		}
-		var arg7 string
-		if args[7] != nil {
-			arg7 = args[7].(string)
+			arg1 = args[1].(usecase.CompetitionParamSetParams)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
 		)
 	})
 	return _c
@@ -645,7 +610,7 @@ func (_c *MockCompetitionParamUseCase_Set_Call) Return(err error) *MockCompetiti
 	return _c
 }
 
-func (_c *MockCompetitionParamUseCase_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value string, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error) *MockCompetitionParamUseCase_Set_Call {
+func (_c *MockCompetitionParamUseCase_Set_Call) RunAndReturn(run func(ctx context.Context, params usecase.CompetitionParamSetParams) error) *MockCompetitionParamUseCase_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }

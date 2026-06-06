@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -19,49 +17,6 @@ import (
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
-}
-
-// registrationAdvisoryKey derives a PostgreSQL advisory lock key from a prefix+value
-// pair using FNV-1a 64-bit hash, capped to int64 range. Used to serialize concurrent
-// registrations for the same username or email and prevent TOCTOU races.
-func registrationAdvisoryKey(prefix, value string) int64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(prefix))
-	_, _ = h.Write([]byte(value))
-
-	u := min(h.Sum64(), 1<<63-1)
-
-	return int64(u)
-}
-
-func acquireRegistrationAdvisoryLocks(ctx context.Context, locker registrationAdvisoryLocker, op string, locks ...registrationAdvisoryLock) error {
-	slices.SortFunc(locks, func(a, b registrationAdvisoryLock) int {
-		if a.key < b.key {
-			return -1
-		}
-
-		if a.key > b.key {
-			return 1
-		}
-
-		return 0
-	})
-
-	var lastKey int64
-
-	for i, lock := range locks {
-		if i > 0 && lock.key == lastKey {
-			continue
-		}
-
-		if err := locker.AcquireAdvisoryLock(ctx, lock.key); err != nil {
-			return fmt.Errorf("%s - AcquireAdvisoryLock(%s): %w", op, lock.label, err)
-		}
-
-		lastKey = lock.key
-	}
-
-	return nil
 }
 
 // Register creates a new user account. It normalizes the email address, enforces
@@ -113,12 +68,12 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 			}
 		}
 
-		err := acquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo, "UserUseCase - Register",
-			registrationAdvisoryLock{label: "email", key: registrationAdvisoryKey("reg:email:", email)},
-			registrationAdvisoryLock{label: "username", key: registrationAdvisoryKey("reg:username:", username)},
+		err := repo.AcquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo,
+			repo.RegistrationAdvisoryLock{Label: "email", Scope: repo.RegistrationLockEmail, Value: email},
+			repo.RegistrationAdvisoryLock{Label: "username", Scope: repo.RegistrationLockUsername, Value: username},
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("UserUseCase - Register - %w", err)
 		}
 
 		err = uc.registerCheckUniqueness(ctx, username, email)

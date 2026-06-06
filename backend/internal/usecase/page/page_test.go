@@ -12,6 +12,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	pageMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page/mock"
 )
 
@@ -31,6 +32,26 @@ func makePage(slug string, isDraft bool) *domain.Page {
 		Slug:    slug,
 		Content: "content",
 		IsDraft: isDraft,
+	}
+}
+
+func pageCreateParams(title, slug, content string, isDraft bool, orderIndex int) usecase.PageCreateParams {
+	return usecase.PageCreateParams{
+		Title:      title,
+		Slug:       slug,
+		Content:    content,
+		IsDraft:    isDraft,
+		OrderIndex: orderIndex,
+	}
+}
+
+func pageUpdateParams(title, slug, content string, isDraft bool, orderIndex int) usecase.PageUpdateParams {
+	return usecase.PageUpdateParams{
+		Title:      title,
+		Slug:       slug,
+		Content:    content,
+		IsDraft:    isDraft,
+		OrderIndex: orderIndex,
 	}
 }
 
@@ -153,7 +174,7 @@ func TestCreate_Success(t *testing.T) {
 		return p.Title == "My Page" && p.Slug == "my-page" && !p.IsDraft
 	})).Return(nil)
 
-	got, err := uc.Create(context.Background(), "My Page", "my-page", "content", false, 0)
+	got, err := uc.Create(context.Background(), pageCreateParams("My Page", "my-page", "content", false, 0))
 
 	require.NoError(t, err)
 	assert.Equal(t, "My Page", got.Title)
@@ -168,7 +189,7 @@ func TestCreate_TitleTrimmed(t *testing.T) {
 		return p.Title == "Trimmed Title"
 	})).Return(nil)
 
-	_, err := uc.Create(context.Background(), "  Trimmed Title  ", "valid-slug", "content", false, 0)
+	_, err := uc.Create(context.Background(), pageCreateParams("  Trimmed Title  ", "valid-slug", "content", false, 0))
 
 	require.NoError(t, err)
 }
@@ -178,7 +199,7 @@ func TestCreate_EmptyTitle_Error(t *testing.T) {
 
 	uc, _ := newUC(t)
 
-	_, err := uc.Create(context.Background(), "  ", "slug", "content", false, 0)
+	_, err := uc.Create(context.Background(), pageCreateParams("  ", "slug", "content", false, 0))
 
 	require.ErrorIs(t, err, apperr.ErrPageTitleRequired)
 }
@@ -188,7 +209,7 @@ func TestCreate_EmptySlug_Error(t *testing.T) {
 
 	uc, _ := newUC(t)
 
-	_, err := uc.Create(context.Background(), "title", "  ", "content", false, 0)
+	_, err := uc.Create(context.Background(), pageCreateParams("title", "  ", "content", false, 0))
 
 	require.ErrorIs(t, err, apperr.ErrPageSlugRequired)
 }
@@ -199,7 +220,7 @@ func TestCreate_InvalidSlug_Error(t *testing.T) {
 	uc, _ := newUC(t)
 
 	for _, badSlug := range []string{"UPPERCASE", "has space", "-leading-dash", "trailing-dash-", "double--dash", "hello_world"} {
-		_, err := uc.Create(context.Background(), "title", badSlug, "content", false, 0)
+		_, err := uc.Create(context.Background(), pageCreateParams("title", badSlug, "content", false, 0))
 		require.Error(t, err, "expected error for slug %q", badSlug)
 	}
 }
@@ -218,7 +239,7 @@ func TestUpdate_Success(t *testing.T) {
 		return p.Title == "new title" && p.Slug == "new-slug"
 	})).Return(nil)
 
-	got, err := uc.Update(context.Background(), id, "new title", "new-slug", "new content", false, 1)
+	got, err := uc.Update(context.Background(), id, pageUpdateParams("new title", "new-slug", "new content", false, 1))
 
 	require.NoError(t, err)
 	assert.Equal(t, "new title", got.Title)
@@ -239,7 +260,7 @@ func TestUpdate_SlugConflict_Error(t *testing.T) {
 	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 	repo.EXPECT().GetBySlug(mock.Anything, "taken-slug").Return(other, nil)
 
-	_, err := uc.Update(context.Background(), id, "title", "taken-slug", "content", false, 0)
+	_, err := uc.Update(context.Background(), id, pageUpdateParams("title", "taken-slug", "content", false, 0))
 
 	require.ErrorIs(t, err, apperr.ErrPageSlugConflict)
 }
@@ -257,7 +278,7 @@ func TestUpdate_SameSlugSamePage_Success(t *testing.T) {
 	repo.EXPECT().GetBySlug(mock.Anything, "same-slug").Return(existing, nil)
 	repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
-	_, err := uc.Update(context.Background(), id, "title", "same-slug", "content", false, 0)
+	_, err := uc.Update(context.Background(), id, pageUpdateParams("title", "same-slug", "content", false, 0))
 
 	require.NoError(t, err)
 }
@@ -271,7 +292,7 @@ func TestUpdate_InvalidSlug_Error(t *testing.T) {
 	existing.ID = id
 	repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 
-	_, err := uc.Update(context.Background(), id, "title", "INVALID SLUG", "content", false, 0)
+	_, err := uc.Update(context.Background(), id, pageUpdateParams("title", "INVALID SLUG", "content", false, 0))
 
 	require.Error(t, err)
 }

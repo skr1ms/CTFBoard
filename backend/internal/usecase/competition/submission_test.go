@@ -9,7 +9,19 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
+
+func adminCreateSubmissionParams(userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) usecase.AdminCreateSubmissionParams {
+	return usecase.AdminCreateSubmissionParams{
+		UserID:        userID,
+		TeamID:        teamID,
+		ChallengeID:   challengeID,
+		SubmittedFlag: submittedFlag,
+		IsCorrect:     isCorrect,
+		IP:            ip,
+	}
+}
 
 func TestSubmissionUseCase_LogSubmission_Success(t *testing.T) {
 	t.Parallel()
@@ -280,7 +292,7 @@ func TestSubmissionUseCase_AdminCreate_Success(t *testing.T) {
 	d.submissionRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(expected, nil)
 
 	uc := d.createSubmissionUseCase()
-	got, err := uc.AdminCreate(ctx, userID, nil, challengeID, "wrong_flag", false, "127.0.0.1")
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, nil, challengeID, "wrong_flag", false, "127.0.0.1"))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -300,7 +312,7 @@ func TestSubmissionUseCase_AdminCreate_UserBanned(t *testing.T) {
 		UserRepo:       d.userRepo,
 		Logger:         d.logger,
 	})
-	got, err := uc.AdminCreate(ctx, userID, nil, challengeID, "flag", false, "127.0.0.1")
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, nil, challengeID, "flag", false, "127.0.0.1"))
 
 	assert.Error(t, err)
 	assert.Nil(t, got)

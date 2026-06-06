@@ -120,11 +120,11 @@ openapi: oapi-codegen ## Alias for OpenAPI bundle + codegen
 
 oapi-codegen: openapi-bundle ## Generate OpenAPI code from spec (bundles openapi.yml then runs codegen)
 	@echo "Generating OpenAPI code..."
-	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-types.yml $(OPENAPI_BUNDLE)
-	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-server.yml $(OPENAPI_BUNDLE)
-	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-spec.yml $(OPENAPI_BUNDLE)
-	@$(OAPI_CODEGEN) -config codegen/oapi-codegen-client.yml $(OPENAPI_BUNDLE)
-	@rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS)
+	@trap 'rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS)' EXIT; \
+		$(OAPI_CODEGEN) -config codegen/oapi-codegen-types.yml $(OPENAPI_BUNDLE) && \
+		$(OAPI_CODEGEN) -config codegen/oapi-codegen-server.yml $(OPENAPI_BUNDLE) && \
+		$(OAPI_CODEGEN) -config codegen/oapi-codegen-spec.yml $(OPENAPI_BUNDLE) && \
+		$(OAPI_CODEGEN) -config codegen/oapi-codegen-client.yml $(OPENAPI_BUNDLE)
 	@echo "OpenAPI code generated"
 
 sqlc: sqlc-verify ## Generate sqlc code from queries and schema

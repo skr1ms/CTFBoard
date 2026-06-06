@@ -51,12 +51,12 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title, slug, content, isDraft, orderIndex, err := request.CreatePageRequestToParams(&req)
+	params, err := request.CreatePageRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminPages", "CreatePageRequestToParams") {
 		return
 	}
 
-	page, err := h.admin.PageUC.Create(r.Context(), title, slug, content, isDraft, orderIndex)
+	page, err := h.admin.PageUC.Create(r.Context(), params)
 	if h.OnError(w, r, err, "PostAdminPages", "Create") {
 		return
 	}
@@ -93,12 +93,12 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
-	title, slug, content, isDraft, orderIndex, err := request.UpdatePageRequestToParams(&req)
+	params, err := request.UpdatePageRequestToParams(&req)
 	if h.OnError(w, r, err, "PutAdminPagesID", "UpdatePageRequestToParams") {
 		return
 	}
 
-	page, err := h.admin.PageUC.Update(r.Context(), pageID, title, slug, content, isDraft, orderIndex)
+	page, err := h.admin.PageUC.Update(r.Context(), pageID, params)
 	if h.OnError(w, r, err, "PutAdminPagesID", "Update") {
 		return
 	}

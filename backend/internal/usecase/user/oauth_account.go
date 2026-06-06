@@ -7,6 +7,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -159,16 +160,16 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 
 		desiredUsername, fallbackUsername := oauthUsernameCandidates(profile.Username, provider, profile.ID)
 
-		locks := []registrationAdvisoryLock{
-			{label: "email", key: registrationAdvisoryKey("reg:email:", profile.Email)},
-			{label: "username", key: registrationAdvisoryKey("reg:username:", desiredUsername)},
+		locks := []repo.RegistrationAdvisoryLock{
+			{Label: "email", Scope: repo.RegistrationLockEmail, Value: profile.Email},
+			{Label: "username", Scope: repo.RegistrationLockUsername, Value: desiredUsername},
 		}
 		if fallbackUsername != desiredUsername {
-			locks = append(locks, registrationAdvisoryLock{label: "username_fallback", key: registrationAdvisoryKey("reg:username:", fallbackUsername)})
+			locks = append(locks, repo.RegistrationAdvisoryLock{Label: "username_fallback", Scope: repo.RegistrationLockUsername, Value: fallbackUsername})
 		}
 
-		if err := acquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo, "OAuthUseCase - registerNewOAuthUser", locks...); err != nil {
-			return err
+		if err := repo.AcquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo, locks...); err != nil {
+			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - %w", err)
 		}
 
 		existing, err := uc.deps.UserRepo.GetByEmail(ctx, profile.Email)

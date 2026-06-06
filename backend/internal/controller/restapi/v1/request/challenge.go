@@ -3,6 +3,7 @@ package request
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
@@ -125,6 +126,16 @@ func updateChallengeStateFromReq(s *openapi.UpdateChallengeRequestState) (string
 
 func SubmitFlagRequestToParams(req *openapi.SubmitFlagRequest) (string, error) {
 	return req.Flag, nil
+}
+
+func ChallengeSubmitParams(challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID, clientIP string) usecase.ChallengeSubmitParams {
+	return usecase.ChallengeSubmitParams{
+		ChallengeID: challengeID,
+		Flag:        flag,
+		UserID:      userID,
+		TeamID:      teamID,
+		ClientIP:    clientIP,
+	}
 }
 
 func AdminUpsertSolutionRequestToParams(req *openapi.AdminUpsertSolutionRequest) string {

@@ -6,6 +6,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.CompetitionParamValueType, error) {
@@ -27,20 +28,13 @@ func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.C
 	}
 }
 
-type SetConfigParams struct {
-	Value       string
-	Description string
-	ValueType   domain.CompetitionParamValueType
-	Category    string
-}
-
-func SetConfigRequestToParams(req *openapi.SetConfigRequest) (SetConfigParams, error) {
+func SetConfigRequestToParams(req *openapi.SetConfigRequest) (usecase.CompetitionParamSetParams, error) {
 	valueType, err := SetConfigRequestToValueType(req.ValueType)
 	if err != nil {
-		return SetConfigParams{}, err
+		return usecase.CompetitionParamSetParams{}, err
 	}
 
-	return SetConfigParams{
+	return usecase.CompetitionParamSetParams{
 		Value:       req.Value,
 		Description: lo.FromPtrOr(req.Description, ""),
 		ValueType:   valueType,

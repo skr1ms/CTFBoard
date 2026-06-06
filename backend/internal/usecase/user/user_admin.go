@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
@@ -47,11 +48,11 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 	}
 
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := acquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo, "UserUseCase - AdminCreate",
-			registrationAdvisoryLock{label: "email", key: registrationAdvisoryKey("reg:email:", email)},
-			registrationAdvisoryLock{label: "username", key: registrationAdvisoryKey("reg:username:", username)},
+		if err := repo.AcquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo,
+			repo.RegistrationAdvisoryLock{Label: "email", Scope: repo.RegistrationLockEmail, Value: email},
+			repo.RegistrationAdvisoryLock{Label: "username", Scope: repo.RegistrationLockUsername, Value: username},
 		); err != nil {
-			return err
+			return fmt.Errorf("UserUseCase - AdminCreate - %w", err)
 		}
 
 		if err := uc.registerCheckUniqueness(ctx, username, email); err != nil {

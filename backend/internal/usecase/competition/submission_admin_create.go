@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // AdminCreate creates a submission record on behalf of an admin. It checks
@@ -20,24 +21,24 @@ import (
 // isCorrect true without a teamID is rejected with a validation error. If TM
 // or SolveCreator are absent and a correct submission with a team is requested,
 // the call returns an error rather than silently skipping the solve.
-func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) (*domain.SubmissionWithDetails, error) {
-	if isCorrect && teamID == nil {
+func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, params usecase.AdminCreateSubmissionParams) (*domain.SubmissionWithDetails, error) {
+	if params.IsCorrect && params.TeamID == nil {
 		return nil, apperr.NewValidationErrorf("team_id is required when is_correct is true")
 	}
 
 	if uc.deps.UserRepo != nil {
-		u, err := uc.deps.UserRepo.GetByID(ctx, userID)
+		u, err := uc.deps.UserRepo.GetByID(ctx, params.UserID)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.UserID(userID.String())).Warn("SubmissionUseCase - AdminCreate: failed to check user ban status")
+			uc.deps.Logger.WithError(err).WithFields(logkit.UserID(params.UserID.String())).Warn("SubmissionUseCase - AdminCreate: failed to check user ban status")
 		} else if u.IsBanned {
 			return nil, apperr.ErrUserBanned
 		}
 	}
 
-	if teamID != nil && uc.deps.TeamRepo != nil {
-		t, err := uc.deps.TeamRepo.GetByID(ctx, *teamID)
+	if params.TeamID != nil && uc.deps.TeamRepo != nil {
+		t, err := uc.deps.TeamRepo.GetByID(ctx, *params.TeamID)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"team_id": teamID.String()}).Warn("SubmissionUseCase - AdminCreate: failed to check team ban status")
+			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"team_id": params.TeamID.String()}).Warn("SubmissionUseCase - AdminCreate: failed to check team ban status")
 		} else if t.IsBanned {
 			return nil, apperr.ErrTeamBanned
 		}
@@ -45,16 +46,16 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 
 	sub := &domain.Submission{
 		ID:            uuid.New(),
-		UserID:        userID,
-		TeamID:        teamID,
-		ChallengeID:   challengeID,
-		SubmittedFlag: submittedFlag,
-		IsCorrect:     isCorrect,
-		IP:            ip,
+		UserID:        params.UserID,
+		TeamID:        params.TeamID,
+		ChallengeID:   params.ChallengeID,
+		SubmittedFlag: params.SubmittedFlag,
+		IsCorrect:     params.IsCorrect,
+		IP:            params.IP,
 		CreatedAt:     time.Now(),
 	}
 
-	if isCorrect && teamID != nil && uc.deps.TM != nil && uc.deps.SolveCreator != nil {
+	if params.IsCorrect && params.TeamID != nil && uc.deps.TM != nil && uc.deps.SolveCreator != nil {
 		if err := uc.requireTxDeps("AdminCreate", true); err != nil {
 			return nil, err
 		}
@@ -64,7 +65,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 				return fmt.Errorf("SubmissionUseCase - AdminCreate - SubmissionRepo.Create: %w", err)
 			}
 
-			if err := uc.deps.SolveCreator.AdminCreateSolve(ctx, userID, *teamID, challengeID, true); err != nil {
+			if err := uc.deps.SolveCreator.AdminCreateSolve(ctx, params.UserID, *params.TeamID, params.ChallengeID, true); err != nil {
 				return fmt.Errorf("SubmissionUseCase - AdminCreate - SolveCreator.AdminCreateSolve: %w", err)
 			}
 
@@ -74,10 +75,10 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, userID uuid.UUID, 
 		}
 
 		if uc.deps.CacheInvalidator != nil {
-			uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamID)
+			uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *params.TeamID)
 		}
 	} else {
-		if isCorrect && teamID != nil {
+		if params.IsCorrect && params.TeamID != nil {
 			return nil, fmt.Errorf("SubmissionUseCase - AdminCreate: transaction and solve creator required for correct submission")
 		}
 

@@ -129,12 +129,20 @@ jobs:
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install tools and generate
         working-directory: backend
         run: |
           go mod download
           make install-tools
           make generate
+      - name: Generate frontend API schema
+        working-directory: frontend/board
+        run: |
+          bun install --frozen-lockfile
+          bun run codegen
       - name: Verify codegen is up to date
         run: git diff --exit-code
 

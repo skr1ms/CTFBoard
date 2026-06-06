@@ -39,12 +39,28 @@ type (
 // =============================================================================
 
 type (
+	PageCreateParams struct {
+		Title      string
+		Slug       string
+		Content    string
+		IsDraft    bool
+		OrderIndex int
+	}
+
+	PageUpdateParams struct {
+		Title      string
+		Slug       string
+		Content    string
+		IsDraft    bool
+		OrderIndex int
+	}
+
 	// PageUseCase manages static content pages including draft/publish lifecycle.
 	PageUseCase interface {
 		GetPublishedList(ctx context.Context) ([]*domain.PageListItem, error)
 		GetBySlug(ctx context.Context, slug string) (*domain.Page, error)
-		Create(ctx context.Context, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error)
-		Update(ctx context.Context, ID uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error)
+		Create(ctx context.Context, params PageCreateParams) (*domain.Page, error)
+		Update(ctx context.Context, ID uuid.UUID, params PageUpdateParams) (*domain.Page, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 		GetAllList(ctx context.Context) ([]*domain.Page, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Page, error)
@@ -56,15 +72,37 @@ type (
 // =============================================================================
 
 type (
+	NotificationCreateGlobalParams struct {
+		Title    string
+		Content  string
+		Type     domain.NotificationType
+		IsPinned bool
+	}
+
+	NotificationCreatePersonalParams struct {
+		UserID  uuid.UUID
+		Title   string
+		Content string
+		Type    domain.NotificationType
+	}
+
+	NotificationUpdateParams struct {
+		ID       uuid.UUID
+		Title    string
+		Content  string
+		Type     domain.NotificationType
+		IsPinned bool
+	}
+
 	// NotificationUseCase manages global and personal notifications, including read state tracking.
 	NotificationUseCase interface {
-		CreateGlobal(ctx context.Context, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error)
-		CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error)
+		CreateGlobal(ctx context.Context, params NotificationCreateGlobalParams) (*domain.Notification, error)
+		CreatePersonal(ctx context.Context, params NotificationCreatePersonalParams) (*domain.UserNotification, error)
 		GetGlobal(ctx context.Context, page, perPage int) ([]*domain.Notification, error)
 		GetUserNotifications(ctx context.Context, userID uuid.UUID, page, perPage int) ([]*domain.UserNotification, error)
 		MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error
 		CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
-		Update(ctx context.Context, ID uuid.UUID, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error)
+		Update(ctx context.Context, params NotificationUpdateParams) (*domain.Notification, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
 )

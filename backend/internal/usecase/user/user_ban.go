@@ -10,6 +10,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
@@ -204,7 +205,12 @@ func (uc *UserUseCase) BanUser(ctx context.Context, userID uuid.UUID, reason str
 	}
 
 	if shouldNotifyCaptain && uc.deps.PersonalNotificationSender != nil {
-		_, err := uc.deps.PersonalNotificationSender.CreatePersonal(ctx, captainIDToNotify, "Team below minimum size", "A member of your team was banned. Your team is now below the minimum size required to submit. Please add members or contact an administrator.", domain.NotificationWarning)
+		_, err := uc.deps.PersonalNotificationSender.CreatePersonal(ctx, usecase.NotificationCreatePersonalParams{
+			UserID:  captainIDToNotify,
+			Title:   "Team below minimum size",
+			Content: "A member of your team was banned. Your team is now below the minimum size required to submit. Please add members or contact an administrator.",
+			Type:    domain.NotificationWarning,
+		})
 		if err != nil {
 			uc.deps.Logger.WithError(err).Warn("UserUseCase - BanUser - CreatePersonal notification failed")
 		}

@@ -78,7 +78,7 @@ func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.
 	}
 
 	clientIP := helper.ClientIP(r)
-	valid, submitErr := h.challenge.ChallengeUC.SubmitFlag(r.Context(), challengeIDParsed, flag, user.ID, user.TeamID, clientIP)
+	valid, submitErr := h.challenge.ChallengeUC.SubmitFlag(r.Context(), request.ChallengeSubmitParams(challengeIDParsed, flag, user.ID, user.TeamID, clientIP))
 
 	if h.OnError(w, r, submitErr, "PostChallengesChallengeIDSubmit", "SubmitFlag") {
 		return

@@ -61,6 +61,15 @@ func challengeUpdateParams(title, description, category string, points int, init
 	}
 }
 
+func submitFlagParams(challengeID uuid.UUID, flag string, userID uuid.UUID, teamID *uuid.UUID) usecase.ChallengeSubmitParams {
+	return usecase.ChallengeSubmitParams{
+		ChallengeID: challengeID,
+		Flag:        flag,
+		UserID:      userID,
+		TeamID:      teamID,
+	}
+}
+
 type challengeTestDeps struct {
 	challengeRepo  *challengeMock.MockChallengeRepository
 	solveRepo      *challengeMock.MockSolveRepository
@@ -524,7 +533,7 @@ func TestChallengeUseCase_SubmitFlag_Success(t *testing.T) {
 		_ = fn(ctx)
 	})
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
@@ -546,7 +555,7 @@ func TestChallengeUseCase_SubmitFlag_InvalidFlag(t *testing.T) {
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{wrong}", userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.False(t, valid)
@@ -570,7 +579,7 @@ func TestChallengeUseCase_SubmitFlag_MaxAttemptsReached(t *testing.T) {
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
 	d.submissionRepo.EXPECT().CountSubmissionsByTeamAndChallenge(mock.Anything, teamID, challengeID).Return(int64(2), nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{wrong}", userID, &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrMaxAttemptsReached)
@@ -612,7 +621,7 @@ func TestChallengeUseCase_SubmitFlag_MaxAttemptsOneUnderLimit(t *testing.T) {
 		assert.NoError(t, fn(ctx))
 	})
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{wrong}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{wrong}", userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.False(t, valid)
@@ -634,7 +643,7 @@ func TestChallengeUseCase_SubmitFlag_LockedState(t *testing.T) {
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{correct}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{correct}", userID, &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrChallengeLocked)
@@ -649,7 +658,7 @@ func TestChallengeUseCase_SubmitFlag_NoTeam(t *testing.T) {
 	challengeID := uuid.New()
 	userID := uuid.New()
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, nil, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{test}", userID, nil))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrUserNotInTeam)
@@ -669,7 +678,7 @@ func TestChallengeUseCase_SubmitFlag_BannedTeam(t *testing.T) {
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(bannedTeam, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{test}", userID, &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrTeamBanned)
@@ -690,7 +699,7 @@ func TestChallengeUseCase_SubmitFlag_ChallengeNotFound(t *testing.T) {
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{test}", userID, &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
@@ -712,7 +721,7 @@ func TestChallengeUseCase_SubmitFlag_GetByIDUnexpectedError(t *testing.T) {
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, expectedError)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "flag{test}", userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "flag{test}", userID, &teamID))
 
 	assert.Error(t, err)
 	assert.False(t, valid)
@@ -760,7 +769,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 		return fn(ctx)
 	})
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
@@ -792,7 +801,7 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(expectedError)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.Error(t, err)
 	assert.False(t, valid)
@@ -838,7 +847,7 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 		return fn(ctx)
 	})
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.Error(t, err)
 	assert.False(t, valid)
@@ -883,7 +892,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 		return fn(ctx)
 	})
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.Error(t, err)
 	assert.False(t, valid)
@@ -913,7 +922,7 @@ func TestChallengeUseCase_SubmitFlag_InvalidFormat(t *testing.T) {
 	comp.FlagRegex = &regex
 	d.compRepo.On("Get", mock.Anything).Return(comp, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, "InvalidFlag", uuid.New(), &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, "InvalidFlag", uuid.New(), &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrInvalidFlagFormat)
@@ -1100,7 +1109,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 		_ = fn(ctx)
 	})
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
@@ -1130,7 +1139,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_DecryptionError(t *testing.T) {
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
 	d.crypto.On("Decrypt", encryptedRegex).Return("", errors.New("decryption failed"))
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.Error(t, err)
 	assert.False(t, valid)
@@ -1178,7 +1187,7 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 		_ = fn(ctx)
 	})
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.True(t, valid)
@@ -1354,7 +1363,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsNotMet(t *testing.T) {
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
 	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{}, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrRequirementsNotMet)
@@ -1401,7 +1410,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	})
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
 
-	valid, err := uc.SubmitFlag(context.Background(), challengeID, flag, userID, &teamID, "")
+	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
 
 	assert.NoError(t, err)
 	assert.True(t, valid)

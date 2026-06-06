@@ -79,10 +79,16 @@ func (uc *SetupUseCase) Complete(ctx context.Context, req *usecase.SetupRequest)
 	}
 
 	if err := uc.deps.CompParamUC.Set(
-		ctx, "setup_complete", "true",
-		"initial setup wizard completed",
-		domain.CompetitionParamTypeBool, domain.ConfigCategoryGeneral,
-		adminUser.ID, req.ClientIP,
+		ctx,
+		usecase.CompetitionParamSetParams{
+			Key:         "setup_complete",
+			Value:       "true",
+			Description: "initial setup wizard completed",
+			ValueType:   domain.CompetitionParamTypeBool,
+			Category:    domain.ConfigCategoryGeneral,
+			ActorID:     adminUser.ID,
+			ClientIP:    req.ClientIP,
+		},
 	); err != nil {
 		return nil, fmt.Errorf("SetupUseCase - Complete - Set setup_complete: %w", err)
 	}

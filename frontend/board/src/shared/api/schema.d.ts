@@ -88,6 +88,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/setup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get first-run setup status
+         * @description Returns whether the platform setup wizard has already been completed.
+         */
+        get: operations["GetSetupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete first-run setup
+         * @description Creates the initial admin, applies competition settings, and returns an access token.
+         */
+        post: operations["PostSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -186,6 +226,26 @@ export interface paths {
          * @description Invalidates the refresh cookie. Client should discard the access token.
          */
         post: operations["PostAuthLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/oauth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OAuth providers
+         * @description Returns which OAuth providers are configured and currently enabled.
+         */
+        get: operations["GetAuthOauthProviders"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3476,6 +3536,50 @@ export interface components {
         HealthResponse: {
             [key: string]: "ok" | "error";
         };
+        SetupStatusResponse: {
+            complete: boolean;
+        };
+        ErrorResponse: {
+            code: string;
+            message: string;
+        };
+        SetupRequest: {
+            ctf_name: string;
+            ctf_description?: string;
+            /** @enum {string} */
+            mode: "teams_only" | "solo_only" | "flexible";
+            max_team_size?: number;
+            /** @enum {string} */
+            challenge_visibility: "public" | "private" | "hidden" | "admins";
+            /** @enum {string} */
+            score_visibility: "public" | "private" | "hidden" | "admins" | "admins_only";
+            /** @enum {string} */
+            account_visibility: "public" | "private" | "hidden" | "admins";
+            /** @enum {string} */
+            registration_visibility: "public" | "private";
+            email_verification_required?: boolean;
+            admin_username: string;
+            admin_email: string;
+            admin_password: string;
+            /** Format: date-time */
+            start_time?: string;
+            /** Format: date-time */
+            end_time?: string;
+            /** Format: date-time */
+            freeze_time?: string;
+            timezone?: string;
+        };
+        UserResponse: {
+            id?: string;
+            role?: string;
+            team_id?: string;
+            username?: string;
+            avatar_url?: string;
+        };
+        SetupCompleteResponse: {
+            token: string;
+            user: components["schemas"]["UserResponse"];
+        };
         LoginRequest: {
             /** @example player1@example.com */
             email: string;
@@ -3485,10 +3589,6 @@ export interface components {
         TokenPair: {
             access_expires_at?: number;
             access_token?: string;
-        };
-        ErrorResponse: {
-            code: string;
-            message: string;
         };
         RegisterRequest: {
             /** @example player1@example.com */
@@ -3533,6 +3633,10 @@ export interface components {
             email?: string;
             password?: string;
             current_password?: string;
+        };
+        OAuthProvidersResponse: {
+            github: boolean;
+            google: boolean;
         };
         OAuthExchangeRequest: {
             /** @description One-time exchange code from the OAuth callback query parameter */
@@ -3599,13 +3703,6 @@ export interface components {
             role?: string;
             is_verified?: boolean;
             password?: string;
-        };
-        UserResponse: {
-            id?: string;
-            role?: string;
-            team_id?: string;
-            username?: string;
-            avatar_url?: string;
         };
         UserListResponse: {
             data?: components["schemas"]["UserResponse"][];
@@ -4836,6 +4933,107 @@ export interface operations {
             };
         };
     };
+    GetSetupStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatusResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostSetup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description One-time setup token from server configuration. */
+                "X-Setup-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupCompleteResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Setup already complete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     PostAuthLogin: {
         parameters: {
             query?: never;
@@ -5099,6 +5297,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetAuthOauthProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProvidersResponse"];
                 };
             };
             /** @description Too Many Requests */

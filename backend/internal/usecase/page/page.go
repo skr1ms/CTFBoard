@@ -92,9 +92,9 @@ func (uc *PageUseCase) GetAllList(ctx context.Context) ([]*domain.Page, error) {
 	return list, nil
 }
 
-func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error) {
-	title = strings.TrimSpace(title)
-	slug = strings.TrimSpace(slug)
+func (uc *PageUseCase) Create(ctx context.Context, params usecase.PageCreateParams) (*domain.Page, error) {
+	title := strings.TrimSpace(params.Title)
+	slug := strings.TrimSpace(params.Slug)
 
 	if title == "" {
 		return nil, apperr.ErrPageTitleRequired
@@ -112,9 +112,9 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 		ID:         uuid.New(),
 		Title:      title,
 		Slug:       slug,
-		Content:    content,
-		IsDraft:    isDraft,
-		OrderIndex: orderIndex,
+		Content:    params.Content,
+		IsDraft:    params.IsDraft,
+		OrderIndex: params.OrderIndex,
 	}
 
 	err := uc.deps.PageRepo.Create(ctx, page)
@@ -125,14 +125,14 @@ func (uc *PageUseCase) Create(ctx context.Context, title, slug, content string, 
 	return page, nil
 }
 
-func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, content string, isDraft bool, orderIndex int) (*domain.Page, error) {
+func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, params usecase.PageUpdateParams) (*domain.Page, error) {
 	page, err := uc.deps.PageRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.GetByID: %w", err)
 	}
 
-	title = strings.TrimSpace(title)
-	slug = strings.TrimSpace(slug)
+	title := strings.TrimSpace(params.Title)
+	slug := strings.TrimSpace(params.Slug)
 
 	if title == "" {
 		return nil, apperr.ErrPageTitleRequired
@@ -157,10 +157,10 @@ func (uc *PageUseCase) Update(ctx context.Context, ID uuid.UUID, title, slug, co
 
 	page.Title = title
 	page.Slug = slug
-	page.Content = content
-	page.IsDraft = isDraft
+	page.Content = params.Content
+	page.IsDraft = params.IsDraft
 
-	page.OrderIndex = orderIndex
+	page.OrderIndex = params.OrderIndex
 	if err := uc.deps.PageRepo.Update(ctx, page); err != nil {
 		return nil, fmt.Errorf("PageUseCase - Update - PageRepo.Update: %w", err)
 	}

@@ -175,7 +175,7 @@ func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub, err := h.comp.SubmissionUC.AdminCreate(r.Context(), params.UserID, params.TeamID, params.ChallengeID, params.SubmittedFlag, params.IsCorrect, params.IP)
+	sub, err := h.comp.SubmissionUC.AdminCreate(r.Context(), params)
 	if h.OnError(w, r, err, "PostAdminSubmissions", "AdminCreate") {
 		return
 	}

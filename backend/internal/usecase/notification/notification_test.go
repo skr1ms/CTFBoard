@@ -13,6 +13,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	notifMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification/mock"
 )
 
@@ -38,6 +39,34 @@ func newUC(t *testing.T) (*NotificationUseCase, *notifMock.MockNotificationRepos
 	return uc, repo, broadcaster
 }
 
+func notificationGlobalParams(title, content string, notifType domain.NotificationType, isPinned bool) usecase.NotificationCreateGlobalParams {
+	return usecase.NotificationCreateGlobalParams{
+		Title:    title,
+		Content:  content,
+		Type:     notifType,
+		IsPinned: isPinned,
+	}
+}
+
+func notificationPersonalParams(userID uuid.UUID, title, content string, notifType domain.NotificationType) usecase.NotificationCreatePersonalParams {
+	return usecase.NotificationCreatePersonalParams{
+		UserID:  userID,
+		Title:   title,
+		Content: content,
+		Type:    notifType,
+	}
+}
+
+func notificationUpdateParams(ID uuid.UUID, title, content string, notifType domain.NotificationType, isPinned bool) usecase.NotificationUpdateParams {
+	return usecase.NotificationUpdateParams{
+		ID:       ID,
+		Title:    title,
+		Content:  content,
+		Type:     notifType,
+		IsPinned: isPinned,
+	}
+}
+
 func TestCreateGlobal_Success(t *testing.T) {
 	t.Parallel()
 
@@ -46,7 +75,7 @@ func TestCreateGlobal_Success(t *testing.T) {
 		return n.Title == "title" && n.Content == "content" && n.Type == domain.NotificationInfo && n.IsGlobal
 	})).Return(nil)
 
-	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
+	notif, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "content", domain.NotificationInfo, false))
 
 	require.NoError(t, err)
 	require.NotNil(t, notif)
@@ -62,7 +91,7 @@ func TestCreateGlobal_EmptyTitle_Error(t *testing.T) {
 
 	uc, _, _ := newUC(t)
 
-	_, err := uc.CreateGlobal(context.Background(), "", "content", domain.NotificationInfo, false)
+	_, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("", "content", domain.NotificationInfo, false))
 
 	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
@@ -72,7 +101,7 @@ func TestCreateGlobal_EmptyContent_Error(t *testing.T) {
 
 	uc, _, _ := newUC(t)
 
-	_, err := uc.CreateGlobal(context.Background(), "title", "", domain.NotificationInfo, false)
+	_, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "", domain.NotificationInfo, false))
 
 	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
@@ -82,7 +111,7 @@ func TestCreateGlobal_InvalidType_Error(t *testing.T) {
 
 	uc, _, _ := newUC(t)
 
-	_, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationType("invalid"), false)
+	_, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "content", domain.NotificationType("invalid"), false))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid notification type")
@@ -95,7 +124,7 @@ func TestCreateGlobal_NilBroadcaster_Success(t *testing.T) {
 	uc := NewNotificationUseCase(NotificationDeps{NotifRepo: repo})
 	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
+	notif, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "content", domain.NotificationInfo, false))
 
 	require.NoError(t, err)
 	require.NotNil(t, notif)
@@ -107,7 +136,7 @@ func TestCreateGlobal_RepoError(t *testing.T) {
 	uc, repo, _ := newUC(t)
 	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-	_, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
+	_, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "content", domain.NotificationInfo, false))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
@@ -123,7 +152,7 @@ func TestCreatePersonal_Success(t *testing.T) {
 		return n.UserID == userID && n.Title == "personal" && n.Content == "body" && !n.IsRead
 	})).Return(nil)
 
-	notif, err := uc.CreatePersonal(context.Background(), userID, "personal", "body", domain.NotificationWarning)
+	notif, err := uc.CreatePersonal(context.Background(), notificationPersonalParams(userID, "personal", "body", domain.NotificationWarning))
 
 	require.NoError(t, err)
 	require.NotNil(t, notif)
@@ -136,7 +165,7 @@ func TestCreatePersonal_EmptyContent_Error(t *testing.T) {
 
 	uc, _, _ := newUC(t)
 
-	_, err := uc.CreatePersonal(context.Background(), uuid.New(), "title", "", domain.NotificationInfo)
+	_, err := uc.CreatePersonal(context.Background(), notificationPersonalParams(uuid.New(), "title", "", domain.NotificationInfo))
 
 	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
@@ -226,7 +255,7 @@ func TestUpdate_Success(t *testing.T) {
 		return n.Title == "new title" && n.Content == "new content" && n.Type == domain.NotificationSuccess
 	})).Return(nil)
 
-	result, err := uc.Update(context.Background(), id, "new title", "new content", domain.NotificationSuccess, true)
+	result, err := uc.Update(context.Background(), notificationUpdateParams(id, "new title", "new content", domain.NotificationSuccess, true))
 
 	require.NoError(t, err)
 	assert.Equal(t, "new title", result.Title)
@@ -238,7 +267,7 @@ func TestUpdate_InvalidType_Error(t *testing.T) {
 
 	uc, _, _ := newUC(t)
 
-	_, err := uc.Update(context.Background(), uuid.New(), "t", "c", domain.NotificationType("bad"), false)
+	_, err := uc.Update(context.Background(), notificationUpdateParams(uuid.New(), "t", "c", domain.NotificationType("bad"), false))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid notification type")
@@ -264,7 +293,7 @@ func TestCreateGlobal_IsPinned(t *testing.T) {
 		return n.IsPinned
 	})).Return(nil)
 
-	notif, err := uc.CreateGlobal(context.Background(), "pinned", "content", domain.NotificationInfo, true)
+	notif, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("pinned", "content", domain.NotificationInfo, true))
 
 	require.NoError(t, err)
 	assert.True(t, notif.IsPinned)
@@ -278,7 +307,7 @@ func TestCreateGlobal_HasTimestamp(t *testing.T) {
 
 	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-	notif, err := uc.CreateGlobal(context.Background(), "title", "content", domain.NotificationInfo, false)
+	notif, err := uc.CreateGlobal(context.Background(), notificationGlobalParams("title", "content", domain.NotificationInfo, false))
 
 	require.NoError(t, err)
 	assert.True(t, notif.CreatedAt.After(before))

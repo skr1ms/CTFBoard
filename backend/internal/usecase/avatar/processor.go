@@ -21,15 +21,7 @@ import (
 
 const (
 	avatarHashLen = 16
-	// maxPixels is the maximum allowed image area (width × height) before decode.
-	// Prevents decompression-bomb attacks on images with extreme aspect ratios
-	// (e.g. 1px × 4 Mpx) that pass individual dimension checks.
-	maxPixels = avatarMaxDimension * avatarMaxDimension
 )
-
-// avatarMaxDimension mirrors domain.GetDefaultAvatarConfig().MaxDimension. Kept local
-// to avoid a cyclic constant reference - must stay in sync with domain/avatar.go.
-const avatarMaxDimension = 2048
 
 const (
 	imageMebibyte = 1024 * 1024
@@ -66,6 +58,10 @@ type ImageProcessor struct {
 
 func NewImageProcessor(cfg domain.AvatarConfig) *ImageProcessor {
 	return &ImageProcessor{cfg: cfg}
+}
+
+func (p *ImageProcessor) maxPixels() int {
+	return p.cfg.MaxDimension * p.cfg.MaxDimension
 }
 
 // Process validates and transforms an uploaded image into a pair of WebP blobs.
@@ -116,6 +112,7 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 		return nil, apperr.NewValidationErrorf("image too large (max %dx%d)", p.cfg.MaxDimension, p.cfg.MaxDimension)
 	}
 
+	maxPixels := p.maxPixels()
 	if cfg.Width*cfg.Height > maxPixels {
 		return nil, apperr.NewValidationErrorf("image area too large (max %d Mpx)", maxPixels/imageMebibyte)
 	}

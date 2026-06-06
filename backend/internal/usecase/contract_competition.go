@@ -86,11 +86,20 @@ type (
 // =============================================================================
 
 type (
+	AdminCreateSubmissionParams struct {
+		UserID        uuid.UUID
+		TeamID        *uuid.UUID
+		ChallengeID   uuid.UUID
+		SubmittedFlag string
+		IsCorrect     bool
+		IP            string
+	}
+
 	// SubmissionUseCase manages flag submission records, querying, and admin corrections.
 	SubmissionUseCase interface {
 		LogSubmission(ctx context.Context, sub *domain.Submission) error
 		LogRateLimited(ctx context.Context, userID, teamID, challengeID uuid.UUID, ip string) error
-		AdminCreate(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, submittedFlag string, isCorrect bool, ip string) (*domain.SubmissionWithDetails, error)
+		AdminCreate(ctx context.Context, params AdminCreateSubmissionParams) (*domain.SubmissionWithDetails, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.SubmissionWithDetails, error)
 		GetByChallenge(ctx context.Context, challengeID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*domain.SubmissionWithDetails], error)
 		GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int, forceLive bool) (*Paginated[*domain.SubmissionWithDetails], error)
@@ -108,13 +117,23 @@ type (
 // =============================================================================
 
 type (
+	CompetitionParamSetParams struct {
+		Key         string
+		Value       string
+		Description string
+		ValueType   domain.CompetitionParamValueType
+		Category    string
+		ActorID     uuid.UUID
+		ClientIP    string
+	}
+
 	// CompetitionParamUseCase manages dynamic key-value competition parameters with typed access helpers.
 	CompetitionParamUseCase interface {
 		Get(ctx context.Context, key string) (*domain.CompetitionParam, error)
 		GetAll(ctx context.Context) ([]*domain.CompetitionParam, error)
 		GetByCategory(ctx context.Context, category string) ([]*domain.CompetitionParam, error)
 		GetPublic(ctx context.Context) ([]*domain.CompetitionParam, error)
-		Set(ctx context.Context, key, value, description string, valueType domain.CompetitionParamValueType, category string, actorID uuid.UUID, clientIP string) error
+		Set(ctx context.Context, params CompetitionParamSetParams) error
 		SetBatch(ctx context.Context, params []*domain.CompetitionParam, actorID uuid.UUID, clientIP string) error
 		Delete(ctx context.Context, key string, actorID uuid.UUID, clientIP string) error
 		GetString(ctx context.Context, key, defaultVal string) string

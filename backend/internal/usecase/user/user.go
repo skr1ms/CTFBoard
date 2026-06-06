@@ -17,15 +17,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
-type registrationAdvisoryLocker interface {
-	AcquireAdvisoryLock(ctx context.Context, lockKey int64) error
-}
-
-type registrationAdvisoryLock struct {
-	label string
-	key   int64
-}
-
 // FieldValidator validates custom field values (e.g. on registration)
 // Implemented by *settings.FieldValidator.
 type FieldValidator interface {
@@ -52,7 +43,7 @@ type SoloTeamCreator interface {
 
 // PersonalNotificationSender sends a personal notification to a user. Optional; used e.g. to notify team captain when team falls below MinTeamSize after a ban.
 type PersonalNotificationSender interface {
-	CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error)
+	CreatePersonal(ctx context.Context, params usecase.NotificationCreatePersonalParams) (*domain.UserNotification, error)
 }
 
 type UserUseCase struct {

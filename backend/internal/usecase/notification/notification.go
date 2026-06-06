@@ -51,21 +51,21 @@ func NewNotificationUseCase(deps NotificationDeps) *NotificationUseCase {
 	return &NotificationUseCase{deps: deps}
 }
 
-func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
-	if title == "" || content == "" {
+func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, params usecase.NotificationCreateGlobalParams) (*domain.Notification, error) {
+	if params.Title == "" || params.Content == "" {
 		return nil, apperr.ErrNotificationTitleContentRequired
 	}
 
-	if !notifType.IsValid() {
-		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
+	if !params.Type.IsValid() {
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", params.Type)
 	}
 
 	notif := &domain.Notification{
 		ID:        uuid.New(),
-		Title:     title,
-		Content:   content,
-		Type:      notifType,
-		IsPinned:  isPinned,
+		Title:     params.Title,
+		Content:   params.Content,
+		Type:      params.Type,
+		IsPinned:  params.IsPinned,
 		IsGlobal:  true,
 		CreatedAt: time.Now(),
 	}
@@ -82,22 +82,22 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, title, content 
 	return notif, nil
 }
 
-func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, userID uuid.UUID, title, content string, notifType domain.NotificationType) (*domain.UserNotification, error) {
-	if title == "" || content == "" {
+func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, params usecase.NotificationCreatePersonalParams) (*domain.UserNotification, error) {
+	if params.Title == "" || params.Content == "" {
 		return nil, apperr.ErrNotificationTitleContentRequired
 	}
 
-	if !notifType.IsValid() {
-		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
+	if !params.Type.IsValid() {
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", params.Type)
 	}
 
 	userNotif := &domain.UserNotification{
 		ID:             uuid.New(),
-		UserID:         userID,
+		UserID:         params.UserID,
 		NotificationID: nil,
-		Title:          title,
-		Content:        content,
-		Type:           notifType,
+		Title:          params.Title,
+		Content:        params.Content,
+		Type:           params.Type,
 		IsRead:         false,
 		CreatedAt:      time.Now(),
 	}
@@ -154,21 +154,21 @@ func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID
 	return count, nil
 }
 
-func (uc *NotificationUseCase) Update(ctx context.Context, ID uuid.UUID, title, content string, notifType domain.NotificationType, isPinned bool) (*domain.Notification, error) {
-	if !notifType.IsValid() {
-		return nil, apperr.NewValidationErrorf("invalid notification type %q", notifType)
+func (uc *NotificationUseCase) Update(ctx context.Context, params usecase.NotificationUpdateParams) (*domain.Notification, error) {
+	if !params.Type.IsValid() {
+		return nil, apperr.NewValidationErrorf("invalid notification type %q", params.Type)
 	}
 
-	notif, err := uc.deps.NotifRepo.GetByID(ctx, ID)
+	notif, err := uc.deps.NotifRepo.GetByID(ctx, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("NotificationUseCase - Update - NotificationRepo.GetByID: %w", err)
 	}
 
-	notif.Title = title
-	notif.Content = content
-	notif.Type = notifType
+	notif.Title = params.Title
+	notif.Content = params.Content
+	notif.Type = params.Type
 
-	notif.IsPinned = isPinned
+	notif.IsPinned = params.IsPinned
 	if err := uc.deps.NotifRepo.Update(ctx, notif); err != nil {
 		return nil, fmt.Errorf("NotificationUseCase - Update - NotificationRepo.Update: %w", err)
 	}
