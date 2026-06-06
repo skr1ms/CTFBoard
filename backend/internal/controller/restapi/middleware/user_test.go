@@ -45,7 +45,7 @@ func TestInjectUser_ValidUserID_InjectsUser(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -72,7 +72,7 @@ func TestInjectUser_UserNotFound_Returns404(t *testing.T) {
 	r.Use(InjectUser(userUC, nil, nil))
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

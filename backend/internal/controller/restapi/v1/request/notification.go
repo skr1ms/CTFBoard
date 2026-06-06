@@ -5,14 +5,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-type notificationConstraints struct {
-	Title   string `validate:"required,max=200"`
-	Content string `validate:"required,max=5000"`
-	Type    string `validate:"omitempty,oneof=info warning success error"`
-}
 
 func validNotificationType(s string) (domain.NotificationType, bool) {
 	switch domain.NotificationType(s) {
@@ -21,39 +14,6 @@ func validNotificationType(s string) (domain.NotificationType, bool) {
 	default:
 		return "", false
 	}
-}
-
-func ValidateCreateNotificationRequest(req *openapi.CreateNotificationRequest, v validator.Validator) error {
-	t := string(lo.FromPtrOr(req.Type, openapi.CreateNotificationRequestType("")))
-	if t == "" {
-		t = "info"
-	}
-
-	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
-
-	return ValidateConstraints(v, &c)
-}
-
-func ValidateCreateUserNotificationRequest(req *openapi.CreateUserNotificationRequest, v validator.Validator) error {
-	t := string(lo.FromPtrOr(req.Type, openapi.CreateUserNotificationRequestType("")))
-	if t == "" {
-		t = "info"
-	}
-
-	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
-
-	return ValidateConstraints(v, &c)
-}
-
-func ValidateUpdateNotificationRequest(req *openapi.UpdateNotificationRequest, v validator.Validator) error {
-	t := string(lo.FromPtrOr(req.Type, openapi.UpdateNotificationRequestType("")))
-	if t == "" {
-		t = "info"
-	}
-
-	c := notificationConstraints{Title: req.Title, Content: req.Content, Type: t}
-
-	return ValidateConstraints(v, &c)
 }
 
 func CreateNotificationRequestToParams(req *openapi.CreateNotificationRequest) (title, content string, notifType domain.NotificationType, isPinned bool, err error) {

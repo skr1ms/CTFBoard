@@ -19,7 +19,7 @@ func (r *roundRobinIndex) next(n int) int {
 		return 0
 	}
 
-	return int(r.n.Add(1)-1) % n //nolint:gosec // load-test index, n is small
+	return int(r.n.Add(1)-1) % n
 }
 
 func ChallengeListTargeter(f *TestFixture) vegeta.Targeter {
@@ -61,10 +61,10 @@ func SubmitWrongFlagTargeter(f *TestFixture) vegeta.Targeter {
 
 	return func(t *vegeta.Target) error {
 		u := f.Users[rr.next(len(f.Users))]
-		chalIdx := rand.IntN(len(f.ChallengeIDs)) //nolint:gosec // load-test distribution, not crypto
+		chalIdx := rand.IntN(len(f.ChallengeIDs))
 		chalID := f.ChallengeIDs[chalIdx]
 
-		body, err := json.Marshal(submitBody{Flag: fmt.Sprintf("WRONG{flag_%d}", rand.IntN(1_000_000))}) //nolint:gosec // load-test payload
+		body, err := json.Marshal(submitBody{Flag: fmt.Sprintf("WRONG{flag_%d}", rand.IntN(1_000_000))})
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func WeightedTargeter(entries []weightedEntry) vegeta.Targeter {
 	}
 
 	return func(t *vegeta.Target) error {
-		pick := rand.IntN(total) //nolint:gosec // load-test target distribution
+		pick := rand.IntN(total)
 		cumulative := 0
 
 		for _, e := range entries {

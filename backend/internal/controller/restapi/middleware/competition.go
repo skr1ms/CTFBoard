@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -9,12 +10,16 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
+
+// CompetitionGetter is the minimal interface required by middleware that checks competition state.
+type CompetitionGetter interface {
+	Get(ctx context.Context) (*domain.Competition, error)
+}
 
 // CompetitionActive returns a middleware that rejects requests when submission is not allowed
 // (competition not started, ended, or paused), returning a status-specific error.
-func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
+func CompetitionActive(competitionUC CompetitionGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())
@@ -51,7 +56,7 @@ func CompetitionActive(competitionUC usecase.CompetitionUseCase) func(http.Handl
 
 // CompetitionEnded returns a middleware that rejects requests when the competition has not yet effectively ended.
 // Used for endpoints that are only available post-competition (e.g. comments).
-func CompetitionEnded(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
+func CompetitionEnded(competitionUC CompetitionGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			comp, err := competitionUC.Get(r.Context())

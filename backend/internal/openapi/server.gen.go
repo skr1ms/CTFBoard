@@ -315,6 +315,9 @@ type ServerInterface interface {
 	// OAuth code exchange
 	// (POST /auth/oauth/exchange)
 	PostAuthOauthExchange(w http.ResponseWriter, r *http.Request)
+	// OAuth providers
+	// (GET /auth/oauth/providers)
+	GetAuthOauthProviders(w http.ResponseWriter, r *http.Request)
 	// OAuth redirect
 	// (GET /auth/oauth/{provider})
 	GetAuthOauthProvider(w http.ResponseWriter, r *http.Request, provider string)
@@ -1215,6 +1218,12 @@ func (_ Unimplemented) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
 // OAuth code exchange
 // (POST /auth/oauth/exchange)
 func (_ Unimplemented) PostAuthOauthExchange(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// OAuth providers
+// (GET /auth/oauth/providers)
+func (_ Unimplemented) GetAuthOauthProviders(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5027,6 +5036,20 @@ func (siw *ServerInterfaceWrapper) PostAuthOauthExchange(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// GetAuthOauthProviders operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthOauthProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAuthOauthProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAuthOauthProvider operation middleware
 func (siw *ServerInterfaceWrapper) GetAuthOauthProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -8244,6 +8267,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/oauth/exchange", wrapper.PostAuthOauthExchange)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/oauth/providers", wrapper.GetAuthOauthProviders)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/oauth/{provider}", wrapper.GetAuthOauthProvider)

@@ -77,95 +77,159 @@ schemas:
       app_name:
         maxLength: 100
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=100"
       cors_origins:
         type: string
         maxLength: 2048
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=2048"
       csv_export_max_rows:
         minimum: 1
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1"
       default_per_page:
         minimum: 1
         maximum: 1000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=1000"
       frontend_url:
         maxLength: 512
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=512"
       max_per_page:
         minimum: 1
         maximum: 1000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=1000"
       max_teams:
         minimum: 0
         type: integer
         description: Maximum number of teams allowed (0 = unlimited)
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       rate_limit_forgot_password_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_general_ip_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_login_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_logout_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_refresh_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_register_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_reset_password_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_scoreboard_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_verify_email_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_oauth_callback_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_oauth_redirect_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       rate_limit_comment_per_minute:
         minimum: 1
+        maximum: 10000
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=10000"
       registration_open:
         type: boolean
       reset_ttl_hours:
         maximum: 168
         minimum: 1
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=168"
       resend_enabled:
         type: boolean
       resend_from_email:
         maxLength: 255
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=255"
       resend_from_name:
         maxLength: 100
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=100"
       scoreboard_visible:
         enum:
           - public
           - hidden
           - admins_only
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=public hidden admins_only"
       submit_limit_duration_min:
         minimum: 1
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1"
       submit_limit_per_user:
         minimum: 1
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1"
       verify_emails:
         type: boolean
       verify_ttl_hours:
         maximum: 168
         minimum: 1
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=1,max=168"
       writeup_enabled:
         type: boolean
         description: Whether writeups/solutions are shown to teams after solving a challenge

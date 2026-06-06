@@ -109,7 +109,7 @@ func PrintStepSummary(r *AttackResult) {
 
 func WriteJSONReport(path string, results []*AttackResult) error {
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
-	if err != nil { //nolint:gosec // path is constructed from test config, not user input
+	if err != nil {
 		return err
 	}
 
@@ -151,7 +151,7 @@ func WriteJSONReport(path string, results []*AttackResult) error {
 		return err
 	}
 
-	return os.WriteFile(path, buf.Bytes(), 0o600) //nolint:gosec // path is constructed from test config, not user input
+	return os.WriteFile(path, buf.Bytes(), 0o600)
 }
 
 func NewAttacker(workers uint64) *vegeta.Attacker {

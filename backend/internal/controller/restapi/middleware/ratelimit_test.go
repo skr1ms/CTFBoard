@@ -52,7 +52,7 @@ func TestRateLimit_UnderLimit_Passes(t *testing.T) {
 	r.Get("/", okHandler())
 
 	for i := range 5 {
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := newRequest(http.MethodGet, "/", http.NoBody)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code, "request %d should pass", i+1)
@@ -74,13 +74,13 @@ func TestRateLimit_OverLimit_Returns429(t *testing.T) {
 	r.Get("/", okHandler())
 
 	for i := range 3 {
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := newRequest(http.MethodGet, "/", http.NoBody)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code, "request %d should pass", i+1)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code, "4th request should be rate limited")
@@ -103,7 +103,7 @@ func TestCombinedRateLimit_PassesAndSetsMinHeaders(t *testing.T) {
 	r.Use(CombinedRateLimit(client, specs, l))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -150,15 +150,15 @@ func TestRateLimit_InMemoryFallback_WhenRedisUnavailable(t *testing.T) {
 	require.NoError(t, client.Close())
 
 	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	r.ServeHTTP(rr, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	rr2 := httptest.NewRecorder()
-	r.ServeHTTP(rr2, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	r.ServeHTTP(rr2, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusOK, rr2.Code)
 
 	rr3 := httptest.NewRecorder()
-	r.ServeHTTP(rr3, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	r.ServeHTTP(rr3, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusTooManyRequests, rr3.Code)
 }
 
@@ -170,7 +170,7 @@ func TestDynamicRateLimit_UnderLimit_Passes(t *testing.T) {
 
 	keyPrefix := fmt.Sprintf("dynamic-under-%d", time.Now().UnixNano())
 	getter := &staticSettingsGetter{settings: &domain.Settings{RateLimitLoginPerMinute: 100}}
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 
 	handler := DynamicRateLimit(
 		client, keyPrefix, time.Minute, cache, getter,
@@ -179,7 +179,7 @@ func TestDynamicRateLimit_UnderLimit_Passes(t *testing.T) {
 		l,
 	)(okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -193,7 +193,7 @@ func TestDynamicRateLimit_OverLimit_Returns429(t *testing.T) {
 
 	keyPrefix := fmt.Sprintf("dynamic-over-%d", time.Now().UnixNano())
 	getter := &staticSettingsGetter{settings: &domain.Settings{RateLimitLoginPerMinute: 3}}
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 
 	handler := DynamicRateLimit(
 		client, keyPrefix, time.Minute, cache, getter,
@@ -203,13 +203,13 @@ func TestDynamicRateLimit_OverLimit_Returns429(t *testing.T) {
 	)(okHandler())
 
 	for i := range 3 {
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := newRequest(http.MethodGet, "/", http.NoBody)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code, "request %d", i+1)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code)
@@ -223,7 +223,7 @@ func TestDynamicRateLimit_SetsResponseHeaders(t *testing.T) {
 
 	keyPrefix := fmt.Sprintf("dynamic-headers-%d", time.Now().UnixNano())
 	getter := &staticSettingsGetter{settings: &domain.Settings{RateLimitLoginPerMinute: 10}}
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 
 	handler := DynamicRateLimit(
 		client, keyPrefix, time.Minute, cache, getter,
@@ -232,7 +232,7 @@ func TestDynamicRateLimit_SetsResponseHeaders(t *testing.T) {
 		l,
 	)(okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -250,7 +250,7 @@ func TestDynamicRateLimit_InMemoryFallback_WhenRedisUnavailable(t *testing.T) {
 
 	keyPrefix := fmt.Sprintf("dynamic-fallback-%d", time.Now().UnixNano())
 	getter := &staticSettingsGetter{settings: &domain.Settings{RateLimitLoginPerMinute: 2}}
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 
 	handler := DynamicRateLimit(
 		client, keyPrefix, time.Minute, cache, getter,
@@ -262,22 +262,22 @@ func TestDynamicRateLimit_InMemoryFallback_WhenRedisUnavailable(t *testing.T) {
 	require.NoError(t, client.Close())
 
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	handler.ServeHTTP(rr, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	rr2 := httptest.NewRecorder()
-	handler.ServeHTTP(rr2, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	handler.ServeHTTP(rr2, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusOK, rr2.Code)
 
 	rr3 := httptest.NewRecorder()
-	handler.ServeHTTP(rr3, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	handler.ServeHTTP(rr3, newRequest(http.MethodGet, "/", http.NoBody))
 	assert.Equal(t, http.StatusTooManyRequests, rr3.Code)
 }
 
 func TestRateLimitConfigCache_GetStale_ReturnsNilWhenEmpty(t *testing.T) {
 	t.Parallel()
 
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 	assert.Nil(t, cache.GetStale())
 }
 
@@ -285,7 +285,7 @@ func TestRateLimitConfigCache_GetStale_ReturnsLastGoodConfig(t *testing.T) {
 	t.Parallel()
 
 	getter := &staticSettingsGetter{settings: &domain.Settings{RateLimitLoginPerMinute: 42}}
-	cache := NewRateLimitConfigCache(time.Minute)
+	cache := NewRateLimitConfigCache(context.Background(), time.Minute)
 	_, err := cache.Get(context.Background(), getter)
 	require.NoError(t, err)
 

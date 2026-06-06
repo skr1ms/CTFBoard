@@ -38,6 +38,8 @@ schemas:
       value:
         type: string
         maxLength: 10000
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=10000"
       value_type:
         enum:
           - string
@@ -46,8 +48,13 @@ schemas:
           - json
         type: string
         default: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=string int bool json"
       description:
         type: string
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       category:
         type: string
         description: optional category for non-registry keys
@@ -59,6 +66,8 @@ schemas:
       configs:
         type: array
         maxItems: 50
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=50,dive"
         items:
           $ref: '#/schemas/request.BatchSetConfigItem'
     required:
@@ -68,8 +77,13 @@ schemas:
     properties:
       key:
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required"
       value:
         type: string
+        maxLength: 10000
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=10000"
       value_type:
         enum:
           - string
@@ -78,8 +92,13 @@ schemas:
           - json
         type: string
         default: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=string int bool json"
       description:
         type: string
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       category:
         type: string
         description: optional category for non-registry keys

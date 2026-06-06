@@ -6,10 +6,10 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // (GET /statistics/general).
@@ -54,7 +54,7 @@ func (h *Server) GetStatisticsChallengesID(w http.ResponseWriter, r *http.Reques
 // (GET /statistics/scoreboard).
 func (h *Server) GetStatisticsScoreboard(w http.ResponseWriter, r *http.Request, params openapi.GetStatisticsScoreboardParams) {
 	forceLive := forceLiveFromParams(r, params.Live)
-	limit := httputil.ClampLimit(params.Limit, usecase.DefaultScoreboardHistoryLimit, usecase.MaxScoreboardHistoryLimit)
+	limit := helper.ResolveScoreboardHistoryLimit(params.Limit)
 
 	stats, err := h.comp.StatsUC.GetScoreboardHistory(r.Context(), limit, forceLive)
 	if h.OnError(w, r, err, "GetStatisticsScoreboard", "GetScoreboardHistory") {
@@ -106,14 +106,12 @@ func (h *Server) GetStatisticsSubmissions(w http.ResponseWriter, r *http.Request
 
 // (GET /statistics/submissions/{type}).
 func (h *Server) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType openapi.GetStatisticsSubmissionsTypeParamsType, params openapi.GetStatisticsSubmissionsTypeParams) {
-	if pType != openapi.Correct && pType != openapi.Incorrect {
-		h.OnError(w, r, apperr.NewValidationErrorf("type must be 'correct' or 'incorrect'"), "GetStatisticsSubmissionsType", "Type")
-
+	isCorrect, err := request.SubmissionTypeIsCorrect(pType)
+	if h.OnError(w, r, err, "GetStatisticsSubmissionsType", "Type") {
 		return
 	}
 
 	forceLive := forceLiveFromParams(r, params.Live)
-	isCorrect := pType == openapi.Correct
 
 	data, err := h.comp.StatsUC.GetSubmissionTimeSeriesByType(r.Context(), isCorrect, forceLive)
 	if h.OnError(w, r, err, "GetStatisticsSubmissionsType", "GetSubmissionTimeSeriesByType") {
@@ -149,7 +147,7 @@ func (h *Server) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
 // (GET /scoreboard/graph).
 func (h *Server) GetScoreboardGraph(w http.ResponseWriter, r *http.Request, params openapi.GetScoreboardGraphParams) {
 	forceLive := forceLiveFromParams(r, params.Live)
-	topN := httputil.ClampLimit(params.Top, usecase.DefaultScoreboardHistoryLimit, usecase.MaxScoreboardHistoryLimit)
+	topN := helper.ResolveScoreboardHistoryLimit(params.Top)
 
 	graph, err := h.comp.StatsUC.GetScoreboardGraph(r.Context(), topN, forceLive)
 	if h.OnError(w, r, err, "GetScoreboardGraph", "GetScoreboardGraph") {

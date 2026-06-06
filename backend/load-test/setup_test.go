@@ -168,7 +168,7 @@ func setupContainerInfra(ctx context.Context) (func(), error) {
 
 		redisCleanup()
 
-		_ = pgC.Terminate(ctx) //nolint:errcheck
+		_ = pgC.Terminate(ctx)
 	}, nil
 }
 

@@ -51,10 +51,6 @@ func (h *Server) PostAdminPages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := request.ValidateCreatePageRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminPages", "Validate") {
-		return
-	}
-
 	title, slug, content, isDraft, orderIndex, err := request.CreatePageRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminPages", "CreatePageRequestToParams") {
 		return
@@ -94,10 +90,6 @@ func (h *Server) PutAdminPagesID(w http.ResponseWriter, r *http.Request, ID stri
 		w, r, h.infra.Validator,
 	)
 	if !ok {
-		return
-	}
-
-	if err := request.ValidateUpdatePageRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminPagesID", "Validate") {
 		return
 	}
 

@@ -49,7 +49,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/testutil"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
@@ -82,7 +81,7 @@ var (
 type noOpMailer struct{}
 
 // Send is a no-op for e2e tests (no real email sent).
-func (m *noOpMailer) Send(context.Context, mailer.Message) error {
+func (m *noOpMailer) Send(context.Context, usecase.EmailMessage) error {
 	return nil
 }
 
@@ -672,13 +671,13 @@ func startTestServer() (func(), error) {
 		return nil, err
 	}
 
-	useCases, tempStorageDir, fileStorage, err := initTestUseCases(deps)
+	useCases, tempStorageDir, _, err := initTestUseCases(deps)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir, fileStorage)
+	r := setupTestRouter(ctx, deps.logger, useCases, deps.validator, deps.jwt, tempStorageDir)
 
 	ls := net.ListenConfig{}
 
@@ -687,7 +686,7 @@ func startTestServer() (func(), error) {
 		return nil, err
 	}
 
-	testPort = fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port) //nolint:errcheck // type asserted
+	testPort = fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
 
 	srv := &http.Server{
 		Handler:      r,
@@ -847,7 +846,7 @@ func initTestStorageAndHub() (string, storage.Provider, *wskit.Hub, error) {
 
 func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Provider, hub *wskit.Hub) *testUseCases {
 	fieldValidator := settings.NewFieldValidator(repos.fieldRepo)
-	broadcaster := websocket.NewBroadcaster(hub)
+	broadcaster := websocket.NewBroadcaster(context.Background(), hub)
 	testCache := cachekit.New(TestRedis)
 	scoreboardCache := cache.NewScoreboardCacheService(testCache, &teamBracketGetter{repos.teamRepo})
 	competitionGuard := competition.NewGuard(repos.compRepo)
@@ -960,6 +959,9 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	submissionUC := competition.NewSubmissionUseCase(competition.SubmissionDeps{
 		SubmissionRepo: repos.submissionRepo,
 		CompGetter:     compUC,
+		TM:             repos.tm,
+		SolveCreator:   challengeUC,
+		SolveDeleter:   challengeUC,
 	})
 	tagUC := challenge.NewTagUseCase(challenge.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
 	fieldUC := settings.NewFieldUseCase(settings.FieldDeps{FieldRepo: repos.fieldRepo})
@@ -1022,7 +1024,7 @@ func initTestUseCases(deps *testDeps) (*testUseCases, string, storage.Provider, 
 }
 
 // Router (chi, middleware, api v1 routes).
-func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string, fileStorage storage.Provider) *chi.Mux {
+func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, validatorService validator.Validator, jwtService *jwtkit.JWTService, _ string) *chi.Mux {
 	r := chi.NewRouter()
 	timeoutMW := kitMiddleware.Timeout(60 * time.Second)
 
@@ -1049,7 +1051,7 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK")) //nolint:errcheck // best-effort health
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(TestRedis, "e2e:forgot", 20, 24*time.Hour)
@@ -1079,7 +1081,6 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 			JWTService:                    jwtService,
 			RedisClient:                   TestRedis,
 			WSController:                  uc.ws,
-			StorageProvider:               fileStorage,
 			Validator:                     validatorService,
 			Logger:                        l,
 			TrustedProxyCIDRs:             nil,
@@ -1090,10 +1091,10 @@ func setupTestRouter(ctx context.Context, l logkit.Logger, uc *testUseCases, val
 			ResetPasswordTokenRateLimiter: resetTokenLimiter,
 		},
 	}
-	testRateLimitCache = restapimiddleware.NewRateLimitConfigCache(1 * time.Second)
+	testRateLimitCache = restapimiddleware.NewRateLimitConfigCache(context.Background(), time.Second)
 	deps.Infra.RateLimitConfigCache = testRateLimitCache
 
-	testScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache()
+	testScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache(context.Background())
 	deps.Infra.ScoreboardVisibilityCache = testScoreboardVisibilityCache
 
 	testCompetitionUC = uc.competition

@@ -1,7 +1,9 @@
 package helper
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,11 +13,15 @@ import (
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 )
 
+func newRequest(method, target string, body io.Reader) *http.Request {
+	return httptest.NewRequestWithContext(context.Background(), method, target, body)
+}
+
 func TestRequireUser_NoUser(t *testing.T) {
 	t.Parallel()
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	r := newRequest(http.MethodGet, "/", http.NoBody)
 
 	user, ok := RequireUser(w, r)
 
@@ -70,7 +76,7 @@ func TestClampLimit_ExceedsMax(t *testing.T) {
 func TestParseIntQuery_Missing(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	r := newRequest(http.MethodGet, "/", http.NoBody)
 	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
@@ -78,7 +84,7 @@ func TestParseIntQuery_Missing(t *testing.T) {
 func TestParseIntQuery_Valid(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/?limit=25", http.NoBody)
+	r := newRequest(http.MethodGet, "/?limit=25", http.NoBody)
 	got := httputil.ParseIntQuery(r, "limit")
 	require.NotNil(t, got)
 	assert.Equal(t, 25, *got)
@@ -87,7 +93,7 @@ func TestParseIntQuery_Valid(t *testing.T) {
 func TestParseIntQuery_Invalid(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/?limit=abc", http.NoBody)
+	r := newRequest(http.MethodGet, "/?limit=abc", http.NoBody)
 	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
@@ -95,7 +101,7 @@ func TestParseIntQuery_Invalid(t *testing.T) {
 func TestParseIntQuery_Negative(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/?limit=-5", http.NoBody)
+	r := newRequest(http.MethodGet, "/?limit=-5", http.NoBody)
 	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }
@@ -103,7 +109,7 @@ func TestParseIntQuery_Negative(t *testing.T) {
 func TestParseIntQuery_Zero(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest(http.MethodGet, "/?limit=0", http.NoBody)
+	r := newRequest(http.MethodGet, "/?limit=0", http.NoBody)
 	got := httputil.ParseIntQuery(r, "limit")
 	assert.Nil(t, got)
 }

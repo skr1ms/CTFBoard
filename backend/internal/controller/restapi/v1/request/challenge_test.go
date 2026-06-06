@@ -79,13 +79,14 @@ func TestCreateChallengeRequestToParams_StateNil_DefaultsToVisible(t *testing.T)
 func TestCreateChallengeRequestToParams_InvalidNumericParams_ReturnsError(t *testing.T) {
 	t.Parallel()
 
+	state := openapi.CreateChallengeRequestStateVisible
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
 		Category:    "misc",
 		Points:      -1,
 		Flag:        "CTF{flag}",
-		State:       ptr(openapi.CreateChallengeRequestStateVisible),
+		State:       &state,
 	}
 	_, err := CreateChallengeRequestToParams(req)
 	assert.Error(t, err)
@@ -96,13 +97,14 @@ func TestCreateChallengeRequestToParams_InitialValueLessThanMinValue_ReturnsErro
 	t.Parallel()
 
 	iv, mv := 50, 100
+	state := openapi.CreateChallengeRequestStateVisible
 	req := &openapi.CreateChallengeRequest{
 		Title:        "Test",
 		Description:  "Desc",
 		Category:     "misc",
 		Points:       100,
 		Flag:         "CTF{flag}",
-		State:        ptr(openapi.CreateChallengeRequestStateVisible),
+		State:        &state,
 		InitialValue: &iv,
 		MinValue:     &mv,
 	}
@@ -118,7 +120,7 @@ func TestSubmitFlagRequestToParams_FlagTooLong_ReturnsError(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &openapi.SubmitFlagRequest{Flag: string(make([]byte, 201))}
-	err = ValidateSubmitFlagRequest(req, v)
+	err = v.Validate(req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Flag")
 }
@@ -136,13 +138,14 @@ func TestCreateChallengeRequestToParams_InvalidTagID_ReturnsError(t *testing.T) 
 	t.Parallel()
 
 	badID := "not-a-uuid"
+	state := openapi.CreateChallengeRequestStateVisible
 	req := &openapi.CreateChallengeRequest{
 		Title:       "Test",
 		Description: "Desc",
 		Category:    "misc",
 		Points:      100,
 		Flag:        "CTF{flag}",
-		State:       ptr(openapi.CreateChallengeRequestStateVisible),
+		State:       &state,
 		TagIds:      &[]string{badID},
 	}
 	_, err := CreateChallengeRequestToParams(req)
@@ -215,6 +218,3 @@ func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, params.State)
 }
-
-//go:fix inline
-func ptr[T any](v T) *T { return new(v) }

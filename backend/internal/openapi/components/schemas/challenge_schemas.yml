@@ -69,6 +69,8 @@ schemas:
         example: 20
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       connection_info:
         description: Connection info (e.g. SSH, URL) for the challenge
         example: ''
@@ -78,16 +80,22 @@ schemas:
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       max_attempts_window:
         description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       position:
         description: Display order (lower = first)
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       description:
         example: Challenge description
         type: string
@@ -103,10 +111,14 @@ schemas:
         example: '^CTF\{[a-zA-Z0-9_]+\}$'
         maxLength: 1024
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=1024"
       initial_value:
         example: 500
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       is_case_insensitive:
         example: false
         type: boolean
@@ -117,15 +129,21 @@ schemas:
         example: 100
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       points:
         example: 100
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "min=0"
       state:
         description: Challenge visibility and submit policy
         enum: [visible, hidden, locked]
         example: visible
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=visible hidden locked"
       tag_ids:
         description: Tag IDs for the challenge
         items:
@@ -154,6 +172,8 @@ schemas:
         example: 20
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       description:
         example: Updated description
         type: string
@@ -169,10 +189,14 @@ schemas:
         example: '^CTF\{[a-zA-Z0-9_]+\}$'
         maxLength: 1024
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=1024"
       initial_value:
         example: 500
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       is_case_insensitive:
         example: false
         type: boolean
@@ -183,10 +207,14 @@ schemas:
         example: 100
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       points:
         example: 150
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "min=0"
       connection_info:
         description: Connection info (e.g. SSH, URL) for the challenge
         example: ''
@@ -196,21 +224,29 @@ schemas:
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       max_attempts_window:
         description: Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       position:
         description: Display order (lower = first)
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       state:
         description: Challenge visibility and submit policy
         enum: [visible, hidden, locked]
         example: visible
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=visible hidden locked"
       tag_ids:
         description: Tag IDs for the challenge
         items:
@@ -252,10 +288,14 @@ schemas:
         example: 50
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       order_index:
         example: 0
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
     required:
       - content
     type: object
@@ -273,10 +313,14 @@ schemas:
         example: 100
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       order_index:
         example: 1
         minimum: 0
         type: integer
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
     required:
       - content
     type: object
@@ -454,6 +498,8 @@ schemas:
         description: Optional review text
         maxLength: 2000
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=2000"
     required:
       - value
     type: object

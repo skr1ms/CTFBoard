@@ -9,8 +9,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-const apiTokenDescriptionMaxLength = 255
-
 func CreateAPITokenRequestToParams(req *openapi.CreateAPITokenRequest) (description string, expiresAt *time.Time, err error) {
 	expiresAt = req.ExpiresAt
 	if expiresAt != nil && !expiresAt.After(time.Now()) {
@@ -18,9 +16,6 @@ func CreateAPITokenRequestToParams(req *openapi.CreateAPITokenRequest) (descript
 	}
 
 	description = lo.FromPtrOr(req.Description, "")
-	if len(description) > apiTokenDescriptionMaxLength {
-		return "", nil, apperr.NewValidationErrorf("description must be at most %d characters", apiTokenDescriptionMaxLength)
-	}
 
 	return description, expiresAt, nil
 }

@@ -47,7 +47,7 @@ func TestIPTracking_ValidUser_TracksIP(t *testing.T) {
 	r.Use(IPTracking(context.Background(), trackingUC, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("User-Agent", "test-agent")
 
 	rr := httptest.NewRecorder()
@@ -73,7 +73,7 @@ func TestIPTracking_NoUser_Skips(t *testing.T) {
 	r.Use(IPTracking(context.Background(), trackingUC, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

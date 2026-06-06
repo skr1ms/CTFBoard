@@ -3,7 +3,6 @@ package response
 import (
 	"github.com/google/uuid"
 	"github.com/samber/lo"
-	"github.com/wahrwelt-kit/go-jwtkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -111,6 +110,10 @@ func FromSetupComplete(accessToken string, u *domain.User) openapi.SetupComplete
 	}
 }
 
+func FromSetupStatus(complete bool) openapi.SetupStatusResponse {
+	return openapi.SetupStatusResponse{Complete: complete}
+}
+
 func FromSolve(s *domain.Solve) openapi.SolveResponse {
 	return openapi.SolveResponse{
 		ID:          new(s.ID.String()),
@@ -119,10 +122,18 @@ func FromSolve(s *domain.Solve) openapi.SolveResponse {
 	}
 }
 
-func FromTokenPair(p *jwtkit.TokenPair) openapi.TokenPair {
+func FromTokenPair(p *usecase.TokenPair) openapi.TokenPair {
+	if p == nil {
+		return openapi.TokenPair{}
+	}
+
+	return FromTokenValues(p.AccessToken, p.AccessExpiresAt)
+}
+
+func FromTokenValues(accessToken string, accessExpiresAt int64) openapi.TokenPair {
 	return openapi.TokenPair{
-		AccessToken:     new(p.AccessToken),
-		AccessExpiresAt: new(int(p.AccessExpiresAt)),
+		AccessToken:     new(accessToken),
+		AccessExpiresAt: new(int(accessExpiresAt)),
 	}
 }
 

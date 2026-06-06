@@ -2,16 +2,16 @@ package request
 
 import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/setup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // SetupRequestToParams converts the generated transport DTO into the setup use-case request.
-func SetupRequestToParams(req *openapi.SetupRequest, clientIP string) *setup.SetupRequest {
+func SetupRequestToParams(req *openapi.SetupRequest, clientIP string) *usecase.SetupRequest {
 	if req == nil {
-		return &setup.SetupRequest{ClientIP: clientIP}
+		return &usecase.SetupRequest{ClientIP: clientIP}
 	}
 
-	return &setup.SetupRequest{
+	return &usecase.SetupRequest{
 		CTFName:                   req.CtfName,
 		CTFDescription:            stringFromPtr(req.CtfDescription),
 		Mode:                      string(req.Mode),

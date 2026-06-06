@@ -15,7 +15,7 @@ import (
 
 // PUT /admin/competition + POST /admin/challenges + POST /challenges/{ID}/submit + GET /scoreboard: full CTF lifecycle from setup to scoreboard
 //
-//nolint:funlen
+//nolint:funlen // full end-to-end lifecycle test intentionally stays in one scenario
 func TestFullCTFFlow(t *testing.T) {
 	t.Parallel()
 	h := helper.NewE2EHelper(t, nil, TestPool, TestRedis, GetTestBaseURL())

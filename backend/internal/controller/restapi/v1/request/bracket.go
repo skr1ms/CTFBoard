@@ -6,25 +6,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-type bracketConstraints struct {
-	Name        string `validate:"required,max=200"`
-	Description string `validate:"max=500"`
-}
-
-func ValidateCreateBracketRequest(req *openapi.CreateBracketRequest, v validator.Validator) error {
-	c := bracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
-
-	return ValidateConstraints(v, &c)
-}
-
-func ValidateUpdateBracketRequest(req *openapi.UpdateBracketRequest, v validator.Validator) error {
-	c := bracketConstraints{Name: req.Name, Description: lo.FromPtrOr(req.Description, "")}
-
-	return ValidateConstraints(v, &c)
-}
 
 func CreateBracketRequestToParams(req *openapi.CreateBracketRequest) (name, description string, isDefault bool, err error) {
 	return req.Name, lo.FromPtrOr(req.Description, ""), lo.FromPtrOr(req.IsDefault, false), nil

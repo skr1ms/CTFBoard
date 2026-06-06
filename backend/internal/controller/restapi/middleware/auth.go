@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
@@ -13,7 +14,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
 
 type contextKey string
@@ -21,11 +21,15 @@ type contextKey string
 // UserRoleKey is the context key under which the authenticated user's role string is stored by Auth middleware.
 const UserRoleKey contextKey = "role"
 
+const (
+	apiTokenLastUsedTimeout = 2 * time.Second
+	authHeaderPartCount     = 2
+)
+
 // APITokenAuther is the minimal interface required to validate API token credentials.
 type APITokenAuther interface {
-	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error)
+	AuthenticatePlaintext(ctx context.Context, plaintext string) (*domain.APIToken, error)
 	UpdateLastUsedAt(ctx context.Context, id uuid.UUID) error
-	ValidateToken(t *domain.APIToken) bool
 }
 
 // UserByIDGetter is the minimal interface required to load a user by ID during API token authentication.
@@ -63,10 +67,8 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logkit.L
 		return nil, false
 	}
 
-	tokenHash := crypto.SHA256Hex(plaintext)
-
-	token, err := apiTokenUC.GetByTokenHash(r.Context(), tokenHash)
-	if err != nil || token == nil || !apiTokenUC.ValidateToken(token) {
+	token, err := apiTokenUC.AuthenticatePlaintext(r.Context(), plaintext)
+	if err != nil || token == nil {
 		return nil, false
 	}
 
@@ -84,7 +86,9 @@ func authAPIToken(apiTokenUC APITokenAuther, userUC UserByIDGetter, log logkit.L
 	}
 
 	go func() {
-		ctx := context.WithoutCancel(r.Context())
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), apiTokenLastUsedTimeout)
+		defer cancel()
+
 		if err := apiTokenUC.UpdateLastUsedAt(ctx, token.ID); err != nil {
 			log.WithError(err).Warn("middleware - Auth - UpdateLastUsedAt: failed to update api token last_used_at")
 		}
@@ -126,8 +130,8 @@ func Auth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC UserByIDG
 				return
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 {
+			parts := strings.SplitN(authHeader, " ", authHeaderPartCount)
+			if len(parts) != authHeaderPartCount {
 				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrInvalidAuthorizationHeader))
 
 				return
@@ -155,7 +159,7 @@ func Auth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC UserByIDG
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(ctx)) //nolint:contextcheck // ctx is derived from r.Context by authBearer/authAPIToken and carries authenticated identity.
 		})
 	}
 }

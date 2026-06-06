@@ -47,8 +47,8 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 			)
 
 			if c != nil {
-				team, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyTeam(teamIDStr), teamBanCacheTTL, func(context.Context) (*domain.Team, error) {
-					return teamGetter.GetByID(r.Context(), *user.TeamID)
+				team, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyTeam(teamIDStr), teamBanCacheTTL, func(ctx context.Context) (*domain.Team, error) {
+					return teamGetter.GetByID(ctx, *user.TeamID)
 				})
 			} else {
 				team, err = teamGetter.GetByID(r.Context(), *user.TeamID)

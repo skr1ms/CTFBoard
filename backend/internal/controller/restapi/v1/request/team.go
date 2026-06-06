@@ -6,18 +6,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-type transferCaptainConstraints struct {
-	NewCaptainID string `validate:"required,uuid"`
-}
-
-func ValidateTransferCaptainRequest(req *openapi.TransferCaptainRequest, v validator.Validator) error {
-	c := transferCaptainConstraints{NewCaptainID: req.NewCaptainID}
-
-	return ValidateConstraints(v, &c)
-}
 
 func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, confirmReset bool) {
 	confirmReset = false

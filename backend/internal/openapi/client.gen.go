@@ -468,6 +468,9 @@ type ClientInterface interface {
 
 	PostAuthOauthExchange(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetAuthOauthProviders request
+	GetAuthOauthProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAuthOauthProvider request
 	GetAuthOauthProvider(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2452,6 +2455,18 @@ func (c *Client) PostAuthOauthExchangeWithBody(ctx context.Context, contentType 
 
 func (c *Client) PostAuthOauthExchange(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAuthOauthExchangeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAuthOauthProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAuthOauthProvidersRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -8146,6 +8161,33 @@ func NewPostAuthOauthExchangeRequestWithBody(server string, contentType string, 
 	return req, nil
 }
 
+// NewGetAuthOauthProvidersRequest generates requests for GetAuthOauthProviders
+func NewGetAuthOauthProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/oauth/providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetAuthOauthProviderRequest generates requests for GetAuthOauthProvider
 func NewGetAuthOauthProviderRequest(server string, provider string) (*http.Request, error) {
 	var err error
@@ -12470,6 +12512,9 @@ type ClientWithResponsesInterface interface {
 
 	PostAuthOauthExchangeWithResponse(ctx context.Context, body PostAuthOauthExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthOauthExchangeResponse, error)
 
+	// GetAuthOauthProvidersWithResponse request
+	GetAuthOauthProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAuthOauthProvidersResponse, error)
+
 	// GetAuthOauthProviderWithResponse request
 	GetAuthOauthProviderWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*GetAuthOauthProviderResponse, error)
 
@@ -15276,6 +15321,29 @@ func (r PostAuthOauthExchangeResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostAuthOauthExchangeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAuthOauthProvidersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *OAuthProvidersResponse
+	JSON429      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAuthOauthProvidersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAuthOauthProvidersResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -18882,6 +18950,15 @@ func (c *ClientWithResponses) PostAuthOauthExchangeWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParsePostAuthOauthExchangeResponse(rsp)
+}
+
+// GetAuthOauthProvidersWithResponse request returning *GetAuthOauthProvidersResponse
+func (c *ClientWithResponses) GetAuthOauthProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAuthOauthProvidersResponse, error) {
+	rsp, err := c.GetAuthOauthProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAuthOauthProvidersResponse(rsp)
 }
 
 // GetAuthOauthProviderWithResponse request returning *GetAuthOauthProviderResponse
@@ -24476,6 +24553,39 @@ func ParsePostAuthOauthExchangeResponse(rsp *http.Response) (*PostAuthOauthExcha
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAuthOauthProvidersResponse parses an HTTP response from a GetAuthOauthProvidersWithResponse call
+func ParseGetAuthOauthProvidersResponse(rsp *http.Response) (*GetAuthOauthProvidersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAuthOauthProvidersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OAuthProvidersResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
 		var dest ErrorResponse

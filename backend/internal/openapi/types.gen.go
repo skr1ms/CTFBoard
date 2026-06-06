@@ -955,10 +955,10 @@ type BanUserRequest struct {
 type BatchSetConfigItem struct {
 	// Category optional category for non-registry keys
 	Category    *string                      `json:"category,omitempty"`
-	Description *string                      `json:"description,omitempty"`
-	Key         string                       `json:"key"`
-	Value       string                       `json:"value"`
-	ValueType   *BatchSetConfigItemValueType `json:"value_type,omitempty"`
+	Description *string                      `json:"description,omitempty" validate:"omitempty,max=500"`
+	Key         string                       `json:"key" validate:"required"`
+	Value       string                       `json:"value" validate:"required,max=10000"`
+	ValueType   *BatchSetConfigItemValueType `json:"value_type,omitempty" validate:"omitempty,oneof=string int bool json"`
 }
 
 // BatchSetConfigItemValueType defines model for BatchSetConfigItem.ValueType.
@@ -966,7 +966,7 @@ type BatchSetConfigItemValueType string
 
 // BatchSetConfigRequest defines model for BatchSetConfigRequest.
 type BatchSetConfigRequest struct {
-	Configs []BatchSetConfigItem `json:"configs"`
+	Configs []BatchSetConfigItem `json:"configs" validate:"required,min=1,max=50,dive"`
 }
 
 // BracketResponse defines model for BracketResponse.
@@ -1201,7 +1201,7 @@ type ConfirmationRequired struct {
 
 // CreateAPITokenRequest defines model for CreateAPITokenRequest.
 type CreateAPITokenRequest struct {
-	Description *string    `json:"description,omitempty"`
+	Description *string    `json:"description,omitempty" validate:"omitempty,max=255"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 }
 
@@ -1213,15 +1213,15 @@ type CreateAppealRequest struct {
 // CreateAwardRequest defines model for CreateAwardRequest.
 type CreateAwardRequest struct {
 	Description string `json:"description" validate:"required,max=500"`
-	TeamID      string `json:"team_id"`
-	Value       int    `json:"value"`
+	TeamID      string `json:"team_id" validate:"required,uuid"`
+	Value       int    `json:"value" validate:"min=0"`
 }
 
 // CreateBracketRequest defines model for CreateBracketRequest.
 type CreateBracketRequest struct {
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
 	IsDefault   *bool   `json:"is_default,omitempty"`
-	Name        string  `json:"name"`
+	Name        string  `json:"name" validate:"required,max=200"`
 }
 
 // CreateChallengeRequest defines model for CreateChallengeRequest.
@@ -1230,29 +1230,29 @@ type CreateChallengeRequest struct {
 
 	// ConnectionInfo Connection info (e.g. SSH, URL) for the challenge
 	ConnectionInfo *string `json:"connection_info,omitempty"`
-	Decay          *int    `json:"decay,omitempty"`
+	Decay          *int    `json:"decay,omitempty" validate:"omitempty,min=0"`
 	Description    string  `json:"description" validate:"required,challenge_description"`
 	Flag           string  `json:"flag" validate:"required,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
-	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
-	InitialValue      *int    `json:"initial_value,omitempty"`
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
+	InitialValue      *int    `json:"initial_value,omitempty" validate:"omitempty,min=0"`
 	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
 	IsRegex           *bool   `json:"is_regex,omitempty"`
 
 	// MaxAttempts Max submission attempts per team (0 = unlimited)
-	MaxAttempts *int `json:"max_attempts,omitempty"`
+	MaxAttempts *int `json:"max_attempts,omitempty" validate:"omitempty,min=0"`
 
 	// MaxAttemptsWindow Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
-	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty"`
-	MinValue          *int `json:"min_value,omitempty"`
-	Points            int  `json:"points"`
+	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty" validate:"omitempty,min=0"`
+	MinValue          *int `json:"min_value,omitempty" validate:"omitempty,min=0"`
+	Points            int  `json:"points" validate:"min=0"`
 
 	// Position Display order (lower = first)
-	Position *int `json:"position,omitempty"`
+	Position *int `json:"position,omitempty" validate:"omitempty,min=0"`
 
 	// State Challenge visibility and submit policy
-	State *CreateChallengeRequestState `json:"state,omitempty"`
+	State *CreateChallengeRequestState `json:"state,omitempty" validate:"omitempty,oneof=visible hidden locked"`
 
 	// TagIds Tag IDs for the challenge
 	TagIds *[]string `json:"tag_ids,omitempty"`
@@ -1269,12 +1269,12 @@ type CreateCommentRequest struct {
 
 // CreateFieldRequest defines model for CreateFieldRequest.
 type CreateFieldRequest struct {
-	EntityType CreateFieldRequestEntityType `json:"entity_type"`
-	FieldType  CreateFieldRequestFieldType  `json:"field_type"`
-	Name       string                       `json:"name"`
+	EntityType CreateFieldRequestEntityType `json:"entity_type" validate:"required,oneof=user team"`
+	FieldType  CreateFieldRequestFieldType  `json:"field_type" validate:"required,oneof=text number select boolean"`
+	Name       string                       `json:"name" validate:"required,max=100"`
 
 	// Options Options for select type
-	Options    *[]string `json:"options,omitempty"`
+	Options    *[]string `json:"options,omitempty" validate:"omitempty,max=100,dive,max=500"`
 	OrderIndex *int      `json:"order_index,omitempty"`
 	Required   *bool     `json:"required,omitempty"`
 }
@@ -1288,8 +1288,8 @@ type CreateFieldRequestFieldType string
 // CreateHintRequest defines model for CreateHintRequest.
 type CreateHintRequest struct {
 	Content    string  `json:"content" validate:"required,hint_content"`
-	Cost       *int    `json:"cost,omitempty"`
-	OrderIndex *int    `json:"order_index,omitempty"`
+	Cost       *int    `json:"cost,omitempty" validate:"omitempty,min=0"`
+	OrderIndex *int    `json:"order_index,omitempty" validate:"omitempty,min=0"`
 	Title      *string `json:"title,omitempty"`
 }
 
@@ -1298,7 +1298,7 @@ type CreateNotificationRequest struct {
 	Content  string                         `json:"content" validate:"required,max=5000"`
 	IsPinned *bool                          `json:"is_pinned,omitempty"`
 	Title    string                         `json:"title" validate:"required,max=200"`
-	Type     *CreateNotificationRequestType `json:"type,omitempty"`
+	Type     *CreateNotificationRequestType `json:"type,omitempty" validate:"omitempty,oneof=info warning success error"`
 }
 
 // CreateNotificationRequestType defines model for CreateNotificationRequest.Type.
@@ -1306,11 +1306,11 @@ type CreateNotificationRequestType string
 
 // CreatePageRequest defines model for CreatePageRequest.
 type CreatePageRequest struct {
-	Content    *string `json:"content,omitempty"`
+	Content    *string `json:"content,omitempty" validate:"omitempty,max=50000"`
 	IsDraft    *bool   `json:"is_draft,omitempty"`
 	OrderIndex *int    `json:"order_index,omitempty"`
-	Slug       string  `json:"slug"`
-	Title      string  `json:"title"`
+	Slug       string  `json:"slug" validate:"required,max=100,page_slug"`
+	Title      string  `json:"title" validate:"required,max=200"`
 }
 
 // CreateSoloTeamRequest defines model for CreateSoloTeamRequest.
@@ -1320,7 +1320,7 @@ type CreateSoloTeamRequest struct {
 
 // CreateTagRequest defines model for CreateTagRequest.
 type CreateTagRequest struct {
-	Color *string `json:"color,omitempty"`
+	Color *string `json:"color,omitempty" validate:"omitempty,hex_color"`
 	Name  string  `json:"name" validate:"required,max=50"`
 }
 
@@ -1334,7 +1334,7 @@ type CreateTeamRequest struct {
 type CreateUserNotificationRequest struct {
 	Content string                             `json:"content" validate:"required,max=5000"`
 	Title   string                             `json:"title" validate:"required,max=200"`
-	Type    *CreateUserNotificationRequestType `json:"type,omitempty"`
+	Type    *CreateUserNotificationRequestType `json:"type,omitempty" validate:"omitempty,oneof=info warning success error"`
 }
 
 // CreateUserNotificationRequestType defines model for CreateUserNotificationRequest.Type.
@@ -1548,6 +1548,12 @@ type OAuthExchangeRequest struct {
 	Code string `json:"code"`
 }
 
+// OAuthProvidersResponse defines model for OAuthProvidersResponse.
+type OAuthProvidersResponse struct {
+	Github bool `json:"github"`
+	Google bool `json:"google"`
+}
+
 // PageListItemResponse defines model for PageListItemResponse.
 type PageListItemResponse struct {
 	ID         *string `json:"id,omitempty"`
@@ -1579,7 +1585,7 @@ type PaginationMeta struct {
 // PutChallengeRatingRequest defines model for PutChallengeRatingRequest.
 type PutChallengeRatingRequest struct {
 	// Review Optional review text
-	Review *string `json:"review,omitempty"`
+	Review *string `json:"review,omitempty" validate:"omitempty,max=2000"`
 
 	// Value Rating value (e.g. 1-5)
 	Value int `json:"value" validate:"required,min=1,max=5"`
@@ -1685,9 +1691,9 @@ type SetChallengeRequirementsRequest struct {
 type SetConfigRequest struct {
 	// Category optional category for non-registry keys
 	Category    *string                    `json:"category,omitempty"`
-	Description *string                    `json:"description,omitempty"`
-	Value       string                     `json:"value"`
-	ValueType   *SetConfigRequestValueType `json:"value_type,omitempty"`
+	Description *string                    `json:"description,omitempty" validate:"omitempty,max=500"`
+	Value       string                     `json:"value" validate:"required,max=10000"`
+	ValueType   *SetConfigRequestValueType `json:"value_type,omitempty" validate:"omitempty,oneof=string int bool json"`
 }
 
 // SetConfigRequestValueType defines model for SetConfigRequest.ValueType.
@@ -1951,48 +1957,48 @@ type TrackingListResponse struct {
 
 // TransferCaptainRequest defines model for TransferCaptainRequest.
 type TransferCaptainRequest struct {
-	NewCaptainID string `json:"new_captain_id"`
+	NewCaptainID string `json:"new_captain_id" validate:"required,uuid"`
 }
 
 // UpdateAppSettingsRequest defines model for UpdateAppSettingsRequest.
 type UpdateAppSettingsRequest struct {
-	AppName          *string `json:"app_name,omitempty"`
-	CorsOrigins      *string `json:"cors_origins,omitempty"`
-	CsvExportMaxRows *int    `json:"csv_export_max_rows,omitempty"`
-	DefaultPerPage   *int    `json:"default_per_page,omitempty"`
-	FrontendURL      *string `json:"frontend_url,omitempty"`
-	MaxPerPage       *int    `json:"max_per_page,omitempty"`
+	AppName          *string `json:"app_name,omitempty" validate:"omitempty,max=100"`
+	CorsOrigins      *string `json:"cors_origins,omitempty" validate:"omitempty,max=2048"`
+	CsvExportMaxRows *int    `json:"csv_export_max_rows,omitempty" validate:"omitempty,min=1"`
+	DefaultPerPage   *int    `json:"default_per_page,omitempty" validate:"omitempty,min=1,max=1000"`
+	FrontendURL      *string `json:"frontend_url,omitempty" validate:"omitempty,max=512"`
+	MaxPerPage       *int    `json:"max_per_page,omitempty" validate:"omitempty,min=1,max=1000"`
 
 	// MaxTeams Maximum number of teams allowed (0 = unlimited)
-	MaxTeams *int `json:"max_teams,omitempty"`
+	MaxTeams *int `json:"max_teams,omitempty" validate:"omitempty,min=0"`
 
 	// OauthGithubEnabled Allow users to sign in via GitHub OAuth
 	OauthGithubEnabled *bool `json:"oauth_github_enabled,omitempty"`
 
 	// OauthGoogleEnabled Allow users to sign in via Google OAuth
 	OauthGoogleEnabled               *bool                                      `json:"oauth_google_enabled,omitempty"`
-	RateLimitCommentPerMinute        *int                                       `json:"rate_limit_comment_per_minute,omitempty"`
-	RateLimitForgotPasswordPerMinute *int                                       `json:"rate_limit_forgot_password_per_minute,omitempty"`
-	RateLimitGeneralIPPerMinute      *int                                       `json:"rate_limit_general_ip_per_minute,omitempty"`
-	RateLimitLoginPerMinute          *int                                       `json:"rate_limit_login_per_minute,omitempty"`
-	RateLimitLogoutPerMinute         *int                                       `json:"rate_limit_logout_per_minute,omitempty"`
-	RateLimitOauthCallbackPerMinute  *int                                       `json:"rate_limit_oauth_callback_per_minute,omitempty"`
-	RateLimitOauthRedirectPerMinute  *int                                       `json:"rate_limit_oauth_redirect_per_minute,omitempty"`
-	RateLimitRefreshPerMinute        *int                                       `json:"rate_limit_refresh_per_minute,omitempty"`
-	RateLimitRegisterPerMinute       *int                                       `json:"rate_limit_register_per_minute,omitempty"`
-	RateLimitResetPasswordPerMinute  *int                                       `json:"rate_limit_reset_password_per_minute,omitempty"`
-	RateLimitScoreboardPerMinute     *int                                       `json:"rate_limit_scoreboard_per_minute,omitempty"`
-	RateLimitVerifyEmailPerMinute    *int                                       `json:"rate_limit_verify_email_per_minute,omitempty"`
+	RateLimitCommentPerMinute        *int                                       `json:"rate_limit_comment_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitForgotPasswordPerMinute *int                                       `json:"rate_limit_forgot_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitGeneralIPPerMinute      *int                                       `json:"rate_limit_general_ip_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLoginPerMinute          *int                                       `json:"rate_limit_login_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLogoutPerMinute         *int                                       `json:"rate_limit_logout_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthCallbackPerMinute  *int                                       `json:"rate_limit_oauth_callback_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthRedirectPerMinute  *int                                       `json:"rate_limit_oauth_redirect_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRefreshPerMinute        *int                                       `json:"rate_limit_refresh_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRegisterPerMinute       *int                                       `json:"rate_limit_register_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitResetPasswordPerMinute  *int                                       `json:"rate_limit_reset_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitScoreboardPerMinute     *int                                       `json:"rate_limit_scoreboard_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitVerifyEmailPerMinute    *int                                       `json:"rate_limit_verify_email_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
 	RegistrationOpen                 *bool                                      `json:"registration_open,omitempty"`
 	ResendEnabled                    *bool                                      `json:"resend_enabled,omitempty"`
-	ResendFromEmail                  *string                                    `json:"resend_from_email,omitempty"`
-	ResendFromName                   *string                                    `json:"resend_from_name,omitempty"`
-	ResetTTLHours                    *int                                       `json:"reset_ttl_hours,omitempty"`
-	ScoreboardVisible                *UpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty"`
-	SubmitLimitDurationMin           *int                                       `json:"submit_limit_duration_min,omitempty"`
-	SubmitLimitPerUser               *int                                       `json:"submit_limit_per_user,omitempty"`
+	ResendFromEmail                  *string                                    `json:"resend_from_email,omitempty" validate:"omitempty,max=255"`
+	ResendFromName                   *string                                    `json:"resend_from_name,omitempty" validate:"omitempty,max=100"`
+	ResetTTLHours                    *int                                       `json:"reset_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
+	ScoreboardVisible                *UpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty" validate:"omitempty,oneof=public hidden admins_only"`
+	SubmitLimitDurationMin           *int                                       `json:"submit_limit_duration_min,omitempty" validate:"omitempty,min=1"`
+	SubmitLimitPerUser               *int                                       `json:"submit_limit_per_user,omitempty" validate:"omitempty,min=1"`
 	VerifyEmails                     *bool                                      `json:"verify_emails,omitempty"`
-	VerifyTTLHours                   *int                                       `json:"verify_ttl_hours,omitempty"`
+	VerifyTTLHours                   *int                                       `json:"verify_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
 
 	// WriteupEnabled Whether writeups/solutions are shown to teams after solving a challenge
 	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
@@ -2003,9 +2009,9 @@ type UpdateAppSettingsRequestScoreboardVisible string
 
 // UpdateBracketRequest defines model for UpdateBracketRequest.
 type UpdateBracketRequest struct {
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
 	IsDefault   *bool   `json:"is_default,omitempty"`
-	Name        string  `json:"name"`
+	Name        string  `json:"name" validate:"required,max=200"`
 }
 
 // UpdateChallengeRequest defines model for UpdateChallengeRequest.
@@ -2014,29 +2020,29 @@ type UpdateChallengeRequest struct {
 
 	// ConnectionInfo Connection info (e.g. SSH, URL) for the challenge
 	ConnectionInfo *string `json:"connection_info,omitempty"`
-	Decay          *int    `json:"decay,omitempty"`
+	Decay          *int    `json:"decay,omitempty" validate:"omitempty,min=0"`
 	Description    string  `json:"description" validate:"required,challenge_description"`
 	Flag           *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
-	FlagFormatRegex   *string `json:"flag_format_regex,omitempty"`
-	InitialValue      *int    `json:"initial_value,omitempty"`
+	FlagFormatRegex   *string `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
+	InitialValue      *int    `json:"initial_value,omitempty" validate:"omitempty,min=0"`
 	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
 	IsRegex           *bool   `json:"is_regex,omitempty"`
 
 	// MaxAttempts Max submission attempts per team (0 = unlimited)
-	MaxAttempts *int `json:"max_attempts,omitempty"`
+	MaxAttempts *int `json:"max_attempts,omitempty" validate:"omitempty,min=0"`
 
 	// MaxAttemptsWindow Rolling window in seconds for max_attempts cooldown (0 = permanent lockout)
-	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty"`
-	MinValue          *int `json:"min_value,omitempty"`
-	Points            int  `json:"points"`
+	MaxAttemptsWindow *int `json:"max_attempts_window,omitempty" validate:"omitempty,min=0"`
+	MinValue          *int `json:"min_value,omitempty" validate:"omitempty,min=0"`
+	Points            int  `json:"points" validate:"min=0"`
 
 	// Position Display order (lower = first)
-	Position *int `json:"position,omitempty"`
+	Position *int `json:"position,omitempty" validate:"omitempty,min=0"`
 
 	// State Challenge visibility and submit policy
-	State *UpdateChallengeRequestState `json:"state,omitempty"`
+	State *UpdateChallengeRequestState `json:"state,omitempty" validate:"omitempty,oneof=visible hidden locked"`
 
 	// TagIds Tag IDs for the challenge
 	TagIds *[]string `json:"tag_ids,omitempty"`
@@ -2057,8 +2063,8 @@ type UpdateCompetitionRequest struct {
 	IsPaused                     *bool      `json:"is_paused,omitempty"`
 	IsPublic                     *bool      `json:"is_public,omitempty"`
 	KeepScoreboardFrozenAfterEnd *bool      `json:"keep_scoreboard_frozen_after_end,omitempty"`
-	MaxTeamSize                  *int       `json:"max_team_size,omitempty"`
-	MinTeamSize                  *int       `json:"min_team_size,omitempty"`
+	MaxTeamSize                  *int       `json:"max_team_size,omitempty" validate:"omitempty,min=0"`
+	MinTeamSize                  *int       `json:"min_team_size,omitempty" validate:"omitempty,min=0"`
 	Mode                         *string    `json:"mode,omitempty"`
 	Name                         string     `json:"name"`
 	StartTime                    *time.Time `json:"start_time,omitempty"`
@@ -2066,9 +2072,9 @@ type UpdateCompetitionRequest struct {
 
 // UpdateFieldRequest defines model for UpdateFieldRequest.
 type UpdateFieldRequest struct {
-	FieldType  UpdateFieldRequestFieldType `json:"field_type"`
-	Name       string                      `json:"name"`
-	Options    *[]string                   `json:"options,omitempty"`
+	FieldType  UpdateFieldRequestFieldType `json:"field_type" validate:"required,oneof=text number select boolean"`
+	Name       string                      `json:"name" validate:"required,max=100"`
+	Options    *[]string                   `json:"options,omitempty" validate:"omitempty,max=100,dive,max=500"`
 	OrderIndex *int                        `json:"order_index,omitempty"`
 	Required   *bool                       `json:"required,omitempty"`
 }
@@ -2079,8 +2085,8 @@ type UpdateFieldRequestFieldType string
 // UpdateHintRequest defines model for UpdateHintRequest.
 type UpdateHintRequest struct {
 	Content    string  `json:"content" validate:"required,hint_content"`
-	Cost       *int    `json:"cost,omitempty"`
-	OrderIndex *int    `json:"order_index,omitempty"`
+	Cost       *int    `json:"cost,omitempty" validate:"omitempty,min=0"`
+	OrderIndex *int    `json:"order_index,omitempty" validate:"omitempty,min=0"`
 	Title      *string `json:"title,omitempty"`
 }
 
@@ -2089,7 +2095,7 @@ type UpdateNotificationRequest struct {
 	Content  string                         `json:"content" validate:"required,max=5000"`
 	IsPinned *bool                          `json:"is_pinned,omitempty"`
 	Title    string                         `json:"title" validate:"required,max=200"`
-	Type     *UpdateNotificationRequestType `json:"type,omitempty"`
+	Type     *UpdateNotificationRequestType `json:"type,omitempty" validate:"omitempty,oneof=info warning success error"`
 }
 
 // UpdateNotificationRequestType defines model for UpdateNotificationRequest.Type.
@@ -2097,11 +2103,11 @@ type UpdateNotificationRequestType string
 
 // UpdatePageRequest defines model for UpdatePageRequest.
 type UpdatePageRequest struct {
-	Content    *string `json:"content,omitempty"`
+	Content    *string `json:"content,omitempty" validate:"omitempty,max=50000"`
 	IsDraft    *bool   `json:"is_draft,omitempty"`
 	OrderIndex *int    `json:"order_index,omitempty"`
-	Slug       string  `json:"slug"`
-	Title      string  `json:"title"`
+	Slug       string  `json:"slug" validate:"required,max=100,page_slug"`
+	Title      string  `json:"title" validate:"required,max=200"`
 }
 
 // UpdateProfileRequest defines model for UpdateProfileRequest.
@@ -2114,7 +2120,7 @@ type UpdateProfileRequest struct {
 
 // UpdateTagRequest defines model for UpdateTagRequest.
 type UpdateTagRequest struct {
-	Color *string `json:"color,omitempty"`
+	Color *string `json:"color,omitempty" validate:"omitempty,hex_color"`
 	Name  string  `json:"name" validate:"required,max=50"`
 }
 

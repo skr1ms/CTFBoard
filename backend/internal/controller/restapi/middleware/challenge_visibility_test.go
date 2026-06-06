@@ -33,7 +33,7 @@ func TestChallengeVisibility_Success(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/challenges", http.NoBody)
+	req := newRequest(http.MethodGet, "/challenges", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -59,7 +59,7 @@ func TestChallengeVisibility_Forbidden(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/challenges", http.NoBody)
+	req := newRequest(http.MethodGet, "/challenges", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -76,7 +76,7 @@ func TestChallengeVisibility_AdminBypass(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/challenges", http.NoBody)
+	req := newRequest(http.MethodGet, "/challenges", http.NoBody)
 	ctx := context.WithValue(req.Context(), userContextKey, &domain.User{Role: domain.RoleAdmin})
 	req = req.WithContext(ctx)
 

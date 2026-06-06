@@ -42,7 +42,6 @@ import (
 	userUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -61,7 +60,7 @@ func (g *teamBracketGetterImpl) GetTeamBracketID(ctx context.Context, teamID uui
 
 type noOpMailer struct{}
 
-func (m *noOpMailer) Send(_ context.Context, _ mailer.Message) error { return nil }
+func (m *noOpMailer) Send(_ context.Context, _ usecase.EmailMessage) error { return nil }
 
 type loadTestDeps struct {
 	log    logkit.Logger
@@ -113,7 +112,6 @@ type loadTestUseCases struct {
 	settings           *settingsUC.SettingsUseCase
 	ws                 *wsV1.Controller
 	submissionUC       *competitionUC.SubmissionUseCase
-	submissionBatcher  *competitionUC.SubmissionBatcher
 	tagUC              *challengeUC.TagUseCase
 	fieldUC            *settingsUC.FieldUseCase
 	pageUC             *pageUC.PageUseCase
@@ -193,7 +191,7 @@ func initLoadTestRepos(pool *pgxpool.Pool) *loadTestRepos {
 
 func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage storage.Provider, hub *wskit.Hub, redisClient *redis.Client) *loadTestUseCases {
 	fieldValidator := settingsUC.NewFieldValidator(repos.fieldRepo)
-	broadcaster := websocket.NewBroadcaster(hub)
+	broadcaster := websocket.NewBroadcaster(context.Background(), hub)
 	c := cachekit.New(redisClient)
 	scoreboardCache := cache.NewScoreboardCacheService(c, &teamBracketGetterImpl{repos.teamRepo})
 	guard := competitionUC.NewGuard(repos.compRepo)
@@ -299,7 +297,6 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 	award := teamUC.NewAwardUseCase(teamUC.AwardDeps{AwardRepo: repos.awardRepo, TeamRepo: repos.teamRepo, TM: repos.tm, ScoreboardCache: scoreboardCache, CompRepo: repos.compRepo})
 	stats := competitionUC.NewStatisticsUseCase(competitionUC.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: c})
 	sub := competitionUC.NewSubmissionUseCase(competitionUC.SubmissionDeps{SubmissionRepo: repos.submissionRepo})
-	subBatcher := competitionUC.NewSubmissionBatcher(repos.submissionRepo, competitionUC.WithBatcherLogger(deps.log))
 	tag := challengeUC.NewTagUseCase(challengeUC.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
 	field := settingsUC.NewFieldUseCase(settingsUC.FieldDeps{FieldRepo: repos.fieldRepo})
 	pg := pageUC.NewPageUseCase(pageUC.PageDeps{PageRepo: repos.pageRepo})
@@ -337,7 +334,7 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 	return &loadTestUseCases{
 		user: u, challenge: ch, solve: solve, team: t, competition: comp,
 		hint: hint, award: award, email: emailSvc, file: fileSvc, stats: stats,
-		backup: bk, settings: sett, ws: ws, submissionUC: sub, submissionBatcher: subBatcher, tagUC: tag,
+		backup: bk, settings: sett, ws: ws, submissionUC: sub, tagUC: tag,
 		fieldUC: field, pageUC: pg, bracketUC: bracket, notifUC: notif,
 		apiTokenUC: apiToken, competitionParamUC: competitionParam, commentUC: comment,
 		trackingUC: tracking, SettingsRepo: repos.SettingsRepo,
@@ -370,7 +367,7 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK")) //nolint:errcheck // health response best-effort
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, "lt:forgot", 100000, 24*time.Hour)
@@ -395,7 +392,7 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 		},
 		Team:  v1helper.TeamDeps{TeamUC: uc.team, AwardUC: uc.award},
 		User:  v1helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
-		Comp:  v1helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, SubmissionBatcher: uc.submissionBatcher, BracketUC: uc.bracketUC},
+		Comp:  v1helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC},
 		Admin: v1helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
 		Infra: v1helper.InfraDeps{
 			JWTService:                    jwtSvc,
@@ -413,7 +410,7 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 	}
 
 	r.Route("/api/v1", func(apiRouter chi.Router) {
-		rateLimitCache := restapimiddleware.NewRateLimitConfigCache(30 * time.Second)
+		rateLimitCache := restapimiddleware.NewRateLimitConfigCache(context.Background(), 30*time.Second)
 		v1.NewRouter(ctx, apiRouter, deps, false, rateLimitCache)
 
 		apiRouter.Get("/files/download/*", func(w http.ResponseWriter, r *http.Request) {
@@ -476,7 +473,7 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 		return "", nil, fmt.Errorf("listen: %w", err)
 	}
 
-	port := listener.Addr().(*net.TCPAddr).Port //nolint:errcheck
+	port := listener.Addr().(*net.TCPAddr).Port
 
 	srv := &http.Server{
 		Handler:      r,

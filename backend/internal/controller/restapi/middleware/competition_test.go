@@ -78,7 +78,7 @@ func TestCompetitionActive_ActiveCompetition_Passes(t *testing.T) {
 	r.Use(CompetitionActive(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -96,7 +96,7 @@ func TestCompetitionActive_NotActive_Returns403(t *testing.T) {
 	r.Use(CompetitionActive(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -114,7 +114,7 @@ func TestCompetitionEnded_Ended_Passes(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -132,7 +132,7 @@ func TestCompetitionEnded_NotEnded_Returns403(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -150,7 +150,7 @@ func TestCompetitionEnded_PausedButEndTimePassed_Passes(t *testing.T) {
 	r.Use(CompetitionEnded(compUC))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

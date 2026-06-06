@@ -23,6 +23,15 @@ func FromBanAppeal(a *domain.BanAppeal) openapi.BanAppealResponse {
 	return resp
 }
 
+func FromBanAppeals(appeals []*domain.BanAppeal) openapi.BanAppealListResponse {
+	items := make([]openapi.BanAppealResponse, len(appeals))
+	for i, appeal := range appeals {
+		items[i] = FromBanAppeal(appeal)
+	}
+
+	return openapi.BanAppealListResponse{Appeals: &items}
+}
+
 func FromBanAppealList(appeals []*domain.BanAppeal, total int64, page, perPage int) openapi.BanAppealListResponse {
 	items, meta := BuildListResponse(appeals, FromBanAppeal, total, page, perPage)
 

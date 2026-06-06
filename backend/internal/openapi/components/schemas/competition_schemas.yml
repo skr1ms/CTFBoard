@@ -95,9 +95,13 @@ schemas:
       max_team_size:
         type: integer
         minimum: 0
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       min_team_size:
         type: integer
         minimum: 0
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
       mode:
         type: string
       name:

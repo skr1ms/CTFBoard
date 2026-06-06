@@ -18,9 +18,13 @@ schemas:
       name:
         type: string
         maxLength: 200
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=200"
       description:
         type: string
         maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       is_default:
         type: boolean
         default: false
@@ -32,9 +36,13 @@ schemas:
       name:
         type: string
         maxLength: 200
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=200"
       description:
         type: string
         maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       is_default:
         type: boolean
     required:

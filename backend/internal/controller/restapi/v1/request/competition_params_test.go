@@ -71,7 +71,7 @@ func TestBatchSetConfigRequestToParams(t *testing.T) {
 			Configs: []openapi.BatchSetConfigItem{{Key: "", Value: "x"}},
 		}
 
-		err = ValidateBatchSetConfigRequest(req, v)
+		err = v.Validate(req)
 		if err == nil {
 			t.Fatal("expected error for empty key")
 		}

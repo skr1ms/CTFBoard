@@ -73,10 +73,6 @@ func (h *Server) PostAdminNotifications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := request.ValidateCreateNotificationRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminNotifications", "Validate") {
-		return
-	}
-
 	title, content, notifType, isPinned, err := request.CreateNotificationRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminNotifications", "CreateNotificationRequestToParams") {
 		return
@@ -104,10 +100,6 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 		return
 	}
 
-	if err := request.ValidateCreateUserNotificationRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "Validate") {
-		return
-	}
-
 	title, content, notifType, err := request.CreateUserNotificationRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminNotificationsUserUserID", "CreateUserNotificationRequestToParams") {
 		return
@@ -132,10 +124,6 @@ func (h *Server) PutAdminNotificationsID(w http.ResponseWriter, r *http.Request,
 		w, r, h.infra.Validator,
 	)
 	if !ok {
-		return
-	}
-
-	if err := request.ValidateUpdateNotificationRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminNotificationsID", "Validate") {
 		return
 	}
 

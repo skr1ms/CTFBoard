@@ -45,6 +45,8 @@ schemas:
         type: string
         enum: [info, warning, success, error]
         default: info
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=info warning success error"
       is_pinned:
         type: boolean
         default: false
@@ -68,6 +70,8 @@ schemas:
         type: string
         enum: [info, warning, success, error]
         default: info
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=info warning success error"
     required:
       - title
       - content
@@ -87,6 +91,8 @@ schemas:
       type:
         type: string
         enum: [info, warning, success, error]
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=info warning success error"
       is_pinned:
         type: boolean
     required:

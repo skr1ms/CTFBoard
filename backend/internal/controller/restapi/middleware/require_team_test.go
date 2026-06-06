@@ -20,7 +20,7 @@ func TestRequireTeam_NoUser_Error(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -41,7 +41,7 @@ func TestRequireTeam_Admin_Success(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -62,7 +62,7 @@ func TestRequireTeam_NoTeam_Error(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -84,7 +84,7 @@ func TestRequireTeam_HasTeam_Success(t *testing.T) {
 	r.Use(RequireTeam())
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

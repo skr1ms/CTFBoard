@@ -7,18 +7,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-type adminCreateSubmissionConstraints struct {
-	SubmittedFlag string `validate:"required,max=200"`
-}
-
-func ValidateAdminCreateSubmissionRequest(req *openapi.AdminCreateSubmissionRequest, v validator.Validator) error {
-	c := adminCreateSubmissionConstraints{SubmittedFlag: req.SubmittedFlag}
-
-	return ValidateConstraints(v, &c)
-}
 
 type AdminCreateSubmissionParams struct {
 	UserID        uuid.UUID

@@ -36,6 +36,8 @@ schemas:
       description:
         type: string
         maxLength: 255
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=255"
       expires_at:
         type: string
         format: date-time

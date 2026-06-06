@@ -116,6 +116,8 @@ paths:
     $ref: './routes/auth.yml#/~1auth~1logout'
 
   # OAuth (oauth.go)
+  /auth/oauth/providers:
+    $ref: './routes/oauth.yml#/~1auth~1oauth~1providers'
   /auth/oauth/{provider}:
     $ref: './routes/oauth.yml#/~1auth~1oauth~1{provider}'
   /auth/oauth/{provider}/callback:

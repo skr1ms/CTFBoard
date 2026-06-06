@@ -22,7 +22,7 @@ func TestRequireVerified_Disabled_Success(t *testing.T) {
 	r.Use(RequireVerified(false))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -36,7 +36,7 @@ func TestRequireVerified_NoUser_Error(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -57,7 +57,7 @@ func TestRequireVerified_Admin_Success(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -78,7 +78,7 @@ func TestRequireVerified_Unverified_Error(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -99,7 +99,7 @@ func TestRequireVerified_Verified_Success(t *testing.T) {
 	r.Use(RequireVerified(true))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -120,7 +120,7 @@ func TestRequireVerifiedFromSettings_UsesLiveDisabledSetting(t *testing.T) {
 	r.Use(RequireVerifiedFromSettings(true, &staticSettingsGetter{settings: &domain.Settings{VerifyEmails: false}}, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -141,7 +141,7 @@ func TestRequireVerifiedFromSettings_UsesLiveEnabledSettingWhenFallbackEnabled(t
 	r.Use(RequireVerifiedFromSettings(true, &staticSettingsGetter{settings: &domain.Settings{VerifyEmails: true}}, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -162,7 +162,7 @@ func TestRequireVerifiedFromSettings_FallbackDisabledBypassesLiveEnabledSetting(
 	r.Use(RequireVerifiedFromSettings(false, &staticSettingsGetter{settings: &domain.Settings{VerifyEmails: true}}, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

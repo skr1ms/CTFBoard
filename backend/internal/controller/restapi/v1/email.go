@@ -5,12 +5,10 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
 
 // (POST /auth/verify-email).
@@ -53,7 +51,7 @@ func (h *Server) PostAuthForgotPassword(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if !allowed {
-		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthForgotPassword", "RateLimit")
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthForgotPassword", "RateLimit")
 
 		return
 	}
@@ -89,7 +87,7 @@ func (h *Server) PostAuthResendVerificationByEmail(w http.ResponseWriter, r *htt
 	}
 
 	if !allowed {
-		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResendVerificationByEmail", "RateLimit")
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResendVerificationByEmail", "RateLimit")
 
 		return
 	}
@@ -114,7 +112,7 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, newPassword := request.ResetPasswordRequestToParams(&req)
-	tokenHash := crypto.SHA256Hex(token)
+	tokenHash := h.user.EmailUC.ResetPasswordRateLimitKey(token)
 
 	allowed, err := h.infra.ResetPasswordTokenRateLimiter.Check(r.Context(), tokenHash)
 	if h.OnError(w, r, err, "PostAuthResetPassword", "ResetPasswordTokenRateLimit") {
@@ -122,7 +120,7 @@ func (h *Server) PostAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !allowed {
-		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResetPassword", "ResetPasswordTokenRateLimit")
 
 		return
 	}
@@ -149,7 +147,7 @@ func (h *Server) PostAuthResendVerification(w http.ResponseWriter, r *http.Reque
 	}
 
 	if !allowed {
-		h.OnError(w, r, apperr.ErrTooManyRequests, "PostAuthResendVerification", "RateLimit")
+		h.OnError(w, r, helper.ErrTooManyRequests, "PostAuthResendVerification", "RateLimit")
 
 		return
 	}

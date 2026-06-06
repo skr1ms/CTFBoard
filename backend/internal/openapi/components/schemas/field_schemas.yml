@@ -28,20 +28,30 @@ schemas:
       name:
         type: string
         maxLength: 100
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=100"
       field_type:
         type: string
         enum: [text, number, select, boolean]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=text number select boolean"
       entity_type:
         type: string
         enum: [user, team]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=user team"
       required:
         type: boolean
         default: false
       options:
         description: Options for select type
+        maxItems: 100
         items:
           type: string
+          maxLength: 500
         type: array
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=100,dive,max=500"
       order_index:
         type: integer
         default: 0
@@ -55,15 +65,23 @@ schemas:
       name:
         type: string
         maxLength: 100
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=100"
       field_type:
         type: string
         enum: [text, number, select, boolean]
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=text number select boolean"
       required:
         type: boolean
       options:
+        maxItems: 100
         items:
           type: string
+          maxLength: 500
         type: array
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=100,dive,max=500"
       order_index:
         type: integer
     required:

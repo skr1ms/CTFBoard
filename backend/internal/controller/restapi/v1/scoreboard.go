@@ -1,14 +1,12 @@
 package v1
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
@@ -28,9 +26,13 @@ func (h *Server) GetScoreboard(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
-	thumbURLs, err := resolveTeamAvatarThumbs(r.Context(), entries, h)
-	if h.OnError(w, r, err, "GetScoreboard", "resolveTeamAvatarThumbs") {
-		return
+	var thumbURLs map[uuid.UUID]string
+
+	if h.user.AvatarUC != nil {
+		thumbURLs, err = h.user.AvatarUC.GetTeamAvatarStoragePathBatch(r.Context(), response.ScoreboardTeamIDs(entries))
+		if h.OnError(w, r, err, "GetScoreboard", "GetTeamAvatarStoragePathBatch") {
+			return
+		}
 	}
 
 	setPublicCache(w, cacheMicro, true)
@@ -52,17 +54,4 @@ func (h *Server) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *ht
 	}
 
 	httputil.RenderOK(w, r, response.FromFirstBlood(entry))
-}
-
-func resolveTeamAvatarThumbs(ctx context.Context, entries []*domain.ScoreboardEntry, h *Server) (map[uuid.UUID]string, error) {
-	if h.user.AvatarUC == nil {
-		return nil, nil
-	}
-
-	teamIDs := make([]uuid.UUID, len(entries))
-	for i, e := range entries {
-		teamIDs[i] = e.TeamID
-	}
-
-	return h.user.AvatarUC.GetTeamAvatarStoragePathBatch(ctx, teamIDs)
 }

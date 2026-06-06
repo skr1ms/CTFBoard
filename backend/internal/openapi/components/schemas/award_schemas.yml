@@ -20,8 +20,13 @@ schemas:
     properties:
       team_id:
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "required,uuid"
       value:
         type: integer
+        minimum: 0
+        x-oapi-codegen-extra-tags:
+          validate: "min=0"
       description:
         type: string
         maxLength: 500

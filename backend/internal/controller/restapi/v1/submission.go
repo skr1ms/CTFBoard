@@ -170,10 +170,6 @@ func (h *Server) PostAdminSubmissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := request.ValidateAdminCreateSubmissionRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminSubmissions", "Validate") {
-		return
-	}
-
 	params, err := request.AdminCreateSubmissionRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminSubmissions", "ParseParams") {
 		return

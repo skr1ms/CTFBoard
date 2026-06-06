@@ -2,10 +2,14 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
+	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
@@ -17,13 +21,102 @@ type SettingsGetter = middleware.SettingsGetter
 
 type OnErrorFunc func(w http.ResponseWriter, r *http.Request, err error, op, step string) bool
 
+const challengeOpenTrackTimeout = 5 * time.Second
+
+var (
+	ErrAccessDenied          = apperr.ErrAccessDenied
+	ErrCompetitionNotStarted = apperr.ErrCompetitionNotStarted
+	ErrDebugNotEnabled       = apperr.ErrDebugNotEnabled
+	ErrNotAuthenticated      = apperr.ErrNotAuthenticated
+	ErrSetupAlreadyComplete  = apperr.ErrSetupAlreadyComplete
+	ErrTeamNotFound          = apperr.ErrTeamNotFound
+	ErrTokenRequired         = apperr.ErrTokenRequired
+	ErrTooManyRequests       = apperr.ErrTooManyRequests
+	ErrWriteupsDisabled      = apperr.ErrWriteupsDisabled
+)
+
+func ValidationErrorf(format string, args ...any) error {
+	return apperr.NewValidationErrorf(format, args...)
+}
+
 // teamByIDGetter is the minimal interface needed for ban-check helpers.
 type teamByIDGetter interface {
 	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error)
 }
 
+type challengeOpenTracker interface {
+	TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error
+}
+
+func ClientIP(r *http.Request) string {
+	return kitMiddleware.GetClientIPFromContext(r.Context())
+}
+
+func CurrentUser(r *http.Request) (*domain.User, bool) {
+	user, ok := middleware.GetUser(r.Context())
+	if !ok || user == nil {
+		return nil, false
+	}
+
+	return user, true
+}
+
+// TrackChallengeOpenAsync records the side-effect outside the handler path while
+// keeping the goroutine detached from the response cancellation and bounded by
+// its own timeout.
+func TrackChallengeOpenAsync(reqCtx context.Context, logger logkit.Logger, tracker challengeOpenTracker, userID, challengeID uuid.UUID, ip string) {
+	if tracker == nil {
+		return
+	}
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("restapi - v1 - TrackChallengeOpenAsync - panic", logkit.Fields{"recover": fmt.Sprint(r)})
+			}
+		}()
+
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(reqCtx), challengeOpenTrackTimeout)
+		defer cancel()
+
+		_ = tracker.TrackChallengeOpen(ctx, userID, challengeID, ip)
+	}()
+}
+
 func IsAdmin(user *domain.User) bool {
 	return user.Role == domain.RoleAdmin
+}
+
+func IsCompetitionNotStarted(comp *domain.Competition) bool {
+	return comp != nil && comp.GetStatus() == domain.CompetitionStatusNotStarted
+}
+
+func IsCompetitionStatusNotStarted(status domain.CompetitionStatus) bool {
+	return status == domain.CompetitionStatusNotStarted
+}
+
+func UserMatchesOrAdmin(user *domain.User, targetID uuid.UUID) bool {
+	return user != nil && (user.ID == targetID || IsAdmin(user))
+}
+
+func TeamStatsVisibleToViewer(team *domain.Team, viewer *domain.User) bool {
+	if team == nil {
+		return false
+	}
+
+	if !team.IsHidden {
+		return true
+	}
+
+	if viewer == nil {
+		return false
+	}
+
+	if IsAdmin(viewer) {
+		return true
+	}
+
+	return viewer.TeamID != nil && *viewer.TeamID == team.ID
 }
 
 func ParseSearchQuery(w http.ResponseWriter, r *http.Request, q *string, maxLen int, onError OnErrorFunc, op, step string) (string, bool) {
@@ -55,9 +148,17 @@ func ParseOptionalSearchQuery(w http.ResponseWriter, r *http.Request, q *string,
 	return &s, true
 }
 
+func HandleAppError(w http.ResponseWriter, r *http.Request, handler *httputil.ErrorHandler, err error, op, step string) bool {
+	if handler == nil {
+		handler = &httputil.ErrorHandler{}
+	}
+
+	return handler.Handle(w, r, errmap.MapAppError(err), "restapi - v1 - "+op+" - "+step)
+}
+
 func RequireUser(w http.ResponseWriter, r *http.Request) (*domain.User, bool) {
-	user, ok := middleware.GetUser(r.Context())
-	if !ok || user == nil {
+	user, ok := CurrentUser(r)
+	if !ok {
 		httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrNotAuthenticated))
 
 		return nil, false

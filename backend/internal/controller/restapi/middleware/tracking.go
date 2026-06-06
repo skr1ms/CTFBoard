@@ -12,11 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/sourcegraph/conc/pool"
 	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 	"github.com/wahrwelt-kit/go-logkit"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 var trackingDroppedTotal = promauto.NewCounter(prometheus.CounterOpts{
@@ -99,8 +96,13 @@ type trackingJob struct {
 	userAgent string
 }
 
-func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log logkit.Logger) {
-	tCtx, cancel := context.WithTimeout(context.Background(), trackingCtxTimeout)
+// ActivityTracker is the minimal interface required by IP tracking middleware.
+type ActivityTracker interface {
+	Track(ctx context.Context, userID uuid.UUID, ip, userAgent string) error
+}
+
+func runTrackingJob(ctx context.Context, trackingUC ActivityTracker, job trackingJob, log logkit.Logger) {
+	tCtx, cancel := context.WithTimeout(ctx, trackingCtxTimeout)
 	defer cancel()
 
 	err := trackingUC.Track(tCtx, job.userID, job.ip, job.userAgent)
@@ -113,27 +115,32 @@ func runTrackingJob(trackingUC usecase.TrackingUseCase, job trackingJob, log log
 // Tracking is debounced per user (2 min) and dispatched to a bounded worker pool (5 goroutines) via a
 // buffered channel (256). Dropped events increment a prometheus counter. The workers shut down cleanly
 // when ctx is cancelled.
-func IPTracking(ctx context.Context, trackingUC usecase.TrackingUseCase, log logkit.Logger) func(http.Handler) http.Handler {
+func IPTracking(ctx context.Context, trackingUC ActivityTracker, log logkit.Logger) func(http.Handler) http.Handler {
 	debouncer := &trackingDebouncer{lastSeen: make(map[uuid.UUID]time.Time)}
 	ch := make(chan trackingJob, trackingBufSize)
-	p := pool.New().WithMaxGoroutines(trackingWorkers)
 
-	var trackingStopped atomic.Bool
+	var (
+		trackingStopped atomic.Bool
+		workerWG        sync.WaitGroup
+	)
 
-	go func() {
-		for job := range ch {
-			p.Go(func() {
-				runTrackingJob(trackingUC, job, log)
-			})
-		}
+	workerWG.Add(trackingWorkers)
 
-		p.Wait()
-	}()
+	for range trackingWorkers {
+		go func() {
+			defer workerWG.Done()
+
+			for job := range ch {
+				runTrackingJob(ctx, trackingUC, job, log)
+			}
+		}()
+	}
 
 	go func() {
 		<-ctx.Done()
 		trackingStopped.Store(true)
 		close(ch)
+		workerWG.Wait()
 	}()
 
 	go func() {

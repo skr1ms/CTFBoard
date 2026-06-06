@@ -30,10 +30,6 @@ func (h *Server) PostAdminBrackets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := request.ValidateCreateBracketRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminBrackets", "Validate") {
-		return
-	}
-
 	name, description, isDefault, err := request.CreateBracketRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminBrackets", "CreateBracketRequestToParams") {
 		return
@@ -73,10 +69,6 @@ func (h *Server) PutAdminBracketsID(w http.ResponseWriter, r *http.Request, ID s
 		w, r, h.infra.Validator,
 	)
 	if !ok {
-		return
-	}
-
-	if err := request.ValidateUpdateBracketRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminBracketsID", "Validate") {
 		return
 	}
 

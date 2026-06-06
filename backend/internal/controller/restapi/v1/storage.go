@@ -2,12 +2,11 @@ package v1
 
 import (
 	"net/http"
-	"strings"
 
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
@@ -19,51 +18,28 @@ func (h *Server) GetAdminStorage(w http.ResponseWriter, r *http.Request, params 
 		prefix = *params.Prefix
 	}
 
-	if prefix != "" && !isValidStoragePath(prefix) {
-		h.OnError(w, r, apperr.NewValidationErrorf("invalid prefix"), "GetAdminStorage", "Validate")
-
+	if err := request.ValidateStoragePrefix(prefix); h.OnError(w, r, err, "GetAdminStorage", "Validate") {
 		return
 	}
 
-	paths, err := h.infra.StorageProvider.List(r.Context(), prefix)
+	paths, err := h.admin.StorageAdminUC.List(r.Context(), prefix)
 	if h.OnError(w, r, err, "GetAdminStorage", "List") {
 		return
 	}
 
-	objects := lo.Map(paths, func(p string, _ int) openapi.StorageObjectResponse {
-		return openapi.StorageObjectResponse{Path: &p}
-	})
-
-	total := len(objects)
-	httputil.RenderOK(w, r, openapi.StorageListResponse{Objects: &objects, Total: &total})
+	httputil.RenderOK(w, r, response.FromStorageList(paths))
 }
 
 // (DELETE /admin/storage/{path}).
 func (h *Server) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string) {
-	if !isValidStoragePath(path) {
-		h.OnError(w, r, apperr.NewValidationErrorf("invalid path"), "DeleteAdminStoragePath", "Validate")
-
+	if err := request.ValidateStoragePath(path); h.OnError(w, r, err, "DeleteAdminStoragePath", "Validate") {
 		return
 	}
 
-	err := h.infra.StorageProvider.Delete(r.Context(), path)
+	err := h.admin.StorageAdminUC.Delete(r.Context(), path)
 	if h.OnError(w, r, err, "DeleteAdminStoragePath", "Delete") {
 		return
 	}
 
 	httputil.RenderNoContent(w, r)
-}
-
-// isValidStoragePath returns true when path is a safe, non-traversal storage key.
-// Prevents path-traversal attacks by rejecting any path containing "..".
-func isValidStoragePath(path string) bool {
-	if strings.Contains(path, "..") {
-		return false
-	}
-
-	if strings.HasPrefix(path, "/") {
-		return false
-	}
-
-	return true
 }

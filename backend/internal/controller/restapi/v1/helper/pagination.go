@@ -26,3 +26,11 @@ func ResolvePageParams(ctx context.Context, getter SettingsGetter, page, perPage
 
 	return httputil.ClampPage(page), httputil.ClampPerPage(perPage, defPP, maxPP), nil
 }
+
+func DefaultPageParams(page, perPage *int) (int, int) {
+	return httputil.ClampPage(page), httputil.ClampPerPage(perPage, usecase.DefaultPerPage, usecase.DefaultMaxPerPage)
+}
+
+func ResolveScoreboardHistoryLimit(limit *int) int {
+	return httputil.ClampLimit(limit, usecase.DefaultScoreboardHistoryLimit, usecase.MaxScoreboardHistoryLimit)
+}

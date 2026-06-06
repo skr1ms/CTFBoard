@@ -143,7 +143,7 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 
 	ctx := context.Background()
 
-	keys, _ := testRedisClient.Keys(ctx, "limiter:brute_rl_test:*").Result() //nolint:errcheck // test cleanup: best-effort
+	keys, _ := testRedisClient.Keys(ctx, "limiter:brute_rl_test:*").Result()
 	if len(keys) > 0 {
 		testRedisClient.Del(ctx, keys...)
 	}
@@ -169,10 +169,10 @@ func TestStress_BruteForceRateLimited(t *testing.T) {
 
 	srv := &http.Server{Handler: limited, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second}
 
-	go srv.Serve(listener)  //nolint:errcheck // test server
-	defer srv.Shutdown(ctx) //nolint:errcheck // best-effort cleanup
+	go srv.Serve(listener)
+	defer srv.Shutdown(ctx)
 
-	port := listener.Addr().(*net.TCPAddr).Port //nolint:errcheck
+	port := listener.Addr().(*net.TCPAddr).Port
 	url := fmt.Sprintf("http://localhost:%d/submit", port)
 
 	targeter := func(tgt *vegeta.Target) error {

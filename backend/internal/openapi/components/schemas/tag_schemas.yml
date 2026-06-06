@@ -18,6 +18,8 @@ schemas:
       color:
         type: string
         default: "#6b7280"
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,hex_color"
     required:
       - name
     type: object
@@ -30,6 +32,8 @@ schemas:
           validate: "required,max=50"
       color:
         type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,hex_color"
     required:
       - name
     type: object

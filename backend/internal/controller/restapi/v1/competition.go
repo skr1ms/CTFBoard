@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
-	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
@@ -53,7 +52,7 @@ func (h *Server) PutAdminCompetition(w http.ResponseWriter, r *http.Request) {
 
 	comp := request.UpdateCompetitionRequestToEntity(&req)
 	optionals := request.UpdateCompetitionOptionalsFromRequest(&req)
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+	clientIP := helper.ClientIP(r)
 
 	err := h.comp.CompetitionUC.Update(r.Context(), comp, optionals, user.ID, clientIP)
 	if h.OnError(w, r, err, "PutAdminCompetition", "Update") {

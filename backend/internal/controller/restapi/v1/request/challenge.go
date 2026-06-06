@@ -1,15 +1,14 @@
 package request
 
 import (
-	"slices"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 const (
@@ -18,45 +17,9 @@ const (
 	staticScoringDecay        = 0
 )
 
-type ChallengeParams struct {
-	Title             string
-	Description       string
-	Category          string
-	Points            int
-	InitialValue      int
-	MinValue          int
-	Decay             int
-	Flag              string
-	ConnectionInfo    string
-	MaxAttempts       int
-	MaxAttemptsWindow time.Duration
-	Position          int
-	State             string
-	IsRegex           bool
-	IsCaseInsensitive bool
-	FlagFormatRegex   *string
-	TagIDs            []uuid.UUID
-}
+type ChallengeParams = usecase.ChallengeCreateParams
 
-type UpdateChallengeParams struct {
-	Title             string
-	Description       string
-	Category          string
-	Points            int
-	InitialValue      *int
-	MinValue          *int
-	Decay             *int
-	Flag              string
-	ConnectionInfo    *string
-	MaxAttempts       *int
-	MaxAttemptsWindow *time.Duration
-	Position          *int
-	State             string
-	IsRegex           *bool
-	IsCaseInsensitive *bool
-	FlagFormatRegex   *string
-	TagIDs            []uuid.UUID
-}
+type UpdateChallengeParams = usecase.ChallengeUpdateParams
 
 func validateChallengeNumericParams(points, initialValue, minValue, decay int) error {
 	if points < 0 {
@@ -74,13 +37,7 @@ func validateChallengeNumericParams(points, initialValue, minValue, decay int) e
 	return nil
 }
 
-var allowedChallengeStates = []string{"visible", "hidden", "locked"}
-
-func validateChallengeState(state string) error {
-	if slices.Contains(allowedChallengeStates, state) {
-		return nil
-	}
-
+func invalidChallengeStateError() error {
 	return apperr.NewValidationErrorf("state must be one of: visible, hidden, locked")
 }
 
@@ -98,8 +55,8 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 		return ChallengeParams{}, err
 	}
 
-	state := challengeStateFromReq(req.State)
-	if err := validateChallengeState(state); err != nil {
+	state, err := challengeStateFromReq(req.State)
+	if err != nil {
 		return ChallengeParams{}, err
 	}
 
@@ -124,30 +81,46 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 	}, nil
 }
 
-func challengeStateFromReq(s *openapi.CreateChallengeRequestState) string {
+func challengeStateFromReq(s *openapi.CreateChallengeRequestState) (string, error) {
 	if s == nil {
-		return string(openapi.CreateChallengeRequestStateVisible)
+		return domain.ChallengeStateVisible, nil
 	}
 
-	return string(*s)
-}
-
-func updateChallengeStateFromReq(s *openapi.UpdateChallengeRequestState) string {
-	if s == nil {
-		return ""
+	if !s.Valid() {
+		return "", invalidChallengeStateError()
 	}
 
-	return string(*s)
+	switch *s {
+	case openapi.CreateChallengeRequestStateVisible:
+		return domain.ChallengeStateVisible, nil
+	case openapi.CreateChallengeRequestStateHidden:
+		return domain.ChallengeStateHidden, nil
+	case openapi.CreateChallengeRequestStateLocked:
+		return domain.ChallengeStateLocked, nil
+	default:
+		return "", invalidChallengeStateError()
+	}
 }
 
-type submitFlagConstraints struct {
-	Flag string `validate:"required,max=200"`
-}
+func updateChallengeStateFromReq(s *openapi.UpdateChallengeRequestState) (string, error) {
+	if s == nil {
+		return "", nil
+	}
 
-func ValidateSubmitFlagRequest(req *openapi.SubmitFlagRequest, v validator.Validator) error {
-	c := submitFlagConstraints{Flag: req.Flag}
+	if !s.Valid() {
+		return "", invalidChallengeStateError()
+	}
 
-	return ValidateConstraints(v, &c)
+	switch *s {
+	case openapi.UpdateChallengeRequestStateVisible:
+		return domain.ChallengeStateVisible, nil
+	case openapi.UpdateChallengeRequestStateHidden:
+		return domain.ChallengeStateHidden, nil
+	case openapi.UpdateChallengeRequestStateLocked:
+		return domain.ChallengeStateLocked, nil
+	default:
+		return "", invalidChallengeStateError()
+	}
 }
 
 func SubmitFlagRequestToParams(req *openapi.SubmitFlagRequest) (string, error) {
@@ -172,12 +145,9 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 		}
 	}
 
-	state := updateChallengeStateFromReq(req.State)
-	if state != "" {
-		err := validateChallengeState(state)
-		if err != nil {
-			return UpdateChallengeParams{}, err
-		}
+	state, err := updateChallengeStateFromReq(req.State)
+	if err != nil {
+		return UpdateChallengeParams{}, err
 	}
 
 	var maxAttemptsWindow *time.Duration

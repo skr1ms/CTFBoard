@@ -28,9 +28,13 @@ type ScoreboardVisibilityCache struct {
 	cv *cachekit.CachedValue[string]
 }
 
-func NewScoreboardVisibilityCache() *ScoreboardVisibilityCache {
+func NewScoreboardVisibilityCache(ctx context.Context) *ScoreboardVisibilityCache {
+	if ctx == nil {
+		panic("middleware.NewScoreboardVisibilityCache: nil context")
+	}
+
 	return &ScoreboardVisibilityCache{
-		cv: cachekit.NewCachedValue[string](context.Background(), scoreboardVisibilityKey, scoreboardVisibilityTTL),
+		cv: cachekit.NewCachedValue[string](ctx, scoreboardVisibilityKey, scoreboardVisibilityTTL),
 	}
 }
 
@@ -92,8 +96,8 @@ func (s *ScoreboardVisibilityCache) Middleware(settingsGetter ScoreboardSettings
 // ScoreboardVisibilityCache and returns its Middleware. Use this when a
 // shared cache instance is not needed (e.g. in tests or simple setups);
 // for production use the shared ScoreboardVisibilityCache from wire/providers.
-func ScoreboardVisibility(settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
-	c := NewScoreboardVisibilityCache()
+func ScoreboardVisibility(ctx context.Context, settingsGetter ScoreboardSettingsGetter) func(http.Handler) http.Handler {
+	c := NewScoreboardVisibilityCache(ctx)
 
 	return c.Middleware(settingsGetter)
 }

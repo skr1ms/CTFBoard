@@ -1,16 +1,13 @@
 package v1
 
 import (
-	"io"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
@@ -20,8 +17,6 @@ const (
 	avatarCacheControl = "public, max-age=3600"
 )
 
-var validAvatarPath = regexp.MustCompile(`^(users|teams)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[a-f0-9]+_(full|thumb)\.webp$`)
-
 // (PUT /users/me/avatar).
 func (h *Server) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -29,18 +24,12 @@ func (h *Server) PutUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PutUsersMeAvatarMultipartBody](w, r, maxAvatarSize, maxAvatarSize, h.infra.Validator, h.OnError, "PutUsersMeAvatar")
+	if !ok {
 		return
 	}
 
-	var body openapi.PutUsersMeAvatarMultipartBody
-	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
-		h.OnError(w, r, err, "PutUsersMeAvatar", "DecodeMultipartForm")
-
-		return
-	}
-
-	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutUsersMeAvatar", &body.File)
+	reader, ok := helper.OpenMultipartFile(w, r, h.OnError, "PutUsersMeAvatar", &body.File)
 	if !ok {
 		return
 	}
@@ -88,18 +77,12 @@ func (h *Server) PutTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PutTeamsMeAvatarMultipartBody](w, r, maxAvatarSize, maxAvatarSize, h.infra.Validator, h.OnError, "PutTeamsMeAvatar")
+	if !ok {
 		return
 	}
 
-	var body openapi.PutTeamsMeAvatarMultipartBody
-	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
-		h.OnError(w, r, err, "PutTeamsMeAvatar", "DecodeMultipartForm")
-
-		return
-	}
-
-	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutTeamsMeAvatar", &body.File)
+	reader, ok := helper.OpenMultipartFile(w, r, h.OnError, "PutTeamsMeAvatar", &body.File)
 	if !ok {
 		return
 	}
@@ -143,18 +126,12 @@ func (h *Server) DeleteTeamsMeAvatar(w http.ResponseWriter, r *http.Request) {
 
 // (PUT /admin/users/{ID}/avatar).
 func (h *Server) PutAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
-	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PutAdminUsersIDAvatarMultipartBody](w, r, maxAvatarSize, maxAvatarSize, h.infra.Validator, h.OnError, "PutAdminUsersIDAvatar")
+	if !ok {
 		return
 	}
 
-	var body openapi.PutAdminUsersIDAvatarMultipartBody
-	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
-		h.OnError(w, r, err, "PutAdminUsersIDAvatar", "DecodeMultipartForm")
-
-		return
-	}
-
-	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutAdminUsersIDAvatar", &body.File)
+	reader, ok := helper.OpenMultipartFile(w, r, h.OnError, "PutAdminUsersIDAvatar", &body.File)
 	if !ok {
 		return
 	}
@@ -187,18 +164,12 @@ func (h *Server) DeleteAdminUsersIDAvatar(w http.ResponseWriter, r *http.Request
 
 // (PUT /admin/teams/{ID}/avatar).
 func (h *Server) PutAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request, ID types.UUID) {
-	if !helper.ParseMultipartFormLimit(w, r, maxAvatarSize, maxAvatarSize) {
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PutAdminTeamsIDAvatarMultipartBody](w, r, maxAvatarSize, maxAvatarSize, h.infra.Validator, h.OnError, "PutAdminTeamsIDAvatar")
+	if !ok {
 		return
 	}
 
-	var body openapi.PutAdminTeamsIDAvatarMultipartBody
-	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
-		h.OnError(w, r, err, "PutAdminTeamsIDAvatar", "DecodeMultipartForm")
-
-		return
-	}
-
-	reader, ok := helper.OpenAvatarFile(w, r, h.OnError, "PutAdminTeamsIDAvatar", &body.File)
+	reader, ok := helper.OpenMultipartFile(w, r, h.OnError, "PutAdminTeamsIDAvatar", &body.File)
 	if !ok {
 		return
 	}
@@ -234,40 +205,19 @@ func (h *Server) DeleteAdminTeamsIDAvatar(w http.ResponseWriter, r *http.Request
 // any storage access. Response headers enforce nosniff, a restrictive CSP
 // (default-src 'none'), and a 1-hour public cache to reduce storage load.
 func (h *Server) GetAvatarByPath(w http.ResponseWriter, r *http.Request, path string) {
-	if !validAvatarPath.MatchString(path) {
-		h.OnError(w, r, apperr.NewValidationErrorf("invalid avatar path"), "GetAvatarByPath", "PathValidate")
-
+	avatarPath, err := request.ParseAvatarPath(path)
+	if h.OnError(w, r, err, "GetAvatarByPath", "PathValidate") {
 		return
 	}
 
-	reader, err := h.infra.StorageProvider.Download(r.Context(), path)
+	reader, err := h.challenge.FileUC.Download(r.Context(), path)
 	if h.OnError(w, r, err, "GetAvatarByPath", "Download") {
 		return
 	}
 
 	defer func() { _ = reader.Close() }()
 
-	// Extract content hash from path: (users|teams)/<uuid>/<hash>_(full|thumb).webp
-	// validAvatarPath already guaranteed this structure, so no bounds check needed.
-	parts := strings.Split(path, "/")
-	fileName := parts[2]
-	hash := fileName[:strings.IndexByte(fileName, '_')]
-
-	etag := `"` + hash + `"`
-	if r.Header.Get("If-None-Match") == etag {
-		w.WriteHeader(http.StatusNotModified)
-
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/webp")
-	w.Header().Set("Cache-Control", avatarCacheControl)
-	w.Header().Set("Vary", "Accept-Encoding")
-	w.Header().Set("ETag", etag)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'")
-
-	if _, err := io.Copy(w, reader); err != nil {
+	if err := helper.RenderCachedImage(w, r, reader, "image/webp", avatarCacheControl, avatarPath.ETag()); err != nil {
 		h.infra.Logger.WithError(err).Warn("GetAvatarByPath - failed to stream avatar")
 	}
 }

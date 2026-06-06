@@ -97,6 +97,17 @@ schemas:
         type: string
     type: object
 
+  OAuthProvidersResponse:
+    type: object
+    required:
+      - github
+      - google
+    properties:
+      github:
+        type: boolean
+      google:
+        type: boolean
+
   OAuthExchangeRequest:
     type: object
     required:

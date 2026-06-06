@@ -196,7 +196,7 @@ func runWSClientLoop(
 
 		var msg map[string]any
 		if json.Unmarshal(data, &msg) == nil {
-			if t, _ := msg["type"].(string); t == "ping" { //nolint:errcheck // type assertion bool intentionally discarded
+			if t, _ := msg["type"].(string); t == "ping" {
 				_ = t
 			}
 		}

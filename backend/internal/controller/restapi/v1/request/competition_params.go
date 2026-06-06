@@ -6,21 +6,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-const maxBatchConfigItems = 50
-
-type setConfigConstraints struct {
-	Value       string `validate:"max=10000"`
-	Description string `validate:"max=500"`
-}
-
-type batchSetConfigItemConstraints struct {
-	Key         string `validate:"required"`
-	Value       string `validate:"max=10000"`
-	Description string `validate:"max=500"`
-}
 
 func SetConfigRequestToValueType(v *openapi.SetConfigRequestValueType) (domain.CompetitionParamValueType, error) {
 	if v == nil {
@@ -46,12 +32,6 @@ type SetConfigParams struct {
 	Description string
 	ValueType   domain.CompetitionParamValueType
 	Category    string
-}
-
-func ValidateSetConfigRequest(req *openapi.SetConfigRequest, v validator.Validator) error {
-	c := setConfigConstraints{Value: req.Value, Description: lo.FromPtrOr(req.Description, "")}
-
-	return ValidateConstraints(v, &c)
 }
 
 func SetConfigRequestToParams(req *openapi.SetConfigRequest) (SetConfigParams, error) {
@@ -85,32 +65,6 @@ func batchSetConfigItemValueType(v *openapi.BatchSetConfigItemValueType) (domain
 	default:
 		return domain.CompetitionParamTypeString, apperr.NewValidationErrorf("invalid value_type")
 	}
-}
-
-func ValidateBatchSetConfigRequest(req *openapi.BatchSetConfigRequest, v validator.Validator) error {
-	if req == nil || len(req.Configs) == 0 {
-		return nil
-	}
-
-	if len(req.Configs) > maxBatchConfigItems {
-		return apperr.NewValidationErrorf("configs: at most %d items allowed", maxBatchConfigItems)
-	}
-
-	for i := range req.Configs {
-		item := &req.Configs[i]
-
-		c := batchSetConfigItemConstraints{
-			Key: item.Key, Value: item.Value,
-			Description: lo.FromPtrOr(item.Description, ""),
-		}
-
-		err := ValidateConstraints(v, &c)
-		if err != nil {
-			return apperr.NewValidationErrorf("configs[%d]: %v", i, err)
-		}
-	}
-
-	return nil
 }
 
 func BatchSetConfigRequestToParams(req *openapi.BatchSetConfigRequest) ([]*domain.CompetitionParam, error) {

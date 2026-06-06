@@ -1,12 +1,39 @@
 package request
 
 import (
+	"net"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
+const (
+	UserSearchFieldUsername = "username"
+	UserSearchFieldIP       = "ip"
+)
+
 func BanUserRequestToParams(req *openapi.BanUserRequest) string {
 	return req.Reason
+}
+
+func AdminUsersFieldFromParams(params openapi.GetAdminUsersParams) (string, error) {
+	if params.Field == nil {
+		return UserSearchFieldUsername, nil
+	}
+
+	if !params.Field.Valid() {
+		return "", apperr.NewValidationErrorf("field must be one of: username, ip")
+	}
+
+	return string(*params.Field), nil
+}
+
+func ValidateAdminUsersSearch(field string, q *string) error {
+	if field == UserSearchFieldIP && q != nil && net.ParseIP(*q) == nil {
+		return apperr.NewValidationErrorf("invalid IP address")
+	}
+
+	return nil
 }
 
 func AdminCreateUserRequestToParams(req *openapi.AdminCreateUserRequest) (username, email, password, role string, err error) {

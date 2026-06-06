@@ -4,38 +4,33 @@ import (
 	"crypto/subtle"
 	"net/http"
 
-	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+	"github.com/wahrwelt-kit/go-httpkit/httputil"
 	"github.com/wahrwelt-kit/go-logkit"
 
-	"github.com/wahrwelt-kit/go-httpkit/httputil"
-
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/setup"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 const setupTokenHeader = "X-Setup-Token"
 
 // SetupHandler handles the first-run setup wizard endpoints.
 type SetupHandler struct {
-	uc                  *setup.SetupUseCase
-	logger              logkit.Logger
-	validator           validator.Validator
+	uc                  helper.SetupUseCase
+	validator           httputil.Validator
+	errHandler          *httputil.ErrorHandler
 	setupToken          string
 	secureCookies       bool
 	refreshCookieMaxAge int
 }
 
 // NewSetupHandler constructs a SetupHandler.
-func NewSetupHandler(uc *setup.SetupUseCase, logger logkit.Logger, v validator.Validator, setupToken string, secureCookies bool, refreshCookieMaxAge int) *SetupHandler {
+func NewSetupHandler(uc helper.SetupUseCase, logger logkit.Logger, v httputil.Validator, setupToken string, secureCookies bool, refreshCookieMaxAge int) *SetupHandler {
 	return &SetupHandler{
 		uc:                  uc,
-		logger:              logger,
 		validator:           v,
+		errHandler:          &httputil.ErrorHandler{Logger: logger},
 		setupToken:          setupToken,
 		secureCookies:       secureCookies,
 		refreshCookieMaxAge: refreshCookieMaxAge,
@@ -55,12 +50,12 @@ func (h *SetupHandler) validSetupToken(provided string) bool {
 func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	complete, err := h.uc.IsComplete(r.Context())
 	if err != nil {
-		h.onError(w, r, err)
+		h.onError(w, r, err, "GetSetupStatus", "IsComplete")
 
 		return
 	}
 
-	httputil.RenderOK(w, r, openapi.SetupStatusResponse{Complete: complete})
+	httputil.RenderOK(w, r, response.FromSetupStatus(complete))
 }
 
 // PostSetup completes the first-run setup wizard.
@@ -69,19 +64,19 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 func (h *SetupHandler) PostSetup(w http.ResponseWriter, r *http.Request) {
 	complete, err := h.uc.IsComplete(r.Context())
 	if err != nil {
-		h.onError(w, r, err)
+		h.onError(w, r, err, "PostSetup", "IsComplete")
 
 		return
 	}
 
 	if complete {
-		h.onError(w, r, apperr.ErrSetupAlreadyComplete)
+		h.onError(w, r, helper.ErrSetupAlreadyComplete, "PostSetup", "AlreadyComplete")
 
 		return
 	}
 
 	if !h.validSetupToken(r.Header.Get(setupTokenHeader)) {
-		h.onError(w, r, apperr.ErrAccessDenied)
+		h.onError(w, r, helper.ErrAccessDenied, "PostSetup", "SetupToken")
 
 		return
 	}
@@ -91,11 +86,11 @@ func (h *SetupHandler) PostSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+	clientIP := helper.ClientIP(r)
 
 	result, err := h.uc.Complete(r.Context(), request.SetupRequestToParams(&req, clientIP))
 	if err != nil {
-		h.onError(w, r, err)
+		h.onError(w, r, err, "PostSetup", "Complete")
 
 		return
 	}
@@ -109,7 +104,6 @@ func (h *SetupHandler) PostSetup(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromSetupComplete(result.TokenPair.AccessToken, result.User))
 }
 
-func (h *SetupHandler) onError(w http.ResponseWriter, r *http.Request, err error) {
-	handler := &httputil.ErrorHandler{Logger: h.logger}
-	handler.Handle(w, r, errmap.MapAppError(err), "SetupHandler")
+func (h *SetupHandler) onError(w http.ResponseWriter, r *http.Request, err error, op, step string) {
+	helper.HandleAppError(w, r, h.errHandler, err, op, step)
 }

@@ -80,7 +80,7 @@ func TestAuth_InvalidFormat_Error(t *testing.T) {
 	r.Use(Auth(svc, nil, nil, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "InvalidScheme token")
 
 	rr := httptest.NewRecorder()
@@ -103,7 +103,7 @@ func TestAdmin_Success(t *testing.T) {
 	r.Use(Admin)
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -124,7 +124,7 @@ func TestAdmin_Error(t *testing.T) {
 	r.Use(Admin)
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -140,8 +140,7 @@ func TestAuth_TokenSuccess(t *testing.T) {
 	user := &domain.User{ID: userID, Role: domain.RoleUser}
 
 	apiAuth := midMock.NewMockAPITokenAuther(t)
-	apiAuth.On("GetByTokenHash", mock.Anything, mock.AnythingOfType("string")).Return(apiToken, nil)
-	apiAuth.On("ValidateToken", apiToken).Return(true)
+	apiAuth.On("AuthenticatePlaintext", mock.Anything, "my-api-token").Return(apiToken, nil)
 	apiAuth.On("UpdateLastUsedAt", mock.Anything, tokenID).Return(nil)
 
 	userGet := midMock.NewMockUserByIDGetter(t)
@@ -155,7 +154,7 @@ func TestAuth_TokenSuccess(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "Token my-api-token")
 
 	rr := httptest.NewRecorder()
@@ -170,7 +169,7 @@ func TestAuth_TokenSuccess(t *testing.T) {
 func TestAuth_TokenError(t *testing.T) {
 	t.Parallel()
 	apiAuth := midMock.NewMockAPITokenAuther(t)
-	apiAuth.On("GetByTokenHash", mock.Anything, mock.AnythingOfType("string")).Return((*domain.APIToken)(nil), errors.New("token not found"))
+	apiAuth.On("AuthenticatePlaintext", mock.Anything, "bad-token").Return((*domain.APIToken)(nil), errors.New("token not found"))
 
 	userGet := midMock.NewMockUserByIDGetter(t)
 
@@ -178,7 +177,7 @@ func TestAuth_TokenError(t *testing.T) {
 	r.Use(Auth(nil, apiAuth, userGet, logkit.Noop()))
 	r.Get("/", okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Authorization", "Token bad-token")
 
 	rr := httptest.NewRecorder()

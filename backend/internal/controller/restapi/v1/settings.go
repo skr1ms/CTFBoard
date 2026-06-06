@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
-	kitMiddleware "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
@@ -56,16 +55,12 @@ func (h *Server) PutAdminConfigsBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := request.ValidateBatchSetConfigRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminConfigsBatch", "Validate") {
-		return
-	}
-
 	params, err := request.BatchSetConfigRequestToParams(&req)
 	if h.OnError(w, r, err, "PutAdminConfigsBatch", "BatchSetConfigRequestToParams") {
 		return
 	}
 
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+	clientIP := helper.ClientIP(r)
 	if h.OnError(w, r, h.admin.CompetitionParamUC.SetBatch(r.Context(), params, user.ID, clientIP), "PutAdminConfigsBatch", "SetBatch") {
 		return
 	}
@@ -108,11 +103,7 @@ func (h *Server) PutAdminConfigsKey(w http.ResponseWriter, r *http.Request, key 
 		return
 	}
 
-	if err := request.ValidateSetConfigRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminConfigsKey", "Validate") {
-		return
-	}
-
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+	clientIP := helper.ClientIP(r)
 
 	params, err := request.SetConfigRequestToParams(&req)
 	if h.OnError(w, r, err, "PutAdminConfigsKey", "SetConfigRequestToParams") {
@@ -133,7 +124,7 @@ func (h *Server) DeleteAdminConfigsKey(w http.ResponseWriter, r *http.Request, k
 		return
 	}
 
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
+	clientIP := helper.ClientIP(r)
 	if h.OnError(w, r, h.admin.CompetitionParamUC.Delete(r.Context(), key, user.ID, clientIP), "DeleteAdminConfigsKey", "Delete") {
 		return
 	}
@@ -151,11 +142,7 @@ func (h *Server) GetAdminSettings(w http.ResponseWriter, r *http.Request) {
 	httputil.RenderOK(w, r, response.FromAppSettings(s))
 }
 
-// PutAdminSettings persists new application settings and invalidates in-process
-// caches that are derived from them. After a successful update, RateLimitConfigCache
-// is invalidated so dynamic rate limiters pick up new limits on the next request,
-// and ScoreboardVisibilityCache is invalidated so the scoreboard visibility
-// middleware re-evaluates the new visibility setting immediately.
+// PutAdminSettings persists new application settings.
 // (PUT /admin/settings).
 func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -175,24 +162,12 @@ func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientIP := kitMiddleware.GetClientIPFromContext(r.Context())
-
-	if err := request.ValidateUpdateAppSettingsRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminSettings", "Validate") {
-		return
-	}
+	clientIP := helper.ClientIP(r)
 
 	s := request.UpdateAppSettingsRequestToEntity(&req, current.ID, current)
 
 	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return
-	}
-
-	if h.infra.RateLimitConfigCache != nil {
-		h.infra.RateLimitConfigCache.Invalidate()
-	}
-
-	if h.infra.ScoreboardVisibilityCache != nil {
-		h.infra.ScoreboardVisibilityCache.Invalidate()
 	}
 
 	httputil.RenderOK(w, r, response.Message("settings updated"))

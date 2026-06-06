@@ -39,47 +39,47 @@ func (_m *MockAPITokenAuther) EXPECT() *MockAPITokenAuther_Expecter {
 	return &MockAPITokenAuther_Expecter{mock: &_m.Mock}
 }
 
-// GetByTokenHash provides a mock function for the type MockAPITokenAuther
-func (_mock *MockAPITokenAuther) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error) {
-	ret := _mock.Called(ctx, tokenHash)
+// AuthenticatePlaintext provides a mock function for the type MockAPITokenAuther
+func (_mock *MockAPITokenAuther) AuthenticatePlaintext(ctx context.Context, plaintext string) (*domain.APIToken, error) {
+	ret := _mock.Called(ctx, plaintext)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByTokenHash")
+		panic("no return value specified for AuthenticatePlaintext")
 	}
 
 	var r0 *domain.APIToken
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.APIToken, error)); ok {
-		return returnFunc(ctx, tokenHash)
+		return returnFunc(ctx, plaintext)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.APIToken); ok {
-		r0 = returnFunc(ctx, tokenHash)
+		r0 = returnFunc(ctx, plaintext)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.APIToken)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, tokenHash)
+		r1 = returnFunc(ctx, plaintext)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockAPITokenAuther_GetByTokenHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByTokenHash'
-type MockAPITokenAuther_GetByTokenHash_Call struct {
+// MockAPITokenAuther_AuthenticatePlaintext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AuthenticatePlaintext'
+type MockAPITokenAuther_AuthenticatePlaintext_Call struct {
 	*mock.Call
 }
 
-// GetByTokenHash is a helper method to define mock.On call
+// AuthenticatePlaintext is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tokenHash string
-func (_e *MockAPITokenAuther_Expecter) GetByTokenHash(ctx interface{}, tokenHash interface{}) *MockAPITokenAuther_GetByTokenHash_Call {
-	return &MockAPITokenAuther_GetByTokenHash_Call{Call: _e.mock.On("GetByTokenHash", ctx, tokenHash)}
+//   - plaintext string
+func (_e *MockAPITokenAuther_Expecter) AuthenticatePlaintext(ctx interface{}, plaintext interface{}) *MockAPITokenAuther_AuthenticatePlaintext_Call {
+	return &MockAPITokenAuther_AuthenticatePlaintext_Call{Call: _e.mock.On("AuthenticatePlaintext", ctx, plaintext)}
 }
 
-func (_c *MockAPITokenAuther_GetByTokenHash_Call) Run(run func(ctx context.Context, tokenHash string)) *MockAPITokenAuther_GetByTokenHash_Call {
+func (_c *MockAPITokenAuther_AuthenticatePlaintext_Call) Run(run func(ctx context.Context, plaintext string)) *MockAPITokenAuther_AuthenticatePlaintext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -97,12 +97,12 @@ func (_c *MockAPITokenAuther_GetByTokenHash_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockAPITokenAuther_GetByTokenHash_Call) Return(aPIToken *domain.APIToken, err error) *MockAPITokenAuther_GetByTokenHash_Call {
+func (_c *MockAPITokenAuther_AuthenticatePlaintext_Call) Return(aPIToken *domain.APIToken, err error) *MockAPITokenAuther_AuthenticatePlaintext_Call {
 	_c.Call.Return(aPIToken, err)
 	return _c
 }
 
-func (_c *MockAPITokenAuther_GetByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string) (*domain.APIToken, error)) *MockAPITokenAuther_GetByTokenHash_Call {
+func (_c *MockAPITokenAuther_AuthenticatePlaintext_Call) RunAndReturn(run func(ctx context.Context, plaintext string) (*domain.APIToken, error)) *MockAPITokenAuther_AuthenticatePlaintext_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -160,57 +160,6 @@ func (_c *MockAPITokenAuther_UpdateLastUsedAt_Call) Return(err error) *MockAPITo
 }
 
 func (_c *MockAPITokenAuther_UpdateLastUsedAt_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockAPITokenAuther_UpdateLastUsedAt_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ValidateToken provides a mock function for the type MockAPITokenAuther
-func (_mock *MockAPITokenAuther) ValidateToken(t *domain.APIToken) bool {
-	ret := _mock.Called(t)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ValidateToken")
-	}
-
-	var r0 bool
-	if returnFunc, ok := ret.Get(0).(func(*domain.APIToken) bool); ok {
-		r0 = returnFunc(t)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	return r0
-}
-
-// MockAPITokenAuther_ValidateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateToken'
-type MockAPITokenAuther_ValidateToken_Call struct {
-	*mock.Call
-}
-
-// ValidateToken is a helper method to define mock.On call
-//   - t *domain.APIToken
-func (_e *MockAPITokenAuther_Expecter) ValidateToken(t interface{}) *MockAPITokenAuther_ValidateToken_Call {
-	return &MockAPITokenAuther_ValidateToken_Call{Call: _e.mock.On("ValidateToken", t)}
-}
-
-func (_c *MockAPITokenAuther_ValidateToken_Call) Run(run func(t *domain.APIToken)) *MockAPITokenAuther_ValidateToken_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.APIToken
-		if args[0] != nil {
-			arg0 = args[0].(*domain.APIToken)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockAPITokenAuther_ValidateToken_Call) Return(b bool) *MockAPITokenAuther_ValidateToken_Call {
-	_c.Call.Return(b)
-	return _c
-}
-
-func (_c *MockAPITokenAuther_ValidateToken_Call) RunAndReturn(run func(t *domain.APIToken) bool) *MockAPITokenAuther_ValidateToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

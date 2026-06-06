@@ -15,7 +15,7 @@ func TestRequireAuth_NoUser_Returns401(t *testing.T) {
 	t.Parallel()
 
 	r := buildRouter(RequireAuth(func(*domain.User) error { return nil }))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -35,7 +35,7 @@ func TestRequireAuth_Admin_SkipsCheck(t *testing.T) {
 
 	admin := &domain.User{Role: domain.RoleAdmin}
 	r := buildRouter(injectUser(admin), mw)
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -49,7 +49,7 @@ func TestRequireAuth_CheckPasses_AllowsThrough(t *testing.T) {
 	mw := RequireAuth(func(*domain.User) error { return nil })
 	user := &domain.User{Role: domain.RoleUser}
 	r := buildRouter(injectUser(user), mw)
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -62,7 +62,7 @@ func TestRequireAuth_CheckFails_ReturnsError(t *testing.T) {
 	mw := RequireAuth(func(*domain.User) error { return apperr.ErrUserBanned })
 	user := &domain.User{Role: domain.RoleUser}
 	r := buildRouter(injectUser(user), mw)
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 

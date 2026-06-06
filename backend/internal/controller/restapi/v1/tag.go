@@ -30,10 +30,6 @@ func (h *Server) PostAdminTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := request.ValidateCreateTagRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostAdminTags", "Validate") {
-		return
-	}
-
 	name, color, err := request.CreateTagRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAdminTags", "CreateTagRequestToParams") {
 		return
@@ -58,10 +54,6 @@ func (h *Server) PutAdminTagsID(w http.ResponseWriter, r *http.Request, ID strin
 		w, r, h.infra.Validator,
 	)
 	if !ok {
-		return
-	}
-
-	if err := request.ValidateUpdateTagRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PutAdminTagsID", "Validate") {
 		return
 	}
 

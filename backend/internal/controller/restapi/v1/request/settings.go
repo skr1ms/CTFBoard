@@ -5,68 +5,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
-
-type updateAppSettingsConstraints struct {
-	AppName                          *string `validate:"omitempty,max=100"`
-	CorsOrigins                      *string `validate:"omitempty,max=2048"`
-	CsvExportMaxRows                 *int    `validate:"omitempty,min=1"`
-	DefaultPerPage                   *int    `validate:"omitempty,min=1,max=1000"`
-	FrontendURL                      *string `validate:"omitempty,max=512"`
-	MaxPerPage                       *int    `validate:"omitempty,min=1,max=1000"`
-	MaxTeams                         *int    `validate:"omitempty,min=0"`
-	RateLimitCommentPerMinute        *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitForgotPasswordPerMinute *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitGeneralIPPerMinute      *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitLoginPerMinute          *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitLogoutPerMinute         *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthCallbackPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthRedirectPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitRefreshPerMinute        *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitRegisterPerMinute       *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitResetPasswordPerMinute  *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitScoreboardPerMinute     *int    `validate:"omitempty,min=1,max=10000"`
-	RateLimitVerifyEmailPerMinute    *int    `validate:"omitempty,min=1,max=10000"`
-	ResendFromEmail                  *string `validate:"omitempty,max=255"`
-	ResendFromName                   *string `validate:"omitempty,max=100"`
-	ResetTTLHours                    *int    `validate:"omitempty,min=1,max=168"`
-	SubmitLimitDurationMin           *int    `validate:"omitempty,min=1"`
-	SubmitLimitPerUser               *int    `validate:"omitempty,min=1"`
-	VerifyTTLHours                   *int    `validate:"omitempty,min=1,max=168"`
-}
-
-func ValidateUpdateAppSettingsRequest(req *openapi.UpdateAppSettingsRequest, v validator.Validator) error {
-	c := updateAppSettingsConstraints{
-		AppName:                          req.AppName,
-		CorsOrigins:                      req.CorsOrigins,
-		CsvExportMaxRows:                 req.CsvExportMaxRows,
-		DefaultPerPage:                   req.DefaultPerPage,
-		FrontendURL:                      req.FrontendURL,
-		MaxPerPage:                       req.MaxPerPage,
-		MaxTeams:                         req.MaxTeams,
-		RateLimitCommentPerMinute:        req.RateLimitCommentPerMinute,
-		RateLimitForgotPasswordPerMinute: req.RateLimitForgotPasswordPerMinute,
-		RateLimitGeneralIPPerMinute:      req.RateLimitGeneralIPPerMinute,
-		RateLimitLoginPerMinute:          req.RateLimitLoginPerMinute,
-		RateLimitLogoutPerMinute:         req.RateLimitLogoutPerMinute,
-		RateLimitOauthCallbackPerMinute:  req.RateLimitOauthCallbackPerMinute,
-		RateLimitOauthRedirectPerMinute:  req.RateLimitOauthRedirectPerMinute,
-		RateLimitRefreshPerMinute:        req.RateLimitRefreshPerMinute,
-		RateLimitRegisterPerMinute:       req.RateLimitRegisterPerMinute,
-		RateLimitResetPasswordPerMinute:  req.RateLimitResetPasswordPerMinute,
-		RateLimitScoreboardPerMinute:     req.RateLimitScoreboardPerMinute,
-		RateLimitVerifyEmailPerMinute:    req.RateLimitVerifyEmailPerMinute,
-		ResendFromEmail:                  req.ResendFromEmail,
-		ResendFromName:                   req.ResendFromName,
-		ResetTTLHours:                    req.ResetTTLHours,
-		SubmitLimitDurationMin:           req.SubmitLimitDurationMin,
-		SubmitLimitPerUser:               req.SubmitLimitPerUser,
-		VerifyTTLHours:                   req.VerifyTTLHours,
-	}
-
-	return ValidateConstraints(v, &c)
-}
 
 func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id int, current *domain.Settings) *domain.Settings {
 	scoreboardVisible := current.ScoreboardVisible

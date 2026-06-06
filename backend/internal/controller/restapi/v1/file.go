@@ -1,125 +1,17 @@
 package v1
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
-	"mime"
 	"net/http"
-	"path/filepath"
-	"regexp"
-	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
-)
-
-// validPathHexLen is the length of the hex directory prefix in uploaded file paths (e.g. "a3f1...0b/filename.txt").
-const (
-	validPathHexLen      = 16
-	errMsgFileTypeMustBe = `type must be "challenge" or "writeup"`
-)
-
-var (
-	validLegacyDownloadPathPattern = regexp.MustCompile(fmt.Sprintf(`^[a-f0-9]{%d}/.+$`, validPathHexLen))
-	validTasksDownloadPathPattern  = regexp.MustCompile(fmt.Sprintf(`^tasks/[a-f0-9]{%d}/.+$`, validPathHexLen))
 )
 
 const maxFileUploadSize = 100 << 20 // 100 MB
-
-// validateDownloadPath rejects path traversal attempts (any ".." component) and
-// enforces two valid structural patterns via pre-compiled regex:
-// legacy form: "<16-hex-chars>/<filename>" and tasks form: "tasks/<16-hex-chars>/<filename>".
-func validateDownloadPath(path string) bool {
-	if strings.Contains(path, "..") {
-		return false
-	}
-
-	return validLegacyDownloadPathPattern.MatchString(path) || validTasksDownloadPathPattern.MatchString(path)
-}
-
-func extractFilename(path string) string {
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) == 2 {
-		return filepath.Base(parts[1])
-	}
-
-	return "download"
-}
-
-const (
-	detectContentTypePeekSize = 512
-	magicBytePeekSize         = 8
-)
-
-func detectContentType(filename string) string {
-	ext := filepath.Ext(filename)
-	if ext == "" {
-		return "application/octet-stream"
-	}
-
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		return "application/octet-stream"
-	}
-
-	return contentType
-}
-
-// detectContentTypeFromReader peeks up to detectContentTypePeekSize bytes from rc,
-// runs http.DetectContentType on the peeked bytes, then reassembles the original
-// stream via io.MultiReader so the caller can still read the full content.
-// Falls back to extension-based detection when the sniffed type is generic
-// "application/octet-stream" or the peek read fails.
-func detectContentTypeFromReader(filename string, rc io.Reader) (string, io.Reader) {
-	peek := make([]byte, detectContentTypePeekSize)
-	n, err := rc.Read(peek)
-	peek = peek[:n]
-	rest := rc
-
-	if err != nil && err != io.EOF {
-		return detectContentType(filename), io.MultiReader(bytes.NewReader(peek), rest)
-	}
-
-	if n > 0 {
-		detected := http.DetectContentType(peek)
-		if detected != "" && detected != "application/octet-stream" {
-			return detected, io.MultiReader(bytes.NewReader(peek), rest)
-		}
-	}
-
-	return detectContentType(filename), io.MultiReader(bytes.NewReader(peek), rest)
-}
-
-// prepareUploadReader peeks the first 8 bytes of rc for magic-byte validation,
-// reconstructs the full stream via io.MultiReader, and derives the MIME type from filename.
-// Returns (nil, "", false) after calling onError if the read fails or magic bytes are blocked.
-func (h *Server) prepareUploadReader(w http.ResponseWriter, r *http.Request, rc io.ReadCloser, filename, op string) (io.Reader, string, bool) {
-	peek := make([]byte, magicBytePeekSize)
-
-	n, err := io.ReadFull(rc, peek)
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-		h.OnError(w, r, err, op, "ReadFull")
-
-		return nil, "", false
-	}
-
-	if n > 0 && !challenge.ValidateFileMagic(peek[:n]) {
-		h.OnError(w, r, apperr.NewValidationErrorf("file type not allowed"), op, "MagicBytes")
-
-		return nil, "", false
-	}
-
-	return io.MultiReader(bytes.NewReader(peek[:n]), rc), detectContentType(filename), true
-}
 
 // (POST /admin/challenges/{challengeID}/files).
 func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Request, challengeID string) {
@@ -128,50 +20,29 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		return
 	}
 
-	if !helper.ParseMultipartFormLimit(w, r, maxFileUploadSize, maxFileUploadSize) {
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PostAdminChallengesChallengeIDFilesMultipartBody](w, r, maxFileUploadSize, maxFileUploadSize, h.infra.Validator, h.OnError, "PostAdminChallengesChallengeIDFiles")
+	if !ok {
 		return
 	}
 
-	var body openapi.PostAdminChallengesChallengeIDFilesMultipartBody
-	if err := helper.DecodeMultipartForm(r, &body, h.infra.Validator); err != nil {
-		h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "DecodeMultipartForm")
-
+	if err := request.ValidateUploadFilename(body.File.Filename()); h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Filename") {
 		return
 	}
 
-	if !helper.RequireMultipartFile(w, r, h.OnError, "PostAdminChallengesChallengeIDFiles", "FormFile", body.File.FileSize()) {
+	fileType, err := request.MultipartFileType(body.Type)
+	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Type") {
 		return
 	}
 
-	if !challenge.ValidateUploadFilename(body.File.Filename()) {
-		h.OnError(w, r, apperr.NewValidationErrorf("file type not allowed"), "PostAdminChallengesChallengeIDFiles", "Filename")
-
-		return
-	}
-
-	fileType := domain.FileTypeChallenge
-
-	if body.Type != nil && *body.Type != "" {
-		if err := helper.ValidateMultipartEnum("type", string(*body.Type), []string{string(openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeChallenge), string(openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeWriteup)}); err != nil {
-			h.OnError(w, r, apperr.NewValidationErrorf(errMsgFileTypeMustBe), "PostAdminChallengesChallengeIDFiles", "Type")
-
-			return
-		}
-
-		if *body.Type == openapi.PostAdminChallengesChallengeIDFilesMultipartBodyTypeWriteup {
-			fileType = domain.FileTypeWriteup
-		}
-	}
-
-	reader, err := body.File.Reader()
-	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "OpenFile") {
+	reader, ok := helper.OpenMultipartFile(w, r, h.OnError, "PostAdminChallengesChallengeIDFiles", &body.File)
+	if !ok {
 		return
 	}
 
 	defer func() { _ = reader.Close() }()
 
-	fileReader, contentType, ok := h.prepareUploadReader(w, r, reader, body.File.Filename(), "PostAdminChallengesChallengeIDFiles")
-	if !ok {
+	fileReader, contentType, err := helper.PrepareUploadReader(reader, body.File.Filename())
+	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "PrepareUploadReader") {
 		return
 	}
 
@@ -216,8 +87,8 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	if status == domain.CompetitionStatusNotStarted {
-		h.OnError(w, r, apperr.ErrCompetitionNotStarted, "GetFilesIDDownload", "CompetitionCheck")
+	if helper.IsCompetitionStatusNotStarted(status) {
+		h.OnError(w, r, helper.ErrCompetitionNotStarted, "GetFilesIDDownload", "CompetitionCheck")
 
 		return
 	}
@@ -247,15 +118,8 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var fileType domain.FileType
-
-	if params.Type == nil || *params.Type == "challenge" {
-		fileType = domain.FileTypeChallenge
-	} else if *params.Type == "writeup" {
-		fileType = domain.FileTypeWriteup
-	} else {
-		h.OnError(w, r, apperr.NewValidationErrorf(errMsgFileTypeMustBe), "GetChallengesChallengeIDFiles", "Type")
-
+	fileType, err := request.ChallengeFileTypeFromParams(params.Type)
+	if h.OnError(w, r, err, "GetChallengesChallengeIDFiles", "Type") {
 		return
 	}
 
@@ -274,8 +138,8 @@ func (h *Server) GetChallengesChallengeIDFiles(w http.ResponseWriter, r *http.Re
 // nosniff. Content type is sniffed from the first 512 bytes and the stream is
 // recomposed so no bytes are lost.
 func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, path, token string) {
-	if !validateDownloadPath(path) {
-		h.OnError(w, r, apperr.NewValidationErrorf("invalid file path"), "Download", "PathValidate")
+	if !helper.ValidateDownloadPath(path) {
+		h.OnError(w, r, helper.ValidationErrorf("invalid file path"), "Download", "PathValidate")
 
 		return
 	}
@@ -290,7 +154,7 @@ func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, 
 	}
 
 	if token == "" {
-		h.OnError(w, r, apperr.ErrTokenRequired, "Download", "TokenCheck")
+		h.OnError(w, r, helper.ErrTokenRequired, "Download", "TokenCheck")
 
 		return
 	}
@@ -314,35 +178,32 @@ func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, 
 
 	filename := file.Filename
 	if filename == "" {
-		filename = extractFilename(path)
+		filename = helper.DownloadFilename(path)
 	}
 
-	contentType, bodyReader := detectContentTypeFromReader(filename, rc)
+	contentType, bodyReader := helper.DetectContentTypeFromReader(filename, rc)
 
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	if err := httputil.RenderStream(w, contentType, filename, bodyReader); err != nil {
+	if err := helper.RenderDownloadStream(w, contentType, filename, bodyReader); err != nil {
 		h.infra.Logger.WithError(err).Error("restapi - v1 - Download - Copy")
 	}
 }
 
 // (GET /files/download/*).
 func (h *Server) Download(w http.ResponseWriter, r *http.Request) {
-	path := chi.URLParam(r, "*")
+	path := helper.DownloadPathFromWildcard(r)
 	if path == "" {
-		h.OnError(w, r, apperr.NewValidationErrorf("path is required"), "Download", "PathCheck")
+		h.OnError(w, r, helper.ValidationErrorf("path is required"), "Download", "PathCheck")
 
 		return
 	}
 
-	token := r.URL.Query().Get("token")
-	h.downloadByPathAndToken(w, r, path, token)
+	h.downloadByPathAndToken(w, r, path, helper.DownloadToken(r))
 }
 
 // (GET /files/download/{path}).
 func (h *Server) GetFilesDownloadPath(w http.ResponseWriter, r *http.Request, path string, params openapi.GetFilesDownloadPathParams) {
 	if path == "" {
-		h.OnError(w, r, apperr.NewValidationErrorf("path is required"), "GetFilesDownloadPath", "PathCheck")
+		h.OnError(w, r, helper.ValidationErrorf("path is required"), "GetFilesDownloadPath", "PathCheck")
 
 		return
 	}

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/wahrwelt-kit/go-httpkit/httperr"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/httperr"
 )
 
 type mapping struct {
@@ -233,4 +234,22 @@ func MapAppError(err error) error {
 	}
 
 	return httperr.New(err, http.StatusInternalServerError, "INTERNAL_ERROR")
+}
+
+// NewHTTPError constructs a transport error in the backend's central HTTP error
+// mapping package, keeping handlers and router glue off local pkg aliases.
+func NewHTTPError(err error, status int, code string) error {
+	return httperr.New(err, status, code)
+}
+
+// Code returns the mapped HTTP error code for an application error.
+func Code(err error) string {
+	mapped := MapAppError(err)
+
+	var he *httperr.HTTPError
+	if errors.As(mapped, &he) {
+		return he.GetCode()
+	}
+
+	return "INTERNAL_ERROR"
 }

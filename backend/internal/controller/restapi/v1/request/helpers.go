@@ -4,7 +4,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 func ParseUUIDSlice(rawIDs *[]string, fieldName string) ([]uuid.UUID, error) {
@@ -23,13 +22,4 @@ func ParseUUIDSlice(rawIDs *[]string, fieldName string) ([]uuid.UUID, error) {
 	}
 
 	return ids, nil
-}
-
-func ValidateConstraints(v validator.Validator, c any) error {
-	err := v.Validate(c)
-	if err != nil {
-		return apperr.NewValidationErrorf("%v", err)
-	}
-
-	return nil
 }

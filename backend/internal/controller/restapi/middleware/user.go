@@ -14,7 +14,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 type userContextKeyType = contextKey
@@ -29,7 +28,7 @@ const (
 // in-memory cache (userCacheTTL) backed by the usecase. After BanUser the usecase
 // invalidates the user cache; a brief window until invalidation propagates is accepted.
 // Must run after the Auth middleware which sets the user ID in the context.
-func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
+func InjectUser(userUC UserByIDGetter, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := GetUserID(r.Context())
@@ -59,8 +58,8 @@ func InjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger
 			var user *domain.User
 
 			if c != nil {
-				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(context.Context) (*domain.User, error) {
-					return userUC.GetByID(r.Context(), userUUID)
+				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(ctx context.Context) (*domain.User, error) {
+					return userUC.GetByID(ctx, userUUID)
 				})
 			} else {
 				user, err = userUC.GetByID(r.Context(), userUUID)

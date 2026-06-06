@@ -12,7 +12,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // OptionalAuth authenticates the request when credentials are present but passes
@@ -34,8 +33,8 @@ func OptionalAuth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC U
 				return
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 {
+			parts := strings.SplitN(authHeader, " ", authHeaderPartCount)
+			if len(parts) != authHeaderPartCount {
 				next.ServeHTTP(w, r)
 
 				return
@@ -54,7 +53,7 @@ func OptionalAuth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC U
 			}
 
 			if ok {
-				next.ServeHTTP(w, r.WithContext(ctx))
+				next.ServeHTTP(w, r.WithContext(ctx)) //nolint:contextcheck // ctx is derived from r.Context by authBearer/authAPIToken and carries authenticated identity.
 			} else {
 				next.ServeHTTP(w, r)
 			}
@@ -64,7 +63,7 @@ func OptionalAuth(jwtService jwtkit.Service, apiTokenUC APITokenAuther, userUC U
 
 // OptionalInjectUser loads the authenticated user into context when a user ID is present.
 // Unlike InjectUser, it passes through without error when no user ID is found (unauthenticated request).
-func OptionalInjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
+func OptionalInjectUser(userUC UserByIDGetter, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := GetUserID(r.Context())
@@ -90,8 +89,8 @@ func OptionalInjectUser(userUC usecase.UserUseCase, c *cachekit.Cache, log logki
 			var user *domain.User
 
 			if c != nil {
-				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(context.Context) (*domain.User, error) {
-					return userUC.GetByID(r.Context(), userUUID)
+				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(ctx context.Context) (*domain.User, error) {
+					return userUC.GetByID(ctx, userUUID)
 				})
 			} else {
 				user, err = userUC.GetByID(r.Context(), userUUID)

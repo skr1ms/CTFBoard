@@ -34,10 +34,10 @@ func RequireMultipartFile(w http.ResponseWriter, r *http.Request, onError multip
 	return true
 }
 
-// OpenAvatarFile validates that the file is non-empty and opens it for reading.
+// OpenMultipartFile validates that the file is non-empty and opens it for reading.
 // Returns the ReadCloser and true on success; writes an error response and
 // returns false on failure. The caller is responsible for closing the reader.
-func OpenAvatarFile(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op string, f *openapi_types.File) (io.ReadCloser, bool) {
+func OpenMultipartFile(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op string, f *openapi_types.File) (io.ReadCloser, bool) {
 	if !RequireMultipartFile(w, r, onError, op, "FormFile", f.FileSize()) {
 		return nil, false
 	}
@@ -50,6 +50,23 @@ func OpenAvatarFile(w http.ResponseWriter, r *http.Request, onError multipartErr
 	return rc, true
 }
 
+func OpenAvatarFile(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op string, f *openapi_types.File) (io.ReadCloser, bool) {
+	return OpenMultipartFile(w, r, onError, op, f)
+}
+
+func MultipartFileBytes(w http.ResponseWriter, r *http.Request, onError multipartErrorReporter, op, step string, f *openapi_types.File) ([]byte, bool) {
+	if !RequireMultipartFile(w, r, onError, op, step, f.FileSize()) {
+		return nil, false
+	}
+
+	data, err := f.Bytes()
+	if onError(w, r, err, op, "ReadFile") {
+		return nil, false
+	}
+
+	return data, true
+}
+
 func ValidateMultipartEnum(fieldName, value string, allowed []string) error {
 	if lo.Contains(allowed, value) {
 		return nil
@@ -60,6 +77,30 @@ func ValidateMultipartEnum(fieldName, value string, allowed []string) error {
 
 func ParseMultipartFormLimit(w http.ResponseWriter, r *http.Request, maxBodySize, maxMemory int64) bool {
 	return httputil.ParseMultipartFormLimit(w, r, maxBodySize, maxMemory)
+}
+
+func DecodeMultipartWithLimit[T any](
+	w http.ResponseWriter,
+	r *http.Request,
+	maxBodySize int64,
+	maxMemory int64,
+	v validator.Validator,
+	onError multipartErrorReporter,
+	op string,
+) (T, bool) {
+	var body T
+
+	if !ParseMultipartFormLimit(w, r, maxBodySize, maxMemory) {
+		return body, false
+	}
+
+	if err := DecodeMultipartForm(r, &body, v); err != nil {
+		onError(w, r, err, op, "DecodeMultipartForm")
+
+		return body, false
+	}
+
+	return body, true
 }
 
 const maxMultipartStringFieldLen = 10_000

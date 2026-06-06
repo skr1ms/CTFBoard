@@ -1,3 +1,25 @@
+"/auth/oauth/providers":
+  get:
+    operationId: GetAuthOauthProviders
+    security: []
+    description: Returns which OAuth providers are configured and currently enabled.
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/OAuthProvidersResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: OAuth providers
+    tags:
+      - Authentication
+
 "/auth/oauth/exchange":
   post:
     operationId: PostAuthOauthExchange

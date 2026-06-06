@@ -16,7 +16,7 @@ func TestETag_AddsETagOnFirstGet(t *testing.T) {
 		_, _ = w.Write([]byte(body))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req := newRequest(http.MethodGet, "/test", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -32,7 +32,7 @@ func TestETag_Returns304OnMatchingIfNoneMatch(t *testing.T) {
 	}))
 
 	// First request to obtain ETag
-	req1 := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req1 := newRequest(http.MethodGet, "/test", http.NoBody)
 	rec1 := httptest.NewRecorder()
 	handler.ServeHTTP(rec1, req1)
 	require.Equal(t, http.StatusOK, rec1.Code)
@@ -40,7 +40,7 @@ func TestETag_Returns304OnMatchingIfNoneMatch(t *testing.T) {
 	require.NotEmpty(t, etag)
 
 	// Second request with If-None-Match
-	req2 := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req2 := newRequest(http.MethodGet, "/test", http.NoBody)
 	req2.Header.Set("If-None-Match", etag)
 
 	rec2 := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestETag_Returns200OnMismatchedIfNoneMatch(t *testing.T) {
 		_, _ = w.Write([]byte(body))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req := newRequest(http.MethodGet, "/test", http.NoBody)
 	req.Header.Set("If-None-Match", `"stale-etag"`)
 
 	rec := httptest.NewRecorder()
@@ -73,7 +73,7 @@ func TestETag_PassesThroughNonGetMethods(t *testing.T) {
 	}))
 
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch} {
-		req := httptest.NewRequest(method, "/test", http.NoBody)
+		req := newRequest(method, "/test", http.NoBody)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -88,7 +88,7 @@ func TestETag_PassesThroughNon200Responses(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":"not found"}`))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/missing", http.NoBody)
+	req := newRequest(http.MethodGet, "/missing", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -103,7 +103,7 @@ func TestETag_HeadRequestNoBody(t *testing.T) {
 		_, _ = w.Write([]byte(body))
 	}))
 
-	req := httptest.NewRequest(http.MethodHead, "/test", http.NoBody)
+	req := newRequest(http.MethodHead, "/test", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -119,7 +119,7 @@ func TestETag_PreservesExistingResponseHeaders(t *testing.T) {
 		_, _ = w.Write([]byte(`{}`))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req := newRequest(http.MethodGet, "/test", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

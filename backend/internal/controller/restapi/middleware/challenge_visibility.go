@@ -8,12 +8,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // ChallengeVisibility returns a middleware that blocks access to challenges before the competition starts.
 // Admin users bypass the check and always have access.
-func ChallengeVisibility(competitionUC usecase.CompetitionUseCase) func(http.Handler) http.Handler {
+func ChallengeVisibility(competitionUC CompetitionGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isAdmin(r.Context()) {

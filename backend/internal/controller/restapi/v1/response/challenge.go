@@ -1,7 +1,6 @@
 package response
 
 import (
-	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -105,53 +104,6 @@ func FromTagList(items []*domain.Tag) []openapi.TagResponse {
 	return lo.Map(items, func(item *domain.Tag, _ int) openapi.TagResponse { return FromTag(item) })
 }
 
-func FromScoreboardEntry(e *domain.ScoreboardEntry) openapi.ScoreboardEntryResponse {
-	res := openapi.ScoreboardEntryResponse{
-		TeamID:   new(e.TeamID.String()),
-		TeamName: new(e.TeamName),
-		Points:   new(e.Points),
-	}
-	if !e.SolvedAt.IsZero() {
-		res.LastSolved = timePtr(&e.SolvedAt)
-	}
-
-	return res
-}
-
-func FromScoreboardList(items []*domain.ScoreboardEntry) []openapi.ScoreboardEntryResponse {
-	return lo.Map(items, func(item *domain.ScoreboardEntry, _ int) openapi.ScoreboardEntryResponse {
-		return FromScoreboardEntry(item)
-	})
-}
-
-// FromScoreboardListWithAvatars builds the scoreboard response, attaching
-// pre-resolved thumbnail URLs from the provided map (teamID -> thumbURL).
-// Pass a nil map when avatars are disabled.
-func FromScoreboardListWithAvatars(items []*domain.ScoreboardEntry, thumbURLs map[uuid.UUID]string) []openapi.ScoreboardEntryResponse {
-	result := make([]openapi.ScoreboardEntryResponse, len(items))
-	for i, item := range items {
-		res := FromScoreboardEntry(item)
-
-		if url, ok := thumbURLs[item.TeamID]; ok && url != "" {
-			res.TeamAvatarThumbnailURL = &url
-		}
-
-		result[i] = res
-	}
-
-	return result
-}
-
-func FromFirstBlood(fb *domain.FirstBloodEntry) openapi.FirstBloodResponse {
-	return openapi.FirstBloodResponse{
-		UserID:   new(fb.UserID.String()),
-		Username: new(fb.Username),
-		TeamID:   new(fb.TeamID.String()),
-		TeamName: new(fb.TeamName),
-		SolvedAt: timePtr(&fb.SolvedAt),
-	}
-}
-
 func FromChallengeDetail(d *usecase.ChallengeDetail) openapi.ChallengeDetailResponse {
 	res := openapi.ChallengeDetailResponse{
 		ID:             new(d.Challenge.ID.String()),
@@ -247,58 +199,6 @@ func FromChallengeRequirements(items []*domain.ChallengeRequirement) []openapi.C
 	return res
 }
 
-func FromChallengeSolution(sol *domain.ChallengeSolution, downloadURLs map[string]string) openapi.ChallengeSolutionResponse {
-	res := openapi.ChallengeSolutionResponse{
-		ChallengeID: new(sol.ChallengeID.String()),
-		Content:     new(sol.Content),
-	}
-	if len(sol.Files) > 0 {
-		files := make([]openapi.FileItem, len(sol.Files))
-		for i, f := range sol.Files {
-			item := FromFile(f)
-			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = new(url)
-			}
-
-			files[i] = item
-		}
-
-		res.Files = &files
-	}
-
-	return res
-}
-
-func FromChallengeSolutionEntryList(entries []*domain.ChallengeSolutionEntry, downloadURLs map[string]string) []openapi.ChallengeSolutionEntry {
-	return lo.Map(entries, func(e *domain.ChallengeSolutionEntry, _ int) openapi.ChallengeSolutionEntry {
-		return FromChallengeSolutionEntry(e, downloadURLs)
-	})
-}
-
-func FromChallengeSolutionEntry(entry *domain.ChallengeSolutionEntry, downloadURLs map[string]string) openapi.ChallengeSolutionEntry {
-	res := openapi.ChallengeSolutionEntry{
-		ChallengeID:       new(entry.ChallengeID.String()),
-		ChallengeTitle:    new(entry.ChallengeTitle),
-		ChallengeCategory: new(entry.ChallengeCategory),
-		Content:           new(entry.Content),
-	}
-	if len(entry.Files) > 0 {
-		files := make([]openapi.FileItem, len(entry.Files))
-		for i, f := range entry.Files {
-			item := FromFile(f)
-			if url, ok := downloadURLs[f.ID.String()]; ok {
-				item.URL = new(url)
-			}
-
-			files[i] = item
-		}
-
-		res.Files = &files
-	}
-
-	return res
-}
-
 func FromSubmitFlag(correct bool, message string) openapi.SubmitFlagResponse {
 	return openapi.SubmitFlagResponse{Correct: correct, Message: message}
 }
@@ -326,10 +226,6 @@ func FromChallenges(challenges []*domain.Challenge) []openapi.ChallengeResponse 
 
 func FromChallengeTypes(types []string) []string {
 	return types
-}
-
-func EmptyChallengeSolutionEntryList() []openapi.ChallengeSolutionEntry {
-	return []openapi.ChallengeSolutionEntry{}
 }
 
 func ptrChallengeResponseState(s string) *openapi.ChallengeResponseState {

@@ -45,10 +45,6 @@ func (h *Server) PostChallengesChallengeIDComments(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if err := request.ValidateCreateCommentRequest(&req, h.infra.Validator); h.OnError(w, r, err, "PostChallengesChallengeIDComments", "Validate") {
-		return
-	}
-
 	content, err := request.CreateCommentRequestToParams(&req)
 	if h.OnError(w, r, err, "PostChallengesChallengeIDComments", "CreateCommentRequestToParams") {
 		return

@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
@@ -14,7 +15,7 @@ func TestTeamStatsVisibleToViewer_PublicTeam(t *testing.T) {
 
 	team := &domain.Team{ID: uuid.New(), IsHidden: false}
 
-	assert.True(t, teamStatsVisibleToViewer(team, nil))
+	assert.True(t, helper.TeamStatsVisibleToViewer(team, nil))
 }
 
 func TestTeamStatsVisibleToViewer_HiddenTeamGuest(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTeamStatsVisibleToViewer_HiddenTeamGuest(t *testing.T) {
 
 	team := &domain.Team{ID: uuid.New(), IsHidden: true}
 
-	assert.False(t, teamStatsVisibleToViewer(team, nil))
+	assert.False(t, helper.TeamStatsVisibleToViewer(team, nil))
 }
 
 func TestTeamStatsVisibleToViewer_HiddenTeamOwner(t *testing.T) {
@@ -32,7 +33,7 @@ func TestTeamStatsVisibleToViewer_HiddenTeamOwner(t *testing.T) {
 	team := &domain.Team{ID: teamID, IsHidden: true}
 	viewer := &domain.User{TeamID: &teamID, Role: domain.RoleUser}
 
-	assert.True(t, teamStatsVisibleToViewer(team, viewer))
+	assert.True(t, helper.TeamStatsVisibleToViewer(team, viewer))
 }
 
 func TestTeamStatsVisibleToViewer_HiddenTeamOtherUser(t *testing.T) {
@@ -43,7 +44,7 @@ func TestTeamStatsVisibleToViewer_HiddenTeamOtherUser(t *testing.T) {
 	team := &domain.Team{ID: teamID, IsHidden: true}
 	viewer := &domain.User{TeamID: &otherTeamID, Role: domain.RoleUser}
 
-	assert.False(t, teamStatsVisibleToViewer(team, viewer))
+	assert.False(t, helper.TeamStatsVisibleToViewer(team, viewer))
 }
 
 func TestTeamStatsVisibleToViewer_HiddenTeamAdmin(t *testing.T) {
@@ -52,5 +53,5 @@ func TestTeamStatsVisibleToViewer_HiddenTeamAdmin(t *testing.T) {
 	team := &domain.Team{ID: uuid.New(), IsHidden: true}
 	viewer := &domain.User{Role: domain.RoleAdmin}
 
-	assert.True(t, teamStatsVisibleToViewer(team, viewer))
+	assert.True(t, helper.TeamStatsVisibleToViewer(team, viewer))
 }

@@ -51,7 +51,7 @@ func TestRequireUserNotBanned_NoUser_PassesThrough(t *testing.T) {
 	t.Parallel()
 
 	r := buildRouter(RequireUserNotBanned())
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -62,7 +62,7 @@ func TestRequireUserNotBanned_Admin_PassesThrough(t *testing.T) {
 
 	admin := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, IsBanned: true}
 	r := buildRouter(injectUser(admin), RequireUserNotBanned())
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -73,7 +73,7 @@ func TestRequireUserNotBanned_NotBanned_PassesThrough(t *testing.T) {
 
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsBanned: false}
 	r := buildRouter(injectUser(user), RequireUserNotBanned())
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -85,7 +85,7 @@ func TestRequireUserNotBanned_Banned_Returns403(t *testing.T) {
 	teamID := uuid.New()
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsBanned: true, TeamID: &teamID}
 	r := buildRouter(injectUser(user), RequireUserNotBanned())
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusForbidden, rr.Code)
@@ -96,7 +96,7 @@ func TestRequireTeamNotBanned_NoUser_PassesThrough(t *testing.T) {
 
 	getter := &mockTeamGetter{}
 	r := buildRouter(RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -109,7 +109,7 @@ func TestRequireTeamNotBanned_Admin_PassesThrough(t *testing.T) {
 	admin := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin, TeamID: &teamID}
 	getter := &mockTeamGetter{team: &domain.Team{IsBanned: true}}
 	r := buildRouter(injectUser(admin), RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -121,7 +121,7 @@ func TestRequireTeamNotBanned_NoTeam_PassesThrough(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: nil}
 	getter := &mockTeamGetter{}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -134,7 +134,7 @@ func TestRequireTeamNotBanned_TeamNotBanned_PassesThrough(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
 	getter := &mockTeamGetter{team: &domain.Team{IsBanned: false}}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -147,7 +147,7 @@ func TestRequireTeamNotBanned_TeamBanned_Returns403(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
 	getter := &mockTeamGetter{team: &domain.Team{IsBanned: true}}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusForbidden, rr.Code)
@@ -160,7 +160,7 @@ func TestRequireTeamNotBanned_GetterError_Returns500(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, TeamID: &teamID}
 	getter := &mockTeamGetter{err: errors.New("db error")}
 	r := buildRouter(injectUser(user), RequireTeamNotBanned(getter, nil))
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := newRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusInternalServerError, rr.Code)
