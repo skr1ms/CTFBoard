@@ -1,12 +1,10 @@
-# supported golangci-lint version = 2.11.4
+# supported golangci-lint version = 2.12.2
 version: "2"
 linters:
   default: all
   disable:
     - containedctx
-    - contextcheck
     - cyclop
-    - depguard
     - dogsled
     - dupl
     - err113
@@ -21,6 +19,7 @@ linters:
     - goconst
     - gocyclo
     - godoclint
+    - gomodguard
     - gomoddirectives
     - gosmopolitan
     - errchkjson
@@ -29,10 +28,8 @@ linters:
     - intrange
     - ireturn
     - lll
-    - mnd
     - nestif
     - nilnil
-    - noctx
     - nilerr
     - noinlineerr
     - nonamedreturns
@@ -48,11 +45,179 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
-    - nolintlint
+
+  # Staged strictness:
+  # - contextcheck/noctx are enabled for production code; tests/e2e/integration/load
+  #   stay excluded while their helper stacks are migrated separately.
+  # - goconst still flags backup/import/export schemas and binary-format parsers;
+  #   enable it only after a dedicated constants pass that keeps those tables readable.
+  # - mnd is enabled for production code; e2e/integration/load helpers remain
+  #   excluded because their literals are fixture and retry values.
 
   settings:
     cyclop:
       max-complexity: 15
+    depguard:
+      rules:
+        no-sourcegraph-conc:
+          list-mode: lax
+          deny:
+            - pkg: "github.com/sourcegraph/conc"
+              desc: use sync, errgroup, or an explicit worker lifecycle instead
+            - pkg: "github.com/sourcegraph/conc/"
+              desc: use sync, errgroup, or an explicit worker lifecycle instead
+        restapi-v1-handlers:
+          list-mode: lax
+          files:
+            - "internal/controller/restapi/v1/*.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/pkg/"
+              desc: use v1/helper, v1/request, usecase, or infra facade instead of pkg directly in handlers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+              desc: convert domain types through v1/helper, v1/request, or v1/response instead of importing domain in handlers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+              desc: depend on helper deps/interfaces and request mappers instead of concrete usecase packages in handlers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/"
+              desc: depend on helper deps/interfaces and request mappers instead of concrete usecase packages in handlers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo/"
+              desc: handlers must call usecase interfaces instead of repositories
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/storage/"
+              desc: handlers must call usecase interfaces instead of storage providers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/cache/"
+              desc: handlers must call usecase or middleware facades instead of cache directly
+        restapi-v1-handler-transport-boundary:
+          list-mode: lax
+          files:
+            - "internal/controller/restapi/v1/*.go"
+            - "!internal/controller/restapi/v1/router*.go"
+            - "!internal/controller/restapi/v1/setup.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+              desc: map application errors through v1/helper and errmap instead of importing apperr in handlers
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+              desc: handlers must not depend on generated persistence types
+            - pkg: "github.com/go-chi/render"
+              desc: go-chi/render is not the response standard; use go-httpkit and v1/helper
+            - pkg: "github.com/jackc/pgx"
+              desc: handlers must not depend on Postgres clients
+            - pkg: "github.com/redis/go-redis"
+              desc: handlers must not depend on Redis clients; route composition belongs in router files
+            - pkg: "github.com/minio/minio-go"
+              desc: handlers must not depend on concrete object-storage clients
+            - pkg: "github.com/hashicorp/vault"
+              desc: handlers must not depend on Vault clients
+            - pkg: "github.com/wahrwelt-kit/go-jwtkit"
+              desc: handlers must use helper/usecase auth facades instead of JWT implementation types
+            - pkg: "github.com/wahrwelt-kit/go-httpkit/httputil/middleware"
+              desc: use v1/helper facade for transport middleware data in handlers
+            - pkg: "github.com/wahrwelt-kit/go-logkit"
+              desc: use server/helper error and logging facades instead of logger imports in handlers
+        restapi-middleware-boundary:
+          list-mode: lax
+          files:
+            - "internal/controller/restapi/middleware/*.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/pkg/"
+              desc: middleware should use usecase/repo-facing ports instead of pkg helpers directly
+        usecase-contract-boundary:
+          list-mode: lax
+          files:
+            - "internal/usecase/contract*.go"
+          deny:
+            - pkg: "github.com/wahrwelt-kit/go-httpkit/"
+              desc: usecase contracts must not expose HTTP transport implementation types
+            - pkg: "github.com/wahrwelt-kit/go-jwtkit"
+              desc: usecase contracts must not expose JWT implementation types
+        usecase-boundary:
+          list-mode: lax
+          files:
+            - "internal/usecase/**/*.go"
+            - "!**/*_test.go"
+            - "!internal/usecase/**/mock/*.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/controller/"
+              desc: usecases must not depend on transport/controller packages
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+              desc: usecases must not depend on generated transport DTOs
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
+              desc: usecases must depend on repository ports, not concrete persistence
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/"
+              desc: usecases must depend on repository ports, not concrete persistence
+            - pkg: "github.com/wahrwelt-kit/go-httpkit/"
+              desc: usecases must not depend on HTTP transport helpers
+            - pkg: "github.com/go-chi/chi"
+              desc: usecases must not depend on router implementation
+            - pkg: "github.com/go-chi/chi/v5"
+              desc: usecases must not depend on router implementation
+            - pkg: "github.com/jackc/pgx"
+              desc: usecases must not depend on Postgres implementation details
+            - pkg: "github.com/jackc/pgx/v5"
+              desc: usecases must not depend on Postgres implementation details
+            - pkg: "github.com/Masterminds/squirrel"
+              desc: SQL builders belong in repository adapters, not usecases
+            - pkg: "github.com/redis/go-redis"
+              desc: usecases should use cache/repo-facing ports instead of Redis clients
+            - pkg: "github.com/minio/minio-go"
+              desc: usecases should use storage ports instead of concrete S3 clients
+            - pkg: "github.com/hashicorp/vault"
+              desc: usecases should use config/secret ports instead of Vault clients
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/pkg/mailer"
+              desc: use pkg/emailtemplate for pure rendering and keep pkg/mailer as delivery infrastructure
+            - pkg: "golang.org/x/oauth2"
+              desc: provider-specific OAuth protocol belongs in webapi adapters
+            - pkg: "golang.org/x/oauth2/"
+              desc: provider-specific OAuth protocol belongs in webapi adapters
+        migrated-usecase-local-ports:
+          list-mode: lax
+          files:
+            - "internal/usecase/page/*.go"
+            - "internal/usecase/notification/*.go"
+            - "internal/usecase/settings/*.go"
+            - "internal/usecase/email/*.go"
+            - "!**/*_test.go"
+            - "!internal/usecase/**/mock/*.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+              desc: migrated usecase packages own local ports and must not import aggregate repo contracts
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/repo/"
+              desc: migrated usecase packages own local ports and must not import repo implementations
+        repo-boundary:
+          list-mode: lax
+          files:
+            - "internal/repo/**/*.go"
+            - "!**/*_test.go"
+            - "!internal/repo/persistent/sqlc/*.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/controller/"
+              desc: repositories must not depend on transport/controller packages
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+              desc: repositories must not depend on generated transport DTOs
+            - pkg: "github.com/wahrwelt-kit/go-httpkit/"
+              desc: repositories must not depend on HTTP transport helpers
+        persistent-validation-boundary:
+          list-mode: lax
+          files:
+            - "internal/repo/persistent/*.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
+              desc: request/value validation belongs in usecase/request helpers, not persistence
+        persistent-squirrel-boundary:
+          list-mode: lax
+          files:
+            - "internal/repo/persistent/*.go"
+            - "!internal/repo/persistent/backup_postgres.go"
+            - "!internal/repo/persistent/backup_postgres_import.go"
+            - "!internal/repo/persistent/field_postgres.go"
+            - "!internal/repo/persistent/submission_postgres.go"
+            - "!internal/repo/persistent/squirrel.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/Masterminds/squirrel"
+              desc: use sqlc for static queries; reserve squirrel for import/export, dynamic search, bulk, or optional-filter queries
     gocritic:
       enable-all: true
       disabled-checks:
@@ -77,6 +242,7 @@ linters:
         - G115
         - G117
         - G118
+        - G124
         - G703
         - G705
     nestif:
@@ -251,13 +417,27 @@ linters:
         path: integration-test/
       - linters: [gosec]
         path: load-test/
+      - linters: [mnd]
+        path: e2e-test/
+      - linters: [mnd]
+        path: integration-test/
+      - linters: [mnd]
+        path: load-test/
       - linters: [errcheck, goconst, errname, unparam, testifylint]
+        path: _test\.go
+      - linters: [contextcheck, noctx]
         path: _test\.go
       - linters: [errcheck, goconst, errname]
         path: e2e-test/
+      - linters: [contextcheck, noctx]
+        path: e2e-test/
       - linters: [errcheck, goconst, errname]
         path: integration-test/
+      - linters: [contextcheck, noctx]
+        path: integration-test/
       - linters: [errcheck, goconst, errname]
+        path: load-test/
+      - linters: [contextcheck, noctx]
         path: load-test/
 
 formatters:

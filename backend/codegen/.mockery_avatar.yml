@@ -35,14 +35,14 @@ packages:
           pkgname: "mock"
           structname: "MockTransactionManager"
 
-  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar:
     interfaces:
-      Provider:
+      AvatarStorage:
         config:
           dir: "internal/usecase/avatar/mock"
-          filename: "StorageProvider.go"
+          filename: "AvatarStorage.go"
           pkgname: "mock"
-          structname: "MockStorageProvider"
+          structname: "MockAvatarStorage"
 
   github.com/wahrwelt-kit/go-cachekit:
     interfaces:

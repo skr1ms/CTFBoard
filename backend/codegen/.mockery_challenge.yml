@@ -105,14 +105,14 @@ packages:
           pkgname: "mock"
           structname: "MockSubmissionRepository"
 
-  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge:
     interfaces:
-      Provider:
+      FileStorage:
         config:
           dir: "internal/usecase/challenge/mock"
-          filename: "S3Provider.go"
+          filename: "FileStorage.go"
           pkgname: "mock"
-          structname: "MockS3Provider"
+          structname: "MockFileStorage"
 
   github.com/TakuyaYagam1/AstroCTFb/pkg/crypto:
     interfaces:

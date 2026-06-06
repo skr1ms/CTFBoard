@@ -104,7 +104,7 @@ AstroCTFb/
 │   │   └── wire/               # Wire DI providers
 │   ├── migrations/             # SQL migrations (goose, fixed 3-file set)
 │   ├── queries/                # sqlc SQL query files
-│   ├── pkg/                    # Shared packages (crypto, httperr, mailer, slug, sse, testutil, validator, vault)
+│   ├── pkg/                    # Shared packages (crypto, mailer, slug, sse, testutil, validator, vault)
 │   └── codegen/                # Code generation configs (sqlc, oapi-codegen, mockery, wire)
 ├── deployment/docker/          # Docker Compose files and configs
 ├── monitoring/                 # Prometheus, Grafana, Loki, Alertmanager
@@ -155,6 +155,7 @@ AstroCTFb follows **Clean Architecture**:
 **Rules:**
 
 - Usecases depend on interfaces, not concrete types (interfaces defined on consumer side)
+- Ordinary handlers do not import `pkg/*`, `domain`, `apperr`, repositories, storage, cache, or concrete usecase packages directly; use `v1/helper`, `v1/request`, `v1/response`, and usecase interfaces instead
 - All multi-step DB operations must be wrapped in `tm.Run(ctx, ...)` (transaction manager)
 - Use `singleflight` for cache-miss deduplication on hot read paths
 - Use `errgroup` for parallel independent operations
@@ -174,11 +175,11 @@ AstroCTFb follows **Clean Architecture**:
 
 ### New Usecase / Business Logic
 
-1. Add the method to the appropriate interface in `internal/usecase/contract.go`
+1. Add the method to the appropriate interface in `internal/usecase/contract*.go`
 2. Implement in `internal/usecase/<domain>/`
 3. Regenerate mocks: `make mockery` (or `make generate-mocks-<domain>`)
 4. Add unit tests with table-driven patterns
-5. Update Wire providers in `internal/wire/providers.go` if new deps are needed, then run `make wire`
+5. Update the matching `internal/wire/providers_*.go` file if new deps are needed, then run `make wire`
 
 ### DB Schema Change
 
@@ -187,10 +188,10 @@ The project uses a **fixed 3-file migration set** (no incremental numbered migra
 | File                            | Purpose                                                               |
 | ------------------------------- | --------------------------------------------------------------------- |
 | `000001_init.sql`               | Full schema: tables, constraints, indexes (no `CONCURRENTLY`)         |
-| `000002_concurrent_indexes.sql` | Indexes with `CREATE INDEX CONCURRENTLY` (`-- +goose NO TRANSACTION`) |
+| `000002_indexes.sql`            | Indexes with `CREATE INDEX CONCURRENTLY` (`-- +goose NO TRANSACTION`) |
 | `000003_seed.sql`               | Default data (competition, settings, configs)                         |
 
-1. Add DDL changes to `000001_init.sql`, concurrent indexes to `000002`, seed data to `000003`
+1. Add DDL changes to `000001_init.sql`, concurrent indexes to `000002_indexes.sql`, seed data to `000003_seed.sql`
 2. Update sqlc queries in `backend/queries/`
 3. Run `make sqlc` to regenerate query code
 4. Update domain types in `internal/domain/` if needed
@@ -238,6 +239,9 @@ cd backend
 
 # Lint (golangci-lint)
 make lint
+
+# Report Clean Architecture drift without failing
+make audit-architecture
 
 # Format
 make fmt

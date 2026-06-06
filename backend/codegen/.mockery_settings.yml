@@ -5,8 +5,22 @@ log-level: info
 template: testify
 
 packages:
-  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings:
     interfaces:
+      AuditLogRepository:
+        config:
+          dir: "internal/usecase/settings/mock"
+          filename: "AuditLogRepository.go"
+          pkgname: "mock"
+          structname: "MockAuditLogRepository"
+
+      CompetitionRepository:
+        config:
+          dir: "internal/usecase/settings/mock"
+          filename: "CompetitionRepository.go"
+          pkgname: "mock"
+          structname: "MockCompetitionRepository"
+
       FieldRepository:
         config:
           dir: "internal/usecase/settings/mock"
@@ -14,6 +28,22 @@ packages:
           pkgname: "mock"
           structname: "MockFieldRepository"
 
+      SettingsRepository:
+        config:
+          dir: "internal/usecase/settings/mock"
+          filename: "SettingsRepository.go"
+          pkgname: "mock"
+          structname: "MockSettingsRepository"
+
+      TransactionManager:
+        config:
+          dir: "internal/usecase/settings/mock"
+          filename: "TransactionManager.go"
+          pkgname: "mock"
+          structname: "MockTransactionManager"
+
+  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+    interfaces:
       SettingsRepository:
         config:
           dir: "internal/usecase/competition/mock"

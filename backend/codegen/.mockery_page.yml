@@ -5,7 +5,7 @@ log-level: info
 template: testify
 
 packages:
-  github.com/TakuyaYagam1/AstroCTFb/internal/repo:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page:
     interfaces:
       PageRepository:
         config:

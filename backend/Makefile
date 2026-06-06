@@ -47,7 +47,8 @@ OAPI_CODEGEN_VERSION ?= v2.6.0
 SQLC_VERSION ?= v1.31.1
 MOCKERY_VERSION ?= v3.5.5
 WIRE_VERSION ?= v0.7.0
-GOLANGCI_LINT_VERSION ?= v2.11.4
+GOLANGCI_LINT_VERSION ?= v2.12.2
+GOLANGCI_LINT_VERSION_NUM := $(patsubst v%,%,$(GOLANGCI_LINT_VERSION))
 REDOCLY_VERSION ?= 1.26.0
 PYTHON ?= python3
 CODEGEN_PY_REQUIREMENTS ?= scripts/requirements-codegen.txt
@@ -58,7 +59,7 @@ CODEGEN_GOFLAGS ?= -mod=readonly
 GO_BIN_DIR := $(shell sh -c 'gobin=$$(go env GOBIN); if [ -n "$$gobin" ]; then printf "%s" "$$gobin"; else printf "%s/bin" "$$(go env GOPATH)"; fi')
 OAPI_CODEGEN := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/oapi-codegen" ]; then printf "%s" "$(GO_BIN_DIR)/oapi-codegen"; else command -v oapi-codegen 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/oapi-codegen"; fi')
 GOVULNCHECK := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/govulncheck" ]; then printf "%s" "$(GO_BIN_DIR)/govulncheck"; else command -v govulncheck 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/govulncheck"; fi')
-GOLANGCI_LINT := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/golangci-lint" ]; then printf "%s" "$(GO_BIN_DIR)/golangci-lint"; else command -v golangci-lint 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/golangci-lint"; fi')
+GOLANGCI_LINT := $(shell sh -c 'for bin in "$(GO_BIN_DIR)/golangci-lint" "$$(command -v golangci-lint 2>/dev/null)"; do if [ -x "$$bin" ] && "$$bin" --version 2>/dev/null | grep -q "version $(GOLANGCI_LINT_VERSION_NUM)"; then printf "%s" "$$bin"; exit; fi; done; if [ -x "$(GO_BIN_DIR)/golangci-lint" ]; then printf "%s" "$(GO_BIN_DIR)/golangci-lint"; else command -v golangci-lint 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/golangci-lint"; fi')
 SQLC := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/sqlc" ]; then printf "%s" "$(GO_BIN_DIR)/sqlc"; else command -v sqlc 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/sqlc"; fi')
 GOOSE := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/goose" ]; then printf "%s" "$(GO_BIN_DIR)/goose"; else command -v goose 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/goose"; fi')
 GOIMPORTS := $(shell sh -c 'if [ -x "$(GO_BIN_DIR)/goimports" ]; then printf "%s" "$(GO_BIN_DIR)/goimports"; else command -v goimports 2>/dev/null || printf "%s" "$(GO_BIN_DIR)/goimports"; fi')
@@ -138,7 +139,13 @@ sqlc-verify: ## Verify sqlc schema and queries compile without generating code
 
 validate-openapi: openapi-bundle ## Validate OpenAPI spec (bundles then lints with minimal ruleset)
 	@echo "Validating OpenAPI spec..."
-	@command -v npx >/dev/null 2>&1 || (echo "Error: npx (Node.js) required. Install Node.js or run: npm install -g @redocly/cli"; exit 1)
+	@command -v npx >/dev/null 2>&1 || (rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS); echo "Error: npx (Node.js) required. Install Node.js or run: npm install -g @redocly/cli"; exit 1)
+	@trap 'rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS)' EXIT; npx --yes @redocly/cli@$(REDOCLY_VERSION) lint $(OPENAPI_BUNDLE)
+	@echo "OpenAPI validation OK"
+
+validate-openapi-bundle: openapi-bundle ## Validate OpenAPI bundle without removing it (used by generate before oapi-codegen)
+	@echo "Validating OpenAPI spec..."
+	@command -v npx >/dev/null 2>&1 || (rm -f $(OPENAPI_BUNDLE) $(OPENAPI_MERGED_SCHEMAS); echo "Error: npx (Node.js) required. Install Node.js or run: npm install -g @redocly/cli"; exit 1)
 	@npx --yes @redocly/cli@$(REDOCLY_VERSION) lint $(OPENAPI_BUNDLE)
 	@echo "OpenAPI validation OK"
 
@@ -161,6 +168,7 @@ migrate-create: ## Create new migration (usage: make migrate-create name=create_
 wire: ## Generate Wire DI code
 	@echo "Generating Wire code..."
 	@cd internal/wire && GOFLAGS="$(CODEGEN_GOFLAGS)" $(WIRE)
+	@$(GOIMPORTS) -w -local github.com/TakuyaYagam1/AstroCTFb internal/wire/wire_gen.go
 	@echo "Wire code generated"
 
 mockery: ## Generate all mocks (one config per usecase so same interface can output to different mocks dirs; single-file config would require one dir per interface and break tests)
@@ -226,8 +234,12 @@ generate-mocks-cache: ## Generate mocks for cache interfaces (TeamBracketIDGette
 generate-mocks-config: ## Generate mocks for config interfaces (vaultSecretGetter)
 	@GOFLAGS="$(CODEGEN_GOFLAGS)" $(MOCKERY) --config codegen/.mockery_config.yml
 
-generate: validate-openapi oapi-codegen sqlc mockery wire ## Run all code generation (validate OpenAPI, then OpenAPI, sqlc, mocks)
+generate: validate-openapi-bundle oapi-codegen sqlc mockery wire ## Run all code generation (validate OpenAPI, then OpenAPI, sqlc, mocks)
 	@echo "All code generation completed"
+
+codegen-check: generate ## Verify generated files are committed and up to date
+	@echo "Checking generated diff..."
+	@git diff --exit-code -- . || (echo "Generated files are out of date. Run 'make generate' and commit the result."; exit 1)
 
 build: ## Build the binary (run 'make generate' first if spec/sql changed)
 	@echo "Building binary..."
@@ -255,37 +267,46 @@ clean: ## Clean generated files
 ##@ Tests
 
 TEST_RACE_TIMEOUT ?= 15m
-BENCH_PKGS = ./pkg/scoring/... ./pkg/crypto/... ./pkg/websocket/... ./internal/usecase/competition/...
+BENCH_PKGS = ./internal/scoring/... ./pkg/crypto/... ./internal/websocket/... ./internal/usecase/competition/...
 BENCH_TIME  ?= 3s
 BENCH_COUNT ?= 1
 
 # TEST_PKGS covers all packages except load-test (requires -tags load) and load-test itself.
 TEST_PKGS = ./cmd/... ./config/... ./internal/... ./pkg/... ./integration-test/... ./e2e-test/...
+TEST_FAST_PKGS = ./cmd/... ./config/... ./internal/... ./pkg/...
 
 test: ## Run all tests without race (excludes load-test)
 	@echo "Running all tests..."
 	@go test -parallel 5 -timeout $(TEST_RACE_TIMEOUT) $(TEST_PKGS)
 
+test-fast: ## Run fast local tests (cmd + config + internal + pkg, no Docker/e2e/load)
+	@echo "Running fast local tests..."
+	@go test -parallel 5 $(TEST_FAST_PKGS)
+
 test-race: ## Run all tests with race detection (excludes load-test)
 	@echo "Running all tests (race)..."
 	@go test -race -parallel 5 -timeout $(TEST_RACE_TIMEOUT) $(TEST_PKGS)
 
+test-fast-race: ## Run fast local tests with race detection
+	@echo "Running fast local tests (race)..."
+	@go test -race -parallel 5 -timeout $(TEST_RACE_TIMEOUT) $(TEST_FAST_PKGS)
+
 test-no-race: test ## Alias for test (no race)
 
-bench: ## Run benchmark tests (scoring, crypto, websocket, batcher)
+bench: ## Run benchmark tests (scoring, crypto, websocket, competition)
 	@echo "Running benchmarks..."
 	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -count=$(BENCH_COUNT) -benchmem $(BENCH_PKGS)
 
 bench-scoring: ## Benchmark dynamic scoring algorithms
-	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/scoring/...
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./internal/scoring/...
 
 bench-crypto: ## Benchmark AES-256-GCM encrypt/decrypt
 	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/crypto/...
 
 bench-websocket: ## Benchmark WebSocket broadcaster
-	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./pkg/websocket/...
+	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./internal/websocket/...
 
-bench-batcher: ## Benchmark submission batcher enqueue
+bench-competition: ## Benchmark competition usecases
 	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -benchmem ./internal/usecase/competition/...
 
 test-unit: ## Run unit tests (internal + pkg) without race
@@ -383,7 +404,7 @@ test-usecase-email-no-race: ## Run email usecase tests without race
 
 COVERPKG = ./cmd/...,./config/...,./internal/...,./pkg/...
 
-COVERPKG_TESTABLE = ./internal/controller/...,./internal/usecase,./internal/usecase/challenge,./internal/usecase/competition,./internal/usecase/email,./internal/usecase/settings,./internal/usecase/notification,./internal/usecase/page,./internal/usecase/team,./internal/usecase/user,./internal/repo/persistent,./internal/storage,./config/...,./pkg/crypto,./pkg/mailer,./pkg/cache,./pkg/validator,./pkg/vault,./pkg/websocket
+COVERPKG_TESTABLE = ./internal/controller/...,./internal/usecase,./internal/usecase/avatar,./internal/usecase/backup,./internal/usecase/cacheutil,./internal/usecase/challenge,./internal/usecase/competition,./internal/usecase/computil,./internal/usecase/email,./internal/usecase/guard,./internal/usecase/notification,./internal/usecase/page,./internal/usecase/settings,./internal/usecase/setup,./internal/usecase/storageadmin,./internal/usecase/team,./internal/usecase/user,./internal/repo,./internal/repo/persistent,./internal/repo/webapi,./internal/storage,./internal/cache,./internal/websocket,./config/...,./pkg/crypto,./pkg/mailer,./pkg/slug,./pkg/sse,./pkg/validator,./pkg/vault
 
 test-coverage: ## Generate coverage report (unit + integration + e2e, -coverpkg to include production code)
 	@echo "Running all tests with coverage (requires Docker for e2e)..."
@@ -413,10 +434,13 @@ LINT_TIMEOUT ?= 5m
 
 lint: ## Run golangci-lint (LINT_TIMEOUT for CI, e.g. 10m)
 	@echo "Running linter..."
+	@$(GOLANGCI_LINT) --version | grep -q "version $(GOLANGCI_LINT_VERSION_NUM)" || (echo "Error: golangci-lint $(GOLANGCI_LINT_VERSION_NUM) is required. Run 'make install-tools' or ensure PATH points to the pinned version."; exit 1)
 	@$(GOLANGCI_LINT) run -v --timeout $(LINT_TIMEOUT) ./...
+	@$(MAKE) audit-architecture-strict
 
 lint-fix: ## Run golangci-lint with auto-fix
 	@echo "Running linter with auto-fix..."
+	@$(GOLANGCI_LINT) --version | grep -q "version $(GOLANGCI_LINT_VERSION_NUM)" || (echo "Error: golangci-lint $(GOLANGCI_LINT_VERSION_NUM) is required. Run 'make install-tools' or ensure PATH points to the pinned version."; exit 1)
 	@$(GOLANGCI_LINT) run -v --fix --timeout $(LINT_TIMEOUT) ./...
 
 deps-audit: ## Check dependencies for vulnerabilities
@@ -429,11 +453,41 @@ deps-audit-all: ## Check all dependencies, including e2e/testutil/load-test pack
 	@echo "Checking all dependencies..."
 	@$(GOVULNCHECK) ./...
 
+audit-architecture: ## Report Clean Architecture drift signals without failing
+	@echo "== Forbidden ordinary handler imports =="
+	@files="$$(find internal/controller/restapi/v1 -maxdepth 1 -name '*.go' ! -name 'router*.go' ! -name 'setup.go' ! -name '*_test.go' -print)" ; \
+	if [ -n "$$files" ]; then rg -n '"github.com/TakuyaYagam1/AstroCTFb/(pkg/|internal/(apperr|domain|repo/|storage/|cache/|usecase/|repo/persistent/sqlc))|"github.com/go-chi/render"|"github.com/jackc/pgx|"github.com/redis/go-redis|"github.com/minio/minio-go|"github.com/hashicorp/vault|"github.com/wahrwelt-kit/go-jwtkit' $$files || true; fi
+	@echo "== Raw ResponseWriter writes in ordinary handlers =="
+	@files="$$(find internal/controller/restapi/v1 -maxdepth 1 -name '*.go' ! -name 'router*.go' ! -name 'setup.go' ! -name '*_test.go' -print)" ; \
+	if [ -n "$$files" ]; then rg -n '(w\.WriteHeader|w\.Write\(|http\.Error\(|json\.NewEncoder\(w\)|io\.Copy\(w\))' $$files || true; fi
+	@echo "== Raw SQL outside generated/sqlc and allowed dynamic repository helpers =="
+	@rg -n --glob '*.go' --glob '!*_test.go' -e '\.Exec\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)' -e '\.Query\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE)' -e '\.QueryRow\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE)' internal pkg config | rg -v 'internal/repo/persistent/(sqlc/|squirrel.go|tx_manager.go|base.go|backup_postgres.go|backup_postgres_import.go)' || true
+	@echo "== Largest non-generated Go files =="
+	@find . -path './internal/openapi' -prune -o -path './internal/repo/persistent/sqlc' -prune -o -path './e2e-test' -prune -o -path './integration-test' -prune -o -path './load-test' -prune -o -path '*/mock' -prune -o -name '*.go' ! -name '*_test.go' ! -name 'wire_gen.go' -print | xargs wc -l | sort -nr | head -30
+
+audit-architecture-strict: ## Fail on Clean Architecture drift signals checked by audit-architecture
+	@echo "Checking Clean Architecture boundaries..."
+	@status=0; \
+	files="$$(find internal/controller/restapi/v1 -maxdepth 1 -name '*.go' ! -name 'router*.go' ! -name 'setup.go' ! -name '*_test.go' -print)" ; \
+	if [ -n "$$files" ] && rg -n '"github.com/TakuyaYagam1/AstroCTFb/(pkg/|internal/(apperr|domain|repo/|storage/|cache/|usecase/|repo/persistent/sqlc))|"github.com/go-chi/render"|"github.com/jackc/pgx|"github.com/redis/go-redis|"github.com/minio/minio-go|"github.com/hashicorp/vault|"github.com/wahrwelt-kit/go-jwtkit' $$files; then status=1; fi; \
+	if [ -n "$$files" ] && rg -n '(w\.WriteHeader|w\.Write\(|http\.Error\(|json\.NewEncoder\(w\)|io\.Copy\(w\))' $$files; then status=1; fi; \
+	if rg -n --glob '*.go' --glob '!*_test.go' -e '\.Exec\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)' -e '\.Query\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE)' -e '\.QueryRow\(ctx, ".*(SELECT|INSERT|UPDATE|DELETE)' internal pkg config | rg -v 'internal/repo/persistent/(sqlc/|squirrel.go|tx_manager.go|base.go|backup_postgres.go|backup_postgres_import.go)'; then status=1; fi; \
+	if rg -n --glob '*.go' --glob '!*_test.go' --glob '!**/mock/**' '"github.com/TakuyaYagam1/AstroCTFb/internal/(controller/|openapi|repo/persistent)|"github.com/wahrwelt-kit/go-httpkit/|"github.com/go-chi/|"github.com/jackc/pgx|"github.com/Masterminds/squirrel"|"github.com/redis/go-redis"|"github.com/minio/minio-go"|"github.com/hashicorp/vault"|"golang.org/x/oauth2' internal/usecase; then status=1; fi; \
+	if [ "$$status" -ne 0 ]; then echo "Architecture audit failed"; exit "$$status"; fi; \
+	echo "Architecture audit OK"
+
 fmt: ## Format code with gofmt and goimports
 	@echo "Formatting code..."
 	@test -x "$(GOIMPORTS)" || (echo "goimports not found at $(GOIMPORTS), run: make install-tools"; exit 1)
-	@gofmt -w .
-	@$(GOIMPORTS) -w -local github.com/TakuyaYagam1/AstroCTFb .
+	@files="$$(find . -path './internal/openapi' -prune -o -path './internal/repo/persistent/sqlc' -prune -o -path '*/mock' -prune -o -name '*.go' ! -name 'wire_gen.go' -print)" ; \
+	if [ -n "$$files" ]; then gofmt -w $$files && $(GOIMPORTS) -w -local github.com/TakuyaYagam1/AstroCTFb $$files; fi
+	@echo "Done"
+
+fmt-generated: ## Format generated Go files explicitly
+	@echo "Formatting generated code..."
+	@test -x "$(GOIMPORTS)" || (echo "goimports not found at $(GOIMPORTS), run: make install-tools"; exit 1)
+	@files="$$(find ./internal/openapi ./internal/repo/persistent/sqlc -name '*.go' -print 2>/dev/null; find . -path '*/mock/*.go' -print; find . -name wire_gen.go -print)" ; \
+	if [ -n "$$files" ]; then gofmt -w $$files && $(GOIMPORTS) -w -local github.com/TakuyaYagam1/AstroCTFb $$files; fi
 	@echo "Done"
 
 mod-tidy: ## Tidy go modules

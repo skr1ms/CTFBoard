@@ -42,12 +42,12 @@ packages:
           pkgname: "mock"
           structname: "MockTransactionManager"
 
-  github.com/TakuyaYagam1/AstroCTFb/internal/storage:
+  github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup:
     interfaces:
-      Provider:
+      BackupStorage:
         config:
           dir: "internal/usecase/backup/mock"
-          filename: "StorageProvider.go"
+          filename: "BackupStorage.go"
           pkgname: "mock"
-          structname: "MockStorageProvider"
+          structname: "MockBackupStorage"
           

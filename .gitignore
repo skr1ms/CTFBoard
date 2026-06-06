@@ -70,7 +70,8 @@ CTFd/
 .codex
 backend/bin/
 backend/.venv-codegen/
-backend/openapi/components/schemas.yml
+backend/internal/openapi/components/schemas.yml
+backend/internal/openapi/openapi.yaml
 PRD/
 .vault-keys
 deployment/haproxy/certs/
