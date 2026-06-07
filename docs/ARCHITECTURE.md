@@ -91,6 +91,11 @@ Production uses SeaweedFS S3:
 - Public downloads use presigned URLs.
 - Operators use the official SeaweedFS Admin UI rather than a custom frontend.
 
+Backup ZIP archives use the Astro-native archive contract documented in
+[BACKUP_ARCHIVE.md](BACKUP_ARCHIVE.md). The format is versioned, stores
+`backup.json` at the ZIP root, and restores optional file payloads through the
+same storage abstraction.
+
 ## Secrets
 
 Vault paths use the `secret/ctf-platform/*` namespace. The important paths are:
