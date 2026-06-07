@@ -3,6 +3,9 @@ package request
 import (
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/oapi-codegen/nullable"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -145,6 +148,27 @@ func TestCreateChallengeRequestToParams_ConnectionInfoMaxAttemptsPositionDefault
 	assert.Equal(t, 0, params.Position)
 }
 
+func TestCreateChallengeRequestToParams_Metadata(t *testing.T) {
+	t.Parallel()
+
+	attribution := "Author"
+	nextID := uuid.New()
+	req := &openapi.CreateChallengeRequest{
+		Title:       "Test",
+		Description: "Desc",
+		Category:    "misc",
+		Points:      100,
+		Flag:        "CTF{flag}",
+		Attribution: &attribution,
+		NextID:      (*openapi_types.UUID)(&nextID),
+	}
+	params, err := CreateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.Equal(t, attribution, params.Attribution)
+	require.NotNil(t, params.NextChallengeID)
+	assert.Equal(t, nextID, *params.NextChallengeID)
+}
+
 func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -158,4 +182,28 @@ func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {
 	params, err := UpdateChallengeRequestToParams(req)
 	assert.NoError(t, err)
 	assert.Empty(t, params.State)
+}
+
+func TestUpdateChallengeRequestToParams_NextIDValueAndNull(t *testing.T) {
+	t.Parallel()
+
+	nextID := uuid.New()
+	req := &openapi.UpdateChallengeRequest{
+		Title:       "Test",
+		Description: "Desc",
+		Category:    "misc",
+		Points:      100,
+		NextID:      nullable.NewNullableWithValue(openapi_types.UUID(nextID)),
+	}
+	params, err := UpdateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.True(t, params.NextChallengeSet)
+	require.NotNil(t, params.NextChallengeID)
+	assert.Equal(t, nextID, *params.NextChallengeID)
+
+	req.NextID = nullable.NewNullNullable[openapi_types.UUID]()
+	params, err = UpdateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.True(t, params.NextChallengeSet)
+	assert.Nil(t, params.NextChallengeID)
 }

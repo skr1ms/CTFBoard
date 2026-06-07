@@ -67,6 +67,23 @@ func TestFromUserForMePasswordAndBanSemantics(t *testing.T) {
 	assert.True(t, *got.HasPassword)
 }
 
+func TestUserResponsesExposeCustomFields(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	fieldID := uuid.New().String()
+	customFields := usecase.CustomFieldValues{fieldID: map[string]any{"role": "captain"}}
+	user := &domain.User{ID: userID, Username: "alice", Email: "alice@example.com"}
+
+	me := FromUserMe(&usecase.UserMe{User: user, CustomFields: customFields})
+	require.NotNil(t, me.CustomFields)
+	assert.Equal(t, customFields, *me.CustomFields)
+
+	profile := FromUserProfile(&usecase.UserProfile{User: user, CustomFields: customFields})
+	require.NotNil(t, profile.CustomFields)
+	assert.Equal(t, customFields, *profile.CustomFields)
+}
+
 func TestFromTokenPairNilAndValues(t *testing.T) {
 	t.Parallel()
 

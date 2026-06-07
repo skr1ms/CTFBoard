@@ -51,6 +51,7 @@ type oauthTestDeps struct {
 	JWTService   *jwtMock.MockService
 	SettingsRepo *userMock.MockSettingsRepository
 	Gateway      *fakeOAuthProviderGateway
+	CompParamUC  usecase.CompetitionParamUseCase
 }
 
 type fakeOAuthProviderGateway struct {
@@ -137,6 +138,7 @@ func (d *oauthTestDeps) createUseCase() *OAuthUseCase {
 		UserRepo: d.UserRepo, OAuthRepo: d.OAuthRepo, TM: d.TM,
 		SettingsRepo: d.SettingsRepo, JWTService: d.JWTService,
 		ProviderGateway: d.Gateway,
+		CompParamUC:     d.CompParamUC,
 		Cfg: OAuthConfig{
 			StateSecret: "test-secret-for-oauth-state-1234",
 			GitHub: OAuthProviderConfig{
@@ -308,4 +310,69 @@ func TestOAuthUseCase_RegisterNewUser_RegistrationClosed(t *testing.T) {
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrRegistrationClosed)
+}
+
+func TestOAuthUseCase_RegisterNewUser_RegistrationVisibilityPrivate(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	d.CompParamUC = staticCompetitionParamUC{
+		strings: map[string]string{"registration_visibility": "private"},
+	}
+	uc := d.createUseCase()
+
+	profile := &domain.OAuthUserProfile{ID: "gh-private", Email: "private@gh.com", Username: "privateuser"}
+
+	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
+
+	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrVisibilityForbidden)
+}
+
+func TestOAuthUseCase_RegisterNewUser_RegistrationCodeConfigured(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	d.CompParamUC = staticCompetitionParamUC{
+		strings: map[string]string{
+			"registration_visibility": "public",
+			"registration_code":       "secret-sauce",
+		},
+	}
+	uc := d.createUseCase()
+
+	profile := &domain.OAuthUserProfile{ID: "gh-code", Email: "code@gh.com", Username: "codeuser"}
+
+	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
+
+	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrRegistrationCodeRequired)
+}
+
+func TestOAuthUseCase_RegisterNewUser_MaxUsersReached(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	d.CompParamUC = staticCompetitionParamUC{
+		strings: map[string]string{"registration_visibility": "public"},
+	}
+	uc := d.createUseCase()
+
+	profile := &domain.OAuthUserProfile{ID: "gh-full", Email: "full@gh.com", Username: "fulluser"}
+
+	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true, MaxUsers: 1}, nil).Once()
+	d.UserRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Once()
+	d.UserRepo.EXPECT().CountActiveUsers(mock.Anything).Return(int64(1), nil).Once()
+
+	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrMaxUsersReached)
 }

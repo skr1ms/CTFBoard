@@ -111,3 +111,30 @@ func TestChallengeRepo_GetByIDs_PartialMatch(t *testing.T) {
 	assert.Equal(t, ch1.ID, got[ch1.ID].ID)
 	assert.Equal(t, 50, got[ch1.ID].Points)
 }
+
+func TestChallengeRepo_MetadataRoundTrip(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	ch1 := f.CreateChallenge(t, "metadata_1", 100)
+	ch2 := f.CreateChallenge(t, "metadata_2", 200)
+
+	ch1.Attribution = "Author"
+	ch1.NextChallengeID = &ch2.ID
+	require.NoError(t, f.ChallengeRepo.Update(ctx, ch1))
+
+	got, err := f.ChallengeRepo.GetByID(ctx, ch1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Author", got.Attribution)
+	require.NotNil(t, got.NextChallengeID)
+	assert.Equal(t, ch2.ID, *got.NextChallengeID)
+
+	got.NextChallengeID = nil
+	require.NoError(t, f.ChallengeRepo.Update(ctx, got))
+
+	got, err = f.ChallengeRepo.GetByID(ctx, ch1.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.NextChallengeID)
+}

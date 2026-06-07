@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -201,4 +202,23 @@ func TestAdminUserRoleParams(t *testing.T) {
 
 	_, _, _, _, _, err = AdminUpdateUserRequestToParams(&openapi.AdminUpdateUserRequest{Role: &invalidRole})
 	require.Error(t, err)
+}
+
+func TestUpdateProfileRequestToParamsMapsCustomFields(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	username := "alice"
+	fieldID := uuid.New().String()
+	customFields := map[string]any{fieldID: map[string]any{"color": "blue"}}
+
+	got := UpdateProfileRequestToParams(userID, &openapi.UpdateProfileRequest{
+		Username:     &username,
+		CustomFields: &customFields,
+	})
+
+	assert.Equal(t, userID, got.UserID)
+	assert.Equal(t, &username, got.Username)
+	require.NotNil(t, got.CustomFields)
+	assert.Equal(t, customFields, *got.CustomFields)
 }

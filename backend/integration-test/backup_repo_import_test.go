@@ -48,18 +48,37 @@ func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
 	ctx := context.Background()
 
 	challengeID := uuid.New()
+	nextChallengeID := uuid.New()
 	data := &domain.BackupData{
 		Challenges: []domain.ChallengeExport{
 			{
 				Challenge: domain.Challenge{
-					ID:           challengeID,
-					Title:        "Backup Chall",
-					Description:  "Desc",
+					ID:              challengeID,
+					Title:           "Backup Chall",
+					Description:     "Desc",
+					Category:        "Web",
+					Points:          150,
+					FlagHash:        "hash",
+					Attribution:     "Author",
+					NextChallengeID: &nextChallengeID,
+					InitialValue:    150,
+					MinValue:        150,
+					Decay:           0,
+				},
+				Attribution: "Author",
+				NextID:      &nextChallengeID,
+				Hints:       []domain.Hint{},
+			},
+			{
+				Challenge: domain.Challenge{
+					ID:           nextChallengeID,
+					Title:        "Next Backup Chall",
+					Description:  "Next Desc",
 					Category:     "Web",
-					Points:       150,
-					FlagHash:     "hash",
-					InitialValue: 150,
-					MinValue:     150,
+					Points:       100,
+					FlagHash:     "next_hash",
+					InitialValue: 100,
+					MinValue:     100,
 					Decay:        0,
 				},
 				Hints: []domain.Hint{},
@@ -75,6 +94,9 @@ func TestBackupRepo_ImportChallengesTx_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Backup Chall", got.Title)
 	assert.Equal(t, 150, got.Points)
+	assert.Equal(t, "Author", got.Attribution)
+	require.NotNil(t, got.NextChallengeID)
+	assert.Equal(t, nextChallengeID, *got.NextChallengeID)
 }
 
 func TestBackupRepo_ImportChallengesTx_Error_InvalidHintChallengeID(t *testing.T) {
@@ -335,4 +357,62 @@ func TestBackupRepo_ImportFileMetadataTx_Error_InvalidChallengeID(t *testing.T) 
 		return f.BackupRepo.ImportFileMetadata(txCtx, data)
 	})
 	assert.Error(t, err)
+}
+
+func TestBackupRepo_ImportFieldsTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	fieldID := uuid.New()
+	jsonFieldID := uuid.New()
+	data := &domain.BackupData{
+		Fields: []domain.Field{
+			{
+				ID:          fieldID,
+				Name:        "division",
+				Description: "Player division",
+				FieldType:   domain.FieldTypeSelect,
+				EntityType:  domain.EntityTypeUser,
+				Required:    true,
+				Public:      true,
+				Editable:    true,
+				Options:     []string{"junior", "senior"},
+				OrderIndex:  3,
+				CreatedAt:   time.Now(),
+			},
+			{
+				ID:          jsonFieldID,
+				Name:        "metadata",
+				Description: "Structured metadata",
+				FieldType:   domain.FieldTypeJSON,
+				EntityType:  domain.EntityTypeTeam,
+				Public:      true,
+				Editable:    true,
+				OrderIndex:  4,
+				CreatedAt:   time.Now(),
+			},
+		},
+	}
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportFields(txCtx, data)
+	})
+	require.NoError(t, err)
+
+	got, err := f.FieldRepo.GetByID(ctx, fieldID)
+	require.NoError(t, err)
+	assert.Equal(t, "division", got.Name)
+	assert.Equal(t, "Player division", got.Description)
+	assert.True(t, got.Required)
+	assert.True(t, got.Public)
+	assert.True(t, got.Editable)
+	assert.Equal(t, []string{"junior", "senior"}, got.Options)
+	assert.Equal(t, 3, got.OrderIndex)
+
+	jsonField, err := f.FieldRepo.GetByID(ctx, jsonFieldID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.FieldTypeJSON, jsonField.FieldType)
+	assert.Equal(t, domain.EntityTypeTeam, jsonField.EntityType)
+	assert.Equal(t, "Structured metadata", jsonField.Description)
 }

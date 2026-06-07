@@ -40,6 +40,80 @@ func (_m *MockStatisticsRepository) EXPECT() *MockStatisticsRepository_Expecter 
 	return &MockStatisticsRepository_Expecter{mock: &_m.Mock}
 }
 
+// GetAdminStatisticsFunnel provides a mock function for the type MockStatisticsRepository
+func (_mock *MockStatisticsRepository) GetAdminStatisticsFunnel(ctx context.Context, limit int, freezeTime *time.Time) (*domain.AdminStatisticsFunnel, error) {
+	ret := _mock.Called(ctx, limit, freezeTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAdminStatisticsFunnel")
+	}
+
+	var r0 *domain.AdminStatisticsFunnel
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, *time.Time) (*domain.AdminStatisticsFunnel, error)); ok {
+		return returnFunc(ctx, limit, freezeTime)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, *time.Time) *domain.AdminStatisticsFunnel); ok {
+		r0 = returnFunc(ctx, limit, freezeTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.AdminStatisticsFunnel)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, *time.Time) error); ok {
+		r1 = returnFunc(ctx, limit, freezeTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStatisticsRepository_GetAdminStatisticsFunnel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAdminStatisticsFunnel'
+type MockStatisticsRepository_GetAdminStatisticsFunnel_Call struct {
+	*mock.Call
+}
+
+// GetAdminStatisticsFunnel is a helper method to define mock.On call
+//   - ctx context.Context
+//   - limit int
+//   - freezeTime *time.Time
+func (_e *MockStatisticsRepository_Expecter) GetAdminStatisticsFunnel(ctx interface{}, limit interface{}, freezeTime interface{}) *MockStatisticsRepository_GetAdminStatisticsFunnel_Call {
+	return &MockStatisticsRepository_GetAdminStatisticsFunnel_Call{Call: _e.mock.On("GetAdminStatisticsFunnel", ctx, limit, freezeTime)}
+}
+
+func (_c *MockStatisticsRepository_GetAdminStatisticsFunnel_Call) Run(run func(ctx context.Context, limit int, freezeTime *time.Time)) *MockStatisticsRepository_GetAdminStatisticsFunnel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 *time.Time
+		if args[2] != nil {
+			arg2 = args[2].(*time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetAdminStatisticsFunnel_Call) Return(adminStatisticsFunnel *domain.AdminStatisticsFunnel, err error) *MockStatisticsRepository_GetAdminStatisticsFunnel_Call {
+	_c.Call.Return(adminStatisticsFunnel, err)
+	return _c
+}
+
+func (_c *MockStatisticsRepository_GetAdminStatisticsFunnel_Call) RunAndReturn(run func(ctx context.Context, limit int, freezeTime *time.Time) (*domain.AdminStatisticsFunnel, error)) *MockStatisticsRepository_GetAdminStatisticsFunnel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetChallengeDetailStats provides a mock function for the type MockStatisticsRepository
 func (_mock *MockStatisticsRepository) GetChallengeDetailStats(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.ChallengeDetailStats, error) {
 	ret := _mock.Called(ctx, challengeID, freezeTime)

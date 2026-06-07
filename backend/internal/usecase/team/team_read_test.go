@@ -67,16 +67,16 @@ func TestTeamUseCase_GetMyTeam_Success(t *testing.T) {
 
 	uc := d.createUseCase()
 
-	result, gotMembers, minSize, meetsMin, err := uc.GetMyTeam(context.Background(), userID)
+	result, err := uc.GetMyTeam(context.Background(), userID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, teamID, result.ID)
-	assert.Equal(t, "MyTeam", result.Name)
-	assert.NotNil(t, gotMembers)
-	assert.Len(t, gotMembers, 1)
-	assert.Equal(t, 0, minSize)
-	assert.True(t, meetsMin)
+	assert.Equal(t, teamID, result.Team.ID)
+	assert.Equal(t, "MyTeam", result.Team.Name)
+	assert.NotNil(t, result.Members)
+	assert.Len(t, result.Members, 1)
+	assert.Equal(t, 0, result.MinTeamSize)
+	assert.True(t, result.MeetsMinSize)
 }
 
 func TestTeamUseCase_GetTeamMembers_Success(t *testing.T) {
@@ -133,11 +133,10 @@ func TestTeamUseCase_GetMyTeam_Error(t *testing.T) {
 
 	uc := d.createUseCase()
 
-	team, members, _, _, err := uc.GetMyTeam(context.Background(), userID)
+	team, err := uc.GetMyTeam(context.Background(), userID)
 
 	assert.Error(t, err)
 	assert.Nil(t, team)
-	assert.Nil(t, members)
 	assert.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
 

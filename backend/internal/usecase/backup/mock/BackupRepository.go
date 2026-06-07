@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,6 +37,137 @@ type MockBackupRepository_Expecter struct {
 
 func (_m *MockBackupRepository) EXPECT() *MockBackupRepository_Expecter {
 	return &MockBackupRepository_Expecter{mock: &_m.Mock}
+}
+
+// CompleteImportJob provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) CompleteImportJob(ctx context.Context, id uuid.UUID, result *domain.ImportResult) error {
+	ret := _mock.Called(ctx, id, result)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CompleteImportJob")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *domain.ImportResult) error); ok {
+		r0 = returnFunc(ctx, id, result)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_CompleteImportJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CompleteImportJob'
+type MockBackupRepository_CompleteImportJob_Call struct {
+	*mock.Call
+}
+
+// CompleteImportJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - result *domain.ImportResult
+func (_e *MockBackupRepository_Expecter) CompleteImportJob(ctx interface{}, id interface{}, result interface{}) *MockBackupRepository_CompleteImportJob_Call {
+	return &MockBackupRepository_CompleteImportJob_Call{Call: _e.mock.On("CompleteImportJob", ctx, id, result)}
+}
+
+func (_c *MockBackupRepository_CompleteImportJob_Call) Run(run func(ctx context.Context, id uuid.UUID, result *domain.ImportResult)) *MockBackupRepository_CompleteImportJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *domain.ImportResult
+		if args[2] != nil {
+			arg2 = args[2].(*domain.ImportResult)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_CompleteImportJob_Call) Return(err error) *MockBackupRepository_CompleteImportJob_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_CompleteImportJob_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, result *domain.ImportResult) error) *MockBackupRepository_CompleteImportJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateImportJob provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) CreateImportJob(ctx context.Context, job *domain.ImportJob) (*domain.ImportJob, error) {
+	ret := _mock.Called(ctx, job)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateImportJob")
+	}
+
+	var r0 *domain.ImportJob
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.ImportJob) (*domain.ImportJob, error)); ok {
+		return returnFunc(ctx, job)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.ImportJob) *domain.ImportJob); ok {
+		r0 = returnFunc(ctx, job)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.ImportJob)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *domain.ImportJob) error); ok {
+		r1 = returnFunc(ctx, job)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockBackupRepository_CreateImportJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateImportJob'
+type MockBackupRepository_CreateImportJob_Call struct {
+	*mock.Call
+}
+
+// CreateImportJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - job *domain.ImportJob
+func (_e *MockBackupRepository_Expecter) CreateImportJob(ctx interface{}, job interface{}) *MockBackupRepository_CreateImportJob_Call {
+	return &MockBackupRepository_CreateImportJob_Call{Call: _e.mock.On("CreateImportJob", ctx, job)}
+}
+
+func (_c *MockBackupRepository_CreateImportJob_Call) Run(run func(ctx context.Context, job *domain.ImportJob)) *MockBackupRepository_CreateImportJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.ImportJob
+		if args[1] != nil {
+			arg1 = args[1].(*domain.ImportJob)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_CreateImportJob_Call) Return(importJob *domain.ImportJob, err error) *MockBackupRepository_CreateImportJob_Call {
+	_c.Call.Return(importJob, err)
+	return _c
+}
+
+func (_c *MockBackupRepository_CreateImportJob_Call) RunAndReturn(run func(ctx context.Context, job *domain.ImportJob) (*domain.ImportJob, error)) *MockBackupRepository_CreateImportJob_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // EraseAllTables provides a mock function for the type MockBackupRepository
@@ -142,6 +274,188 @@ func (_c *MockBackupRepository_EraseTables_Call) Return(err error) *MockBackupRe
 }
 
 func (_c *MockBackupRepository_EraseTables_Call) RunAndReturn(run func(ctx context.Context, tables []string) error) *MockBackupRepository_EraseTables_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FailImportJob provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) FailImportJob(ctx context.Context, id uuid.UUID, message string) error {
+	ret := _mock.Called(ctx, id, message)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FailImportJob")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, message)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_FailImportJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FailImportJob'
+type MockBackupRepository_FailImportJob_Call struct {
+	*mock.Call
+}
+
+// FailImportJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - message string
+func (_e *MockBackupRepository_Expecter) FailImportJob(ctx interface{}, id interface{}, message interface{}) *MockBackupRepository_FailImportJob_Call {
+	return &MockBackupRepository_FailImportJob_Call{Call: _e.mock.On("FailImportJob", ctx, id, message)}
+}
+
+func (_c *MockBackupRepository_FailImportJob_Call) Run(run func(ctx context.Context, id uuid.UUID, message string)) *MockBackupRepository_FailImportJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_FailImportJob_Call) Return(err error) *MockBackupRepository_FailImportJob_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_FailImportJob_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, message string) error) *MockBackupRepository_FailImportJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FailInterruptedImportJobs provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) FailInterruptedImportJobs(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FailInterruptedImportJobs")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_FailInterruptedImportJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FailInterruptedImportJobs'
+type MockBackupRepository_FailInterruptedImportJobs_Call struct {
+	*mock.Call
+}
+
+// FailInterruptedImportJobs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockBackupRepository_Expecter) FailInterruptedImportJobs(ctx interface{}) *MockBackupRepository_FailInterruptedImportJobs_Call {
+	return &MockBackupRepository_FailInterruptedImportJobs_Call{Call: _e.mock.On("FailInterruptedImportJobs", ctx)}
+}
+
+func (_c *MockBackupRepository_FailInterruptedImportJobs_Call) Run(run func(ctx context.Context)) *MockBackupRepository_FailInterruptedImportJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_FailInterruptedImportJobs_Call) Return(err error) *MockBackupRepository_FailInterruptedImportJobs_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_FailInterruptedImportJobs_Call) RunAndReturn(run func(ctx context.Context) error) *MockBackupRepository_FailInterruptedImportJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetImportJob provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) GetImportJob(ctx context.Context, id uuid.UUID) (*domain.ImportJob, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetImportJob")
+	}
+
+	var r0 *domain.ImportJob
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*domain.ImportJob, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *domain.ImportJob); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.ImportJob)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockBackupRepository_GetImportJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetImportJob'
+type MockBackupRepository_GetImportJob_Call struct {
+	*mock.Call
+}
+
+// GetImportJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockBackupRepository_Expecter) GetImportJob(ctx interface{}, id interface{}) *MockBackupRepository_GetImportJob_Call {
+	return &MockBackupRepository_GetImportJob_Call{Call: _e.mock.On("GetImportJob", ctx, id)}
+}
+
+func (_c *MockBackupRepository_GetImportJob_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockBackupRepository_GetImportJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_GetImportJob_Call) Return(importJob *domain.ImportJob, err error) *MockBackupRepository_GetImportJob_Call {
+	_c.Call.Return(importJob, err)
+	return _c
+}
+
+func (_c *MockBackupRepository_GetImportJob_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.ImportJob, error)) *MockBackupRepository_GetImportJob_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -456,6 +770,63 @@ func (_c *MockBackupRepository_ImportChallengeTags_Call) Return(err error) *Mock
 }
 
 func (_c *MockBackupRepository_ImportChallengeTags_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData) error) *MockBackupRepository_ImportChallengeTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportChallengeTopics provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportChallengeTopics(ctx context.Context, data *domain.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportChallengeTopics")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportChallengeTopics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportChallengeTopics'
+type MockBackupRepository_ImportChallengeTopics_Call struct {
+	*mock.Call
+}
+
+// ImportChallengeTopics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *domain.BackupData
+func (_e *MockBackupRepository_Expecter) ImportChallengeTopics(ctx interface{}, data interface{}) *MockBackupRepository_ImportChallengeTopics_Call {
+	return &MockBackupRepository_ImportChallengeTopics_Call{Call: _e.mock.On("ImportChallengeTopics", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportChallengeTopics_Call) Run(run func(ctx context.Context, data *domain.BackupData)) *MockBackupRepository_ImportChallengeTopics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*domain.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeTopics_Call) Return(err error) *MockBackupRepository_ImportChallengeTopics_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportChallengeTopics_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData) error) *MockBackupRepository_ImportChallengeTopics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1150,6 +1521,63 @@ func (_c *MockBackupRepository_ImportTeams_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// ImportTopics provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportTopics(ctx context.Context, data *domain.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportTopics")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportTopics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportTopics'
+type MockBackupRepository_ImportTopics_Call struct {
+	*mock.Call
+}
+
+// ImportTopics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *domain.BackupData
+func (_e *MockBackupRepository_Expecter) ImportTopics(ctx interface{}, data interface{}) *MockBackupRepository_ImportTopics_Call {
+	return &MockBackupRepository_ImportTopics_Call{Call: _e.mock.On("ImportTopics", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportTopics_Call) Run(run func(ctx context.Context, data *domain.BackupData)) *MockBackupRepository_ImportTopics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*domain.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportTopics_Call) Return(err error) *MockBackupRepository_ImportTopics_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportTopics_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData) error) *MockBackupRepository_ImportTopics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ImportUsers provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) ImportUsers(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error {
 	ret := _mock.Called(ctx, data, opts)
@@ -1209,6 +1637,143 @@ func (_c *MockBackupRepository_ImportUsers_Call) Return(err error) *MockBackupRe
 }
 
 func (_c *MockBackupRepository_ImportUsers_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error) *MockBackupRepository_ImportUsers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkImportJobRunning provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) MarkImportJobRunning(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) (*domain.ImportJob, error) {
+	ret := _mock.Called(ctx, id, phase)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkImportJobRunning")
+	}
+
+	var r0 *domain.ImportJob
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, domain.ImportJobPhase) (*domain.ImportJob, error)); ok {
+		return returnFunc(ctx, id, phase)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, domain.ImportJobPhase) *domain.ImportJob); ok {
+		r0 = returnFunc(ctx, id, phase)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.ImportJob)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, domain.ImportJobPhase) error); ok {
+		r1 = returnFunc(ctx, id, phase)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockBackupRepository_MarkImportJobRunning_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkImportJobRunning'
+type MockBackupRepository_MarkImportJobRunning_Call struct {
+	*mock.Call
+}
+
+// MarkImportJobRunning is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - phase domain.ImportJobPhase
+func (_e *MockBackupRepository_Expecter) MarkImportJobRunning(ctx interface{}, id interface{}, phase interface{}) *MockBackupRepository_MarkImportJobRunning_Call {
+	return &MockBackupRepository_MarkImportJobRunning_Call{Call: _e.mock.On("MarkImportJobRunning", ctx, id, phase)}
+}
+
+func (_c *MockBackupRepository_MarkImportJobRunning_Call) Run(run func(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase)) *MockBackupRepository_MarkImportJobRunning_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 domain.ImportJobPhase
+		if args[2] != nil {
+			arg2 = args[2].(domain.ImportJobPhase)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_MarkImportJobRunning_Call) Return(importJob *domain.ImportJob, err error) *MockBackupRepository_MarkImportJobRunning_Call {
+	_c.Call.Return(importJob, err)
+	return _c
+}
+
+func (_c *MockBackupRepository_MarkImportJobRunning_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) (*domain.ImportJob, error)) *MockBackupRepository_MarkImportJobRunning_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateImportJobPhase provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) UpdateImportJobPhase(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) error {
+	ret := _mock.Called(ctx, id, phase)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateImportJobPhase")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, domain.ImportJobPhase) error); ok {
+		r0 = returnFunc(ctx, id, phase)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_UpdateImportJobPhase_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateImportJobPhase'
+type MockBackupRepository_UpdateImportJobPhase_Call struct {
+	*mock.Call
+}
+
+// UpdateImportJobPhase is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - phase domain.ImportJobPhase
+func (_e *MockBackupRepository_Expecter) UpdateImportJobPhase(ctx interface{}, id interface{}, phase interface{}) *MockBackupRepository_UpdateImportJobPhase_Call {
+	return &MockBackupRepository_UpdateImportJobPhase_Call{Call: _e.mock.On("UpdateImportJobPhase", ctx, id, phase)}
+}
+
+func (_c *MockBackupRepository_UpdateImportJobPhase_Call) Run(run func(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase)) *MockBackupRepository_UpdateImportJobPhase_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 domain.ImportJobPhase
+		if args[2] != nil {
+			arg2 = args[2].(domain.ImportJobPhase)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_UpdateImportJobPhase_Call) Return(err error) *MockBackupRepository_UpdateImportJobPhase_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_UpdateImportJobPhase_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) error) *MockBackupRepository_UpdateImportJobPhase_Call {
 	_c.Call.Return(run)
 	return _c
 }

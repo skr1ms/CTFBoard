@@ -28,6 +28,24 @@ func (d *trackingTestDeps) createUseCase() *TrackingUseCase {
 	return NewTrackingUseCase(TrackingDeps{TrackingRepo: d.trackingRepo})
 }
 
+func (d *trackingTestDeps) createUseCaseWithStatsInvalidator(invalidator StatisticsInvalidator) *TrackingUseCase {
+	return NewTrackingUseCase(TrackingDeps{
+		TrackingRepo:          d.trackingRepo,
+		StatsCacheInvalidator: invalidator,
+	})
+}
+
+type recordingStatisticsInvalidator struct {
+	calls int
+	err   error
+}
+
+func (r *recordingStatisticsInvalidator) InvalidateStatistics(context.Context) error {
+	r.calls++
+
+	return r.err
+}
+
 func TestTrackingUseCase_Track_Success(t *testing.T) {
 	t.Parallel()
 	d := newTrackingTestDeps(t)
@@ -77,17 +95,52 @@ func TestTrackingUseCase_GetByUser_NotFound(t *testing.T) {
 func TestTrackingUseCase_TrackChallengeOpen_Success(t *testing.T) {
 	t.Parallel()
 	d := newTrackingTestDeps(t)
-	d.trackingRepo.On("CreateChallengeOpen", mock.Anything, mock.AnythingOfType("*domain.ChallengeOpen")).Return(nil)
+	teamID := uuid.New()
 
-	err := d.createUseCase().TrackChallengeOpen(context.Background(), uuid.New(), uuid.New(), "192.168.1.1")
+	d.trackingRepo.On("CreateChallengeOpen", mock.Anything, mock.MatchedBy(func(open *domain.ChallengeOpen) bool {
+		return open.TeamID != nil && *open.TeamID == teamID
+	})).Return(nil)
+
+	err := d.createUseCase().TrackChallengeOpen(context.Background(), uuid.New(), &teamID, uuid.New(), "192.168.1.1")
 	require.NoError(t, err)
+}
+
+func TestTrackingUseCase_TrackChallengeOpen_InvalidatesStatistics(t *testing.T) {
+	t.Parallel()
+	d := newTrackingTestDeps(t)
+	invalidator := &recordingStatisticsInvalidator{}
+	teamID := uuid.New()
+
+	d.trackingRepo.On("CreateChallengeOpen", mock.Anything, mock.MatchedBy(func(open *domain.ChallengeOpen) bool {
+		return open.TeamID != nil && *open.TeamID == teamID
+	})).Return(nil)
+
+	err := d.createUseCaseWithStatsInvalidator(invalidator).TrackChallengeOpen(context.Background(), uuid.New(), &teamID, uuid.New(), "192.168.1.1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, invalidator.calls)
+}
+
+func TestTrackingUseCase_TrackChallengeOpen_IgnoresStatisticsInvalidationError(t *testing.T) {
+	t.Parallel()
+	d := newTrackingTestDeps(t)
+	invalidator := &recordingStatisticsInvalidator{err: errors.New("redis down")}
+	teamID := uuid.New()
+
+	d.trackingRepo.On("CreateChallengeOpen", mock.Anything, mock.MatchedBy(func(open *domain.ChallengeOpen) bool {
+		return open.TeamID != nil && *open.TeamID == teamID
+	})).Return(nil)
+
+	err := d.createUseCaseWithStatsInvalidator(invalidator).TrackChallengeOpen(context.Background(), uuid.New(), &teamID, uuid.New(), "192.168.1.1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, invalidator.calls)
 }
 
 func TestTrackingUseCase_TrackChallengeOpen_RepoError(t *testing.T) {
 	t.Parallel()
 	d := newTrackingTestDeps(t)
 	d.trackingRepo.On("CreateChallengeOpen", mock.Anything, mock.AnythingOfType("*domain.ChallengeOpen")).Return(errors.New("db error"))
+	teamID := uuid.New()
 
-	err := d.createUseCase().TrackChallengeOpen(context.Background(), uuid.New(), uuid.New(), "192.168.1.1")
+	err := d.createUseCase().TrackChallengeOpen(context.Background(), uuid.New(), &teamID, uuid.New(), "192.168.1.1")
 	assert.Error(t, err)
 }

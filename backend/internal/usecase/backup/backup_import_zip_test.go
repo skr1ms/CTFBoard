@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
 )
@@ -41,8 +43,10 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	}).Once()
 	backupRepo.EXPECT().ImportCompetition(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportTags(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportTopics(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportChallenges(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportChallengeTags(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportChallengeTopics(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportBrackets(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportUsers(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportTeams(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -92,4 +96,64 @@ func TestBackupUseCase_ImportZIP_Error_InvalidZIP(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "BackupUseCase - ImportZIP")
+}
+
+func TestBackupUseCase_ImportZIP_Error_MissingBackupJSON(t *testing.T) {
+	t.Parallel()
+	tm := backupMock.NewMockTransactionManager(t)
+
+	zipBuf := newBackupZip(t, map[string][]byte{
+		"README.md": []byte("backup metadata is missing"),
+	})
+
+	uc := NewBackupUseCase(BackupDeps{TM: tm})
+	readerAt := io.NewSectionReader(bytes.NewReader(zipBuf.Bytes()), 0, int64(zipBuf.Len()))
+
+	_, err := uc.ImportZIP(context.Background(), readerAt, int64(zipBuf.Len()), domain.ImportOptions{})
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperr.ErrBackupJSONNotFound))
+}
+
+func TestBackupUseCase_ImportZIP_Error_UnsupportedVersion(t *testing.T) {
+	t.Parallel()
+	tm := backupMock.NewMockTransactionManager(t)
+
+	backupData := &domain.BackupData{
+		Version:     "0.9",
+		ExportedAt:  time.Now().UTC(),
+		Competition: &domain.Competition{Name: "Old", Mode: "teams_only"},
+	}
+	payload, err := json.Marshal(backupData)
+	require.NoError(t, err)
+
+	zipBuf := newBackupZip(t, map[string][]byte{
+		"backup.json": payload,
+	})
+
+	uc := NewBackupUseCase(BackupDeps{TM: tm})
+	readerAt := io.NewSectionReader(bytes.NewReader(zipBuf.Bytes()), 0, int64(zipBuf.Len()))
+
+	_, err = uc.ImportZIP(context.Background(), readerAt, int64(zipBuf.Len()), domain.ImportOptions{})
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperr.ErrBackupVersionUnsupported))
+}
+
+func newBackupZip(t *testing.T, entries map[string][]byte) *bytes.Buffer {
+	t.Helper()
+
+	zipBuf := new(bytes.Buffer)
+	zw := zip.NewWriter(zipBuf)
+
+	for name, content := range entries {
+		w, err := zw.Create(name)
+		require.NoError(t, err)
+		_, err = w.Write(content)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, zw.Close())
+
+	return zipBuf
 }

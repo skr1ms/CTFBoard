@@ -15,6 +15,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
 )
 
@@ -166,7 +167,11 @@ func runRegisterTest(t *testing.T, tt registerTestCase) {
 	tt.setupMocks(d.userRepo, d.tm)
 	uc := d.createUseCase()
 
-	user, err := uc.Register(context.Background(), tt.username, tt.email, tt.password, nil)
+	user, err := uc.Register(context.Background(), usecase.UserRegisterParams{
+		Username: tt.username,
+		Email:    tt.email,
+		Password: tt.password,
+	})
 	if tt.expectedError {
 		assert.Error(t, err)
 		assert.Nil(t, user)

@@ -44,6 +44,7 @@ type TestFixture struct {
 	BackupRepo            *persistent.BackupRepo
 	SettingsRepo          *persistent.SettingsRepo
 	TagRepo               *persistent.TagRepo
+	TopicRepo             *persistent.TopicRepo
 	CommentRepo           *persistent.CommentRepo
 	BracketRepo           *persistent.BracketRepo
 	CompetitionParamRepo  *persistent.CompetitionParamRepo
@@ -78,6 +79,7 @@ func NewTestFixture(Pool *pgxpool.Pool) *TestFixture {
 		BackupRepo:            persistent.NewBackupRepo(Pool),
 		SettingsRepo:          persistent.NewSettingsRepo(Pool),
 		TagRepo:               persistent.NewTagRepo(Pool),
+		TopicRepo:             persistent.NewTopicRepo(Pool),
 		CommentRepo:           persistent.NewCommentRepo(Pool),
 		BracketRepo:           persistent.NewBracketRepo(Pool),
 		CompetitionParamRepo:  persistent.NewCompetitionParamRepo(Pool),

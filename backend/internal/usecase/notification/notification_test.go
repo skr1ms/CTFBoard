@@ -26,6 +26,38 @@ func (m *mockBroadcaster) NotifyNotification(message, level string) {
 	m.calls = append(m.calls, struct{ message, level string }{message, level})
 }
 
+type fakeTeamReader struct {
+	team *domain.Team
+	err  error
+}
+
+func (f fakeTeamReader) GetByID(_ context.Context, _ uuid.UUID) (*domain.Team, error) {
+	return f.team, f.err
+}
+
+type fakeTeamMemberReader struct {
+	members []*domain.User
+	err     error
+}
+
+func (f fakeTeamMemberReader) GetByTeamID(_ context.Context, _ uuid.UUID) ([]*domain.User, error) {
+	return f.members, f.err
+}
+
+type fakeTransactionManager struct {
+	called bool
+	err    error
+}
+
+func (f *fakeTransactionManager) Run(ctx context.Context, fn func(context.Context) error) error {
+	f.called = true
+	if f.err != nil {
+		return f.err
+	}
+
+	return fn(ctx)
+}
+
 func newUC(t *testing.T) (*NotificationUseCase, *notifMock.MockNotificationRepository, *mockBroadcaster) {
 	t.Helper()
 
@@ -51,6 +83,15 @@ func notificationGlobalParams(title, content string, notifType domain.Notificati
 func notificationPersonalParams(userID uuid.UUID, title, content string, notifType domain.NotificationType) usecase.NotificationCreatePersonalParams {
 	return usecase.NotificationCreatePersonalParams{
 		UserID:  userID,
+		Title:   title,
+		Content: content,
+		Type:    notifType,
+	}
+}
+
+func notificationTeamParams(teamID uuid.UUID, title, content string, notifType domain.NotificationType) usecase.NotificationCreateTeamParams {
+	return usecase.NotificationCreateTeamParams{
+		TeamID:  teamID,
 		Title:   title,
 		Content: content,
 		Type:    notifType,
@@ -170,6 +211,99 @@ func TestCreatePersonal_EmptyContent_Error(t *testing.T) {
 	require.ErrorIs(t, err, apperr.ErrNotificationTitleContentRequired)
 }
 
+func TestCreateTeam_FanOutActiveMembersOnly(t *testing.T) {
+	t.Parallel()
+
+	repo := notifMock.NewMockNotificationRepository(t)
+	teamID := uuid.New()
+	activeA := uuid.New()
+	activeB := uuid.New()
+	banned := uuid.New()
+	tm := &fakeTransactionManager{}
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID}},
+		UserRepo: fakeTeamMemberReader{members: []*domain.User{
+			{ID: activeA, TeamID: &teamID},
+			{ID: banned, TeamID: &teamID, IsBanned: true},
+			nil,
+			{ID: activeB, TeamID: &teamID},
+		}},
+		TM: tm,
+	})
+
+	repo.EXPECT().CreateUserNotification(mock.Anything, mock.MatchedBy(func(n *domain.UserNotification) bool {
+		return n.UserID == activeA && n.Title == "team" && n.Content == "body" && n.Type == domain.NotificationSuccess && !n.IsRead
+	})).Return(nil).Once()
+	repo.EXPECT().CreateUserNotification(mock.Anything, mock.MatchedBy(func(n *domain.UserNotification) bool {
+		return n.UserID == activeB && n.Title == "team" && n.Content == "body" && n.Type == domain.NotificationSuccess && !n.IsRead
+	})).Return(nil).Once()
+
+	result, err := uc.CreateTeam(context.Background(), notificationTeamParams(teamID, "team", "body", domain.NotificationSuccess))
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, tm.called)
+	assert.Equal(t, "team", result.TargetType)
+	assert.Equal(t, teamID, result.TargetID)
+	assert.Equal(t, 2, result.CreatedCount)
+}
+
+func TestCreateTeam_BannedTeam_Error(t *testing.T) {
+	t.Parallel()
+
+	repo := notifMock.NewMockNotificationRepository(t)
+	teamID := uuid.New()
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID, IsBanned: true}},
+		UserRepo:  fakeTeamMemberReader{},
+		TM:        &fakeTransactionManager{},
+	})
+
+	_, err := uc.CreateTeam(context.Background(), notificationTeamParams(teamID, "team", "body", domain.NotificationInfo))
+
+	require.ErrorIs(t, err, apperr.ErrTeamBanned)
+}
+
+func TestCreateTeam_MissingTeam_Error(t *testing.T) {
+	t.Parallel()
+
+	repo := notifMock.NewMockNotificationRepository(t)
+	teamID := uuid.New()
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		TeamRepo:  fakeTeamReader{err: apperr.ErrTeamNotFound},
+		UserRepo:  fakeTeamMemberReader{},
+		TM:        &fakeTransactionManager{},
+	})
+
+	_, err := uc.CreateTeam(context.Background(), notificationTeamParams(teamID, "team", "body", domain.NotificationInfo))
+
+	require.ErrorIs(t, err, apperr.ErrTeamNotFound)
+}
+
+func TestCreateTeam_InsertError(t *testing.T) {
+	t.Parallel()
+
+	repo := notifMock.NewMockNotificationRepository(t)
+	teamID := uuid.New()
+	userID := uuid.New()
+	expectedErr := errors.New("insert failed")
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID}},
+		UserRepo:  fakeTeamMemberReader{members: []*domain.User{{ID: userID, TeamID: &teamID}}},
+		TM:        &fakeTransactionManager{},
+	})
+	repo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(expectedErr).Once()
+
+	_, err := uc.CreateTeam(context.Background(), notificationTeamParams(teamID, "team", "body", domain.NotificationInfo))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), expectedErr.Error())
+}
+
 func TestGetGlobal_PaginationOffset(t *testing.T) {
 	t.Parallel()
 
@@ -182,6 +316,19 @@ func TestGetGlobal_PaginationOffset(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
+}
+
+func TestCountGlobal_Success(t *testing.T) {
+	t.Parallel()
+
+	uc, repo, _ := newUC(t)
+	since := time.Now().Add(-time.Hour)
+	repo.EXPECT().CountGlobal(mock.Anything, &since).Return(3, nil)
+
+	count, err := uc.CountGlobal(context.Background(), &since)
+
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
 }
 
 func TestGetUserNotifications_Success(t *testing.T) {

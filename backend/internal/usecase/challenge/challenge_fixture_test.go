@@ -83,6 +83,7 @@ type challengeTestDeps struct {
 	fileStorage    *challengeMock.MockFileStorage
 	commentRepo    *challengeMock.MockCommentRepository
 	tagRepo        *challengeMock.MockTagRepository
+	topicRepo      *challengeMock.MockTopicRepository
 }
 
 func newChallengeTestDeps(t *testing.T) *challengeTestDeps {
@@ -104,6 +105,7 @@ func newChallengeTestDeps(t *testing.T) *challengeTestDeps {
 		fileStorage:    challengeMock.NewMockFileStorage(t),
 		commentRepo:    challengeMock.NewMockCommentRepository(t),
 		tagRepo:        challengeMock.NewMockTagRepository(t),
+		topicRepo:      challengeMock.NewMockTopicRepository(t),
 	}
 }
 
@@ -164,6 +166,10 @@ func (d *challengeTestDeps) createTagUseCase() *TagUseCase {
 	return NewTagUseCase(TagDeps{TagRepo: d.tagRepo, ChallengeRepo: d.challengeRepo})
 }
 
+func (d *challengeTestDeps) createTopicUseCase() *TopicUseCase {
+	return NewTopicUseCase(TopicDeps{TopicRepo: d.topicRepo, ChallengeRepo: d.challengeRepo, TM: d.tm})
+}
+
 func (d *challengeTestDeps) createCommentUseCase() *CommentUseCase {
 	return NewCommentUseCase(CommentDeps{CommentRepo: d.commentRepo, ChallengeRepo: d.challengeRepo})
 }
@@ -205,6 +211,10 @@ func newActiveCompetition() *domain.Competition {
 
 func newTestTag(name, color string) *domain.Tag {
 	return &domain.Tag{ID: uuid.New(), Name: name, Color: color}
+}
+
+func newTestTopic(name string) *domain.Topic {
+	return &domain.Topic{ID: uuid.New(), Name: name}
 }
 
 func newTestComment(userID, challengeID uuid.UUID, content string) *domain.Comment {

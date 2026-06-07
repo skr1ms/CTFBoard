@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redismock/v9"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/wahrwelt-kit/go-cachekit"
 
@@ -91,4 +92,17 @@ func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetT
 	s.ScoreboardVisible = visibility
 
 	return s
+}
+
+func TestSettingsUseCase_Validate_MaxUsersNegative(t *testing.T) {
+	t.Parallel()
+
+	uc := NewSettingsUseCase(SettingsDeps{})
+	settings := newTestAppSettings()
+	settings.MaxUsers = -1
+
+	err := uc.validate(settings)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "max_users")
 }

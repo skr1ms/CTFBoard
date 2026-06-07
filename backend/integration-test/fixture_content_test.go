@@ -59,6 +59,20 @@ func (f *TestFixture) CreateTag(t *testing.T, suffix string) *domain.Tag {
 	return tag
 }
 
+func (f *TestFixture) CreateTopic(t *testing.T, suffix string) *domain.Topic {
+	t.Helper()
+
+	unique := suffix + "_" + uuid.NewString()[:8]
+	ctx := context.Background()
+	topic := &domain.Topic{Name: "topic_" + unique}
+	err := f.TopicRepo.Create(ctx, topic)
+	require.NoError(t, err)
+	gotTopic, err := f.TopicRepo.GetByName(ctx, topic.Name)
+	require.NoError(t, err)
+
+	return gotTopic
+}
+
 func (f *TestFixture) CreateComment(t *testing.T, userID, challengeID uuid.UUID, content string) *domain.Comment {
 	t.Helper()
 

@@ -26,7 +26,7 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 		}
 
 		_, err := TestPool.Exec(ctx, `TRUNCATE TABLE
-			configs, comments, api_tokens,
+			configs, comments, api_tokens, backup_import_jobs,
 			field_values, fields, brackets, pages, user_notifications, notifications,
 			submissions, challenge_tags, tags, audit_logs, team_audit_log, app_settings,
 			solutions, files, verification_tokens, awards, hint_unlocks, hints, solves,

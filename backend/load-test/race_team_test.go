@@ -191,6 +191,7 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 
 	_, err = testDBPool.Exec(ctx, "UPDATE competition SET mode = 'teams_only', updated_at = NOW() WHERE id = 1")
 	require.NoError(t, err)
+
 	defer func() {
 		_, _ = testDBPool.Exec(context.Background(), "UPDATE competition SET mode = 'teams_only', updated_at = NOW() WHERE id = 1")
 	}()

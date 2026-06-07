@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
 )
 
@@ -35,6 +37,39 @@ func TestBackupUseCase_ExportCSV_Success(t *testing.T) {
 	assert.NotNil(t, data)
 	assert.Contains(t, string(data), "id")
 	assert.Contains(t, string(data), "username")
+}
+
+func TestBackupUseCase_ExportCSV_ChallengesIncludesMetadata(t *testing.T) {
+	t.Parallel()
+	challengeRepo := backupMock.NewMockChallengeRepository(t)
+	log := logMock.NewMockLogger(t)
+
+	nextID := uuid.New()
+	challengeRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{
+		{
+			Challenge: &domain.Challenge{
+				ID:              uuid.New(),
+				Title:           "Challenge",
+				Attribution:     "Author",
+				NextChallengeID: &nextID,
+			},
+		},
+	}, nil).Once()
+
+	uc := NewBackupUseCase(BackupDeps{
+		ChallengeRepo: challengeRepo,
+		Logger:        log,
+	})
+
+	data, err := uc.ExportCSV(context.Background(), "challenges")
+
+	require.NoError(t, err)
+
+	csv := string(data)
+	assert.Contains(t, csv, "attribution")
+	assert.Contains(t, csv, "next_challenge_id")
+	assert.Contains(t, csv, "Author")
+	assert.Contains(t, csv, nextID.String())
 }
 
 func TestBackupUseCase_ExportCSV_Error_UnknownTable(t *testing.T) {

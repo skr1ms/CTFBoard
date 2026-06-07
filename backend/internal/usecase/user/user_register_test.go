@@ -9,6 +9,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	userMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user/mock"
 )
 
@@ -37,7 +38,11 @@ func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 		TM: d.tm, JWTService: d.jwtService, FieldValidator: nil, FieldValueRepo: nil,
 		SettingsRepo: settingsRepo,
 	})
-	user, err := uc.Register(context.Background(), "testuser", "test@example.com", "password123", nil)
+	user, err := uc.Register(context.Background(), usecase.UserRegisterParams{
+		Username: "testuser",
+		Email:    "test@example.com",
+		Password: "password123",
+	})
 	assert.Error(t, err)
 	assert.Nil(t, user)
 	assert.ErrorIs(t, err, apperr.ErrRegistrationClosed)

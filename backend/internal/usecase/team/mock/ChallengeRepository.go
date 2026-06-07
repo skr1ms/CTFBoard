@@ -1387,8 +1387,8 @@ func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run fun
 }
 
 // ListSolutions provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error) {
-	ret := _mock.Called(ctx, teamID)
+func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSolutions")
@@ -1396,18 +1396,18 @@ func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context, teamID 
 
 	var r0 []*repo.ChallengeSolutionEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*repo.ChallengeSolutionEntry, error)); ok {
-		return returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*repo.ChallengeSolutionEntry, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*repo.ChallengeSolutionEntry); ok {
-		r0 = returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*repo.ChallengeSolutionEntry); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*repo.ChallengeSolutionEntry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, teamID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1421,24 +1421,18 @@ type MockChallengeRepository_ListSolutions_Call struct {
 
 // ListSolutions is a helper method to define mock.On call
 //   - ctx context.Context
-//   - teamID uuid.UUID
-func (_e *MockChallengeRepository_Expecter) ListSolutions(ctx interface{}, teamID interface{}) *MockChallengeRepository_ListSolutions_Call {
-	return &MockChallengeRepository_ListSolutions_Call{Call: _e.mock.On("ListSolutions", ctx, teamID)}
+func (_e *MockChallengeRepository_Expecter) ListSolutions(ctx interface{}) *MockChallengeRepository_ListSolutions_Call {
+	return &MockChallengeRepository_ListSolutions_Call{Call: _e.mock.On("ListSolutions", ctx)}
 }
 
-func (_c *MockChallengeRepository_ListSolutions_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *MockChallengeRepository_ListSolutions_Call {
+func (_c *MockChallengeRepository_ListSolutions_Call) Run(run func(ctx context.Context)) *MockChallengeRepository_ListSolutions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
 		run(
 			arg0,
-			arg1,
 		)
 	})
 	return _c
@@ -1449,7 +1443,7 @@ func (_c *MockChallengeRepository_ListSolutions_Call) Return(vs []*repo.Challeng
 	return _c
 }
 
-func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error)) *MockChallengeRepository_ListSolutions_Call {
+func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error)) *MockChallengeRepository_ListSolutions_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1758,8 +1752,8 @@ func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx c
 }
 
 // UpsertSolution provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error) {
-	ret := _mock.Called(ctx, challengeID, content)
+func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string, state string) (*repo.ChallengeSolution, error) {
+	ret := _mock.Called(ctx, challengeID, content, state)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpsertSolution")
@@ -1767,18 +1761,18 @@ func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challe
 
 	var r0 *repo.ChallengeSolution
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*repo.ChallengeSolution, error)); ok {
-		return returnFunc(ctx, challengeID, content)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) (*repo.ChallengeSolution, error)); ok {
+		return returnFunc(ctx, challengeID, content, state)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *repo.ChallengeSolution); ok {
-		r0 = returnFunc(ctx, challengeID, content)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) *repo.ChallengeSolution); ok {
+		r0 = returnFunc(ctx, challengeID, content, state)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*repo.ChallengeSolution)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, challengeID, content)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string) error); ok {
+		r1 = returnFunc(ctx, challengeID, content, state)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1794,11 +1788,12 @@ type MockChallengeRepository_UpsertSolution_Call struct {
 //   - ctx context.Context
 //   - challengeID uuid.UUID
 //   - content string
-func (_e *MockChallengeRepository_Expecter) UpsertSolution(ctx interface{}, challengeID interface{}, content interface{}) *MockChallengeRepository_UpsertSolution_Call {
-	return &MockChallengeRepository_UpsertSolution_Call{Call: _e.mock.On("UpsertSolution", ctx, challengeID, content)}
+//   - state string
+func (_e *MockChallengeRepository_Expecter) UpsertSolution(ctx interface{}, challengeID interface{}, content interface{}, state interface{}) *MockChallengeRepository_UpsertSolution_Call {
+	return &MockChallengeRepository_UpsertSolution_Call{Call: _e.mock.On("UpsertSolution", ctx, challengeID, content, state)}
 }
 
-func (_c *MockChallengeRepository_UpsertSolution_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, content string)) *MockChallengeRepository_UpsertSolution_Call {
+func (_c *MockChallengeRepository_UpsertSolution_Call) Run(run func(ctx context.Context, challengeID uuid.UUID, content string, state string)) *MockChallengeRepository_UpsertSolution_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1812,10 +1807,15 @@ func (_c *MockChallengeRepository_UpsertSolution_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -1826,7 +1826,7 @@ func (_c *MockChallengeRepository_UpsertSolution_Call) Return(v *repo.ChallengeS
 	return _c
 }
 
-func (_c *MockChallengeRepository_UpsertSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error)) *MockChallengeRepository_UpsertSolution_Call {
+func (_c *MockChallengeRepository_UpsertSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, content string, state string) (*repo.ChallengeSolution, error)) *MockChallengeRepository_UpsertSolution_Call {
 	_c.Call.Return(run)
 	return _c
 }

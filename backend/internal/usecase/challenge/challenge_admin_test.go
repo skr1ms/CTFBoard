@@ -8,7 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
@@ -50,6 +52,68 @@ func TestChallengeUseCase_Create_Success(t *testing.T) {
 	assert.Equal(t, "New Challenge", challenge.Title)
 	assert.Equal(t, 200, challenge.Points)
 	assert.NotEmpty(t, challenge.FlagHash)
+}
+
+func TestChallengeUseCase_Create_WithMetadata(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	nextID := uuid.New()
+	d.challengeRepo.On("GetByID", mock.Anything, nextID).Return(&domain.Challenge{ID: nextID}, nil).Once()
+	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn, ok := args.Get(1).(func(context.Context) error)
+		if !ok {
+			return
+		}
+
+		ctx, ok := args.Get(0).(context.Context)
+		if !ok {
+			return
+		}
+
+		_ = fn(ctx)
+	})
+	d.challengeRepo.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.Challenge) bool {
+		return c.Attribution == "Author" && c.NextChallengeID != nil && *c.NextChallengeID == nextID
+	})).Return(nil).Run(func(args mock.Arguments) {
+		c, ok := args.Get(1).(*domain.Challenge)
+		if ok && c != nil {
+			c.ID = uuid.New()
+		}
+	})
+	d.challengeRepo.On("SetTags", mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil)
+
+	params := challengeCreateParams("New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false)
+	params.Attribution = "Author"
+	params.NextChallengeID = &nextID
+	challenge, err := uc.Create(context.Background(), params)
+
+	require.NoError(t, err)
+	require.NotNil(t, challenge)
+	assert.Equal(t, "Author", challenge.Attribution)
+	require.NotNil(t, challenge.NextChallengeID)
+	assert.Equal(t, nextID, *challenge.NextChallengeID)
+}
+
+func TestChallengeUseCase_Create_UnknownNextIDValidation(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	nextID := uuid.New()
+	d.challengeRepo.On("GetByID", mock.Anything, nextID).Return(nil, apperr.ErrChallengeNotFound).Once()
+
+	params := challengeCreateParams("New Challenge", "Description", "Crypto", 200, 500, 100, 20, "flag{test}", false)
+	params.NextChallengeID = &nextID
+	challenge, err := uc.Create(context.Background(), params)
+
+	assert.Error(t, err)
+	assert.Nil(t, challenge)
+	assert.Contains(t, err.Error(), "next_id references unknown challenge")
+
+	var ve *apperr.ValidationError
+	assert.True(t, errors.As(err, &ve))
 }
 
 func TestChallengeUseCase_Create_Error(t *testing.T) {
@@ -145,6 +209,110 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
 	assert.NotEqual(t, "old_hash", challenge.FlagHash)
+}
+
+func TestChallengeUseCase_Update_NextIDValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		nextID       uuid.UUID
+		expectLookup bool
+		lookupErr    error
+		wantErrorIs  error
+		wantValidate bool
+		wantContains string
+	}{
+		{
+			name:         "self reference",
+			nextID:       uuid.Nil,
+			wantValidate: true,
+			wantContains: "next_id cannot reference the same challenge",
+		},
+		{
+			name:         "missing target",
+			nextID:       uuid.New(),
+			expectLookup: true,
+			lookupErr:    apperr.ErrChallengeNotFound,
+			wantValidate: true,
+			wantContains: "next_id references unknown challenge",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := newChallengeTestDeps(t)
+			uc, _ := d.createChallengeUseCase()
+			challengeID := uuid.New()
+			nextID := tt.nextID
+
+			if nextID == uuid.Nil {
+				nextID = challengeID
+			}
+
+			existingChallenge := newTestChallenge(challengeID, "Old Title", "Web", 100, "old_hash")
+
+			d.tm.On("Run", mock.Anything, mock.Anything).Return(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
+			d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil).Once()
+
+			if tt.expectLookup {
+				d.challengeRepo.On("GetByID", mock.Anything, nextID).Return(nil, tt.lookupErr).Once()
+			}
+
+			iv, mv, dc := 500, 100, 20
+			ir, ic := false, false
+			params := challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", nil, nil, nil, nil, "visible", &ir, &ic)
+			params.NextChallengeSet = true
+			params.NextChallengeID = &nextID
+			challenge, err := uc.Update(context.Background(), challengeID, params)
+
+			assert.Error(t, err)
+			assert.Nil(t, challenge)
+
+			if tt.wantErrorIs != nil {
+				assert.ErrorIs(t, err, tt.wantErrorIs)
+			}
+
+			if tt.wantValidate {
+				var ve *apperr.ValidationError
+				assert.True(t, errors.As(err, &ve))
+			}
+
+			if tt.wantContains != "" {
+				assert.Contains(t, err.Error(), tt.wantContains)
+			}
+		})
+	}
+}
+
+func TestChallengeUseCase_Update_ClearsNextID(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	nextID := uuid.New()
+	existingChallenge := newTestChallenge(challengeID, "Old Title", "Web", 100, "old_hash")
+	existingChallenge.NextChallengeID = &nextID
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
+	d.tm.On("Run", mock.Anything, mock.Anything).Return(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
+	d.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *domain.Challenge) bool {
+		return c.ID == challengeID && c.NextChallengeID == nil
+	})).Return(nil)
+	d.challengeRepo.On("SetTags", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	iv, mv, dc := 500, 100, 20
+	ir, ic := false, false
+	params := challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, &dc, "", nil, nil, nil, nil, "visible", &ir, &ic)
+	params.NextChallengeSet = true
+	challenge, err := uc.Update(context.Background(), challengeID, params)
+
+	require.NoError(t, err)
+	require.NotNil(t, challenge)
+	assert.Nil(t, challenge.NextChallengeID)
 }
 
 func TestChallengeUseCase_Update_GetByIDError(t *testing.T) {

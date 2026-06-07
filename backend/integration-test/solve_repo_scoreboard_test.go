@@ -187,6 +187,7 @@ func TestSolveRepo_GetScoreboard_ExcludesSoftBannedSources(t *testing.T) {
 
 	solveBannedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamSolveBanned.ID })
 	awardBannedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamAwardBanned.ID })
+
 	require.GreaterOrEqual(t, solveBannedIdx, 0)
 	require.GreaterOrEqual(t, awardBannedIdx, 0)
 	assert.Equal(t, 25, scoreboard[solveBannedIdx].Points, "soft-banned solve points should be excluded while active awards still count")
@@ -293,6 +294,7 @@ func TestSolveRepo_GetScoreboard_TieBreaksByLastSolveTime(t *testing.T) {
 
 	earlyIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tEarly.ID })
 	lateIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tLate.ID })
+
 	require.GreaterOrEqual(t, earlyIdx, 0)
 	require.GreaterOrEqual(t, lateIdx, 0)
 	require.Equal(t, 100, scoreboard[earlyIdx].Points)
@@ -317,6 +319,7 @@ func TestSolveRepo_GetScoreboard_ZeroPointSolveRanksBeforeNeverSolved(t *testing
 
 	solvedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tSolved.ID })
 	neverIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tNeverSolved.ID })
+
 	require.GreaterOrEqual(t, solvedIdx, 0)
 	require.GreaterOrEqual(t, neverIdx, 0)
 	require.Equal(t, 0, scoreboard[solvedIdx].Points)
@@ -353,6 +356,7 @@ func TestSolveRepo_GetScoreboard_AwardsRespectFreezeCutoff(t *testing.T) {
 
 	frozenIdx := slices.IndexFunc(frozen, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
 	liveIdx := slices.IndexFunc(live, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
+
 	require.GreaterOrEqual(t, frozenIdx, 0)
 	require.GreaterOrEqual(t, liveIdx, 0)
 	assert.Equal(t, 150, frozen[frozenIdx].Points)
@@ -381,12 +385,14 @@ func TestSolveRepo_GetScoreboard_AwardOnlyTieFallsBackToTeamID(t *testing.T) {
 
 	t1Idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
 	t2Idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID })
+
 	require.GreaterOrEqual(t, t1Idx, 0)
 	require.GreaterOrEqual(t, t2Idx, 0)
 	require.Equal(t, 100, scoreboard[t1Idx].Points)
 	require.Equal(t, 100, scoreboard[t2Idx].Points)
 
 	firstIdx, secondIdx := t1Idx, t2Idx
+
 	if bytes.Compare(t1.ID[:], t2.ID[:]) > 0 {
 		firstIdx, secondIdx = t2Idx, t1Idx
 	}

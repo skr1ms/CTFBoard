@@ -102,27 +102,110 @@ func TestFieldUseCase_Create_Success(t *testing.T) {
 	d := newFieldTestDeps(t)
 	ctx := context.Background()
 	name := "field1"
-	fieldType := domain.FieldTypeText
+	description := "profile field"
+	fieldType := domain.FieldTypeSelect
 	entityType := domain.EntityTypeTeam
 	required := true
 	options := []string{"a", "b"}
 	orderIndex := 1
+	params := fieldCreateParams(name, fieldType, entityType, true, options, orderIndex)
+	params.Description = " " + description + " "
+	params.Public = true
+	params.Editable = true
 
 	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
 		assert.Equal(t, name, f.Name)
+		assert.Equal(t, description, f.Description)
 		assert.Equal(t, fieldType, f.FieldType)
 		assert.Equal(t, entityType, f.EntityType)
 		assert.Equal(t, required, f.Required)
+		assert.True(t, f.Public)
+		assert.True(t, f.Editable)
 		assert.Equal(t, options, f.Options)
 		assert.Equal(t, orderIndex, f.OrderIndex)
 	})
 
 	uc := d.createUseCase()
-	got, err := uc.Create(ctx, fieldCreateParams(name, fieldType, entityType, true, options, orderIndex))
+	got, err := uc.Create(ctx, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
 	assert.Equal(t, name, got.Name)
+	assert.Equal(t, description, got.Description)
+	assert.True(t, got.Public)
+	assert.True(t, got.Editable)
+}
+
+func TestFieldUseCase_Create_ClearsOptionsForNonSelect(t *testing.T) {
+	t.Parallel()
+	d := newFieldTestDeps(t)
+	ctx := context.Background()
+
+	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
+		assert.Nil(t, f.Options)
+	})
+
+	uc := d.createUseCase()
+	got, err := uc.Create(ctx, fieldCreateParams("field", domain.FieldTypeText, domain.EntityTypeUser, false, []string{"unused"}, 0))
+
+	assert.NoError(t, err)
+	assert.Nil(t, got.Options)
+}
+
+func TestFieldUseCase_Create_JSONField(t *testing.T) {
+	t.Parallel()
+	d := newFieldTestDeps(t)
+	ctx := context.Background()
+
+	d.fieldRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
+		assert.Equal(t, domain.FieldTypeJSON, f.FieldType)
+		assert.Nil(t, f.Options)
+	})
+
+	uc := d.createUseCase()
+	got, err := uc.Create(ctx, fieldCreateParams("metadata", domain.FieldTypeJSON, domain.EntityTypeTeam, false, []string{"ignored"}, 0))
+
+	assert.NoError(t, err)
+	assert.Equal(t, domain.FieldTypeJSON, got.FieldType)
+	assert.Nil(t, got.Options)
+}
+
+func TestFieldUseCase_Create_SelectRequiresOptions(t *testing.T) {
+	t.Parallel()
+	d := newFieldTestDeps(t)
+	ctx := context.Background()
+
+	uc := d.createUseCase()
+	got, err := uc.Create(ctx, fieldCreateParams("field", domain.FieldTypeSelect, domain.EntityTypeUser, false, nil, 0))
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestFieldUseCase_Create_InvalidTypes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		fieldType  domain.FieldType
+		entityType domain.EntityType
+	}{
+		{name: "field type", fieldType: domain.FieldType("bad"), entityType: domain.EntityTypeUser},
+		{name: "entity type", fieldType: domain.FieldTypeText, entityType: domain.EntityType("bad")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			d := newFieldTestDeps(t)
+
+			uc := d.createUseCase()
+			got, err := uc.Create(context.Background(), fieldCreateParams("field", tt.fieldType, tt.entityType, false, nil, 0))
+
+			assert.Error(t, err)
+			assert.Nil(t, got)
+		})
+	}
 }
 
 func TestFieldUseCase_Create_Error(t *testing.T) {
@@ -208,25 +291,36 @@ func TestFieldUseCase_Update_Success(t *testing.T) {
 	field := newTestField("old", domain.FieldTypeText, domain.EntityTypeUser, false, nil, 0)
 	field.ID = id
 	name := "new"
+	description := "visible to players"
 	fieldType := domain.FieldTypeSelect
 	required := true
 	options := []string{"x"}
 	orderIndex := 2
+	params := fieldUpdateParams(name, fieldType, true, options, orderIndex)
+	params.Description = " " + description + " "
+	params.Public = true
+	params.Editable = true
 
 	d.fieldRepo.EXPECT().GetByID(mock.Anything, id).Return(field, nil)
 	d.fieldRepo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, f *domain.Field) {
 		assert.Equal(t, name, f.Name)
+		assert.Equal(t, description, f.Description)
 		assert.Equal(t, fieldType, f.FieldType)
 		assert.Equal(t, required, f.Required)
+		assert.True(t, f.Public)
+		assert.True(t, f.Editable)
 		assert.Equal(t, options, f.Options)
 		assert.Equal(t, orderIndex, f.OrderIndex)
 	})
 
 	uc := d.createUseCase()
-	got, err := uc.Update(ctx, id, fieldUpdateParams(name, fieldType, true, options, orderIndex))
+	got, err := uc.Update(ctx, id, params)
 
 	assert.NoError(t, err)
 	assert.Equal(t, name, got.Name)
+	assert.Equal(t, description, got.Description)
+	assert.True(t, got.Public)
+	assert.True(t, got.Editable)
 }
 
 func TestFieldUseCase_Update_Error(t *testing.T) {

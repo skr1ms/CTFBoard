@@ -19,15 +19,47 @@ func TestFieldRepo_Create_Success(t *testing.T) {
 	ctx := context.Background()
 
 	field := &domain.Field{
-		Name:       "bio",
-		FieldType:  domain.FieldTypeText,
-		EntityType: domain.EntityTypeUser,
-		Required:   false,
-		OrderIndex: 0,
+		Name:        "bio",
+		Description: "Biography",
+		FieldType:   domain.FieldTypeText,
+		EntityType:  domain.EntityTypeUser,
+		Required:    false,
+		Public:      true,
+		Editable:    true,
+		OrderIndex:  0,
 	}
 	err := f.FieldRepo.Create(ctx, field)
 	require.NoError(t, err)
 	assert.NotEmpty(t, field.ID)
+
+	got, err := f.FieldRepo.GetByID(ctx, field.ID)
+	require.NoError(t, err)
+	assert.Equal(t, field.Description, got.Description)
+	assert.True(t, got.Public)
+	assert.True(t, got.Editable)
+}
+
+func TestFieldRepo_Create_JSONField(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	field := &domain.Field{
+		Name:       "metadata",
+		FieldType:  domain.FieldTypeJSON,
+		EntityType: domain.EntityTypeTeam,
+		Public:     true,
+		Editable:   true,
+	}
+
+	err := f.FieldRepo.Create(ctx, field)
+	require.NoError(t, err)
+
+	got, err := f.FieldRepo.GetByID(ctx, field.ID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.FieldTypeJSON, got.FieldType)
+	assert.Equal(t, domain.EntityTypeTeam, got.EntityType)
 }
 
 func TestFieldRepo_Create_Error_CancelledContext(t *testing.T) {
@@ -53,6 +85,9 @@ func TestFieldRepo_GetByID_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, field.ID, got.ID)
 	assert.Equal(t, field.Name, got.Name)
+	assert.Equal(t, field.Description, got.Description)
+	assert.Equal(t, field.Public, got.Public)
+	assert.Equal(t, field.Editable, got.Editable)
 }
 
 func TestFieldRepo_GetByID_Error_NotFound(t *testing.T) {
@@ -136,11 +171,17 @@ func TestFieldRepo_Update_Success(t *testing.T) {
 
 	field := f.CreateField(t, "upd", domain.EntityTypeUser)
 	field.Name = "updated_name"
+	field.Description = "updated description"
+	field.Public = true
+	field.Editable = true
 	err := f.FieldRepo.Update(ctx, field)
 	require.NoError(t, err)
 	got, err := f.FieldRepo.GetByID(ctx, field.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "updated_name", got.Name)
+	assert.Equal(t, "updated description", got.Description)
+	assert.True(t, got.Public)
+	assert.True(t, got.Editable)
 }
 
 func TestFieldRepo_Update_Error_NotFound(t *testing.T) {
@@ -244,4 +285,38 @@ func TestFieldValueRepo_SetValues_Error_InvalidFieldID(t *testing.T) {
 		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{"not-a-uuid": "x"})
 	})
 	assert.Error(t, err)
+}
+
+func TestFieldValueRepo_UpsertValues_PartialDoesNotDeleteOmittedValues(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "upsertv")
+	keptField := f.CreateField(t, "upsert_keep", domain.EntityTypeUser)
+	updatedField := f.CreateField(t, "upsert_update", domain.EntityTypeUser)
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.SetValues(txCtx, user.ID, map[string]string{
+			keptField.ID.String():    "kept",
+			updatedField.ID.String(): "old",
+		})
+	})
+	require.NoError(t, err)
+
+	err = f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.FieldValueRepo.UpsertValues(txCtx, user.ID, map[string]string{updatedField.ID.String(): "new"})
+	})
+	require.NoError(t, err)
+
+	vals, err := f.FieldValueRepo.GetByEntityID(ctx, user.ID)
+	require.NoError(t, err)
+
+	got := make(map[uuid.UUID]string, len(vals))
+	for _, val := range vals {
+		got[val.FieldID] = val.Value
+	}
+
+	assert.Equal(t, "kept", got[keptField.ID])
+	assert.Equal(t, "new", got[updatedField.ID])
 }

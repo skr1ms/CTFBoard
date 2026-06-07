@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,8 +35,20 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 	log := logMock.NewMockLogger(t)
 
 	comp := &domain.Competition{Name: "Test", Mode: "teams_only"}
+	nextID := uuid.New()
+	challengeID := uuid.New()
+
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{
+		{
+			Challenge: &domain.Challenge{
+				ID:              challengeID,
+				Title:           "Challenge",
+				Attribution:     "Author",
+				NextChallengeID: &nextID,
+			},
+		},
+	}, nil).Once()
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
@@ -65,7 +78,10 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 	assert.Equal(t, domain.BackupVersion, data.Version)
 	assert.NotZero(t, data.ExportedAt)
 	assert.Equal(t, comp, data.Competition)
-	assert.Empty(t, data.Challenges)
+	require.Len(t, data.Challenges, 1)
+	assert.Equal(t, "Author", data.Challenges[0].Attribution)
+	require.NotNil(t, data.Challenges[0].NextID)
+	assert.Equal(t, nextID, *data.Challenges[0].NextID)
 }
 
 func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {

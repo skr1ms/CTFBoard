@@ -11,6 +11,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func TestTeamUseCase_GetInviteToken_Success(t *testing.T) {
@@ -68,7 +69,6 @@ func TestTeamUseCase_UpdateMyTeam_Success(t *testing.T) {
 	user := newTestUser(captainID, &teamID, "cap", "cap@x.com")
 	team := newTestTeam(teamID, "OldName", captainID, uuid.New(), false)
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -76,16 +76,18 @@ func TestTeamUseCase_UpdateMyTeam_Success(t *testing.T) {
 	d.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.teamRepo.EXPECT().GetByName(mock.Anything, "NewName").Return(nil, apperr.ErrTeamNotFound).Once()
 	d.teamRepo.EXPECT().UpdateName(mock.Anything, teamID, "NewName").Return(nil).Once()
 
 	uc := d.createUseCase()
 
-	result, err := uc.UpdateMyTeam(context.Background(), captainID, "NewName")
+	name := "NewName"
+	result, err := uc.UpdateMyTeam(context.Background(), captainID, usecase.TeamUpdateParams{Name: &name})
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Equal(t, "NewName", result.Name)
+	assert.Equal(t, "NewName", result.Team.Name)
 }
 
 func TestTeamUseCase_UpdateMyTeam_Error_NotCaptain(t *testing.T) {
@@ -98,7 +100,6 @@ func TestTeamUseCase_UpdateMyTeam_Error_NotCaptain(t *testing.T) {
 	user := newTestUser(captainID, &teamID, "member", "m@x.com")
 	team := newTestTeam(teamID, "Team", realCaptainID, uuid.New(), false)
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -109,7 +110,8 @@ func TestTeamUseCase_UpdateMyTeam_Error_NotCaptain(t *testing.T) {
 
 	uc := d.createUseCase()
 
-	result, err := uc.UpdateMyTeam(context.Background(), captainID, "NewName")
+	name := "NewName"
+	result, err := uc.UpdateMyTeam(context.Background(), captainID, usecase.TeamUpdateParams{Name: &name})
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrNotCaptain)

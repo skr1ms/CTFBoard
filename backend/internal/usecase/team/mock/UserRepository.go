@@ -216,6 +216,66 @@ func (_c *MockUserRepository_ClearAvatarURL_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// CountActiveUsers provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) CountActiveUsers(ctx context.Context) (int64, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountActiveUsers")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_CountActiveUsers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountActiveUsers'
+type MockUserRepository_CountActiveUsers_Call struct {
+	*mock.Call
+}
+
+// CountActiveUsers is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockUserRepository_Expecter) CountActiveUsers(ctx interface{}) *MockUserRepository_CountActiveUsers_Call {
+	return &MockUserRepository_CountActiveUsers_Call{Call: _e.mock.On("CountActiveUsers", ctx)}
+}
+
+func (_c *MockUserRepository_CountActiveUsers_Call) Run(run func(ctx context.Context)) *MockUserRepository_CountActiveUsers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_CountActiveUsers_Call) Return(n int64, err error) *MockUserRepository_CountActiveUsers_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockUserRepository_CountActiveUsers_Call) RunAndReturn(run func(ctx context.Context) (int64, error)) *MockUserRepository_CountActiveUsers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountSearch provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) CountSearch(ctx context.Context, search *string) (int64, error) {
 	ret := _mock.Called(ctx, search)

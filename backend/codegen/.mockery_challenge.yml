@@ -70,6 +70,13 @@ packages:
           pkgname: "mock"
           structname: "MockTagRepository"
 
+      TopicRepository:
+        config:
+          dir: "internal/usecase/challenge/mock"
+          filename: "TopicRepository.go"
+          pkgname: "mock"
+          structname: "MockTopicRepository"
+
       CommentRepository:
         config:
           dir: "internal/usecase/challenge/mock"

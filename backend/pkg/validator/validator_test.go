@@ -218,7 +218,7 @@ func TestCustomValidator_ValidateVar_StrongPassword_Error(t *testing.T) {
 func TestValidateCustomFieldEnvelope_Success(t *testing.T) {
 	t.Parallel()
 
-	err := ValidateCustomFieldEnvelope(map[string]string{"field_id": "value"})
+	err := ValidateCustomFieldEnvelope(map[string]any{"field_id": map[string]any{"nested": true}})
 	assert.NoError(t, err)
 }
 
@@ -226,12 +226,12 @@ func TestValidateCustomFieldEnvelope_Error(t *testing.T) {
 	t.Parallel()
 
 	longKey := string(make([]byte, MaxCustomFieldKeyLen+1))
-	longValue := string(make([]byte, MaxCustomFieldValueLen+1))
+	longValue := string(make([]byte, MaxCustomFieldEncodedValueLen+1))
 
-	assert.Error(t, ValidateCustomFieldEnvelope(map[string]string{longKey: "value"}))
-	assert.Error(t, ValidateCustomFieldEnvelope(map[string]string{"field_id": longValue}))
+	assert.Error(t, ValidateCustomFieldEnvelope(map[string]any{longKey: "value"}))
+	assert.Error(t, ValidateCustomFieldEnvelope(map[string]any{"field_id": longValue}))
 
-	fields := make(map[string]string, MaxCustomFields+1)
+	fields := make(map[string]any, MaxCustomFields+1)
 	for i := range MaxCustomFields + 1 {
 		fields[string(rune('a'+i))] = "value"
 	}

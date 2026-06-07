@@ -162,6 +162,25 @@ func TestChallengeUseCase_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testin
 	assert.Nil(t, detail)
 }
 
+func TestAnonymizedChallengeDetail_HidesMetadata(t *testing.T) {
+	t.Parallel()
+
+	nextID := uuid.New()
+	challenge := newTestChallenge(uuid.New(), "Locked", "Web", 100, "")
+	challenge.Attribution = "Author"
+	challenge.ConnectionInfo = "nc host 31337"
+	challenge.NextChallengeID = &nextID
+
+	detail := anonymizedChallengeDetail(challenge)
+
+	assert.Equal(t, "???", detail.Challenge.Title)
+	assert.Equal(t, "???", detail.Challenge.Description)
+	assert.Empty(t, detail.Challenge.Attribution)
+	assert.Empty(t, detail.Challenge.ConnectionInfo)
+	assert.Nil(t, detail.Challenge.NextChallengeID)
+	assert.Equal(t, domain.ChallengeStateLocked, detail.Challenge.State)
+}
+
 func TestChallengeUseCase_SubmitFlag_RequirementsNotMet(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)

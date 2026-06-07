@@ -62,7 +62,7 @@ func TestE2E_FullCompetitionLifecycle_WideProductFlow(t *testing.T) {
 	requireStatus(t, "member joins lifecycle team", http.StatusOK, join.StatusCode(), join.Body)
 
 	renamedAlpha := "Alpha Renamed " + suffix
-	rename, err := s.client.PatchTeamsMeWithResponse(context.Background(), openapi.PatchTeamsMeJSONRequestBody{Name: renamedAlpha}, e2eBearer(captain.Token))
+	rename, err := s.client.PatchTeamsMeWithResponse(context.Background(), openapi.PatchTeamsMeJSONRequestBody{Name: &renamedAlpha}, e2eBearer(captain.Token))
 	require.NoError(t, err)
 	requireStatus(t, "rename team", http.StatusOK, rename.StatusCode(), rename.Body)
 

@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/wahrwelt-kit/go-cachekit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
@@ -322,6 +324,115 @@ func TestStatisticsUseCase_GetSolveMatrix_Error(t *testing.T) {
 	d.statsRepo.On("GetSolveMatrix", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetSolveMatrix(context.Background(), false)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetAdminStatisticsFunnel_Success(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	uc, redisClient := d.createStatisticsUseCase()
+
+	challengeID := uuid.New()
+	funnel := &domain.AdminStatisticsFunnel{
+		Challenges: []*domain.FunnelChallengeRow{
+			{
+				ChallengeID:    challengeID,
+				ChallengeTitle: "web 100",
+				OpenedCount:    3,
+				AttemptedCount: 2,
+				SolvedCount:    1,
+			},
+		},
+	}
+
+	redisClient.ExpectGet("stats:funnel:10").SetErr(redis.Nil)
+	d.statsRepo.On("GetAdminStatisticsFunnel", mock.Anything, 10, mock.Anything).Return(funnel, nil)
+	redisClient.Regexp().ExpectSet("stats:funnel:10", `.*`, 30*time.Second).SetVal("OK")
+
+	result, err := uc.GetAdminStatisticsFunnel(context.Background(), 10, false)
+
+	assert.NoError(t, err)
+	require.Len(t, result.Challenges, 1)
+	assert.Equal(t, challengeID, result.Challenges[0].ChallengeID)
+	assert.Equal(t, 3, result.Challenges[0].OpenedCount)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetAdminStatisticsFunnel_UsesFreezeUnlessForceLive(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	client, redisClient := redismock.NewClientMock()
+	uc := NewStatisticsUseCase(StatisticsDeps{
+		StatsRepo:  d.statsRepo,
+		Cache:      cachekit.New(client),
+		CompGetter: d.competitionRepo,
+	})
+
+	now := time.Now().UTC()
+	startTime := now.Add(-2 * time.Hour)
+	freezeTime := now.Add(-30 * time.Minute)
+	endTime := now.Add(time.Hour)
+	comp := &domain.Competition{
+		ID:         1,
+		Name:       "CTF",
+		StartTime:  &startTime,
+		FreezeTime: &freezeTime,
+		EndTime:    &endTime,
+	}
+	funnel := &domain.AdminStatisticsFunnel{}
+
+	d.competitionRepo.On("Get", mock.Anything).Return(comp, nil).Twice()
+	redisClient.ExpectGet("stats:funnel:10" + statsFrozenSuffix(freezeTime)).SetErr(redis.Nil)
+	d.statsRepo.On("GetAdminStatisticsFunnel", mock.Anything, 10, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft != nil && ft.Equal(freezeTime)
+	})).Return(funnel, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:funnel:10"+statsFrozenSuffix(freezeTime), `.*`, 30*time.Second).SetVal("OK")
+	redisClient.ExpectGet("stats:funnel:10").SetErr(redis.Nil)
+	d.statsRepo.On("GetAdminStatisticsFunnel", mock.Anything, 10, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft == nil
+	})).Return(funnel, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:funnel:10", `.*`, 30*time.Second).SetVal("OK")
+
+	frozen, err := uc.GetAdminStatisticsFunnel(context.Background(), 10, false)
+	require.NoError(t, err)
+	require.NotNil(t, frozen)
+
+	live, err := uc.GetAdminStatisticsFunnel(context.Background(), 10, true)
+	require.NoError(t, err)
+	require.NotNil(t, live)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetAdminStatisticsFunnel_ClampsLimit(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	uc, redisClient := d.createStatisticsUseCase()
+
+	funnel := &domain.AdminStatisticsFunnel{}
+
+	redisClient.ExpectGet("stats:funnel:100").SetErr(redis.Nil)
+	d.statsRepo.On("GetAdminStatisticsFunnel", mock.Anything, 100, mock.Anything).Return(funnel, nil)
+	redisClient.Regexp().ExpectSet("stats:funnel:100", `.*`, 30*time.Second).SetVal("OK")
+
+	result, err := uc.GetAdminStatisticsFunnel(context.Background(), 500, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetAdminStatisticsFunnel_Error(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	uc, redisClient := d.createStatisticsUseCase()
+
+	redisClient.ExpectGet("stats:funnel:10").SetErr(redis.Nil)
+	d.statsRepo.On("GetAdminStatisticsFunnel", mock.Anything, 10, mock.Anything).Return(nil, errors.New("db error"))
+
+	result, err := uc.GetAdminStatisticsFunnel(context.Background(), 10, false)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
